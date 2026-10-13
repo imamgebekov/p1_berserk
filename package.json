@@ -1,0 +1,18 @@
+{
+  "name": "berserk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Берсерк — тёмный пиксельный экшен-RPG для телефона",
+  "scripts": {
+    "dev": "vite --host --port 5174",
+    "build": "vite build",
+    "preview": "vite preview --host --port 5174",
+    "test": "node test/headless.mjs",
+    "test:browser": "node test/browser.mjs",
+    "test:all": "node test/headless.mjs && node test/browser.mjs"
+  },
+  "devDependencies": {
+    "vite": "8.3.1"
+  }
+}

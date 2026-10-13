@@ -1,0 +1,153 @@
+// Единый файл баланса. Любое игровое число (урон, шансы, тайминги, цены) живёт здесь.
+// Время — в секундах, расстояния — в пикселях низкого разрешения (мир шириной view.width).
+
+export const CFG = {
+  view: {
+    width: 176,          // ширина низкого разрешения
+    minHeight: 180,
+    groundOffset: 34,    // земля = высота - groundOffset
+    maxDpr: 2,           // потолок плотности пикселей холста (экономит заливку на iPhone)
+    maxDt: 1 / 30        // кадр длиннее считаем как 1/30 с
+  },
+
+  world: {
+    length: 2600,
+    town: 300,           // правее — пустошь, враги не заходят левее town+20
+    fire: 150,           // костёр
+    startOffset: 24,     // игрок появляется в fire + startOffset
+    campfireHealRadius: 34,
+    campfireHealPerSec: 14,
+    combatCooldown: 4    // сек без боя до лечения у костра
+  },
+
+  player: {
+    maxHp: 70,
+    hpPerLevel: 10,
+    walkSpeed: 50,
+    rageSpeed: 62,
+    swingMoveFactor: .35,   // скорость при замахе
+    jumpVel: 125,
+    gravity: 420,
+    knockDecay: .02,        // vx *= knockDecay^dt
+    baseDamage: 6,
+    damagePerLevel: 1.6,
+    damageVariance: [.85, 1.15],
+    heavyMult: 1.6,
+    lightSwing: .28,
+    heavySwing: .4,
+    hitWindow: [.3, .78],   // доля замаха, когда клинок бьёт
+    reachLight: 32,
+    reachHeavy: 40,
+    comboWindow: .55,       // окно продолжения цепочки после удара
+    comboLength: 3,         // третий удар тяжёлый
+    hitBehind: -3,          // насколько можно задеть за спиной
+    hitHeightSlack: 4,
+    invAfterHit: .7,
+    invOnRise: 1.2,
+    hurtKnock: 90
+  },
+
+  rage: {
+    max: 100,
+    duration: 9,
+    gainLight: 7,
+    gainHeavy: 12,
+    gainHurt: 14,
+    damageMult: 2,
+    damageTaken: .7,
+    swingMult: .72,
+    hpDrain: 1.6            // в секунду, но не ниже 1 hp
+  },
+
+  xp: { base: 24, exp: 1.45 },
+
+  // hp/spd/dmg — базовые, дальше умножаются на масштаб (уровень игрока и круг Предвестника)
+  enemies: {
+    imp:   { w: 6,  h: 8,  hp: 18,  spd: 40, dmg: 5,  xp: 6,   reach: 9,  wind: .38 },
+    brute: { w: 10, h: 15, hp: 48,  spd: 24, dmg: 10, xp: 14,  reach: 13, wind: .55 },
+    lord:  { w: 16, h: 24, hp: 150, spd: 20, dmg: 16, xp: 60,  reach: 18, wind: .7 },
+    boss:  { w: 26, h: 44, hp: 600, spd: 15, dmg: 30, xp: 220, reach: 40, wind: .95 }
+  },
+  scaling: { perPlayerLevel: .12, perCycle: .1, bossPerCycle: .25 },
+  enemyAi: {
+    speedVariance: [.9, 1.15],
+    aggroDist: 190,
+    despawnDist: 300,
+    recoverTime: .5,
+    bossRecoverTime: .9,
+    cooldown: [.25, .8],
+    bossCooldownMult: 2,
+    knockLight: 60,
+    knockHeavy: 110,
+    knockResist: { boss: .1, lord: .5 },
+    bossSlamRange: 28,
+    bossSlamForward: 22,
+    bossSlamMaxZ: 10,
+    lordHitZ: .7
+  },
+
+  spawn: {
+    interval: [1.8, 3.4],
+    firstDelay: 2,
+    maxAlive: 6,
+    distance: [105, 150],
+    minDistance: 80,
+    townMargin: 40,
+    lordEvery: 9,           // каждый N-й убитый — Слуга
+    impChance: .6
+  },
+
+  eclipse: {
+    firstTimer: 45,
+    nextTimer: 70,
+    smoothing: .7,
+    bossSpawnAhead: 150,
+    bossMinX: 160,          // от town
+    bossEdge: 120
+  },
+
+  loot: {
+    ashPerKill: [1, 3],
+    lordAshMult: 5,
+    bossAshBase: 40,
+    flavorChance: .18,
+    flavorNames: ['Ржавый обломок', 'Клык рогача', 'Обугленный амулет', 'Осколок стали', 'Клочок плаща']
+  },
+
+  npcPlayers: {
+    count: 4,
+    speed: 30,
+    retarget: [2, 4.5],
+    wanderRange: 120,
+    teleportDist: 300,
+    engageRange: 30,
+    engageRangeBoss: 46,
+    swingTime: .25,
+    hitCooldown: [.8, 1.2],
+    bossHitCooldown: [1.1, 1.7],
+    damage: [6, 10],
+    bossDamage: [4, 7],
+    barkChance: .3
+  },
+
+  chat: {
+    idleInterval: [7, 15],
+    firstIdle: 6,
+    maxLines: 6,
+    fadeAfter: 11,
+    removeAfter: 12.5
+  },
+
+  online: { base: 1284, jitter: [-40, 60], eclipseBonus: 90, updateRate: .6 },
+
+  // эффекты (сек)
+  fx: {
+    freezeLight: .05, freezeHeavy: .067, freezeRage: .083, freezeHurt: .067, freezeBrand: .133,
+    shakeLight: 2, shakeHeavy: 4, shakeHurt: 5, shakeBrand: 8, shakeBoss: 6, shakeBossDown: 8,
+    shakeDecay: 18,
+    hurtFlash: .35,
+    maxParticles: 220       // потолок, чтобы кадр на телефоне не разрастался
+  }
+};
+
+export const xpNeed = lv => Math.floor(CFG.xp.base * Math.pow(lv, CFG.xp.exp));

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0908">
+<title>Берсерк</title>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="row1"><span>Странник · ур. <b id="lv">1</b></span><span>В мире: <b id="onl">1284</b></span></div>
+  <div class="bar"><i id="hpf"></i></div>
+  <div class="bar rage" id="rgbar"><i id="rgf"></i></div>
+  <div id="stats">пепел <span id="ash">0</span> · убито <span id="kills">0</span></div>
+  <div id="boss" hidden><span>Предвестник Затмения</span><div class="bar"><i id="bhf"></i></div></div>
+  <div id="timer"></div>
+  <div id="chat"></div>
+</div>
+<button id="mute">звук: вкл</button>
+
+<div id="pad">
+  <div class="btn" id="bl" data-k="l">◀</div>
+  <div class="btn" id="br" data-k="r">▶</div>
+  <div class="btn" id="bbrand" data-k="brand">Клеймо</div>
+  <div class="btn" id="bjump" data-k="jump">Прыжок</div>
+  <div class="btn" id="batk" data-k="atk">Удар</div>
+</div>
+
+<div class="veil" id="start">
+  <h1>БЕРСЕРК</h1>
+  <h2>эпоха затмения</h2>
+  <p>Ты идёшь с мечом, который слишком велик для человека. Мир вокруг живёт без тебя, но ты в нём не один.</p>
+  <button id="go">Войти в мир</button>
+  <div id="hint">Держи «Удар» для цепочки: третий удар тяжёлый. Когда шкала под здоровьем заполнится, жми «Клеймо». У костра в начале мира безопасно.</div>
+</div>
+<div class="veil" id="dead" hidden>
+  <h2>Ты пал.</h2>
+  <p>Мир не остановился. Костёр всё ещё горит.</p>
+  <button id="rise">Подняться у костра</button>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
