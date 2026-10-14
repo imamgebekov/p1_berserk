@@ -3,6 +3,7 @@
 import { clamp, len } from './util3d.js';
 import { makeLevelMap, resolve } from './map.js';
 import { reveal } from './places3d.js';
+import { mulberry32 } from './sim.js';
 
 export const SURFACE = 'surface';
 export const onSurface = W => W.lvl === SURFACE;
@@ -13,16 +14,18 @@ function fogFor(cfg, R) { const n = Math.ceil(2 * R / cfg.map.cell) + 2; return 
 export function initLevels(W) {
   const cfg = W.cfg;
   W.lvl = SURFACE;
-  W.levels = { [SURFACE]: { id: SURFACE, def: null, map: W.map, enemies: W.enemies, drops: W.drops, spawnT: W.spawnT, seen: W.seen, seenN: W.seenN, seenR: cfg.world.radius } };
-  for (const def of (cfg.dungeons && cfg.dungeons.list) || []) {
+  W.levels = { [SURFACE]: { id: SURFACE, def: null, map: W.map, enemies: W.enemies, drops: W.drops, spawnT: W.spawnT, seen: W.seen, seenN: W.seenN, seenR: cfg.world.radius, rng: W.rng } };
+  // у подземелья свой поток случайных чисел: новые подземелья не сдвигают добычу и бои наверху (в тестах с зерном — воспроизводимо, в игре — Math.random)
+  ((cfg.dungeons && cfg.dungeons.list) || []).forEach((def, i) => {
     const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
-    W.levels[def.id] = { id: def.id, def, map, enemies: [], drops: [], spawnT: 1, ...fogFor(cfg, R) };
-  }
+    const rng = W.rng === Math.random ? Math.random : mulberry32(cfg.dungeons.seed + i);
+    W.levels[def.id] = { id: def.id, def, map, enemies: [], drops: [], spawnT: 1, rng, ...fogFor(cfg, R) };
+  });
   W.seenR = cfg.world.radius;
 }
 
 function stash(W) { const L = W.levels[W.lvl]; L.enemies = W.enemies; L.drops = W.drops; L.spawnT = W.spawnT; }
-function load(W, id) { const L = W.levels[id]; W.lvl = id; W.map = L.map; W.enemies = L.enemies; W.drops = L.drops; W.spawnT = L.spawnT; W.seen = L.seen; W.seenN = L.seenN; W.seenR = L.seenR; }
+function load(W, id) { const L = W.levels[id]; W.lvl = id; W.map = L.map; W.enemies = L.enemies; W.drops = L.drops; W.spawnT = L.spawnT; W.seen = L.seen; W.seenN = L.seenN; W.seenR = L.seenR; W.rng = L.rng; }
 
 // выполнить fn так, будто текущий уровень — id (возрождение боссов, наполнение контейнеров на других уровнях)
 export function withLevel(W, id, fn) {

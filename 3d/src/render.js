@@ -84,7 +84,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
   const fire = makeCampfire(); scene.add(fire.group);
   // фонарь героя: светит только в подземельях (там нет неба и солнца)
-  const lantern = new THREE.PointLight('#ffb070', 0, 16, 1.4); scene.add(lantern);
+  const lantern = new THREE.PointLight('#ffb070', 22, 16, 1.4); lantern.visible = false; scene.add(lantern);   // спрятанный свет не считается в шейдерах поверхности
 
   // пепел в воздухе
   const ashN = 140, ashPos = new Float32Array(ashN * 3);
@@ -102,7 +102,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (!views.has(id)) { const v = L.def ? buildLevelView(L, cfg) : buildSurfaceView(L); scene.add(v.group); views.set(id, v); }
     for (const [k, v] of views) v.group.visible = k === id;
     const up = !L.def; for (const o of surfaceObjs) o.visible = up;
-    sun.visible = up; lantern.intensity = up ? 0 : 22;
+    sun.visible = up; lantern.visible = !up;
     if (!up) { scene.fog.color.set('#070504'); scene.background.set('#070504'); hemi.color.set('#6a5a50'); hemi.groundColor.set('#1a1210'); hemi.intensity = .9; }
     lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts;
   }

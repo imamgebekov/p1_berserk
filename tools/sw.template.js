@@ -15,12 +15,13 @@ self.addEventListener('activate', e => {
   );
 });
 
+// ignoreVary: сервер может ответить с Vary: Origin, а модульные скрипты шлют Origin — без этого кэш промахивается и офлайн отдаётся index.html
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req).catch(() => caches.match('./index.html')))
+    caches.match(req, { ignoreSearch: true, ignoreVary: true }).then(hit => hit || fetch(req).catch(() => caches.match('./index.html')))
   );
 });

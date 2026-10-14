@@ -159,5 +159,25 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   ok(W.ev.length <= 200, 'очередь событий ограничена');
 }
 
+// ---------- 10. свой поток случайных чисел у подземелий ----------
+{
+  const sig = W => JSON.stringify({ c: W.levels.surface.map.containers.map(c => c.items), s: W.shop.stock, r: [W.rng(), W.rng(), W.rng()] });
+  const play = W => {
+    const p = W.player; for (const [t, dx, dz] of [['imp', 2, 0], ['brute', -2, 1], ['hound', 0, -2.5]]) spawnEnemy(W, t, p.x + dx, p.z + dz);
+    run(W, 20, i => ({ attack: i % 15 < 3, roll: i % 97 === 0 }));
+    return { k: W.kills, s: JSON.stringify({ x: p.x.toFixed(4), hp: p.hp.toFixed(4), e: W.enemies.map(e => e.hp), r: W.rng() }) };
+  };
+  const a = mk(5), b = mk(5, c => { c.dungeons.list = []; });
+  ok(sig(a) === sig(b), 'подземелья не сдвигают случайные числа поверхности');
+  const pa = play(mk(6)), pb = play(mk(6, c => { c.dungeons.list = []; }));
+  ok(pa.k > 0 && pa.k === pb.k && pa.s === pb.s, 'бой наверху одинаков с подземельями и без них: ' + pa.k + ' / ' + pb.k);
+  const w = mk(5); toHatch(w); usePortal(w);
+  ok(w.rng === w.levels[D.id].rng && w.rng !== w.levels.surface.rng, 'внизу работает поток подземелья');
+  w.player.x = D.exit.x; w.player.z = D.exit.z; step(w, 1 / 60, {}); usePortal(w);
+  ok(w.rng === w.levels.surface.rng, 'наверху снова поток поверхности');
+  const g = createWorld(clone());
+  ok(g.levels[D.id].rng === Math.random, 'в игре добыча погреба случайна (Math.random), а не одна и та же');
+}
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Уровни и погреб 3D: OK');
