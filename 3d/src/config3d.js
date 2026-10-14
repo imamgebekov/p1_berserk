@@ -54,6 +54,21 @@ export const CFG3 = {
       { kind: 'locked', x: 62, z: 28 }, { kind: 'cache', x: -60, z: 40 }, { kind: 'corpse', x: 40, z: 56 }, { kind: 'barrel', x: -26, z: 24 },
       { kind: 'crate', x: 24, z: 2 }, { kind: 'sack', x: -20, z: 22 }
     ],
+    // названные места. safe — безопасная зона (враги не рождаются, а услышавшие теряют след); danger 1–3 — опасная зона:
+    // враги крепче, их больше, добыча лучше, опыта больше
+    cell: 5, reveal: 14,  // шаг сетки «тумана войны» и радиус открытия карты вокруг героя, м
+    places: [
+      { id: 'brod', name: 'Пепельный Брод', type: 'town', x: 0, z: 6, r: 30, safe: true },
+      { id: 'sloboda', name: 'Кузнечная слобода', type: 'hamlet', x: -28, z: 30, r: 13, safe: true },
+      { id: 'taverna', name: 'Таверна «Последний свет»', type: 'hamlet', x: 28, z: -26, r: 12, safe: true },
+      { id: 'zastava', name: 'Застава', type: 'hamlet', x: 48, z: 8, r: 12, safe: true },
+      { id: 'vdov', name: 'Хутор Вдов', type: 'hamlet', x: -52, z: 16, r: 9, safe: true },
+      { id: 'uglej', name: 'Хутор Углей', type: 'hamlet', x: 52, z: -22, r: 9, safe: true },
+      { id: 'pogost', name: 'Погост', type: 'danger', x: -46, z: -30, r: 24, danger: 2 },
+      { id: 'polya', name: 'Сухие Поля', type: 'danger', x: 48, z: 40, r: 22, danger: 1 },
+      { id: 'ruiny', name: 'Руины Скорби', type: 'danger', x: -56, z: 40, r: 14, danger: 2 },
+      { id: 'lager', name: 'Лагерь Ржавых', type: 'danger', x: 56, z: -44, r: 12, danger: 3 }
+    ],
     // области: кладбище (могилы-контейнеры), ферма, рынок, руины, лагерь
     zones: [
       { type: 'graveyard', x: -52, z: -38, w: 26, d: 18 },
@@ -112,6 +127,11 @@ export const CFG3 = {
     },
     depthHp: 1.6,          // враги вдали от костра крепче: здоровье × (1 + depthHp × глубина), глубина 0 у костра, 1 у границы
     depthDmg: 1.0,         // и бьют сильнее: урон × (1 + depthDmg × глубина)
+    dangerHp: .35,        // опасная зона: здоровье × (1 + dangerHp × уровень опасности)
+    dangerDmg: .25,       // урон ×(1 + dangerDmg × уровень)
+    dangerCount: 1.2,     // в опасной зоне держим на (уровень × dangerCount) врагов больше
+    dangerXp: .25,        // опыт ×(1 + dangerXp × уровень)
+    dangerLoot: .6,       // качество добычи контейнеров в зоне: + уровень × dangerLoot
     // слух: чем громче герой, тем дальше его слышат. Услышавший идёт к герою, пока тот не уйдёт дальше `lose`
     hear: { idle: 10, run: 17, fight: 25, house: .55, lose: 32, drift: .3 },   // drift: доля скорости, с которой «бредёт» неуслышавший
     knockDecay: 9

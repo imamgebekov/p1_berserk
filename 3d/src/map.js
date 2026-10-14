@@ -126,3 +126,10 @@ export function regionOf(map, x, z) {
   }
   return null;
 }
+
+// место (город, посёлок, опасная зона), в котором стоит точка; при вложенных побеждает меньшее по радиусу
+export function placeAt(map, x, z) {
+  let best = null;
+  for (const p of map.cfg.places || []) { const d = Math.hypot(x - p.x, z - p.z); if (d < p.r && (!best || p.r < best.r)) best = p; }
+  return best;
+}

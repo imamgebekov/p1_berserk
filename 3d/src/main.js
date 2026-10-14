@@ -5,8 +5,9 @@ import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith } from './shop.js';
 import { createSkills } from './skillsui.js';
-import { xpNeed } from './sim.js';
-import { loadSave, createSaver } from './save3d.js';
+import { xpNeed, reveal } from './sim.js';
+import { drawMap } from './mapdraw.js';
+import { loadSave, createSaver, unpackSeen } from './save3d.js';
 import { createRenderer } from './render.js';
 import { rotateInput } from './map.js';
 import { createInput } from './input.js';
@@ -18,7 +19,7 @@ const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
 // iOS Safari местами игнорирует touch-action: страницу нельзя ни листать, ни тянуть, ни масштабировать, пока открыта не панель
-const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith, #skills');
+const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith, #skills, #map');
 document.addEventListener('touchmove', e => { if (!inPanel(e)) e.preventDefault(); }, { passive: false });
 for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -34,7 +35,7 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(cfg.bag.slots);
-if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); }
+if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); }
 const saver = createSaver(W);
 const input = createInput(document, window);
 let panelOpen = false, landscape = false;
@@ -62,8 +63,15 @@ function onEvent(v) {
   else if (v.k === 'unlock') toast('Замок открыт', 'sys');
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
+  else if (v.k === 'place') showPlace(v.place);
   else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков ✦`, '', '#e8c04a');
   else if (v.k === 'xp') onText(v.x, 3, v.z, '+' + v.n + ' оп.', 'xp');
+}
+function showPlace(pl) {
+  const el = $('place'); el.hidden = !pl; if (!pl) return;
+  el.className = pl.safe ? 'safe' : 'danger';
+  el.textContent = pl.safe ? `${pl.name} · безопасно` : `${pl.name} · опасность ${'▮'.repeat(pl.danger)}${'▯'.repeat(3 - pl.danger)}`;
+  el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
 }
 function onHurt() {
   if (reduce) return;
@@ -112,6 +120,15 @@ addEventListener('pagehide', () => saver.write());
 
 const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
 talk.addEventListener('click', e => { e.stopImmediatePropagation(); (W.nearNpc === 'smith' ? smith : shop).open(); }, true);
+// карта: миникарта в углу, большая карта по касанию
+const miniCtx = $('mini').getContext('2d'), mapCv = $('mapCv'), mapCtx = mapCv.getContext('2d'), mapEl = $('map');
+let miniT = 0;
+function drawMini() { drawMap(miniCtx, W, { w: 92, h: 92, scale: 2.1, cx: W.player.x, cz: W.player.z, full: false }); }
+function drawFull() { drawMap(mapCtx, W, { w: 640, h: 640, scale: 640 / (cfg.world.radius * 2 + 6), cx: 0, cz: 0, full: true }); const pl = W.place; $('mapLegend').textContent = (pl ? `Вы здесь: ${pl.name}. ` : 'Вы в глуши. ') + 'Зелёные круги безопасны, красные опасны (чем краснее, тем хуже). Жёлтые точки: нетронутые контейнеры. Торговец золотой, кузнец рыжий. Закрытое туманом ещё не исследовано.'; }
+const mapOpen = () => { drawFull(); mapEl.hidden = false; panelOpen = true; input.release(); };
+const mapClose = () => { mapEl.hidden = true; panelOpen = false; };
+$('miniBtn').addEventListener('click', () => (mapEl.hidden ? mapOpen() : mapClose()));
+$('mapClose').addEventListener('click', mapClose);
 const hpFill = $('hpFill'), hpTxt = $('hpTxt'), killsEl = $('kills');
 let saveT = 0, lastHp = -1, lastKey = '', last = performance.now();
 function loop(now) {
@@ -124,6 +141,7 @@ function loop(now) {
   }
   if (renderer) renderer.render(W, panelOpen || landscape ? 0 : dt);
   { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = W.nearNpc === 'smith' ? 'Кузнец' : 'Торговать'; if (talk.textContent !== l) talk.textContent = l; } }
+  if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; hpFill.style.transform = `scaleX(${W.player.hp / W.player.maxhp})`; hpTxt.textContent = Math.ceil(W.player.hp); }
@@ -133,4 +151,4 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };
+window.__b3d = { reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };

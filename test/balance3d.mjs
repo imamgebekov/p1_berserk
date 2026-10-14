@@ -14,7 +14,7 @@ const PLACES = { 'у костра': [6, 6], 'середина': [-20, -40], 'у 
 const SEEDS = 10, SECONDS = 90;
 
 function run(tier, place, seed) {
-  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5;
+  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.map.places = [];   // меряем чистую глубину, без зон
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3));
   Object.assign(W.inv.eq, TIERS[tier]); W.player.x = PLACES[place][0]; W.player.z = PLACES[place][1];
   let taken = 0; const dodge = mulberry32(seed + 99);

@@ -15,10 +15,11 @@ import { BY_ID } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, rollLoot, rollDrop } from './data/loot.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats } from './inv.js';
-import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf } from './map.js';
+import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt } from './map.js';
 
 export function createWorld(cfg, rng = Math.random) {
   const W = makeWorld(cfg, rng);
+  const cell = cfg.map.cell, n = Math.ceil(2 * cfg.world.radius / cell) + 2; W.seenN = n; W.seen = new Uint8Array(n * n);
   for (const c of W.map.containers) refill(W, c);
   restock(W);
   return W;
@@ -26,7 +27,7 @@ export function createWorld(cfg, rng = Math.random) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0 },
     enemies: []
   };
@@ -35,8 +36,8 @@ function makeWorld(cfg, rng) {
 const rr = (W, a, b) => a + W.rng() * (b - a);
 
 export function spawnEnemy(W, type, x, z) {
-  const C = W.cfg.enemies[type], depth = clamp(len(x, z) / W.cfg.world.radius, 0, 1), hp = Math.round(C.hp * (1 + W.cfg.enemies.depthHp * depth));
-  const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, dmgMul: 1 + W.cfg.enemies.depthDmg * depth, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
+  const C = W.cfg.enemies[type], E = W.cfg.enemies, depth = clamp(len(x, z) / W.cfg.world.radius, 0, 1), pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * (1 + E.dangerHp * danger));
+  const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, dmgMul: 1 + E.depthDmg * depth + E.dangerDmg * danger, danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
   W.enemies.push(e);
   return e;
 }
@@ -47,6 +48,7 @@ function spawnRing(W) {
   let x = p.x + Math.sin(a) * d, z = p.z + Math.cos(a) * d;
   const l = len(x, z); if (l > R) { x *= R / l; z *= R / l; }
   if (nearBuilding(W.map, x, z, 1.5)) return false;                 // не рождаем врагов в стенах
+  { const pl = placeAt(W.map, x, z); if (pl && pl.safe) return false; }   // и в безопасных местах
   const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)];
   const type = reg ? pickW2(reg, W.rng) : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';
   spawnEnemy(W, type, x, z);
@@ -73,7 +75,7 @@ function hurtPlayer(W, dmg, fromX, fromZ) {
 }
 
 function dropLoot(W, e) {
-  const depth = clamp(len(e.x, e.z) / W.cfg.world.radius, 0, 1);
+  const depth = clamp(len(e.x, e.z) / W.cfg.world.radius + .1 * (e.danger || 0), 0, 1);
   for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck)) {
     const a = W.rng() * TAU;
     W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * .7, z: e.z + Math.cos(a) * .7, t: 0, cd: 0 });
@@ -176,8 +178,10 @@ function updateEnemies(W, dt) {
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
     if (e.state === 'chase') {
       e.face = Math.atan2(dx, dz);
-      const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100);
-      if (!e.alert && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
+      const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100) * (W.place && W.place.safe ? .5 : 1);
+      const pe = placeAt(W.map, e.x, e.z), deep = pe && pe.safe && len(e.x - pe.x, e.z - pe.z) < pe.r - 4;    // в глубине безопасного места враги теряют след и не слышат
+      if (deep) e.alert = false;
+      if (!e.alert && !deep && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
       else if (e.alert && d > H.lose) e.alert = false;
       if (!p.dead && !e.alert && d < H.lose) {                       // не услышал: бредёт к герою вполсилы
         const gx = dx / d * C.speed * H.drift * dt, gz = dz / d * C.speed * H.drift * dt; slide(W.map, e, gx, gz, C.radius);
@@ -221,7 +225,8 @@ function updateEnemies(W, dt) {
   W.enemies = W.enemies.filter(e => !(e.dead && e.deadT > .6));
   // держим нужное число врагов
   const alive = W.enemies.filter(e => !e.dead).length;
-  if (alive < E.count && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = spawnRing(W) === false ? .1 : E.respawn; } }
+  const bonus = W.place && W.place.danger ? Math.round(W.place.danger * E.dangerCount) : 0;
+  if (alive < E.count + bonus && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = spawnRing(W) === false ? .1 : E.respawn; } }
   else W.spawnT = Math.max(W.spawnT, .6);
 }
 const P_RADIUS = W => W.cfg.player.radius;
@@ -229,16 +234,31 @@ const P_RADIUS = W => W.cfg.player.radius;
 // наполнить контейнер заново: глубина (расстояние от костра) и удача героя улучшают добычу
 function refill(W, c) {
   const def = CONTAINERS[c.kind], depth = clamp(len(c.x, c.z) / W.cfg.world.radius, 0, 1);
-  c.items = rollLoot(def, W.rng, depth, W.gear.luck);
+  const pl = placeAt(W.map, c.x, c.z);
+  c.items = rollLoot(def, W.rng, depth, W.gear.luck, pl && pl.danger ? pl.danger * W.cfg.enemies.dangerLoot : 0);
   c.ready = c.items.length > 0; c.t = 0;
   c.locked = !!def.locked; c.keyTier = def.locked ? (depth < .3 ? 1 : depth < .6 ? 2 : 3) : 0;
 }
+
+// ---- места и карта ----
+export function trackPlace(W, dt) {
+  const p = W.player, pl = placeAt(W.map, p.x, p.z);
+  if ((pl && pl.id) !== (W.place && W.place.id)) { W.place = pl; W.ev.push({ k: 'place', place: pl }); }
+  if ((W.revealT -= dt) <= 0) { W.revealT = .3; reveal(W, p.x, p.z, W.cfg.map.reveal); }
+}
+export function reveal(W, x, z, r) {
+  const c = W.cfg.map.cell, R = W.cfg.world.radius, n = W.seenN, i0 = Math.floor((x - r + R) / c), i1 = Math.floor((x + r + R) / c), j0 = Math.floor((z - r + R) / c), j1 = Math.floor((z + r + R) / c);
+  for (let j = Math.max(0, j0); j <= Math.min(n - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(n - 1, i1); i++) {
+    const cx = (i + .5) * c - R, cz = (j + .5) * c - R; if (Math.hypot(cx - x, cz - z) <= r + c * .5) W.seen[j * n + i] = 1;
+  }
+}
+export const isSeen = (W, x, z) => { const c = W.cfg.map.cell, R = W.cfg.world.radius, i = Math.floor((x + R) / c), j = Math.floor((z + R) / c); return i >= 0 && j >= 0 && i < W.seenN && j < W.seenN && W.seen[j * W.seenN + i] === 1; };
 
 // ---- опыт, уровни, навыки ----
 export const xpNeed = (lv, cfg) => Math.round(cfg.level.base * Math.pow(lv, cfg.level.pow));
 export function addXp(W, e) {
   const L = W.cfg.level, depth = clamp(len(e.x, e.z) / W.cfg.world.radius, 0, 1), C = W.cfg.enemies[e.type];
-  gainXp(W, Math.round((C.xp || 5) * (1 + depth * .8)));
+  gainXp(W, Math.round((C.xp || 5) * (1 + depth * .8) * (1 + W.cfg.enemies.dangerXp * (e.danger || 0))));
 }
 export function gainXp(W, n) {
   const L = W.cfg.level; if (W.lv >= L.max) return;
@@ -388,6 +408,7 @@ export function step(W, dt, input = {}) {
   refreshGear(W);
   if (W.freeze > 0) { W.freeze -= dt; return; }
   updatePlayer(W, dt, input);
+  trackPlace(W, dt);
   updateEnemies(W, dt);
   updateHouses(W, dt);
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);

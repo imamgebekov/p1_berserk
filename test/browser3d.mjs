@@ -60,6 +60,17 @@ try {
   const hp = await page.evaluate(() => window.__b3d.W.enemies.find(e => e.id === 999)?.hp ?? 0);
   if (!(hp < 100)) bad('удар кнопкой не задел врага');
 
+  // места и карта: подпись места, миникарта, большая карта с туманом
+  await page.evaluate(() => { const w = window.__b3d.W; w.enemies.length = 0; w.cfg.enemies.count = 0; for (const [x, z] of [[0, 6], [-28, 30], [56, -44], [-46, -30]]) { window.__b3d.reveal(x, z, 22); } w.player.x = 56; w.player.z = -44; w.player.inv = 1e9; });
+  await page.waitForTimeout(600);
+  { const t = await page.$eval('#place', e => ({ hidden: e.hidden, text: e.textContent, cls: e.className })); if (t.hidden || !t.text.includes('Лагерь Ржавых') || t.cls !== 'danger') bad('подпись места не показана: ' + JSON.stringify(t)); }
+  await page.screenshot({ path: join(out, '3d-place.png') });
+  { const px = await page.evaluate(() => { const c = document.getElementById('mini'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; const set = new Set(); for (let i = 0; i < d.length; i += 40) set.add(d[i] + ',' + d[i + 1] + ',' + d[i + 2]); return set.size; }); if (px < 6) bad('миникарта пустая: цветов ' + px); }
+  await page.tap('#miniBtn'); await page.waitForTimeout(250);
+  if (await page.evaluate(() => document.getElementById('map').hidden)) bad('большая карта не открылась');
+  { const px = await page.evaluate(() => { const c = document.getElementById('mapCv'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; const set = new Set(); for (let i = 0; i < d.length; i += 400) set.add(d[i] + ',' + d[i + 1] + ',' + d[i + 2]); return set.size; }); if (px < 8) bad('большая карта пустая: цветов ' + px); }
+  await page.screenshot({ path: join(out, '3d-map.png') });
+  await page.tap('#mapClose'); await page.waitForTimeout(100);
   // навыки: очко вложить, ветки переключаются, эффекты видны
   await page.evaluate(() => { const w = window.__b3d.W; w.lv = 6; w.sp = 4; w.skills = {}; });
   await page.waitForTimeout(150);
