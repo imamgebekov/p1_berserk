@@ -46,6 +46,11 @@ try {
   if (!(s1.z < s0.z - 1.5)) bad(`джойстик вверх не двигает героя вперёд: z ${s0.z.toFixed(2)} → ${s1.z.toFixed(2)}`);
   if (await page.evaluate(() => window.__b3d.input.state.mx !== 0 || window.__b3d.input.state.mz !== 0)) bad('джойстик не обнулился после отпускания');
 
+  // страница не листается и нет ссылок поверх игрового поля
+  { const r = await page.evaluate(() => { const l = document.getElementById('back'), p = document.getElementById('panel'); return { inPanel: p.contains(l), scroll: [document.scrollingElement.scrollTop, document.scrollingElement.scrollHeight - innerHeight], pos: getComputedStyle(document.body).position }; });
+    if (!r.inPanel) bad('ссылка на 2D лежит вне панели'); if (r.pos !== 'fixed') bad('страница не зафиксирована');
+    const prevented = await page.evaluate(() => { const ev = new Event('touchmove', { cancelable: true, bubbles: true }); document.getElementById('gl').dispatchEvent(ev); return ev.defaultPrevented; });
+    if (!prevented) bad('touchmove по полю не гасится (страница будет листаться)'); }
   // бой: ставим врага перед героем и бьём кнопкой
   await page.evaluate(() => { const w = window.__b3d.W, p = w.player; w.cfg.enemies.count = 0; w.enemies.length = 0; const e = { id: 999, type: 'imp', x: p.x + Math.sin(p.face) * 1.8, z: p.z + Math.cos(p.face) * 1.8, vx: 0, vz: 0, hp: 100, maxhp: 100, face: 0, state: 'chase', t: 0, cd: 5, flash: 0, dead: false, deadT: 0, hitMe: false }; w.enemies.push(e); });
   const b = await (await page.$('#bAtk')).boundingBox();

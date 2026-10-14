@@ -1,6 +1,6 @@
 :root{--bg:#0b0709;--ink:#e8d9c0;--red:#a1121f;--red2:#c4161c;--panel:#17100f;--line:#3a2a26;--pad:max(16px,env(safe-area-inset-left))}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:15px/1.35 system-ui,-apple-system,sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:none}
+html,body{margin:0;height:100%;position:fixed;inset:0;width:100%;background:var(--bg);color:var(--ink);font:15px/1.35 system-ui,-apple-system,sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-drag:none}
 #gl{position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
 #hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top) + 10px) var(--pad) 0;pointer-events:none}
 #hpWrap{display:flex;align-items:center;gap:8px;flex:1;max-width:220px}
@@ -9,7 +9,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:15px/1
 #hpTxt{font-weight:700;min-width:2.2em;text-shadow:0 1px 0 #000}
 #kills{flex:1;text-align:center;text-shadow:0 1px 0 #000;opacity:.85}
 #gear{pointer-events:auto;width:44px;height:44px;border:2px solid var(--line);background:#150c0d;color:var(--ink);font-size:22px;border-radius:10px}
-#zone{position:fixed;left:0;top:70px;width:58%;bottom:0;touch-action:none}
+#zone{position:fixed;left:0;top:64px;width:100%;bottom:0;touch-action:none}
 #stick{position:fixed;width:112px;height:112px;margin:-56px 0 0 -56px;border:2px solid #5a3a34;border-radius:50%;background:rgba(10,5,6,.35);opacity:0;pointer-events:none;transition:opacity .12s}
 #stick.on{opacity:1}
 #knob{position:absolute;left:34px;top:34px;width:44px;height:44px;border-radius:50%;background:#7a1a20;border:2px solid #000}
@@ -40,5 +40,5 @@ button{font:inherit;color:var(--ink)}
 .trow input{width:100%;height:32px;margin:0;accent-color:var(--red2)}
 #tweakStatus{font-size:13px;opacity:.75;margin:6px 0;word-break:break-all}
 .prow{display:flex;gap:8px}.prow button{flex:1;padding:0 8px}
-#back{position:fixed;left:var(--pad);bottom:calc(6px + env(safe-area-inset-bottom));font-size:12px;color:var(--ink);opacity:.45;text-decoration:none;padding:8px 0;z-index:5}
+#back{display:block;margin:10px 0 2px;padding:12px 0;font-size:14px;color:var(--ink);opacity:.6;text-align:center}
 @media (prefers-reduced-motion:reduce){.num{animation-duration:.01s}#flash{transition:none}}

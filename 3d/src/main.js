@@ -10,6 +10,12 @@ const defaults = JSON.parse(JSON.stringify(CFG3));
 const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
+// iOS Safari местами игнорирует touch-action: страницу нельзя ни листать, ни тянуть, ни масштабировать, пока открыта не панель
+const inPanel = e => e.target.closest && e.target.closest('#panel');
+document.addEventListener('touchmove', e => { if (!inPanel(e)) e.preventDefault(); }, { passive: false });
+for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, e => e.preventDefault());
+document.addEventListener('contextmenu', e => e.preventDefault());
+
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const canvas = $('gl');
 let renderer;
