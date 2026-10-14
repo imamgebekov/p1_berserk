@@ -21,7 +21,8 @@ const freshW = () => ({
   spawnT: CFG.spawn.firstDelay, killsSinceLord: 0, started: false, paused: false,
   ecl: 0, cycle: 0, maxT: CFG.eclipse.firstTimer, timer: CFG.eclipse.firstTimer,
   eid: 1, itemSeq: 0, chatT: CFG.chat.firstIdle, online: CFG.online.base,
-  chatLog: [], chatSeq: 0, timers: []
+  chatLog: [], chatSeq: 0, timers: [],
+  shop: { items: [], built: false }
 });
 
 export const P = freshP();

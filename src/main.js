@@ -12,6 +12,8 @@ import { createRenderer } from './render/index.js';
 import { createHud } from './hud.js';
 import { bindInput } from './input.js';
 import { createInventoryUI } from './ui/inventory.js';
+import { createTownUI } from './ui/town.js';
+import { stock, buy } from './shop.js';
 import { giveItem, newItem, recalc } from './inventory.js';
 import { P } from './state.js';
 
@@ -33,6 +35,7 @@ makeNpcs();
 bindInput(document, window);
 recalc();
 const inventoryUI = createInventoryUI(document);
+const townUI = createTownUI(document);
 
 $('go').addEventListener('click', () => {
   ensureAudio(); $('start').hidden = true; W.started = true;
@@ -56,4 +59,4 @@ requestAnimationFrame(loop);
 
 // для отладки с компьютера: window.__berserk
 import { ITEMS_BY_ID } from './data/items.js';
-window.__berserk = { W, P, giveItem, newItem, inventoryUI, slotOf: id => ITEMS_BY_ID[id].slot, recalc };
+window.__berserk = { W, P, giveItem, newItem, inventoryUI, townUI, stock, buy, slotOf: id => ITEMS_BY_ID[id].slot, recalc };

@@ -1,9 +1,10 @@
 // Бой: удары, урон, смерть, Клеймо, опыт, добыча.
 import { CFG, xpNeed } from './config.js';
 import { P, W } from './state.js';
-import { riIn, rndIn, pick, random, clamp } from './util.js';
+import { rndIn, pick, random } from './util.js';
 import { recalc, armorReduction } from './inventory.js';
-import { lootFor } from './loot.js';
+import { lootFor, ashFor } from './loot.js';
+import { restock } from './shop.js';
 import { chat, npcSay } from './chat.js';
 import { after } from './clock.js';
 import { sfx } from './audio.js';
@@ -36,16 +37,18 @@ export function killEnemy(e) {
   if (e.type === 'boss') { bossDown(e); return; }
   P.kills++; W.killsSinceLord++;
   gainXP(e.xp);
-  P.ash += riIn(CFG.loot.ashPerKill) * (e.type === 'lord' ? CFG.loot.lordAshMult : 1);
+  P.ash += ashFor(e);
   lootFor(e);
 }
 
 function bossDown(e) {
   const all = Math.max(1, e.myDmg + e.npcDmg);
   const share = Math.round(100 * e.myDmg / all);
-  gainXP(e.xp * (1 + W.cycle)); P.ash += CFG.loot.bossAshBase + share;
+  gainXP(e.xp * (1 + W.cycle)); P.ash += Math.round(CFG.loot.bossAshBase * (1 + W.cycle * CFG.loot.bossAshPerCycle)) + share;
   lootFor(e);
   W.boss = null; W.cycle++; W.maxT = CFG.eclipse.nextTimer; W.timer = W.maxT;
+  restock();
+  chat('', 'Торговец разложил новый товар.', 'sys');
   chat('', 'Предвестник пал. Твой вклад: ' + share + '%', 'sys');
   W.shake = CFG.fx.shakeBossDown;
   after(.6, () => npcSay('gg'));

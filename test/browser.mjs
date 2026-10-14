@@ -26,6 +26,7 @@ const browser = await chromium.launch();
 async function session(label, device) {
   const ctx = await browser.newContext(device);
   const page = await ctx.newPage();
+  page.setDefaultTimeout(8000);
   const logs = [];
   page.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push(m.type() + ': ' + m.text()); });
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
@@ -118,6 +119,62 @@ async function session(label, device) {
   await page.tap('#bagClose');
   const unp = await page.evaluate(() => window.__berserk.W.paused);
   if (unp) problems.push(`${label}: пауза не снялась после закрытия сумки`);
+  // город: кнопка «Говорить», покупка, продажа, улучшение у кузнеца
+  const confirmMain = async () => {
+    await page.tap('#tCard .cbtn.main');
+    const t = await page.locator('#tCard .cbtn.main').textContent().catch(() => null);
+    if (t && t.includes('Точно')) await page.tap('#tCard .cbtn.main');
+  };
+  await page.evaluate(() => { const B = window.__berserk; B.W.spawnT = 999; B.W.enemies.length = 0; B.P.ash = 5000; B.P.bag.length = 0; B.P.x = 108; B.P.hp = B.P.maxhp; });
+  await page.waitForFunction(() => !document.getElementById('talk').hidden);
+  const talk = await page.evaluate(() => { const r = document.getElementById('talk').getBoundingClientRect(), pad = document.getElementById('pad').getBoundingClientRect();
+    return { w: r.width, h: r.height, text: document.getElementById('talk').textContent, overlapsPad: r.bottom > pad.top }; });
+  if (talk.h < 44 || talk.w < 44) problems.push(`${label}: кнопка «${talk.text}» ${talk.w}×${talk.h} < 44px`);
+  if (talk.overlapsPad) problems.push(`${label}: кнопка «${talk.text}» заходит на пульт`);
+  if (talk.text !== 'Торговец') problems.push(`${label}: у торговца кнопка называется «${talk.text}»`);
+  await page.tap('#talk');
+  await page.waitForSelector('#town:not([hidden])');
+  const shop = await page.evaluate(() => ({ paused: window.__berserk.W.paused, kind: window.__berserk.townUI.kind(), n: document.querySelectorAll('#tGrid .cell').length,
+    small: [...document.querySelectorAll('#town .tab, #tGrid .cell, #tClose')].filter(e => { const r = e.getBoundingClientRect(); return Math.min(r.width, r.height) < 44; }).length,
+    tabH: document.querySelector('#tTabs .tab').getBoundingClientRect().height, overflow: document.documentElement.scrollHeight > innerHeight }));
+  if (!shop.paused || shop.kind !== 'merchant') problems.push(`${label}: торговец не открылся (${JSON.stringify(shop)})`);
+  if (shop.n !== 8) problems.push(`${label}: в магазине ${shop.n} вещей вместо 8`);
+  if (shop.small) problems.push(`${label}: в магазине ${shop.small} элементов меньше 44px`);
+  if (shop.tabH > 80) problems.push(`${label}: вкладки магазина растянуты (${shop.tabH}px)`);
+  if (shop.overflow) problems.push(`${label}: магазин выходит за вьюпорт`);
+  await page.screenshot({ path: join(out, label.replace(/\W+/g, '_') + '_shop.png') });
+  const ash0 = await page.evaluate(() => window.__berserk.P.ash);
+  await page.tap('#tGrid .cell:nth-child(1)');
+  await page.waitForSelector('#tCardWrap:not([hidden])');
+  await confirmMain();
+  const bought = await page.evaluate(() => ({ bag: window.__berserk.P.bag.length, ash: window.__berserk.P.ash, left: window.__berserk.W.shop.items.length }));
+  if (bought.bag !== 1 || bought.ash >= ash0 || bought.left !== 7) problems.push(`${label}: покупка не сработала (${JSON.stringify(bought)}, было ${ash0})`);
+  await page.locator('#tTabs .tab', { hasText: 'Продать' }).tap();
+  await page.tap('#tGrid .cell:nth-child(1)');
+  await page.waitForSelector('#tCardWrap:not([hidden])');
+  await confirmMain();
+  const sold = await page.evaluate(() => ({ bag: window.__berserk.P.bag.length, ash: window.__berserk.P.ash }));
+  if (sold.bag !== 0 || sold.ash <= bought.ash) problems.push(`${label}: продажа не сработала (${JSON.stringify(sold)})`);
+  await page.tap('#tClose');
+  if (await page.evaluate(() => window.__berserk.W.paused)) problems.push(`${label}: пауза не снялась после закрытия города`);
+
+  await page.evaluate(() => { const B = window.__berserk; B.P.x = 214; B.giveItem(B.newItem('w_bone_edge')); B.giveItem(B.newItem('w_rust_cleaver')); B.P.ash = 5000; });
+  await page.waitForFunction(() => document.getElementById('talk').textContent === 'Кузнец');
+  await page.tap('#talk');
+  await page.waitForSelector('#town:not([hidden])');
+  const smithInfo = await page.evaluate(() => ({ kind: window.__berserk.townUI.kind(), n: document.querySelectorAll('#tGrid .cell').length, tabs: !document.getElementById('tTabs').offsetHeight }));
+  if (smithInfo.kind !== 'smith' || smithInfo.n !== 3) problems.push(`${label}: кузнец не открылся (${JSON.stringify(smithInfo)})`);
+  await page.tap('#tGrid .cell:nth-child(1)');
+  await page.waitForSelector('#tCardWrap:not([hidden])');
+  const ash1 = await page.evaluate(() => window.__berserk.P.ash);
+  await confirmMain();
+  const up = await page.evaluate(() => ({ ash: window.__berserk.P.ash, up: window.__berserk.P.bag.concat(Object.values(window.__berserk.P.eq)).filter(Boolean).map(i => i.up || 0).reduce((a, b) => a + b, 0) }));
+  if (up.ash >= ash1 || up.up !== 1) problems.push(`${label}: улучшение не сработало (${JSON.stringify(up)})`);
+  await page.screenshot({ path: join(out, label.replace(/\W+/g, '_') + '_smith.png') });
+  await page.tap('#tCard .cbtn.close').catch(() => {});
+  await page.tap('#tClose');
+  await page.evaluate(() => { window.__berserk.P.x = 600; });
+  await page.waitForFunction(() => document.getElementById('talk').hidden);
   await page.screenshot({ path: join(out, label.replace(/\W+/g, '_') + '.png') });
   console.log(' ', label, JSON.stringify(info));
   if (info.n < 30) problems.push(`${label}: за тест отрисовано всего ${info.n} кадров`);

@@ -98,9 +98,9 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 #bagMsg { margin-top:6px; min-height:18px; font-size:13px; color:var(--ember); }
 
 /* карточка предмета (нижний лист) */
-#cardWrap { position:fixed; inset:0; z-index:7; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; }
-#cardWrap[hidden] { display:none; }
-#card { width:100%; background:#14100e; border-top:3px solid #5a4a3a; padding:14px 14px calc(env(safe-area-inset-bottom) + 12px); max-height:78%; overflow:auto; }
+#cardWrap, #tCardWrap { position:fixed; inset:0; z-index:7; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; }
+#cardWrap[hidden], #tCardWrap[hidden] { display:none; }
+#card, #tCard { width:100%; background:#14100e; border-top:3px solid #5a4a3a; padding:14px 14px calc(env(safe-area-inset-bottom) + 12px); max-height:78%; overflow:auto; }
 .cname { font-size:22px; font-weight:700; line-height:1.15; }
 .csub { margin-top:2px; font-size:13px; color:#9a8f7c; }
 .cdesc { margin-top:8px; font-size:14px; font-style:italic; color:#c9bfa8; line-height:1.4; }
@@ -134,3 +134,25 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 #hStats .crow { font-size:15px; }
 #hHint { margin-top:8px; font-size:12px; color:#6e6455; line-height:1.4; }
 @media (max-height:640px) { #hPrev { width:min(200px, calc(100vw - 140px)); } #hStats .crow { font-size:14px; padding:2px 0; } .hslots .cell { width:48px; height:48px; } .hslots { width:48px; } }
+
+/* город: торговец и кузнец */
+.ph h3 { flex:1; font-size:24px; font-weight:700; letter-spacing:.08em; text-shadow:2px 2px 0 var(--blood); }
+#tSay { min-height:20px; margin:6px 0 8px; font-size:14px; font-style:italic; color:#c9bfa8; line-height:1.35; }
+#tTabs { display:flex; flex:none; gap:6px; margin-bottom:8px; }
+#tTabs[hidden] { display:none; }
+#tTabs .tab { flex:1; }
+#tGrid { display:grid; gap:6px; }
+#tGrid.g5 { grid-template-columns:repeat(5,1fr); }
+#tGrid.g4 { grid-template-columns:repeat(4,1fr); }
+#tFoot { margin-top:10px; }
+.tnote { font-size:12px; color:#6e6455; line-height:1.4; }
+.cbtn.junk { width:100%; flex:none; }
+.cell { position:relative; }
+.cell .price { position:absolute; right:3px; bottom:2px; font-size:12px; font-weight:700; color:#e0c070; text-shadow:0 1px 0 #000; }
+.cell .price.bad { color:#e0605a; }
+.cell .up { position:absolute; left:3px; top:1px; font-size:12px; font-weight:700; color:#8fd08a; text-shadow:0 1px 0 #000; }
+.cell .mark { position:absolute; left:3px; bottom:1px; font-size:10px; color:#9a8f7c; text-shadow:0 1px 0 #000; }
+.talk { position:absolute; right:12px; bottom:10px; min-width:128px; min-height:48px; padding:0 16px; pointer-events:auto; touch-action:manipulation;
+  background:#2a1208; color:#fff; border:2px solid var(--ember); font:inherit; font-size:16px; letter-spacing:.03em; }
+.talk[hidden] { display:none; }
+.talk:active { background:#3a1a0c; }

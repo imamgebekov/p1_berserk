@@ -3,12 +3,13 @@
 import { CFG } from './config.js';
 import { P, W } from './state.js';
 import { clamp } from './util.js';
+import { nearNpc } from './town.js';
 
 export function createHud(doc) {
   const $ = id => doc.getElementById(id);
   const el = {
     hp: $('hpf'), rg: $('rgf'), rgbar: $('rgbar'), lv: $('lv'), ash: $('ash'), kills: $('kills'), onl: $('onl'),
-    boss: $('boss'), bh: $('bhf'), tm: $('timer'), brand: $('bbrand'), dead: $('dead'), chat: $('chat'), badge: $('bagBadge')
+    boss: $('boss'), bh: $('bhf'), tm: $('timer'), brand: $('bbrand'), dead: $('dead'), chat: $('chat'), badge: $('bagBadge'), talk: $('talk')
   };
   const last = {};
   const text = (k, node, v) => { if (last[k] !== v) { last[k] = v; node.textContent = v; } };
@@ -52,6 +53,8 @@ export function createHud(doc) {
     text('lv', el.lv, String(P.lv)); text('ash', el.ash, String(P.ash)); text('kills', el.kills, String(P.kills));
     text('onl', el.onl, String(W.online));
     text('badge', el.badge, String(P.newItems)); hide('badge', el.badge, P.newItems <= 0);
+    const npc = !P.dead && !W.paused ? nearNpc() : null;
+    hide('talk', el.talk, !npc); if (npc) text('talkt', el.talk, npc.name);
     hide('boss', el.boss, !W.boss);
     hide('dead', el.dead, !P.dead);
     if (W.boss) { bar('bh', el.bh, W.boss.hp / W.boss.maxhp); text('tm', el.tm, ''); }

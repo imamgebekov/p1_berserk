@@ -13,8 +13,15 @@ export function newItem(id) {
   return { uid: ++W.itemSeq, id, up: 0 };
 }
 
-// статы экземпляра (шаг 3 добавит улучшения через it.up)
-export const itemStats = it => defOf(it).stats;
+// Статы экземпляра: у оружия урон растёт с уровнем улучшения кузнеца
+export function itemStats(it) {
+  const d = defOf(it);
+  if (!it.up || d.slot !== 'weapon') return d.stats;
+  const S = CFG.smith, base = d.stats.dmg || 0;
+  return { ...d.stats, dmg: base + Math.round(it.up * (S.dmgFlat + base * S.dmgPercent)) };
+}
+
+export const itemName = it => defOf(it).name + (it.up ? ' +' + it.up : '');
 
 export const sellValue = it => Math.max(1, Math.round(defOf(it).price * CFG.items.sellRatio));
 

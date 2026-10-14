@@ -8,9 +8,10 @@
     "dev": "vite --host --port 5174",
     "build": "vite build",
     "preview": "vite preview --host --port 5174",
-    "test": "node test/items.mjs && node test/headless.mjs",
+    "test": "node test/items.mjs && node test/economy.mjs && node test/headless.mjs",
+    "balance": "node tools/balance.mjs",
     "test:browser": "node test/browser.mjs",
-    "test:all": "node test/items.mjs && node test/headless.mjs && node test/browser.mjs"
+    "test:all": "node test/items.mjs && node test/economy.mjs && node test/headless.mjs && node test/browser.mjs"
   },
   "devDependencies": {
     "vite": "8.3.1"

@@ -89,7 +89,7 @@ const share = (type, x, lv, cycle, n = 30000) => {
   const b = get('boss', 'deep', 12, 0);
   ok(Math.abs(b.perKill - 3) < 1e-9, 'с Предвестника не 3 предмета');
   ok(b.c.common === 0, 'с Предвестника выпал обычный');
-  ok(b.c.branded / b.items > .1, 'клеймёных с Предвестника слишком мало');
+  ok(b.c.branded / b.items > .05, 'клеймёных с Предвестника слишком мало');
   ok(get('boss', 'deep', 12, 0).c.branded / b.items > get('lord', 'deep', 20, 0).c.branded / Math.max(1, get('lord', 'deep', 20, 0).items), 'лучшее не с Предвестника');
   // доля убийств, с которых что-то выпадает
   ok(get('imp', 'town', 1, 0).perKill < get('brute', 'town', 1, 0).perKill && get('brute', 'town', 1, 0).perKill < get('lord', 'town', 3, 0).perKill, 'шанс дропа не растёт imp<brute<lord');

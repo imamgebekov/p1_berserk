@@ -1,7 +1,7 @@
 // Таблицы выпадения: что и с какой редкостью падает с врагов и Предвестника.
 import { CFG } from './config.js';
 import { P, W } from './state.js';
-import { clamp, random, pick } from './util.js';
+import { clamp, random, pick, riIn } from './util.js';
 import { ITEMS } from './data/items.js';
 import { newItem, giveItem, defOf, sellValue } from './inventory.js';
 import { chat } from './chat.js';
@@ -56,6 +56,14 @@ export function rollDrop(type, x) {
     if (def) out.push(def);
   }
   return out;
+}
+
+// Пепел за убитого врага: диапазон по типу × рост с уровнем и глубиной
+export function ashFor(e) {
+  const L = CFG.loot, r = L.ash[e.type];
+  if (!r) return 0;
+  const mult = 1 + (P.lv - 1) * L.ashPerLevel + depthAt(e.x) * L.ashPerDepth;
+  return Math.max(1, Math.round(riIn(r) * mult));
 }
 
 // Выдать добычу за убитого врага игроку (вызывается из killEnemy)

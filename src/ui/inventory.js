@@ -3,9 +3,9 @@
 import { CFG, xpNeed } from '../config.js';
 import { P, W, keys } from '../state.js';
 import { createPreview } from './preview.js';
-import { SLOTS, SLOT_NAMES, STAT_NAMES, STAT_UNITS } from '../data/items.js';
-import { defOf, compare, equipFromBag, unequip, sellFromBag, dropFromBag, sellValue, bagFull, derived, itemStats } from '../inventory.js';
-import { drawIcon, SLOT_ICON } from '../icons.js';
+import { SLOTS, SLOT_NAMES } from '../data/items.js';
+import { h as H, makeCell, fmtPct, createConfirmer, renderItemCard } from './common.js';
+import { defOf, equipFromBag, unequip, sellFromBag, dropFromBag, sellValue, bagFull, derived, itemName } from '../inventory.js';
 
 export function createInventoryUI(doc) {
   const $ = id => doc.getElementById(id);
@@ -16,31 +16,11 @@ export function createInventoryUI(doc) {
   const sheet = $('cardWrap'), card = $('card');
   const RAR = CFG.items.rarity;
   let sel = null;            // { src: 'bag', i } | { src: 'eq', slot }
-  let confirm = null;        // { key, timer }
   let open_ = false;
 
-  const h = (tag, cls, text) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  const fmt = (k, v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + STAT_UNITS[k];
-  const fmtPct = (k, v) => v === 0 ? '0%' : fmt(k, v);
-
-  function cell(it, key, opts = {}) {
-    const b = h('button', 'cell');
-    b.type = 'button'; b.dataset.key = key;
-    if (it) {
-      const d = defOf(it);
-      b.classList.add('r-' + d.rarity);
-      b.setAttribute('aria-label', d.name + ', ' + RAR[d.rarity].name);
-      const c = doc.createElement('canvas'); drawIcon(c, d.icon, d.pal); b.appendChild(c);
-    } else {
-      b.classList.add('empty');
-      if (opts.slot) {
-        b.setAttribute('aria-label', 'Пусто: ' + SLOT_NAMES[opts.slot]);
-        const c = doc.createElement('canvas'); drawIcon(c, SLOT_ICON[opts.slot], ['#000', '#000'], true); b.appendChild(c);
-      } else b.setAttribute('aria-label', 'Пустая ячейка');
-    }
-    if (sel && ((sel.src === 'bag' && key === 'b' + sel.i) || (sel.src === 'eq' && key === 'e' + sel.slot))) b.classList.add('sel');
-    return b;
-  }
+  const h = (tag, cls, text) => H(doc, tag, cls, text);
+  const cell = (it, key, opts = {}) => makeCell(doc, it, { ...opts, key, sel: !!sel && ((sel.src === 'bag' && key === 'b' + sel.i) || (sel.src === 'eq' && key === 'e' + sel.slot)) });
+  const confirm_ = createConfirmer(() => renderCard());
 
   function render() {
     eqEl.textContent = ''; gridEl.textContent = '';
@@ -87,71 +67,28 @@ export function createInventoryUI(doc) {
     return sel.src === 'bag' ? P.bag[sel.i] : P.eq[sel.slot];
   }
 
-  function twoTap(btn, key, label, action, needConfirm) {
-    btn.textContent = confirm && confirm.key === key ? 'Точно?' : label;
-    if (confirm && confirm.key === key) btn.classList.add('warn');
-    btn.addEventListener('click', () => {
-      if (needConfirm && !(confirm && confirm.key === key)) {
-        clearConfirm();
-        confirm = { key, timer: setTimeout(() => { confirm = null; renderCard(); }, CFG.items.confirmMs) };
-        renderCard();
-        return;
-      }
-      clearConfirm();
-      action();
-    });
-  }
-  function clearConfirm() { if (confirm) { clearTimeout(confirm.timer); confirm = null; } }
+  const clearConfirm = () => confirm_.clear();
 
   function renderCard() {
     const it = selectedItem();
     if (!it) { sheet.hidden = true; card.textContent = ''; return; }
-    const d = defOf(it), col = RAR[d.rarity].color;
-    card.textContent = '';
-    card.style.borderTopColor = col;
-    card.appendChild(h('div', 'cname', d.name)).style.color = col;
-    card.appendChild(h('div', 'csub', `${SLOT_NAMES[d.slot]} · ${RAR[d.rarity].name}${sel.src === 'eq' ? ' · надето' : ''}`));
-    card.appendChild(h('div', 'cdesc', d.desc));
-    const rows = compare(it);
-    const worn = sel.src === 'bag' ? P.eq[d.slot] : null;
-    const tbl = h('div', 'cstats');
-    for (const r of rows) {
-      const line = h('div', 'crow');
-      line.appendChild(h('span', 'k', STAT_NAMES[r.k]));
-      const v = h('span', 'v', r.now === 0 ? '0' : fmt(r.k, r.now));
-      v.classList.add(r.now < 0 ? 'neg' : 'pos');
-      line.appendChild(v);
-      if (worn) {
-        const df = h('span', 'df', r.diff === 0 ? '=' : '(' + (r.diff > 0 ? '+' : '−') + Math.abs(r.diff) + STAT_UNITS[r.k] + ')');
-        df.classList.add(r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : 'eq');
-        line.appendChild(df);
-      }
-      tbl.appendChild(line);
-    }
-    card.appendChild(tbl);
-    if (worn) card.appendChild(h('div', 'cvs', 'Сравнение с надетым: ' + defOf(worn).name));
-    else if (sel.src === 'bag') card.appendChild(h('div', 'cvs', 'В этом слоте ничего не надето'));
-
-    const btns = h('div', 'cbtns');
-    const mk = (cls) => { const b = h('button', 'cbtn ' + cls); b.type = 'button'; btns.appendChild(b); return b; };
-    const rare = d.rarity !== 'common';
+    const d = defOf(it), rare = d.rarity !== 'common';
+    const buttons = [];
     if (sel.src === 'bag') {
       const i = sel.i;
-      const eqb = mk('main'); eqb.textContent = 'Надеть';
-      eqb.addEventListener('click', () => { clearConfirm(); equipFromBag(i); sel = null; msg('Надето: ' + d.name); render(); });
-      const sb = mk('');
-      twoTap(sb, 's' + it.uid, 'Продать +' + sellValue(it), () => { const v = sellFromBag(i); sel = null; msg('Продано: ' + d.name + ' (+' + v + ' пепла)'); render(); }, rare);
-      const db = mk('');
-      twoTap(db, 'd' + it.uid, 'Выбросить', () => { dropFromBag(i); sel = null; msg('Выброшено: ' + d.name); render(); }, true);
+      buttons.push({ label: 'Надеть', cls: 'main', onClick: () => { equipFromBag(i); sel = null; msg('Надето: ' + itemName(it)); render(); } });
+      buttons.push({ label: 'Продать +' + sellValue(it), confirmKey: rare ? 's' + it.uid : null, onClick: () => { const v = sellFromBag(i); sel = null; msg('Продано: ' + itemName(it) + ' (+' + v + ' пепла)'); render(); } });
+      buttons.push({ label: 'Выбросить', confirmKey: 'd' + it.uid, onClick: () => { dropFromBag(i); sel = null; msg('Выброшено: ' + itemName(it)); render(); } });
     } else {
       const slot = sel.slot;
-      const ub = mk('main'); ub.textContent = bagFull() ? 'Сумка полна' : 'Снять';
-      ub.disabled = bagFull();
-      ub.addEventListener('click', () => { if (unequip(slot)) { sel = null; msg('Снято: ' + d.name); render(); } });
+      buttons.push({ label: bagFull() ? 'Сумка полна' : 'Снять', cls: 'main', disabled: bagFull(), onClick: () => { if (unequip(slot)) { sel = null; msg('Снято: ' + itemName(it)); render(); } } });
     }
-    const cb = mk('close'); cb.textContent = 'Закрыть';
-    cb.addEventListener('click', () => { clearConfirm(); sel = null; renderCard(); render(); });
-    card.appendChild(btns);
+    buttons.push({ label: 'Закрыть', cls: 'close', onClick: () => { sel = null; render(); } });
+    const worn = sel.src === 'bag' ? P.eq[d.slot] : null;
+    renderItemCard(doc, card, it, {
+      sub: sel.src === 'eq' ? 'надето' : '', worn, buttons, confirmer: confirm_, rerender: renderCard,
+      lines: worn ? ['Сравнение с надетым: ' + itemName(worn)] : sel.src === 'bag' ? ['В этом слоте ничего не надето'] : []
+    });
     sheet.hidden = false;
   }
 

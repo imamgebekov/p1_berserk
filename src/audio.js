@@ -58,6 +58,10 @@ export const sfx = {
   kill: () => { tone(160, .2, 'square', .06, 50); },
   level: () => { [523, 659, 784, 1046].forEach((f, i) => after(i * .09, () => tone(f, .35, 'triangle', .07))); },
   brand: () => { tone(70, .9, 'sawtooth', .12, 35); noise(.6, .14, 300, 100); },
+  anvil: ok => {
+    tone(ok ? 880 : 300, .25, 'square', .07, ok ? 1760 : 150); noise(.12, .15, 2500, 800);
+    if (ok) after(.12, () => tone(1320, .3, 'triangle', .05));
+  },
   slam: () => { tone(60, .4, 'square', .14, 25); noise(.3, .2, 400, 80); },
   loot: rarity => {
     if (!rarity || rarity === 'common') { tone(880, .12, 'triangle', .04, 1320); return; }

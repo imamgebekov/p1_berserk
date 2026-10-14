@@ -109,9 +109,12 @@ export const CFG = {
   },
 
   loot: {
-    ashPerKill: [1, 3],
-    lordAshMult: 5,
-    bossAshBase: 40,
+    // Пепел за убийство: диапазон по типу врага, умножается на (1 + (ур-1)*ashPerLevel + глубина*ashPerDepth)
+    ash: { imp: [1, 3], brute: [2, 5], lord: [10, 16] },
+    ashPerLevel: .03,
+    ashPerDepth: .4,
+    bossAshBase: 100,       // + bossAshPerCycle за каждый уже побеждённый круг + ваш вклад в % урона
+    bossAshPerCycle: .15,
 
     // Предметы. luck = глубина*luckPerDepth + (ур-1)*luckPerLevel + круг*luckPerCycle + бонус таблицы.
     // maxTier = 1 + floor(luck / tierStep) (+ bossTierBonus у Предвестника): какие предметы вообще могут выпасть.
@@ -125,7 +128,8 @@ export const CFG = {
     tables: {
       normal: { base: { common: 100, rare: 10, cursed: 3, branded: 0 }, grow: { common: 0, rare: 1.0, cursed: 1.5, branded: 0 } },
       elite:  { base: { common: 55, rare: 30, cursed: 12, branded: 1 }, grow: { common: 0, rare: .6, cursed: .8, branded: .6 } },
-      boss:   { base: { common: 0, rare: 60, cursed: 25, branded: 11 }, grow: { common: 0, rare: .2, cursed: .4, branded: .5 } }
+      shop:   { base: { common: 100, rare: 24, cursed: 7, branded: 0 }, grow: { common: 0, rare: .8, cursed: 1.0, branded: 0 } },
+      boss:   { base: { common: 0, rare: 60, cursed: 25, branded: 5 }, grow: { common: 0, rare: .2, cursed: .4, branded: .5 } }
     },
     // chance — вероятность, что с врага вообще что-то выпадет; rolls — сколько бросков; luck — бонус к удаче
     drops: {
@@ -136,10 +140,37 @@ export const CFG = {
     }
   },
 
+  town: {
+    merchantX: 108, smithX: 214,
+    talkRange: 30
+  },
+
+  // Торговец: ассортимент обновляется после каждого Предвестника
+  shop: {
+    size: 8,
+    guaranteedCommon: 3,    // столько дешёвых обычных вещей есть всегда
+    buyMarkup: { common: 2.0, rare: 2.3, cursed: 3.5, branded: 4.0 },   // цена покупки = price * наценка редкости (продажа — items.sellRatio)
+    luckBonus: 1.0,         // бонус к удаче: в магазине чуть лучше, чем «с земли» у города
+    junkRarity: 'common'    // «продать хлам» продаёт всё этой редкости
+  },
+
+  // Кузнец: улучшение оружия за пепел
+  smith: {
+    maxLevel: 10,
+    dmgFlat: 2,             // прибавка к урону за уровень: dmgFlat + базовый урон оружия * dmgPercent
+    dmgPercent: .06,
+    baseCost: 25,           // цена уровня = (baseCost + price*costPerPrice) * costGrowth^уровень
+    costPerPrice: .1,
+    costGrowth: 1.65,
+    success: [1, 1, 1, 1, .9, .8, .65, .5, .4, .3],   // шанс успеха попытки n → n+1
+    breakFrom: 6,           // с этого уровня неудача ещё и снижает уровень
+    breakChance: .5
+  },
+
   items: {
     bagSize: 20,
     bagCols: 5,
-    sellRatio: .4,          // цена продажи = price * sellRatio
+    sellRatio: .3,          // цена продажи = price * sellRatio
     armorK: 30,             // снижение урона = armor / (armor + armorK)
     armorMin: -15,
     critMult: 1.75,

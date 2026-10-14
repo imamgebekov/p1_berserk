@@ -7,6 +7,8 @@ import { R, num, setCtx, g } from './gfx.js';
 import { drawSky, drawGround, drawProps } from './scene.js';
 import { drawPlayer, drawEnemy, drawNpc } from './sprites.js';
 import { createFxPool } from './fxpool.js';
+import { drawTown } from './town.js';
+import { TOWN_NPCS } from '../town.js';
 
 export function createRenderer(cv, lo) {
   const dctx = cv.getContext('2d');
@@ -37,6 +39,7 @@ export function createRenderer(cv, lo) {
     const sh = (!reduce && W.shake > 0) ? [Math.round(vrnd(-1, 1) * W.shake * .5), Math.round(vrnd(-1, 1) * W.shake * .5)] : [0, 0];
     g.setTransform(1, 0, 0, 1, sh[0], sh[1]);
     drawSky(); drawGround(); drawProps();
+    drawTown(pool);
     W.npcs.forEach(drawNpc);
     W.enemies.forEach(drawEnemy);
     if (!P.dead) drawPlayer(pool, dt);
@@ -71,6 +74,14 @@ export function createRenderer(cv, lo) {
       if (x < -40 || x > cv.width + 40) continue;
       dctx.fillStyle = 'rgba(0,0,0,.6)'; dctx.fillText(n.name, x + 1, (G - 20) * V.SY + 1);
       dctx.fillStyle = n.col; dctx.fillText(n.name, x, (G - 20) * V.SY);
+    }
+
+    // подписи городских NPC
+    for (const t of TOWN_NPCS) {
+      const x = (t.x() - W.camX) * V.SX;
+      if (x < -60 || x > cv.width + 60) continue;
+      dctx.fillStyle = 'rgba(0,0,0,.6)'; dctx.fillText(t.name, x + 1, (G - 36) * V.SY + 1);
+      dctx.fillStyle = '#e0c070'; dctx.fillText(t.name, x, (G - 36) * V.SY);
     }
 
     // виньетка: Клеймо, урон, смерть
