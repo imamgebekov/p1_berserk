@@ -7,6 +7,8 @@ import { createShop, createSmith, createCaptain } from './shop.js';
 import { createSkills } from './skillsui.js';
 import { createJournal } from './journal.js';
 import { createQuests } from './questsui.js';
+import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sfx } from './audio3d.js';
+import { clockText } from './daynight.js';
 import { trackerLine, questMark } from './quests3d.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty } from './sim.js';
 import { drawMap } from './mapdraw.js';
@@ -61,6 +63,9 @@ function toast(txt, cls = '', color) {
   setTimeout(() => d.remove(), 3500);
 }
 function onEvent(v) {
+  if (v.x === undefined || Math.hypot(v.x - W.player.x, v.z - W.player.z) < 22) sfx(v.k);
+  if (v.k === 'dusk') toast('Наступает ночь: торговец спит, враги злее', 'bad');
+  else if (v.k === 'dawn') toast('Светает: торговец снова торгует', 'sys');
   if (v.k === 'pickup') { const it = BY_ID[v.id]; toast('+ ' + it.name + (v.n > 1 ? ' ×' + v.n : ''), '', RARITY[it.rar].color); }
   else if (v.k === 'open') toast(CONTAINERS[v.kind].name, 'sys');
   else if (v.k === 'locked') toast(`Заперто: нужен ключ уровня ${v.tier}+`, 'bad');
@@ -160,14 +165,22 @@ let ironArmed = false;
 ironBtn.addEventListener('click', () => { if (W.iron) return; if (!ironArmed) { ironArmed = true; renderDif(); setTimeout(() => { ironArmed = false; renderDif(); }, 3000); return; } ironArmed = false; W.iron = true; saver.write(); renderDif(); });
 renderDif();
 createTweakPanel(document, cfg, defaults, {
-  onChange: t => { if (t && (t.reload || t.path === 'view.pixelScale')) fit(); },
+  onChange: t => { if (t && (t.reload || t.path === 'view.pixelScale')) fit(); setVolume(cfg.audio.volume); },
   onOpen: () => { panelOpen = true; input.release(); renderDif(); },
   onClose: () => { panelOpen = false; }
 });
 $('again').addEventListener('click', () => { if (W.ironDead) { location.reload(); return; } respawnPlayer(W); $('dead').hidden = true; });
-document.addEventListener('visibilitychange', () => { if (document.hidden) { input.release(); saver.write(); } });
+document.addEventListener('visibilitychange', () => { suspendAudio(document.hidden); if (document.hidden) { input.release(); saver.write(); } });
 addEventListener('pagehide', () => saver.write());
 
+try { setMuted(localStorage.getItem('berserk3d.mute') === '1'); } catch (e) { /* без сохранения */ }
+setVolume(cfg.audio.volume);
+for (const ev of ['pointerdown', 'touchstart', 'keydown']) addEventListener(ev, ensureAudio, { passive: true });
+const muteBtn = $('muteBtn');
+const showMute = () => { muteBtn.textContent = isMuted() ? '🔇 Звук выключен' : '🔊 Звук включён'; };
+muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); });
+showMute();
+let ambT = 0, stepT = 0;
 const questBtn = $('questBtn'), trackerEl = $('tracker'); questBtn.addEventListener('click', e => { e.stopImmediatePropagation(); quests.open('here'); }, true);
 let lastTrack = '', lastMark = '';
 const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
@@ -203,11 +216,13 @@ function loop(now) {
   { const key = Object.keys(W.pst).map(k => k + Math.ceil(W.pst[k].t) + (W.pst[k].n || '')).join(); if (key !== lastSt) { lastSt = key; statusRow.textContent = ''; for (const k of Object.keys(W.pst)) { const c = document.createElement('span'); c.className = 'stch'; c.style.color = STATUS_COLOR[k]; c.textContent = `${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`; statusRow.appendChild(c); } } }
   { const near = W.nearNpc, show = !!near && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); questBtn.textContent = mk === 'ready' ? '📜 Сдать задание' : mk ? '📜 Есть задания ❗' : '📜 Задания'; } }
   { const tl = trackerLine(W); if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
+  if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0); }
+  if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; sfx('step'); }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; hpFill.style.transform = `scaleX(${W.player.hp / W.player.maxhp})`; hpTxt.textContent = Math.ceil(W.player.hp); }
-  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp; if (key !== lastKey) { lastKey = key; killsEl.textContent = `Ур. ${W.lv} · пепел ${W.inv.ash}`; xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0); } }
+  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; killsEl.textContent = `Ур. ${W.lv} · пепел ${W.inv.ash} · ${W.night ? '🌙' : '☀'} ${clockText(W.t, cfg.daynight)}`; xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0); } }
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
   requestAnimationFrame(loop);
 }

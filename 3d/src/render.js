@@ -8,6 +8,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeSoldier, animateSoldier } from './models.js';
 import { mulberry32 } from './sim.js';
 import { questMark } from './quests3d.js';
+import { skyAt } from './daynight.js';
 
 const FOG = '#150c0b';
 
@@ -26,7 +27,7 @@ function groundTexture() {
 
 function skyDome() {
   const geo = new THREE.SphereGeometry(500, 24, 16), col = [], pos = geo.attributes.position;
-  const top = new THREE.Color('#0b0606'), hor = new THREE.Color('#5a1a14'), tmp = new THREE.Color();
+  const top = new THREE.Color('#2a1a1c'), hor = new THREE.Color('#9a5a3a'), tmp = new THREE.Color();
   for (let i = 0; i < pos.count; i++) { const k = Math.pow(Math.max(0, pos.getY(i) / 500), .6); tmp.copy(hor).lerp(top, k); col.push(tmp.r, tmp.g, tmp.b); }
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
@@ -54,9 +55,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const camera = new THREE.PerspectiveCamera(cfg.view.fov, 1, .5, 700);
 
   // свет: тусклое «багровое» небо, холодный свет затмения и тёплый костёр
-  scene.add(new THREE.HemisphereLight('#a8847a', '#2a1a16', 2.4));
+  const hemi = new THREE.HemisphereLight('#a8847a', '#2a1a16', 2.4); scene.add(hemi);
   const sun = new THREE.DirectionalLight('#ffa080', 1.7); sun.position.set(-30, 50, -40); scene.add(sun);
-  scene.add(skyDome());
+  const dome = skyDome(); scene.add(dome);
+  let lastLight = -1;
 
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshLambertMaterial({ map: groundTexture() }));
   ground.rotation.x = -Math.PI / 2; scene.add(ground);
@@ -212,6 +214,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     camera.position.set(cam.x + Math.sin(yaw) * hd + (Math.random() - .5) * sh, Math.sin(pitch) * dist + cfg.view.camLookUp + (Math.random() - .5) * sh, cam.z + Math.cos(yaw) * hd);
     camera.lookAt(cam.x, cfg.view.camLookUp, cam.z);
     scene.fog.density = cfg.view.fogDensity;
+    if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток
+      lastLight = W.light; const k = skyAt(W.light, cfg.daynight.sky);
+      scene.fog.color.set(k.fog); scene.background.set(k.fog);
+      hemi.color.set(k.hemiSky); hemi.groundColor.set(k.hemiGround); hemi.intensity = k.hemiI;
+      sun.color.set(k.sun); sun.intensity = k.sunI; dome.material.color.set(k.dome);
+    }
 
     town.update(W.inside, dt, W.map);
     conts.update(W, t);

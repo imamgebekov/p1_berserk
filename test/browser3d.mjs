@@ -102,6 +102,13 @@ try {
     await page.screenshot({ path: join(out, '3d-shop-sell.png') });
     await page.tap('#shopClose'); await page.waitForTimeout(100);
   }
+  // сутки и звук: часы в шапке, ночь меняет небо и закрывает торговца, кнопка звука
+  await page.evaluate(() => { const w = window.__b3d.W; w.t = 188 + 30; }); await page.waitForTimeout(600);
+  { const r = await page.evaluate(() => ({ night: window.__b3d.W.night, kills: document.getElementById('kills').textContent })); if (!r.night || !/🌙 \d\d:\d\d/.test(r.kills)) bad('ночь не наступила или нет часов: ' + JSON.stringify(r)); }
+  await page.screenshot({ path: join(out, '3d-night.png') });
+  await page.evaluate(() => { const w = window.__b3d.W; w.t = 0; }); await page.waitForTimeout(600);
+  if (await page.evaluate(() => window.__b3d.W.night)) bad('день не вернулся');
+  await page.tap('#gear'); await page.waitForTimeout(150); const m0 = await page.$eval('#muteBtn', e => e.textContent); await page.tap('#muteBtn'); const m1 = await page.$eval('#muteBtn', e => e.textContent); if (m0 === m1) bad('кнопка звука не переключилась'); await page.tap('#muteBtn'); await page.tap('#tweakClose'); await page.waitForTimeout(100);
   // задания: кнопка рядом с торговцем, взять и увидеть в трекере
   await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'merchant'); w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; });
   await page.waitForTimeout(400);

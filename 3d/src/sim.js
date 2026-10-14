@@ -18,6 +18,7 @@ import { SETS } from './data/sets3d.js';
 import { initBoss, updateBoss } from './boss3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent } from './quests3d.js';
+import { lightOf, isNight } from './daynight.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
@@ -68,7 +69,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0 },
     enemies: []
   };
@@ -78,7 +79,7 @@ const rr = (W, a, b) => a + W.rng() * (b - a);
 
 export function spawnEnemy(W, type, x, z) {
   const C = W.cfg.enemies[type], E = W.cfg.enemies, depth = clamp(len(x, z) / W.cfg.world.radius, 0, 1), pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * (1 + E.dangerHp * danger) * W.dif.hp);
-  const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * W.dif.dmg, danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
+  const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * W.dif.dmg * (W.night ? W.cfg.daynight.night.dmg : 1), danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
   W.enemies.push(e);
   return e;
 }
@@ -406,7 +407,7 @@ function updateEnemies(W, dt) {
   // держим нужное число врагов
   const alive = W.enemies.filter(e => !e.dead && !e.boss).length;
   const bonus = W.place && W.place.danger ? Math.round(W.place.danger * E.dangerCount) : 0;
-  if (alive < (E.count === 0 ? 0 : Math.max(1, E.count + bonus + W.dif.count)) && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = spawnRing(W) === false ? .1 : E.respawn; } }
+  if (alive < (E.count === 0 ? 0 : Math.max(1, E.count + bonus + W.dif.count + (W.night ? W.cfg.daynight.night.count : 0))) && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = spawnRing(W) === false ? .1 : E.respawn; } }
   else W.spawnT = Math.max(W.spawnT, .6);
 }
 const P_RADIUS = W => W.cfg.player.radius;
@@ -516,7 +517,7 @@ export function addXp(W, e, share = 1) {
 }
 export function gainXp(W, n) {
   const L = W.cfg.level; if (W.lv >= L.max) return;
-  n = Math.max(1, Math.round(n * W.dif.xp));
+  n = Math.max(1, Math.round(n * W.dif.xp * (W.night ? W.cfg.daynight.night.xp : 1)));
   W.xp += n; W.ev.push({ k: 'xp', n, x: W.player.x, z: W.player.z });
   while (W.lv < L.max && W.xp >= xpNeed(W.lv, W.cfg)) {
     W.xp -= xpNeed(W.lv, W.cfg); W.lv++; W.sp++;
@@ -561,7 +562,7 @@ export function restock(W) {
   W.shop.stock = out; W.shop.t = 0;
 }
 export function buyItem(W, i) {
-  const s = W.shop.stock[i]; if (!s || !W.nearMerchant) return 'far';
+  const s = W.shop.stock[i]; if (!s || !W.nearMerchant) return 'far'; if (W.night) return 'closed';
   const it = BY_ID[s.id], price = buyPrice(it, W.cfg, W.dif.buy);
   if (W.inv.ash < price) return 'ash';
   if (addItem(W.inv, s.id, 1, W.cfg.bag.slots) > 0) return 'full';
@@ -569,13 +570,13 @@ export function buyItem(W, i) {
   W.ev.push({ k: 'pickup', id: s.id, n: 1 }); return 'ok';
 }
 export function sellItem(W, idx, n = 1) {
-  const s = W.inv.bag[idx]; if (!s) return 'none'; if (!W.nearMerchant) return 'far';
+  const s = W.inv.bag[idx]; if (!s) return 'none'; if (!W.nearMerchant) return 'far'; if (W.night) return 'closed';
   const q = Math.min(n, s.n), it = BY_ID[s.id];
   W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade) * q; removeAt(W.inv, idx, q); return 'ok';
 }
 // продать весь хлам разом: безделушки, деньги, записки и материалы (оружие, броня, ключи и расходники остаются)
 export function sellJunk(W) {
-  if (!W.nearMerchant) return -1;
+  if (!W.nearMerchant || W.night) return -1;
   let sum = 0;
   for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if (it.cat === 'curio' || it.cat === 'material') { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
   W.inv.ash += sum; return sum;
@@ -655,7 +656,7 @@ export function refreshGear(W) {
   const L = W.cfg.level, base = skillStats(W.skills), wid = W.inv.eq.weapon;
   W.wp = weaponCtx(wid ? BY_ID[wid] : null);
   base.hp = (base.hp || 0) + (W.lv - 1) * L.hpPer; base.dmg = (base.dmg || 0) + (W.lv - 1) * L.dmgPer + W.reap.n * W.reap.amt; base.armor = (base.armor || 0) + W.bul.n * W.bul.amt;
-  base.luck = (base.luck || 0) + W.dif.luck;
+  base.luck = (base.luck || 0) + W.dif.luck + (W.night ? W.cfg.daynight.night.luck : 0);
   W.gear = gearStats(W.inv, W.buffs, W.cfg.smith.bonus, base); W.setFx = setBonus(W.inv).fx;
   const p = W.player; p.maxhp = Math.max(10, W.cfg.player.hp + W.gear.hp); if (p.hp > p.maxhp) p.hp = p.maxhp;
 }
@@ -663,6 +664,7 @@ export function refreshGear(W) {
 export function step(W, dt, input = {}) {
   if (!(dt > 0)) return;                                          // нулевой или отрицательный шаг (первый кадр rAF) ничего не двигает
   W.t += dt;
+  { const D = W.cfg.daynight, n = isNight(W.t, D); W.light = lightOf(W.t, D); if (n !== W.night) { W.night = n; W.ev.push({ k: n ? 'dusk' : 'dawn' }); } }
   for (let i = W.buffs.length - 1; i >= 0; i--) { W.buffs[i].t -= dt; if (W.buffs[i].t <= 0) W.buffs.splice(i, 1); }
   for (const k of ['reap', 'bul']) { const o = W[k]; if (o.n && (o.t -= dt) <= 0) { o.n = 0; o.t = 0; } }
   if (W.combo.n && (W.combo.t -= dt) <= 0) W.combo.n = 0;

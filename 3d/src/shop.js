@@ -29,7 +29,7 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     junkBtn.hidden = tab !== 'sell';
     listEl.textContent = '';
     if (tab === 'buy') {
-      W.shop.stock.forEach((s, i) => { const it = BY_ID[s.id], price = buyPrice(it, cfg, W.dif.buy); listEl.appendChild(row(it, s.n, it.stats ? statLine(it) : it.text || '', price, 'Купить', () => { const r = buyItem(W, i); if (r === 'ash') flash('Не хватает пепла'); else if (r === 'full') flash('Сумка полна'); else if (r === 'far') flash('Подойдите к торговцу'); }, W.inv.ash >= price, betterThanWorn(W.inv, it) ? '▲' : '')); });
+      W.shop.stock.forEach((s, i) => { const it = BY_ID[s.id], price = buyPrice(it, cfg, W.dif.buy); listEl.appendChild(row(it, s.n, it.stats ? statLine(it) : it.text || '', price, 'Купить', () => { const r = buyItem(W, i); if (r === 'closed') flash('Торговец спит до рассвета'); else if (r === 'ash') flash('Не хватает пепла'); else if (r === 'full') flash('Сумка полна'); else if (r === 'far') flash('Подойдите к торговцу'); }, W.inv.ash >= price, betterThanWorn(W.inv, it) ? '▲' : '')); });
       if (!W.shop.stock.length) listEl.appendChild(el('div', 'emptyl', 'Всё раскуплено. Витрина обновится позже.'));
     } else {
       const rows = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).sort((a, b) => b.it.rar - a.it.rar || a.it.name.localeCompare(b.it.name, 'ru'));
@@ -38,13 +38,13 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
         const risky = r.it.rar >= 3 && armed !== key;
         listEl.appendChild(row(r.it, r.s.n, r.it.stats ? statLine(r.it) : r.it.text || '', sellPrice(r.it, cfg, r.s.up || 0, W.gear.trade) * r.s.n, risky ? 'Продать?' : (r.s.n > 1 ? 'Всё' : 'Продать'), () => {
           if (risky) { armed = key; setTimeout(() => { armed = null; render(); }, 2500); return; }
-          armed = null; const res = sellItem(W, r.i, r.s.n); if (res === 'far') flash('Подойдите к торговцу');
+          armed = null; const res = sellItem(W, r.i, r.s.n); if (res === 'closed') flash('Торговец спит до рассвета'); else if (res === 'far') flash('Подойдите к торговцу');
         }, true, '', r.s.up || 0));
       }
       if (!rows.length) listEl.appendChild(el('div', 'emptyl', 'Сумка пуста.'));
     }
   }
-  junkBtn.addEventListener('click', () => { const sum = sellJunk(W); flash(sum < 0 ? 'Подойдите к торговцу' : sum ? `Хлам продан за ${sum}` : 'Хлама нет'); render(); onChange && onChange(); });
+  junkBtn.addEventListener('click', () => { const sum = sellJunk(W); flash(sum < 0 ? (W.night ? 'Торговец спит до рассвета' : 'Подойдите к торговцу') : sum ? `Хлам продан за ${sum}` : 'Хлама нет'); render(); onChange && onChange(); });
   const open = () => { tab = 'buy'; render(); root.hidden = false; onOpen && onOpen(); };
   const close = () => { root.hidden = true; onClose && onClose(); };
   $('shopClose').addEventListener('click', close);

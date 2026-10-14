@@ -109,6 +109,17 @@ export const CFG3 = {
   level: { max: 30, base: 28, pow: 1.3, hpPer: 4, dmgPer: .4, healOnUp: .3 },   // опыт до следующего уровня = base × ур^pow; за уровень: +hpPer здоровья, +dmgPer урона, +1 очко навыка
   // сложность. hp/dmg — множители врагов (и боссов), count — добавка к числу врагов, hear — слух врагов, luck — к удаче,
   // xp — опыт, buy — цены торговца, boss — множитель времени возрождения боссов, death — штраф: ash — доля теряемого пепла (остаётся «могила»), gear — теряется уровень улучшения у надетого
+  // сутки: len — секунд на полный круг; start — на какой фазе начинается игра (0.3 — полдень, 0.0 — рассвет);
+  // contrast — резкость смены; nightBelow — при каком свете считаем ночью. night — что меняется ночью.
+  daynight: {
+    len: 480, start: .22, contrast: .75, nightBelow: .22,
+    night: { count: 2, dmg: 1.15, xp: 1.25, luck: 8 },         // врагов больше и злее, опыта и удачи больше; торговец спит
+    sky: {
+      day:   { fog: '#3a2820', hemiSky: '#c8a890', hemiGround: '#3a2a22', hemiI: 2.8, sun: '#ffc890', sunI: 2.0, dome: '#ffffff' },
+      night: { fog: '#0a0608', hemiSky: '#5a5a8a', hemiGround: '#140c14', hemiI: 1.4, sun: '#7a8ac8', sunI: .55, dome: '#38384a' }
+    }
+  },
+  audio: { volume: .7 },
   difficulty: {
     default: 'berserk',
     levels: {
@@ -199,7 +210,9 @@ export const TWEAKS = [
   { path: 'enemies.count', label: 'Врагов на поле', min: 0, max: 12, step: 1 },
   { path: 'enemies.brutePart', label: 'Доля рогачей', min: 0, max: 1, step: .05 },
   { path: 'enemies.imp.speed', label: 'Скорость бесов', min: 1, max: 7, step: .1 },
-  { path: 'enemies.brute.hp', label: 'Здоровье рогача', min: 10, max: 300, step: 5 }
+  { path: 'enemies.brute.hp', label: 'Здоровье рогача', min: 10, max: 300, step: 5 },
+  { path: 'audio.volume', label: 'Громкость', min: 0, max: 1, step: .05 },
+  { path: 'daynight.len', label: 'Длина суток', min: 120, max: 1200, step: 30, unit: ' с' }
 ];
 
 export const getPath = (o, p) => p.split('.').reduce((a, k) => a[k], o);
