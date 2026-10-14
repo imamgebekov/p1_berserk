@@ -117,3 +117,12 @@ npm run test:all
 Игра откроется по адресу `https://<пользователь>.github.io/<репозиторий>/`. Это HTTPS, поэтому на телефоне работают офлайн-режим и установка на экран «Домой».
 Вручную с компьютера: `cd berserk && npm run deploy:pages -- https://github.com/<пользователь>/<репозиторий>.git`.
 Если рабочий процесс не может писать в репозиторий: Settings → Actions → General → Workflow permissions → «Read and write permissions».
+
+### Если Pages недоступны (приватный репозиторий без платной подписки)
+
+GitHub Pages для приватных репозиториев требует платный план. Бесплатные варианты, репозиторий остаётся приватным:
+
+**Netlify** (в репозитории уже есть `netlify.toml`): app.netlify.com → *Add new site → Import an existing project* → GitHub → репозиторий `hts-atlas`, ветка `claude/berserk-refactor-features-7fqv1m` (или `main` после слияния). Настройки сборки подхватятся из `netlify.toml`. Через пару минут появится адрес `https://<имя>.netlify.app`.
+**Cloudflare Pages**: Workers & Pages → *Create → Pages → Connect to Git*; Root directory `berserk`, Build command `npm run build`, Output directory `dist`, переменная `NODE_VERSION=22`.
+Файл `berserk/public/_headers` настраивает кэш: страница и service worker всегда свежие.
+Другой путь — отдельный публичный репозиторий только с игрой (тогда подойдёт рабочий процесс `berserk-pages.yml` и Pages).

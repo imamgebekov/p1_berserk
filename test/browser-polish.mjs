@@ -147,6 +147,8 @@ try {
     const head = await page.evaluate(() => ({ manifest: document.querySelector('link[rel=manifest]')?.getAttribute('href'), apple: document.querySelector('link[rel=apple-touch-icon]')?.getAttribute('href'),
       capable: document.querySelector('meta[name=apple-mobile-web-app-capable]')?.content, vp: document.querySelector('meta[name=viewport]')?.content }));
     if (!head.manifest || !head.apple || head.capable !== 'yes' || !head.vp.includes('viewport-fit=cover')) bad('мета для установки: ' + JSON.stringify(head));
+    const swText = await (await page.request.get(purl + 'sw.js')).text();
+    if (swText.includes('_headers') || swText.includes('.nojekyll')) bad('service worker пытается кэшировать служебные файлы хостинга');
     const man = await (await page.request.get(purl + 'manifest.webmanifest')).json();
     if (man.display !== 'standalone' || man.orientation !== 'portrait' || !man.icons.some(i => i.sizes === '512x512') || man.start_url !== './') bad('манифест: ' + JSON.stringify(man));
     for (const f of ['icon-180.png', 'icon-192.png', 'icon-512.png']) { const r = await page.request.get(purl + f); if (!r.ok() || !(r.headers()['content-type'] || '').includes('png')) bad(`иконка ${f}: ${r.status()} ${r.headers()['content-type']}`); }
