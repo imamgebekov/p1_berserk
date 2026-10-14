@@ -24,7 +24,7 @@ import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
-import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn } from './map.js';
+import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked } from './map.js';
 import { initLevels, withLevel, depthAt, onSurface, portalNear, backToSurface, SURFACE } from './levels3d.js';
 
 export function createWorld(cfg, rng = Math.random) {
@@ -356,7 +356,8 @@ function updateEnemies(W, dt) {
       const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100) * (W.place && W.place.safe ? .5 : 1) * W.dif.hear;
       const pe = placeAt(W.map, e.x, e.z), deep = pe && pe.safe && len(e.x - pe.x, e.z - pe.z) < pe.r - 4;    // в глубине безопасного места враги теряют след и не слышат
       if (deep) e.alert = false;
-      if (!e.alert && !deep && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
+      const hops = roomHops(W.map, e.x, e.z, p.x, p.z);           // в подземелье слышно только через немного комнат
+      if (!e.alert && !deep && hops <= W.cfg.dungeons.hearRooms && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
       else if (e.alert && d > H.lose) e.alert = false;
       const al = pickAlly(W, e, d);                                     // союзник ближе героя: враг бьёт его
       if (al) {
@@ -367,7 +368,7 @@ function updateEnemies(W, dt) {
         continue;
       }
       e.tgt = 0;
-      if (!p.dead && !e.alert && d < H.lose) {                       // не услышал: бредёт к герою вполсилы
+      if (!p.dead && !e.alert && d < H.lose && hops === 0) {          // не услышал: бредёт к герою вполсилы (в подземелье — только в той же комнате)
         const gx = dx / d * spd * H.drift * dt, gz = dz / d * spd * H.drift * dt; slide(W.map, e, gx, gz, C.radius);
       }
       if (!p.dead && e.alert) {
@@ -384,7 +385,7 @@ function updateEnemies(W, dt) {
         const ta = e.tgt && W.allies.find(a => a.id === e.tgt && !a.dead);
         if (ta) { if (len(ta.x - e.x, ta.z - e.z) <= C.range + .9) hurtAlly(W, ta, Math.round(C.damage * (e.dmgMul || 1)), e); }
         else if (C.ranged) { if (!p.dead) rangedFire(W, e, C); }
-        else if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside) { const dm = Math.round(C.damage * (e.dmgMul || 1)); if (hurtPlayer(W, dm, e.x, e.z, e.onx || C.on, e)) eliteOnHit(W, e, dm); }
+        else if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z)) { const dm = Math.round(C.damage * (e.dmgMul || 1)); if (hurtPlayer(W, dm, e.x, e.z, e.onx || C.on, e)) eliteOnHit(W, e, dm); }
         W.ev.push({ k: 'strike', x: e.x, z: e.z, id: e.id });
       }
     } else if (e.state === 'rec') {
@@ -497,7 +498,9 @@ export function dropItem(W, idx, n = 1) {
 
 // Куда идти врагу: если герой в доме, а враг снаружи (или наоборот) — через дверь; иначе прямо к герою
 function goalOf(W, e) {
-  const p = W.player, be = insideOf(W.map, e.x, e.z);
+  const p = W.player;
+  if (W.map.adj) return pathStep(W.map, e.x, e.z, p.x, p.z) || p;     // подземелье: через проходы по графу комнат
+  const be = insideOf(W.map, e.x, e.z);
   if (be === W.inside) return p;
   const near = (a, b) => len(a.x - b.x, a.z - b.z) < 2.4;
   if (be >= 0) { const dr = W.map.buildings[be].door; return near(e, dr.in) ? dr.out : dr.in; }      // враг в доме: выйти

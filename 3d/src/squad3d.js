@@ -1,7 +1,7 @@
 // Отряд: найм, бой, следование и лечение союзников.
 import { len, clamp, rr } from './util3d.js';
 import { questEvent } from './quests3d.js';
-import { insideOf, resolve, slide, pathStep } from './map.js';
+import { insideOf, resolve, slide, pathStep, roomHops } from './map.js';
 import { killEnemy } from './sim.js';
 
 // ---- отряд ----
@@ -46,7 +46,7 @@ export function updateAllies(W, dt) {
     slide(W.map, a, a.vx * dt, a.vz * dt, .45); const kd = Math.exp(-8 * dt); a.vx *= kd; a.vz *= kd;
     // цель: ближайший враг рядом с союзником и не слишком далеко от героя
     let tgt = null, bd = S.sight;
-    for (const e of enemies) { const d = len(e.x - a.x, e.z - a.z); if (d < bd && len(e.x - p.x, e.z - p.z) < S.sight + 8 && insideOf(W.map, e.x, e.z) === insideOf(W.map, a.x, a.z)) { bd = d; tgt = e; } }
+    for (const e of enemies) { const d = len(e.x - a.x, e.z - a.z); if (d < bd && len(e.x - p.x, e.z - p.z) < S.sight + 8 && insideOf(W.map, e.x, e.z) === insideOf(W.map, a.x, a.z) && roomHops(W.map, a.x, a.z, e.x, e.z) <= 1) { bd = d; tgt = e; } }   // в подземелье — враги своей и соседней комнаты
     if (a.state === 'wind') {
       a.t += dt; if (a.tg && !a.tg.dead) a.face = Math.atan2(a.tg.x - a.x, a.tg.z - a.z);
       if (a.t >= T.wind) {
@@ -62,9 +62,13 @@ export function updateAllies(W, dt) {
     } else if (a.state === 'rec') { a.t += dt; if (a.t >= T.recover) { a.state = 'idle'; a.t = 0; } }
     else if (tgt) {
       const C = W.cfg.enemies[tgt.type], dx = tgt.x - a.x, dz = tgt.z - a.z, d = len(dx, dz) || 1e-6;
-      a.face = Math.atan2(dx, dz);
-      if (d > T.range + C.radius * .5) slide(W.map, a, dx / d * T.speed * dt, dz / d * T.speed * dt, .45);
-      else { a.state = 'wind'; a.t = 0; a.tg = tgt; }
+      const wp = pathStep(W.map, a.x, a.z, tgt.x, tgt.z);       // цель в соседней комнате: через проход
+      if (wp) { const wx = wp.x - a.x, wz = wp.z - a.z, wd = len(wx, wz) || 1e-6; a.face = Math.atan2(wx, wz); slide(W.map, a, wx / wd * T.speed * dt, wz / wd * T.speed * dt, .45); }
+      else {
+        a.face = Math.atan2(dx, dz);
+        if (d > T.range + C.radius * .5) slide(W.map, a, dx / d * T.speed * dt, dz / d * T.speed * dt, .45);
+        else { a.state = 'wind'; a.t = 0; a.tg = tgt; }
+      }
     } else {
       // идти за героем: позиция в строю позади него
       const n = live.length, ang = p.face + Math.PI + (idx - (n - 1) / 2) * .95, r = S.follow + (idx % 2) * .8;

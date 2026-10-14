@@ -7,7 +7,7 @@ import { makeMap, insideOf } from '../3d/src/map.js';
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
 const clone = () => JSON.parse(JSON.stringify(CFG3));
-const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; if (tweak) tweak(c); return createWorld(c, mulberry32(seed)); };
+const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; for (const d of c.dungeons.list) d.spawns = []; if (tweak) tweak(c); return createWorld(c, mulberry32(seed)); };   // враги внизу — в delve3d.mjs
 const run = (W, sec, input = {}, dt = 1 / 60) => { for (let i = 0; i < Math.round(sec / dt); i++) step(W, dt, typeof input === 'function' ? input(i) : input); };
 const D = CFG3.dungeons.list[0];
 const toHatch = W => { W.player.x = D.at.x + .5; W.player.z = D.at.z; step(W, 1 / 60, {}); };

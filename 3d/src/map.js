@@ -133,6 +133,22 @@ export function sharedEdge(a, b) {
   if (oz > EPS && (Math.abs(a.x1 - b.x0) < EPS || Math.abs(b.x1 - a.x0) < EPS)) return { vert: true, line: Math.abs(a.x1 - b.x0) < EPS ? a.x1 : a.x0, s0: Math.max(a.z0, b.z0), s1: Math.min(a.z1, b.z1) };
   return null;
 }
+// сколько проходов между комнатами точек (Infinity — вне комнат); на поверхности 0
+export function roomHops(map, x0, z0, x1, z1) {
+  if (!map.hops) return 0;
+  const a = roomAt(map, x0, z0), b = roomAt(map, x1, z1);
+  return a < 0 || b < 0 ? Infinity : map.hops[a][b];
+}
+// стена подземелья или закрытая дверь на отрезке (шаг 0.25 м); на поверхности — нет
+export function lineBlocked(map, x0, z0, x1, z1) {
+  if (!map.blocks) return false;
+  const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / .25)), inR = (w, x, z) => x > w.x0 && x < w.x1 && z > w.z0 && z < w.z1;
+  for (let i = 1; i < n; i++) {
+    const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n;
+    if (map.blocks.some(w => inR(w, x, z)) || map.doors.some(d => d.open < .6 && inR(d.rect, x, z))) return true;
+  }
+  return false;
+}
 // комната (индекс), в которой стоит точка, иначе −1
 export function roomAt(map, x, z) {
   const R = map.rooms || [];
@@ -183,13 +199,15 @@ export function makeLevelMap(cfg, def) {
     L.door = doors.length;
     doors.push({ id: doors.length, x: L.x, z: L.z, vert: L.vert, s0: L.s0, s1: L.s1, line: L.line, w: L.s1 - L.s0, rect, open: 0, link: links.indexOf(L) });
   }
+  // сколько проходов между комнатами (поиск в ширину из каждой): по этому числу враги слышат героя
+  const hops = rooms.map((_, s) => { const h = rooms.map(() => Infinity); h[s] = 0; const q = [s]; while (q.length) { const r = q.shift(); for (const li of adj[r]) { const l = links[li], o = l.a === r ? l.b : l.a; if (h[o] === Infinity) { h[o] = h[r] + 1; q.push(o); } } } return h; });
   const bounds = { x0: Math.min(...rooms.map(r => r.x0)), x1: Math.max(...rooms.map(r => r.x1)), z0: Math.min(...rooms.map(r => r.z0)), z1: Math.max(...rooms.map(r => r.z1)) };
   const containers = [];
   for (const c of def.chests || []) containers.push({ id: containers.length, kind: c.kind, x: c.x, z: c.z, b: -1, ready: false, t: 0, items: [], locked: false, keyTier: 0 });
   const cx = (bounds.x0 + bounds.x1) / 2, cz = (bounds.z0 + bounds.z1) / 2;
   const place = { id: def.id, name: def.name, type: 'dungeon', x: cx, z: cz, r: Math.hypot(bounds.x1 - bounds.x0, bounds.z1 - bounds.z0) + 4, danger: def.danger || 0 };
   const portals = [{ x: def.exit.x, z: def.exit.z, to: 'surface', tx: def.back.x, tz: def.back.z, up: true }];
-  return { level: def.id, path: D.path, buildings: [], walls: blocks, blocks, rooms, links, adj, doors, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids: [], decor: [], roads: [] };
+  return { level: def.id, path: D.path, buildings: [], walls: blocks, blocks, rooms, links, adj, hops, doors, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids: [], decor: [], roads: [] };
 }
 
 // сдвиг с шагами не длиннее 0.25: быстрый перекат не пролетает сквозь стену

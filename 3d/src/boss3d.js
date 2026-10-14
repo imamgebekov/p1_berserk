@@ -8,6 +8,14 @@ export function initBoss(W, e, def) {
   e.b = { def, home: { x: e.x, z: e.z }, t: 0, cd: 1.5, atk: null, state: 'idle', done: new Set(), enraged: false, cds: {}, last: -1, dash: null, minions: [] };
 }
 
+// герой sec секунд был на другом уровне (в подземелье): босс уже вернулся в логово и лечился, как после ухода за поводок
+export function bossAway(W, e, sec) {
+  const b = e.b; if (!b || e.dead || sec <= 0) return;
+  e.alert = false; b.atk = null; b.state = 'idle'; b.dash = null; e.vx = e.vz = 0;
+  e.x = b.home.x; e.z = b.home.z;
+  e.hp = Math.min(e.maxhp, e.hp + e.maxhp * W.cfg.bosses.homeHeal * sec);
+}
+
 export function updateBoss(W, e, dt, spd) {
   const B = W.cfg.bosses, C = W.cfg.enemies[e.type], b = e.b, p = W.player;
   const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6;
@@ -29,7 +37,7 @@ export function updateBoss(W, e, dt, spd) {
   if (p.dead || len(p.x - b.home.x, p.z - b.home.z) > B.leash || (!e.alert && homeD > 2)) {
     e.alert = false; b.atk = null; b.state = 'idle'; b.dash = null;
     if (homeD > 1) { const hx = b.home.x - e.x, hz = b.home.z - e.z, hd = len(hx, hz); W.fx.slide(e, hx / hd * C.speed * 1.5 * dt, hz / hd * C.speed * 1.5 * dt, C.radius); e.face = Math.atan2(hx, hz); }
-    e.hp = Math.min(e.maxhp, e.hp + e.maxhp * .12 * dt);
+    e.hp = Math.min(e.maxhp, e.hp + e.maxhp * B.homeHeal * dt);
     if (len(p.x - b.home.x, p.z - b.home.z) < B.aggro && !p.dead) e.alert = true;
     return;
   }

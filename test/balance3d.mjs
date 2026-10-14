@@ -2,7 +2,8 @@
 // Печатает таблицу (убито, урон за убийство, доля смертей) и проверяет «лестницу силы»:
 // голые руки далеко от костра умирают, экипировка по месту выживает, перебор экипировки у костра скучен, но безопасен.
 import { CFG3 } from '../3d/src/config3d.js';
-import { createWorld, step, mulberry32, aliveEnemies, setDifficulty } from '../3d/src/sim.js';
+import { createWorld, step, mulberry32, aliveEnemies, setDifficulty, travel } from '../3d/src/sim.js';
+import { pathStep } from '../3d/src/map.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const TIERS = {
   'без вещей': {},
@@ -73,5 +74,39 @@ function bossFight(tier, seed) {
 const BOSS_LV = { 'сталь': 12, 'чёрное': 22 };
 const bossRes = {}; for (const tier of ['сталь', 'чёрное']) { let w = 0, t = 0; const N = 6; for (let sd = 0; sd < N; sd++) { const r = bossFight(tier, sd); w += r.win ? 1 : 0; t += r.t; } bossRes[tier] = { win: w / N, t: t / N }; console.log(`босс / ${tier}`.padEnd(26), `побед ${(w / N * 100).toFixed(0)}%  среднее время ${(t / N).toFixed(0)} с`); }
 ok(bossRes['чёрное'].win >= bossRes['сталь'].win, 'в лучшей экипировке босса бить не проще'); ok(bossRes['сталь'].win <= .7, 'босс слишком лёгок для «стали»: ' + bossRes['сталь'].win); ok(bossRes['чёрное'].win >= .3, 'босс непроходим даже в лучшей экипировке: ' + bossRes['чёрное'].win);
+// подземелья: бот зачищает уровень (к ближайшему врагу через проходы), 240 с; печатает смерти, долю убитых и время
+function delve(tier, id, seed) {
+  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.bosses.list = [];
+  const W = createWorld(cfg, mulberry32(seed * 7919 + 3)), def = cfg.dungeons.list.find(d => d.id === id);
+  if (process.env.BAL_DIF) setDifficulty(W, process.env.BAL_DIF);
+  Object.assign(W.inv.eq, TIERS[tier]); travel(W, id, def.entry.x, def.entry.z);
+  const total = aliveEnemies(W).length, dodge = mulberry32(seed + 99);
+  for (let i = 0; i < 60 * 240; i++) {
+    const p = W.player, en = aliveEnemies(W); if (!en.length) return { dead: false, t: i / 60, frac: 1 };
+    let tgt = null, bd = 1e9; for (const e of en) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; tgt = e; } }
+    const inp = { mx: 0, mz: 0, attack: false, roll: false }, wp = pathStep(W.map, p.x, p.z, tgt.x, tgt.z);
+    if (wp) { const dx = wp.x - p.x, dz = wp.z - p.z, d = Math.hypot(dx, dz) || 1; inp.mx = dx / d; inp.mz = dz / d; inp.attack = bd < 2; }
+    else {
+      const C = cfg.enemies[tgt.type], reach = cfg.player.attackRange + W.gear.reach + C.radius * .5;
+      if (bd > reach * .8) { inp.mx = (tgt.x - p.x) / bd; inp.mz = (tgt.z - p.z) / bd; }
+      inp.attack = bd < reach + .4;
+      if (tgt.state === 'wind' && bd < C.range + 1.2 && tgt.t > C.wind * .6 && p.rollCd <= 0 && dodge() < .5) inp.roll = true;
+    }
+    step(W, 1 / 60, inp);
+    if (p.dead) return { dead: true, t: i / 60, frac: 1 - aliveEnemies(W).length / total };
+  }
+  return { dead: false, t: 240, frac: 1 - aliveEnemies(W).length / total };
+}
+const dg = {}, DN = 6;
+for (const def of CFG3.dungeons.list) for (const tier of Object.keys(TIERS)) {
+  let dead = 0, frac = 0, t = 0; for (let s = 0; s < DN; s++) { const r = delve(tier, def.id, s); dead += r.dead ? 1 : 0; frac += r.frac; t += r.t; }
+  dg[`${def.id} / ${tier}`] = { smert: dead / DN, frac: frac / DN };
+  console.log(`${def.name} / ${tier}`.padEnd(26), `смертей ${(dead / DN * 100).toFixed(0).padStart(3)}%  зачищено ${(frac / DN * 100).toFixed(0).padStart(3)}%  время ${(t / DN).toFixed(0)} с`);
+}
+ok(dg['cellar_cooper / железо'].smert <= .2 && dg['cellar_cooper / железо'].frac >= .9, 'погреб у деревни в железе слишком опасен');
+ok(dg['crypt_pogost / без вещей'].smert >= .8, 'склеп без вещей не должен проходиться');
+ok(dg['crypt_pogost / сталь'].smert <= .4 && dg['crypt_pogost / сталь'].frac >= .8, 'склеп в стали слишком опасен');
+ok(dg['crypt_pogost / чёрное'].smert <= .15 && dg['crypt_pogost / чёрное'].frac >= .95, 'склеп в чёрном слишком опасен');
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Баланс 3D: OK');

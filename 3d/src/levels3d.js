@@ -3,7 +3,8 @@
 import { clamp, len } from './util3d.js';
 import { makeLevelMap, resolve } from './map.js';
 import { reveal } from './places3d.js';
-import { mulberry32 } from './sim.js';
+import { mulberry32, spawnEnemy } from './sim.js';
+import { bossAway } from './boss3d.js';
 
 export const SURFACE = 'surface';
 export const onSurface = W => W.lvl === SURFACE;
@@ -48,11 +49,37 @@ export function portalNear(W) {
 }
 export function portalName(W, q) { return q.up ? 'Подняться' : 'Спуститься: ' + W.levels[q.to].def.name; }
 
+// уход с уровня: запомнить время; враги подземелья теряют героя
+function leave(W) { const L = W.levels[W.lvl]; L.leftT = W.t; if (L.def) for (const e of W.enemies) e.alert = false; }
+// приход на уровень: подземелье наполняется врагами при первом входе и если героя не было dungeons.respawnAway секунд;
+// наверху боссы за это время вернулись в логово и подлечились
+function arrive(W) {
+  const L = W.levels[W.lvl], away = L.leftT === undefined ? Infinity : W.t - L.leftT;
+  if (!L.def) { for (const e of W.enemies) if (e.boss) bossAway(W, e, away); return; }
+  if (away >= W.cfg.dungeons.respawnAway) { W.enemies = L.enemies = []; spawnFoes(W, L); }
+}
+// враги по комнатам: spawns [{ room, n, type? }], тип без указания — по весам foes; не у входа и не у стен
+export function spawnFoes(W, L) {
+  const D = W.cfg.dungeons, def = L.def, M = L.map, rng = W.rng;
+  const pick = () => { const t = def.foes.reduce((a, f) => a + f[1], 0); let r = rng() * t; for (const f of def.foes) if ((r -= f[1]) <= 0) return f[0]; return def.foes[0][0]; };
+  for (const s of def.spawns || []) {
+    const room = M.rooms.find(r => r.id === s.room); if (!room) continue;
+    for (let k = 0; k < s.n; k++) {
+      let x = 0, z = 0;
+      for (let a = 0; a < 12; a++) {
+        x = room.x0 + D.spawnPad + rng() * Math.max(0, room.x1 - room.x0 - 2 * D.spawnPad); z = room.z0 + D.spawnPad + rng() * Math.max(0, room.z1 - room.z0 - 2 * D.spawnPad);
+        if (len(x - def.entry.x, z - def.entry.z) >= D.spawnSafe) break;
+      }
+      spawnEnemy(W, s.type || pick(), x, z);
+    }
+  }
+}
+
 // перейти на уровень id в точку (x, z): отряд идёт следом, снаряды и отложенные удары пропадают
 export function travel(W, id, x, z) {
   if (!W.levels[id]) return false;
   const p = W.player;
-  stash(W); load(W, id);
+  leave(W); stash(W); load(W, id); arrive(W);
   Object.assign(p, { x, z, vx: 0, vz: 0, state: 'idle', atkT: 0, rollT: 0 });
   p.inv = Math.max(p.inv, .8);
   resolve(W.map, p, W.cfg.player.radius);
@@ -65,4 +92,4 @@ export function travel(W, id, x, z) {
 export function usePortal(W) { const q = portalNear(W); return q ? travel(W, q.to, q.tx, q.tz) : false; }
 
 // после смерти герой встаёт у костра: возвращаем его на поверхность
-export function backToSurface(W) { if (W.lvl === SURFACE) return; stash(W); load(W, SURFACE); W.inside = -1; }
+export function backToSurface(W) { if (W.lvl === SURFACE) return; leave(W); stash(W); load(W, SURFACE); arrive(W); W.inside = -1; }
