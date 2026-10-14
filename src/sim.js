@@ -8,13 +8,13 @@ import { sfx, setDrone } from './audio.js';
 import { burst } from './fx.js';
 import { stepParticles, stepNums } from './fx.js';
 import { spawnEnemy, spawnBoss } from './world.js';
-import { startSwing, hurtEnemy, hurtPlayer, swingDamage } from './combat.js';
+import { startSwing, hurtEnemy, hurtPlayer, rollSwing, speedMult } from './combat.js';
 import { updateNpcs } from './npc.js';
 
 export function step(dt) {
   W.T += dt;
   runTimers();
-  if (!W.started) return;
+  if (!W.started || W.paused) return;
   if (P.dead) { stepParticles(dt, true); return; }
   update(dt);
 }
@@ -22,7 +22,7 @@ export function step(dt) {
 function updatePlayer(dt) {
   const C = CFG.player, rage = P.rageOn > 0;
   const dir = (keys.r ? 1 : 0) - (keys.l ? 1 : 0);
-  const spd = rage ? C.rageSpeed : C.walkSpeed, active = P.swingT >= 0;
+  const spd = (rage ? C.rageSpeed : C.walkSpeed) * speedMult(), active = P.swingT >= 0;
   if (dir) { P.x += dir * spd * (active ? C.swingMoveFactor : 1) * dt; if (!active) P.face = dir; P.walk += dt * 10; }
   P.x += P.vx * dt; P.vx *= Math.pow(C.knockDecay, dt);
   P.x = clamp(P.x, 12, CFG.world.length - 12);
@@ -40,7 +40,8 @@ function updatePlayer(dt) {
         const dx = (e.x - P.x) * P.face;
         if (dx > C.hitBehind && dx < reach + e.w / 2 && P.z < e.h + C.hitHeightSlack) {
           P.hitSet.add(e.id);
-          hurtEnemy(e, Math.round(swingDamage()), P.face, P.heavy);
+          const sw = rollSwing();
+          hurtEnemy(e, sw.dmg, P.face, P.heavy, sw.crit);
         }
       }
     }

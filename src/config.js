@@ -110,8 +110,48 @@ export const CFG = {
     ashPerKill: [1, 3],
     lordAshMult: 5,
     bossAshBase: 40,
-    flavorChance: .18,
-    flavorNames: ['Ржавый обломок', 'Клык рогача', 'Обугленный амулет', 'Осколок стали', 'Клочок плаща']
+
+    // Предметы. luck = глубина*luckPerDepth + (ур-1)*luckPerLevel + круг*luckPerCycle + бонус таблицы.
+    // maxTier = 1 + floor(luck / tierStep) (+ bossTierBonus у Предвестника): какие предметы вообще могут выпасть.
+    // вес редкости = base * (1 + luck * grow)
+    luckPerDepth: 2.0,      // глубина 0..1 (от границы города до края мира)
+    luckPerLevel: .15,
+    luckPerCycle: .35,
+    tierStep: 1.0,
+    bossTierBonus: 1,
+    rarityOrder: ['common', 'rare', 'cursed', 'branded'],
+    tables: {
+      normal: { base: { common: 100, rare: 10, cursed: 3, branded: 0 }, grow: { common: 0, rare: 1.0, cursed: 1.5, branded: 0 } },
+      elite:  { base: { common: 55, rare: 30, cursed: 12, branded: 1 }, grow: { common: 0, rare: .6, cursed: .8, branded: .6 } },
+      boss:   { base: { common: 0, rare: 60, cursed: 25, branded: 11 }, grow: { common: 0, rare: .2, cursed: .4, branded: .5 } }
+    },
+    // chance — вероятность, что с врага вообще что-то выпадет; rolls — сколько бросков; luck — бонус к удаче
+    drops: {
+      imp:   { chance: .14, rolls: 1, table: 'normal', luck: 0 },
+      brute: { chance: .26, rolls: 1, table: 'normal', luck: .3 },
+      lord:  { chance: .85, rolls: 1, table: 'elite',  luck: 1.0 },
+      boss:  { chance: 1,   rolls: 3, table: 'boss',   luck: 1.5 }
+    }
+  },
+
+  items: {
+    bagSize: 20,
+    bagCols: 5,
+    sellRatio: .4,          // цена продажи = price * sellRatio
+    armorK: 30,             // снижение урона = armor / (armor + armorK)
+    armorMin: -15,
+    critMult: 1.75,
+    critCap: 60,            // % шанса крита, не выше
+    speedMin: -30, speedMax: 40,
+    rageMax: 150,
+    hpFloor: 10,            // здоровье не ниже
+    confirmMs: 2500,        // окно второго тапа «Точно?»
+    rarity: {
+      common:  { name: 'Обычный',   color: '#b8ae9a' },
+      rare:    { name: 'Редкий',    color: '#5aa0ff' },
+      cursed:  { name: 'Проклятый', color: '#b070e8' },
+      branded: { name: 'Клеймёный', color: '#ff6a3a' }
+    }
   },
 
   npcPlayers: {
@@ -144,6 +184,7 @@ export const CFG = {
   fx: {
     freezeLight: .05, freezeHeavy: .067, freezeRage: .083, freezeHurt: .067, freezeBrand: .133,
     shakeLight: 2, shakeHeavy: 4, shakeHurt: 5, shakeBrand: 8, shakeBoss: 6, shakeBossDown: 8,
+    freezeCrit: .075,
     shakeDecay: 18,
     hurtFlash: .35,
     maxParticles: 220       // потолок, чтобы кадр на телефоне не разрастался

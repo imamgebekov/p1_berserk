@@ -12,7 +12,7 @@ export const IDLE_LINES = [
   'не стойте у края, они прыгают', 'держитесь вместе', 'я тут просто посижу у огня'
 ];
 
-// kind: 'sys' — системная строка, 'npc' — реплика «игрока», 'me' — реплика героя
+// kind: 'sys' — системная строка, 'loot' — добыча (цвет по редкости), 'npc' — реплика «игрока», 'me' — реплика героя
 export function chat(name, text, kind, col) {
   W.chatLog.push({ id: ++W.chatSeq, name, text, kind: kind || '', col: col || '#d8cfbd', born: W.T });
   while (W.chatLog.length > CFG.chat.maxLines) W.chatLog.shift();

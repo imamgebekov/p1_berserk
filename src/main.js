@@ -11,6 +11,9 @@ import { ensureAudio, isMuted, setMuted } from './audio.js';
 import { createRenderer } from './render/index.js';
 import { createHud } from './hud.js';
 import { bindInput } from './input.js';
+import { createInventoryUI } from './ui/inventory.js';
+import { giveItem, newItem, recalc } from './inventory.js';
+import { P } from './state.js';
 
 const $ = id => document.getElementById(id);
 const mq = matchMedia('(prefers-reduced-motion: reduce)');
@@ -28,6 +31,8 @@ addEventListener('orientationchange', () => setTimeout(resize, 200));
 resize();
 makeNpcs();
 bindInput(document, window);
+recalc();
+const inventoryUI = createInventoryUI(document);
 
 $('go').addEventListener('click', () => {
   ensureAudio(); $('start').hidden = true; W.started = true;
@@ -50,4 +55,4 @@ function loop(now) {
 requestAnimationFrame(loop);
 
 // для отладки с компьютера: window.__berserk
-window.__berserk = { W };
+window.__berserk = { W, P, giveItem, newItem, inventoryUI };

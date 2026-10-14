@@ -1,7 +1,9 @@
 // Бой: удары, урон, смерть, Клеймо, опыт, добыча.
 import { CFG, xpNeed } from './config.js';
 import { P, W } from './state.js';
-import { riIn, rndIn, pick, random } from './util.js';
+import { riIn, rndIn, pick, random, clamp } from './util.js';
+import { recalc, armorReduction } from './inventory.js';
+import { lootFor } from './loot.js';
 import { chat, npcSay } from './chat.js';
 import { after } from './clock.js';
 import { sfx } from './audio.js';
@@ -11,11 +13,17 @@ import { env } from './env.js';
 export function gainXP(n) {
   P.xp += n;
   while (P.xp >= xpNeed(P.lv)) {
-    P.xp -= xpNeed(P.lv); P.lv++; P.maxhp += CFG.player.hpPerLevel; P.hp = P.maxhp;
+    P.xp -= xpNeed(P.lv); P.lv++; recalc(); P.hp = P.maxhp;
     burst(P.x, 12, 24, ['#e0c070', '#f6eed9', '#e0602a'], 70, 60);
     sfx.level(); chat('', 'Новый уровень: ' + P.lv, 'sys');
     after(.8, () => npcSay(pick(['gz', 'гз', 'кто-то поднялся'])));
   }
+}
+
+// Набор Клейма с учётом статов предметов
+function addRage(n) {
+  if (P.rageOn > 0) return;
+  P.rage = Math.min(CFG.rage.max, P.rage + n * Math.max(0, 1 + P.stats.rage / 100));
 }
 
 function freeze(sec) { W.freeze = Math.max(W.freeze, env.reduce ? Math.min(sec, .03) : sec); }
@@ -29,16 +37,14 @@ export function killEnemy(e) {
   P.kills++; W.killsSinceLord++;
   gainXP(e.xp);
   P.ash += riIn(CFG.loot.ashPerKill) * (e.type === 'lord' ? CFG.loot.lordAshMult : 1);
-  if (random() < CFG.loot.flavorChance) {
-    chat('', 'Получено: ' + pick(CFG.loot.flavorNames), 'sys');
-    sfx.loot();
-  }
+  lootFor(e);
 }
 
 function bossDown(e) {
   const all = Math.max(1, e.myDmg + e.npcDmg);
   const share = Math.round(100 * e.myDmg / all);
   gainXP(e.xp * (1 + W.cycle)); P.ash += CFG.loot.bossAshBase + share;
+  lootFor(e);
   W.boss = null; W.cycle++; W.maxT = CFG.eclipse.nextTimer; W.timer = W.maxT;
   chat('', 'Предвестник пал. Твой вклад: ' + share + '%', 'sys');
   W.shake = CFG.fx.shakeBossDown;
@@ -46,16 +52,16 @@ function bossDown(e) {
   after(1.6, () => npcSay(share > 35 ? 'Странник, ты зверь' : 'без вас бы не справились'));
 }
 
-export function hurtEnemy(e, dmg, face, heavy) {
+export function hurtEnemy(e, dmg, face, heavy, crit = false) {
   const A = CFG.enemyAi;
   e.hp -= dmg; e.flash = .1; e.myDmg += dmg;
   e.vx = face * (heavy ? A.knockHeavy : A.knockLight) * (A.knockResist[e.type] ?? 1);
   if (e.st === 'wind' && e.type !== 'boss') { e.st = 'walk'; e.t = 0; }
   burst(e.x, e.h * .6, heavy ? 12 : 7, BLOOD, 50, 40);
-  dmgNum(e.x, e.h + 4, dmg, P.rageOn > 0 ? '#e0602a' : '#e8e0cc');
-  freeze(P.rageOn > 0 ? CFG.fx.freezeRage : (heavy ? CFG.fx.freezeHeavy : CFG.fx.freezeLight));
+  dmgNum(e.x, e.h + 4, dmg, crit ? '#f0c040' : P.rageOn > 0 ? '#e0602a' : '#e8e0cc');
+  freeze(crit ? CFG.fx.freezeCrit : P.rageOn > 0 ? CFG.fx.freezeRage : (heavy ? CFG.fx.freezeHeavy : CFG.fx.freezeLight));
   W.shake = Math.max(W.shake, heavy ? CFG.fx.shakeHeavy : CFG.fx.shakeLight);
-  if (P.rageOn <= 0) P.rage = Math.min(CFG.rage.max, P.rage + (heavy ? CFG.rage.gainHeavy : CFG.rage.gainLight));
+  addRage(heavy ? CFG.rage.gainHeavy : CFG.rage.gainLight);
   P.inCombat = CFG.world.combatCooldown;
   sfx.hit(heavy);
   if (e.hp <= 0) killEnemy(e);
@@ -64,9 +70,10 @@ export function hurtEnemy(e, dmg, face, heavy) {
 export function hurtPlayer(dmg, dir) {
   if (P.inv > 0 || P.dead) return;
   if (P.rageOn > 0) dmg = Math.round(dmg * CFG.rage.damageTaken);
+  dmg = Math.max(1, Math.round(dmg * (1 - armorReduction(P.stats.armor))));
   P.hp -= dmg; P.inv = CFG.player.invAfterHit; P.vx = dir * CFG.player.hurtKnock;
   W.hurtFlash = CFG.fx.hurtFlash; freeze(CFG.fx.freezeHurt); W.shake = Math.max(W.shake, CFG.fx.shakeHurt);
-  if (P.rageOn <= 0) P.rage = Math.min(CFG.rage.max, P.rage + CFG.rage.gainHurt);
+  addRage(CFG.rage.gainHurt);
   burst(P.x, 10, 10, BLOOD, 50, 40);
   dmgNum(P.x, 24, dmg, '#c0222c');
   P.inCombat = CFG.world.combatCooldown; sfx.hurt();
@@ -101,8 +108,15 @@ export function tryBrand() {
   }
 }
 
-export function swingDamage() {
+// Урон удара: база + уровень + статы предметов, затем тяжёлый/Клеймо/разброс, затем крит
+export function rollSwing() {
   const C = CFG.player;
-  return (C.baseDamage + P.lv * C.damagePerLevel) * (P.heavy ? C.heavyMult : 1) *
+  let d = Math.max(1, C.baseDamage + P.lv * C.damagePerLevel + P.stats.dmg) * (P.heavy ? C.heavyMult : 1) *
     (P.rageOn > 0 ? CFG.rage.damageMult : 1) * rndIn(C.damageVariance);
+  const crit = random() * 100 < P.stats.crit;
+  if (crit) d *= CFG.items.critMult;
+  return { dmg: Math.max(1, Math.round(d)), crit };
 }
+
+// скорость ходьбы с учётом предметов
+export const speedMult = () => 1 + P.stats.speed / 100;

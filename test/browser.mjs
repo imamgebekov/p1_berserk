@@ -34,13 +34,13 @@ async function session(label, device) {
   await page.tap('#go');
 
   // геометрия кнопок
-  const geo = await page.evaluate(() => [...document.querySelectorAll('.btn,#mute,.veil button')].map(b => {
+  const geo = await page.evaluate(() => [...document.querySelectorAll('.btn,.mbtn,#mute,.veil button')].map(b => {
     const r = b.getBoundingClientRect(); return { id: b.id, x: r.x, y: r.y, w: r.width, h: r.height, vis: !!(r.width && r.height) };
   }));
   for (const b of geo.filter(b => b.vis)) {
     if (b.w < 44 || b.h < 44) problems.push(`${label}: кнопка #${b.id} ${b.w}×${b.h} < 44px`);
   }
-  const pad = geo.filter(b => ['bl', 'br', 'batk', 'bjump', 'bbrand'].includes(b.id));
+  const pad = geo.filter(b => ['bl', 'br', 'batk', 'bjump', 'bbrand', 'mbag'].includes(b.id));
   for (let i = 0; i < pad.length; i++) for (let j = i + 1; j < pad.length; j++) {
     const a = pad[i], c = pad[j];
     if (a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h) problems.push(`${label}: кнопки #${a.id} и #${c.id} пересекаются`);
@@ -66,6 +66,34 @@ async function session(label, device) {
     return { n: fr.length, p50: fr[fr.length >> 1], p95: fr[Math.floor(fr.length * .95)], max: fr[fr.length - 1], T: W.T, enemies: W.enemies.length,
       hud: document.getElementById('stats').textContent, canvas: [document.getElementById('c').width, document.getElementById('c').height] };
   });
+  // инвентарь: открыть кнопкой, пауза, карточка, надеть, закрыть
+  await page.evaluate(() => { const B = window.__berserk; B.P.bag.length = 0; for (const id of ['w_bone_edge', 'h_horned_helm', 'c_raven']) B.giveItem(B.newItem(id)); });
+  await page.tap('#mbag');
+  await page.waitForSelector('#bag:not([hidden])');
+  const t0 = await page.evaluate(() => { const B = window.__berserk; return { timer: B.W.timer, x: B.P.x, ex: B.W.enemies.map(e => e.x).join() }; });
+  await page.waitForTimeout(400);
+  const inv = await page.evaluate(() => {
+    const B = window.__berserk, cells = [...document.querySelectorAll('#grid .cell, #eq .cell')].map(c => c.getBoundingClientRect());
+    return { paused: B.W.paused, timer: B.W.timer, x: B.P.x, ex: B.W.enemies.map(e => e.x).join(), small: cells.filter(r => r.width < 44 || r.height < 44).length, n: cells.length,
+      overflow: document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight };
+  });
+  if (!inv.paused) problems.push(`${label}: игра не на паузе при открытой сумке`);
+  if (inv.timer !== t0.timer || inv.x !== t0.x || inv.ex !== t0.ex) problems.push(`${label}: мир двигался при паузе`);
+  if (inv.small) problems.push(`${label}: ${inv.small} ячеек меньше 44px`);
+  if (inv.overflow) problems.push(`${label}: экран сумки выходит за вьюпорт`);
+  await page.tap('#grid .cell:nth-child(1)');
+  await page.waitForSelector('#cardWrap:not([hidden])');
+  const btnH = await page.evaluate(() => [...document.querySelectorAll('#card button')].map(b => b.getBoundingClientRect().height));
+  if (btnH.some(h => h < 44)) problems.push(`${label}: кнопка карточки < 44px: ${btnH}`);
+  const cardBox = await page.locator('#card').boundingBox();
+  if (cardBox.y < 0 || cardBox.y + cardBox.height > (await page.viewportSize()).height + 1) problems.push(`${label}: карточка не влезает в экран`);
+  await page.tap('.cbtn.main');
+  const after = await page.evaluate(() => { const P = window.__berserk.P; return { w: P.eq.weapon && P.eq.weapon.id, bag: P.bag.length }; });
+  if (after.w !== 'w_bone_edge') problems.push(`${label}: оружие не надето (${after.w})`);
+  await page.screenshot({ path: join(out, label.replace(/\W+/g, '_') + '_bag.png') });
+  await page.tap('#bagClose');
+  const unp = await page.evaluate(() => window.__berserk.W.paused);
+  if (unp) problems.push(`${label}: пауза не снялась после закрытия сумки`);
   await page.screenshot({ path: join(out, label.replace(/\W+/g, '_') + '.png') });
   console.log(' ', label, JSON.stringify(info));
   if (info.n < 30) problems.push(`${label}: за тест отрисовано всего ${info.n} кадров`);

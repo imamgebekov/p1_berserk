@@ -8,7 +8,7 @@ export function createHud(doc) {
   const $ = id => doc.getElementById(id);
   const el = {
     hp: $('hpf'), rg: $('rgf'), rgbar: $('rgbar'), lv: $('lv'), ash: $('ash'), kills: $('kills'), onl: $('onl'),
-    boss: $('boss'), bh: $('bhf'), tm: $('timer'), brand: $('bbrand'), dead: $('dead'), chat: $('chat')
+    boss: $('boss'), bh: $('bhf'), tm: $('timer'), brand: $('bbrand'), dead: $('dead'), chat: $('chat'), badge: $('bagBadge')
   };
   const last = {};
   const text = (k, node, v) => { if (last[k] !== v) { last[k] = v; node.textContent = v; } };
@@ -29,6 +29,7 @@ export function createHud(doc) {
         const d = doc.createElement('div');
         d.className = m.kind;
         if (m.kind === 'sys') d.textContent = m.text;
+        else if (m.kind === 'loot') { d.textContent = m.text; d.style.color = m.col; }
         else {
           const s = doc.createElement('span'); s.style.color = m.col; s.textContent = m.name + ': ';
           d.appendChild(s); d.appendChild(doc.createTextNode(m.text));
@@ -50,6 +51,7 @@ export function createHud(doc) {
     flag('full', el.rgbar, 'full', full); flag('ready', el.brand, 'ready', full);
     text('lv', el.lv, String(P.lv)); text('ash', el.ash, String(P.ash)); text('kills', el.kills, String(P.kills));
     text('onl', el.onl, String(W.online));
+    text('badge', el.badge, String(P.newItems)); hide('badge', el.badge, P.newItems <= 0);
     hide('boss', el.boss, !W.boss);
     hide('dead', el.dead, !P.dead);
     if (W.boss) { bar('bh', el.bh, W.boss.hp / W.boss.maxhp); text('tm', el.tm, ''); }

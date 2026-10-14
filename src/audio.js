@@ -59,5 +59,9 @@ export const sfx = {
   level: () => { [523, 659, 784, 1046].forEach((f, i) => after(i * .09, () => tone(f, .35, 'triangle', .07))); },
   brand: () => { tone(70, .9, 'sawtooth', .12, 35); noise(.6, .14, 300, 100); },
   slam: () => { tone(60, .4, 'square', .14, 25); noise(.3, .2, 400, 80); },
-  loot: () => tone(880, .12, 'triangle', .04, 1320)
+  loot: rarity => {
+    if (!rarity || rarity === 'common') { tone(880, .12, 'triangle', .04, 1320); return; }
+    const notes = rarity === 'branded' ? [523, 784, 1046, 1568] : rarity === 'cursed' ? [392, 466, 392, 311] : [659, 880, 1175];
+    notes.forEach((f, i) => after(i * .07, () => tone(f, .22, rarity === 'cursed' ? 'sawtooth' : 'triangle', .05)));
+  }
 };
