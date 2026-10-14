@@ -19,6 +19,7 @@ export const SLOT_NAME = { weapon: 'Оружие', head: 'Голова', body: '
 export const STAT_NAME = { dmg: 'урон', armor: 'броня', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
 
 import { NAMED_ARMOR } from './sets3d.js';
+import { TOMES } from './tomes3d.js';
 import { TRAITS, PERKS, MATERIAL_PERKS, ELEMENTS, ENCHANTED_KINDS, UNIQUES, weaponText } from './weapons3d.js';
 
 const ITEMS = [];
@@ -170,6 +171,17 @@ const MATERIALS = [
   ['raven_feather', 'Вороново перо', 0, 3], ['tallow', 'Сало', 0, 3], ['flint', 'Кремень', 0, 3], ['black_resin', 'Чёрная смола', 3, 70], ['brand_ember', 'Клеймёный уголёк', 4, 190]
 ];
 for (const [id, name, rar, val] of MATERIALS) add({ id: 'm_' + id, name, cat: 'material', pool: 'material', rar, stack: 20, value: val, text: 'Материал: пригодится для ковки и торговли.' });
+
+// материалы крафта: трофеи боссов (только с боссов), сплав (только крафтом), монстровые материалы (с врагов)
+add({ id: 'm_devourer_heart', name: 'Сердце Пожирателя', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 240, text: 'Всё ещё тёплое. Трофей Пожирателя Погоста: нужен для именных вещей.' });
+add({ id: 'm_eclipse_cloak', name: 'Лоскут Затмения', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 240, text: 'Ткань тьмы, что не пропускает свет. Трофей Слуги Затмения.' });
+add({ id: 'm_chief_fang', name: 'Клык Вожака', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 240, text: 'Желтоват и тяжёл. Трофей Вожака Ржавых.' });
+add({ id: 'm_ash_alloy', name: 'Пепельный сплав', cat: 'material', pool: 'craftmat', rar: 3, stack: 20, value: 150, text: 'Сталь, пепел и огонь. Делается в кузне, рецепт в книге.' });
+add({ id: 'm_tempered_sinew', name: 'Жила упыря', cat: 'material', pool: 'monstermat', rar: 2, stack: 20, value: 26, text: 'Крепкая закалённая жила: нужна для закалки оружия.' });
+add({ id: 'm_beast_hide', name: 'Звериная шкура', cat: 'material', pool: 'monstermat', rar: 1, stack: 20, value: 12, text: 'Шкура гончей. Нужна для кожи и чёрной брони.' });
+
+// ---------- книги знаний ----------
+for (const t of TOMES) add({ id: 'tome_' + t.id, name: t.name, cat: 'tome', pool: /^(set|blades)_/.test(t.id) ? 'bosstome' : 'tome', rar: t.rar, stack: 1, value: t.value, tome: t.id, text: t.text });
 
 // ---------- диковины и деньги ----------
 const COINS = [['grosh', 'Медный грош', 0, 2], ['round', 'Серебряный кругляш', 1, 9], ['ducat', 'Золотой червонец', 2, 35], ['holey', 'Старая монета с дыркой', 0, 3], ['black_coin', 'Чёрная монета Затмения', 3, 90]];

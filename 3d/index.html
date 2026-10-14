@@ -71,10 +71,20 @@
   </div>
 </section>
 
+<section id="journal" hidden>
+  <div class="pbox">
+    <div class="bhead"><h2>Журнал знаний</h2><button id="journalClose" type="button" class="main">Закрыть</button></div>
+    <div id="journalTabs" class="tabs"></div>
+    <div id="journalList"></div>
+  </div>
+</section>
+
 <section id="smith" hidden>
   <div class="pbox">
     <div class="bhead"><h2 id="smithHead">Кузнец</h2><button id="smithClose" type="button" class="main">Закрыть</button></div>
-    <p class="note">Каждый уровень даёт +10% к урону, броне, здоровью, криту и вампиризму вещи. Уровней до +5.</p>
+    <div id="smithTabs" class="tabs"></div>
+    <p id="smithNote" class="note"></p>
+    <button id="smithJournal" type="button" class="reset">📖 Журнал знаний</button>
     <div id="smithFlash"></div>
     <div id="smithList"></div>
   </div>
@@ -82,7 +92,7 @@
 
 <section id="bag" hidden>
   <div class="pbox">
-    <div class="bhead"><h2 id="bagHead">Сумка</h2><button id="bagClose" type="button" class="main">Играть</button></div>
+    <div class="bhead"><h2 id="bagHead">Сумка</h2><button id="bagJournal" type="button" class="jbtn" aria-label="Журнал знаний">📖</button><button id="bagClose" type="button" class="main">Играть</button></div>
     <div id="bagStats" class="bstats"></div>
     <div id="bagEq"></div>
     <div id="bagCard" hidden></div>

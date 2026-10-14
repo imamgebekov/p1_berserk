@@ -1,6 +1,9 @@
 // Окно торговли: «Купить» (витрина) и «Продать» (сумка). Продавать можно только рядом с торговцем.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, statLine } from './data/items.js';
 import { betterThanWorn, nameOf } from './inv.js';
+import { RECIPES } from './data/recipes3d.js';
+import { TOME_BY_ID } from './data/tomes3d.js';
+import { craft, craftStatus, missing, recipeKnown } from './craft3d.js';
 import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
 
 export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
@@ -51,8 +54,8 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
 // Кузнец: улучшение надетого и лежащего в сумке снаряжения до +5
 export function createSmith(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const $ = id => doc.getElementById(id);
-  const root = $('smith'), listEl = $('smithList'), headEl = $('smithHead'), flashEl = $('smithFlash');
-  let flashT = 0;
+  const root = $('smith'), listEl = $('smithList'), headEl = $('smithHead'), flashEl = $('smithFlash'), tabsEl = $('smithTabs'), noteEl = $('smithNote');
+  let flashT = 0, tab = 'up', onlyReady = true;
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2200); };
   function rowFor(id, lvl, where, tag) {
@@ -64,9 +67,34 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     b.addEventListener('click', () => { const res = upgradeItem(W, where); if (res === 'ash') flash('Не хватает пепла'); else if (res === 'max') flash('Выше некуда'); else if (res === 'far') flash('Подойдите к кузнецу'); render(); onChange && onChange(); });
     r.append(info, b); return r;
   }
+  for (const [id, label] of [['up', 'Улучшение'], ['craft', 'Ковка']]) { const b = el('button', 'tab', label); b.type = 'button'; b.dataset.tab = id; b.addEventListener('click', () => { tab = id; render(); }); tabsEl.appendChild(b); }
+  function craftRow(r) {
+    const it = BY_ID[r.result.id], st = craftStatus(W, r), row = el('div', 'srow'), info = el('div', 'sinfo');
+    const nm = el('span', 'nm', it.name + (r.result.n > 1 ? ' ×' + r.result.n : '')); nm.style.color = RARITY[it.rar].color; info.append(nm);
+    if (st === 'tome') {
+      const t = TOME_BY_ID[r.needs]; info.append(el('div', 'sub', `Нужна книга «${t.name}». ${t.hint}`));
+    } else {
+      info.append(el('div', 'sub', statLine(it) || r.text));
+      const m = el('div', 'mats'); for (const [id, n, have] of missing(W, r)) { const c = el('span', have >= n ? 'have' : 'lack', `${BY_ID[id].name} ${have}/${n}`); m.append(c); } m.append(el('span', W.inv.ash >= r.ash ? 'have' : 'lack', `пепел ${r.ash}`)); info.append(m);
+    }
+    const b = el('button', 'buy' + (st === 'ok' ? '' : ' no'), st === 'tome' ? 'Закрыто' : 'Ковать'); b.type = 'button';
+    b.addEventListener('click', () => { if (st === 'tome') return; const res = craft(W, r.id); flash(res === 'ok' ? `Готово: ${it.name}` : res === 'far' ? 'Подойдите к кузнецу' : res === 'mats' ? 'Не хватает материалов' : res === 'ash' ? 'Не хватает пепла' : res === 'full' ? 'Сумка полна' : ''); render(); onChange && onChange(); });
+    row.append(info, b); return row;
+  }
   function render() {
     refreshGear(W);
+    for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
     headEl.textContent = `Кузнец · пепел ${W.inv.ash}`; listEl.textContent = '';
+    if (tab === 'craft') {
+      noteEl.textContent = 'Материалы берутся из сумки. Улучшенное оружие и броня на ковку не идут. Новые рецепты открывают книги: читайте их в сумке.';
+      const f = el('button', 'junk', onlyReady ? 'Показаны доступные сейчас. Показать все' : 'Показаны все. Только доступные'); f.type = 'button'; f.addEventListener('click', () => { onlyReady = !onlyReady; render(); }); listEl.appendChild(f);
+      const order = { ok: 0, mats: 1, ash: 1, far: 1, tome: 3 }, known = RECIPES.filter(r => recipeKnown(W.known, r));
+      const list = onlyReady ? RECIPES.filter(r => craftStatus(W, r) === 'ok') : RECIPES.slice().sort((a, b) => order[craftStatus(W, a)] - order[craftStatus(W, b)]);
+      for (const r of list) listEl.appendChild(craftRow(r));
+      if (!list.length) listEl.appendChild(el('div', 'emptyl', `Нечего ковать из того, что в сумке. Известных рецептов: ${known.length} из ${RECIPES.length}. Покажите все, чтобы увидеть, что нужно.`));
+      return;
+    }
+    noteEl.textContent = 'Каждый уровень даёт +10% к урону, броне, здоровью, криту и вампиризму вещи. Уровней до +5.';
     let n = 0;
     for (const slot of SLOTS) { const id = W.inv.eq[slot]; if (id) { listEl.appendChild(rowFor(id, W.inv.up[slot] || 0, { slot }, SLOT_NAME[slot] + ' · надето')); n++; } }
     W.inv.bag.forEach((s, i) => { if (BY_ID[s.id].slot) { listEl.appendChild(rowFor(s.id, s.up || 0, { idx: i }, 'в сумке')); n++; } });

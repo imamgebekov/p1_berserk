@@ -181,6 +181,36 @@ try {
   { const r = await page.evaluate(() => ({ dead: !document.getElementById('dead').hidden, txt: document.getElementById('deadTxt').textContent, tomb: window.__b3d.W.tomb })); if (!r.dead || !r.txt.includes('100') || !r.tomb) bad('экран смерти без штрафа: ' + JSON.stringify(r)); }
   await page.screenshot({ path: join(out, '3d-death.png') }); await page.tap('#again'); await page.waitForTimeout(200);
   await page.evaluate(() => { const w = window.__b3d.W; w.tomb = null; w.inv.ash = 0; w.player.x = 0; w.player.z = 4; w.player.inv = 1e9; w.enemies = w.enemies.filter(x => x.boss); });
+  // крафт и книги: прочитать том в сумке, ковка у кузнеца, журнал знаний
+  await page.evaluate(() => { const w = window.__b3d.W; w.enemies = w.enemies.filter(x => x.boss); w.known = { tomes: {}, bestiary: {}, places: {}, kinds: {}, items: {} }; w.inv.bag = [{ id: 'tome_atlas_polya', n: 1 }, { id: 'm_ore', n: 6 }, { id: 'm_coal', n: 2 }]; w.inv.ash = 100; w.known.items.m_ore = 1; w.known.items.m_coal = 1; });
+  await page.tap('#bagBtn'); await page.waitForTimeout(200);
+  await page.tap('.item:has(.nm:text("Атлас Сухих Полей"))'); await page.waitForTimeout(120);
+  await page.screenshot({ path: join(out, '3d-tome.png') });
+  await page.tap('#bagCard .acts .main'); await page.waitForTimeout(150);
+  if (!(await page.evaluate(() => window.__b3d.W.known.tomes.atlas_polya && window.__b3d.W.known.bestiary.hound === 2))) bad('книга не прочитана');
+  await page.tap('#bagJournal'); await page.waitForTimeout(250);
+  if (await page.evaluate(() => document.getElementById('journal').hidden)) bad('журнал не открылся');
+  { const t = await page.$eval('#journalList', e => e.textContent); if (!t.includes('Гончая') || !t.includes('Здоровье')) bad('бестиарий не показывает полную запись: ' + t.slice(0, 120)); }
+  await page.screenshot({ path: join(out, '3d-journal.png') });
+  await page.tap('#journalTabs .tab[data-tab="atlas"]'); await page.waitForTimeout(100);
+  { const t = await page.$eval('#journalList', e => e.textContent); if (!t.includes('Сухие Поля') || !t.includes('Телега')) bad('атлас не показывает открытое: ' + t.slice(0, 200)); }
+  await page.tap('#journalTabs .tab[data-tab="recipes"]'); await page.waitForTimeout(100);
+  { const t = await page.$eval('#journalList', e => e.textContent); if (!t.includes('Закрытые рецепты') || !t.includes('Слухи')) bad('рецепты без подсказок о книгах'); }
+  await page.tap('#journalTabs .tab[data-tab="sources"]'); await page.waitForTimeout(100);
+  await page.tap('#journalList .jrow:has-text("Кусок руды")'); await page.waitForTimeout(100);
+  { const t = await page.$eval('#journalList', e => e.textContent); if (!t.includes('Контейнеры') || !t.includes('Идёт в крафт')) bad('источники руды: ' + t.slice(0, 200)); }
+  await page.screenshot({ path: join(out, '3d-sources.png') }); await page.tap('#journalClose'); await page.waitForTimeout(100);
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'smith'); w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.player.inv = 1e9; });
+  await page.waitForTimeout(400); await page.tap('#talk'); await page.waitForTimeout(200);
+  await page.tap('#smithTabs .tab[data-tab="craft"]'); await page.waitForTimeout(150);
+  await page.screenshot({ path: join(out, '3d-forge.png') });
+  await page.tap('#smithList .srow:first-of-type .buy'); await page.waitForTimeout(150);
+  if (!(await page.evaluate(() => window.__b3d.W.inv.bag.some(s => s.id === 'm_ingot')))) bad('ковка в браузере не сработала');
+  await page.tap('#smithList .junk'); await page.waitForTimeout(100);
+  { const t = await page.$eval('#smithList', e => e.textContent); if (!t.includes('Нужна книга')) bad('закрытые рецепты не показаны с книгой'); }
+  { const small = await page.evaluate(() => [...document.querySelectorAll('#smith button, #journal button')].filter(b => b.offsetParent && (b.getBoundingClientRect().height < 40 || b.getBoundingClientRect().width < 40)).map(b => b.textContent)); if (small.length) bad('кнопки ковки/журнала мельче 40px: ' + small.join(',')); }
+  await page.tap('#smithClose'); await page.waitForTimeout(100);
+  await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; });
   // новые враги: рисуются без ошибок
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; w.cfg.enemies.count = 0; w.enemies.length = 0; for (const [i, t] of ['hound', 'ghoul', 'imp', 'brute'].entries()) window.__b3d.spawn(t, -3 + i * 2, -3); });
   await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-monsters.png') });

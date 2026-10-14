@@ -16,7 +16,7 @@ for (const s of SETS) {
   ok(Object.keys(s.b4.fx || {}).length || Object.keys(s.b4.stats).length >= 2, 'бонус за 4 должен быть заметен: ' + s.id);
 }
 ok(NAMED_ARMOR.length === 12 && NAMED_ARMOR.every(([id, slot, name, st]) => BY_ID[`as_${id}_${slot}`] && BY_ID[`as_${id}_${slot}`].pool === 'setunique' && BY_ID[`as_${id}_${slot}`].rar === 4), 'именные вещи');
-ok(CATALOG.length <= 500, 'каталог превысил 500: ' + CATALOG.length);
+ok(CATALOG.length <= 550, 'каталог превысил 550: ' + CATALOG.length);
 ok(CATALOG.filter(i => i.slot && i.stats && i.stats.armor).every(i => i.stats.armor <= 30), 'броня вещи выше 30');
 
 // ---- счёт частей и бонусы ----
@@ -62,9 +62,9 @@ const hitMe = (W, type = 'imp', dmgBase) => { const e = spawnEnemy(W, type, W.pl
 { // Ржавые: ярость ниже 40% здоровья усиливает удар
   const dmg = frac => { const W = mk(SET_SLOTS.map(s => `as_rust_${s}`)); W.inv.eq.weapon = 'w_sword_iron'; W.player.hp = W.player.maxhp * frac; const e = spawnEnemy(W, 'brute', W.player.x + 1.6, W.player.z); e.hp = e.maxhp = 1e6; e.alert = true; e.state = 'rec'; e.t = -1e9; run(W, .5, { attack: true }); return e.maxhp - e.hp; };
   ok(dmg(.2) > dmg(.9) * 1.15, 'ярость Ржавых не усиливает удар'); }
-// босс отдаёт часть своего именного сета
+// именные части сетов больше не падают с боссов готовыми: только трофей и книга (сами вещи делаются в кузне)
 { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.player.autoAim = 0; const W = createWorld(cfg, mulberry32(3));
   const e = W.enemies.find(x => x.boss && x.type === 'devourer'); W.player.x = e.x + 3; W.player.z = e.z; W.player.hp = W.player.maxhp = 1e5; e.alert = true; e.hp = 1; W.inv.eq.weapon = 'w_sword_iron'; W.player.face = Math.atan2(e.x - W.player.x, e.z - W.player.z); run(W, 1.2, { attack: true });
-  const got = W.drops.map(d => d.id).concat(W.inv.bag.map(s => s.id)); ok(got.some(id => id.startsWith('as_pogost_')), 'Пожиратель не отдал часть сета: ' + got); }
+  const got = W.drops.map(d => d.id).concat(W.inv.bag.map(s => s.id)); ok(!got.some(id => id.startsWith('as_') || id.startsWith('wu_')), 'именная вещь выпала готовой: ' + got); ok(got.includes('m_devourer_heart'), 'нет трофея Пожирателя'); }
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Сеты 3D: OK');

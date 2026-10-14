@@ -3,11 +3,12 @@ import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine } from './data/ite
 import { betterThanWorn, equipAt, unequip, score, nameOf, SET_OF, setCounts, bonusText } from './inv.js';
 import { PERKS } from './data/weapons3d.js';
 import { useItem, dropItem, refreshGear, sellItem, sellPrice } from './sim.js';
+import { readTome } from './craft3d.js';
 
 const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
 const tabOf = it => it.slot === 'weapon' ? 'weapon' : it.slot ? 'armor' : it.cat === 'consumable' ? 'use' : 'other';
 
-export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset } = {}) {
+export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJournal } = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('bag'), eqEl = $('bagEq'), listEl = $('bagList'), cardEl = $('bagCard'), tabsEl = $('bagTabs'), statsEl = $('bagStats'), headEl = $('bagHead');
   let tab = 'all', sel = null, resetArmed = false;       // sel: {from:'bag', i} | {from:'eq', slot}
@@ -57,6 +58,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset } = 
     if (sel.from === 'eq') btn('Снять', () => { if (!unequip(W.inv, sel.slot, cfg.bag.slots)) flash('Сумка полна'); else sel = null; }, 'main');
     else {
       if (it.slot) btn('Надеть', () => { equipAt(W.inv, sel.i); sel = null; }, 'main');
+      if (it.cat === 'tome') btn('Прочитать', () => { const r = readTome(W, sel.i); if (r === 'known') flash('Эта книга уже прочитана'); else sel = null; }, 'main');
       if (it.use) btn('Использовать', () => { if (!useItem(W, sel.i)) flash('Сейчас не нужно'); else if (!W.inv.bag[sel.i] || W.inv.bag[sel.i].id !== it.id) sel = null; }, 'main');
       btn(`Продать · ${sellPrice(it, cfg, up, W.gear.trade) * n}`, () => { if (sellItem(W, sel.i, n) === 'far') flash('Продавать можно только у торговца'); else sel = null; });
       if (n > 1) btn(`Продать 1 · ${sellPrice(it, cfg, up, W.gear.trade)}`, () => { if (sellItem(W, sel.i, 1) === 'far') flash('Продавать можно только у торговца'); });
@@ -101,5 +103,6 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset } = 
   const close = () => { root.hidden = true; onClose && onClose(); };
   $('bagBtn').addEventListener('click', () => (root.hidden ? open() : close()));
   $('bagClose').addEventListener('click', close);
+  $('bagJournal').addEventListener('click', () => { close(); onJournal && onJournal(); });
   return { open, close, render, isOpen: () => !root.hidden };
 }

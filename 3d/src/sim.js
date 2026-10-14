@@ -12,10 +12,11 @@ export function mulberry32(a) {
 }
 
 import { BY_ID } from './data/items.js';
-import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, rollLoot, rollDrop, pickItem } from './data/loot.js';
+import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
 import { SETS } from './data/sets3d.js';
 import { initBoss, updateBoss } from './boss3d.js';
+import { newKnown } from './craft3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
@@ -43,6 +44,7 @@ function attachFx(W) {
     kill: e => killEnemy(W, e, 1),
     hp: (e, frac, base) => Math.round(base + e.maxhp * frac),
     slide: (e, dx, dz, r) => slide(W.map, e, dx, dz, r),
+    reveal: (x, z, r) => reveal(W, x, z, r),
     hurtP: (dmg, x, z, on, e) => hurtPlayer(W, dmg, x, z, on, e),
     hurtA: (a, dmg, e) => hurtAlly(W, a, dmg, e),
     spawn: (type, x, z) => spawnEnemy(W, type, x, z),
@@ -63,7 +65,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0 },
     enemies: []
   };
@@ -108,8 +110,11 @@ export function spawnBoss(W, def) {
 }
 function bossDefeated(W, e) {
   const C = W.cfg.enemies[e.type], p = W.player;
-  const pcs = (e.b.def.set && SET_BY_ID[e.b.def.set]) ? SET_BY_ID[e.b.def.set].pieces : [];
-  const items = [{ id: pickItem('unique', 4, W.rng).id, n: 1 }, ...(pcs.length ? [{ id: pcs[Math.floor(W.rng() * pcs.length)], n: 1 }] : []), { id: 'key_black', n: 1 }, ...rollLoot(BOSS_LOOT, W.rng, 1, W.gear.luck)];
+  const bd = BOSS_DROPS[e.type], items = [];
+  items.push({ id: bd.trophy, n: bd.n[0] + (W.rng() < bd.n[1] ? 1 : 0) });
+  const tid = bd.tomes.find(t => !W.known.tomes[t] && !W.inv.bag.some(x => x.id === 'tome_' + t) && !W.drops.some(x => x.id === 'tome_' + t));
+  if (tid) items.push({ id: 'tome_' + tid, n: 1 });                      // книга выпадает, пока не прочитана (первой по порядку)
+  items.push({ id: 'key_black', n: 1 }, ...rollLoot(BOSS_LOOT, W.rng, 1, W.gear.luck));
   items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0 }); });
   for (const m of e.b.minions) if (!m.dead) { m.dead = true; m.deadT = 0; }
   W.bossDead[e.type] = Math.round(W.cfg.bosses.respawn * W.dif.boss);
@@ -161,7 +166,7 @@ function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
 
 function killEnemy(W, e, share) {
   if (e.dead) return;
-  e.dead = true; e.deadT = 0; W.kills++; if (e.boss) bossDefeated(W, e); W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
+  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; if (e.boss) bossDefeated(W, e); W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
   dropLoot(W, e); addXp(W, e, share);
   if (share >= 1) {                                                   // свойства оружия за убийство
     const pm = W.wp.pm;
@@ -489,7 +494,7 @@ function updateAllies(W, dt) {
 // ---- места и карта ----
 export function trackPlace(W, dt) {
   const p = W.player, pl = placeAt(W.map, p.x, p.z);
-  if ((pl && pl.id) !== (W.place && W.place.id)) { W.place = pl; W.ev.push({ k: 'place', place: pl }); }
+  if ((pl && pl.id) !== (W.place && W.place.id)) { W.place = pl; if (pl) W.known.places[pl.id] = 1; W.ev.push({ k: 'place', place: pl }); }
   if ((W.revealT -= dt) <= 0) { W.revealT = .3; reveal(W, p.x, p.z, W.cfg.map.reveal); }
 }
 export function reveal(W, x, z, r) {
@@ -574,7 +579,7 @@ export function sellJunk(W) {
 }
 
 // положить в сумку; возвращает остаток
-function give(W, id, n) { const left = addItem(W.inv, id, n, W.cfg.bag.slots); if (n - left > 0) W.ev.push({ k: 'pickup', id, n: n - left }); return left; }
+function give(W, id, n) { const left = addItem(W.inv, id, n, W.cfg.bag.slots); if (n - left > 0) { W.ev.push({ k: 'pickup', id, n: n - left }); W.known.items[id] = 1; } return left; }
 
 // двери открываются сами, когда рядом кто-то есть; контейнеры отдают добычу при касании и позже наполняются снова
 function updateHouses(W, dt) {
@@ -600,7 +605,7 @@ function updateHouses(W, dt) {
     }
     const rest = [];
     for (const it of c.items) { const left = give(W, it.id, it.n); if (left > 0) rest.push({ id: it.id, n: left }); }
-    c.items = rest; W.ev.push({ k: 'open', kind: c.kind, x: c.x, z: c.z });
+    c.items = rest; W.known.kinds[c.kind] = 1; W.ev.push({ k: 'open', kind: c.kind, x: c.x, z: c.z });
     if (rest.length) { if (!(c.cd > 0)) { c.cd = 2.5; W.ev.push({ k: 'full', x: c.x, z: c.z }); } }
     else { c.ready = false; c.t = 0; }
   }
