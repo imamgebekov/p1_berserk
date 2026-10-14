@@ -12,6 +12,9 @@ import { ensureAudio } from '../src/audio.js';
 import { createRenderer } from '../src/render/index.js';
 import { newItem, giveItem, equipFromBag, recalc } from '../src/inventory.js';
 import { ITEMS } from '../src/data/items.js';
+import { SKILL_IDS, SKILLS } from '../src/data/skills.js';
+import { learn } from '../src/skills.js';
+import { accept } from '../src/quests.js';
 
 globalThis.AudioContext = FakeAudioContext;
 const SEED = Number(process.env.SEED || 1337);
@@ -139,6 +142,12 @@ for (const [label, rarity] of [['клеймёный комплект', 'branded'
     preset: () => { P.lv = 10; recalc(); for (const it of ITEMS.filter(i => i.rarity === rarity)) { giveItem(newItem(it.id)); equipFromBag(P.bag.length - 1); } P.hp = P.maxhp; }
   }));
 }
+
+// все навыки и три задания: цепочка 5 ударов, долгое Клеймо, лечение у костра, прогресс заданий
+results.push(run('бот: все навыки и задания', {
+  control: botPlayer, frames: 10000, seed: 41,
+  preset: () => { P.lv = 20; P.sp = 40; recalc(); for (const id of SKILL_IDS) for (let i = 0; i < SKILLS[id].max; i++) learn(id, recalc); P.hp = P.maxhp; for (const q of ['q_brutes', 'q_imps', 'q_dress']) accept(q); }
+}));
 
 // детерминизм
 {

@@ -133,7 +133,10 @@ const fresh = seed => { resetState(); setRng(mulberry32(seed)); recalc(); };
   fresh(20);
   P.x = CFG.town.merchantX + 5; ok(nearNpc() && nearNpc().id === 'merchant', 'рядом с торговцем');
   P.x = CFG.town.smithX - 8; ok(nearNpc() && nearNpc().id === 'smith', 'рядом с кузнецом');
-  P.x = CFG.world.fire; ok(!nearNpc() || CFG.town.talkRange > 40, 'у костра не рядом ни с кем');
+  P.x = CFG.world.fire; ok(nearNpc() && nearNpc().id === 'keeper', 'у костра сидит Хранитель');
+  P.x = CFG.world.fire + CFG.world.startOffset; ok(nearNpc() === null, 'на стартовой точке не должно быть NPC рядом');
+  const xs = [CFG.town.merchantX, CFG.town.keeperX, CFG.town.smithX].sort((a, b) => a - b);
+  ok(xs[1] - xs[0] >= CFG.town.talkRange && xs[2] - xs[1] >= CFG.town.talkRange, 'зоны разговора NPC перекрываются');
   P.x = 900; ok(nearNpc() === null, 'в пустоши нет NPC');
   // враги не заходят в город
   ok(CFG.town.smithX + CFG.town.talkRange < CFG.world.town, 'NPC города за границей города');

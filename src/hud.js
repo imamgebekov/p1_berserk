@@ -4,12 +4,13 @@ import { CFG } from './config.js';
 import { P, W } from './state.js';
 import { clamp } from './util.js';
 import { nearNpc } from './town.js';
+import { tracker } from './quests.js';
 
 export function createHud(doc) {
   const $ = id => doc.getElementById(id);
   const el = {
     hp: $('hpf'), rg: $('rgf'), rgbar: $('rgbar'), lv: $('lv'), ash: $('ash'), kills: $('kills'), onl: $('onl'),
-    boss: $('boss'), bh: $('bhf'), tm: $('timer'), brand: $('bbrand'), dead: $('dead'), chat: $('chat'), badge: $('bagBadge'), talk: $('talk')
+    boss: $('boss'), bh: $('bhf'), tm: $('timer'), brand: $('bbrand'), dead: $('dead'), chat: $('chat'), badge: $('bagBadge'), talk: $('talk'), quest: $('quest'), spBadge: $('spBadge')
   };
   const last = {};
   const text = (k, node, v) => { if (last[k] !== v) { last[k] = v; node.textContent = v; } };
@@ -55,6 +56,9 @@ export function createHud(doc) {
     text('badge', el.badge, String(P.newItems)); hide('badge', el.badge, P.newItems <= 0);
     const npc = !P.dead && !W.paused ? nearNpc() : null;
     hide('talk', el.talk, !npc); if (npc) text('talkt', el.talk, npc.name);
+    const tr = tracker();
+    hide('quest', el.quest, !tr); if (tr) { text('questt', el.quest, tr.text); flag('questr', el.quest, 'ready', tr.ready); }
+    if (el.spBadge) { text('sp', el.spBadge, String(P.sp)); hide('spb', el.spBadge, P.sp <= 0); }
     hide('boss', el.boss, !W.boss);
     hide('dead', el.dead, !P.dead);
     if (W.boss) { bar('bh', el.bh, W.boss.hp / W.boss.maxhp); text('tm', el.tm, ''); }

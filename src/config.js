@@ -141,8 +141,37 @@ export const CFG = {
   },
 
   town: {
-    merchantX: 108, smithX: 214,
+    merchantX: 92, keeperX: 128, smithX: 224,
     talkRange: 30
+  },
+
+  // Дерево навыков: 1 очко за уровень; эффект за ранг
+  skills: {
+    pointsPerLevel: 1,
+    respecBase: 40,         // цена сброса = respecBase + respecPerLevel * уровень
+    respecPerLevel: 12,
+    effects: {
+      heavy:     { heavyMult: .2 },               // + к множителю тяжёлого удара за ранг
+      chain:     { extraHits: 1, finisherMult: .1 },  // + ударов в цепочке за ранг и бонус к завершающему
+      crit:      { crit: 3 },                     // % шанса крита за ранг
+      brandGain: { rage: 15 },                    // % к набору Клейма за ранг
+      brandDur:  { seconds: 1.5 },                // секунд Клейма за ранг
+      vigor:     { hp: 12 },                      // здоровья за ранг
+      fireHeal:  { healMult: .6, radius: 8 },     // + к скорости лечения у костра и радиусу за ранг
+      swift:     { speed: 4 }                     // % скорости за ранг
+    }
+  },
+
+  quests: {
+    maxActive: 3
+  },
+
+  // Сохранение: localStorage, версия формата, автосохранение
+  save: {
+    key: 'berserk.save',
+    backupKey: 'berserk.save.bak',
+    interval: 10,           // секунд между автосохранениями (реальное время)
+    minGap: 2               // не чаще, чем раз в N секунд при событиях
   },
 
   // Торговец: ассортимент обновляется после каждого Предвестника

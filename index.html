@@ -17,6 +17,7 @@
   <div class="bar rage" id="rgbar"><i id="rgf"></i></div>
   <div id="stats">пепел <span id="ash">0</span> · убито <span id="kills">0</span></div>
   <div id="boss" hidden><span>Предвестник Затмения</span><div class="bar"><i id="bhf"></i></div></div>
+  <div id="quest" hidden></div>
   <div id="timer"></div>
   <div id="chat"></div>
   <button id="talk" class="talk" type="button" hidden>Торговец</button>
@@ -32,6 +33,7 @@
   <div id="menu">
     <button class="mbtn" id="mhero" type="button">Герой</button>
     <button class="mbtn" id="mbag" type="button">Сумка<b id="bagBadge" hidden>0</b></button>
+    <button class="mbtn" id="mskills" type="button">Навыки<b id="spBadge" hidden>0</b></button>
   </div>
 </div>
 
@@ -40,10 +42,11 @@
     <div class="tabs" role="tablist">
       <button class="tab" id="tabHero" type="button" role="tab">Герой</button>
       <button class="tab" id="tabBag" type="button" role="tab">Сумка</button>
+      <button class="tab" id="tabSkills" type="button" role="tab">Навыки<b id="skBadge" hidden>0</b></button>
     </div>
-    <span id="bagAsh"></span>
     <button class="x" id="bagClose" type="button" aria-label="Закрыть">✕</button>
   </div>
+  <div class="substat"><span id="bagSp"></span><span id="bagAsh"></span></div>
   <div id="heroTab">
     <div class="hname"><span>Странник</span><b id="hLv"></b></div>
     <div class="xpbar"><i id="hXp"></i></div>
@@ -55,6 +58,15 @@
     </div>
     <div id="hStats"></div>
     <div id="hHint">Нажмите на слот, чтобы открыть предмет. Нажмите на героя — посмотреть его с Клеймом.</div>
+    <div id="saveRow">
+      <span id="saveInfo"></span>
+      <button class="cbtn resetbtn" id="resetBtn" type="button">Сбросить прогресс</button>
+    </div>
+  </div>
+  <div id="skillsTab" hidden>
+    <div id="skTree"></div>
+    <div id="skFoot"></div>
+    <div id="skWrap" hidden><div id="skCard"></div></div>
   </div>
   <div id="bagTab" hidden>
     <div class="lbl">Надето</div>
@@ -69,6 +81,7 @@
   <div class="ph"><h3 id="tTitle"></h3><span id="tAsh"></span><button class="x" id="tClose" type="button" aria-label="Закрыть">✕</button></div>
   <div id="tSay"></div>
   <div class="tabs" id="tTabs"></div>
+  <div id="tList" hidden></div>
   <div id="tGrid" class="g5"></div>
   <div id="tFoot"></div>
   <div id="tCardWrap" hidden><div id="tCard"></div></div>
@@ -80,6 +93,7 @@
   <h2>эпоха затмения</h2>
   <p>Ты идёшь с мечом, который слишком велик для человека. Мир вокруг живёт без тебя, но ты в нём не один.</p>
   <button id="go">Войти в мир</button>
+  <div id="saveBox" hidden><div id="saveTxt"></div><button id="newGame" type="button">Начать заново</button></div>
   <div id="hint">Держи «Удар» для цепочки: третий удар тяжёлый. Когда шкала под здоровьем заполнится, жми «Клеймо». У костра в начале мира безопасно.</div>
 </div>
 <div class="veil" id="dead" hidden>

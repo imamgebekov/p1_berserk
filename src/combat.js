@@ -5,6 +5,8 @@ import { rndIn, pick, random } from './util.js';
 import { recalc, armorReduction } from './inventory.js';
 import { lootFor, ashFor } from './loot.js';
 import { restock } from './shop.js';
+import { mods } from './skills.js';
+import { emit } from './events.js';
 import { chat, npcSay } from './chat.js';
 import { after } from './clock.js';
 import { sfx } from './audio.js';
@@ -14,9 +16,9 @@ import { env } from './env.js';
 export function gainXP(n) {
   P.xp += n;
   while (P.xp >= xpNeed(P.lv)) {
-    P.xp -= xpNeed(P.lv); P.lv++; recalc(); P.hp = P.maxhp;
+    P.xp -= xpNeed(P.lv); P.lv++; P.sp += CFG.skills.pointsPerLevel; recalc(); P.hp = P.maxhp;
     burst(P.x, 12, 24, ['#e0c070', '#f6eed9', '#e0602a'], 70, 60);
-    sfx.level(); chat('', 'Новый уровень: ' + P.lv, 'sys');
+    sfx.level(); chat('', 'Новый уровень: ' + P.lv + ' · очко навыка', 'sys'); emit('save');
     after(.8, () => npcSay(pick(['gz', 'гз', 'кто-то поднялся'])));
   }
 }
@@ -39,6 +41,7 @@ export function killEnemy(e) {
   gainXP(e.xp);
   P.ash += ashFor(e);
   lootFor(e);
+  emit('kill', e);
 }
 
 function bossDown(e) {
@@ -49,6 +52,8 @@ function bossDown(e) {
   W.boss = null; W.cycle++; W.maxT = CFG.eclipse.nextTimer; W.timer = W.maxT;
   restock();
   chat('', 'Торговец разложил новый товар.', 'sys');
+  emit('eclipse', { survived: !W.eclipseDied });
+  emit('save');
   chat('', 'Предвестник пал. Твой вклад: ' + share + '%', 'sys');
   W.shake = CFG.fx.shakeBossDown;
   after(.6, () => npcSay('gg'));
@@ -85,6 +90,7 @@ export function hurtPlayer(dmg, dir) {
 
 export function die() {
   P.hp = 0; P.dead = true; P.rageOn = 0; P.rage = 0;
+  if (W.boss) W.eclipseDied = true;
   chat('', 'Странник погиб.', 'sys');
   after(.7, () => npcSay('F'));
 }
@@ -97,8 +103,9 @@ export function rise() {
 
 export function startSwing() {
   const C = CFG.player;
-  P.combo = P.comboT > 0 ? (P.combo + 1) % C.comboLength : 0;
-  P.heavy = P.combo === C.comboLength - 1;
+  const len = C.comboLength + mods().chainHits;     // навык «Длинная цепь» удлиняет цепочку
+  P.combo = P.comboT > 0 ? (P.combo + 1) % len : 0;
+  P.heavy = P.combo === len - 1;
   P.swingDur = (P.heavy ? C.heavySwing : C.lightSwing) * (P.rageOn > 0 ? CFG.rage.swingMult : 1);
   P.swingT = 0; P.hitSet = new Set(); sfx.whoosh(P.heavy);
 }
@@ -106,7 +113,7 @@ export function startSwing() {
 export function tryBrand() {
   if (P.dead || !W.started) return;
   if (P.rage >= CFG.rage.max && P.rageOn <= 0) {
-    P.rageOn = CFG.rage.duration; W.shake = CFG.fx.shakeBrand; freeze(CFG.fx.freezeBrand); sfx.brand();
+    P.rageDur = CFG.rage.duration + mods().brandSeconds; P.rageOn = P.rageDur; W.shake = CFG.fx.shakeBrand; freeze(CFG.fx.freezeBrand); sfx.brand();
     chat('', 'Клеймо горит.', 'sys');
   }
 }
@@ -114,7 +121,7 @@ export function tryBrand() {
 // Урон удара: база + уровень + статы предметов, затем тяжёлый/Клеймо/разброс, затем крит
 export function rollSwing() {
   const C = CFG.player;
-  let d = Math.max(1, C.baseDamage + P.lv * C.damagePerLevel + P.stats.dmg) * (P.heavy ? C.heavyMult : 1) *
+  let d = Math.max(1, C.baseDamage + P.lv * C.damagePerLevel + P.stats.dmg) * (P.heavy ? C.heavyMult + mods().heavy : 1) *
     (P.rageOn > 0 ? CFG.rage.damageMult : 1) * rndIn(C.damageVariance);
   const crit = random() * 100 < P.stats.crit;
   if (crit) d *= CFG.items.critMult;

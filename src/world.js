@@ -30,7 +30,7 @@ export function spawnBoss() {
   const b = spawnEnemy('boss', x);
   b.hp = b.maxhp = Math.round(CFG.enemies.boss.hp * (1 + W.cycle * CFG.scaling.bossPerCycle));
   b.spd = CFG.enemies.boss.spd;
-  W.boss = b;
+  W.boss = b; W.eclipseDied = false;
   W.enemies = W.enemies.filter(e => e === b || Math.abs(e.x - P.x) < 70);
   chat('', 'Небо меркнет. Предвестник Затмения вышел в мир.', 'sys');
   after(.5, () => npcSay('ОН ПРИШЁЛ'));

@@ -4,6 +4,8 @@ import { P, W } from './state.js';
 import { clamp } from './util.js';
 import { ITEMS_BY_ID, SLOTS, STAT_KEYS } from './data/items.js';
 import { weaponLen } from './data/looks.js';
+import { mods } from './skills.js';
+import { emit } from './events.js';
 
 export const emptyStats = () => ({ dmg: 0, armor: 0, hp: 0, speed: 0, crit: 0, rage: 0 });
 export const defOf = it => ITEMS_BY_ID[it.id];
@@ -37,6 +39,8 @@ export function recalc() {
     const st = itemStats(it);
     for (const k of STAT_KEYS) s[k] += st[k] || 0;
   }
+  const m = mods();                       // навыки добавляют к тем же итогам, что и предметы
+  s.crit += m.crit; s.rage += m.rage; s.hp += m.hp; s.speed += m.speed;
   s.armor = Math.max(I.armorMin, s.armor);
   s.crit = clamp(s.crit, 0, I.critCap);
   s.speed = clamp(s.speed, I.speedMin, I.speedMax);
@@ -46,6 +50,7 @@ export function recalc() {
   P.maxhp = Math.max(I.hpFloor, CFG.player.maxHp + (P.lv - 1) * CFG.player.hpPerLevel + s.hp);
   if (!P.dead && P.maxhp > prev) P.hp += P.maxhp - prev;
   if (P.hp > P.maxhp) P.hp = P.maxhp;
+  emit('gear');
 }
 
 // Что видит игрок на экране персонажа / в итоговой строке

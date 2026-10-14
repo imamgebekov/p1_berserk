@@ -3,6 +3,7 @@ import { CFG } from '../config.js';
 import { W, V } from '../state.js';
 import { env } from '../env.js';
 import { nearNpc } from '../town.js';
+import { readyToClaim, available, activeList } from '../quests.js';
 import { R, disc, g } from './gfx.js';
 
 let lastHit = 0;
@@ -11,6 +12,14 @@ function bubble(sx, y, T) {
   const bob = env.reduce ? 0 : Math.round(Math.sin(T * 4));
   R(sx - 5, y + bob, 11, 7, '#e8e0cc'); R(sx - 1, y + 7 + bob, 3, 2, '#e8e0cc');
   R(sx - 3, y + 3 + bob, 1, 1, '#0b0908'); R(sx, y + 3 + bob, 1, 1, '#0b0908'); R(sx + 3, y + 3 + bob, 1, 1, '#0b0908');
+}
+
+// знак над Хранителем: «!» есть задания, «?» можно сдать
+function questMark(sx, y, T, ch, col) {
+  const bob = env.reduce ? 0 : Math.round(Math.sin(T * 3));
+  y += bob;
+  if (ch === '!') { R(sx - 1, y, 2, 5, col); R(sx - 1, y + 6, 2, 2, col); }
+  else { R(sx - 2, y, 4, 1, col); R(sx + 1, y + 1, 2, 2, col); R(sx - 1, y + 3, 2, 1, col); R(sx - 1, y + 4, 2, 1, col); R(sx - 1, y + 6, 2, 2, col); }
 }
 
 export function drawTown(pool) {
@@ -35,6 +44,22 @@ export function drawTown(pool) {
     R(sx, G - 17 + bob, 3, 3, '#0a0808'); R(sx + 1, G - 16 + bob, 1, 1, '#e0c070');
     R(sx + 3, G - 12 + bob, 4, 2, '#5a4632');
     if (near && near.id === 'merchant') bubble(sx, G - 33, T);
+  }
+
+  // --- Хранитель костра: старик с посохом у огня ---
+  sx = Math.round(CFG.town.keeperX - camX);
+  if (sx > -40 && sx < LW + 40) {
+    const bob = still ? 0 : Math.round(Math.sin(T * 1.6));
+    R(sx - 3, G - 5, 2, 5, '#191413'); R(sx + 1, G - 5, 2, 5, '#191413');
+    R(sx - 4, G - 15 + bob, 8, 11, '#4a4a52'); R(sx - 4, G - 6, 8, 1, '#2a2a30'); R(sx - 5, G - 14 + bob, 2, 7, '#3a3a42');
+    R(sx - 3, G - 20 + bob, 6, 6, '#cdb89a'); R(sx - 4, G - 21 + bob, 8, 3, '#d8d4cc'); R(sx - 3, G - 15 + bob, 6, 3, '#d8d4cc');
+    R(sx + 1, G - 18 + bob, 1, 1, '#1a1210');
+    R(sx + 6, G - 24, 1, 22, '#4a3220'); R(sx + 5, G - 26, 3, 3, '#e0a040');
+    disc(sx + 6, G - 25, 8, 'rgba(224,160,64,.06)');
+    R(sx + 3, G - 12 + bob, 3, 2, '#4a4a52');
+    if (near && near.id === 'keeper') bubble(sx, G - 35, T);
+    else if (readyToClaim().length) questMark(sx, G - 29, T, '?', '#8fd08a');
+    else if (!activeList().length && available().length) questMark(sx, G - 29, T, '!', '#e0c070');
   }
 
   // --- кузнец ---

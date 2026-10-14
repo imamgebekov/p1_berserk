@@ -11,6 +11,7 @@ import { spawnEnemy, spawnBoss } from './world.js';
 import { startSwing, hurtEnemy, hurtPlayer, rollSwing, speedMult } from './combat.js';
 import { updateNpcs } from './npc.js';
 import { weaponLen } from './data/looks.js';
+import { mods } from './skills.js';
 
 export function step(dt) {
   W.T += dt;
@@ -53,7 +54,7 @@ function updatePlayer(dt) {
   if (P.inCombat > 0) P.inCombat -= dt;
   if (rage) {
     const R = CFG.rage;
-    P.rageOn -= dt; P.rage = Math.max(0, R.max * P.rageOn / R.duration);
+    P.rageOn -= dt; P.rage = Math.max(0, R.max * P.rageOn / P.rageDur);
     P.hp = Math.max(1, P.hp - R.hpDrain * dt);
     if (random() < dt * 30) W.parts.length < CFG.fx.maxParticles && W.parts.push({
       x: P.x + rnd(-4, 4), z: rnd(2, 16), vx: rnd(-8, 8), vz: rnd(20, 50), life: rnd(.4, .8),
@@ -63,8 +64,9 @@ function updatePlayer(dt) {
   }
   // костёр лечит
   const Wd = CFG.world;
-  if (Math.abs(P.x - Wd.fire) < Wd.campfireHealRadius && P.inCombat <= 0 && P.hp < P.maxhp)
-    P.hp = Math.min(P.maxhp, P.hp + Wd.campfireHealPerSec * dt);
+  const sk = mods();
+  if (Math.abs(P.x - Wd.fire) < Wd.campfireHealRadius + sk.healRadius && P.inCombat <= 0 && P.hp < P.maxhp)
+    P.hp = Math.min(P.maxhp, P.hp + Wd.campfireHealPerSec * sk.healMult * dt);
 }
 
 function updateSpawns(dt) {

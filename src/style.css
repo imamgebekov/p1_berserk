@@ -80,7 +80,7 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 .panel[hidden] { display:none; }
 .ph { display:flex; align-items:center; gap:10px; min-height:48px; }
 .tabs { flex:1; display:flex; gap:6px; }
-.tab { min-height:48px; padding:0 16px; background:#17110f; color:#9a8f7c; border:2px solid #3a2d26; font:inherit; font-size:17px; letter-spacing:.04em; touch-action:manipulation; }
+.tab { position:relative; min-height:48px; padding:0 12px; background:#17110f; color:#9a8f7c; border:2px solid #3a2d26; font:inherit; font-size:16px; letter-spacing:.02em; touch-action:manipulation; }
 .tab.on { color:var(--bone); border-color:var(--blood); background:#2a0e10; }
 #bagAsh { font-size:14px; color:#c9a56a; }
 .x { min-width:48px; min-height:48px; background:#17110f; border:2px solid #5a4a3a; color:var(--bone); font-size:20px; touch-action:manipulation; }
@@ -98,9 +98,9 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 #bagMsg { margin-top:6px; min-height:18px; font-size:13px; color:var(--ember); }
 
 /* карточка предмета (нижний лист) */
-#cardWrap, #tCardWrap { position:fixed; inset:0; z-index:7; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; }
-#cardWrap[hidden], #tCardWrap[hidden] { display:none; }
-#card, #tCard { width:100%; background:#14100e; border-top:3px solid #5a4a3a; padding:14px 14px calc(env(safe-area-inset-bottom) + 12px); max-height:78%; overflow:auto; }
+#cardWrap, #tCardWrap, #skWrap { position:fixed; inset:0; z-index:7; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; }
+#cardWrap[hidden], #tCardWrap[hidden], #skWrap[hidden] { display:none; }
+#card, #tCard, #skCard { width:100%; background:#14100e; border-top:3px solid #5a4a3a; padding:14px 14px calc(env(safe-area-inset-bottom) + 12px); max-height:78%; overflow:auto; }
 .cname { font-size:22px; font-weight:700; line-height:1.15; }
 .csub { margin-top:2px; font-size:13px; color:#9a8f7c; }
 .cdesc { margin-top:8px; font-size:14px; font-style:italic; color:#c9bfa8; line-height:1.4; }
@@ -156,3 +156,55 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
   background:#2a1208; color:#fff; border:2px solid var(--ember); font:inherit; font-size:16px; letter-spacing:.03em; }
 .talk[hidden] { display:none; }
 .talk:active { background:#3a1a0c; }
+
+.tab b { position:absolute; top:-7px; right:-4px; min-width:20px; height:20px; border-radius:10px; background:var(--blood); color:#fff; font-size:12px; line-height:20px; text-align:center; padding:0 5px; }
+.tab b[hidden] { display:none; }
+.substat { display:flex; justify-content:space-between; font-size:14px; padding:4px 2px 0; min-height:22px; }
+#bagSp { color:#8fd08a; } #bagAsh { color:#c9a56a; }
+#quest { margin-top:3px; font-size:12px; color:#c9a56a; text-shadow:0 1px 0 #000; }
+#quest.ready { color:#8fd08a; }
+#quest[hidden] { display:none; }
+#saveRow { margin-top:auto; padding-top:10px; display:flex; align-items:center; gap:10px; }
+#saveInfo { flex:1; font-size:12px; color:#6e6455; line-height:1.35; }
+.resetbtn { flex:none; min-height:44px; padding:0 14px; font-size:14px; color:#c97a74; }
+.resetbtn.warn { color:#fff; }
+
+/* дерево навыков */
+#skillsTab { flex:1; min-height:0; display:flex; flex-direction:column; }
+#skillsTab[hidden] { display:none; }
+#skTree { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px; }
+.skcol { display:flex; flex-direction:column; align-items:stretch; gap:0; }
+.skhead { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#6e6455; text-align:center; margin-bottom:6px; }
+.sknode { position:relative; min-height:72px; padding:6px 4px; background:#14100e; border:2px solid #3a2d26; color:var(--bone); font:inherit; touch-action:manipulation;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
+.sknode + .sknode { margin-top:14px; }
+.sknode + .sknode::before { content:''; position:absolute; left:50%; top:-14px; width:2px; height:12px; background:#3a2d26; }
+.sknode .nm { font-size:13px; line-height:1.15; text-align:center; }
+.sknode .pips { font-size:13px; letter-spacing:2px; color:#6e6455; }
+.sknode.has { border-color:var(--ember); } .sknode.has .pips { color:var(--ember); }
+.sknode.can { border-color:#8fd08a; box-shadow:0 0 8px rgba(143,208,138,.35); }
+.sknode.locked { opacity:.45; }
+.sknode.max { border-color:#c9a56a; }
+#skFoot { margin-top:14px; display:flex; flex-direction:column; gap:8px; }
+.sknote { font-size:12px; color:#6e6455; line-height:1.4; }
+
+/* доска заданий */
+#tList { flex:1; min-height:0; overflow-y:auto; touch-action:pan-y; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; gap:10px; padding-bottom:12px; }
+#tList[hidden] { display:none; }
+.quest { background:#14100e; border:2px solid #3a2d26; padding:10px 12px; }
+.quest.done { border-color:#8fd08a; } .quest.active { border-color:#c9a56a; }
+.quest .qt { font-size:17px; font-weight:700; }
+.quest .qx { margin-top:3px; font-size:13px; font-style:italic; color:#c9bfa8; line-height:1.35; }
+.quest .qr { margin-top:6px; font-size:13px; color:#c9a56a; }
+.quest .qbar { height:8px; background:#120d0c; border:1px solid #4a3d33; margin-top:7px; overflow:hidden; }
+.quest .qbar i { display:block; height:100%; background:linear-gradient(#e0c070,#a0802a); transform-origin:0 50%; }
+.quest .qn { font-size:12px; color:#9a8f7c; margin-top:3px; }
+.quest .cbtn { width:100%; margin-top:8px; flex:none; }
+.qhead { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#6e6455; margin-top:4px; }
+
+/* вход: сохранение */
+#saveBox { margin-top:18px; max-width:34ch; }
+#saveBox[hidden] { display:none; }
+#saveTxt { font-size:14px; color:#c9a56a; line-height:1.4; }
+#newGame { margin-top:10px; min-height:44px; padding:8px 18px; font-size:15px; border-color:#5a4a3a; color:#9a8f7c; }
+#newGame.warn { border-color:var(--blood); color:#fff; }

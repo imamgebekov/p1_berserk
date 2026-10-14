@@ -5,13 +5,16 @@ import { P, W, keys } from '../state.js';
 import { createPreview } from './preview.js';
 import { SLOTS, SLOT_NAMES } from '../data/items.js';
 import { h as H, makeCell, fmtPct, createConfirmer, renderItemCard } from './common.js';
+import { createSkillsUI } from './skills.js';
 import { defOf, equipFromBag, unequip, sellFromBag, dropFromBag, sellValue, bagFull, derived, itemName } from '../inventory.js';
 
-export function createInventoryUI(doc) {
+export function createInventoryUI(doc, hooks = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('bag'), eqEl = $('eq'), gridEl = $('grid'), sumEl = $('bagSum'), ashEl = $('bagAsh'), msgEl = $('bagMsg');
   const heroTab = $('heroTab'), bagTab = $('bagTab'), hL = $('hL'), hR = $('hR'), hStats = $('hStats');
   const preview = createPreview($('hPrev'));
+  const skillsUI = createSkillsUI(doc, () => render());
+  const skillsTab = $('skillsTab');
   let tab = 'hero';
   const sheet = $('cardWrap'), card = $('card');
   const RAR = CFG.items.rarity;
@@ -27,7 +30,10 @@ export function createInventoryUI(doc) {
     for (const s of SLOTS) eqEl.appendChild(cell(P.eq[s], 'e' + s, { slot: s }));
     for (let i = 0; i < CFG.items.bagSize; i++) gridEl.appendChild(cell(P.bag[i] || null, 'b' + i));
     ashEl.textContent = 'Пепел: ' + P.ash;
+    $('bagSp').textContent = P.sp > 0 ? 'Очков навыков: ' + P.sp : '';
+    const kb = $('skBadge'); kb.hidden = P.sp <= 0; kb.textContent = String(P.sp);
     renderHero();
+    if (tab === 'skills') skillsUI.render();
     const d = derived();
     sumEl.textContent = `Урон ${d.dmg} · Броня ${d.armor}${d.armor ? ' (−' + d.reduction + '%)' : ''} · Здоровье ${d.hp} · Скорость ${fmtPct('speed', d.speed)} · Крит ${d.crit}% · Клеймо ${fmtPct('rage', d.rage)}`;
     renderCard();
@@ -46,19 +52,38 @@ export function createInventoryUI(doc) {
       ['Броня', d.armor + (d.armor ? ' (−' + d.reduction + '% урона)' : '')], ['Здоровье', d.hp],
       ['Скорость', fmtPct('speed', d.speed)], ['Шанс крита', d.crit + '%'], ['Набор Клейма', fmtPct('rage', d.rage)]
     ];
+    renderSaveRow();
     hStats.textContent = '';
     for (const [k, v] of rows) {
       const line = h('div', 'crow'); line.appendChild(h('span', 'k', k)); line.appendChild(h('span', 'v', String(v))); hStats.appendChild(line);
     }
   }
 
+  const resetConfirm = createConfirmer(() => renderSaveRow());
+  function renderSaveRow() {
+    const sv = hooks.saver, info = $('saveInfo'), rb = $('resetBtn');
+    if (!sv) { info.textContent = ''; rb.hidden = true; return; }
+    const stt = sv.status;
+    info.textContent = !stt.available ? 'Сохранение недоступно в этом браузере (приватный режим?). Прогресс пропадёт при перезагрузке.'
+      : stt.error ? 'Не удалось сохранить: ' + stt.error
+      : stt.lastAt ? 'Автосохранение: ' + new Date(stt.lastAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Автосохранение включено';
+    rb.textContent = resetConfirm.is('reset') ? 'Точно? Всё сотрётся' : 'Сбросить прогресс';
+    rb.classList.toggle('warn', resetConfirm.is('reset'));
+  }
+  $('resetBtn').addEventListener('click', () => {
+    if (!resetConfirm.is('reset')) { resetConfirm.arm('reset'); renderSaveRow(); return; }
+    resetConfirm.clear(); hooks.onReset && hooks.onReset();
+  });
+
   function showTab(t) {
     tab = t;
-    heroTab.hidden = t !== 'hero'; bagTab.hidden = t !== 'bag';
+    heroTab.hidden = t !== 'hero'; bagTab.hidden = t !== 'bag'; skillsTab.hidden = t !== 'skills';
+    $('tabSkills').classList.toggle('on', t === 'skills'); $('tabSkills').setAttribute('aria-selected', t === 'skills');
+    if (t !== 'skills') skillsUI.reset();
     $('tabHero').classList.toggle('on', t === 'hero'); $('tabBag').classList.toggle('on', t === 'bag');
     $('tabHero').setAttribute('aria-selected', t === 'hero'); $('tabBag').setAttribute('aria-selected', t === 'bag');
     if (open_ && t === 'hero') preview.start(); else preview.stop();
-    if (t === 'hero') { sel = null; sheet.hidden = true; }
+    if (t !== 'bag') { sel = null; sheet.hidden = true; }
     if (t === 'bag') P.newItems = 0;
   }
 
@@ -112,6 +137,7 @@ export function createInventoryUI(doc) {
   eqEl.addEventListener('click', onEqClick); hL.addEventListener('click', onEqClick); hR.addEventListener('click', onEqClick);
   $('tabHero').addEventListener('click', () => { showTab('hero'); render(); });
   $('tabBag').addEventListener('click', () => { showTab('bag'); render(); });
+  $('tabSkills').addEventListener('click', () => { showTab('skills'); render(); });
   sheet.addEventListener('click', e => { if (e.target === sheet) { clearConfirm(); sel = null; render(); } });
 
   function open(which = 'bag') {
@@ -130,8 +156,9 @@ export function createInventoryUI(doc) {
   const toggle = which => () => (open_ && tab === which ? close() : open(which));
   $('mbag').addEventListener('click', toggle('bag'));
   $('mhero').addEventListener('click', toggle('hero'));
+  if ($('mskills')) $('mskills').addEventListener('click', toggle('skills'));
   $('bagClose').addEventListener('click', close);
-  doc.defaultView.addEventListener('keydown', e => { if (e.key === 'i' || e.key === 'I') toggle('bag')(); if (e.key === 'h' || e.key === 'H') toggle('hero')(); if (e.key === 'Escape') close(); });
+  doc.defaultView.addEventListener('keydown', e => { if (e.key === 'i' || e.key === 'I') toggle('bag')(); if (e.key === 'h' || e.key === 'H') toggle('hero')(); if (e.key === 'k' || e.key === 'K') toggle('skills')(); if (e.key === 'Escape') close(); });
 
   return { open, close, render, showTab, isOpen: () => open_, tab: () => tab, previewRunning: () => preview.running };
 }

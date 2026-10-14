@@ -4,6 +4,7 @@ import { P } from './state.js';
 
 export const TOWN_NPCS = [
   { id: 'merchant', name: 'Торговец', x: () => CFG.town.merchantX },
+  { id: 'keeper', name: 'Хранитель', x: () => CFG.town.keeperX },
   { id: 'smith', name: 'Кузнец', x: () => CFG.town.smithX }
 ];
 

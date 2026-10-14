@@ -6,17 +6,20 @@ import { defOf, sellFromBag, sellValue, itemName, bagFull } from '../inventory.j
 import { stock, buy, buyPrice, sellJunk, junkCount } from '../shop.js';
 import { upgradables, upgradeCost, upgradeChance, tryUpgrade, dmgNowNext, maxed } from '../smith.js';
 import { nearNpc } from '../town.js';
+import * as Q from '../quests.js';
+import { grantReward } from '../rewards.js';
 import { sfx } from '../audio.js';
 import { h as H, makeCell, createConfirmer, renderItemCard } from './common.js';
 
 const LINES = {
   merchant: ['Пепел — единственная монета, которой ещё верят.', 'Берёшь — бери. Торг тут не в чести.', 'После каждого Предвестника у меня свежий товар.', 'Лишнее — продай. Ржавчина не кормит.'],
+  keeper: ['Огонь горит, пока кто-то держит тропу.', 'Дела есть всегда. Выбирай.', 'Принеси, что просили, — получишь своё.', 'Не лезь на Предвестника один.'],
   smith: ['Сталь помнит, как её били. Бей ещё.', 'Чем выше, тем капризнее металл.', 'Не вини огонь. Вини руку.', 'Принеси пепла — получишь острее.']
 };
 
 export function createTownUI(doc, onClose) {
   const $ = id => doc.getElementById(id);
-  const root = $('town'), grid = $('tGrid'), sheet = $('tCardWrap'), card = $('tCard'), foot = $('tFoot'), say = $('tSay'), tabs = $('tTabs');
+  const root = $('town'), list = $('tList'), grid = $('tGrid'), sheet = $('tCardWrap'), card = $('tCard'), foot = $('tFoot'), say = $('tSay'), tabs = $('tTabs');
   const h = (tag, cls, text) => H(doc, tag, cls, text);
   let kind = null, tab = 'buy', sel = null, open_ = false, lineN = 0;
   const confirmer = createConfirmer(() => renderCard());
@@ -35,9 +38,42 @@ export function createTownUI(doc, onClose) {
     }
   }
 
+  function questBlock(q, state) {
+    const s = Q.stateOf(q.id), box = h('div', 'quest ' + state);
+    box.appendChild(h('div', 'qt', q.title));
+    box.appendChild(h('div', 'qx', q.text));
+    box.appendChild(h('div', 'qr', 'Награда: ' + Q.rewardText(q.reward)));
+    if (state === 'active') {
+      const bar = h('div', 'qbar'), i = h('i'); i.style.transform = 'scaleX(' + Math.min(1, s.n / q.goal) + ')'; bar.appendChild(i); box.appendChild(bar);
+      box.appendChild(h('div', 'qn', `Выполнено: ${s.n} из ${q.goal}`));
+    } else {
+      const b = h('button', 'cbtn ' + (state === 'done' ? 'main' : ''), state === 'done' ? 'Сдать' : 'Взять задание'); b.type = 'button';
+      if (state === 'avail' && Q.activeCount() >= CFG.quests.maxActive) { b.disabled = true; b.textContent = `Лимит заданий (${CFG.quests.maxActive})`; }
+      b.addEventListener('click', () => {
+        if (state === 'done') { const t = Q.claim(q.id, grantReward); if (t) { setSay('Держи: ' + t + '.'); sfx.loot('rare'); } }
+        else { const r = Q.accept(q.id); setSay(r === 'ok' ? 'Дело твоё. Вернись, когда закончишь.' : r === 'full' ? 'Руки заняты. Сначала закончи начатое.' : ''); }
+        render();
+      });
+      box.appendChild(b);
+    }
+    return box;
+  }
+
+  function renderQuests() {
+    list.textContent = '';
+    const ready = Q.readyToClaim(), active = Q.activeList(), avail = Q.available();
+    if (ready.length) { list.appendChild(h('div', 'qhead', 'Готово к сдаче')); ready.forEach(q => list.appendChild(questBlock(q, 'done'))); }
+    if (active.length) { list.appendChild(h('div', 'qhead', `В работе (${active.length}/${CFG.quests.maxActive})`)); active.forEach(q => list.appendChild(questBlock(q, 'active'))); }
+    if (avail.length) { list.appendChild(h('div', 'qhead', 'Доступно')); avail.forEach(q => list.appendChild(questBlock(q, 'avail'))); }
+    if (!ready.length && !active.length && !avail.length) list.appendChild(h('div', 'tnote', 'Все задания выполнены. Хранитель молча смотрит в огонь.'));
+  }
+
   function render() {
-    $('tTitle').textContent = kind === 'merchant' ? 'Торговец' : 'Кузнец';
+    const isKeeper = kind === 'keeper';
+    $('tTitle').textContent = kind === 'merchant' ? 'Торговец' : isKeeper ? 'Хранитель костра' : 'Кузнец';
     $('tAsh').textContent = 'Пепел: ' + P.ash;
+    list.hidden = !isKeeper; grid.hidden = isKeeper; foot.hidden = isKeeper;
+    if (isKeeper) { tabs.hidden = true; sheet.hidden = true; foot.textContent = ''; renderQuests(); return; }
     renderTabs();
     grid.textContent = ''; foot.textContent = '';
     grid.className = kind === 'merchant' && tab === 'buy' ? 'g4' : 'g5';

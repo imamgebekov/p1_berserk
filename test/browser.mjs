@@ -41,7 +41,7 @@ async function session(label, device) {
   for (const b of geo.filter(b => b.vis)) {
     if (b.w < 44 || b.h < 44) problems.push(`${label}: кнопка #${b.id} ${b.w}×${b.h} < 44px`);
   }
-  const pad = geo.filter(b => ['bl', 'br', 'batk', 'bjump', 'bbrand', 'mbag'].includes(b.id));
+  const pad = geo.filter(b => ['bl', 'br', 'batk', 'bjump', 'bbrand', 'mhero', 'mbag', 'mskills'].includes(b.id));
   for (let i = 0; i < pad.length; i++) for (let j = i + 1; j < pad.length; j++) {
     const a = pad[i], c = pad[j];
     if (a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h) problems.push(`${label}: кнопки #${a.id} и #${c.id} пересекаются`);

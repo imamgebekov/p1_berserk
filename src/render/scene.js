@@ -68,7 +68,7 @@ export function drawGround() {
 export function drawProps() {
   const { LW, G } = V, camX = W.camX, T = W.T;
   // виселица
-  let x = Math.round(70 - camX);
+  let x = Math.round(40 - camX);
   if (x > -20 && x < LW + 20) {
     R(x, G - 38, 3, 38, '#0e0a09'); R(x, G - 38, 20, 3, '#0e0a09'); line(x + 3, G - 30, x + 8, G - 36, '#0e0a09');
     R(x + 15, G - 35, 1, 9, '#2a201b'); R(x + 14, G - 27, 3, 2, '#2a201b');
