@@ -6,7 +6,7 @@ export const DOT = ['burn', 'poison', 'bleed'];
 // наложить статус на врага. dps/dur: для burn, poison, bleed — урон в секунду и длительность; для freeze, stun — длительность в dur
 export function applyStatus(W, e, kind, dps, dur) {
   const C = W.cfg.enemies[e.type];
-  if (e.dead || (C.immune && C.immune.includes(kind))) return false;
+  if (e.dead || (C.immune && C.immune.includes(kind)) || (e.imm && e.imm.includes(kind))) return false;
   const st = e.st || (e.st = {});
   if (kind === 'burn') {
     if (st.freeze) { delete st.freeze; if (!Object.keys(st).length) delete e.st; W.fx.react(e, 'Раскол', W.fx.hp(e, .07, 36)); return true; }                          // огонь по замёрзшему

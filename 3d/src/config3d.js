@@ -109,6 +109,17 @@ export const CFG3 = {
   level: { max: 30, base: 28, pow: 1.3, hpPer: 4, dmgPer: .4, healOnUp: .3 },   // опыт до следующего уровня = base × ур^pow; за уровень: +hpPer здоровья, +dmgPer урона, +1 очко навыка
   // сложность. hp/dmg — множители врагов (и боссов), count — добавка к числу врагов, hear — слух врагов, luck — к удаче,
   // xp — опыт, buy — цены торговца, boss — множитель времени возрождения боссов, death — штраф: ash — доля теряемого пепла (остаётся «могила»), gear — теряется уровень улучшения у надетого
+  // элитные враги: шанс = chance + глубина × depthK + опасность × dangerK (+ nightK ночью). hp/dmg/xp — множители, luck и lootRolls — добыча.
+  elite: {
+    chance: .04, depthK: .03, dangerK: .03, nightK: .03, hp: 1.9, dmg: 1.2, xp: 3, scale: 1.2, luck: 10, lootRolls: 2,
+    affixes: {
+      swift:     { name: 'Быстрый',       speed: 1.45, color: '#7ad0ff' },
+      armored:   { name: 'Бронированный', hp: 1.6, color: '#c8c8d8' },
+      vampiric:  { name: 'Кровопийца',    heal: .6, color: '#d03060' },
+      explosive: { name: 'Взрывной',      r: 3.2, delay: .9, dmg: 38, color: '#ff9a30' },
+      burning:   { name: 'Пылающий',      on: ['burn', .8, 3, 5], immune: ['burn'], color: '#ff6a20' }
+    }
+  },
   // сутки: len — секунд на полный круг; start — на какой фазе начинается игра (0.3 — полдень, 0.0 — рассвет);
   // contrast — резкость смены; nightBelow — при каком свете считаем ночью. night — что меняется ночью.
   daynight: {
@@ -161,16 +172,19 @@ export const CFG3 = {
     respawn: 1.6,         // пауза до появления нового
     ring: [14, 19],       // на каком расстоянии от героя появляются
     brutePart: .3,        // доля рогачей среди врагов
-    imp:   { xp: 14, hp: 126, speed: 3.4, damage: 11,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
-    brute: { xp: 45, hp: 390, speed: 2.2, damage: 28, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6 },
-    hound: { on: ['bleed', .6, 2.5, 4], xp: 10, hp: 90, speed: 5.6, damage: 10,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85 },   // быстрая, хрупкая; рыщет у руин и лагеря
-    ghoul: { on: ['poison', .7, 2, 6], xp: 33, hp: 270, speed: 2.8, damage: 20, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2 },   // упырь: у кладбища и в часовне
+    imp:   { name: 'Бес', xp: 14, hp: 126, speed: 3.4, damage: 11,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
+    brute: { name: 'Рогач', xp: 45, hp: 390, speed: 2.2, damage: 28, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6 },
+    hound: { name: 'Гончая', on: ['bleed', .6, 2.5, 4], xp: 10, hp: 90, speed: 5.6, damage: 10,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85 },   // быстрая, хрупкая; рыщет у руин и лагеря
+    ghoul: { name: 'Упырь', on: ['poison', .7, 2, 6], xp: 33, hp: 270, speed: 2.8, damage: 20, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2 },   // упырь: у кладбища и в часовне
+    // дальний бой: ranged.keep — на каком расстоянии держится от героя; стрела летит со speed, колдовство накрывает пятно r через delay секунд
+    archer: { name: 'Лучник Ржавых', xp: 22, hp: 150, speed: 3.2, damage: 14, range: 13, wind: .9, recover: 1.3, radius: .45, scale: 1, ranged: { kind: 'arrow', speed: 14, keep: [6, 10] } },
+    witch: { name: 'Колдун Затмения', xp: 38, hp: 200, speed: 2.8, damage: 26, range: 14, wind: 1.1, recover: 2.4, radius: .5, scale: 1.05, on: ['burn', .5, 3, 5], ranged: { kind: 'hex', r: 2.4, delay: 1.0, keep: [7, 11] } },
     // кто водится в области (по ближайшей зоне карты); остальное — бесы и рогачи по brutePart
     regions: {
-      graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1]],
-      ruins: [['hound', 4], ['brute', 3], ['imp', 2]],
-      camp: [['hound', 3], ['brute', 4], ['imp', 2]],
-      farm: [['hound', 3], ['imp', 4], ['ghoul', 1]]
+      graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1], ['witch', 1]],
+      ruins: [['hound', 4], ['brute', 3], ['imp', 2], ['witch', 2]],
+      camp: [['hound', 3], ['brute', 4], ['imp', 2], ['archer', 4]],
+      farm: [['hound', 3], ['imp', 4], ['ghoul', 1], ['archer', 2]]
     },
     depthHp: 1.6,          // враги вдали от костра крепче: здоровье × (1 + depthHp × глубина), глубина 0 у костра, 1 у границы
     depthDmg: 1.0,         // и бьют сильнее: урон × (1 + depthDmg × глубина)

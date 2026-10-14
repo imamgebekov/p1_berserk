@@ -11,7 +11,7 @@ import { createSaver, loadSave } from '../3d/src/save3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 
 // ---- целостность ----
-ok(QUESTS.length >= 20 && new Set(QUESTS.map(q => q.id)).size === QUESTS.length, 'заданий мало или id повторяются');
+ok(QUESTS.length >= 24 && new Set(QUESTS.map(q => q.id)).size === QUESTS.length, 'заданий мало или id повторяются');
 const places = new Set(CFG3.map.places.map(p => p.id)), bossTypes = new Set(CFG3.bosses.list.map(b => b.type));
 for (const q of QUESTS) {
   ok(['merchant', 'smith', 'captain'].includes(q.giver) && q.name && q.text && q.reward, 'поля ' + q.id);

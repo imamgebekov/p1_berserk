@@ -5,7 +5,7 @@ import { RECIPES } from './data/recipes3d.js';
 import { CONTAINERS } from './data/loot.js';
 import { sourcesOf, bestiaryEntry, POOL_NAME, recipeKnown } from './craft3d.js';
 
-const TYPES = ['imp', 'brute', 'hound', 'ghoul', 'devourer', 'lord', 'chief'];
+const TYPES = ['imp', 'brute', 'hound', 'ghoul', 'archer', 'witch', 'devourer', 'lord', 'chief'];
 export function createJournal(doc, W, cfg, { onOpen, onClose } = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('journal'), listEl = $('journalList'), tabsEl = $('journalTabs');

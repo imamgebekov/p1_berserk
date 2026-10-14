@@ -102,6 +102,11 @@ try {
     await page.screenshot({ path: join(out, '3d-shop-sell.png') });
     await page.tap('#shopClose'); await page.waitForTimeout(100);
   }
+  // дальние враги и элита: лучник стреляет, колдун ставит пятно, элита отрисована, ошибок нет
+  await page.evaluate(() => { const b = window.__b3d, w = b.W; w.player.x = 0; w.player.z = 4; w.enemies.length = 0; w.cfg.elite.chance = 1; const a = b.spawn('archer', 8, 4); a.alert = true; a.cd = .01; const k = b.spawn('witch', -8, 4); k.alert = true; k.cd = .01; w.cfg.elite.chance = .04; });
+  await page.waitForTimeout(2600); await page.screenshot({ path: join(out, '3d-ranged.png') });
+  { const r = await page.evaluate(() => { const w = window.__b3d.W; return { elites: w.enemies.filter(e => e.elite).length, ev: w.proj.length + w.haz.length, hp: w.player.hp }; }); if (r.elites !== 2) bad('элитные враги не появились: ' + JSON.stringify(r)); }
+  await page.evaluate(() => { const w = window.__b3d.W; w.enemies.length = 0; w.proj.length = 0; w.haz.length = 0; w.player.hp = w.player.maxhp; });
   // сутки и звук: часы в шапке, ночь меняет небо и закрывает торговца, кнопка звука
   await page.evaluate(() => { const w = window.__b3d.W; w.t = 188 + 30; }); await page.waitForTimeout(600);
   { const r = await page.evaluate(() => ({ night: window.__b3d.W.night, kills: document.getElementById('kills').textContent })); if (!r.night || !/🌙 \d\d:\d\d/.test(r.kills)) bad('ночь не наступила или нет часов: ' + JSON.stringify(r)); }

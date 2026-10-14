@@ -20,6 +20,7 @@ import { initBoss, updateBoss } from './boss3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent } from './quests3d.js';
 import { lightOf, isNight } from './daynight.js';
+import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
@@ -70,7 +71,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0 },
     enemies: []
   };
@@ -80,6 +81,7 @@ function makeWorld(cfg, rng) {
 export function spawnEnemy(W, type, x, z) {
   const C = W.cfg.enemies[type], E = W.cfg.enemies, depth = clamp(len(x, z) / W.cfg.world.radius, 0, 1), pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * (1 + E.dangerHp * danger) * W.dif.hp);
   const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * W.dif.dmg * (W.night ? W.cfg.daynight.night.dmg : 1), danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
+  rollElite(W, e, depth, danger);
   W.enemies.push(e);
   return e;
 }
@@ -143,7 +145,7 @@ function killPlayer(W) {
   W.ev.push({ k: 'playerDead', x: p.x, z: p.z, lost, burned, iron: W.iron });
 }
 
-function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
+export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   const p = W.player;
   if (p.dead) return false;
   if (p.state === 'roll' || p.inv > 0) {
@@ -171,7 +173,7 @@ function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
 export function killEnemy(W, e, share) {
   if (e.dead) return;
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
-  dropLoot(W, e); addXp(W, e, share);
+  dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
   if (share >= 1) {                                                   // свойства оружия за убийство
     const pm = W.wp.pm;
     const kh = (pm.killHeal || 0) + (W.setFx.killHeal || 0); if (kh) W.player.hp = Math.min(W.player.maxhp, W.player.hp + kh);
@@ -181,7 +183,8 @@ export function killEnemy(W, e, share) {
 
 function dropLoot(W, e) {
   const depth = clamp(len(e.x, e.z) / W.cfg.world.radius + .1 * (e.danger || 0), 0, 1);
-  for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck)) {
+  const rolls = e.elite ? W.cfg.elite.lootRolls : 1;
+  for (let r = 0; r < rolls; r++) for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck + (e.elite ? W.cfg.elite.luck : 0))) {
     const a = W.rng() * TAU;
     W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * .7, z: e.z + Math.cos(a) * .7, t: 0, cd: 0 });
     W.ev.push({ k: 'drop', x: e.x, z: e.z, id: it.id });
@@ -216,9 +219,9 @@ function strike(W, e, dmg, o) {
   const p = W.player, P = W.cfg.player, C = W.cfg.enemies[e.type];
   e.hp -= dmg; e.flash = .12; p.calm = P.fire.calm;
   if (W.gear.leech > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * W.gear.leech / 100);
-  const k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (C.heavy ? .5 : 1), n = o.d || 1;
+  const heavy = C.heavy || e.aff === 'armored', k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
-  if (e.state === 'wind' && !C.heavy) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах
+  if (e.state === 'wind' && !heavy) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: o.crit, id: e.id, fx: o.fx || null });
   e.alert = true;
   if (e.hp <= 0) killEnemy(W, e, 1);
@@ -341,7 +344,7 @@ function updateEnemies(W, dt) {
     if (e.flash > 0) e.flash -= dt;
     if (e.dead) { e.deadT += dt; continue; }
     tickEnemy(W, e, dt); if (e.dead) continue;
-    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e);
+    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1);
     slide(W.map, e, e.vx * dt, e.vz * dt, C.radius);
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
     if (e.boss) { updateBoss(W, e, dt, spd); continue; }
@@ -368,6 +371,7 @@ function updateEnemies(W, dt) {
       if (!p.dead && e.alert) {
         const g = goalOf(W, e);                                   // к герою напрямик или к двери дома
         if (g !== p) { const gx = g.x - e.x, gz = g.z - e.z, gd = len(gx, gz) || 1e-6; e.face = Math.atan2(gx, gz); slide(W.map, e, gx / gd * spd * dt, gz / gd * spd * dt, C.radius); }
+        else if (C.ranged) rangedMove(W, e, C, d, dx, dz, spd, dt);
         else if (d > C.range * .85) { slide(W.map, e, dx / d * spd * dt, dz / d * spd * dt, C.radius); }
         else { e.cd -= dt; if (e.cd <= 0) { e.state = 'wind'; e.t = 0; } }
       }
@@ -377,7 +381,8 @@ function updateEnemies(W, dt) {
         e.state = 'rec'; e.t = 0;
         const ta = e.tgt && W.allies.find(a => a.id === e.tgt && !a.dead);
         if (ta) { if (len(ta.x - e.x, ta.z - e.z) <= C.range + .9) hurtAlly(W, ta, Math.round(C.damage * (e.dmgMul || 1)), e); }
-        else if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside) hurtPlayer(W, Math.round(C.damage * (e.dmgMul || 1)), e.x, e.z, C.on, e);
+        else if (C.ranged) { if (!p.dead) rangedFire(W, e, C); }
+        else if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside) { const dm = Math.round(C.damage * (e.dmgMul || 1)); if (hurtPlayer(W, dm, e.x, e.z, e.onx || C.on, e)) eliteOnHit(W, e, dm); }
         W.ev.push({ k: 'strike', x: e.x, z: e.z, id: e.id });
       }
     } else if (e.state === 'rec') {
@@ -515,6 +520,7 @@ export function step(W, dt, input = {}) {
   trackPlace(W, dt);
   updateEnemies(W, dt);
   updateAllies(W, dt);
+  updateFoes(W, dt);
   updateHouses(W, dt);
   for (const def of W.cfg.bosses.list) { const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) spawnBoss(W, def); }
   { let hb = null; for (const e of W.enemies) if (e.boss && !e.dead && e.alert && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!e.b.enraged, id: e.id }; break; } W.hudBoss = hb; }
@@ -525,7 +531,7 @@ export function step(W, dt, input = {}) {
 export function respawnPlayer(W) {
   const P = W.cfg.player, p = W.player;
   Object.assign(p, { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0 });
-  W.enemies = W.enemies.filter(e => e.boss && !e.dead); W.spawnT = 1.2; W.pst = {}; W.echoQ.length = 0; W.combo.n = 0;
+  W.enemies = W.enemies.filter(e => e.boss && !e.dead); W.proj.length = 0; W.haz.length = 0; W.spawnT = 1.2; W.pst = {}; W.echoQ.length = 0; W.combo.n = 0;
 }
 
 // публичный API прежний: модули вынесены, но всё доступно из sim.js

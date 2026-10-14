@@ -7,7 +7,7 @@ import { refreshGear } from './sim.js';
 export const xpNeed = (lv, cfg) => Math.round(cfg.level.base * Math.pow(lv, cfg.level.pow));
 export function addXp(W, e, share = 1) {
   const L = W.cfg.level, depth = clamp(len(e.x, e.z) / W.cfg.world.radius, 0, 1), C = W.cfg.enemies[e.type];
-  gainXp(W, Math.round((C.xp || 5) * (1 + depth * .8) * (1 + W.cfg.enemies.dangerXp * (e.danger || 0)) * share) || 1);
+  gainXp(W, Math.round((C.xp || 5) * (1 + depth * .8) * (1 + W.cfg.enemies.dangerXp * (e.danger || 0)) * (e.elite ? W.cfg.elite.xp : 1) * share) || 1);
 }
 export function gainXp(W, n) {
   const L = W.cfg.level; if (W.lv >= L.max) return;

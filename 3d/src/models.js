@@ -81,6 +81,8 @@ const LOOKS = {
   brute: { body: '#4a3430', dark: '#2a1c1a', eye: '#ff3030' },
   hound: { body: '#55503f', dark: '#2a2620', eye: '#ffb020' },
   ghoul: { body: '#58675a', dark: '#2a3a30', eye: '#b8ff90' },
+  archer: { shape: 'imp', body: '#52402e', dark: '#20160e', eye: '#ffc030' },
+  witch: { shape: 'imp', body: '#3a2450', dark: '#140a1e', eye: '#e070ff', crown: '#9a48d0' },
   devourer: { shape: 'ghoul', body: '#3c4e44', dark: '#1a2a22', eye: '#e8ff60', crown: '#c8d8a0' },
   lord: { shape: 'imp', body: '#2a2028', dark: '#0e0a10', eye: '#ff7a20', crown: '#ff9a40' },
   chief: { shape: 'brute', body: '#5a2c24', dark: '#2a1210', eye: '#ffc030', crown: '#d8c8a8' }

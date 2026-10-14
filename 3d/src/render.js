@@ -178,6 +178,25 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const teleInner = new THREE.Mesh(new THREE.RingGeometry(.97, 1, 32), new THREE.MeshBasicMaterial({ color: '#8affc0', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
   const teleLine = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
   for (const m of [teleRing, teleDisc, teleInner, teleLine]) { m.rotation.x = -Math.PI / 2; m.position.y = .09; m.visible = false; scene.add(m); }
+  // стрелы и пятна колдовства: небольшие пулы мешей
+  const projMeshes = [], hazMeshes = [];
+  for (let i = 0; i < 12; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.14, .14, .9), new THREE.MeshBasicMaterial({ color: '#ffd27a' })); m.visible = false; scene.add(m); projMeshes.push(m); }
+  for (let i = 0; i < 6; i++) {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(.94, 1, 40), new THREE.MeshBasicMaterial({ color: '#d060ff', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 36), new THREE.MeshBasicMaterial({ color: '#8a30c0', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+    for (const m of [ring, disc]) { m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(m); }
+    ring.position.y = .1; disc.position.y = .08; hazMeshes.push({ ring, disc });
+  }
+  function updateFoes(W, t) {
+    projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { m.position.set(q.x, 1.1, q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });
+    hazMeshes.forEach((h, i) => {
+      const z = W.haz[i]; h.ring.visible = h.disc.visible = !!z; if (!z) return;
+      const k = Math.min(1, z.t / z.delay), pulse = .3 + .25 * Math.sin(t * 28) + .25 * k, col = z.by === 'elite' ? '#ff7a20' : '#d060ff';
+      h.ring.material.color.set(col); h.disc.material.color.set(z.by === 'elite' ? '#c04a10' : '#8a30c0');
+      h.ring.position.x = h.disc.position.x = z.x; h.ring.position.z = h.disc.position.z = z.z; h.ring.scale.setScalar(z.r); h.disc.scale.setScalar(z.r * k);
+      h.ring.material.opacity = .9; h.disc.material.opacity = pulse * .6;
+    });
+  }
   function updateTele(W, t) {
     teleRing.visible = teleDisc.visible = teleInner.visible = teleLine.visible = false;
     for (const e of W.enemies) {
@@ -247,12 +266,17 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       alive.add(e.id);
       const en = entity(e);
       en.m.group.position.set(e.x, 0, e.z); en.m.group.rotation.y = e.face;
+      { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
       animateMonster(en.m, e, t, cfg);
+      if (e.elite) {
+        if (!en.elite) { en.elite = new THREE.Mesh(new THREE.RingGeometry(.95, 1.25, 28), new THREE.MeshBasicMaterial({ color: e.affColor, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide })); en.elite.rotation.x = -Math.PI / 2; scene.add(en.elite); }
+        en.elite.position.set(e.x, .07, e.z); en.elite.visible = !e.dead; en.elite.scale.setScalar(cfg.enemies[e.type].scale * (e.scaleMul || 1) * (1 + .06 * Math.sin(t * 5)));
+      }
       en.sh.position.set(e.x, .03, e.z);
       const wind = e.state === 'wind' && !e.dead;
       en.ring.position.set(e.x, .06, e.z); en.ring.scale.setScalar(cfg.enemies[e.type].range + .5);
-      en.ring.material.opacity = wind ? .35 + .3 * Math.sin(t * 40) : 0;
-      const b = bar(e), dmg = e.hp < e.maxhp && !e.dead;
+      en.ring.material.opacity = wind && !cfg.enemies[e.type].ranged ? .35 + .3 * Math.sin(t * 40) : 0;
+      const b = bar(e, e.elite ? e.affColor : undefined), dmg = (e.hp < e.maxhp || e.elite) && !e.dead;
       b.g.visible = dmg; if (dmg) { b.g.position.set(e.x, 2.5 * cfg.enemies[e.type].scale + .3, e.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, e.hp / e.maxhp); }
     }
     // отряд
@@ -266,7 +290,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       b.g.visible = show; if (show) { b.g.position.set(a.x, 2.7, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }
     }
     for (const [id, en] of allyEnts) if (!aliveA.has(id)) { scene.remove(en.m.group, en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); bars.delete('a' + id); } }
-    for (const [id, en] of ents) if (!alive.has(id)) { scene.remove(en.m.group, en.sh, en.ring); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); bars.delete(id); } }
+    for (const [id, en] of ents) if (!alive.has(id)) { scene.remove(en.m.group, en.sh, en.ring); if (en.elite) scene.remove(en.elite); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); bars.delete(id); } }
 
     // события боя → эффекты и подписи (подписи отдаёт hooks.onText)
     for (const v of W.ev) {
@@ -297,7 +321,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     // частицы
     for (const m of pool) if (m.visible) { const u = m.userData; u.life -= dt; if (u.life <= 0) { m.visible = false; continue; } u.vy -= 14 * dt; m.position.x += u.vx * dt; m.position.y = Math.max(.07, m.position.y + u.vy * dt); m.position.z += u.vz * dt; }
 
-    stepFx(dt); updateTele(W, t);
+    stepFx(dt); updateTele(W, t); updateFoes(W, t);
     if (W.tomb) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, 0, W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
     for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
     gl.render(scene, camera);
