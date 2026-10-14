@@ -16,14 +16,14 @@ export function sanitizePrefs(d) {
 export function loadPrefs(storage = globalThis.localStorage) { try { return sanitizePrefs(JSON.parse(storage.getItem(KEY) || 'null')); } catch (e) { return DEFAULT_PREFS(); } }
 export function savePrefs(P, storage = globalThis.localStorage) { try { storage.setItem(KEY, JSON.stringify(P)); return true; } catch (e) { return false; } }
 
-// подсказки новичку: условие показа смотрит на мир, каждая показывается один раз
+// подсказки новичку: условие показа смотрит на мир, каждая показывается один раз; desk — текст для компьютера (клавиши и мышь)
 export const HINTS = [
-  { id: 'move', text: 'Коснитесь экрана и ведите пальцем: герой идёт', when: W => W.t > 1.5 },
-  { id: 'fight', text: 'Враг рядом: жмите «Удар», а «Перекат» уводит от удара', when: W => W.enemies.some(e => !e.dead && Math.hypot(e.x - W.player.x, e.z - W.player.z) < 9) },
+  { id: 'move', text: 'Коснитесь экрана и ведите пальцем: герой идёт', desk: 'WASD или стрелки: герой идёт. Esc — меню, там все клавиши', when: W => W.t > 1.5 },
+  { id: 'fight', text: 'Враг рядом: жмите «Удар», а «Перекат» уводит от удара', desk: 'Враг рядом: пробел или левая кнопка мыши — удар, Shift или правая — перекат', when: W => W.enemies.some(e => !e.dead && Math.hypot(e.x - W.player.x, e.z - W.player.z) < 9) },
   { id: 'hurt', text: 'Больно? Перекат даёт короткую неуязвимость, у костра здоровье лечится', when: W => W.player.hp < W.player.maxhp * .6 },
-  { id: 'npc', text: 'Рядом житель: нажмите кнопку, чтобы торговать, взять задание или нанять бойца', when: W => !!W.nearNpc },
-  { id: 'bag', text: 'В сумке 🎒 вещи надеваются касанием, а карточка показывает бонусы сета', when: W => W.inv.bag.length >= 2 },
-  { id: 'lvl', text: 'Новый уровень: загляните в ✦, там очки навыков', when: W => W.sp > 0 },
+  { id: 'npc', text: 'Рядом житель: нажмите кнопку, чтобы торговать, взять задание или нанять бойца', desk: 'Рядом житель: E — торговать или нанять, Q — задания', when: W => !!W.nearNpc },
+  { id: 'bag', text: 'В сумке 🎒 вещи надеваются касанием, а карточка показывает бонусы сета', desk: 'Сумка — клавиша I: вещи надеваются щелчком, карточка показывает бонусы сета', when: W => W.inv.bag.length >= 2 },
+  { id: 'lvl', text: 'Новый уровень: загляните в ✦, там очки навыков', desk: 'Новый уровень: N — навыки, там очки', when: W => W.sp > 0 },
   { id: 'night', text: 'Ночью враги злее, а торговец спит. Держитесь у костра или в безопасных местах', when: W => W.night }
 ];
 export function nextHint(W, P) {
