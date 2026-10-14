@@ -16,7 +16,7 @@ export const RARITY = [
 
 export const SLOTS = ['weapon', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet'];
 export const SLOT_NAME = { weapon: 'Оружие', head: 'Голова', body: 'Тело', cloak: 'Плащ', boots: 'Ноги', ring: 'Кольцо', amulet: 'Амулет' };
-export const STAT_NAME = { dmg: 'урон', armor: 'броня', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара' };
+export const STAT_NAME = { dmg: 'урон', armor: 'броня', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
 
 const ITEMS = [];
 const add = it => { it.stack = it.stack || 1; it.value = Math.max(1, Math.round(it.value)); ITEMS.push(it); return it; };

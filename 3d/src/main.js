@@ -4,6 +4,8 @@ import { BY_ID, RARITY } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith } from './shop.js';
+import { createSkills } from './skillsui.js';
+import { xpNeed } from './sim.js';
 import { loadSave, createSaver } from './save3d.js';
 import { createRenderer } from './render.js';
 import { rotateInput } from './map.js';
@@ -16,7 +18,7 @@ const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
 // iOS Safari местами игнорирует touch-action: страницу нельзя ни листать, ни тянуть, ни масштабировать, пока открыта не панель
-const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith');
+const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith, #skills');
 document.addEventListener('touchmove', e => { if (!inPanel(e)) e.preventDefault(); }, { passive: false });
 for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -32,7 +34,7 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(cfg.bag.slots);
-if (saved) { W.inv = saved.inv; W.kills = saved.kills; }
+if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); }
 const saver = createSaver(W);
 const input = createInput(document, window);
 let panelOpen = false, landscape = false;
@@ -60,6 +62,8 @@ function onEvent(v) {
   else if (v.k === 'unlock') toast('Замок открыт', 'sys');
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
+  else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков ✦`, '', '#e8c04a');
+  else if (v.k === 'xp') onText(v.x, 3, v.z, '+' + v.n + ' оп.', 'xp');
 }
 function onHurt() {
   if (reduce) return;
@@ -87,6 +91,11 @@ const shop = createShop(document, W, cfg, {
   onClose: () => { panelOpen = false; saver.write(); },
   onChange: () => { saver.write(); bag.render(); }
 });
+const skills = createSkills(document, W, cfg, {
+  onOpen: () => { panelOpen = true; input.release(); },
+  onClose: () => { panelOpen = false; saver.write(); },
+  onChange: () => saver.write()
+});
 const smith = createSmith(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); },
   onClose: () => { panelOpen = false; saver.write(); },
@@ -101,10 +110,10 @@ $('again').addEventListener('click', () => { respawnPlayer(W); $('dead').hidden 
 document.addEventListener('visibilitychange', () => { if (document.hidden) { input.release(); saver.write(); } });
 addEventListener('pagehide', () => saver.write());
 
-const talk = $('talk');
+const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
 talk.addEventListener('click', e => { e.stopImmediatePropagation(); (W.nearNpc === 'smith' ? smith : shop).open(); }, true);
 const hpFill = $('hpFill'), hpTxt = $('hpTxt'), killsEl = $('kills');
-let saveT = 0, lastHp = -1, lastKills = -1, lastAsh = -1, last = performance.now();
+let saveT = 0, lastHp = -1, lastKey = '', last = performance.now();
 function loop(now) {
   const real = (now - last) / 1000, dt = Math.max(0, Math.min(.05, real)); last = now;
   if (!panelOpen && !landscape) {
@@ -118,10 +127,10 @@ function loop(now) {
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; hpFill.style.transform = `scaleX(${W.player.hp / W.player.maxhp})`; hpTxt.textContent = Math.ceil(W.player.hp); }
-  if (W.kills !== lastKills || W.inv.ash !== lastAsh) { lastKills = W.kills; lastAsh = W.inv.ash; killsEl.textContent = `убито ${W.kills} · пепел ${W.inv.ash}`; }
+  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp; if (key !== lastKey) { lastKey = key; killsEl.textContent = `Ур. ${W.lv} · пепел ${W.inv.ash}`; xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0); } }
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };
+window.__b3d = { skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };

@@ -13,6 +13,7 @@ export function mulberry32(a) {
 
 import { BY_ID } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, rollLoot, rollDrop } from './data/loot.js';
+import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats } from './inv.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf } from './map.js';
 
@@ -25,7 +26,7 @@ export function createWorld(cfg, rng = Math.random) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0 },
     enemies: []
   };
@@ -93,7 +94,7 @@ function attackStart(W) {
 
 function attackHit(W) {
   const p = W.player, P = W.cfg.player;
-  const half = P.attackArc * DEG / 2;
+  const half = (P.attackArc + W.gear.arc) * DEG / 2;
   let hits = 0;
   for (const e of W.enemies) {
     if (e.dead) continue;
@@ -110,7 +111,7 @@ function attackHit(W) {
     W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg: dealt, crit, id: e.id });
     hits++;
     e.alert = true;
-    if (e.hp <= 0) { e.dead = true; e.deadT = 0; W.kills++; W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id }); dropLoot(W, e); }
+    if (e.hp <= 0) { e.dead = true; e.deadT = 0; W.kills++; W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id }); dropLoot(W, e); addXp(W, e); }
   }
   if (hits) { W.freeze = W.cfg.fx.hitStop; W.shake = Math.max(W.shake, W.cfg.fx.shake); }
   return hits;
@@ -131,7 +132,7 @@ function updatePlayer(W, dt, input) {
   if (input.roll && p.state !== 'roll' && p.rollCd <= 0) {
     const dl = moving ? ml : 0;
     p.rollDirX = moving ? mx / dl : Math.sin(p.face); p.rollDirZ = moving ? mz / dl : Math.cos(p.face);
-    p.state = 'roll'; p.rollT = 0; p.rollCd = P.rollCooldown; p.inv = Math.max(p.inv, P.rollInvuln);
+    p.state = 'roll'; p.rollT = 0; p.rollCd = Math.max(.25, P.rollCooldown - W.gear.rollcd); p.inv = Math.max(p.inv, P.rollInvuln);
     p.face = Math.atan2(p.rollDirX, p.rollDirZ);
     W.ev.push({ k: 'roll', x: p.x, z: p.z });
   }
@@ -156,6 +157,7 @@ function updatePlayer(W, dt, input) {
     if (moving && p.state !== 'atk') p.face += clamp(angDiff(Math.atan2(mx, mz), p.face), -P.turnSpeed * dt, P.turnSpeed * dt);
     if (p.state === 'idle' && moving) p.state = 'run'; else if (p.state === 'run' && !moving) p.state = 'idle';
   }
+  if (W.gear.regen > 0 && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + W.gear.regen * dt);
   if (p.calm > 0) p.calm -= dt;
   else if (len(p.x, p.z) < P.fire.radius && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);
   slide(W.map, p, p.vx * dt, p.vz * dt, P.radius);
@@ -174,7 +176,7 @@ function updateEnemies(W, dt) {
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
     if (e.state === 'chase') {
       e.face = Math.atan2(dx, dz);
-      const H = E.hear, noise = p.state === 'atk' || p.state === 'roll' ? H.fight : p.state === 'run' ? H.run : H.idle;
+      const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100);
       if (!e.alert && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
       else if (e.alert && d > H.lose) e.alert = false;
       if (!p.dead && !e.alert && d < H.lose) {                       // не услышал: бредёт к герою вполсилы
@@ -232,6 +234,33 @@ function refill(W, c) {
   c.locked = !!def.locked; c.keyTier = def.locked ? (depth < .3 ? 1 : depth < .6 ? 2 : 3) : 0;
 }
 
+// ---- опыт, уровни, навыки ----
+export const xpNeed = (lv, cfg) => Math.round(cfg.level.base * Math.pow(lv, cfg.level.pow));
+export function addXp(W, e) {
+  const L = W.cfg.level, depth = clamp(len(e.x, e.z) / W.cfg.world.radius, 0, 1), C = W.cfg.enemies[e.type];
+  gainXp(W, Math.round((C.xp || 5) * (1 + depth * .8)));
+}
+export function gainXp(W, n) {
+  const L = W.cfg.level; if (W.lv >= L.max) return;
+  W.xp += n; W.ev.push({ k: 'xp', n, x: W.player.x, z: W.player.z });
+  while (W.lv < L.max && W.xp >= xpNeed(W.lv, W.cfg)) {
+    W.xp -= xpNeed(W.lv, W.cfg); W.lv++; W.sp++;
+    refreshGear(W); const p = W.player; p.hp = Math.min(p.maxhp, p.hp + p.maxhp * L.healOnUp);
+    W.ev.push({ k: 'level', lv: W.lv, x: p.x, z: p.z });
+  }
+  if (W.lv >= L.max) W.xp = 0;
+}
+export function spendSkill(W, id) {
+  const r = canRank(W.skills, id, W.sp); if (r !== 'ok') return r;
+  W.skills[id] = (W.skills[id] || 0) + 1; W.sp--; refreshGear(W); return 'ok';
+}
+export const respecCost = W => W.cfg.respecBase * W.lv;
+export function respec(W) {
+  const spent = Object.values(W.skills).reduce((a, b) => a + b, 0); if (!spent) return 'none';
+  const cost = respecCost(W); if (W.inv.ash < cost) return 'ash';
+  W.inv.ash -= cost; W.sp += spent; W.skills = {}; refreshGear(W); return 'ok';
+}
+
 // ---- кузнец: улучшение вещей за пепел ----
 export const upgradeCost = (it, lvl, cfg) => Math.round(cfg.smith.base + it.value * cfg.smith.costK * Math.pow(lvl + 1, cfg.smith.pow));
 // where: { slot } для надетой или { idx } для вещи в сумке
@@ -249,7 +278,7 @@ export function upgradeItem(W, where) {
 }
 
 // ---- торговля ----
-export const sellPrice = (it, cfg, up = 0) => Math.max(1, Math.round(it.value * cfg.shop.sellMul * (1 + up * .25)));
+export const sellPrice = (it, cfg, up = 0, trade = 0) => Math.max(1, Math.round(it.value * cfg.shop.sellMul * (1 + up * .25) * (1 + trade / 100)));
 export const buyPrice = (it, cfg) => Math.max(2, Math.round(it.value * cfg.shop.buyMul));
 export function restock(W) {
   const out = SHOP_STAPLES.map(([id, n]) => ({ id, n }));
@@ -267,13 +296,13 @@ export function buyItem(W, i) {
 export function sellItem(W, idx, n = 1) {
   const s = W.inv.bag[idx]; if (!s) return 'none'; if (!W.nearMerchant) return 'far';
   const q = Math.min(n, s.n), it = BY_ID[s.id];
-  W.inv.ash += sellPrice(it, W.cfg, s.up || 0) * q; removeAt(W.inv, idx, q); return 'ok';
+  W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade) * q; removeAt(W.inv, idx, q); return 'ok';
 }
 // продать весь хлам разом: безделушки, деньги, записки и материалы (оружие, броня, ключи и расходники остаются)
 export function sellJunk(W) {
   if (!W.nearMerchant) return -1;
   let sum = 0;
-  for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if (it.cat === 'curio' || it.cat === 'material') { sum += sellPrice(it, W.cfg) * s.n; W.inv.bag.splice(i, 1); } }
+  for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if (it.cat === 'curio' || it.cat === 'material') { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
   W.inv.ash += sum; return sum;
 }
 
@@ -346,7 +375,9 @@ function goalOf(W, e) {
 // input: { mx, mz (−1..1), attack (держится), roll (нажатие) }
 // пересчёт характеристик от надетого и баффов (вызывается каждый шаг и при смене экипировки в сумке)
 export function refreshGear(W) {
-  W.gear = gearStats(W.inv, W.buffs, W.cfg.smith.bonus);
+  const L = W.cfg.level, base = skillStats(W.skills);
+  base.hp = (base.hp || 0) + (W.lv - 1) * L.hpPer; base.dmg = (base.dmg || 0) + (W.lv - 1) * L.dmgPer;
+  W.gear = gearStats(W.inv, W.buffs, W.cfg.smith.bonus, base);
   const p = W.player; p.maxhp = Math.max(10, W.cfg.player.hp + W.gear.hp); if (p.hp > p.maxhp) p.hp = p.maxhp;
 }
 

@@ -36,10 +36,11 @@ export function unequip(inv, slot, maxSlots) {
 export const nameOf = (id, up) => (up ? `+${up} ` : '') + BY_ID[id].name;
 
 // суммарные характеристики экипировки и временных баффов
-export function gearStats(inv, buffs = [], bonus = .1) {
-  const g = { dmg: 0, armor: 0, hp: 0, spd: 0, reach: 0, crit: 0, leech: 0, luck: 0, swing: 1 };
+export function gearStats(inv, buffs = [], bonus = .1, extra = null) {
+  const g = { dmg: 0, armor: 0, hp: 0, spd: 0, reach: 0, crit: 0, leech: 0, luck: 0, swing: 1, arc: 0, rollcd: 0, regen: 0, stealth: 0, trade: 0 };
   for (const slot of SLOTS) { const id = inv.eq[slot], it = id && BY_ID[id]; if (!it) continue; const m = 1 + (inv.up[slot] || 0) * bonus; for (const [k, v] of Object.entries(it.stats)) { if (k === 'swing') g.swing *= v; else if (v > 0 && (k === 'dmg' || k === 'armor' || k === 'hp' || k === 'crit' || k === 'leech')) g[k] += Math.round(v * m); else g[k] += v; } }
   for (const b of buffs) g[b.stat] += b.amt;
+  if (extra) for (const k of Object.keys(extra)) { if (k === 'swingMul') g.swing *= extra[k]; else g[k] += extra[k]; }
   return g;
 }
 

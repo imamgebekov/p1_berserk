@@ -66,6 +66,8 @@ export const CFG3 = {
 
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4 },   // цена покупки = цена вещи × buyMul, продажи × sellMul; витрина обновляется раз в restock секунд
   smith: { max: 5, base: 10, costK: .45, pow: 1.35, bonus: .1, reach: 3.4 },   // улучшение +1…+5: цена = base + цена вещи × costK × (ур+1)^pow, каждый уровень даёт +bonus к статам
+  level: { max: 30, base: 28, pow: 1.3, hpPer: 4, dmgPer: .4, healOnUp: .3 },   // опыт до следующего уровня = base × ур^pow; за уровень: +hpPer здоровья, +dmgPer урона, +1 очко навыка
+  respecBase: 40,       // сброс навыков стоит respecBase × уровень пепла
   bag: { slots: 30 },
   gear: { armorK: .035, maxSpd: 45, pickup: 1.3, dropLife: 90 },   // броня: урон /(1+брони×armorK); подбор с земли
 
@@ -97,10 +99,10 @@ export const CFG3 = {
     respawn: 1.6,         // пауза до появления нового
     ring: [14, 19],       // на каком расстоянии от героя появляются
     brutePart: .3,        // доля рогачей среди врагов
-    imp:   { hp: 42, speed: 3.4, damage: 9,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
-    brute: { hp: 130, speed: 2.2, damage: 22, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6 },
-    hound: { hp: 30, speed: 5.6, damage: 8,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85 },   // быстрая, хрупкая; рыщет у руин и лагеря
-    ghoul: { hp: 90, speed: 2.8, damage: 16, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2 },   // упырь: у кладбища и в часовне
+    imp:   { xp: 9,  hp: 42, speed: 3.4, damage: 9,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
+    brute: { xp: 30, hp: 130, speed: 2.2, damage: 22, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6 },
+    hound: { xp: 7,  hp: 30, speed: 5.6, damage: 8,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85 },   // быстрая, хрупкая; рыщет у руин и лагеря
+    ghoul: { xp: 22, hp: 90, speed: 2.8, damage: 16, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2 },   // упырь: у кладбища и в часовне
     // кто водится в области (по ближайшей зоне карты); остальное — бесы и рогачи по brutePart
     regions: {
       graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1]],

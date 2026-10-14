@@ -18,9 +18,10 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset } = 
 
   function stats() {
     const g = W.gear, P = cfg.player, p = W.player;
-    const parts = [`Урон ${P.attackDamage + g.dmg}`, `Броня ${g.armor}`, `Здоровье ${Math.ceil(p.hp)}/${p.maxhp}`];
+    const parts = [`Урон ${Math.round(P.attackDamage + g.dmg)}`, `Броня ${g.armor}`, `Здоровье ${Math.ceil(p.hp)}/${p.maxhp}`];
     if (g.spd) parts.push(`Скорость ${g.spd > 0 ? '+' : ''}${g.spd}%`);
     parts.push(`Крит ${Math.round(12 + g.crit)}%`);
+    parts.splice(1, 0, `Ур. ${W.lv}`);
     if (g.leech) parts.push(`Вампиризм ${g.leech}%`);
     if (g.luck) parts.push(`Удача ${g.luck}`);
     if (g.reach) parts.push(`Дальность ${g.reach > 0 ? '+' : ''}${g.reach.toFixed(1)}`);
@@ -40,15 +41,15 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset } = 
       else cardEl.appendChild(el('div', 'cmp up', 'Слот пуст'));
     }
     if (it.text) cardEl.appendChild(el('div', 'ct', it.text));
-    cardEl.appendChild(el('div', 'cv', `Продажа: ${sellPrice(it, cfg, up)} пепла (только у торговца)`));
+    cardEl.appendChild(el('div', 'cv', `Продажа: ${sellPrice(it, cfg, up, W.gear.trade)} пепла (только у торговца)`));
     const row = el('div', 'acts');
     const btn = (label, fn, cls) => { const b = el('button', cls || '', label); b.type = 'button'; b.addEventListener('click', () => { fn(); render(); onChange && onChange(); }); row.appendChild(b); };
     if (sel.from === 'eq') btn('Снять', () => { if (!unequip(W.inv, sel.slot, cfg.bag.slots)) flash('Сумка полна'); else sel = null; }, 'main');
     else {
       if (it.slot) btn('Надеть', () => { equipAt(W.inv, sel.i); sel = null; }, 'main');
       if (it.use) btn('Использовать', () => { if (!useItem(W, sel.i)) flash('Сейчас не нужно'); else if (!W.inv.bag[sel.i] || W.inv.bag[sel.i].id !== it.id) sel = null; }, 'main');
-      btn(`Продать · ${sellPrice(it, cfg, up) * n}`, () => { if (sellItem(W, sel.i, n) === 'far') flash('Продавать можно только у торговца'); else sel = null; });
-      if (n > 1) btn(`Продать 1 · ${sellPrice(it, cfg, up)}`, () => { if (sellItem(W, sel.i, 1) === 'far') flash('Продавать можно только у торговца'); });
+      btn(`Продать · ${sellPrice(it, cfg, up, W.gear.trade) * n}`, () => { if (sellItem(W, sel.i, n) === 'far') flash('Продавать можно только у торговца'); else sel = null; });
+      if (n > 1) btn(`Продать 1 · ${sellPrice(it, cfg, up, W.gear.trade)}`, () => { if (sellItem(W, sel.i, 1) === 'far') flash('Продавать можно только у торговца'); });
       btn('Выбросить', () => { dropItem(W, sel.i, n); sel = null; });
     }
     cardEl.appendChild(row);

@@ -60,6 +60,21 @@ try {
   const hp = await page.evaluate(() => window.__b3d.W.enemies.find(e => e.id === 999)?.hp ?? 0);
   if (!(hp < 100)) bad('удар кнопкой не задел врага');
 
+  // навыки: очко вложить, ветки переключаются, эффекты видны
+  await page.evaluate(() => { const w = window.__b3d.W; w.lv = 6; w.sp = 4; w.skills = {}; });
+  await page.waitForTimeout(150);
+  if (!(await page.$eval('#skillBtn', e => e.classList.contains('dot')))) bad('нет отметки о свободных очках навыков');
+  await page.tap('#skillBtn'); await page.waitForTimeout(250);
+  if (await page.evaluate(() => document.getElementById('skills').hidden)) bad('окно навыков не открылось');
+  await page.screenshot({ path: join(out, '3d-skills.png') });
+  await page.tap('#skillList .skrow:first-child .plus'); await page.tap('#skillList .skrow:first-child .plus'); await page.waitForTimeout(120);
+  if ((await page.evaluate(() => window.__b3d.W.skills.hand)) !== 2 || (await page.evaluate(() => window.__b3d.W.sp)) !== 2) bad('вложение очка в навык не сработало');
+  if (!(await page.$eval('#skillList .skrow:nth-child(2)', e => e.classList.contains('lock')))) bad('второй ярус должен быть закрыт');
+  await page.tap('#skillTabs .tab[data-tab="guard"]'); await page.waitForTimeout(100);
+  { const small = await page.evaluate(() => [...document.querySelectorAll('#skills button')].filter(b => b.offsetParent && (b.getBoundingClientRect().height < 40 || b.getBoundingClientRect().width < 40)).map(b => b.textContent)); if (small.length) bad('кнопки навыков мельче 40px: ' + small.join(',')); }
+  await page.tap('#skillClose'); await page.waitForTimeout(100);
+  if (!(await page.evaluate(() => window.__b3d.W.gear.dmg >= 4 + 5 * .4))) bad('навык не повлиял на урон: ' + (await page.evaluate(() => window.__b3d.W.gear.dmg)));
+  await page.evaluate(() => { const w = window.__b3d.W; w.lv = 1; w.sp = 0; w.skills = {}; });
   // торговец: кнопка «Торговать» появляется рядом, покупка и продажа
   await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc); w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.inv.ash = 500; w.inv.bag.push({ id: 'k_goblet', n: 1 }); });
   await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-merchant.png') });

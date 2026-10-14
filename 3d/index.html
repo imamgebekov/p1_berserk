@@ -14,8 +14,9 @@
 <div id="flash" aria-hidden="true"></div>
 
 <header id="hud">
-  <div id="hpWrap"><div id="hpBar"><i id="hpFill"></i></div><span id="hpTxt">100</span></div>
-  <div id="kills">убито 0</div>
+  <div id="hpWrap"><div id="hpBar"><i id="hpFill"></i><i id="xpFill"></i></div><span id="hpTxt">100</span></div>
+  <div id="kills">Ур. 1</div>
+  <button id="skillBtn" type="button" aria-label="Навыки">✦</button>
   <button id="bagBtn" type="button" aria-label="Сумка">🎒</button>
   <button id="gear" type="button" aria-label="Настройки прототипа">⚙</button>
 </header>
@@ -35,6 +36,17 @@
     <button id="shopJunk" type="button" class="junk" hidden>Продать весь хлам (безделушки, монеты, записки, материалы)</button>
     <div id="shopFlash"></div>
     <div id="shopList"></div>
+  </div>
+</section>
+
+<section id="skills" hidden>
+  <div class="pbox">
+    <div class="bhead"><h2 id="skillHead">Навыки</h2><button id="skillClose" type="button" class="main">Играть</button></div>
+    <div id="skillXp" class="bstats"></div>
+    <div id="skillTabs" class="tabs"></div>
+    <div id="skillFlash"></div>
+    <div id="skillList"></div>
+    <button id="skillReset" type="button" class="reset">Сбросить навыки</button>
   </div>
 </section>
 

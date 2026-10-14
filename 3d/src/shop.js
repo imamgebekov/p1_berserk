@@ -33,7 +33,7 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       for (const r of rows) {
         const key = r.s.id + ':' + r.i;
         const risky = r.it.rar >= 3 && armed !== key;
-        listEl.appendChild(row(r.it, r.s.n, r.it.stats ? statLine(r.it) : r.it.text || '', sellPrice(r.it, cfg, r.s.up || 0) * r.s.n, risky ? 'Продать?' : (r.s.n > 1 ? 'Всё' : 'Продать'), () => {
+        listEl.appendChild(row(r.it, r.s.n, r.it.stats ? statLine(r.it) : r.it.text || '', sellPrice(r.it, cfg, r.s.up || 0, W.gear.trade) * r.s.n, risky ? 'Продать?' : (r.s.n > 1 ? 'Всё' : 'Продать'), () => {
           if (risky) { armed = key; setTimeout(() => { armed = null; render(); }, 2500); return; }
           armed = null; const res = sellItem(W, r.i, r.s.n); if (res === 'far') flash('Подойдите к торговцу');
         }, true, '', r.s.up || 0));
