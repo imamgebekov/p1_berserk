@@ -32,7 +32,7 @@ export function craft(W, id) {
   for (const [mid, n] of r.mats) take(tmp, mid, n);
   if (addItem(tmp, r.result.id, r.result.n, W.cfg.bag.slots) > 0) return 'full';
   W.inv.bag = tmp.bag; W.inv.ash -= r.ash; W.known.items[r.result.id] = 1;
-  W.ev.push({ k: 'craft', id: r.result.id, n: r.result.n }); return 'ok';
+  W.ev.push({ k: 'craft', id: r.result.id, n: r.result.n }); W.fx.quest('craft', { item: r.result.id }); return 'ok';
 }
 
 // прочитать книгу из сумки: открывает рецепты, записи бестиария и атласа; книга тратится
@@ -45,6 +45,7 @@ export function readTome(W, idx) {
   for (const id of T.places || []) { K.places[id] = 1; const pl = W.cfg.map.places.find(p => p.id === id); if (pl) W.fx.reveal(pl.x, pl.z, pl.r); }
   for (const k of T.kinds || []) K.kinds[k] = 1;
   removeAt(W.inv, idx, 1);
+  W.fx.quest('tome', { tome: t.id });
   W.ev.push({ k: 'tome', name: t.name, recipes: RECIPES.filter(r => r.needs === t.id).length });
   return 'ok';
 }

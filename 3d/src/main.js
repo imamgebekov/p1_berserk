@@ -6,6 +6,8 @@ import { createBag } from './bag.js';
 import { createShop, createSmith, createCaptain } from './shop.js';
 import { createSkills } from './skillsui.js';
 import { createJournal } from './journal.js';
+import { createQuests } from './questsui.js';
+import { trackerLine, questMark } from './quests3d.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty } from './sim.js';
 import { drawMap } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
@@ -21,7 +23,7 @@ const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
 // iOS Safari местами игнорирует touch-action: страницу нельзя ни листать, ни тянуть, ни масштабировать, пока открыта не панель
-const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith, #skills, #map, #captain, #journal');
+const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith, #skills, #map, #captain, #journal, #quests');
 document.addEventListener('touchmove', e => { if (!inPanel(e)) e.preventDefault(); }, { passive: false });
 for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -37,7 +39,7 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(cfg.bag.slots);
-if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; }
+if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
 const saver = createSaver(W);
 const input = createInput(document, window);
 let panelOpen = false, landscape = false;
@@ -74,6 +76,9 @@ function onEvent(v) {
   else if (v.k === 'tomb') toast(`Вы нашли свой пепел: +${v.ash}`, '', '#e8c04a');
   else if (v.k === 'craft') toast('Скрафчено: ' + BY_ID[v.id].name, '', RARITY[BY_ID[v.id].rar].color);
   else if (v.k === 'tome') toast(`Прочитано: «${v.name}»${v.recipes ? ` · рецептов: ${v.recipes}` : ''}`, '', '#e8c04a');
+  else if (v.k === 'questaccept') toast('Задание: ' + v.name, 'sys');
+  else if (v.k === 'questready') toast('Можно сдать: ' + v.name, '', '#a8e0a0');
+  else if (v.k === 'questdone') { toast('Задание выполнено: ' + v.name, '', '#e8c04a'); saver.write(); }
   else if (v.k === 'bossaggro') toast(`${v.name} проснулся`, 'bad');
   else if (v.k === 'bossphase') toast(`${v.name}: ${v.what}`, 'bad');
   else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
@@ -107,8 +112,14 @@ const journal = createJournal(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); },
   onClose: () => { panelOpen = false; }
 });
+const quests = createQuests(document, W, cfg, {
+  onOpen: () => { panelOpen = true; input.release(); },
+  onClose: () => { panelOpen = false; saver.write(); bag.render(); },
+  onChange: () => { saver.write(); bag.render(); }
+});
 const bag = createBag(document, W, cfg, {
   onJournal: () => journal.open(),
+  onQuests: () => quests.open('mine'),
   onOpen: () => { panelOpen = true; input.release(); },
   onClose: () => { panelOpen = false; saver.write(); },
   onChange: () => saver.write(),
@@ -157,6 +168,8 @@ $('again').addEventListener('click', () => { if (W.ironDead) { location.reload()
 document.addEventListener('visibilitychange', () => { if (document.hidden) { input.release(); saver.write(); } });
 addEventListener('pagehide', () => saver.write());
 
+const questBtn = $('questBtn'), trackerEl = $('tracker'); questBtn.addEventListener('click', e => { e.stopImmediatePropagation(); quests.open('here'); }, true);
+let lastTrack = '', lastMark = '';
 const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
 talk.addEventListener('click', e => { e.stopImmediatePropagation(); (W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : shop).open(); }, true);
 // карта: миникарта в углу, большая карта по касанию
@@ -188,6 +201,8 @@ function loop(now) {
   { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); } } }
   { const n = W.combo.n; if (n !== lastCombo) { comboEl.hidden = n < 2; if (n >= 2) { comboEl.innerHTML = `×${n}<small>+${Math.round(Math.min(.3, n * .02) * 100)}%</small>`; comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); } lastCombo = n; } }
   { const key = Object.keys(W.pst).map(k => k + Math.ceil(W.pst[k].t) + (W.pst[k].n || '')).join(); if (key !== lastSt) { lastSt = key; statusRow.textContent = ''; for (const k of Object.keys(W.pst)) { const c = document.createElement('span'); c.className = 'stch'; c.style.color = STATUS_COLOR[k]; c.textContent = `${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`; statusRow.appendChild(c); } } }
+  { const near = W.nearNpc, show = !!near && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); questBtn.textContent = mk === 'ready' ? '📜 Сдать задание' : mk ? '📜 Есть задания ❗' : '📜 Задания'; } }
+  { const tl = trackerLine(W); if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
@@ -198,4 +213,4 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { journal, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };
+window.__b3d = { journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };

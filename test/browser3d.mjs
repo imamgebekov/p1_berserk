@@ -102,6 +102,18 @@ try {
     await page.screenshot({ path: join(out, '3d-shop-sell.png') });
     await page.tap('#shopClose'); await page.waitForTimeout(100);
   }
+  // задания: кнопка рядом с торговцем, взять и увидеть в трекере
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'merchant'); w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; });
+  await page.waitForTimeout(400);
+  if (await page.evaluate(() => document.getElementById('questBtn').hidden)) bad('кнопка заданий не появилась у торговца');
+  else {
+    await page.tap('#questBtn'); await page.waitForTimeout(200);
+    if (await page.evaluate(() => document.getElementById('quests').hidden)) bad('окно заданий не открылось');
+    await page.tap('#questList .qrow.available .buy'); await page.waitForTimeout(150);
+    await page.screenshot({ path: join(out, '3d-quests.png') });
+    await page.tap('#questClose'); await page.waitForTimeout(500);
+    if (await page.evaluate(() => document.getElementById('tracker').hidden)) bad('трекер задания не показан');
+  }
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; });
   // кузнец: кнопка меняется на «Кузнец», улучшение списывает пепел
   await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'smith'); w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.inv.ash = 900; w.inv.eq.weapon = 'w_sword_iron'; });

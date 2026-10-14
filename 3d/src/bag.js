@@ -8,7 +8,7 @@ import { readTome } from './craft3d.js';
 const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
 const tabOf = it => it.slot === 'weapon' ? 'weapon' : it.slot ? 'armor' : it.cat === 'consumable' ? 'use' : 'other';
 
-export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJournal } = {}) {
+export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJournal, onQuests } = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('bag'), eqEl = $('bagEq'), listEl = $('bagList'), cardEl = $('bagCard'), tabsEl = $('bagTabs'), statsEl = $('bagStats'), headEl = $('bagHead');
   let tab = 'all', sel = null, resetArmed = false;       // sel: {from:'bag', i} | {from:'eq', slot}
@@ -103,6 +103,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
   const close = () => { root.hidden = true; onClose && onClose(); };
   $('bagBtn').addEventListener('click', () => (root.hidden ? open() : close()));
   $('bagClose').addEventListener('click', close);
+  $('bagQuests').addEventListener('click', () => { close(); onQuests && onQuests(); });
   $('bagJournal').addEventListener('click', () => { close(); onJournal && onJournal(); });
   return { open, close, render, isOpen: () => !root.hidden };
 }

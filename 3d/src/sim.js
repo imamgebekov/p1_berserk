@@ -17,6 +17,7 @@ import { TRAITS, PERKS } from './data/weapons3d.js';
 import { SETS } from './data/sets3d.js';
 import { initBoss, updateBoss } from './boss3d.js';
 import { newKnown } from './craft3d.js';
+import { questEvent } from './quests3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
@@ -45,6 +46,8 @@ function attachFx(W) {
     hp: (e, frac, base) => Math.round(base + e.maxhp * frac),
     slide: (e, dx, dz, r) => slide(W.map, e, dx, dz, r),
     reveal: (x, z, r) => reveal(W, x, z, r),
+    quest: (type, d) => questEvent(W, type, d),
+    xp: n => gainXp(W, n),
     hurtP: (dmg, x, z, on, e) => hurtPlayer(W, dmg, x, z, on, e),
     hurtA: (a, dmg, e) => hurtAlly(W, a, dmg, e),
     spawn: (type, x, z) => spawnEnemy(W, type, x, z),
@@ -65,7 +68,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0 },
     enemies: []
   };
@@ -166,7 +169,7 @@ function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
 
 function killEnemy(W, e, share) {
   if (e.dead) return;
-  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; if (e.boss) bossDefeated(W, e); W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
+  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
   dropLoot(W, e); addXp(W, e, share);
   if (share >= 1) {                                                   // свойства оружия за убийство
     const pm = W.wp.pm;
@@ -442,7 +445,7 @@ export function hireAlly(W, type) {
   if (W.nearNpc !== 'captain') return 'far';
   if (liveAllies(W).length >= squadMax(W)) return 'full';
   if (W.inv.ash < T.cost) return 'ash';
-  W.inv.ash -= T.cost; spawnAlly(W, type); W.ev.push({ k: 'hire', name: T.name }); return 'ok';
+  W.inv.ash -= T.cost; spawnAlly(W, type); questEvent(W, 'hire'); W.ev.push({ k: 'hire', name: T.name }); return 'ok';
 }
 export function dismissAlly(W, id) { const i = W.allies.findIndex(a => a.id === id); if (i < 0) return false; W.allies.splice(i, 1); return true; }
 export function restoreAllies(W, list) {
@@ -494,7 +497,7 @@ function updateAllies(W, dt) {
 // ---- места и карта ----
 export function trackPlace(W, dt) {
   const p = W.player, pl = placeAt(W.map, p.x, p.z);
-  if ((pl && pl.id) !== (W.place && W.place.id)) { W.place = pl; if (pl) W.known.places[pl.id] = 1; W.ev.push({ k: 'place', place: pl }); }
+  if ((pl && pl.id) !== (W.place && W.place.id)) { W.place = pl; if (pl) { W.known.places[pl.id] = 1; questEvent(W, 'visit', { place: pl.id }); } W.ev.push({ k: 'place', place: pl }); }
   if ((W.revealT -= dt) <= 0) { W.revealT = .3; reveal(W, p.x, p.z, W.cfg.map.reveal); }
 }
 export function reveal(W, x, z, r) {
@@ -605,7 +608,7 @@ function updateHouses(W, dt) {
     }
     const rest = [];
     for (const it of c.items) { const left = give(W, it.id, it.n); if (left > 0) rest.push({ id: it.id, n: left }); }
-    c.items = rest; W.known.kinds[c.kind] = 1; W.ev.push({ k: 'open', kind: c.kind, x: c.x, z: c.z });
+    c.items = rest; W.known.kinds[c.kind] = 1; questEvent(W, 'open', { kind: c.kind }); W.ev.push({ k: 'open', kind: c.kind, x: c.x, z: c.z });
     if (rest.length) { if (!(c.cd > 0)) { c.cd = 2.5; W.ev.push({ k: 'full', x: c.x, z: c.z }); } }
     else { c.ready = false; c.t = 0; }
   }
