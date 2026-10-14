@@ -42,6 +42,8 @@ function skyDome() {
 
 const angDiffTo = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
 
+const FXCOL = { fire: '#ff8a30', frost: '#9fdcff', venom: '#7ad060', storm: '#ffe27a', bleed: '#d03030' };
+
 export function createRenderer(canvas, cfg, hooks = {}) {
   const gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: !!hooks.preserve });
   gl.setPixelRatio(1);
@@ -157,6 +159,24 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     return { x: (screen.x * .5 + .5) * cssW, y: (-screen.y * .5 + .5) * cssH, vis: screen.z < 1 };
   }
 
+  // молния между врагами и расходящееся кольцо: короткие эффекты из пула
+  const fxPool = [];
+  function zap(x1, z1, x2, z2) {
+    const len = Math.hypot(x2 - x1, z2 - z1), m = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, len), new THREE.MeshBasicMaterial({ color: '#ffe27a' }));
+    m.position.set((x1 + x2) / 2, 1.2, (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); scene.add(m); fxPool.push({ m, t: .18, kind: 'zap' });
+  }
+  function ringFx(x, z, r, color) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(.85, 1, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide }));
+    m.rotation.x = -Math.PI / 2; m.position.set(x, .1, z); scene.add(m); fxPool.push({ m, t: .35, kind: 'ring', r });
+  }
+  function stepFx(dt) {
+    for (let i = fxPool.length - 1; i >= 0; i--) {
+      const f = fxPool[i]; f.t -= dt;
+      if (f.kind === 'ring') { const k = 1 - f.t / .35; f.m.scale.setScalar(.4 + k * f.r); f.m.material.opacity = .8 * (1 - k); }
+      if (f.t <= 0) { scene.remove(f.m); f.m.geometry.dispose(); f.m.material.dispose(); fxPool.splice(i, 1); }
+    }
+  }
+
   function render(W, dt) {
     const t = W.t, p = W.player;
     // камера: плавно следует за героем под заданным углом
@@ -221,13 +241,21 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     // события боя → эффекты и подписи (подписи отдаёт hooks.onText)
     for (const v of W.ev) {
       hooks.onEvent && hooks.onEvent(v);
-      if (v.k === 'hit') { burst(v.x, 1.1, v.z, 8, v.crit ? '#ffd27a' : '#a1121f'); hooks.onText && hooks.onText(v.x, 2, v.z, String(v.dmg), v.crit ? 'crit' : ''); }
+      if (v.k === 'hit') { burst(v.x, 1.1, v.z, 8, v.fx ? FXCOL[v.fx] : v.crit ? '#ffd27a' : '#a1121f'); hooks.onText && hooks.onText(v.x, 2, v.z, String(v.dmg), v.crit ? 'crit' : ''); }
       else if (v.k === 'die') burst(v.x, 1, v.z, 18, '#6d0c14', 6);
       else if (v.k === 'hurt') { burst(v.x, 1.2, v.z, 10, '#c0222c'); hooks.onText && hooks.onText(v.x, 2.4, v.z, '−' + v.dmg, 'hurt'); hooks.onHurt && hooks.onHurt(); }
       else if (v.k === 'open') burst(v.x, .9, v.z, 10, '#ffc860', 3)
       else if (v.k === 'heal') hooks.onText && hooks.onText(v.x, 2.4, v.z, '+' + v.n + ' ♥', 'loot')
       else if (v.k === 'ash') hooks.onText && hooks.onText(v.x, 2.4, v.z, '+' + v.n + ' пепла', 'loot')
       else if (v.k === 'buff') burst(v.x, 1.2, v.z, 10, '#9fd0ff', 2)
+      else if (v.k === 'dot') { hooks.onText && hooks.onText(v.x, 2.2, v.z, String(v.dmg), 'dot-' + v.fx); }
+      else if (v.k === 'react') { burst(v.x, 1.2, v.z, 16, '#bfe8ff', 5); hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }
+      else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
+      else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
+      else if (v.k === 'finisher') { ringFx(v.x, v.z, 3, '#ffd9c0'); burst(v.x, .6, v.z, 10, '#ffd9c0', 5); }
+      else if (v.k === 'pstatus') burst(v.x, 1.2, v.z, 8, v.kind === 'poison' ? '#7ad060' : v.kind === 'burn' ? '#ff8a30' : '#d03030', 2);
+      else if (v.k === 'pdot') hooks.onText && hooks.onText(v.x, 2.6, v.z, '−' + v.dmg, 'hurt')
+      else if (v.k === 'cleanse') burst(v.x, 1.2, v.z, 10, '#9fe8ff', 2.5);
       else if (v.k === 'allyhurt') { burst(v.x, 1.1, v.z, 6, '#3a6aa8'); hooks.onText && hooks.onText(v.x, 2.5, v.z, '−' + v.dmg, 'ally'); }
       else if (v.k === 'allydead') burst(v.x, 1, v.z, 14, '#3a6aa8', 5);
       else if (v.k === 'swing') swingFx = 1;
@@ -238,6 +266,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     // частицы
     for (const m of pool) if (m.visible) { const u = m.userData; u.life -= dt; if (u.life <= 0) { m.visible = false; continue; } u.vy -= 14 * dt; m.position.x += u.vx * dt; m.position.y = Math.max(.07, m.position.y + u.vy * dt); m.position.z += u.vz * dt; }
 
+    stepFx(dt);
+    for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
     gl.render(scene, camera);
   }
 

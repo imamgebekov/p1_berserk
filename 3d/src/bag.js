@@ -1,6 +1,7 @@
 // Сумка и экипировка: окно с надетым, списком вещей, карточкой вещи и действиями.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine } from './data/items.js';
 import { betterThanWorn, equipAt, unequip, score, nameOf } from './inv.js';
+import { PERKS } from './data/weapons3d.js';
 import { useItem, dropItem, refreshGear, sellItem, sellPrice } from './sim.js';
 
 const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
@@ -40,6 +41,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset } = 
       if (c) { const d = Math.round(score(it) - score(c)); cardEl.appendChild(el('div', 'cmp ' + (d > 0 ? 'up' : d < 0 ? 'down' : ''), `Надето: ${c.name} (${statLine(c)}) — ${d > 0 ? 'лучше на ' + d : d < 0 ? 'хуже на ' + -d : 'так же'}`)); }
       else cardEl.appendChild(el('div', 'cmp up', 'Слот пуст'));
     }
+    if (it.perks && it.perks.length) cardEl.appendChild(el('div', 'cs', 'Свойства: ' + it.perks.map(id => PERKS[id].name).join(', ')));
     if (it.text) cardEl.appendChild(el('div', 'ct', it.text));
     cardEl.appendChild(el('div', 'cv', `Продажа: ${sellPrice(it, cfg, up, W.gear.trade)} пепла (только у торговца)`));
     const row = el('div', 'acts');

@@ -18,7 +18,7 @@ function limb(w, h, d, mat, x, y, z, dy = -h / 2) {
 
 // Список материалов экземпляра: ими управляет вспышка при попадании
 function flasher(mats) {
-  return f => { for (const m of mats) m.emissive.setRGB(f, f * .85, f * .8); };
+  return (f, tint) => { for (const m of mats) { if (f > 0) m.emissive.setRGB(f, f * .85, f * .8); else if (tint) m.emissive.setRGB(tint[0], tint[1], tint[2]); else m.emissive.setRGB(0, 0, 0); } };
 }
 
 // ---------- герой ----------
@@ -122,7 +122,13 @@ export function animateMonster(m, e, time, cfg) {
     m.armL.rotation.x = m.armR.rotation.x = -2.4 + 3.2 * Math.min(1, k * 3); m.root.rotation.x = .4 * (1 - k); m.root.position.z = .25 * (1 - k);
   }
   if (e.dead) { const k = Math.min(1, e.deadT / .5); m.root.rotation.z = 1.4 * k; m.root.position.y = -.5 * k; red = 0; }
-  m.flash(Math.max(red, e.flash > 0 ? .9 : 0));
+  // цвет статуса: горит, мёрзнет, отравлен, кровоточит, оглушён
+  let tint = null; const st = e.st;
+  if (st && !e.dead) {
+    const pu = .6 + .4 * Math.sin(time * 14);
+    tint = st.stun ? [.4 * pu, .38 * pu, .02] : st.freeze ? [.04, .22, .45] : st.burn ? [.5 * (.7 + .3 * Math.sin(time * 31)), .16, 0] : st.poison ? [0, .3, .04] : st.bleed ? [.38, 0, 0] : null;
+  }
+  m.flash(Math.max(red, e.flash > 0 ? .9 : 0), tint);
 }
 
 // ---------- мир ----------

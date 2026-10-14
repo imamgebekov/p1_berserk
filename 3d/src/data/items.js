@@ -18,6 +18,8 @@ export const SLOTS = ['weapon', 'head', 'body', 'cloak', 'boots', 'ring', 'amule
 export const SLOT_NAME = { weapon: 'Оружие', head: 'Голова', body: 'Тело', cloak: 'Плащ', boots: 'Ноги', ring: 'Кольцо', amulet: 'Амулет' };
 export const STAT_NAME = { dmg: 'урон', armor: 'броня', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
 
+import { TRAITS, PERKS, MATERIAL_PERKS, ELEMENTS, ENCHANTED_KINDS, UNIQUES, weaponText } from './weapons3d.js';
+
 const ITEMS = [];
 const add = it => { it.stack = it.stack || 1; it.value = Math.max(1, Math.round(it.value)); ITEMS.push(it); return it; };
 const idOf = (...a) => a.join('_');
@@ -63,7 +65,21 @@ for (const [t, nm, g, base, reach, crit, swing] of WTYPES) for (const [m, adj, m
   if (swing !== 1) stats.swing = swing;
   if (m === 'blood') stats.leech = 4;
   if (m === 'bone') stats.spd = 2;
-  add({ id: idOf('w', t, m), name: `${adj[GI[g]]} ${nm}`, cat: 'weapon', slot: 'weapon', pool: 'weapon', rar, stats, value: val * (base / 5 + .6), kind: t, mat: m });
+  const perks = MATERIAL_PERKS[m] || [];
+  add({ id: idOf('w', t, m), name: `${adj[GI[g]]} ${nm}`, cat: 'weapon', slot: 'weapon', pool: 'weapon', rar, stats, value: val * (base / 5 + .6), kind: t, mat: m, perks, text: weaponText(t, perks) });
+}
+// зачарованные: стальные клинки со стихией (меч, топор, копьё)
+for (const t of ENCHANTED_KINDS) {
+  const [, nm, g, base, reach, crit, swing] = WTYPES.find(x => x[0] === t), [, , mult, rar0, val] = WMATS.find(x => x[0] === 'steel');
+  for (const [el, adj, perk] of ELEMENTS) {
+    const stats = { dmg: Math.round(base * mult * 1.1) + 1 }; if (reach) stats.reach = reach; if (crit) stats.crit = Math.round(crit * 1.4) + 2; if (swing !== 1) stats.swing = swing;
+    add({ id: idOf('w', t, 'steel', el), name: `${adj[GI[g]]} ${nm}`, cat: 'weapon', slot: 'weapon', pool: 'weapon', rar: 3, stats, value: val * (base / 5 + .6) * 2.4, kind: t, mat: 'steel', perks: [perk], text: weaponText(t, [perk]) });
+  }
+}
+// уникальные клинки: падают с боссов, из запертых сундуков и алтарей
+for (const [id, name, kind, stats, perks, value, story] of UNIQUES) {
+  const st = { ...stats }; const t = TRAITS[kind];
+  add({ id: 'wu_' + id, name, cat: 'weapon', slot: 'weapon', pool: 'unique', rar: 4, stats: st, value, kind, mat: 'unique', perks, text: weaponText(kind, perks) + ' ' + story });
 }
 
 // ---------- броня: слот × тип × материал ----------
@@ -135,6 +151,8 @@ const MEDIC = [
   ['rag_bandage', 'Тряпичный бинт', 12, 0, 6], ['linen_bandage', 'Льняная перевязка', 22, 1, 14], ['salve', 'Мазь из пепла', 40, 2, 38], ['poultice', 'Припарка', 18, 0, 9], ['stitch', 'Набор для шитья ран', 55, 2, 60]
 ];
 for (const [id, name, heal, rar, val] of MEDIC) add({ id: 'h_' + id, name, cat: 'consumable', pool: 'medic', rar, stack: 10, value: val, use: { heal }, text: `Перевязать: +${heal} здоровья.` });
+const CLEANSE = [['antidote', 'Противоядие', 'Снимает яд, кровотечение и горение.', 1, 30], ['clean_water', 'Фляга чистой воды', 'Тушит горение и промывает раны: снимает горение и кровотечение.', 0, 12]];
+for (const [id, name, text, rar, val] of CLEANSE) add({ id: 'p_' + id, name, cat: 'consumable', pool: 'medic', rar, stack: 5, value: val, use: { cleanse: id === 'antidote' ? ['poison', 'bleed', 'burn'] : ['burn', 'bleed'] }, text });
 const POUCH = [['small', 'Мешочек пепла', [6, 12], 0, 8], ['big', 'Туго набитый мешочек пепла', [20, 40], 2, 30]];
 for (const [id, name, ash, rar, val] of POUCH) add({ id: 'u_pouch_' + id, name, cat: 'consumable', pool: 'coin', rar, stack: 10, value: val, use: { ash }, text: `Высыпать: +${ash[0]}–${ash[1]} пепла.` });
 

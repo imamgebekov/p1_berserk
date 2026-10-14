@@ -11,10 +11,12 @@ const TIERS = {
   'чёрное': { weapon: 'w_greatsword_black', body: 'a_body_plate_black', head: 'a_head_helm_black', boots: 'a_boots_greaves_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' }
 };
 const PLACES = { 'у костра': [6, 6], 'середина': [-20, -40], 'у границы': [-62, -5] };
-const SEEDS = 10, SECONDS = 90;
+const SEEDS = Number(process.env.BAL_SEEDS || 10), SECONDS = 90;
+const HPM = Number(process.env.BAL_HP || 1), DMM = Number(process.env.BAL_DMG || 1);       // ручки для подбора чисел
 
 function run(tier, place, seed) {
   const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.map.places = [];   // меряем чистую глубину, без зон
+  for (const t of ['imp', 'brute', 'hound', 'ghoul']) { cfg.enemies[t].hp = Math.round(cfg.enemies[t].hp * HPM); cfg.enemies[t].damage = Math.round(cfg.enemies[t].damage * DMM); }
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3));
   Object.assign(W.inv.eq, TIERS[tier]); W.player.x = PLACES[place][0]; W.player.z = PLACES[place][1];
   let taken = 0; const dodge = mulberry32(seed + 99);

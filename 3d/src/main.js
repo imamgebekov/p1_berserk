@@ -7,6 +7,7 @@ import { createShop, createSmith, createCaptain } from './shop.js';
 import { createSkills } from './skillsui.js';
 import { xpNeed, reveal, restoreAllies } from './sim.js';
 import { drawMap } from './mapdraw.js';
+import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSave, createSaver, unpackSeen } from './save3d.js';
 import { createRenderer } from './render.js';
 import { rotateInput } from './map.js';
@@ -136,6 +137,8 @@ const mapOpen = () => { drawFull(); mapEl.hidden = false; panelOpen = true; inpu
 const mapClose = () => { mapEl.hidden = true; panelOpen = false; };
 $('miniBtn').addEventListener('click', () => (mapEl.hidden ? mapOpen() : mapClose()));
 $('mapClose').addEventListener('click', mapClose);
+const comboEl = $('combo'), statusRow = $('statusRow');
+let lastCombo = 0, lastSt = '';
 const hpFill = $('hpFill'), hpTxt = $('hpTxt'), killsEl = $('kills');
 let saveT = 0, lastHp = -1, lastKey = '', last = performance.now();
 function loop(now) {
@@ -148,6 +151,8 @@ function loop(now) {
   }
   if (renderer) renderer.render(W, panelOpen || landscape ? 0 : dt);
   { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : 'Торговать'; if (talk.textContent !== l) talk.textContent = l; } }
+  { const n = W.combo.n; if (n !== lastCombo) { comboEl.hidden = n < 2; if (n >= 2) { comboEl.innerHTML = `×${n}<small>+${Math.round(Math.min(.3, n * .02) * 100)}%</small>`; comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); } lastCombo = n; } }
+  { const key = Object.keys(W.pst).map(k => k + Math.ceil(W.pst[k].t) + (W.pst[k].n || '')).join(); if (key !== lastSt) { lastSt = key; statusRow.textContent = ''; for (const k of Object.keys(W.pst)) { const c = document.createElement('span'); c.className = 'stch'; c.style.color = STATUS_COLOR[k]; c.textContent = `${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`; statusRow.appendChild(c); } } }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;

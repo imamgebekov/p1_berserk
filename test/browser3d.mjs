@@ -133,6 +133,21 @@ try {
     await page.waitForTimeout(2500); await page.screenshot({ path: join(out, '3d-squad-fight.png') });
     await page.evaluate(() => { const w = window.__b3d.W; w.allies.length = 0; w.enemies.length = 0; w.lv = 1; });
   }
+  // оружие со стихией: поджигает, комбо растёт, карточка показывает свойства
+  await page.evaluate(() => { const w = window.__b3d.W; w.inv.bag.push({ id: 'w_sword_steel_fire', n: 1 }); w.inv.bag.push({ id: 'wu_ember', n: 1 }); w.player.x = 0; w.player.z = 4; w.cfg.enemies.count = 0; w.enemies.length = 0; });
+  await page.tap('#bagBtn'); await page.waitForTimeout(200);
+  await page.tap('.item:has(.nm:text("Угль Затмения"))'); await page.waitForTimeout(120);
+  { const t = await page.$eval('#bagCard', e => e.textContent); if (!t.includes('Пламя') || !t.includes('Добивание')) bad('в карточке уникального клинка нет свойств: ' + t.slice(0, 120)); }
+  await page.screenshot({ path: join(out, '3d-unique.png') });
+  await page.tap('#bagCard .acts .main'); await page.tap('#bagClose'); await page.waitForTimeout(150);
+  await page.evaluate(() => { const w = window.__b3d.W, p = w.player; p.face = Math.PI / 2; w.cfg.player.autoAim = 5.5; const e = window.__b3d.spawn('brute', p.x + 1.6, p.z); e.hp = e.maxhp = 5000; e.alert = true; e.state = 'rec'; e.t = -1e9; w.__foe = e; });
+  { const b = await (await page.$('#bAtk')).boundingBox(); const cdp2 = await ctx.newCDPSession(page);
+    await cdp2.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + 20, y: b.y + 20, id: 2 }] }); await page.waitForTimeout(2200);
+    await page.screenshot({ path: join(out, '3d-combo.png') });
+    await cdp2.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); }
+  { const r = await page.evaluate(() => ({ n: window.__b3d.W.combo.n, st: Object.keys(window.__b3d.W.__foe.st || {}), shown: !document.getElementById('combo').hidden }));
+    if (r.n < 3 || !r.shown) bad('счётчик комбо не растёт или не виден: ' + JSON.stringify(r)); if (!r.st.includes('burn') && !(await page.evaluate(() => window.__b3d.W.__foe.hp < 5000))) bad('меч с огнём не бьёт: ' + JSON.stringify(r)); }
+  await page.evaluate(() => { const w = window.__b3d.W; w.inv.eq.weapon = null; w.enemies.length = 0; w.cfg.player.autoAim = 0; });
   // новые враги: рисуются без ошибок
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; w.cfg.enemies.count = 0; w.enemies.length = 0; for (const [i, t] of ['hound', 'ghoul', 'imp', 'brute'].entries()) window.__b3d.spawn(t, -3 + i * 2, -3); });
   await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-monsters.png') });

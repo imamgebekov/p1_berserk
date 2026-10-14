@@ -84,9 +84,9 @@ export const CFG3 = {
   squad: {
     baseMax: 1, perLevels: 8, cap: 4, follow: 2.8, leash: 30, sight: 13, regen: 1.2, fireRegen: 7, xpShare: .5,
     types: {
-      guard:   { name: 'Стражник', hp: 90,  dmg: 9,  speed: 4.8, range: 1.9, wind: .32, recover: .5,  cost: 140, tint: '#4a5a78', text: 'Быстрый и недорогой. Копьё.' },
-      soldier: { name: 'Ратник',   hp: 170, dmg: 15, speed: 4.5, range: 2.1, wind: .36, recover: .55, cost: 380, tint: '#7a3a30', text: 'Меч и щит. Держит удар.' },
-      veteran: { name: 'Ветеран',  hp: 280, dmg: 25, speed: 4.5, range: 2.5, wind: .4,  recover: .6,  cost: 950, tint: '#2e2e34', text: 'Двуручный меч. Дорог, но страшен.' }
+      guard:   { name: 'Стражник', hp: 130, dmg: 18,  speed: 4.8, range: 1.9, wind: .32, recover: .5,  cost: 140, tint: '#4a5a78', text: 'Быстрый и недорогой. Копьё.' },
+      soldier: { name: 'Ратник',   hp: 240, dmg: 28, speed: 4.5, range: 2.1, wind: .36, recover: .55, cost: 380, tint: '#7a3a30', text: 'Меч и щит. Держит удар.' },
+      veteran: { name: 'Ветеран',  hp: 400, dmg: 42, speed: 4.5, range: 2.5, wind: .4,  recover: .6,  cost: 950, tint: '#2e2e34', text: 'Двуручный меч. Дорог, но страшен.' }
     }
   },
   smith: { max: 5, base: 10, costK: .45, pow: 1.35, bonus: .1, reach: 3.4 },   // улучшение +1…+5: цена = base + цена вещи × costK × (ур+1)^pow, каждый уровень даёт +bonus к статам
@@ -123,10 +123,10 @@ export const CFG3 = {
     respawn: 1.6,         // пауза до появления нового
     ring: [14, 19],       // на каком расстоянии от героя появляются
     brutePart: .3,        // доля рогачей среди врагов
-    imp:   { xp: 9,  hp: 42, speed: 3.4, damage: 9,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
-    brute: { xp: 30, hp: 130, speed: 2.2, damage: 22, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6 },
-    hound: { xp: 7,  hp: 30, speed: 5.6, damage: 8,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85 },   // быстрая, хрупкая; рыщет у руин и лагеря
-    ghoul: { xp: 22, hp: 90, speed: 2.8, damage: 16, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2 },   // упырь: у кладбища и в часовне
+    imp:   { xp: 14, hp: 126, speed: 3.4, damage: 11,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
+    brute: { xp: 45, hp: 390, speed: 2.2, damage: 28, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6 },
+    hound: { on: ['bleed', .6, 2.5, 4], xp: 10, hp: 90, speed: 5.6, damage: 10,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85 },   // быстрая, хрупкая; рыщет у руин и лагеря
+    ghoul: { on: ['poison', .7, 2, 6], xp: 33, hp: 270, speed: 2.8, damage: 20, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2 },   // упырь: у кладбища и в часовне
     // кто водится в области (по ближайшей зоне карты); остальное — бесы и рогачи по brutePart
     regions: {
       graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1]],
