@@ -1,4 +1,6 @@
 // Сцена Three.js: мир, свет, камера, спецэффекты. Рисует в маленьком разрешении и растягивает без сглаживания.
+import { makeMap, nearBuilding } from './map.js';
+import { buildTown } from './town.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock } from './models.js';
@@ -52,11 +54,16 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshLambertMaterial({ map: groundTexture() }));
   ground.rotation.x = -Math.PI / 2; scene.add(ground);
 
+  const map = makeMap(cfg);
+  const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
+
   // деревья и камни одним мешем (один вызов отрисовки)
   const rnd = mulberry32(cfg.world.seed), parts = [];
   for (let i = 0; i < cfg.world.props; i++) {
     const a = rnd() * Math.PI * 2, d = 7 + Math.sqrt(rnd()) * (cfg.world.radius - 8), x = Math.cos(a) * d, z = Math.sin(a) * d;
-    (rnd() < .65 ? addTree : addRock)(parts, rnd, x, z);
+    const tree = rnd() < .65;
+    if (nearBuilding(map, x, z, 3)) continue;                          // не растим деревья в домах и у стен
+    (tree ? addTree : addRock)(parts, rnd, x, z);
   }
   // граница мира: частокол из мёртвых стволов
   for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2, R = cfg.world.radius + 1.5; addTree(parts, rnd, Math.cos(a) * R, Math.sin(a) * R); }
@@ -151,10 +158,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const pitch = cfg.view.camPitch * Math.PI / 180, dist = cfg.view.camDist;
     const sh = W.shake * .35;
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
-    camera.position.set(cam.x + (Math.random() - .5) * sh, Math.sin(pitch) * dist + cfg.view.camLookUp + (Math.random() - .5) * sh, cam.z + Math.cos(pitch) * dist);
+    const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
+    camera.position.set(cam.x + Math.sin(yaw) * hd + (Math.random() - .5) * sh, Math.sin(pitch) * dist + cfg.view.camLookUp + (Math.random() - .5) * sh, cam.z + Math.cos(yaw) * hd);
     camera.lookAt(cam.x, cfg.view.camLookUp, cam.z);
     scene.fog.density = cfg.view.fogDensity;
 
+    town.update(W.inside, dt);
     // костёр: мерцание света и пламени
     const fl = .8 + .2 * Math.sin(t * 17) + .1 * Math.sin(t * 29.3);
     fire.light.intensity = 26 * fl; fire.flames.forEach((f, i) => { f.scale.y = .8 + .35 * Math.sin(t * (9 + i * 4) + i); f.rotation.y = t * (2 + i); });
@@ -204,5 +213,5 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     gl.render(scene, camera);
   }
 
-  return { render, resize, project, gl, camera, scene, info: () => gl.info.render, hero };
+  return { render, resize, project, gl, camera, scene, town, info: () => gl.info.render, hero };
 }

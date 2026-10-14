@@ -55,6 +55,19 @@ try {
   const hp = await page.evaluate(() => window.__b3d.W.enemies.find(e => e.id === 999)?.hp ?? 0);
   if (!(hp < 100)) bad('удар кнопкой не задел врага');
 
+  // дома: снаружи крыша видна, внутри тает, стены опускаются
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings[0]; w.enemies.length = 0; w.player.x = b.door.out.x + 2; w.player.z = b.door.out.z; w.player.inv = 1e9; });
+  await page.waitForTimeout(900); await page.screenshot({ path: join(out, '3d-house-out.png') });
+  if (await page.evaluate(() => window.__b3d.W.inside) !== -1) bad('снаружи дома герой «внутри»');
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings[0]; w.player.x = b.x; w.player.z = b.z; });
+  await page.waitForTimeout(900); await page.screenshot({ path: join(out, '3d-house-in.png') });
+  if (await page.evaluate(() => window.__b3d.W.inside) !== 0) bad('внутри дома герой не «внутри»');
+  const roofA = await page.evaluate(() => window.__b3d.renderer.town.items[0].roof.visible);
+  if (roofA) bad('крыша не скрылась, когда герой в доме');
+  await page.evaluate(() => { const w = window.__b3d.W, c = window.__b3d.cfg; w.player.x = -4; w.player.z = 2; c.view.camDist = 32; });
+  await page.waitForTimeout(1200); await page.screenshot({ path: join(out, '3d-town.png') });
+  await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; window.__b3d.cfg.view.camDist = 19; });
+
   // ползунки
   await page.tap('#gear'); await page.waitForTimeout(200);
   const rows = await page.$$eval('#tweaks input', a => a.length);

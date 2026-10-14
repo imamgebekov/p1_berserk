@@ -11,10 +11,12 @@ export function mulberry32(a) {
   return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
 
+import { makeMap, insideOf, nearBuilding, resolve, slide } from './map.js';
+
 export function createWorld(cfg, rng = Math.random) {
   const P = cfg.player;
   return {
-    cfg, rng, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0 },
     enemies: []
   };
@@ -34,6 +36,7 @@ function spawnRing(W) {
   const a = rr(W, 0, TAU), d = rr(W, lo, hi), R = W.cfg.world.radius - 2;
   let x = p.x + Math.sin(a) * d, z = p.z + Math.cos(a) * d;
   const l = len(x, z); if (l > R) { x *= R / l; z *= R / l; }
+  if (nearBuilding(W.map, x, z, 1.5)) return false;                 // не рождаем врагов в стенах
   spawnEnemy(W, W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp', x, z);
 }
 
@@ -128,8 +131,9 @@ function updatePlayer(W, dt, input) {
     if (moving && p.state !== 'atk') p.face += clamp(angDiff(Math.atan2(mx, mz), p.face), -P.turnSpeed * dt, P.turnSpeed * dt);
     if (p.state === 'idle' && moving) p.state = 'run'; else if (p.state === 'run' && !moving) p.state = 'idle';
   }
-  p.x += p.vx * dt; p.z += p.vz * dt;
+  slide(W.map, p, p.vx * dt, p.vz * dt, P.radius);
   const l = len(p.x, p.z); if (l > R) { p.x *= R / l; p.z *= R / l; }
+  W.inside = insideOf(W.map, p.x, p.z);
 }
 
 function updateEnemies(W, dt) {
@@ -139,19 +143,21 @@ function updateEnemies(W, dt) {
     if (e.flash > 0) e.flash -= dt;
     if (e.dead) { e.deadT += dt; continue; }
     const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6;
-    e.x += e.vx * dt; e.z += e.vz * dt;
+    slide(W.map, e, e.vx * dt, e.vz * dt, C.radius);
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
     if (e.state === 'chase') {
       e.face = Math.atan2(dx, dz);
       if (!p.dead && d < E.aggro) {
-        if (d > C.range * .85) { e.x += dx / d * C.speed * dt; e.z += dz / d * C.speed * dt; }
+        const g = goalOf(W, e);                                   // к герою напрямик или к двери дома
+        if (g !== p) { const gx = g.x - e.x, gz = g.z - e.z, gd = len(gx, gz) || 1e-6; e.face = Math.atan2(gx, gz); slide(W.map, e, gx / gd * C.speed * dt, gz / gd * C.speed * dt, C.radius); }
+        else if (d > C.range * .85) { slide(W.map, e, dx / d * C.speed * dt, dz / d * C.speed * dt, C.radius); }
         else { e.cd -= dt; if (e.cd <= 0) { e.state = 'wind'; e.t = 0; } }
       }
     } else if (e.state === 'wind') {
       e.t += dt; e.face = Math.atan2(dx, dz);
       if (e.t >= C.wind) {
         e.state = 'rec'; e.t = 0;
-        if (!p.dead && d <= C.range + P_RADIUS(W) + .35) hurtPlayer(W, C.damage, e.x, e.z);
+        if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside) hurtPlayer(W, C.damage, e.x, e.z);
         W.ev.push({ k: 'strike', x: e.x, z: e.z, id: e.id });
       }
     } else if (e.state === 'rec') {
@@ -174,14 +180,25 @@ function updateEnemies(W, dt) {
       if (d < m && d > 1e-6) { const k = (m - d) / d; a.x += dx * k * .8; a.z += dz * k * .8; p.x -= dx * k * .2; p.z -= dz * k * .2; }
     }
   }
+  for (const e of live) resolve(W.map, e, E[e.type].radius);
+  resolve(W.map, p, W.cfg.player.radius);
   { const R = W.cfg.world.radius, l = len(p.x, p.z); if (l > R) { p.x *= R / l; p.z *= R / l; } }    // расталкивание не выносит героя за границу
   W.enemies = W.enemies.filter(e => !(e.dead && e.deadT > .6));
   // держим нужное число врагов
   const alive = W.enemies.filter(e => !e.dead).length;
-  if (alive < E.count && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = E.respawn; spawnRing(W); } }
+  if (alive < E.count && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = spawnRing(W) === false ? .1 : E.respawn; } }
   else W.spawnT = Math.max(W.spawnT, .6);
 }
 const P_RADIUS = W => W.cfg.player.radius;
+
+// Куда идти врагу: если герой в доме, а враг снаружи (или наоборот) — через дверь; иначе прямо к герою
+function goalOf(W, e) {
+  const p = W.player, be = insideOf(W.map, e.x, e.z);
+  if (be === W.inside) return p;
+  const near = (a, b) => len(a.x - b.x, a.z - b.z) < 2.4;
+  if (be >= 0) { const dr = W.map.buildings[be].door; return near(e, dr.in) ? dr.out : dr.in; }      // враг в доме: выйти
+  const dr = W.map.buildings[W.inside].door; return near(e, dr.out) ? dr.in : dr.out;               // герой в доме: войти
+}
 
 // input: { mx, mz (−1..1), attack (держится), roll (нажатие) }
 export function step(W, dt, input = {}) {

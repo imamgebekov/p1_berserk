@@ -1,6 +1,7 @@
 import { CFG3 } from './config3d.js';
 import { createWorld, step, respawnPlayer } from './sim.js';
 import { createRenderer } from './render.js';
+import { rotateInput } from './map.js';
 import { createInput } from './input.js';
 import { loadTweaks, createTweakPanel } from './tweak.js';
 
@@ -61,6 +62,7 @@ function loop(now) {
   const real = (now - last) / 1000, dt = Math.max(0, Math.min(.05, real)); last = now;
   if (!panelOpen && !landscape) {
     const inp = input.read();
+    Object.assign(inp, rotateInput(inp.mx, inp.mz, cfg.view.camYaw));        // «вверх» на джойстике = вверх на экране при любом повороте камеры
     if (W.player.dead) inp.attack = inp.roll = false;
     step(W, dt, inp);
   }
