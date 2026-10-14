@@ -88,7 +88,7 @@ const P = CFG3.player;
   W = mk(); const a = spawnEnemy(W, 'imp', 0, 1.3), b = spawnEnemy(W, 'imp', .3, 1.3); a.state = b.state = 'wind'; a.t = b.t = W.cfg.enemies.imp.wind - .02; run(W, .1, {});
   ok(W.player.hp === W.player.maxhp - W.cfg.enemies.imp.damage, `два удара одновременно: урон один ${W.player.hp}`);
   // рогач сильнее
-  W = mk(); const br = spawnEnemy(W, 'brute', 0, 2); br.state = 'wind'; br.t = W.cfg.enemies.brute.wind - .02; run(W, .1, {}); ok(W.player.hp === W.player.maxhp - W.cfg.enemies.brute.damage, 'удар рогача');
+  W = mk(); const br = spawnEnemy(W, 'brute', 0, 2); br.state = 'wind'; br.t = W.cfg.enemies.brute.wind - .02; run(W, .1, {}); ok(W.player.hp === W.player.maxhp - Math.round(W.cfg.enemies.brute.damage * br.dmgMul), 'удар рогача');
   // враги не сливаются в одну точку
   W = mk(); for (let i = 0; i < 6; i++) { const x = spawnEnemy(W, 'imp', 5, 5); x.cd = 99; } run(W, 1, {}); let min = 1e9; const l = W.enemies; for (let i = 0; i < l.length; i++) for (let j = i + 1; j < l.length; j++) min = Math.min(min, Math.hypot(l[i].x - l[j].x, l[i].z - l[j].z));
   ok(min > .5, 'враги расталкиваются: ' + min.toFixed(2));

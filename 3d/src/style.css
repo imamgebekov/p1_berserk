@@ -48,9 +48,9 @@ button{font:inherit;color:var(--ink)}
 .toast{font-size:14px;font-weight:600;text-shadow:0 1px 0 #000,0 0 4px #000;animation:toast 3.4s ease-out forwards}
 .toast.sys{color:#e8d9c0;opacity:.8}.toast.bad{color:#ff7a6a}
 @keyframes toast{0%{opacity:0;transform:translateX(-8px)}8%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
-#bag,#shop{position:fixed;inset:0;z-index:15;background:rgba(8,4,5,.45);display:flex;align-items:flex-end;touch-action:pan-y}
-#bag[hidden],#shop[hidden]{display:none}
-#bag .pbox,#shop .pbox{max-height:88%;display:flex;flex-direction:column;overflow:hidden}
+#bag,#shop,#smith{position:fixed;inset:0;z-index:15;background:rgba(8,4,5,.45);display:flex;align-items:flex-end;touch-action:pan-y}
+#bag[hidden],#shop[hidden],#smith[hidden]{display:none}
+#bag .pbox,#shop .pbox,#smith .pbox{max-height:88%;display:flex;flex-direction:column;overflow:hidden}
 .bhead{display:flex;justify-content:space-between;align-items:center;gap:10px}.bhead h2{margin:0;font-size:17px}
 .bhead button{min-height:44px;padding:0 18px;border:2px solid #000;border-radius:10px;background:var(--red);color:#fff;font-weight:700}
 .bstats{font-size:12.5px;opacity:.8;margin:4px 0 8px}
@@ -65,7 +65,7 @@ button{font:inherit;color:var(--ink)}
 .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.acts button{min-height:44px;padding:0 12px;background:#2a1b1a;border:2px solid var(--line);border-radius:10px}.acts .main{background:var(--red);border-color:#000;color:#fff;font-weight:700}
 #bagFlash{min-height:0;font-size:12.5px;color:#ff9a8a}
 #bagTabs,#shopTabs{display:flex;gap:6px;margin:8px 0 6px;overflow-x:auto;flex:none}.tab{flex:none;min-height:40px;padding:0 12px;background:#1d1413;border:2px solid var(--line);border-radius:10px;font-size:13px}.tab.on{background:#3a1a1c;border-color:var(--red2)}
-#bagList,#shopList{flex:1;min-height:90px;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:5px;padding-bottom:6px}
+#bagList,#shopList,#smithList{flex:1;min-height:90px;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:5px;padding-bottom:6px}
 .item{position:relative;display:grid;grid-template-columns:10px 1fr auto;grid-template-rows:auto auto;column-gap:8px;text-align:left;min-height:48px;padding:6px 8px;background:#1b1211;border:2px solid var(--line);border-radius:8px;flex:none}
 .item .dot{width:10px;height:10px;border-radius:50%;margin-top:5px;grid-row:1}.item .nm{font-size:14px;font-weight:600}.item .up{color:#8fd07a;font-size:13px;grid-column:3;grid-row:1}.item .sub{grid-column:2/4;font-size:11.5px;opacity:.6;line-height:1.25}
 .emptyl{opacity:.6;padding:14px 4px;font-size:13px}
@@ -78,3 +78,4 @@ button{font:inherit;color:var(--ink)}
 .srow .buy{flex:none;min-height:44px;min-width:92px;padding:0 10px;background:#2a1b1a;border:2px solid var(--line);border-radius:10px;font-size:13px;font-weight:600}.srow .buy.no{opacity:.4}
 .junk{min-height:44px;margin:0 0 6px;background:#2a1b1a;border:2px solid var(--line);border-radius:10px;font-size:12.5px;padding:0 10px}
 #shopFlash{min-height:0;font-size:12.5px;color:#ff9a8a;margin-bottom:4px}
+#smithFlash{font-size:12.5px;color:#ff9a8a;margin-bottom:4px}#smithList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:5px;min-height:90px}

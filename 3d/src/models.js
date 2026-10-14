@@ -75,19 +75,30 @@ export function animateHero(h, p, time, dt, cfg) {
 }
 
 // ---------- враги ----------
+// облик по виду: цвета и особенности
+const LOOKS = {
+  imp: { body: '#3b3345', dark: '#1a121a', eye: '#ff3030' },
+  brute: { body: '#4a3430', dark: '#2a1c1a', eye: '#ff3030' },
+  hound: { body: '#55503f', dark: '#2a2620', eye: '#ffb020' },
+  ghoul: { body: '#58675a', dark: '#2a3a30', eye: '#b8ff90' }
+};
 export function makeMonster(kind, cfg) {
-  const brute = kind === 'brute', mats = [];
+  const mats = [], L = LOOKS[kind] || LOOKS.imp;
   const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
-  const body = M(brute ? '#4a3430' : '#3b3345'), dark = M(brute ? '#2a1c1a' : '#1a121a'), bone = M('#d8cfbd');
+  const body = M(L.body), dark = M(L.dark), bone = M('#d8cfbd');
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
-  root.add(box(.8, .85, .55, body, 0, .95, 0));
-  const head = box(.55, .5, .5, body, 0, 1.65, .05); root.add(head);
-  root.add(box(.1, .1, .05, basic('#ff3030'), .12, 1.7, .31), box(.1, .1, .05, basic('#ff3030'), -.12, 1.7, .31));
-  if (brute) { root.add(box(.12, .5, .12, bone, .3, 2.05, .05)); root.add(box(.12, .5, .12, bone, -.3, 2.05, .05)); }
+  const hound = kind === 'hound', ghoul = kind === 'ghoul';
+  root.add(box(hound ? .6 : .8, hound ? .7 : .85, hound ? .8 : .55, body, 0, .95, 0));
+  const head = box(.55, .5, hound ? .7 : .5, body, 0, hound ? 1.45 : 1.65, hound ? .35 : .05); root.add(head);
+  root.add(box(.1, .1, .05, basic(L.eye), .12, hound ? 1.5 : 1.7, hound ? .72 : .31), box(.1, .1, .05, basic(L.eye), -.12, hound ? 1.5 : 1.7, hound ? .72 : .31));
+  if (kind === 'brute') { root.add(box(.12, .5, .12, bone, .3, 2.05, .05)); root.add(box(.12, .5, .12, bone, -.3, 2.05, .05)); }
+  else if (hound) { root.add(box(.14, .35, .1, dark, .2, 1.8, .3)); root.add(box(.14, .35, .1, dark, -.2, 1.8, .3)); root.add(box(.12, .12, .6, body, 0, 1.1, -.65)); }
+  else if (ghoul) { root.add(box(.5, .1, .5, dark, 0, 1.95, .05)); root.add(box(.2, .5, .12, dark, 0, 1.5, -.3)); }
   else { root.add(box(.14, .3, .1, body, .3, 1.95, 0)); root.add(box(.14, .3, .1, body, -.3, 1.95, 0)); }
-  const armL = limb(.22, .75, .24, body, .55, 1.3, 0), armR = limb(.22, .75, .24, body, -.55, 1.3, 0);
+  const al = ghoul ? 1.05 : .75;
+  const armL = limb(.22, al, .24, body, .55, 1.3, 0), armR = limb(.22, al, .24, body, -.55, 1.3, 0);
   const legL = limb(.3, .6, .3, dark, .22, .6, 0), legR = limb(.3, .6, .3, dark, -.22, .6, 0);
-  armL.add(box(.1, .22, .08, bone, 0, -.82, .1)); armR.add(box(.1, .22, .08, bone, 0, -.82, .1));
+  armL.add(box(.1, .22, .08, bone, 0, -al - .07, .1)); armR.add(box(.1, .22, .08, bone, 0, -al - .07, .1));
   root.add(armL, armR, legL, legR);
   const s = cfg.enemies[kind].scale; g.scale.set(s, s, s);
   return { group: g, root, armL, armR, legL, legR, head, flash: flasher(mats), kind };
@@ -153,10 +164,12 @@ export function makeCampfire() {
 }
 
 // торговец: человек в фартуке и шляпе, стоит за прилавком и поворачивается к герою
-export function makeNpc() {
+export function makeNpc(kind = 'merchant') {
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
-  const m = c => lam(c);
-  root.add(box(.5, .8, .3, m('#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m('#5a4a3a'), 0, 1.25, 0), box(.5, .2, .42, m('#8a7a62'), 0, 1.0, .02), box(.42, .42, .42, m('#cdb89a'), 0, 1.95, 0), box(.8, .08, .8, m('#2a1c12'), 0, 2.2, 0), box(.46, .3, .46, m('#2a1c12'), 0, 2.38, 0));
+  const smith = kind === 'smith', m = c => lam(c);
+  root.add(box(.5, .8, .3, m(smith ? '#2a2420' : '#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m(smith ? '#6a4a3a' : '#5a4a3a'), 0, 1.25, 0), box(.5, .5, .42, m(smith ? '#2a2420' : '#8a7a62'), 0, smith ? 1.1 : 1.0, .02), box(.42, .42, .42, m(smith ? '#b89a7a' : '#cdb89a'), 0, 1.95, 0));
+  if (!smith) root.add(box(.8, .08, .8, m('#2a1c12'), 0, 2.2, 0), box(.46, .3, .46, m('#2a1c12'), 0, 2.38, 0));
+  else root.add(box(.5, .12, .46, m('#1a1614'), 0, 2.2, 0), box(.12, .5, .12, m('#6a645c'), .72, .8, .1), box(.34, .2, .2, m('#6a645c'), .72, 1.1, .1));
   const armL = limb(.2, .7, .2, m('#5a4a3a'), .5, 1.6, 0), armR = limb(.2, .7, .2, m('#5a4a3a'), -.5, 1.6, 0);
   root.add(armL, armR);
   return { group: g, root, armL, armR };

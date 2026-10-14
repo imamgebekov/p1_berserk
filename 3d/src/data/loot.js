@@ -28,6 +28,8 @@ export const SHOP_STAPLES = [['p_heal1', 3], ['h_rag_bandage', 5], ['f_rye', 6],
 // выпадение с монстров
 export const DROPS = {
   imp:   { chance: .45, slots: [1, 1], q: 0, pools: [['material', 4], ['coin', 3], ['food', 2], ['curio', 1], ['medic', 1]] },
+  hound: { chance: .35, slots: [1, 1], q: 0, pools: [['material', 4], ['food', 3], ['coin', 1]] },
+  ghoul: { chance: .7, slots: [1, 2], q: 1, pools: [['curio', 3], ['coin', 3], ['material', 2], ['ring', 1], ['amulet', 1], ['medic', 1]] },
   brute: { chance: .85, slots: [1, 2], q: 1, pools: [['material', 3], ['coin', 2], ['weapon', 1], ['body', 1], ['potion', 1], ['key', 1], ['ring', 1]] }
 };
 

@@ -1,12 +1,14 @@
 // Сумка и экипировка: чистая логика (тестируется в Node). Состояние — { bag: [{id,n}], eq: {слот: id|null}, ash }.
 import { BY_ID, SLOTS } from './data/items.js';
 
-export const createInv = () => ({ bag: [], eq: Object.fromEntries(SLOTS.map(s => [s, null])), ash: 0 });
+export const UP_MAX = 5;
+// up — уровень улучшения (+N) у надетых вещей по слотам; в сумке — поле up у записи
+export const createInv = () => ({ bag: [], eq: Object.fromEntries(SLOTS.map(s => [s, null])), up: {}, ash: 0 });
 
 // положить n штук; возвращает, сколько НЕ влезло
 export function addItem(inv, id, n, maxSlots) {
   const it = BY_ID[id]; if (!it) return n;
-  for (const s of inv.bag) { if (n <= 0) break; if (s.id === id && s.n < it.stack) { const t = Math.min(n, it.stack - s.n); s.n += t; n -= t; } }
+  for (const s of inv.bag) { if (n <= 0) break; if (s.id === id && !s.up && s.n < it.stack) { const t = Math.min(n, it.stack - s.n); s.n += t; n -= t; } }
   while (n > 0 && inv.bag.length < maxSlots) { const t = Math.min(n, it.stack); inv.bag.push({ id, n: t }); n -= t; }
   return n;
 }
@@ -19,22 +21,24 @@ export const countOf = (inv, id) => inv.bag.reduce((c, s) => c + (s.id === id ? 
 
 export function equipAt(inv, idx) {
   const s = inv.bag[idx], it = s && BY_ID[s.id]; if (!it || !it.slot) return false;
-  const prev = inv.eq[it.slot];
+  const prev = inv.eq[it.slot], prevUp = inv.up[it.slot] || 0;
   removeAt(inv, idx, 1);
-  inv.eq[it.slot] = it.id;
-  if (prev) inv.bag.splice(Math.min(idx, inv.bag.length), 0, { id: prev, n: 1 });     // старая вещь встаёт на место новой
+  inv.eq[it.slot] = it.id; if (s.up) inv.up[it.slot] = s.up; else delete inv.up[it.slot];
+  if (prev) { const e = { id: prev, n: 1 }; if (prevUp) e.up = prevUp; inv.bag.splice(Math.min(idx, inv.bag.length), 0, e); }     // старая вещь встаёт на место новой
   return true;
 }
 export function unequip(inv, slot, maxSlots) {
   const id = inv.eq[slot]; if (!id) return false;
   if (inv.bag.length >= maxSlots) return false;
-  inv.eq[slot] = null; inv.bag.push({ id, n: 1 }); return true;
+  const e = { id, n: 1 }; if (inv.up[slot]) e.up = inv.up[slot];
+  inv.eq[slot] = null; delete inv.up[slot]; inv.bag.push(e); return true;
 }
+export const nameOf = (id, up) => (up ? `+${up} ` : '') + BY_ID[id].name;
 
 // суммарные характеристики экипировки и временных баффов
-export function gearStats(inv, buffs = []) {
+export function gearStats(inv, buffs = [], bonus = .1) {
   const g = { dmg: 0, armor: 0, hp: 0, spd: 0, reach: 0, crit: 0, leech: 0, luck: 0, swing: 1 };
-  for (const slot of SLOTS) { const id = inv.eq[slot], it = id && BY_ID[id]; if (!it) continue; for (const [k, v] of Object.entries(it.stats)) { if (k === 'swing') g.swing *= v; else g[k] += v; } }
+  for (const slot of SLOTS) { const id = inv.eq[slot], it = id && BY_ID[id]; if (!it) continue; const m = 1 + (inv.up[slot] || 0) * bonus; for (const [k, v] of Object.entries(it.stats)) { if (k === 'swing') g.swing *= v; else if (v > 0 && (k === 'dmg' || k === 'armor' || k === 'hp' || k === 'crit' || k === 'leech')) g[k] += Math.round(v * m); else g[k] += v; } }
   for (const b of buffs) g[b.stat] += b.amt;
   return g;
 }
@@ -50,12 +54,12 @@ export function betterThanWorn(inv, it) {
 }
 
 // сохранение: только проверенные id; чужое и неизвестное отбрасываем
-export function serialize(inv) { return { bag: inv.bag.map(s => ({ id: s.id, n: s.n })), eq: { ...inv.eq }, ash: inv.ash }; }
+export function serialize(inv) { return { bag: inv.bag.map(s => (s.up ? { id: s.id, n: s.n, up: s.up } : { id: s.id, n: s.n })), eq: { ...inv.eq }, up: { ...inv.up }, ash: inv.ash }; }
 export function deserialize(data, maxSlots) {
   const inv = createInv();
   if (!data || typeof data !== 'object') return inv;
-  for (const s of Array.isArray(data.bag) ? data.bag : []) if (s && BY_ID[s.id] && Number.isFinite(s.n) && s.n > 0) addItem(inv, s.id, Math.min(Math.floor(s.n), BY_ID[s.id].stack), maxSlots);
-  for (const slot of SLOTS) { const id = data.eq && data.eq[slot]; if (id && BY_ID[id] && BY_ID[id].slot === slot) inv.eq[slot] = id; }
+  for (const s of Array.isArray(data.bag) ? data.bag : []) if (s && BY_ID[s.id] && Number.isFinite(s.n) && s.n > 0) { const n = Math.min(Math.floor(s.n), BY_ID[s.id].stack); if (BY_ID[s.id].slot && Number.isFinite(s.up) && s.up > 0) { if (inv.bag.length < maxSlots) inv.bag.push({ id: s.id, n: 1, up: Math.min(UP_MAX, Math.floor(s.up)) }); } else addItem(inv, s.id, n, maxSlots); }
+  for (const slot of SLOTS) { const id = data.eq && data.eq[slot]; if (id && BY_ID[id] && BY_ID[id].slot === slot) { inv.eq[slot] = id; const u = data.up && data.up[slot]; if (Number.isFinite(u) && u > 0) inv.up[slot] = Math.min(UP_MAX, Math.floor(u)); } }
   inv.ash = Number.isFinite(data.ash) && data.ash > 0 ? Math.floor(data.ash) : 0;
   return inv;
 }

@@ -1,7 +1,8 @@
 // Тест торговли 3D: цены, доступность только рядом с торговцем, покупка/продажа, хлам, обновление витрины.
 import { CFG3 } from '../3d/src/config3d.js';
 import { BY_ID, CATALOG } from '../3d/src/data/items.js';
-import { createWorld, step, mulberry32, buyItem, sellItem, sellJunk, buyPrice, sellPrice, restock } from '../3d/src/sim.js';
+import { createWorld, step, mulberry32, buyItem, sellItem, sellJunk, buyPrice, sellPrice, restock, upgradeItem, upgradeCost } from '../3d/src/sim.js';
+import { equipAt, unequip, serialize, deserialize, addItem, gearStats } from '../3d/src/inv.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0;
 const W = createWorld(cfg, mulberry32(7)); W.player.inv = 1e9;
@@ -30,5 +31,32 @@ ok(sum === sellPrice(BY_ID.k_goblet, cfg) + sellPrice(BY_ID.c_grosh, cfg) * 4 + 
 ok(W.inv.bag.length === 2 && W.inv.bag.every(s => ['w_sword_steel', 'p_heal2'].includes(s.id)), 'оружие и зелья не должны уходить как хлам');
 // витрина обновляется со временем
 { const old = JSON.stringify(W.shop.stock); for (let i = 0; i < 60 * (cfg.shop.restock + 2); i += 30) step(W, .5, {}); ok(W.shop.t < cfg.shop.restock, 'витрина не обновилась'); }
+// кузнец
+{
+  const W2 = createWorld(cfg, mulberry32(9)); W2.player.inv = 1e9; const sb = W2.map.buildings.find(b => b.npc && b.npc.kind === 'smith'); ok(sb, 'в мире нет кузнеца');
+  W2.inv.eq.weapon = 'w_sword_steel'; W2.inv.bag.push({ id: 'a_body_mail_mail', n: 1 }); W2.inv.ash = 100000;
+  step(W2, 1 / 60, {}); ok(W2.nearNpc === null && upgradeItem(W2, { slot: 'weapon' }) === 'far', 'улучшение издалека');
+  W2.player.x = sb.npc.x + 1; W2.player.z = sb.npc.z; step(W2, 1 / 60, {}); ok(W2.nearNpc === 'smith' && !W2.nearMerchant, 'кузнец не определился');
+  const it = BY_ID.w_sword_steel, d0 = W2.gear.dmg;
+  let lvl = 0, spent = 0; const a0 = W2.inv.ash;
+  for (; lvl < cfg.smith.max; lvl++) { const c = upgradeCost(it, lvl, cfg); ok(upgradeItem(W2, { slot: 'weapon' }) === 'ok', 'улучшение ' + lvl); spent += c; }
+  ok(W2.inv.up.weapon === 5 && a0 - W2.inv.ash === spent, 'цена улучшений не списана точно');
+  ok(upgradeItem(W2, { slot: 'weapon' }) === 'max' && W2.inv.up.weapon === 5, 'предел +5 нарушен');
+  step(W2, 1 / 60, {}); ok(W2.gear.dmg === Math.round(it.stats.dmg * 1.5), `урон +5: ${W2.gear.dmg}`); ok(W2.gear.dmg > d0, 'урон не вырос');
+  ok(upgradeCost(it, 4, cfg) > upgradeCost(it, 0, cfg) * 5, 'цена не растёт достаточно');
+  // вещь в сумке: улучшение остаётся при надевании и снятии, не складывается со стопками
+  ok(upgradeItem(W2, { idx: W2.inv.bag.findIndex(s => s.id === 'a_body_mail_mail') }) === 'ok', 'улучшение вещи из сумки');
+  equipAt(W2.inv, W2.inv.bag.findIndex(s => s.id === 'a_body_mail_mail')); ok(W2.inv.up.body === 1, 'уровень не перенёсся при надевании');
+  unequip(W2.inv, 'weapon', cfg.bag.slots); ok(W2.inv.bag.some(s => s.id === 'w_sword_steel' && s.up === 5) && !W2.inv.up.weapon, 'уровень не перенёсся в сумку');
+  { const inv = W2.inv; addItem(inv, 'f_rye', 3, 30); const before = inv.bag.length; addItem(inv, 'w_sword_steel', 1, 30); ok(inv.bag.length === before + 1, 'улучшенная вещь слилась со стопкой'); }
+  // сохранение
+  const d = deserialize(JSON.parse(JSON.stringify(serialize(W2.inv))), 30); ok(d.up.body === 1 && d.bag.some(s => s.id === 'w_sword_steel' && s.up === 5), 'уровни не пережили сохранение');
+  const bad = deserialize({ bag: [{ id: 'w_sword_steel', n: 1, up: 99 }, { id: 'f_rye', n: 1, up: 3 }], eq: { weapon: 'w_sword_iron' }, up: { weapon: -4, body: 3 } }, 30);
+  ok(bad.bag[0].up === 5 && !bad.bag[1].up && !bad.up.weapon && !bad.up.body, 'мусорные уровни не очищены: ' + JSON.stringify(bad));
+  // без денег
+  W2.inv.ash = 0; ok(upgradeItem(W2, { slot: 'body' }) === 'ash', 'улучшение без пепла');
+  // улучшенная вещь дороже при продаже
+  ok(sellPrice(it, cfg, 5) > sellPrice(it, cfg, 0) * 2, 'улучшение не повышает цену продажи');
+}
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Торговля 3D: OK');

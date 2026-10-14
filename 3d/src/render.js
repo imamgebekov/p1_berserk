@@ -62,7 +62,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
   const decor = buildDecor(map, mulberry32(cfg.world.seed + 2)); scene.add(decor.group);
   const npcs = [];
-  for (const b of map.buildings) if (b.npc) { const n = makeNpc(); n.group.position.set(b.npc.x, 0, b.npc.z); n.pos = b.npc; scene.add(n.group); npcs.push(n); }
+  for (const b of map.buildings) if (b.npc) { const n = makeNpc(b.npc.kind); n.group.position.set(b.npc.x, 0, b.npc.z); n.pos = b.npc; scene.add(n.group); npcs.push(n); }
   const conts = buildContainers(map); scene.add(conts.group);
 
   // деревья и камни одним мешем (один вызов отрисовки)

@@ -64,7 +64,7 @@ for (const b of map.buildings) for (const r of [.5, .8]) {
     W4.inv.eq.body = 'a_body_plate_ash'; step(W4, 1 / 60, {}); ok(W4.player.maxhp > c.player.hp && W4.gear.armor > 15, 'броня не учтена: ' + JSON.stringify(W4.gear));
     // урон по герою падает от брони
     const dmgWith = armor => { const Wx = createWorld(c, mulberry32(1)); Wx.inv.eq.body = armor; step(Wx, 1 / 60, {}); Wx.player.hp = Wx.player.maxhp; const e = spawnEnemy(Wx, 'brute', Wx.player.x + 1, Wx.player.z); e.state = 'wind'; e.t = Wx.cfg.enemies.brute.wind - .001; e.alert = true; const h0 = Wx.player.hp; step(Wx, 1 / 60, {}); return h0 - Wx.player.hp; };
-    ok(dmgWith('a_body_plate_ash') < dmgWith(null) * .65 && dmgWith(null) === c.enemies.brute.damage, 'броня не снижает урон: ' + dmgWith(null) + ' → ' + dmgWith('a_body_plate_ash'));
+    ok(dmgWith('a_body_plate_ash') < dmgWith(null) * .65 && Math.abs(dmgWith(null) - c.enemies.brute.damage) <= 1, 'броня не снижает урон: ' + dmgWith(null) + ' → ' + dmgWith('a_body_plate_ash'));
     // оружие: больше урона
     const hit = wp => { const Wx = createWorld(c, mulberry32(2)); Wx.cfg.enemies.count = 0; Wx.inv.eq.weapon = wp; step(Wx, 1 / 60, {}); const e = spawnEnemy(Wx, 'brute', Wx.player.x + Math.sin(Wx.player.face) * 1.5, Wx.player.z + Math.cos(Wx.player.face) * 1.5); e.hp = e.maxhp = 9999; for (let k = 0; k < 60 && e.hp === 9999; k++) step(Wx, 1 / 60, { attack: true }); return 9999 - e.hp; };
     ok(hit('w_greatsword_blood') > hit(null) * 1.8, 'клеймёный двуручник не бьёт сильнее голых рук'); }

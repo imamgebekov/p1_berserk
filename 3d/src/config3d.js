@@ -37,7 +37,7 @@ export const CFG3 = {
       { x: -18, z: 14,  w: 7,  d: 7, door: 'e', kind: 'house',     chests: ['locked', 'shelf'] },
       { x: 6,   z: 24,  w: 8,  d: 6, door: 'n', kind: 'house',     chests: ['medchest', 'crate', 'barrel'] },
       { x: -8,  z: 9,   w: 7,  d: 6, door: 'e', kind: 'shop',      chests: ['crate', 'coffer'], npc: 'merchant' },
-      { x: -28, z: 30,  w: 9,  d: 7, door: 'n', kind: 'smithy',    chests: ['smithchest', 'smithchest', 'rack', 'ironchest'] },
+      { x: -28, z: 30,  w: 9,  d: 7, door: 'n', kind: 'smithy',    chests: ['smithchest', 'smithchest', 'rack', 'ironchest'], npc: 'smith' },
       { x: 28,  z: -26, w: 12, d: 8, door: 'w', kind: 'tavern',    chests: ['barrel', 'barrel', 'crate', 'chest'] },
       { x: -34, z: -20, w: 7,  d: 11, door: 's', kind: 'chapel',   chests: ['altar', 'shelf', 'coffer'] },
       { x: 48,  z: 8,   w: 11, d: 7, door: 'w', kind: 'barracks',  chests: ['rack', 'rack', 'armorstand', 'ironchest'] },
@@ -65,6 +65,7 @@ export const CFG3 = {
   },
 
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4 },   // цена покупки = цена вещи × buyMul, продажи × sellMul; витрина обновляется раз в restock секунд
+  smith: { max: 5, base: 10, costK: .45, pow: 1.35, bonus: .1, reach: 3.4 },   // улучшение +1…+5: цена = base + цена вещи × costK × (ур+1)^pow, каждый уровень даёт +bonus к статам
   bag: { slots: 30 },
   gear: { armorK: .035, maxSpd: 45, pickup: 1.3, dropLife: 90 },   // броня: урон /(1+брони×armorK); подбор с земли
 
@@ -87,16 +88,28 @@ export const CFG3 = {
     rollCooldown: .75,
     rollInvuln: .36,      // неуязвимость переката
     hurtInvuln: .55,      // неуязвимость после получения удара
-    radius: .5
+    radius: .5,
+    fire: { radius: 5, perSec: 7, calm: 3 }   // у костра лечит, если последние calm секунд не дрались и не получали урон
   },
 
   enemies: {
-    count: 4,             // сколько врагов держим на поле
-    respawn: 2.2,         // пауза до появления нового
+    count: 6,             // сколько врагов держим на поле
+    respawn: 1.6,         // пауза до появления нового
     ring: [14, 19],       // на каком расстоянии от героя появляются
     brutePart: .3,        // доля рогачей среди врагов
-    imp:   { hp: 26, speed: 3.3, damage: 6,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
-    brute: { hp: 70, speed: 2.1, damage: 14, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6 },
+    imp:   { hp: 42, speed: 3.4, damage: 9,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
+    brute: { hp: 130, speed: 2.2, damage: 22, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6 },
+    hound: { hp: 30, speed: 5.6, damage: 8,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85 },   // быстрая, хрупкая; рыщет у руин и лагеря
+    ghoul: { hp: 90, speed: 2.8, damage: 16, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2 },   // упырь: у кладбища и в часовне
+    // кто водится в области (по ближайшей зоне карты); остальное — бесы и рогачи по brutePart
+    regions: {
+      graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1]],
+      ruins: [['hound', 4], ['brute', 3], ['imp', 2]],
+      camp: [['hound', 3], ['brute', 4], ['imp', 2]],
+      farm: [['hound', 3], ['imp', 4], ['ghoul', 1]]
+    },
+    depthHp: 1.6,          // враги вдали от костра крепче: здоровье × (1 + depthHp × глубина), глубина 0 у костра, 1 у границы
+    depthDmg: 1.0,         // и бьют сильнее: урон × (1 + depthDmg × глубина)
     // слух: чем громче герой, тем дальше его слышат. Услышавший идёт к герою, пока тот не уйдёт дальше `lose`
     hear: { idle: 10, run: 17, fight: 25, house: .55, lose: 32, drift: .3 },   // drift: доля скорости, с которой «бредёт» неуслышавший
     knockDecay: 9

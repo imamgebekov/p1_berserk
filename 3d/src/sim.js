@@ -14,7 +14,7 @@ export function mulberry32(a) {
 import { BY_ID } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, rollLoot, rollDrop } from './data/loot.js';
 import { createInv, addItem, removeAt, gearStats } from './inv.js';
-import { makeMap, insideOf, nearBuilding, resolve, slide } from './map.js';
+import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf } from './map.js';
 
 export function createWorld(cfg, rng = Math.random) {
   const W = makeWorld(cfg, rng);
@@ -25,7 +25,7 @@ export function createWorld(cfg, rng = Math.random) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, shop: { stock: [], t: 0 }, nearMerchant: false, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0 },
     enemies: []
   };
@@ -34,8 +34,8 @@ function makeWorld(cfg, rng) {
 const rr = (W, a, b) => a + W.rng() * (b - a);
 
 export function spawnEnemy(W, type, x, z) {
-  const C = W.cfg.enemies[type];
-  const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp: C.hp, maxhp: C.hp, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
+  const C = W.cfg.enemies[type], depth = clamp(len(x, z) / W.cfg.world.radius, 0, 1), hp = Math.round(C.hp * (1 + W.cfg.enemies.depthHp * depth));
+  const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, dmgMul: 1 + W.cfg.enemies.depthDmg * depth, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
   W.enemies.push(e);
   return e;
 }
@@ -46,8 +46,11 @@ function spawnRing(W) {
   let x = p.x + Math.sin(a) * d, z = p.z + Math.cos(a) * d;
   const l = len(x, z); if (l > R) { x *= R / l; z *= R / l; }
   if (nearBuilding(W.map, x, z, 1.5)) return false;                 // не рождаем врагов в стенах
-  spawnEnemy(W, W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp', x, z);
+  const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)];
+  const type = reg ? pickW2(reg, W.rng) : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';
+  spawnEnemy(W, type, x, z);
 }
+function pickW2(table, rng) { let t = 0; for (const a of table) t += a[1]; let r = rng() * t; for (const a of table) { r -= a[1]; if (r <= 0) return a[0]; } return table[0][0]; }
 
 export const aliveEnemies = W => W.enemies.filter(e => !e.dead);
 
@@ -59,6 +62,7 @@ function hurtPlayer(W, dmg, fromX, fromZ) {
     return false;
   }
   dmg = Math.max(1, Math.round(dmg / (1 + Math.max(0, W.gear.armor) * W.cfg.gear.armorK)));
+  p.calm = W.cfg.player.fire.calm;
   p.hp -= dmg; p.inv = W.cfg.player.hurtInvuln; W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
   const d = len(p.x - fromX, p.z - fromZ) || 1;
   p.vx += (p.x - fromX) / d * 5; p.vz += (p.z - fromZ) / d * 5;
@@ -98,7 +102,7 @@ function attackHit(W) {
     if (Math.abs(angDiff(Math.atan2(dx, dz), p.face)) > half) continue;
     const dmg = Math.round((P.attackDamage + W.gear.dmg) * rr(W, .9, 1.15)), crit = W.rng() < .12 + W.gear.crit / 100;
     const dealt = crit ? Math.round(dmg * 1.7) : dmg;
-    e.hp -= dealt; e.flash = .12;
+    e.hp -= dealt; e.flash = .12; p.calm = P.fire.calm;
     if (W.gear.leech > 0) p.hp = Math.min(p.maxhp, p.hp + dealt * W.gear.leech / 100);
     const k = P.knockback / (C.scale > 1.2 ? 2.2 : 1), n = d || 1;
     e.vx += dx / n * k; e.vz += dz / n * k;
@@ -152,6 +156,8 @@ function updatePlayer(W, dt, input) {
     if (moving && p.state !== 'atk') p.face += clamp(angDiff(Math.atan2(mx, mz), p.face), -P.turnSpeed * dt, P.turnSpeed * dt);
     if (p.state === 'idle' && moving) p.state = 'run'; else if (p.state === 'run' && !moving) p.state = 'idle';
   }
+  if (p.calm > 0) p.calm -= dt;
+  else if (len(p.x, p.z) < P.fire.radius && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);
   slide(W.map, p, p.vx * dt, p.vz * dt, P.radius);
   const l = len(p.x, p.z); if (l > R) { p.x *= R / l; p.z *= R / l; }
   W.inside = insideOf(W.map, p.x, p.z);
@@ -184,7 +190,7 @@ function updateEnemies(W, dt) {
       e.t += dt; e.face = Math.atan2(dx, dz);
       if (e.t >= C.wind) {
         e.state = 'rec'; e.t = 0;
-        if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside) hurtPlayer(W, C.damage, e.x, e.z);
+        if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside) hurtPlayer(W, Math.round(C.damage * (e.dmgMul || 1)), e.x, e.z);
         W.ev.push({ k: 'strike', x: e.x, z: e.z, id: e.id });
       }
     } else if (e.state === 'rec') {
@@ -226,8 +232,24 @@ function refill(W, c) {
   c.locked = !!def.locked; c.keyTier = def.locked ? (depth < .3 ? 1 : depth < .6 ? 2 : 3) : 0;
 }
 
+// ---- кузнец: улучшение вещей за пепел ----
+export const upgradeCost = (it, lvl, cfg) => Math.round(cfg.smith.base + it.value * cfg.smith.costK * Math.pow(lvl + 1, cfg.smith.pow));
+// where: { slot } для надетой или { idx } для вещи в сумке
+export function upgradeItem(W, where) {
+  if (W.nearNpc !== 'smith') return 'far';
+  const inv = W.inv, e = where.slot ? null : inv.bag[where.idx];
+  const id = where.slot ? inv.eq[where.slot] : e && e.id, it = id && BY_ID[id];
+  if (!it || !it.slot) return 'none';
+  const lvl = where.slot ? inv.up[where.slot] || 0 : e.up || 0;
+  if (lvl >= W.cfg.smith.max) return 'max';
+  const cost = upgradeCost(it, lvl, W.cfg);
+  if (inv.ash < cost) return 'ash';
+  inv.ash -= cost; if (where.slot) inv.up[where.slot] = lvl + 1; else e.up = lvl + 1;
+  W.ev.push({ k: 'upgrade', x: W.player.x, z: W.player.z, lvl: lvl + 1 }); return 'ok';
+}
+
 // ---- торговля ----
-export const sellPrice = (it, cfg) => Math.max(1, Math.round(it.value * cfg.shop.sellMul));
+export const sellPrice = (it, cfg, up = 0) => Math.max(1, Math.round(it.value * cfg.shop.sellMul * (1 + up * .25)));
 export const buyPrice = (it, cfg) => Math.max(2, Math.round(it.value * cfg.shop.buyMul));
 export function restock(W) {
   const out = SHOP_STAPLES.map(([id, n]) => ({ id, n }));
@@ -245,7 +267,7 @@ export function buyItem(W, i) {
 export function sellItem(W, idx, n = 1) {
   const s = W.inv.bag[idx]; if (!s) return 'none'; if (!W.nearMerchant) return 'far';
   const q = Math.min(n, s.n), it = BY_ID[s.id];
-  W.inv.ash += sellPrice(it, W.cfg) * q; removeAt(W.inv, idx, q); return 'ok';
+  W.inv.ash += sellPrice(it, W.cfg, s.up || 0) * q; removeAt(W.inv, idx, q); return 'ok';
 }
 // продать весь хлам разом: безделушки, деньги, записки и материалы (оружие, броня, ключи и расходники остаются)
 export function sellJunk(W) {
@@ -266,7 +288,7 @@ function updateHouses(W, dt) {
     const near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r);
     d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
   }
-  W.nearMerchant = !p.dead && W.map.buildings.some(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach);
+  { const nb = p.dead ? null : W.map.buildings.find(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach); W.nearNpc = nb ? nb.npc.kind : null; W.nearMerchant = W.nearNpc === 'merchant'; }
   if ((W.shop.t += dt) > W.cfg.shop.restock) restock(W);
   for (const c of W.map.containers) {
     const def = CONTAINERS[c.kind];
@@ -324,7 +346,7 @@ function goalOf(W, e) {
 // input: { mx, mz (−1..1), attack (держится), roll (нажатие) }
 // пересчёт характеристик от надетого и баффов (вызывается каждый шаг и при смене экипировки в сумке)
 export function refreshGear(W) {
-  W.gear = gearStats(W.inv, W.buffs);
+  W.gear = gearStats(W.inv, W.buffs, W.cfg.smith.bonus);
   const p = W.player; p.maxhp = Math.max(10, W.cfg.player.hp + W.gear.hp); if (p.hp > p.maxhp) p.hp = p.maxhp;
 }
 

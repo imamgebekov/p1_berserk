@@ -77,6 +77,22 @@ try {
     await page.tap('#shopClose'); await page.waitForTimeout(100);
   }
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; });
+  // кузнец: кнопка меняется на «Кузнец», улучшение списывает пепел
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'smith'); w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.inv.ash = 900; w.inv.eq.weapon = 'w_sword_iron'; });
+  await page.waitForTimeout(500);
+  if ((await page.$eval('#talk', e => e.hidden || e.textContent)) !== 'Кузнец') bad('у кузнеца кнопка не «Кузнец»');
+  else {
+    await page.tap('#talk'); await page.waitForTimeout(250);
+    if (await page.evaluate(() => document.getElementById('smith').hidden)) bad('окно кузнеца не открылось');
+    await page.screenshot({ path: join(out, '3d-smith.png') });
+    await page.tap('#smithList .srow:first-child .buy'); await page.waitForTimeout(150);
+    if (!(await page.evaluate(() => window.__b3d.W.inv.up.weapon === 1 && window.__b3d.W.inv.ash < 900))) bad('улучшение у кузнеца не сработало');
+    await page.tap('#smithClose'); await page.waitForTimeout(100);
+  }
+  // новые враги: рисуются без ошибок
+  await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; w.cfg.enemies.count = 0; w.enemies.length = 0; for (const [i, t] of ['hound', 'ghoul', 'imp', 'brute'].entries()) window.__b3d.spawn(t, -3 + i * 2, -3); });
+  await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-monsters.png') });
+  await page.evaluate(() => { const w = window.__b3d.W; w.enemies.length = 0; w.cfg.enemies.count = 4; });
   // дома: снаружи крыша видна, внутри тает, стены опускаются
   await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings[0]; w.enemies.length = 0; w.player.x = b.door.out.x + 2; w.player.z = b.door.out.z; w.player.inv = 1e9; });
   await page.waitForTimeout(900); await page.screenshot({ path: join(out, '3d-house-out.png') });
@@ -136,7 +152,7 @@ try {
   await page.tap('#tweakClose');
 
   // смерть и возрождение
-  await page.evaluate(() => { const p = window.__b3d.W.player; p.hp = 1; window.__b3d.W.enemies.push({ id: 1000, type: 'brute', x: p.x + .5, z: p.z, vx: 0, vz: 0, hp: 50, maxhp: 50, face: 0, state: 'wind', t: .99, cd: 0, flash: 0, dead: false, deadT: 0, hitMe: false }); });
+  await page.evaluate(() => { const p = window.__b3d.W.player; p.inv = 0; p.hp = 1; window.__b3d.W.inv.eq = { weapon: null, head: null, body: null, cloak: null, boots: null, ring: null, amulet: null }; window.__b3d.W.inv.up = {}; window.__b3d.W.enemies.push({ id: 1000, type: 'brute', x: p.x + .5, z: p.z, vx: 0, vz: 0, hp: 50, maxhp: 50, face: 0, state: 'wind', t: .99, cd: 0, flash: 0, dead: false, deadT: 0, hitMe: false }); });
   await page.waitForTimeout(2200);
   if (await page.evaluate(() => document.getElementById('dead').hidden)) bad('экран смерти не показан');
   else { await page.screenshot({ path: join(out, '3d-dead.png') }); await page.tap('#again'); if (await page.evaluate(() => window.__b3d.W.player.dead)) bad('не возродился'); }

@@ -117,3 +117,12 @@ export function propsBlocked(map, x, z) {
   return Math.hypot(x, z) < 6;
 }
 import { distSeg as distSegPt } from './world3d.js';
+
+// область, в которой стоит точка (graveyard, farm, ruins, camp…), либо null
+export function regionOf(map, x, z) {
+  for (const zn of map.cfg.zones || []) {
+    const hw = zn.w ? zn.w / 2 + 6 : zn.r + 8, hd = zn.d ? zn.d / 2 + 6 : zn.r + 8;
+    if (Math.abs(x - zn.x) < hw && Math.abs(z - zn.z) < hd) return zn.type;
+  }
+  return null;
+}
