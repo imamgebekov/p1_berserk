@@ -151,3 +151,13 @@ export function makeCampfire() {
   const light = new THREE.PointLight('#ff7a30', 28, 18, 1.6); light.position.set(0, 1.4, 0); g.add(light);
   return { group: g, flames: [f1, f2, f3], light };
 }
+
+// торговец: человек в фартуке и шляпе, стоит за прилавком и поворачивается к герою
+export function makeNpc() {
+  const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
+  const m = c => lam(c);
+  root.add(box(.5, .8, .3, m('#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m('#5a4a3a'), 0, 1.25, 0), box(.5, .2, .42, m('#8a7a62'), 0, 1.0, .02), box(.42, .42, .42, m('#cdb89a'), 0, 1.95, 0), box(.8, .08, .8, m('#2a1c12'), 0, 2.2, 0), box(.46, .3, .46, m('#2a1c12'), 0, 2.38, 0));
+  const armL = limb(.2, .7, .2, m('#5a4a3a'), .5, 1.6, 0), armR = limb(.2, .7, .2, m('#5a4a3a'), -.5, 1.6, 0);
+  root.add(armL, armR);
+  return { group: g, root, armL, armR };
+}

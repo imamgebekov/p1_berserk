@@ -1,9 +1,20 @@
 // Карта: дома, стены, двери. Чистая геометрия без графики (тестируется в Node).
 // Стены — прямоугольники (AABB); герой и враги — круги, которые выталкиваются из стен и скользят вдоль них.
 
+import { genWorld } from './world3d.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const vertDoor = side => side === 'e' || side === 'w';
+
+// локальные координаты внутри дома: u — вдоль дальней от двери стены (0 — середина), v — вглубь от этой стены к двери
+export function interiorPos(b, u, v) {
+  const s = b.door.side;
+  if (s === 'e') return { x: b.ix0 + v, z: b.z + u };
+  if (s === 'w') return { x: b.ix1 - v, z: b.z + u };
+  if (s === 'n') return { x: b.x + u, z: b.iz1 - v };
+  return { x: b.x + u, z: b.iz0 + v };
+}
+export function roomSize(b) { const vert = b.door.side === 'e' || b.door.side === 'w'; return { depth: vert ? b.ix1 - b.ix0 : b.iz1 - b.iz0, along: vert ? b.iz1 - b.iz0 : b.ix1 - b.ix0, vert }; }
 
 export function makeMap(cfg) {
   const M = cfg.map, t = M.wall, hw = M.doorW / 2;
@@ -33,14 +44,18 @@ export function makeMap(cfg) {
     hSeg(z0, z0 + t, 'n'); hSeg(z1 - t, z1, 's'); vSeg(x0, x0 + t, 'w'); vSeg(x1 - t, x1, 'e');
     const w2 = bw.filter(r => r.x1 - r.x0 > 1e-6 && r.z1 - r.z0 > 1e-6);
     walls.push(...w2);
-    buildings.push({ id, x: b.x, z: b.z, w: b.w, d: b.d, x0, x1, z0, z1, ix0: x0 + t, ix1: x1 - t, iz0: z0 + t, iz1: z1 - t, door, walls: w2, kind: b.kind || 'house', chests: [] });
+    buildings.push({ id, x: b.x, z: b.z, w: b.w, d: b.d, x0, x1, z0, z1, ix0: x0 + t, ix1: x1 - t, iz0: z0 + t, iz1: z1 - t, door, walls: w2, kind: b.kind || 'house', chests: [], npc: null });
     // контейнеры в углах, дальние от двери — первыми
     const bb = buildings[buildings.length - 1], cs = [[bb.ix0 + .8, bb.iz0 + .8], [bb.ix1 - .8, bb.iz0 + .8], [bb.ix0 + .8, bb.iz1 - .8], [bb.ix1 - .8, bb.iz1 - .8]];
+    if (b.npc) { const rs = roomSize(bb); const q = interiorPos(bb, 0, rs.depth * .55 - .9); bb.npc = { kind: b.npc, x: q.x, z: q.z }; }
     cs.sort((p, q) => Math.hypot(q[0] - door.x, q[1] - door.z) - Math.hypot(p[0] - door.x, p[1] - door.z));
     (b.chests || []).slice(0, 4).forEach((k, i) => { addC(k, cs[i][0], cs[i][1], id); bb.chests.push(containers[containers.length - 1]); });
   });
+  const gen = genWorld(cfg, buildings);
   for (const sp of M.spots || []) addC(sp.kind, sp.x, sp.z, -1);
-  return { buildings, walls, containers, cfg: M };
+  // созданные генератором: не ближе 1.6 м к уже стоящим (могилы и алтарь не слипаются)
+  for (const sp of gen.spots) if (!containers.some(c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1);
+  return { buildings, walls, containers, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads };
 }
 
 // какой дом содержит точку (внутри стен), иначе −1
@@ -73,6 +88,10 @@ export function resolve(map, o, r) {
       }
     }
   }
+  for (const q of map.solids) {
+    const dx = o.x - q.x, dz = o.z - q.z, d = Math.hypot(dx, dz), m = q.r + r;
+    if (d < m) { hit = true; if (d > 1e-9) { o.x = q.x + dx / d * m; o.z = q.z + dz / d * m; } else o.x += m; }
+  }
   return hit;
 }
 
@@ -87,3 +106,14 @@ export function rotateInput(mx, mz, yawDeg) {
   const a = yawDeg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
   return { mx: mx * c + mz * s, mz: -mx * s + mz * c };
 }
+
+// можно ли ставить деревья и камни: не в домах, не на дорогах, не в областях (кладбище, ферма…) и не у препятствий
+export function propsBlocked(map, x, z) {
+  if (nearBuilding(map, x, z, 3)) return true;
+  for (const q of map.solids) if (Math.hypot(q.x - x, q.z - z) < q.r + 1.5) return true;
+  for (const [a, b] of map.roads) if (distSegPt(x, z, a, b) < 2.4) return true;
+  for (const zn of map.cfg.zones || []) { const hw = zn.w ? zn.w / 2 + 2 : zn.r + 3, hd = zn.d ? zn.d / 2 + 2 : zn.r + 3; if (Math.abs(x - zn.x) < hw && Math.abs(z - zn.z) < hd) return true; }
+  for (const c of map.containers) if (Math.hypot(c.x - x, c.z - z) < 2) return true;
+  return Math.hypot(x, z) < 6;
+}
+import { distSeg as distSegPt } from './world3d.js';

@@ -1,7 +1,7 @@
 // Сумка и экипировка: окно с надетым, списком вещей, карточкой вещи и действиями.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine } from './data/items.js';
 import { betterThanWorn, equipAt, unequip, score } from './inv.js';
-import { useItem, dropItem, refreshGear } from './sim.js';
+import { useItem, dropItem, refreshGear, sellItem, sellPrice } from './sim.js';
 
 const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
 const tabOf = it => it.slot === 'weapon' ? 'weapon' : it.slot ? 'armor' : it.cat === 'consumable' ? 'use' : 'other';
@@ -40,15 +40,15 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset } = 
       else cardEl.appendChild(el('div', 'cmp up', 'Слот пуст'));
     }
     if (it.text) cardEl.appendChild(el('div', 'ct', it.text));
-    cardEl.appendChild(el('div', 'cv', `Цена: ${it.value} пепла`));
+    cardEl.appendChild(el('div', 'cv', `Продажа: ${sellPrice(it, cfg)} пепла (только у торговца)`));
     const row = el('div', 'acts');
     const btn = (label, fn, cls) => { const b = el('button', cls || '', label); b.type = 'button'; b.addEventListener('click', () => { fn(); render(); onChange && onChange(); }); row.appendChild(b); };
     if (sel.from === 'eq') btn('Снять', () => { if (!unequip(W.inv, sel.slot, cfg.bag.slots)) flash('Сумка полна'); else sel = null; }, 'main');
     else {
       if (it.slot) btn('Надеть', () => { equipAt(W.inv, sel.i); sel = null; }, 'main');
       if (it.use) btn('Использовать', () => { if (!useItem(W, sel.i)) flash('Сейчас не нужно'); else if (!W.inv.bag[sel.i] || W.inv.bag[sel.i].id !== it.id) sel = null; }, 'main');
-      btn('Продать', () => { const s = W.inv.bag[sel.i]; W.inv.ash += it.value * s.n; W.inv.bag.splice(sel.i, 1); sel = null; });
-      if (n > 1) btn('Продать 1', () => { const s = W.inv.bag[sel.i]; W.inv.ash += it.value; s.n -= 1; });
+      btn(`Продать · ${sellPrice(it, cfg) * n}`, () => { if (sellItem(W, sel.i, n) === 'far') flash('Продавать можно только у торговца'); else sel = null; });
+      if (n > 1) btn(`Продать 1 · ${sellPrice(it, cfg)}`, () => { if (sellItem(W, sel.i, 1) === 'far') flash('Продавать можно только у торговца'); });
       btn('Выбросить', () => { dropItem(W, sel.i, n); sel = null; });
     }
     cardEl.appendChild(row);

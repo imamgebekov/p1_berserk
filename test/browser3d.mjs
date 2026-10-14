@@ -60,6 +60,23 @@ try {
   const hp = await page.evaluate(() => window.__b3d.W.enemies.find(e => e.id === 999)?.hp ?? 0);
   if (!(hp < 100)) bad('удар кнопкой не задел врага');
 
+  // торговец: кнопка «Торговать» появляется рядом, покупка и продажа
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc); w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.inv.ash = 500; w.inv.bag.push({ id: 'k_goblet', n: 1 }); });
+  await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-merchant.png') });
+  if (await page.evaluate(() => document.getElementById('talk').hidden)) bad('кнопка «Торговать» не появилась рядом с торговцем');
+  else {
+    await page.tap('#talk'); await page.waitForTimeout(250);
+    if (await page.evaluate(() => document.getElementById('shop').hidden)) bad('окно торговли не открылось');
+    await page.screenshot({ path: join(out, '3d-shop.png') });
+    const n0 = await page.evaluate(() => window.__b3d.W.inv.bag.length);
+    await page.tap('#shopList .srow:first-child .buy'); await page.waitForTimeout(150);
+    if (!(await page.evaluate(() => window.__b3d.W.inv.ash < 500))) bad('покупка не списала пепел');
+    await page.tap('#shopTabs .tab[data-tab="sell"]'); await page.tap('#shopJunk'); await page.waitForTimeout(150);
+    if (await page.evaluate(() => window.__b3d.W.inv.bag.some(s => s.id === 'k_goblet'))) bad('«Продать хлам» не продал кубок');
+    await page.screenshot({ path: join(out, '3d-shop-sell.png') });
+    await page.tap('#shopClose'); await page.waitForTimeout(100);
+  }
+  await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; });
   // дома: снаружи крыша видна, внутри тает, стены опускаются
   await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings[0]; w.enemies.length = 0; w.player.x = b.door.out.x + 2; w.player.z = b.door.out.z; w.player.inv = 1e9; });
   await page.waitForTimeout(900); await page.screenshot({ path: join(out, '3d-house-out.png') });

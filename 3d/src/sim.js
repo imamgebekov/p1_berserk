@@ -12,19 +12,20 @@ export function mulberry32(a) {
 }
 
 import { BY_ID } from './data/items.js';
-import { CONTAINERS, rollLoot, rollDrop } from './data/loot.js';
+import { CONTAINERS, SHOP, SHOP_STAPLES, rollLoot, rollDrop } from './data/loot.js';
 import { createInv, addItem, removeAt, gearStats } from './inv.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide } from './map.js';
 
 export function createWorld(cfg, rng = Math.random) {
   const W = makeWorld(cfg, rng);
   for (const c of W.map.containers) refill(W, c);
+  restock(W);
   return W;
 }
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, shop: { stock: [], t: 0 }, nearMerchant: false, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0 },
     enemies: []
   };
@@ -225,6 +226,35 @@ function refill(W, c) {
   c.locked = !!def.locked; c.keyTier = def.locked ? (depth < .3 ? 1 : depth < .6 ? 2 : 3) : 0;
 }
 
+// ---- торговля ----
+export const sellPrice = (it, cfg) => Math.max(1, Math.round(it.value * cfg.shop.sellMul));
+export const buyPrice = (it, cfg) => Math.max(2, Math.round(it.value * cfg.shop.buyMul));
+export function restock(W) {
+  const out = SHOP_STAPLES.map(([id, n]) => ({ id, n }));
+  for (const it of rollLoot(SHOP, W.rng, .12, W.gear.luck)) { const ex = out.find(o => o.id === it.id); if (ex) ex.n += it.n; else out.push({ ...it }); }
+  W.shop.stock = out; W.shop.t = 0;
+}
+export function buyItem(W, i) {
+  const s = W.shop.stock[i]; if (!s || !W.nearMerchant) return 'far';
+  const it = BY_ID[s.id], price = buyPrice(it, W.cfg);
+  if (W.inv.ash < price) return 'ash';
+  if (addItem(W.inv, s.id, 1, W.cfg.bag.slots) > 0) return 'full';
+  W.inv.ash -= price; s.n -= 1; if (s.n <= 0) W.shop.stock.splice(i, 1);
+  W.ev.push({ k: 'pickup', id: s.id, n: 1 }); return 'ok';
+}
+export function sellItem(W, idx, n = 1) {
+  const s = W.inv.bag[idx]; if (!s) return 'none'; if (!W.nearMerchant) return 'far';
+  const q = Math.min(n, s.n), it = BY_ID[s.id];
+  W.inv.ash += sellPrice(it, W.cfg) * q; removeAt(W.inv, idx, q); return 'ok';
+}
+// продать весь хлам разом: безделушки, деньги, записки и материалы (оружие, броня, ключи и расходники остаются)
+export function sellJunk(W) {
+  if (!W.nearMerchant) return -1;
+  let sum = 0;
+  for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if (it.cat === 'curio' || it.cat === 'material') { sum += sellPrice(it, W.cfg) * s.n; W.inv.bag.splice(i, 1); } }
+  W.inv.ash += sum; return sum;
+}
+
 // положить в сумку; возвращает остаток
 function give(W, id, n) { const left = addItem(W.inv, id, n, W.cfg.bag.slots); if (n - left > 0) W.ev.push({ k: 'pickup', id, n: n - left }); return left; }
 
@@ -236,6 +266,8 @@ function updateHouses(W, dt) {
     const near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r);
     d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
   }
+  W.nearMerchant = !p.dead && W.map.buildings.some(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach);
+  if ((W.shop.t += dt) > W.cfg.shop.restock) restock(W);
   for (const c of W.map.containers) {
     const def = CONTAINERS[c.kind];
     if (c.cd > 0) c.cd -= dt;

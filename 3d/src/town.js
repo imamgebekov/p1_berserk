@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { pushBox } from './models.js';
+import { furnish } from './furniture.js';
 
 const WALL = ['#5a463a', '#654d3f', '#50403a', '#5d4a3e'];
 const ROOF = ['#6a2428', '#5e2124', '#74292c'];
@@ -17,7 +18,7 @@ export function buildTown(map, cfg, rnd) {
   const light = new THREE.PointLight('#ffb060', 0, 13, 1.5); light.position.set(0, 2.2, 0); group.add(light);
 
   for (const b of map.buildings) {
-    const wallL = [], winL = [], floorL = [], roofL = [];
+    const wallL = [], winL = [], floorL = [], roofL = [], glowL = [];
     const pick = a => a[(rnd() * a.length) | 0];
     // стены
     for (const w of b.walls) {
@@ -39,13 +40,7 @@ export function buildTown(map, cfg, rnd) {
     // пол из досок
     const iw = b.ix1 - b.ix0, id = b.iz1 - b.iz0, n = Math.ceil(id / .6);
     for (let i = 0; i < n; i++) { const z = b.iz0 + (i + .5) * id / n; pushBox(floorL, iw, .08, id / n - .03, b.x, .04, z, 0, 0, 0, i % 2 ? '#3a2819' : '#33231a'); }
-    // обстановка: у стены, противоположной двери (не мешает ходить, низкая)
-    const sx = d.side === 'e' ? -1 : d.side === 'w' ? 1 : 0, sz = d.side === 's' ? -1 : d.side === 'n' ? 1 : 0;
-    const fx = b.x + sx * (iw / 2 - 1.0), fz = b.z + sz * (id / 2 - 1.0);
-    const k = (rnd() * 3) | 0;
-    if (k === 0) { pushBox(floorL, 1.2, .08, .8, fx, .7, fz, 0, 0, 0, '#4a3524'); for (const [ox, oz] of [[-.5, -.3], [.5, -.3], [-.5, .3], [.5, .3]]) pushBox(floorL, .1, .66, .1, fx + ox, .35, fz + oz, 0, 0, 0, '#2a1c12'); pushBox(floorL, .3, .3, .3, fx + .2, .9, fz, 0, .5, 0, '#8a7a62'); }
-    else if (k === 1) { pushBox(floorL, 1.9, .35, .95, fx, .3, fz, 0, 0, 0, '#4a3a30'); pushBox(floorL, .5, .15, .8, fx - (sx || 1) * .7, .55, fz, 0, 0, 0, '#a89a82'); pushBox(floorL, 1.9, .3, .1, fx, .55, fz + .5, 0, 0, 0, '#2a1c12'); }
-    else { pushBox(floorL, .9, .9, .9, fx, .45, fz, 0, .2, 0, '#4a3524'); pushBox(floorL, .7, .7, .7, fx + .9, .35, fz + .3, 0, .6, 0, '#3e2c1e'); pushBox(floorL, .5, .8, .5, fx - .8, .4, fz - .2, 0, 0, 0, '#2e2218'); }
+    furnish(b, floorL, glowL, rnd);
     // крыша: ступенчатая, чуть шире дома
     const ov = .45;
     pushBox(roofL, b.w + ov * 2, .3, b.d + ov * 2, b.x, H + .15, b.z, 0, 0, 0, pick(ROOF));
@@ -65,6 +60,7 @@ export function buildTown(map, cfg, rnd) {
     walls.add(hinge);
     const doorDir = { n: -1, s: 1, e: -1, w: 1 }[d.side];
     group.add(walls, floor, roof);
+    if (glowL.length) group.add(new THREE.Mesh(merged(glowL), new THREE.MeshBasicMaterial({ vertexColors: true })));
     items.push({ b, walls, roof, a: 1, cut: 1, hinge, doorDir, vert });
   }
 

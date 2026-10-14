@@ -14,8 +14,8 @@ export const CFG3 = {
   },
 
   world: {
-    radius: 70,           // граница мира (круг)
-    props: 90,            // число деревьев и камней
+    radius: 85,           // граница мира (круг)
+    props: 150,            // число деревьев и камней
     seed: 7
   },
 
@@ -29,22 +29,42 @@ export const CFG3 = {
     doorReach: 2.0,       // на каком расстоянии от двери она открывается сама
     cutH: .35,            // во сколько раз стены «опускаются», когда герой внутри (вид сверху)
     buildings: [
-      { x: -14, z: -6,  w: 8, d: 6, door: 'e', chests: ['chest', 'wardrobe'] },
-      { x: 13,  z: -10, w: 7, d: 6, door: 'w', chests: ['coffer', 'crate'] },
-      { x: -4,  z: -20, w: 9, d: 6, door: 's', chests: ['ironchest', 'rack', 'barrel'] },
-      { x: 20,  z: 6,   w: 6, d: 7, door: 'w', chests: ['sack', 'chest'] },
-      { x: -18, z: 14,  w: 7, d: 7, door: 'e', chests: ['locked', 'shelf'] },
-      { x: 6,   z: 22,  w: 8, d: 6, door: 'n', chests: ['medchest', 'crate', 'barrel'] },
-      { x: 34,  z: -8,  w: 6, d: 6, door: 'w', chests: ['cache', 'corpse'] },
-      { x: -32, z: -4,  w: 6, d: 6, door: 'e', chests: ['ironchest', 'armorstand'] }
+      // деревня вокруг костра
+      { x: -14, z: -6,  w: 8,  d: 6, door: 'e', kind: 'house',     chests: ['chest', 'wardrobe'] },
+      { x: 13,  z: -10, w: 7,  d: 6, door: 'w', kind: 'house',     chests: ['coffer', 'crate'] },
+      { x: -4,  z: -20, w: 9,  d: 6, door: 's', kind: 'house',     chests: ['ironchest', 'rack', 'barrel'] },
+      { x: 20,  z: 6,   w: 6,  d: 7, door: 'w', kind: 'house',     chests: ['sack', 'chest'] },
+      { x: -18, z: 14,  w: 7,  d: 7, door: 'e', kind: 'house',     chests: ['locked', 'shelf'] },
+      { x: 6,   z: 24,  w: 8,  d: 6, door: 'n', kind: 'house',     chests: ['medchest', 'crate', 'barrel'] },
+      { x: -8,  z: 9,   w: 7,  d: 6, door: 'e', kind: 'shop',      chests: ['crate', 'coffer'], npc: 'merchant' },
+      { x: -28, z: 30,  w: 9,  d: 7, door: 'n', kind: 'smithy',    chests: ['smithchest', 'smithchest', 'rack', 'ironchest'] },
+      { x: 28,  z: -26, w: 12, d: 8, door: 'w', kind: 'tavern',    chests: ['barrel', 'barrel', 'crate', 'chest'] },
+      { x: -34, z: -20, w: 7,  d: 11, door: 's', kind: 'chapel',   chests: ['altar', 'shelf', 'coffer'] },
+      { x: 48,  z: 8,   w: 11, d: 7, door: 'w', kind: 'barracks',  chests: ['rack', 'rack', 'armorstand', 'ironchest'] },
+      { x: 30,  z: 40,  w: 10, d: 8, door: 'n', kind: 'warehouse', chests: ['crate', 'crate', 'barrel', 'locked'] },
+      { x: 36,  z: -8,  w: 6,  d: 6, door: 'w', kind: 'house',     chests: ['cache', 'corpse'] },
+      { x: -36, z: 2,   w: 6,  d: 6, door: 'e', kind: 'house',     chests: ['ironchest', 'armorstand'] },
+      { x: 52,  z: -22, w: 5,  d: 5, door: 'w', kind: 'hut',       chests: ['sack', 'cache'] },
+      { x: -52, z: 16,  w: 5,  d: 5, door: 'e', kind: 'hut',       chests: ['sack', 'corpse'] },
+      { x: -18, z: -34, w: 5,  d: 5, door: 's', kind: 'hut',       chests: ['barrel', 'crate'] }
     ],
     // контейнеры под открытым небом: вид из data/loot.js, координаты
     spots: [
-      { kind: 'wagon', x: 8, z: 12 }, { kind: 'grave', x: -26, z: -20 }, { kind: 'corpse', x: 25, z: -24 },
-      { kind: 'altar', x: -44, z: 22 }, { kind: 'barrel', x: -9, z: 3 }, { kind: 'crate', x: 11, z: 2 }, { kind: 'locked', x: 44, z: 24 }
+      { kind: 'wagon', x: 15, z: 15 }, { kind: 'corpse', x: 25, z: -42 }, { kind: 'barrel', x: -9, z: 3 }, { kind: 'crate', x: 11, z: 3 },
+      { kind: 'locked', x: 62, z: 28 }, { kind: 'cache', x: -60, z: 40 }, { kind: 'corpse', x: 40, z: 56 }, { kind: 'barrel', x: -26, z: 24 },
+      { kind: 'crate', x: 24, z: 2 }, { kind: 'sack', x: -20, z: 22 }
+    ],
+    // области: кладбище (могилы-контейнеры), ферма, рынок, руины, лагерь
+    zones: [
+      { type: 'graveyard', x: -52, z: -38, w: 26, d: 18 },
+      { type: 'farm', x: 52, z: 40, w: 30, d: 22 },
+      { type: 'market', x: 4, z: 14, r: 8 },
+      { type: 'ruins', x: -56, z: 40, r: 9 },
+      { type: 'camp', x: 56, z: -44, r: 7 }
     ]
   },
 
+  shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4 },   // цена покупки = цена вещи × buyMul, продажи × sellMul; витрина обновляется раз в restock секунд
   bag: { slots: 30 },
   gear: { armorK: .035, maxSpd: 45, pickup: 1.3, dropLife: 90 },   // броня: урон /(1+брони×armorK); подбор с земли
 

@@ -3,6 +3,7 @@ import { createWorld, step, respawnPlayer } from './sim.js';
 import { BY_ID, RARITY } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
+import { createShop } from './shop.js';
 import { loadSave, createSaver } from './save3d.js';
 import { createRenderer } from './render.js';
 import { rotateInput } from './map.js';
@@ -15,7 +16,7 @@ const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
 // iOS Safari местами игнорирует touch-action: страницу нельзя ни листать, ни тянуть, ни масштабировать, пока открыта не панель
-const inPanel = e => e.target.closest && e.target.closest('#panel, #bag');
+const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop');
 document.addEventListener('touchmove', e => { if (!inPanel(e)) e.preventDefault(); }, { passive: false });
 for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -81,6 +82,11 @@ const bag = createBag(document, W, cfg, {
   onChange: () => saver.write(),
   onReset: () => { saver.reset(); location.reload(); }
 });
+const shop = createShop(document, W, cfg, {
+  onOpen: () => { panelOpen = true; input.release(); },
+  onClose: () => { panelOpen = false; saver.write(); },
+  onChange: () => { saver.write(); bag.render(); }
+});
 createTweakPanel(document, cfg, defaults, {
   onChange: t => { if (t && (t.reload || t.path === 'view.pixelScale')) fit(); },
   onOpen: () => { panelOpen = true; input.release(); },
@@ -90,6 +96,7 @@ $('again').addEventListener('click', () => { respawnPlayer(W); $('dead').hidden 
 document.addEventListener('visibilitychange', () => { if (document.hidden) { input.release(); saver.write(); } });
 addEventListener('pagehide', () => saver.write());
 
+const talk = $('talk');
 const hpFill = $('hpFill'), hpTxt = $('hpTxt'), killsEl = $('kills');
 let saveT = 0, lastHp = -1, lastKills = -1, lastAsh = -1, last = performance.now();
 function loop(now) {
@@ -101,6 +108,7 @@ function loop(now) {
     step(W, dt, inp);
   }
   if (renderer) renderer.render(W, panelOpen || landscape ? 0 : dt);
+  { const show = W.nearMerchant && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; }
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; hpFill.style.transform = `scaleX(${W.player.hp / W.player.maxhp})`; hpTxt.textContent = Math.ceil(W.player.hp); }
@@ -110,4 +118,4 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { bag, saver, W, cfg, renderer, input, step, respawnPlayer };
+window.__b3d = { bag, shop, saver, W, cfg, renderer, input, step, respawnPlayer };

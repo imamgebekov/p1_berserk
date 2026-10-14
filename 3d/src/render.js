@@ -1,10 +1,11 @@
 // Сцена Three.js: мир, свет, камера, спецэффекты. Рисует в маленьком разрешении и растягивает без сглаживания.
-import { makeMap, nearBuilding } from './map.js';
+import { makeMap, propsBlocked } from './map.js';
+import { buildDecor } from './decor.js';
 import { buildTown } from './town.js';
 import { buildContainers } from './containers.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock } from './models.js';
+import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc } from './models.js';
 import { mulberry32 } from './sim.js';
 
 const FOG = '#150c0b';
@@ -39,6 +40,8 @@ function skyDome() {
   return m;
 }
 
+const angDiffTo = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
+
 export function createRenderer(canvas, cfg, hooks = {}) {
   const gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: !!hooks.preserve });
   gl.setPixelRatio(1);
@@ -57,6 +60,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
   const map = makeMap(cfg);
   const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
+  const decor = buildDecor(map, mulberry32(cfg.world.seed + 2)); scene.add(decor.group);
+  const npcs = [];
+  for (const b of map.buildings) if (b.npc) { const n = makeNpc(); n.group.position.set(b.npc.x, 0, b.npc.z); n.pos = b.npc; scene.add(n.group); npcs.push(n); }
   const conts = buildContainers(map); scene.add(conts.group);
 
   // деревья и камни одним мешем (один вызов отрисовки)
@@ -64,7 +70,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   for (let i = 0; i < cfg.world.props; i++) {
     const a = rnd() * Math.PI * 2, d = 7 + Math.sqrt(rnd()) * (cfg.world.radius - 8), x = Math.cos(a) * d, z = Math.sin(a) * d;
     const tree = rnd() < .65;
-    if (nearBuilding(map, x, z, 3)) continue;                          // не растим деревья в домах и у стен
+    if (propsBlocked(map, x, z)) continue;                             // не растим деревья в домах, на дорогах и в областях
     (tree ? addTree : addRock)(parts, rnd, x, z);
   }
   // граница мира: частокол из мёртвых стволов
@@ -167,6 +173,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
     town.update(W.inside, dt, W.map);
     conts.update(W, t);
+    for (const n of npcs) { const dx = p.x - n.pos.x, dz = p.z - n.pos.z; if (Math.hypot(dx, dz) < 9) n.group.rotation.y += angDiffTo(Math.atan2(dx, dz), n.group.rotation.y) * Math.min(1, dt * 6); n.root.position.y = Math.sin(t * 2) * .02; n.armL.rotation.x = Math.sin(t * 1.6) * .08; n.armR.rotation.x = -Math.sin(t * 1.6) * .08; }
     // костёр: мерцание света и пламени
     const fl = .8 + .2 * Math.sin(t * 17) + .1 * Math.sin(t * 29.3);
     fire.light.intensity = 26 * fl; fire.flames.forEach((f, i) => { f.scale.y = .8 + .35 * Math.sin(t * (9 + i * 4) + i); f.rotation.y = t * (2 + i); });
