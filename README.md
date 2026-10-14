@@ -5,7 +5,6 @@
 ## Запуск
 
 ```bash
-cd berserk
 npm install
 npm run dev          # сервер для разработки, доступен по сети
 ```
@@ -112,17 +111,7 @@ npm run test:all
 
 ## Публикация на телефон по ссылке (GitHub Pages)
 
-Рабочий процесс `.github/workflows/berserk-pages.yml` сам прогоняет тесты, собирает игру и кладёт сборку в ветку `gh-pages` при каждом пуше в `berserk/**`.
-Один раз включите в репозитории: **Settings → Pages → Source: «Deploy from a branch» → ветка `gh-pages`, папка `/ (root)`**.
-Игра откроется по адресу `https://<пользователь>.github.io/<репозиторий>/`. Это HTTPS, поэтому на телефоне работают офлайн-режим и установка на экран «Домой».
-Вручную с компьютера: `cd berserk && npm run deploy:pages -- https://github.com/<пользователь>/<репозиторий>.git`.
-Если рабочий процесс не может писать в репозиторий: Settings → Actions → General → Workflow permissions → «Read and write permissions».
-
-### Если Pages недоступны (приватный репозиторий без платной подписки)
-
-GitHub Pages для приватных репозиториев требует платный план. Бесплатные варианты, репозиторий остаётся приватным:
-
-**Netlify** (в репозитории уже есть `netlify.toml`): app.netlify.com → *Add new site → Import an existing project* → GitHub → репозиторий `hts-atlas`, ветка `claude/berserk-refactor-features-7fqv1m` (или `main` после слияния). Настройки сборки подхватятся из `netlify.toml`. Через пару минут появится адрес `https://<имя>.netlify.app`.
-**Cloudflare Pages**: Workers & Pages → *Create → Pages → Connect to Git*; Root directory `berserk`, Build command `npm run build`, Output directory `dist`, переменная `NODE_VERSION=22`.
-Файл `berserk/public/_headers` настраивает кэш: страница и service worker всегда свежие.
-Другой путь — отдельный публичный репозиторий только с игрой (тогда подойдёт рабочий процесс `berserk-pages.yml` и Pages).
+Рабочий процесс `.github/workflows/pages.yml` при каждом пуше в `main` прогоняет тесты, собирает игру и публикует её на GitHub Pages.
+Один раз включите: **Settings → Pages → Build and deployment → Source: «GitHub Actions»**. Дальше всё автоматически.
+Игра откроется по адресу `https://<пользователь>.github.io/<репозиторий>/` — это HTTPS, поэтому на телефоне работают офлайн-режим и установка на экран «Домой».
+Хостинги Netlify и Cloudflare Pages тоже подойдут: команда сборки `npm run build`, папка `dist`, `NODE_VERSION=22` (файл `public/_headers` настраивает кэш).

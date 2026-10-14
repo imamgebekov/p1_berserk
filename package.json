@@ -11,7 +11,6 @@
     "test": "node test/items.mjs && node test/economy.mjs && node test/progress.mjs && node test/combat.mjs && node test/headless.mjs",
     "balance": "node tools/balance.mjs",
     "icons": "node tools/make-icons.mjs",
-    "deploy:pages": "bash tools/publish-pages.sh",
     "test:browser": "node test/browser.mjs && node test/browser-progress.mjs && node test/browser-polish.mjs",
     "test:all": "npm test && npm run test:browser"
   },
