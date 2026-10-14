@@ -248,7 +248,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (W.lvl !== shownLvl) showLevel(W);
     const under = W.lvl !== 'surface';
     scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity;
-    if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); }
+    if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
     else if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток
       lastLight = W.light; const k = skyAt(W.light, cfg.daynight.sky);
       scene.fog.color.set(k.fog); scene.background.set(k.fog);

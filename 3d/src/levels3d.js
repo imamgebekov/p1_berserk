@@ -9,23 +9,23 @@ export const SURFACE = 'surface';
 export const onSurface = W => W.lvl === SURFACE;
 
 // сетка тумана войны для прямоугольника (или круга радиуса R вокруг нуля)
-function fogFor(cfg, R) { const n = Math.ceil(2 * R / cfg.map.cell) + 2; return { seenN: n, seenR: R, seen: new Uint8Array(n * n) }; }
+function fogFor(R, c, rev) { const n = Math.ceil(2 * R / c) + 2; return { seenN: n, seenR: R, seenC: c, revR: rev, seen: new Uint8Array(n * n) }; }
 
 export function initLevels(W) {
   const cfg = W.cfg;
   W.lvl = SURFACE;
-  W.levels = { [SURFACE]: { id: SURFACE, def: null, map: W.map, enemies: W.enemies, drops: W.drops, spawnT: W.spawnT, seen: W.seen, seenN: W.seenN, seenR: cfg.world.radius, rng: W.rng } };
+  W.levels = { [SURFACE]: { id: SURFACE, def: null, map: W.map, enemies: W.enemies, drops: W.drops, spawnT: W.spawnT, seen: W.seen, seenN: W.seenN, seenR: cfg.world.radius, seenC: cfg.map.cell, revR: cfg.map.reveal, rng: W.rng } };
   // у подземелья свой поток случайных чисел: новые подземелья не сдвигают добычу и бои наверху (в тестах с зерном — воспроизводимо, в игре — Math.random)
   ((cfg.dungeons && cfg.dungeons.list) || []).forEach((def, i) => {
     const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
     const rng = W.rng === Math.random ? Math.random : mulberry32(cfg.dungeons.seed + i);
-    W.levels[def.id] = { id: def.id, def, map, enemies: [], drops: [], spawnT: 1, rng, ...fogFor(cfg, R) };
+    W.levels[def.id] = { id: def.id, def, map, enemies: [], drops: [], spawnT: 1, rng, ...fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal) };
   });
-  W.seenR = cfg.world.radius;
+  W.seenR = cfg.world.radius; W.seenC = cfg.map.cell; W.revR = cfg.map.reveal;
 }
 
 function stash(W) { const L = W.levels[W.lvl]; L.enemies = W.enemies; L.drops = W.drops; L.spawnT = W.spawnT; }
-function load(W, id) { const L = W.levels[id]; W.lvl = id; W.map = L.map; W.enemies = L.enemies; W.drops = L.drops; W.spawnT = L.spawnT; W.seen = L.seen; W.seenN = L.seenN; W.seenR = L.seenR; W.rng = L.rng; }
+function load(W, id) { const L = W.levels[id]; W.lvl = id; W.map = L.map; W.enemies = L.enemies; W.drops = L.drops; W.spawnT = L.spawnT; W.seen = L.seen; W.seenN = L.seenN; W.seenR = L.seenR; W.seenC = L.seenC; W.revR = L.revR; W.rng = L.rng; }
 
 // выполнить fn так, будто текущий уровень — id (возрождение боссов, наполнение контейнеров на других уровнях)
 export function withLevel(W, id, fn) {
@@ -58,7 +58,7 @@ export function travel(W, id, x, z) {
   resolve(W.map, p, W.cfg.player.radius);
   W.proj.length = 0; W.haz.length = 0; W.echoQ.length = 0; W.inside = -1; W.hudBoss = null;
   W.allies.forEach((a, i) => { if (a.dead) return; const ang = p.face + Math.PI + (i - 1) * .9; a.x = p.x + Math.sin(ang) * 1.4; a.z = p.z + Math.cos(ang) * 1.4; a.vx = a.vz = 0; a.state = 'idle'; a.tg = null; resolve(W.map, a, .45); });
-  reveal(W, p.x, p.z, W.cfg.map.reveal); W.revealT = .3;
+  reveal(W, p.x, p.z, W.revR); W.revealT = .3;
   W.ev.push({ k: 'travel', to: id, up: id === SURFACE });
   return true;
 }

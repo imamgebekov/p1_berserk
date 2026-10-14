@@ -12,6 +12,7 @@ export function drawMap(ctx, W, v) {
   if (under) {
     // подземелье: пол комнат, стены, лестница
     ctx.fillStyle = '#2a221d'; for (const r of M.rooms) ctx.fillRect(X(r.x0), Y(r.z0), (r.x1 - r.x0) * sc, (r.z1 - r.z0) * sc);
+    ctx.fillStyle = '#7a5030'; for (const d of M.doors) if (d.open < .6) ctx.fillRect(X(d.rect.x0), Y(d.rect.z0), Math.max(2, (d.rect.x1 - d.rect.x0) * sc), Math.max(2, (d.rect.z1 - d.rect.z0) * sc));
     ctx.fillStyle = '#6a5a4c'; for (const b of M.blocks) ctx.fillRect(X(b.x0), Y(b.z0), Math.max(1, (b.x1 - b.x0) * sc), Math.max(1, (b.z1 - b.z0) * sc));
   } else {
     // мир
@@ -43,7 +44,7 @@ export function drawMap(ctx, W, v) {
   // могила с потерянным пеплом
   if (W.tomb && (W.tomb.lvl || 'surface') === (W.lvl || 'surface')) { ctx.strokeStyle = '#000'; ctx.fillStyle = '#ffd45a'; ctx.lineWidth = 1.5; const tx = X(W.tomb.x), ty = Y(W.tomb.z); ctx.fillRect(tx - 1.5, ty - 5, 3, 10); ctx.fillRect(tx - 4, ty - 2, 8, 3); ctx.strokeRect(tx - 1.5, ty - 5, 3, 10); }
   // туман войны
-  const cell = W.cfg.map.cell, n = W.seenN;
+  const cell = W.seenC || W.cfg.map.cell, n = W.seenN;
   ctx.fillStyle = full ? 'rgba(6,4,3,.94)' : 'rgba(6,4,3,.9)';
   const i0 = Math.max(0, Math.floor((cx - w / 2 / sc + R) / cell)), i1 = Math.min(n - 1, Math.floor((cx + w / 2 / sc + R) / cell));
   const j0 = Math.max(0, Math.floor((cz - h / 2 / sc + R) / cell)), j1 = Math.min(n - 1, Math.floor((cz + h / 2 / sc + R) / cell));

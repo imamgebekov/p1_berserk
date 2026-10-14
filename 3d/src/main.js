@@ -11,10 +11,10 @@ import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sf
 import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLine, questMark } from './quests3d.js';
-import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName } from './sim.js';
+import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel } from './sim.js';
 import { drawMap } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
-import { loadSave, createSaver, unpackSeen, exportSave, importSave } from './save3d.js';
+import { loadSave, createSaver, unpackSeen, applyDseen, exportSave, importSave } from './save3d.js';
 import { createRenderer } from './render.js';
 import { rotateInput } from './map.js';
 import { createInput } from './input.js';
@@ -42,7 +42,7 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(cfg.bag.slots);
-if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); for (const id of Object.keys(saved.dseen)) unpackSeen(saved.dseen[id], W.levels[id].seen); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
+if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); applyDseen(W, saved.dseen); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
 const saver = createSaver(W);
 const input = createInput(document, window);
 let panelOpen = false, landscape = false;
@@ -267,4 +267,4 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { usePortal: () => usePortal(W), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };
+window.__b3d = { usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };

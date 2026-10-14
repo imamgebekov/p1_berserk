@@ -1,7 +1,7 @@
 // Отряд: найм, бой, следование и лечение союзников.
 import { len, clamp, rr } from './util3d.js';
 import { questEvent } from './quests3d.js';
-import { insideOf, resolve, slide } from './map.js';
+import { insideOf, resolve, slide, pathStep } from './map.js';
 import { killEnemy } from './sim.js';
 
 // ---- отряд ----
@@ -69,7 +69,9 @@ export function updateAllies(W, dt) {
       // идти за героем: позиция в строю позади него
       const n = live.length, ang = p.face + Math.PI + (idx - (n - 1) / 2) * .95, r = S.follow + (idx % 2) * .8;
       const sx = p.x + Math.sin(ang) * r, sz = p.z + Math.cos(ang) * r, dx = sx - a.x, dz = sz - a.z, d = len(dx, dz);
+      const wp = pathStep(W.map, a.x, a.z, p.x, p.z);     // в подземелье герой в другой комнате: идти через проходы
       if (len(p.x - a.x, p.z - a.z) > S.leash) { a.x = sx; a.z = sz; resolve(W.map, a, .45); }
+      else if (wp) { const wx = wp.x - a.x, wz = wp.z - a.z, wd = len(wx, wz) || 1e-6; a.face = Math.atan2(wx, wz); slide(W.map, a, wx / wd * T.speed * 1.5 * dt, wz / wd * T.speed * 1.5 * dt, .45); }
       else if (d > .9) { const sp = T.speed * (d > 6 ? 1.5 : 1); a.face = Math.atan2(dx, dz); slide(W.map, a, dx / d * sp * dt, dz / d * sp * dt, .45); }
       // восстановление: вне боя понемногу, у костра быстро
       if (a.calm <= 0 && a.hp < a.maxhp) a.hp = Math.min(a.maxhp, a.hp + (W.lvl === 'surface' && len(a.x, a.z) < W.cfg.player.fire.radius ? S.fireRegen : S.regen) * dt);

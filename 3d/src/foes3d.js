@@ -56,6 +56,7 @@ function hitsWall(map, x, z) {
     for (const w of list) if (x >= w.x0 && x <= w.x1 && z >= w.z0 && z <= w.z1) return true;
   }
   for (const w of map.blocks || []) if (x >= w.x0 && x <= w.x1 && z >= w.z0 && z <= w.z1) return true;     // стены подземелий
+  for (const d of map.doors || []) { const w = d.rect; if (d.open < .6 && x >= w.x0 && x <= w.x1 && z >= w.z0 && z <= w.z1) return true; }
   return false;
 }
 

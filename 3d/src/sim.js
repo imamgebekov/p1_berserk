@@ -440,6 +440,10 @@ function updateHouses(W, dt) {
     const near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r) || W.allies.some(a => !a.dead && len(a.x - d.x, a.z - d.z) < r);
     d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
   }
+  for (const d of W.map.doors || []) {      // двери подземелий: так же открываются, когда рядом кто-то есть
+    const r = M.doorReach, near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r) || W.allies.some(a => !a.dead && len(a.x - d.x, a.z - d.z) < r);
+    d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
+  }
   { const nb = p.dead ? null : W.map.buildings.find(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach); W.nearNpc = nb ? nb.npc.kind : null; W.nearMerchant = W.nearNpc === 'merchant'; }
   if ((W.shop.t += dt) > W.cfg.shop.restock) restock(W);
   if (W.tomb && (W.tomb.lvl || SURFACE) === W.lvl && !p.dead && len(p.x - W.tomb.x, p.z - W.tomb.z) < 1.6) { W.inv.ash += W.tomb.ash; W.ev.push({ k: 'tomb', ash: W.tomb.ash, x: W.tomb.x, z: W.tomb.z }); W.tomb = null; }

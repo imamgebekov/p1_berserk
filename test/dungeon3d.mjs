@@ -1,7 +1,7 @@
 // Тест уровней 3D (шаг H1): люк и лестница, отдельные карта, враги, вещи и туман у каждого уровня, смерть внизу, отряд, сохранение.
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, spawnEnemy, respawnPlayer, mulberry32, usePortal, portalNear, depthAt, travel, spawnAlly } from '../3d/src/sim.js';
-import { createSaver, loadSave } from '../3d/src/save3d.js';
+import { createSaver, loadSave, applyDseen } from '../3d/src/save3d.js';
 import { makeMap, insideOf } from '../3d/src/map.js';
 
 const fails = [];
@@ -17,7 +17,8 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 {
   const W = mk();
   ok(W.lvl === 'surface' && W.levels[D.id], 'есть поверхность и погреб');
-  ok(W.map.portals.length === CFG3.dungeons.list.length, 'на поверхности по люку на каждое подземелье');
+  ok(W.map.portals.length === CFG3.dungeons.list.filter(d => !d.hidden).length, 'на поверхности по люку на каждое открытое подземелье');
+  ok(CFG3.dungeons.list.filter(d => d.hidden).every(d => !W.map.portals.some(q => q.to === d.id)), 'у скрытых подземелий люка наверху нет');
   ok(!portalNear(W), 'у костра люка нет');
   toHatch(W);
   ok(W.nearPortal && W.nearPortal.to === D.id, 'у люка кнопка «Спуститься»');
@@ -50,7 +51,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   const map = makeMap(clone());
   const rectHit = (x, z, r, w) => { const cx = Math.max(w.x0, Math.min(w.x1, x)), cz = Math.max(w.z0, Math.min(w.z1, z)); return Math.hypot(x - cx, z - cz) < r; };
   const blocked = (x, z, r = .5) => map.walls.some(w => rectHit(x, z, r, w)) || map.solids.some(s => Math.hypot(s.x - x, s.z - z) < s.r + r);
-  for (const d of CFG3.dungeons.list) {
+  for (const d of CFG3.dungeons.list.filter(d => !d.hidden)) {
     ok(!blocked(d.at.x, d.at.z, .9) && insideOf(map, d.at.x, d.at.z, 1) === -1, `люк ${d.id} не в стене и не в доме`);
     ok(!blocked(d.back.x, d.back.z, .6), `место возврата ${d.id} свободно`);
     ok(Math.hypot(d.back.x - d.at.x, d.back.z - d.at.z) > CFG3.dungeons.reach, `место возврата ${d.id} дальше кнопки`);
@@ -140,6 +141,12 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   ok(d.dseen && typeof d.dseen[D.id] === 'string', 'туман погреба сохраняется');
   const s = loadSave(CFG3.bag.slots, st);
   ok(s && s.tomb.lvl === D.id && s.dseen[D.id] === d.dseen[D.id], 'загрузка: могила в погребе и туман погреба');
+  const W2 = mk(7); applyDseen(W2, s.dseen);
+  ok(W2.levels[D.id].seen.join('') === W.levels[D.id].seen.join(''), 'туман погреба восстанавливается при загрузке');
+  const W3 = mk(7); applyDseen(W3, { [D.id]: (W.levels[D.id].seenN + 1) + ':' + d.dseen[D.id].split(':')[1] });
+  ok(!W3.levels[D.id].seen.some(v => v), 'туман другой сетки (подземелье перестроили) не переносится');
+  st.setItem('berserk3d.save', JSON.stringify({ ...d, dseen: { [D.id]: '////' } }));
+  ok(!Object.keys(loadSave(CFG3.bag.slots, st).dseen).length, 'туман погреба из H1 (без размера сетки) отброшен');
   const surfSeen = W.levels.surface.seen.reduce((a, b) => a + b, 0);
   ok(surfSeen > 0 && d.seen.length > 0, 'туман поверхности сохраняется, даже если герой внизу');
   // старое сохранение без уровня и с мусором

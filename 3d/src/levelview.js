@@ -2,11 +2,12 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildContainers } from './containers.js';
+import { roomAt } from './map.js';
 
 const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
 const mat = c => new THREE.MeshLambertMaterial({ color: c });
 
-// лестница наверх: ступени поднимаются к ближней стене
+// лестница наверх: ступени поднимаются к ближней стене своей комнаты
 function stairs(q, B) {
   const g = new THREE.Group(), toX = Math.abs(q.x - B.x0) < Math.abs(q.x - B.x1) ? -1 : 1;
   const parts = []; for (let i = 0; i < 4; i++) parts.push(box(.45, .18 * (i + 1), 1.6, toX * (i * .45 - .2), .09 * (i + 1), 0));
@@ -42,16 +43,27 @@ export function buildLevelView(L, cfg) {
   group.add(new THREE.Mesh(mergeGeometries(walls), mat('#4a4038')));
   const caps = M.blocks.map(w => box(w.x1 - w.x0, .04, w.z1 - w.z0, (w.x0 + w.x1) / 2, D.wallH + .02, (w.z0 + w.z1) / 2));
   group.add(new THREE.Mesh(mergeGeometries(caps), new THREE.MeshBasicMaterial({ color: '#141010' })));
-  // факелы на стенах (без источников света: светящиеся кубики; свет даёт фонарь героя)
-  const torches = [], flames = [];
-  for (const r of M.rooms) for (const [x, z] of [[r.x0 + .12, (r.z0 + r.z1) / 2], [r.x1 - .12, (r.z0 + r.z1) / 2], [(r.x0 + r.x1) / 2, r.z0 + .12]]) {
-    torches.push(box(.1, .5, .1, x, D.wallH * .55, z)); flames.push(box(.16, .2, .16, x, D.wallH * .55 + .32, z));
+  // факелы на сплошных стенах комнат (не в проходах и не на ближней к камере стене; без источников света — свет даёт фонарь героя)
+  const torches = [], flames = [], open = (x, z) => M.links.some(l => (l.vert ? Math.abs(x - l.line) < .2 && z > l.s0 - .6 && z < l.s1 + .6 : Math.abs(z - l.line) < .2 && x > l.s0 - .6 && x < l.s1 + .6));
+  for (const r of M.rooms) if (!r.corridor) for (const [x, z, ex, ez] of [[r.x0, (r.z0 + r.z1) / 2, .12, 0], [r.x1, (r.z0 + r.z1) / 2, -.12, 0], [(r.x0 + r.x1) / 2, r.z0, 0, .12]]) {
+    if (open(x, z)) continue;
+    torches.push(box(.1, .5, .1, x + ex, D.wallH * .55, z + ez)); flames.push(box(.16, .2, .16, x + ex, D.wallH * .55 + .32, z + ez));
   }
-  group.add(new THREE.Mesh(mergeGeometries(torches), mat('#3a2a1a')));
-  const fl = new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })); group.add(fl);
-  for (const q of M.portals) group.add(stairs(q, M.bounds));
+  if (torches.length) group.add(new THREE.Mesh(mergeGeometries(torches), mat('#3a2a1a')));
+  const fl = flames.length ? new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })) : null; if (fl) group.add(fl);
+  for (const q of M.portals) { const ri = roomAt(M, q.x, q.z); group.add(stairs(q, ri >= 0 ? M.rooms[ri] : M.bounds)); }
+  // двери: створка на петле у края проёма, открывается внутрь дальней комнаты
+  const doorMat = mat('#5a3f28'), bandMat = mat('#2a2018'), doors = [];
+  for (const d of M.doors) {
+    const hinge = new THREE.Group(), w = d.w, th = D.wall * .5;
+    hinge.add(new THREE.Mesh(new THREE.BoxGeometry(w, D.wallH * .95, th).translate(w / 2, D.wallH * .475, 0), doorMat));
+    hinge.add(new THREE.Mesh(mergeGeometries([box(w, .08, th + .04, w / 2, D.wallH * .25, 0), box(w, .08, th + .04, w / 2, D.wallH * .7, 0)]), bandMat));
+    if (d.vert) { hinge.position.set(d.line, 0, d.s0); hinge.rotation.y = -Math.PI / 2; } else hinge.position.set(d.s0, 0, d.line);
+    group.add(hinge); doors.push({ d, hinge, base: hinge.rotation.y });
+  }
+  function update() { for (const it of doors) it.hinge.rotation.y = it.base + it.d.open * Math.PI / 2; }
   const conts = buildContainers(M); group.add(conts.group);
-  return { group, conts, flame: fl };
+  return { group, conts, flame: fl, update };
 }
 
 // поверхность: контейнеры по карте мира и люки

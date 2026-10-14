@@ -300,6 +300,19 @@ try {
   if (await page.evaluate(() => window.__b3d.W.lvl) !== 'cellar_cooper') bad('по кнопке не спустились в погреб');
   await page.screenshot({ path: join(out, '3d-cellar.png') });
   await page.tap('#miniBtn'); await page.waitForTimeout(250); await page.screenshot({ path: join(out, '3d-cellar-map.png') }); await page.tap('#mapClose');
+  // дверь кладовой открывается, когда герой рядом
+  await page.evaluate(() => { const w = window.__b3d.W, d = w.map.doors[0]; w.player.x = d.x - 1.2; w.player.z = d.z; });
+  await page.waitForTimeout(600); await page.screenshot({ path: join(out, '3d-cellar-door.png') });
+  if (!(await page.evaluate(() => window.__b3d.W.map.doors[0].open > .9))) bad('дверь в погребе не открылась рядом с героем');
+  // скрытый склеп: собирается и рисуется (вход пока только для проверки)
+  const crypt = await page.evaluate(() => { const b = window.__b3d, d = b.cfg.dungeons.list.find(q => q.hidden); if (!d) return null; b.travel(d.id, 17, 0); return d.id; });
+  if (crypt) {
+    await page.waitForTimeout(700); await page.screenshot({ path: join(out, '3d-crypt.png') });
+    await page.tap('#miniBtn'); await page.waitForTimeout(250); await page.screenshot({ path: join(out, '3d-crypt-map.png') }); await page.tap('#mapClose');
+    if (await page.evaluate(() => window.__b3d.W.lvl) !== crypt) bad('склеп не открылся');
+    await page.evaluate(() => { const b = window.__b3d, d = b.cfg.dungeons.list[0]; b.travel(d.id, d.entry.x, d.entry.z); });
+    await page.waitForTimeout(300);
+  }
   await page.evaluate(() => { const w = window.__b3d.W, d = window.__b3d.cfg.dungeons.list[0]; w.player.x = d.exit.x + .3; w.player.z = d.exit.z; });
   await page.waitForTimeout(300);
   if (!/Подняться/.test(await page.textContent('#portalBtn'))) bad('у лестницы нет кнопки «Подняться»');

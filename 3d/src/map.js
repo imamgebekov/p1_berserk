@@ -55,7 +55,7 @@ export function makeMap(cfg) {
   for (const sp of M.spots || []) addC(sp.kind, sp.x, sp.z, -1);
   // созданные генератором: не ближе 1.6 м к уже стоящим (могилы и алтарь не слипаются)
   for (const sp of gen.spots) if (!containers.some(c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1);
-  const portals = ((cfg.dungeons && cfg.dungeons.list) || []).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
+  const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
   return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads };
 }
 
@@ -89,14 +89,8 @@ export function resolve(map, o, r) {
       }
     }
   }
-  for (const w of map.blocks || []) {           // стены подземелий: прямоугольники без дверей
-    if (o.x < w.x0 - r || o.x > w.x1 + r || o.z < w.z0 - r || o.z > w.z1 + r) continue;
-    const cx = clamp(o.x, w.x0, w.x1), cz = clamp(o.z, w.z0, w.z1), dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz;
-    if (d2 >= r * r) continue;
-    hit = true;
-    if (d2 > 1e-12) { const d = Math.sqrt(d2), k = (r - d) / d; o.x += dx * k; o.z += dz * k; }
-    else { const l = o.x - w.x0, rr = w.x1 - o.x, tp = o.z - w.z0, bt = w.z1 - o.z, m = Math.min(l, rr, tp, bt); if (m === l) o.x = w.x0 - r; else if (m === rr) o.x = w.x1 + r; else if (m === tp) o.z = w.z0 - r; else o.z = w.z1 + r; }
-  }
+  for (const w of map.blocks || []) if (pushOut(o, r, w)) hit = true;                 // стены подземелий
+  for (const d of map.doors || []) if (d.open < .6 && pushOut(o, r, d.rect)) hit = true;   // закрытые двери подземелий
   for (const q of map.solids) {
     const dx = o.x - q.x, dz = o.z - q.z, d = Math.hypot(dx, dz), m = q.r + r;
     if (d < m) { hit = true; if (d > 1e-9) { o.x = q.x + dx / d * m; o.z = q.z + dz / d * m; } else o.x += m; }
@@ -111,19 +105,91 @@ export function keepIn(map, o, R) {
   const l = Math.hypot(o.x, o.z); if (l > R) { o.x *= R / l; o.z *= R / l; }
 }
 
-// карта подземелья: комнаты (прямоугольники пола) и стены вокруг них, контейнеры, лестница наверх.
-// Пока одна комната — стены замыкают её по периметру; проходы между комнатами появятся вместе с коридорами.
+// вытолкнуть круг из прямоугольника без дверей
+function pushOut(o, r, w) {
+  if (o.x < w.x0 - r || o.x > w.x1 + r || o.z < w.z0 - r || o.z > w.z1 + r) return false;
+  const cx = clamp(o.x, w.x0, w.x1), cz = clamp(o.z, w.z0, w.z1), dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz;
+  if (d2 >= r * r) return false;
+  if (d2 > 1e-12) { const d = Math.sqrt(d2), k = (r - d) / d; o.x += dx * k; o.z += dz * k; }
+  else { const l = o.x - w.x0, rr = w.x1 - o.x, tp = o.z - w.z0, bt = w.z1 - o.z, m = Math.min(l, rr, tp, bt); if (m === l) o.x = w.x0 - r; else if (m === rr) o.x = w.x1 + r; else if (m === tp) o.z = w.z0 - r; else o.z = w.z1 + r; }
+  return true;
+}
+
+const EPS = 1e-6;
+// прямоугольник a без прямоугольника b: до четырёх кусков
+function cut(a, b) {
+  if (b.x0 >= a.x1 - EPS || b.x1 <= a.x0 + EPS || b.z0 >= a.z1 - EPS || b.z1 <= a.z0 + EPS) return [a];
+  const out = [], z0 = Math.max(a.z0, b.z0), z1 = Math.min(a.z1, b.z1);
+  if (b.z0 > a.z0) out.push({ x0: a.x0, x1: a.x1, z0: a.z0, z1: b.z0 });
+  if (b.z1 < a.z1) out.push({ x0: a.x0, x1: a.x1, z0: b.z1, z1: a.z1 });
+  if (b.x0 > a.x0) out.push({ x0: a.x0, x1: b.x0, z0, z1 });
+  if (b.x1 < a.x1) out.push({ x0: b.x1, x1: a.x1, z0, z1 });
+  return out.filter(q => q.x1 - q.x0 > EPS && q.z1 - q.z0 > EPS);
+}
+// общая граница двух комнат (проём): vert — граница идёт вдоль z (x = line), s0–s1 — отрезок проёма
+export function sharedEdge(a, b) {
+  const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), oz = Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0);
+  if (ox > EPS && (Math.abs(a.z1 - b.z0) < EPS || Math.abs(b.z1 - a.z0) < EPS)) return { vert: false, line: Math.abs(a.z1 - b.z0) < EPS ? a.z1 : a.z0, s0: Math.max(a.x0, b.x0), s1: Math.min(a.x1, b.x1) };
+  if (oz > EPS && (Math.abs(a.x1 - b.x0) < EPS || Math.abs(b.x1 - a.x0) < EPS)) return { vert: true, line: Math.abs(a.x1 - b.x0) < EPS ? a.x1 : a.x0, s0: Math.max(a.z0, b.z0), s1: Math.min(a.z1, b.z1) };
+  return null;
+}
+// комната (индекс), в которой стоит точка, иначе −1
+export function roomAt(map, x, z) {
+  const R = map.rooms || [];
+  for (let i = 0; i < R.length; i++) { const r = R[i]; if (x >= r.x0 - EPS && x <= r.x1 + EPS && z >= r.z0 - EPS && z <= r.z1 + EPS) return i; }
+  return -1;
+}
+
+// следующая точка пути из (x, z) к (tx, tz) по графу комнат (поиск в ширину по проходам); null — та же комната или вне комнат.
+// Сначала подойти к проходу по нормали (точка «до»), выровнявшись — пройти его (точка «за»): так не цепляются за углы
+export function pathStep(map, x, z, tx, tz) {
+  const ra = roomAt(map, x, z), rb = roomAt(map, tx, tz);
+  if (!map.adj || ra < 0 || rb < 0 || ra === rb) return null;
+  const prev = new Array(map.rooms.length).fill(-2); prev[ra] = -1;
+  const q = [ra];
+  while (q.length && prev[rb] === -2) { const r = q.shift(); for (const li of map.adj[r]) { const l = map.links[li], o = l.a === r ? l.b : l.a; if (prev[o] === -2) { prev[o] = li; q.push(o); } } }
+  if (prev[rb] === -2) return null;
+  let r = rb, li = prev[r];
+  for (;;) { const l = map.links[li], o = l.a === r ? l.b : l.a; if (o === ra) break; r = o; li = prev[r]; }
+  const L = map.links[li], to = map.rooms[L.a === ra ? L.b : L.a], P = map.path;
+  const n = L.vert ? Math.sign((to.x0 + to.x1) / 2 - L.line) : Math.sign((to.z0 + to.z1) / 2 - L.line), nx = L.vert ? n : 0, nz = L.vert ? 0 : n;
+  const off = L.vert ? Math.abs(z - L.z) : Math.abs(x - L.x), half = (L.s1 - L.s0) / 2;
+  return off < half - P.slack ? { x: L.x + nx * P.past, z: L.z + nz * P.past } : { x: L.x - nx * P.before, z: L.z - nz * P.before };
+}
+
+// карта подземелья: комнаты и коридоры (прямоугольники пола), стены вокруг, проёмы там, где прямоугольники касаются,
+// двери в проёмах, граф связей (links, adj — для путей врагов и отряда), контейнеры, лестница наверх
 export function makeLevelMap(cfg, def) {
-  const D = cfg.dungeons, t = D.wall, rooms = def.rooms.map(r => ({ x0: r.x - r.w / 2, x1: r.x + r.w / 2, z0: r.z - r.d / 2, z1: r.z + r.d / 2 }));
-  const blocks = [];
+  const D = cfg.dungeons, t = D.wall;
+  const rooms = def.rooms.map((r, i) => ({ i, id: r.id || 'r' + i, x0: r.x - r.w / 2, x1: r.x + r.w / 2, z0: r.z - r.d / 2, z1: r.z + r.d / 2, corridor: Math.min(r.w, r.d) <= D.corridorMax }));
+  // стены: полосы снаружи каждой комнаты (с углами), из которых вырезан пол всех комнат
+  let blocks = [];
   for (const r of rooms) blocks.push({ x0: r.x0 - t, x1: r.x1 + t, z0: r.z0 - t, z1: r.z0 }, { x0: r.x0 - t, x1: r.x1 + t, z0: r.z1, z1: r.z1 + t }, { x0: r.x0 - t, x1: r.x0, z0: r.z0, z1: r.z1 }, { x0: r.x1, x1: r.x1 + t, z0: r.z0, z1: r.z1 });
+  for (const r of rooms) blocks = blocks.flatMap(w => cut(w, r));
+  // проёмы и граф
+  const links = [], adj = rooms.map(() => []);
+  for (let a = 0; a < rooms.length; a++) for (let b = a + 1; b < rooms.length; b++) {
+    const e = sharedEdge(rooms[a], rooms[b]); if (!e) continue;
+    const m = (e.s0 + e.s1) / 2, L = { a, b, ...e, x: e.vert ? e.line : m, z: e.vert ? m : e.line, door: -1 };
+    adj[a].push(links.length); adj[b].push(links.length); links.push(L);
+  }
+  // двери: { a: id комнаты, b: id комнаты } — встают на весь проём между ними
+  const doors = [];
+  for (const dd of def.doors || []) {
+    const ia = rooms.findIndex(r => r.id === dd.a), ib = rooms.findIndex(r => r.id === dd.b);
+    const L = links.find(l => (l.a === ia && l.b === ib) || (l.a === ib && l.b === ia));
+    if (!L) throw new Error(`дверь ${dd.a}–${dd.b} в ${def.id}: комнаты не соприкасаются`);
+    const rect = L.vert ? { x0: L.line - t / 2, x1: L.line + t / 2, z0: L.s0, z1: L.s1 } : { x0: L.s0, x1: L.s1, z0: L.line - t / 2, z1: L.line + t / 2 };
+    L.door = doors.length;
+    doors.push({ id: doors.length, x: L.x, z: L.z, vert: L.vert, s0: L.s0, s1: L.s1, line: L.line, w: L.s1 - L.s0, rect, open: 0, link: links.indexOf(L) });
+  }
   const bounds = { x0: Math.min(...rooms.map(r => r.x0)), x1: Math.max(...rooms.map(r => r.x1)), z0: Math.min(...rooms.map(r => r.z0)), z1: Math.max(...rooms.map(r => r.z1)) };
   const containers = [];
   for (const c of def.chests || []) containers.push({ id: containers.length, kind: c.kind, x: c.x, z: c.z, b: -1, ready: false, t: 0, items: [], locked: false, keyTier: 0 });
   const cx = (bounds.x0 + bounds.x1) / 2, cz = (bounds.z0 + bounds.z1) / 2;
   const place = { id: def.id, name: def.name, type: 'dungeon', x: cx, z: cz, r: Math.hypot(bounds.x1 - bounds.x0, bounds.z1 - bounds.z0) + 4, danger: def.danger || 0 };
   const portals = [{ x: def.exit.x, z: def.exit.z, to: 'surface', tx: def.back.x, tz: def.back.z, up: true }];
-  return { level: def.id, buildings: [], walls: blocks, blocks, rooms, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids: [], decor: [], roads: [] };
+  return { level: def.id, path: D.path, buildings: [], walls: blocks, blocks, rooms, links, adj, doors, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids: [], decor: [], roads: [] };
 }
 
 // сдвиг с шагами не длиннее 0.25: быстрый перекат не пролетает сквозь стену
