@@ -64,14 +64,8 @@ export function buildTown(map, cfg, rnd) {
     hinge.add(pan); hinge.position.set(vert ? d.x : d.x - hw, 0, vert ? d.z - hw : d.z);
     walls.add(hinge);
     const doorDir = { n: -1, s: 1, e: -1, w: 1 }[d.side];
-    // сундук: тёмный ящик с жёлтым свечением, пока полон
-    const ch = new THREE.Group(); ch.position.set(b.chest.x, 0, b.chest.z);
-    ch.add(new THREE.Mesh(new THREE.BoxGeometry(.9, .5, .6), new THREE.MeshLambertMaterial({ color: '#4a3220' })));
-    ch.children[0].position.y = .25;
-    const lid = new THREE.Group(); lid.position.set(0, .5, -.3); const lm = new THREE.Mesh(new THREE.BoxGeometry(.94, .16, .64), new THREE.MeshLambertMaterial({ color: '#5a4028' })); lm.position.set(0, .08, .3); lid.add(lm); ch.add(lid);
-    const glow = new THREE.Mesh(new THREE.BoxGeometry(.5, .06, .3), new THREE.MeshBasicMaterial({ color: '#ffc860' })); glow.position.set(0, .56, 0); ch.add(glow);
-    group.add(walls, floor, roof, ch);
-    items.push({ b, walls, roof, a: 1, cut: 1, hinge, doorDir, vert, ch, lid, glow });
+    group.add(walls, floor, roof);
+    items.push({ b, walls, roof, a: 1, cut: 1, hinge, doorDir, vert });
   }
 
   function update(inside, dt, wmap = map) {
@@ -84,7 +78,6 @@ export function buildTown(map, cfg, rnd) {
       it.walls.scale.y = Math.max(.01, it.cut);
       const sb = wmap.buildings[it.b.id];
       it.hinge.rotation.y = sb.door.open * Math.PI / 2 * it.doorDir;
-      it.glow.visible = sb.chest.ready; it.lid.rotation.x = sb.chest.ready ? 0 : -1.1;
     }
     const cur = inside >= 0 ? map.buildings[inside] : null;
     if (cur) light.position.set(cur.x, 2.4, cur.z);

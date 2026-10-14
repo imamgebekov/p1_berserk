@@ -69,11 +69,33 @@ try {
   if (await page.evaluate(() => window.__b3d.W.inside) !== 0) bad('внутри дома герой не «внутри»');
   const roofA = await page.evaluate(() => window.__b3d.renderer.town.items[0].roof.visible);
   if (roofA) bad('крыша не скрылась, когда герой в доме');
-  // сундук и дверь в браузере
-  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings[1]; w.player.hp = 40; w.player.x = b.chest.x; w.player.z = b.chest.z; });
-  await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-chest.png') });
-  if (await page.evaluate(() => window.__b3d.W.map.buildings[1].chest.ready)) bad('сундук не открылся от касания');
-  if (!(await page.$('#kills').then(e => e.textContent())).includes('пепел')) bad('в HUD нет пепла');
+  // контейнер, сумка, экипировка в браузере
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings[1], c = b.chests[0]; w.player.hp = 40; w.player.x = c.x; w.player.z = c.z; });
+  await page.waitForTimeout(600); await page.screenshot({ path: join(out, '3d-chest.png') });
+  if (await page.evaluate(() => window.__b3d.W.map.buildings[1].chests[0].ready)) bad('контейнер не открылся от касания');
+  if (!(await page.evaluate(() => window.__b3d.W.inv.bag.length))) bad('добыча не попала в сумку');
+  if ((await page.$$eval('#toasts .toast', a => a.length)) < 1) bad('нет уведомлений о добыче');
+  await page.evaluate(() => { const W = window.__b3d.W; for (const id of ['w_greatsword_black', 'a_body_plate_black', 'p_heal2', 'f_rye', 'r_ring_might', 'k_goblet', 'b_diary_scrap']) W.inv.bag.push({ id, n: 1 }); });
+  await page.tap('#bagBtn'); await page.waitForTimeout(300);
+  if (await page.evaluate(() => document.getElementById('bag').hidden)) bad('сумка не открылась');
+  await page.screenshot({ path: join(out, '3d-bag.png') });
+  { const geoB = await page.evaluate(() => [...document.querySelectorAll('#bag button')].filter(b => b.offsetParent).map(b => { const r = b.getBoundingClientRect(); return { t: b.textContent.slice(0, 14), w: r.width, h: r.height }; }));
+    const small = geoB.filter(b => b.h < 40 || b.w < 40); if (small.length) bad('кнопки сумки меньше 40px: ' + JSON.stringify(small.slice(0, 3))); }
+  await page.tap('.item:has(.nm:text("Чёрный двуручник"))'); await page.waitForTimeout(150);
+  await page.screenshot({ path: join(out, '3d-bag-card.png') });
+  await page.tap('#bagCard .acts .main'); await page.waitForTimeout(150);
+  if (await page.evaluate(() => window.__b3d.W.inv.eq.weapon) !== 'w_greatsword_black') bad('предмет не надет');
+  await page.waitForTimeout(120);
+  if (!(await page.evaluate(() => window.__b3d.W.gear.dmg >= 20))) bad('надетое оружие не влияет на урон');
+  await page.tap('.tab[data-tab="use"]'); await page.tap('.item:has(.nm:text("Зелье лечения"))'); await page.tap('#bagCard .acts .main'); await page.waitForTimeout(150);
+  if (await page.evaluate(() => window.__b3d.W.inv.bag.some(s => s.id === 'p_heal2'))) bad('зелье не выпито');
+  if (!(await page.evaluate(() => window.__b3d.W.player.hp > 40))) bad('зелье не лечит');
+  await page.tap('#bagClose'); await page.waitForTimeout(100);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('berserk3d.save') || 'null'));
+  if (!saved || saved.inv.eq.weapon !== 'w_greatsword_black') bad('сохранение не записалось');
+  await page.reload(); await page.waitForTimeout(900);
+  if (await page.evaluate(() => window.__b3d.W.inv.eq.weapon) !== 'w_greatsword_black') bad('надетое не пережило перезагрузку');
+  await page.evaluate(() => { window.__b3d.W.inv.eq.weapon = null; window.__b3d.saver.write(true); });
   await page.evaluate(() => { const w = window.__b3d.W, c = window.__b3d.cfg; w.player.x = -4; w.player.z = 2; c.view.camDist = 32; });
   await page.waitForTimeout(1200); await page.screenshot({ path: join(out, '3d-town.png') });
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; window.__b3d.cfg.view.camDist = 19; });

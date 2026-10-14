@@ -1,7 +1,8 @@
 // Тест карты 3D: дома не пересекаются, стены держат, в дверь можно пройти, враги заходят за героем, ввод поворачивается.
 import { CFG3 } from '../3d/src/config3d.js';
 import { makeMap, insideOf, resolve, slide, rotateInput } from '../3d/src/map.js';
-import { createWorld, step, spawnEnemy, mulberry32 } from '../3d/src/sim.js';
+import { createWorld, step, spawnEnemy, mulberry32, useItem } from '../3d/src/sim.js';
+import { CONTAINERS } from '../3d/src/data/loot.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const clone = () => JSON.parse(JSON.stringify(CFG3));
@@ -37,12 +38,38 @@ for (const b of map.buildings) for (const r of [.5, .8]) {
   for (let i = 0; i < 30; i++) step(W, 1 / 60, {}); ok(d.open === 0, 'дверь открылась без героя');
   W.player.x = d.out.x; W.player.z = d.out.z; for (let i = 0; i < 30; i++) step(W, 1 / 60, {}); ok(d.open === 1, 'дверь не открылась перед героем: ' + d.open);
   W.player.x = d.out.x + 8; for (let i = 0; i < 60; i++) step(W, 1 / 60, {}); ok(d.open === 0, 'дверь не закрылась');
-  // сундук
-  const ch = b.chest; W.player.hp = 50; W.player.x = ch.x; W.player.z = ch.z; W.ev.length = 0;
-  step(W, 1 / 60, {}); const lootEv = W.ev.find(v => v.k === 'loot');
-  ok(lootEv && !ch.ready, 'сундук не отдал добычу'); ok(W.player.hp > 50 || W.ash > 0, 'добыча не засчитана');
-  W.ev.length = 0; step(W, 1 / 60, {}); ok(!W.ev.some(v => v.k === 'loot'), 'сундук отдал добычу дважды');
-  W.player.x = 0; W.player.z = 4; for (let i = 0; i < 60 * (c.map.chestRespawn + 1); i++) step(W, 1 / 60, {}); ok(ch.ready, 'сундук не наполнился заново');
+  // контейнеры: касание отдаёт добычу в сумку; потом контейнер наполняется заново
+  const ch = b.chests[0]; ok(ch.ready && ch.items.length > 0, 'контейнер не наполнен при создании'); const want = ch.items.map(i => ({ ...i }));
+  W.player.x = ch.x; W.player.z = ch.z; W.ev.length = 0; step(W, 1 / 60, {});
+  ok(W.ev.some(v => v.k === 'open') && !ch.ready, 'контейнер не открылся');
+  ok(want.every(i => W.inv.bag.some(s => s.id === i.id)), 'добыча не попала в сумку');
+  W.ev.length = 0; step(W, 1 / 60, {}); ok(!W.ev.some(v => v.k === 'open'), 'контейнер отдал добычу дважды');
+  W.player.x = 0; W.player.z = 4; for (let i = 0; i < 60 * (c.map.containerRespawn + 1); i++) step(W, 1 / 60, {}); ok(ch.ready, 'контейнер не наполнился заново');
+  // полная сумка: остаток остаётся в контейнере
+  { const W2 = createWorld(c, mulberry32(12)), ch2 = W2.map.containers.find(k => !CONTAINERS[k.kind].locked); W2.player.inv = 1e9;
+    for (let i = 0; i < c.bag.slots; i++) W2.inv.bag.push({ id: 'w_sword_rust', n: 1 });
+    W2.player.x = ch2.x; W2.player.z = ch2.z; step(W2, 1 / 60, {}); ok(ch2.ready && ch2.items.length > 0 && W2.ev.some(v => v.k === 'full'), 'при полной сумке остаток должен остаться в контейнере'); }
+  // запертый: без ключа не открывается, с ключом тратит ключ
+  { const W3 = createWorld(c, mulberry32(13)), lk = W3.map.containers.find(k => CONTAINERS[k.kind].locked); W3.player.x = lk.x; W3.player.z = lk.z; W3.player.inv = 1e9;
+    step(W3, 1 / 60, {}); ok(lk.ready && lk.locked && W3.ev.some(v => v.k === 'locked'), 'запертый открылся без ключа');
+    W3.inv.bag.push({ id: 'key_rust', n: 1 }); lk.keyTier = 2; lk.cd = 0; step(W3, 1 / 60, {}); ok(lk.locked, 'ключ ниже уровнем открыл замок');
+    W3.inv.bag.push({ id: 'key_black', n: 1 }); W3.inv.bag.push({ id: 'key_iron', n: 1 }); lk.cd = 0; step(W3, 1 / 60, {});
+    ok(!lk.locked && !lk.ready && !W3.inv.bag.some(s => s.id === 'key_iron') && W3.inv.bag.some(s => s.id === 'key_black'), 'ключ не потрачен или потрачен не тот (должен уйти самый слабый подходящий)'); }
+  // вещи с монстров, подбор, использование, экипировка меняет бой
+  { const W4 = createWorld(c, mulberry32(14)); W4.player.x = 0; W4.player.z = 0; W4.player.inv = 1e9;
+    W4.drops.push({ id: 'f_rye', n: 2, x: 1.2, z: 0, t: 0, cd: 0 }); for (let i = 0; i < 60; i++) step(W4, 1 / 60, {});
+    ok(W4.drops.length === 0 && W4.inv.bag.some(s => s.id === 'f_rye' && s.n === 2), 'вещь с земли не подобрана');
+    W4.player.hp = 50; const i = W4.inv.bag.findIndex(s => s.id === 'f_rye'); ok(useItem(W4, i) && W4.player.hp === 60 && W4.inv.bag[0].n === 1, 'еда не лечит');
+    W4.inv.bag.push({ id: 'p_haste', n: 1 }); step(W4, 1 / 60, {}); const sp0 = W4.gear.spd; useItem(W4, W4.inv.bag.length - 1); step(W4, 1 / 60, {}); ok(W4.gear.spd === sp0 + 25, 'настой быстроты не работает'); for (let k = 0; k < 60 * 41; k++) step(W4, 1 / 60, {}); ok(W4.gear.spd === sp0, 'бафф не закончился');
+    W4.inv.eq.body = 'a_body_plate_ash'; step(W4, 1 / 60, {}); ok(W4.player.maxhp > c.player.hp && W4.gear.armor > 15, 'броня не учтена: ' + JSON.stringify(W4.gear));
+    // урон по герою падает от брони
+    const dmgWith = armor => { const Wx = createWorld(c, mulberry32(1)); Wx.inv.eq.body = armor; step(Wx, 1 / 60, {}); Wx.player.hp = Wx.player.maxhp; const e = spawnEnemy(Wx, 'brute', Wx.player.x + 1, Wx.player.z); e.state = 'wind'; e.t = Wx.cfg.enemies.brute.wind - .001; e.alert = true; const h0 = Wx.player.hp; step(Wx, 1 / 60, {}); return h0 - Wx.player.hp; };
+    ok(dmgWith('a_body_plate_ash') < dmgWith(null) * .65 && dmgWith(null) === c.enemies.brute.damage, 'броня не снижает урон: ' + dmgWith(null) + ' → ' + dmgWith('a_body_plate_ash'));
+    // оружие: больше урона
+    const hit = wp => { const Wx = createWorld(c, mulberry32(2)); Wx.cfg.enemies.count = 0; Wx.inv.eq.weapon = wp; step(Wx, 1 / 60, {}); const e = spawnEnemy(Wx, 'brute', Wx.player.x + Math.sin(Wx.player.face) * 1.5, Wx.player.z + Math.cos(Wx.player.face) * 1.5); e.hp = e.maxhp = 9999; for (let k = 0; k < 60 && e.hp === 9999; k++) step(Wx, 1 / 60, { attack: true }); return 9999 - e.hp; };
+    ok(hit('w_greatsword_blood') > hit(null) * 1.8, 'клеймёный двуручник не бьёт сильнее голых рук'); }
+  // убитый монстр оставляет вещи (в среднем)
+  { let drops = 0; for (let sd = 0; sd < 60; sd++) { const Wx = createWorld(c, mulberry32(100 + sd)); Wx.cfg.enemies.count = 0; const e = spawnEnemy(Wx, 'brute', Wx.player.x + 1, Wx.player.z); e.hp = 1; e.alert = true; Wx.player.face = Math.PI / 2; step(Wx, 1 / 60, { attack: true }); for (let k = 0; k < 40; k++) step(Wx, 1 / 60, { attack: true }); drops += Wx.drops.length + Wx.inv.bag.length; } ok(drops > 30, 'рогачи почти не роняют вещи: ' + drops); }
 }
 // слух: враг не слышит стоящего героя далеко, слышит бегущего и бьющего; ударенный всегда слышит
 {

@@ -4,16 +4,11 @@
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const vertDoor = side => side === 'e' || side === 'w';
-// сундук: в дальнем от двери углу
-function chestSpot(b, x0, x1, z0, z1, t) {
-  const sx = b.door === 'e' ? -1 : b.door === 'w' ? 1 : 0, sz = b.door === 's' ? -1 : b.door === 'n' ? 1 : 0;
-  const x = sx ? (sx > 0 ? x1 - t - .7 : x0 + t + .7) : x0 + t + .7, z = sz ? (sz > 0 ? z1 - t - .7 : z0 + t + .7) : z0 + t + .7;
-  return { x, z, ready: true, t: 0 };
-}
 
 export function makeMap(cfg) {
   const M = cfg.map, t = M.wall, hw = M.doorW / 2;
-  const buildings = [], walls = [];
+  const buildings = [], walls = [], containers = [];
+  const addC = (kind, x, z, bid) => containers.push({ id: containers.length, kind, x, z, b: bid, ready: false, t: 0, items: [], locked: false, keyTier: 0 });
   M.buildings.forEach((b, id) => {
     const x0 = b.x - b.w / 2, x1 = b.x + b.w / 2, z0 = b.z - b.d / 2, z1 = b.z + b.d / 2;
     const off = b.off || 0;
@@ -38,9 +33,14 @@ export function makeMap(cfg) {
     hSeg(z0, z0 + t, 'n'); hSeg(z1 - t, z1, 's'); vSeg(x0, x0 + t, 'w'); vSeg(x1 - t, x1, 'e');
     const w2 = bw.filter(r => r.x1 - r.x0 > 1e-6 && r.z1 - r.z0 > 1e-6);
     walls.push(...w2);
-    buildings.push({ id, x: b.x, z: b.z, w: b.w, d: b.d, x0, x1, z0, z1, ix0: x0 + t, ix1: x1 - t, iz0: z0 + t, iz1: z1 - t, door, walls: w2, kind: b.kind || 0, chest: chestSpot(b, x0, x1, z0, z1, t) });
+    buildings.push({ id, x: b.x, z: b.z, w: b.w, d: b.d, x0, x1, z0, z1, ix0: x0 + t, ix1: x1 - t, iz0: z0 + t, iz1: z1 - t, door, walls: w2, kind: b.kind || 'house', chests: [] });
+    // контейнеры в углах, дальние от двери — первыми
+    const bb = buildings[buildings.length - 1], cs = [[bb.ix0 + .8, bb.iz0 + .8], [bb.ix1 - .8, bb.iz0 + .8], [bb.ix0 + .8, bb.iz1 - .8], [bb.ix1 - .8, bb.iz1 - .8]];
+    cs.sort((p, q) => Math.hypot(q[0] - door.x, q[1] - door.z) - Math.hypot(p[0] - door.x, p[1] - door.z));
+    (b.chests || []).slice(0, 4).forEach((k, i) => { addC(k, cs[i][0], cs[i][1], id); bb.chests.push(containers[containers.length - 1]); });
   });
-  return { buildings, walls, cfg: M };
+  for (const sp of M.spots || []) addC(sp.kind, sp.x, sp.z, -1);
+  return { buildings, walls, containers, cfg: M };
 }
 
 // какой дом содержит точку (внутри стен), иначе −1

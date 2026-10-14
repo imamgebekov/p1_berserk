@@ -25,22 +25,28 @@ export const CFG3 = {
     wall: .5,             // толщина стен
     wallH: 2.8,           // высота стен
     doorW: 2.2,           // ширина дверного проёма
-    chestRespawn: 75,     // через сколько секунд сундук снова полон
-    chestHeal: 30,        // лечение из сундука
-    chestAsh: [6, 14],    // пепел из сундука (диапазон)
+    containerRespawn: 240, // через сколько секунд контейнер снова наполняется
     doorReach: 2.0,       // на каком расстоянии от двери она открывается сама
     cutH: .35,            // во сколько раз стены «опускаются», когда герой внутри (вид сверху)
     buildings: [
-      { x: -14, z: -6,  w: 8, d: 6, door: 'e' },
-      { x: 13,  z: -10, w: 7, d: 6, door: 'w' },
-      { x: -4,  z: -20, w: 9, d: 6, door: 's' },
-      { x: 20,  z: 6,   w: 6, d: 7, door: 'w' },
-      { x: -18, z: 14,  w: 7, d: 7, door: 'e' },
-      { x: 6,   z: 22,  w: 8, d: 6, door: 'n' },
-      { x: 34,  z: -8,  w: 6, d: 6, door: 'w' },
-      { x: -32, z: -4,  w: 6, d: 6, door: 'e' }
+      { x: -14, z: -6,  w: 8, d: 6, door: 'e', chests: ['chest', 'wardrobe'] },
+      { x: 13,  z: -10, w: 7, d: 6, door: 'w', chests: ['coffer', 'crate'] },
+      { x: -4,  z: -20, w: 9, d: 6, door: 's', chests: ['ironchest', 'rack', 'barrel'] },
+      { x: 20,  z: 6,   w: 6, d: 7, door: 'w', chests: ['sack', 'chest'] },
+      { x: -18, z: 14,  w: 7, d: 7, door: 'e', chests: ['locked', 'shelf'] },
+      { x: 6,   z: 22,  w: 8, d: 6, door: 'n', chests: ['medchest', 'crate', 'barrel'] },
+      { x: 34,  z: -8,  w: 6, d: 6, door: 'w', chests: ['cache', 'corpse'] },
+      { x: -32, z: -4,  w: 6, d: 6, door: 'e', chests: ['ironchest', 'armorstand'] }
+    ],
+    // контейнеры под открытым небом: вид из data/loot.js, координаты
+    spots: [
+      { kind: 'wagon', x: 8, z: 12 }, { kind: 'grave', x: -26, z: -20 }, { kind: 'corpse', x: 25, z: -24 },
+      { kind: 'altar', x: -44, z: 22 }, { kind: 'barrel', x: -9, z: 3 }, { kind: 'crate', x: 11, z: 2 }, { kind: 'locked', x: 44, z: 24 }
     ]
   },
+
+  bag: { slots: 30 },
+  gear: { armorK: .035, maxSpd: 45, pickup: 1.3, dropLife: 90 },   // броня: урон /(1+брони×armorK); подбор с земли
 
   player: {
     hp: 100,

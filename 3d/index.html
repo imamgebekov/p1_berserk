@@ -16,13 +16,28 @@
 <header id="hud">
   <div id="hpWrap"><div id="hpBar"><i id="hpFill"></i></div><span id="hpTxt">100</span></div>
   <div id="kills">убито 0</div>
+  <button id="bagBtn" type="button" aria-label="Сумка">🎒</button>
   <button id="gear" type="button" aria-label="Настройки прототипа">⚙</button>
 </header>
 
+<div id="toasts" aria-live="polite"></div>
 <div id="zone"></div>
 <div id="stick"><div id="knob"></div></div>
 <button id="bRoll" type="button">Перекат</button>
 <button id="bAtk" type="button">Удар</button>
+
+<section id="bag" hidden>
+  <div class="pbox">
+    <div class="bhead"><h2 id="bagHead">Сумка</h2><button id="bagClose" type="button" class="main">Играть</button></div>
+    <div id="bagStats" class="bstats"></div>
+    <div id="bagEq"></div>
+    <div id="bagCard" hidden></div>
+    <div id="bagFlash"></div>
+    <div id="bagTabs"></div>
+    <div id="bagList"></div>
+    <button id="bagReset" type="button" class="reset">Сбросить прогресс</button>
+  </div>
+</section>
 
 <section id="panel" hidden>
   <div class="pbox">
