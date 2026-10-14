@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0709">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Берсерк 3D — прототип</title>
+<link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+<canvas id="gl" aria-label="Игровое поле"></canvas>
+<div id="dmg" aria-hidden="true"></div>
+<div id="flash" aria-hidden="true"></div>
+
+<header id="hud">
+  <div id="hpWrap"><div id="hpBar"><i id="hpFill"></i></div><span id="hpTxt">100</span></div>
+  <div id="kills">убито 0</div>
+  <button id="gear" type="button" aria-label="Настройки прототипа">⚙</button>
+</header>
+
+<div id="zone"></div>
+<div id="stick"><div id="knob"></div></div>
+<button id="bRoll" type="button">Перекат</button>
+<button id="bAtk" type="button">Удар</button>
+
+<section id="panel" hidden>
+  <div class="pbox">
+    <h2>Настройка прототипа</h2>
+    <p class="note">Двигайте ползунки: игра меняется сразу. «Скопировать» отдаёт изменённые значения: пришлите их мне в чат.</p>
+    <div id="tweaks"></div>
+    <div id="tweakStatus"></div>
+    <div class="prow">
+      <button id="tweakReset" type="button">Сбросить</button>
+      <button id="tweakCopy" type="button">Скопировать</button>
+      <button id="tweakClose" type="button" class="main">Играть</button>
+    </div>
+  </div>
+</section>
+
+<div class="veil" id="dead" hidden>
+  <h1>Ты пал</h1>
+  <button id="again" type="button">Подняться</button>
+</div>
+<div class="veil" id="rotate" hidden>
+  <h1>Поверни телефон</h1>
+  <p>Эта игра вертикальная. Если не поворачивается: Пункт управления → замок ориентации.</p>
+</div>
+<div class="veil" id="nogl" hidden>
+  <h1>Нет WebGL</h1>
+  <p>Браузер не смог запустить 3D. Попробуйте Safari или Chrome свежей версии.</p>
+</div>
+<a id="back" href="../">← 2D-игра</a>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

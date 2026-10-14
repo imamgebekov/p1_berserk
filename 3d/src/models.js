@@ -1,0 +1,153 @@
+// Модели из кубиков (никаких внешних файлов): герой, бес, рогач, дерево, камень, костёр.
+import * as THREE from 'three';
+
+const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
+const basic = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, ...extra });
+
+function box(w, h, d, mat, x = 0, y = 0, z = 0) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  return m;
+}
+// «шарнир»: группа в точке, внутри неё кубик со смещением (чтобы вращать конечности от сустава)
+function limb(w, h, d, mat, x, y, z, dy = -h / 2) {
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  g.add(box(w, h, d, mat, 0, dy, 0));
+  return g;
+}
+
+// Список материалов экземпляра: ими управляет вспышка при попадании
+function flasher(mats) {
+  return f => { for (const m of mats) m.emissive.setRGB(f, f * .85, f * .8); };
+}
+
+// ---------- герой ----------
+export function makeHero() {
+  const mats = [];
+  const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
+  const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
+  const cloth = M('#6a5148'), skin = M('#cdb89a'), dark = M('#3a2c28'), steel = M('#cfc9bb'), edge = M('#8d877b'), guard = M('#8a7a62'), grip = M('#2a1a12'), cape = M('#7a1e26');
+  const legL = limb(.28, .8, .32, M('#4a3a35'), .2, .8, 0), legR = limb(.28, .8, .32, M('#4a3a35'), -.2, .8, 0);
+  const torso = box(.78, .85, .45, cloth, 0, 1.25, 0);
+  const belt = box(.8, .12, .47, M('#2a2422'), 0, .88, 0);
+  const shoulder = box(.4, .28, .5, M('#4a463f'), .42, 1.6, 0);
+  const head = box(.46, .46, .46, skin, 0, 1.92, .02);
+  const hair = box(.5, .22, .5, dark, 0, 2.1, -.02);
+  const hair2 = box(.5, .36, .12, dark, 0, 1.98, -.22);
+  const eyeL = box(.07, .07, .04, basic('#1a1210'), .1, 1.95, .24), eyeR = box(.07, .07, .04, basic('#1a1210'), -.1, 1.95, .24);
+  const cloak = new THREE.Group(); cloak.position.set(0, 1.6, -.26); cloak.add(box(.78, 1.25, .1, cape, 0, -.62, 0));
+  // рука с мечом: swing крутится вокруг вертикали от плеча, sword — наклон лезвия
+  const swing = new THREE.Group(); swing.position.set(0, 1.55, 0);
+  const sword = new THREE.Group(); sword.position.set(-.48, 0, .12);
+  sword.add(box(.12, .5, .12, grip, 0, 0, 0), box(.7, .12, .16, guard, 0, .28, 0), box(.24, 2.5, .09, steel, 0, 1.58, 0), box(.05, 2.5, .1, edge, .1, 1.58, 0), box(.2, .3, .08, steel, 0, 3.0, 0));
+  swing.add(sword);
+  const armL = limb(.2, .75, .22, cloth, .5, 1.62, 0);
+  root.add(legL, legR, torso, belt, shoulder, head, hair, hair2, eyeL, eyeR, cloak, swing, armL);
+  const set = f => flasher(mats)(f);
+  return { group: g, root, legL, legR, cloak, swing, sword, armL, head, flash: set, kind: 'hero' };
+}
+
+export function animateHero(h, p, time, dt, cfg) {
+  const speed = Math.hypot(p.vx, p.vz), run = Math.min(1, speed / cfg.player.speed);
+  const ph = time * (7 + run * 6);
+  const roll = p.state === 'roll', atk = p.state === 'atk', dead = p.dead;
+  h.legL.rotation.x = Math.sin(ph) * .9 * run; h.legR.rotation.x = -Math.sin(ph) * .9 * run;
+  h.armL.rotation.x = -Math.sin(ph) * .7 * run;
+  const bob = Math.abs(Math.sin(ph)) * .1 * run;
+  h.root.position.y = bob; h.root.rotation.x = 0; h.root.scale.set(1, 1, 1);
+  h.cloak.rotation.x = .12 + run * .5 + Math.sin(time * 3) * .05;
+  // меч
+  let yaw = -.35, pitch = .25, tilt = -.12;
+  if (atk) {
+    const t = p.atkT / cfg.player.attackTime, hit = cfg.player.attackHitAt / cfg.player.attackTime;
+    if (t < hit) { const k = t / hit; yaw = -.35 + (-1.7 + .35) * k; pitch = .25 + .65 * k; }
+    else { const k = Math.min(1, (t - hit) / (1 - hit) * 1.6); const ease = 1 - Math.pow(1 - k, 3); yaw = -1.7 + 3.3 * ease; pitch = .9 + .6 * ease; if (k >= 1) { yaw = 1.6; pitch = 1.5; } }
+    tilt = 0;
+  }
+  h.swing.rotation.y = yaw; h.sword.rotation.x = pitch; h.sword.rotation.z = tilt;
+  if (roll) {
+    const k = p.rollT / cfg.player.rollTime;
+    h.root.rotation.x = k * Math.PI * 2; h.root.position.y = .85 + Math.sin(k * Math.PI) * .25; h.root.scale.set(.85, .75, .85);
+  }
+  if (dead) { h.root.rotation.x = -Math.min(1.5, p.deadT * 4); h.root.position.y = .3; }
+  // вспышка при уроне: мигаем во время неуязвимости
+  h.flash(p.inv > 0 && !roll && Math.floor(time * 20) % 2 ? .7 : 0);
+}
+
+// ---------- враги ----------
+export function makeMonster(kind, cfg) {
+  const brute = kind === 'brute', mats = [];
+  const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
+  const body = M(brute ? '#4a3430' : '#3b3345'), dark = M(brute ? '#2a1c1a' : '#1a121a'), bone = M('#d8cfbd');
+  const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
+  root.add(box(.8, .85, .55, body, 0, .95, 0));
+  const head = box(.55, .5, .5, body, 0, 1.65, .05); root.add(head);
+  root.add(box(.1, .1, .05, basic('#ff3030'), .12, 1.7, .31), box(.1, .1, .05, basic('#ff3030'), -.12, 1.7, .31));
+  if (brute) { root.add(box(.12, .5, .12, bone, .3, 2.05, .05)); root.add(box(.12, .5, .12, bone, -.3, 2.05, .05)); }
+  else { root.add(box(.14, .3, .1, body, .3, 1.95, 0)); root.add(box(.14, .3, .1, body, -.3, 1.95, 0)); }
+  const armL = limb(.22, .75, .24, body, .55, 1.3, 0), armR = limb(.22, .75, .24, body, -.55, 1.3, 0);
+  const legL = limb(.3, .6, .3, dark, .22, .6, 0), legR = limb(.3, .6, .3, dark, -.22, .6, 0);
+  armL.add(box(.1, .22, .08, bone, 0, -.82, .1)); armR.add(box(.1, .22, .08, bone, 0, -.82, .1));
+  root.add(armL, armR, legL, legR);
+  const s = cfg.enemies[kind].scale; g.scale.set(s, s, s);
+  return { group: g, root, armL, armR, legL, legR, head, flash: flasher(mats), kind };
+}
+
+export function animateMonster(m, e, time, cfg) {
+  const C = cfg.enemies[e.type];
+  const spd = Math.hypot(e.vx, e.vz);
+  const moving = e.state === 'chase' && !e.dead;
+  const ph = time * (6 + C.speed) + e.id * 1.7;
+  m.legL.rotation.x = moving ? Math.sin(ph) * .8 : 0; m.legR.rotation.x = moving ? -Math.sin(ph) * .8 : 0;
+  m.armL.rotation.x = moving ? -Math.sin(ph) * .6 : 0; m.armR.rotation.x = moving ? Math.sin(ph) * .6 : 0;
+  m.root.position.y = moving ? Math.abs(Math.sin(ph)) * .08 : 0; m.root.rotation.x = 0; m.root.rotation.z = 0; m.root.position.z = 0;
+  let red = 0;
+  if (e.state === 'wind') {
+    const k = Math.min(1, e.t / C.wind);
+    m.armL.rotation.x = m.armR.rotation.x = -2.4 * k; m.root.rotation.x = -.3 * k; m.root.position.z = -.15 * k;
+    red = .35 + .35 * Math.sin(time * 40);
+  } else if (e.state === 'rec') {
+    const k = Math.min(1, e.t / .25);
+    m.armL.rotation.x = m.armR.rotation.x = -2.4 + 3.2 * Math.min(1, k * 3); m.root.rotation.x = .4 * (1 - k); m.root.position.z = .25 * (1 - k);
+  }
+  if (e.dead) { const k = Math.min(1, e.deadT / .5); m.root.rotation.z = 1.4 * k; m.root.position.y = -.5 * k; red = 0; }
+  m.flash(Math.max(red, e.flash > 0 ? .9 : 0));
+}
+
+// ---------- мир ----------
+const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
+// Добавляет кубик в список, запекая трансформацию и цвет в вершины (потом всё сливается в один меш)
+export function pushBox(list, w, h, d, x, y, z, rx, ry, rz, color) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  tmpE.set(rx, ry, rz); tmpQ.setFromEuler(tmpE); tmpP.set(x, y, z); tmpS.set(1, 1, 1);
+  tmpM.compose(tmpP, tmpQ, tmpS); geo.applyMatrix4(tmpM);
+  const c = new THREE.Color(color), n = geo.attributes.position.count, col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  list.push(geo);
+}
+
+export function addTree(list, rnd, x, z) {
+  const h = 2.6 + rnd() * 2.2, col = rnd() < .5 ? '#1a1210' : '#221813';
+  pushBox(list, .36, h, .36, x, h / 2, z, 0, 0, (rnd() - .5) * .15, col);
+  const n = 2 + (rnd() * 3 | 0);
+  for (let i = 0; i < n; i++) {
+    const a = rnd() * Math.PI * 2, y = h * (.45 + rnd() * .5), l = 1 + rnd() * 1.4;
+    pushBox(list, .16, l, .16, x + Math.cos(a) * l * .35, y + l * .2, z + Math.sin(a) * l * .35, Math.sin(a) * .9, 0, -Math.cos(a) * .9, col);
+  }
+}
+export function addRock(list, rnd, x, z) {
+  const s = .5 + rnd() * 1.1, col = rnd() < .5 ? '#2a2420' : '#332b26';
+  pushBox(list, s * 1.4, s, s * 1.1, x, s * .4, z, 0, rnd() * 3, 0, col);
+  if (rnd() < .6) pushBox(list, s, s * .8, s * .9, x + s * .5, s * .7, z + s * .2, .2, rnd() * 3, .3, col);
+}
+
+export function makeCampfire() {
+  const g = new THREE.Group();
+  const log = lam('#3a2616');
+  for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2, l = box(.22, 1.5, .22, log, Math.cos(a) * .35, .3, Math.sin(a) * .35); l.rotation.set(Math.sin(a) * 1.0, 0, -Math.cos(a) * 1.0); g.add(l); }
+  const f1 = box(.7, .9, .7, basic('#e0602a'), 0, .7, 0), f2 = box(.4, .7, .4, basic('#ffd27a'), 0, .75, 0), f3 = box(.25, .5, .25, basic('#fff0b0'), 0, .8, 0);
+  g.add(f1, f2, f3);
+  const light = new THREE.PointLight('#ff7a30', 28, 18, 1.6); light.position.set(0, 1.4, 0); g.add(light);
+  return { group: g, flames: [f1, f2, f3], light };
+}

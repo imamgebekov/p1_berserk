@@ -241,3 +241,4 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 .lefty #br { left:auto; right:10px; }
 .lefty #batk { right:auto; left:10px; }
 .lefty #bjump, .lefty #bbrand, .lefty #broll { right:auto; left:116px; }
+#to3d { align-self:center; margin-top:10px; min-height:44px; display:inline-flex; align-items:center; padding:0 18px; color:#9a8f7c; text-decoration:none; font-size:15px; }

@@ -8,13 +8,16 @@
     "dev": "vite --host --port 5174",
     "build": "vite build",
     "preview": "vite preview --host --port 5174",
-    "test": "node test/items.mjs && node test/economy.mjs && node test/progress.mjs && node test/combat.mjs && node test/headless.mjs",
+    "test": "node test/items.mjs && node test/economy.mjs && node test/progress.mjs && node test/combat.mjs && node test/sim3d.mjs && node test/headless.mjs",
     "balance": "node tools/balance.mjs",
     "icons": "node tools/make-icons.mjs",
-    "test:browser": "node test/browser.mjs && node test/browser-progress.mjs && node test/browser-polish.mjs",
+    "test:browser": "node test/browser.mjs && node test/browser-progress.mjs && node test/browser-polish.mjs && node test/browser3d.mjs",
     "test:all": "npm test && npm run test:browser"
   },
   "devDependencies": {
     "vite": "8.3.1"
+  },
+  "dependencies": {
+    "three": "0.186.1"
   }
 }

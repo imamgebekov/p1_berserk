@@ -33,5 +33,9 @@ export default defineConfig({
   base: './',
   plugins: [swPlugin()],
   server: { host: true, port: 5174, strictPort: false },
-  build: { target: 'es2020', sourcemap: false, assetsInlineLimit: 0 }
+  build: {
+    target: 'es2020', sourcemap: false, chunkSizeWarningLimit: 700, assetsInlineLimit: 0,
+    // две страницы: 2D-игра и 3D-прототип (/3d/)
+    rollupOptions: { input: { main: resolve(here, 'index.html'), three: resolve(here, '3d/index.html') } }
+  }
 });
