@@ -34,8 +34,12 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 #chat .me { color:#e8e0cc; }
 #chat .old { opacity:0; }
 
-#mute { position:fixed; right:2px; top:calc(env(safe-area-inset-top) + 26px); min-width:44px; min-height:44px;
+#pauseBtn { position:fixed; right:2px; top:calc(env(safe-area-inset-top) + 26px); min-width:44px; min-height:44px;
   background:none; border:0; color:#6e6455; font:inherit; font-size:12px; padding:8px; touch-action:manipulation; }
+
+/* пауза / повернуть телефон: поверх всего */
+#pause, #rotate { z-index:9; overflow-y:auto; justify-content:flex-start; padding-top:calc(env(safe-area-inset-top) + 40px); }
+#rotate { justify-content:center; }
 
 /* пульт: кнопки ≥ 44 px; левая группа 10..166 px слева, правая — от правого края, не пересекаются от 360 px ширины */
 #pad { position:fixed; left:0; right:0; bottom:0; height:calc(var(--pad) + env(safe-area-inset-bottom)); background:#0e0b0a;
@@ -208,3 +212,29 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 #saveTxt { font-size:14px; color:#c9a56a; line-height:1.4; }
 #newGame { margin-top:10px; min-height:44px; padding:8px 18px; font-size:15px; border-color:#5a4a3a; color:#9a8f7c; }
 #newGame.warn { border-color:var(--blood); color:#fff; }
+
+/* пауза и настройки */
+#pauseBtn { color:#9a8f7c; }
+#settings { width:min(100%, 360px); margin-top:18px; display:flex; flex-direction:column; gap:10px; text-align:left; }
+.srow { display:flex; justify-content:space-between; font-size:17px; color:var(--bone); }
+.srow b { color:var(--ember); font-weight:700; }
+#setVol { width:100%; min-height:44px; accent-color:var(--blood); touch-action:pan-x; }
+.veil .tgl { margin-top:0; min-height:48px; width:100%; padding:10px 14px; font-size:17px; text-align:left; display:flex; justify-content:space-between; border-color:#5a4a3a; }
+.veil .tgl b { color:var(--ember); }
+.veil .tgl.on { border-color:var(--ember); }
+.snote { font-size:12px; line-height:1.4; color:#6e6455; }
+#resume, #startSettings { align-self:center; }
+#startSettings { margin-top:12px; min-height:44px; padding:8px 18px; font-size:15px; border-color:#5a4a3a; color:#9a8f7c; }
+#resume { margin-top:22px; }
+.phone { width:44px; height:78px; border:3px solid var(--bone); border-radius:8px; position:relative; transform:rotate(90deg); animation:turn 2.4s ease-in-out infinite; }
+.phone::after { content:''; position:absolute; left:50%; bottom:5px; width:14px; height:3px; margin-left:-7px; background:var(--bone); }
+@keyframes turn { 0%,25% { transform:rotate(90deg); } 60%,100% { transform:rotate(0deg); } }
+.reduce .phone, .reduce .bar.rage.full, .reduce #bbrand.ready { animation:none; }
+.reduce .phone { transform:none; }
+@media (prefers-reduced-motion: reduce) { .phone { animation:none; transform:none; } }
+
+/* режим левши: движение справа, удары слева */
+.lefty #bl { left:auto; right:92px; }
+.lefty #br { left:auto; right:10px; }
+.lefty #batk { right:auto; left:10px; }
+.lefty #bjump, .lefty #bbrand { right:auto; left:116px; }

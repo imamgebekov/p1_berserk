@@ -17,6 +17,9 @@ import { learn } from '../src/skills.js';
 import { accept } from '../src/quests.js';
 
 globalThis.AudioContext = FakeAudioContext;
+import { S as SET, sanitize as sanitizeSettings, loadSettings, setSetting, saveSettings, DEFAULTS as SET_DEFAULTS } from '../src/settings.js';
+import { addHold, removeHold, hasHold, clearHolds } from '../src/hold.js';
+import { getVolume, setVolume, suspendAudio } from '../src/audio.js';
 const SEED = Number(process.env.SEED || 1337);
 const FRAMES = Number(process.env.FRAMES || 20000);
 const failures = [];
@@ -168,6 +171,75 @@ const worst = Math.max(...results.map(r => r.maxRects));
 if (worst > rectBudget) fail('кадр', 0, `в кадре ${worst} fillRect (бюджет ${rectBudget})`);
 
 console.log(`Проверок инвариантов: ${checks}; тонов: ${audioStats.tones}, шумов: ${audioStats.noises}; пик fillRect/кадр: ${worst}`);
+// ---- чёткие пиксели: целый масштаб на любых экранах ----
+{
+  const sizes = [[390, 400, 3], [390, 400, 2], [375, 330, 2], [320, 250, 2], [414, 420, 3], [430, 440, 3], [768, 700, 2], [1024, 560, 2], [1024, 700, 1], [1920, 900, 1], [360, 330, 3], [412, 400, 2.625]];
+  const seenLW = [];
+  for (const [w, h, dpr] of sizes) {
+    const cv = fakeCanvas(); cv.style = {}; const lo = fakeCanvas();
+    const r = createRenderer(cv, lo); r.resize(w, h, dpr);
+    const S = V.S, label = `${w}×${h}@${dpr}`;
+    if (!(Number.isInteger(S) && S >= 1)) fail('пиксели', 0, `${label}: масштаб ${S}`);
+    if (cv.width !== V.LW * S || cv.height !== V.LH * S) fail('пиксели', 0, `${label}: холст ${cv.width}×${cv.height} не кратен ${V.LW}×${V.LH}×${S}`);
+    if (lo.width !== V.LW || lo.height !== V.LH) fail('пиксели', 0, `${label}: низкий холст ${lo.width}×${lo.height}`);
+    if (V.SX !== S || V.SY !== S) fail('пиксели', 0, `${label}: SX/SY не равны S`);
+    const effDpr = Math.min(dpr, CFG.view.maxDpr), cssW = cv.width / effDpr, cssH = cv.height / effDpr;
+    if (cssW > w + 1 || cssH > h + 1) fail('пиксели', 0, `${label}: холст ${cssW.toFixed(0)}×${cssH.toFixed(0)} больше области`);
+    if (w - cssW > S / effDpr + 1) fail('пиксели', 0, `${label}: по ширине остаётся ${(w - cssW).toFixed(1)} css-px`);
+    if (V.LH < CFG.view.minHeight || V.LW < CFG.view.minWidth) fail('пиксели', 0, `${label}: кадр слишком мал ${V.LW}×${V.LH}`);
+    if (parseFloat(cv.style.top) + cssH > h + 1 || parseFloat(cv.style.left) < 0) fail('пиксели', 0, `${label}: холст вне области (${cv.style.left}, ${cv.style.top})`);
+    if (w <= 430 && h >= 330 && (V.LW < 150 || V.LW > 230)) fail('пиксели', 0, `${label}: ширина мира ${V.LW} вне [150; 230] на телефоне`);
+    seenLW.push(`${label}→S${S} ${V.LW}×${V.LH}`);
+    // кадр рисуется без ошибок при любом размере
+    resetState(); makeNpcs(); W.started = true; for (let i = 0; i < 120; i++) { step(1 / 60); r.render(1 / 60); }
+    invariants('пиксели ' + label, 0);
+  }
+  console.log('  масштабы:', seenLW.join(' | '));
+}
+
+// ---- паузы, громкость, настройки ----
+{
+  resetState(); setRng(mulberry32(5)); makeNpcs(); W.started = true; env.reduce = false;
+  for (let i = 0; i < 60; i++) step(1 / 60);
+  const snap = () => JSON.stringify([P.x, P.hp, W.timer, W.enemies.map(e => e.x)]);
+  keys.r = true;
+  addHold('pause'); const a = snap(); const t0 = W.T; for (let i = 0; i < 120; i++) step(1 / 60);
+  if (snap() !== a) fail('пауза', 0, 'мир двигался при паузе');
+  if (!(W.T > t0)) fail('пауза', 0, 'часы игры остановились (чат/анимации должны идти)');
+  if (keys.r) fail('пауза', 0, 'кнопки не отпущены при паузе');
+  addHold('rotate'); removeHold('pause'); for (let i = 0; i < 30; i++) step(1 / 60);
+  if (snap() !== a || !W.hold) fail('пауза', 0, 'пауза «поверните телефон» не держит игру');
+  removeHold('rotate'); keys.r = true; for (let i = 0; i < 60; i++) step(1 / 60);
+  if (snap() === a || W.hold) fail('пауза', 0, 'игра не продолжилась после снятия пауз');
+  keys.r = false; clearHolds(); if (W.hold || hasHold('pause')) fail('пауза', 0, 'clearHolds');
+
+  // громкость: запоминается до создания звука, ограничивается, пауза звука не падает
+  setVolume(5); if (getVolume() !== 1) fail('громкость', 0, 'верхний предел'); setVolume(-3); if (getVolume() !== 0) fail('громкость', 0, 'нижний предел'); setVolume(.6);
+  suspendAudio(true); suspendAudio(false);
+
+  // настройки: очистка, сохранение, недоступное хранилище, влияние на env.reduce
+  const m = new Map(), st = { getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) };
+  const fakeDoc = { body: { classList: { s: new Set(), toggle(c, on) { on ? this.s.add(c) : this.s.delete(c); } } } };
+  loadSettings(fakeDoc, st, false);
+  if (JSON.stringify(SET) !== JSON.stringify(SET_DEFAULTS)) fail('настройки', 0, 'значения по умолчанию');
+  setSetting(fakeDoc, 'lefty', true); setSetting(fakeDoc, 'volume', .35); setSetting(fakeDoc, 'reduce', 'on');
+  if (!fakeDoc.body.classList.s.has('lefty') || !fakeDoc.body.classList.s.has('reduce') || env.reduce !== true) fail('настройки', 0, 'применение классов/reduce');
+  if (getVolume() !== .35) fail('настройки', 0, 'громкость не применилась');
+  const saved = JSON.parse(m.get('berserk.settings')); if (saved.lefty !== true || saved.volume !== .35 || saved.reduce !== 'on') fail('настройки', 0, 'сохранение ' + m.get('berserk.settings'));
+  setSetting(fakeDoc, 'reduce', 'auto'); if (env.reduce !== false) fail('настройки', 0, 'reduce авто');
+  loadSettings(fakeDoc, st, true); if (env.reduce !== true) fail('настройки', 0, 'системное reduced-motion не учтено');
+  loadSettings(fakeDoc, st, false);
+  for (const junk of [null, 5, 'x', [], { volume: 'громко' }, { volume: 9 }, { volume: -1, reduce: 'зачем', lefty: 1 }]) {
+    const s = sanitizeSettings(junk);
+    if (!(s.volume >= 0 && s.volume <= 1) || !['auto', 'on'].includes(s.reduce) || typeof s.lefty !== 'boolean' || typeof s.muted !== 'boolean') fail('настройки', 0, 'мусор ' + JSON.stringify(junk) + ' → ' + JSON.stringify(s));
+  }
+  m.set('berserk.settings', '{oops'); loadSettings(fakeDoc, st, false); if (JSON.stringify(SET) !== JSON.stringify(SET_DEFAULTS)) fail('настройки', 0, 'повреждённые настройки не заменены умолчаниями');
+  loadSettings(fakeDoc, { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } }, false);
+  if (saveSettings() !== false) fail('настройки', 0, 'запись без хранилища должна вернуть false');
+  setSetting(fakeDoc, 'volume', .8); loadSettings(fakeDoc, st, false); setSetting(fakeDoc, 'lefty', false); setSetting(fakeDoc, 'volume', .8);
+  env.reduce = false; setVolume(.8); resetState();
+}
+
 if (failures.length) {
   console.error('\nПРОВАЛ:\n' + failures.join('\n'));
   process.exit(1);

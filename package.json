@@ -10,7 +10,8 @@
     "preview": "vite preview --host --port 5174",
     "test": "node test/items.mjs && node test/economy.mjs && node test/progress.mjs && node test/headless.mjs",
     "balance": "node tools/balance.mjs",
-    "test:browser": "node test/browser.mjs && node test/browser-progress.mjs",
+    "icons": "node tools/make-icons.mjs",
+    "test:browser": "node test/browser.mjs && node test/browser-progress.mjs && node test/browser-polish.mjs",
     "test:all": "npm test && npm run test:browser"
   },
   "devDependencies": {

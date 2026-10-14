@@ -21,7 +21,7 @@ const freshP = () => ({
 const freshW = () => ({
   enemies: [], parts: [], nums: [], popups: [], npcs: [], boss: null,
   T: 0, freeze: 0, shake: 0, hurtFlash: 0, camX: 0,
-  spawnT: CFG.spawn.firstDelay, killsSinceLord: 0, started: false, paused: false,
+  spawnT: CFG.spawn.firstDelay, killsSinceLord: 0, started: false, paused: false, hold: false,
   ecl: 0, cycle: 0, maxT: CFG.eclipse.firstTimer, timer: CFG.eclipse.firstTimer,
   eclipseDied: false, eid: 1, itemSeq: 0, chatT: CFG.chat.firstIdle, online: CFG.online.base,
   chatLog: [], chatSeq: 0, timers: [],
@@ -32,7 +32,7 @@ export const P = freshP();
 export const W = freshW();
 
 // размеры вида (меняет renderer при resize)
-export const V = { LW: CFG.view.width, LH: 260, G: 226, DPR: 1, SX: 1, SY: 1 };
+export const V = { LW: CFG.view.width, LH: 260, G: 226, DPR: 1, SX: 1, SY: 1, S: 1 };
 
 export function resetState() {
   Object.assign(P, freshP());

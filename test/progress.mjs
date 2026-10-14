@@ -16,7 +16,6 @@ import { step } from '../src/sim.js';
 import { tryUpgrade } from '../src/smith.js';
 import { restock, stock } from '../src/shop.js';
 import { VERSION, MIGRATIONS, migrate, snapshot, sanitize, applySave, createSaver } from '../src/save.js';
-import { setMuted, isMuted } from '../src/audio.js';
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
@@ -178,7 +177,7 @@ const fakeStorage = (opts = {}) => {
 // ---------- 3. сохранение ----------
 {
   // круговой обмен
-  fresh(30); P.lv = 7; P.xp = 12; P.ash = 1234; P.kills = 77; P.sp = 3; W.cycle = 2; setMuted(true);
+  fresh(30); P.lv = 7; P.xp = 12; P.ash = 1234; P.kills = 77; P.sp = 3; W.cycle = 2;
   P.skills = { heavy: 2, chain: 1, vigor: 3 };
   giveItem(newItem('w_bone_edge')); giveItem(newItem('h_horned_helm')); giveItem(newItem('r_silver')); equipFromBag(0); P.eq.weapon.up = 4; recalc();
   restock(); const shopIds = stock().map(e => e.item.id).join();
@@ -187,17 +186,15 @@ const fakeStorage = (opts = {}) => {
   ok(saver.write() && store.m.has(CFG.save.key), 'запись');
   const raw = store.m.get(CFG.save.key); ok(raw.length < 4000, 'размер сохранения ' + raw.length);
   const expect = { lv: P.lv, xp: P.xp, ash: P.ash, kills: P.kills, sp: P.sp, bag: P.bag.map(i => i.id + ':' + i.up).join(), eq: SLOTS.map(s => P.eq[s] ? P.eq[s].id + ':' + P.eq[s].up : '-').join(), skills: JSON.stringify(P.skills), quests: JSON.stringify(P.quests), maxhp: P.maxhp, dmg: derived().dmg, cycle: W.cycle };
-  resetState(); setMuted(false); P.quests = {};
+  resetState(); P.quests = {};
   const r = saver.load(); ok(r.data && !r.error && !r.migrated, 'загрузка: ' + JSON.stringify(r.error));
   applySave(r.data);
   const got = { lv: P.lv, xp: P.xp, ash: P.ash, kills: P.kills, sp: P.sp, bag: P.bag.map(i => i.id + ':' + i.up).join(), eq: SLOTS.map(s => P.eq[s] ? P.eq[s].id + ':' + P.eq[s].up : '-').join(), skills: JSON.stringify(P.skills), quests: JSON.stringify(P.quests), maxhp: P.maxhp, dmg: derived().dmg, cycle: W.cycle };
   for (const k of Object.keys(expect)) ok(expect[k] === got[k], `круговой обмен: ${k}: ${expect[k]} ≠ ${got[k]}`);
-  ok(isMuted() === true, 'звук не сохранился');
   ok(stock().map(e => e.item.id).join() === shopIds, 'ассортимент не сохранился');
   ok(P.hp === P.maxhp && P.x === CFG.world.fire + CFG.world.startOffset && !P.dead, 'после загрузки герой у костра со здоровьем');
   ok(new Set([...P.bag, ...Object.values(P.eq).filter(Boolean)].map(i => i.uid)).size === P.bag.length + Object.values(P.eq).filter(Boolean).length, 'uid предметов после загрузки не уникальны');
   const nu = newItem('r_copper'); ok(![...P.bag, ...Object.values(P.eq)].filter(Boolean).some(i => i.uid === nu.uid), 'новый uid совпал с загруженным');
-  setMuted(false);
 
   // пустое хранилище
   ok(createSaver(fakeStorage()).load().data === null && createSaver(fakeStorage()).peek() === null, 'пустое хранилище');

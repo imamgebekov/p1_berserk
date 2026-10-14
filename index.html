@@ -6,6 +6,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0908">
+<meta name="apple-mobile-web-app-title" content="Берсерк">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-180.png">
 <title>Берсерк</title>
 </head>
 <body>
@@ -22,7 +26,7 @@
   <div id="chat"></div>
   <button id="talk" class="talk" type="button" hidden>Торговец</button>
 </div>
-<button id="mute">звук: вкл</button>
+<button id="pauseBtn" type="button" aria-label="Пауза">Пауза</button>
 
 <div id="pad">
   <div class="btn" id="bl" data-k="l">◀</div>
@@ -93,8 +97,26 @@
   <h2>эпоха затмения</h2>
   <p>Ты идёшь с мечом, который слишком велик для человека. Мир вокруг живёт без тебя, но ты в нём не один.</p>
   <button id="go">Войти в мир</button>
+  <button id="startSettings" type="button">Настройки</button>
   <div id="saveBox" hidden><div id="saveTxt"></div><button id="newGame" type="button">Начать заново</button></div>
   <div id="hint">Держи «Удар» для цепочки: третий удар тяжёлый. Когда шкала под здоровьем заполнится, жми «Клеймо». У костра в начале мира безопасно.</div>
+</div>
+<div class="veil" id="pause" hidden>
+  <h2 id="pauseTitle">Пауза</h2>
+  <div id="settings">
+    <label class="srow" for="setVol"><span>Громкость</span><b id="volVal"></b></label>
+    <input id="setVol" type="range" min="0" max="100" step="5" aria-label="Громкость">
+    <button class="tgl" id="setMute" type="button"></button>
+    <button class="tgl" id="setLefty" type="button"></button>
+    <button class="tgl" id="setReduce" type="button"></button>
+    <div class="snote">«Меньше движения»: «авто» следует настройке iPhone (Универсальный доступ → Движение), «вкл» отключает тряску, частицы и мерцание всегда.</div>
+  </div>
+  <button id="resume" type="button">Продолжить</button>
+</div>
+<div class="veil" id="rotate" hidden>
+  <div class="phone" aria-hidden="true"></div>
+  <h2>Поверните телефон</h2>
+  <p>Игра рассчитана на вертикальное положение. Она на паузе, пока вы не вернёте телефон.</p>
 </div>
 <div class="veil" id="dead" hidden>
   <h2>Ты пал.</h2>

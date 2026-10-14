@@ -1,14 +1,15 @@
 import './style.css';
 import { CFG } from './config.js';
-import { W, P } from './state.js';
-import { env } from './env.js';
+import { W, P, V } from './state.js';
 import { step } from './sim.js';
 import { makeNpcs } from './world.js';
 import { rise } from './combat.js';
 import { chat, npcSay } from './chat.js';
 import { after } from './clock.js';
 import { on } from './events.js';
-import { ensureAudio, isMuted, setMuted } from './audio.js';
+import { ensureAudio } from './audio.js';
+import { loadSettings, setOsReduce } from './settings.js';
+import { createPauseUI } from './ui/pause.js';
 import { createRenderer } from './render/index.js';
 import { createHud } from './hud.js';
 import { bindInput } from './input.js';
@@ -23,15 +24,16 @@ import './quests.js';          // подписывается на события
 
 const $ = id => document.getElementById(id);
 const mq = matchMedia('(prefers-reduced-motion: reduce)');
-env.reduce = mq.matches;
-mq.addEventListener?.('change', e => { env.reduce = e.matches; });
+loadSettings(document, undefined, mq.matches);      // громкость, звук, левша, «меньше движения»
+mq.addEventListener?.('change', e => setOsReduce(document, e.matches));
 
 const cv = $('c');
 const lo = document.createElement('canvas');
 const renderer = createRenderer(cv, lo);
 const hud = createHud(document);
 
-function resize() { renderer.resize(innerWidth, cv.clientHeight || 400, devicePixelRatio); }
+const area = $('hud');
+function resize() { const r = area.getBoundingClientRect(); renderer.resize(r.width || innerWidth, r.height || 400, devicePixelRatio); }
 addEventListener('resize', resize);
 addEventListener('orientationchange', () => setTimeout(resize, 200));
 resize();
@@ -43,10 +45,7 @@ recalc();
 const saver = createSaver();
 let resetting = false;
 const loaded = saver.load();
-if (loaded.data) {
-  applySave(loaded.data);
-  $('mute').textContent = 'звук: ' + (isMuted() ? 'выкл' : 'вкл');
-}
+if (loaded.data) applySave(loaded.data);
 function resetProgress() { resetting = true; saver.reset(); location.reload(); }
 on('save', () => saver.request());
 const flush = () => { if (!resetting && W.started) saver.write(); };
@@ -76,6 +75,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) flush
 
 const inventoryUI = createInventoryUI(document, { saver, onReset: resetProgress });
 const townUI = createTownUI(document);
+const pauseUI = createPauseUI(document, window);
 
 $('go').addEventListener('click', () => {
   ensureAudio(); $('start').hidden = true; W.started = true;
@@ -84,9 +84,6 @@ $('go').addEventListener('click', () => {
   saver.request();
 });
 $('rise').addEventListener('click', rise);
-$('mute').addEventListener('click', () => {
-  setMuted(!isMuted()); $('mute').textContent = 'звук: ' + (isMuted() ? 'выкл' : 'вкл'); saver.request();
-});
 
 let last = performance.now();
 function loop(now) {
@@ -99,5 +96,10 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
+// офлайн: service worker (только в сборке и только в защищённом контексте: HTTPS или localhost)
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => { /* без офлайна */ }));
+}
+
 // для отладки с компьютера и для браузерного теста: window.__berserk
-window.__berserk = { W, P, giveItem, newItem, inventoryUI, townUI, stock, buy, saver, applySave, slotOf: id => ITEMS_BY_ID[id].slot, recalc };
+window.__berserk = { W, V, P, pauseUI, giveItem, newItem, inventoryUI, townUI, stock, buy, saver, applySave, slotOf: id => ITEMS_BY_ID[id].slot, recalc };

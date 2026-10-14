@@ -17,13 +17,24 @@ export function createRenderer(cv, lo) {
   const ashFx = [];
   const pool = createFxPool();
 
-  function resize(cssW, cssH, dpr) {
-    V.DPR = Math.min(dpr || 1, CFG.view.maxDpr);
-    cv.width = Math.round(cssW * V.DPR); cv.height = Math.round(cssH * V.DPR);
-    V.LH = Math.max(CFG.view.minHeight, Math.floor(V.LW * cssH / cssW));
+  // Целый масштаб S: каждый логический пиксель — ровно S×S физических. Ширина мира (V.LW) подгоняется под экран,
+  // поэтому на узких/широких экранах кадр чуть уже/шире, но пиксели не «рваные». Холст прижат к низу сцены.
+  function resize(areaW, areaH, dpr) {
+    const Vw = CFG.view;
+    V.DPR = Math.min(dpr || 1, Vw.maxDpr);
+    const devW = Math.max(1, Math.round(areaW * V.DPR)), devH = Math.max(1, Math.round(areaH * V.DPR));
+    let S = Math.max(1, Math.round(devW / Vw.width));
+    while (S > 1 && Math.floor(devH / S) < Vw.minHeight) S--;
+    V.S = S; V.LW = Math.max(Vw.minWidth, Math.floor(devW / S)); V.LH = Math.max(Vw.minHeight, Math.floor(devH / S));
+    cv.width = V.LW * S; cv.height = V.LH * S;
+    if (cv.style) {
+      const cssW = cv.width / V.DPR, cssH = cv.height / V.DPR;
+      cv.style.width = cssW + 'px'; cv.style.height = cssH + 'px';
+      cv.style.left = Math.max(0, Math.floor((areaW - cssW) / 2)) + 'px'; cv.style.top = Math.max(0, Math.floor(areaH - cssH)) + 'px';
+    }
     lo.width = V.LW; lo.height = V.LH;
-    V.G = V.LH - CFG.view.groundOffset;
-    V.SX = cv.width / V.LW; V.SY = cv.height / V.LH;
+    V.G = V.LH - Vw.groundOffset;
+    V.SX = S; V.SY = S;
     // состояние контекста сбрасывается при смене размера: шрифт ставим здесь, а не каждый кадр
     dctx.font = `${Math.round(11 * V.DPR)}px ui-monospace, Menlo, monospace`;
     dctx.textAlign = 'center';

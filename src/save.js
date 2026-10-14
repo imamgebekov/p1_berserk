@@ -7,7 +7,6 @@ import { SKILLS } from './data/skills.js';
 import { QUESTS_BY_ID } from './data/quests.js';
 import { newItem, recalc } from './inventory.js';
 import { buyPrice } from './shop.js';
-import { isMuted, setMuted } from './audio.js';
 
 export const VERSION = 1;
 // MIGRATIONS[n] переводит данные формата n в формат n+1 (получает копию, возвращает новый объект).
@@ -41,8 +40,7 @@ export function snapshot() {
       eq: Object.fromEntries(SLOTS.map(s => [s, item(P.eq[s])])),
       quests: JSON.parse(JSON.stringify(P.quests))
     },
-    W: { cycle: W.cycle, shop: W.shop.built ? W.shop.items.map(e => e.item.id) : null },
-    settings: { muted: isMuted() }
+    W: { cycle: W.cycle, shop: W.shop.built ? W.shop.items.map(e => e.item.id) : null }
   };
 }
 
@@ -61,7 +59,7 @@ export function sanitize(d) {
   const out = {
     lv: int(p.lv, 1, 99, 1), xp: int(p.xp, 0, 1e9, 0), ash: int(p.ash, 0, 1e9, 0), kills: int(p.kills, 0, 1e9, 0), sp: int(p.sp, 0, 99, 0),
     skills: {}, bag: [], eq: {}, quests: {},
-    cycle: int(w.cycle, 0, 999, 0), shop: null, muted: !!(d && d.settings && d.settings.muted)
+    cycle: int(w.cycle, 0, 999, 0), shop: null
   };
   for (const id of Object.keys(SKILLS)) { const r = int(p.skills && p.skills[id], 0, SKILLS[id].max, 0); if (r) out.skills[id] = r; }
   if (Array.isArray(p.bag)) out.bag = p.bag.map(x => cleanItem(x)).filter(Boolean).slice(0, CFG.items.bagSize);
@@ -86,7 +84,6 @@ export function applySave(c) {
   W.shop = c.shop ? { built: true, items: c.shop.map(id => ({ item: newItem(id), cost: buyPrice(ITEMS_BY_ID[id]) })) } : { items: [], built: false };
   P.x = CFG.world.fire + CFG.world.startOffset; P.rage = 0; P.rageOn = 0; P.dead = false;
   recalc(); P.hp = P.maxhp;
-  setMuted(c.muted);
 }
 
 function defaultStorage() {

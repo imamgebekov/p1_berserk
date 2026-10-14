@@ -104,6 +104,8 @@ try {
     // сворачивание вкладки сохраняет
     await page.evaluate(() => { window.__berserk.P.ash = 1002; window.dispatchEvent(new Event('pagehide')); });
     if ((await page.evaluate(() => JSON.parse(localStorage.getItem('berserk.save')).P.ash)) !== 1002) bad('pagehide не сохранил');
+    if (await page.locator('#pause').isHidden()) bad('pagehide не поставил игру на паузу');
+    await page.tap('#resume');
     // сброс прогресса из вкладки «Герой»
     await page.tap('#mhero'); await page.waitForSelector('#heroTab:not([hidden])');
     const info = await page.locator('#saveInfo').textContent(); if (!info.includes('Автосохранение')) bad('нет статуса автосохранения: «' + info + '»');

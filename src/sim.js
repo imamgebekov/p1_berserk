@@ -16,7 +16,7 @@ import { mods } from './skills.js';
 export function step(dt) {
   W.T += dt;
   runTimers();
-  if (!W.started || W.paused) return;
+  if (!W.started || W.paused || W.hold) return;
   if (P.dead) { stepParticles(dt, true); return; }
   update(dt);
 }
@@ -75,7 +75,9 @@ function updateSpawns(dt) {
   if (W.spawnT > 0) return;
   W.spawnT = rnd(S.interval[0], S.interval[1]);
   if (W.boss || W.enemies.length >= S.maxAlive || P.x <= CFG.world.town - S.townMargin || P.dead) return;
-  const x = clamp(P.x + pick([-1, 1]) * rnd(S.distance[0], S.distance[1]), CFG.world.town + 30, CFG.world.length - 30);
+  // враги появляются за краем экрана: на широком кадре (планшет) дальше
+  const lo = Math.max(S.distance[0], V.LW / 2 + 14), hi = lo + (S.distance[1] - S.distance[0]);
+  const x = clamp(P.x + pick([-1, 1]) * rnd(lo, hi), CFG.world.town + 30, CFG.world.length - 30);
   if (Math.abs(x - P.x) <= S.minDistance) return;
   if (W.killsSinceLord >= S.lordEvery) {
     spawnEnemy('lord', x); W.killsSinceLord = 0; chat('', 'Из тени вышел Слуга Затмения.', 'sys');
