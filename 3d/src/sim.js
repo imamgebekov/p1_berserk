@@ -16,7 +16,7 @@ import { makeMap, insideOf, nearBuilding, resolve, slide } from './map.js';
 export function createWorld(cfg, rng = Math.random) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, ash: 0, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0 },
     enemies: []
   };
@@ -85,6 +85,7 @@ function attackHit(W) {
     if (e.state === 'wind') { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах
     W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg: dealt, crit, id: e.id });
     hits++;
+    e.alert = true;
     if (e.hp <= 0) { e.dead = true; e.deadT = 0; W.kills++; W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id }); }
   }
   if (hits) { W.freeze = W.cfg.fx.hitStop; W.shake = Math.max(W.shake, W.cfg.fx.shake); }
@@ -147,7 +148,13 @@ function updateEnemies(W, dt) {
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
     if (e.state === 'chase') {
       e.face = Math.atan2(dx, dz);
-      if (!p.dead && d < E.aggro) {
+      const H = E.hear, noise = p.state === 'atk' || p.state === 'roll' ? H.fight : p.state === 'run' ? H.run : H.idle;
+      if (!e.alert && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
+      else if (e.alert && d > H.lose) e.alert = false;
+      if (!p.dead && !e.alert && d < H.lose) {                       // не услышал: бредёт к герою вполсилы
+        const gx = dx / d * C.speed * H.drift * dt, gz = dz / d * C.speed * H.drift * dt; slide(W.map, e, gx, gz, C.radius);
+      }
+      if (!p.dead && e.alert) {
         const g = goalOf(W, e);                                   // к герою напрямик или к двери дома
         if (g !== p) { const gx = g.x - e.x, gz = g.z - e.z, gd = len(gx, gz) || 1e-6; e.face = Math.atan2(gx, gz); slide(W.map, e, gx / gd * C.speed * dt, gz / gd * C.speed * dt, C.radius); }
         else if (d > C.range * .85) { slide(W.map, e, dx / d * C.speed * dt, dz / d * C.speed * dt, C.radius); }
@@ -191,6 +198,23 @@ function updateEnemies(W, dt) {
 }
 const P_RADIUS = W => W.cfg.player.radius;
 
+// двери открываются сами, когда рядом кто-то есть; сундуки отдают добычу при касании и потом наполняются снова
+function updateHouses(W, dt) {
+  const M = W.cfg.map, p = W.player, live = W.enemies.filter(e => !e.dead);
+  for (const b of W.map.buildings) {
+    const d = b.door, r = M.doorReach;
+    const near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r);
+    d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
+    const c = b.chest;
+    if (!c.ready) { c.t += dt; if (c.t >= M.chestRespawn) c.ready = true; }
+    else if (!p.dead && len(p.x - c.x, p.z - c.z) < 1.3) {
+      c.ready = false; c.t = 0;
+      if (W.rng() < .5 && p.hp < p.maxhp) { const h = Math.min(M.chestHeal, p.maxhp - p.hp); p.hp += h; W.ev.push({ k: 'loot', type: 'heal', x: c.x, z: c.z, n: Math.round(h) }); }
+      else { const n = Math.round(M.chestAsh[0] + W.rng() * (M.chestAsh[1] - M.chestAsh[0])); W.ash += n; W.ev.push({ k: 'loot', type: 'ash', x: c.x, z: c.z, n }); }
+    }
+  }
+}
+
 // Куда идти врагу: если герой в доме, а враг снаружи (или наоборот) — через дверь; иначе прямо к герою
 function goalOf(W, e) {
   const p = W.player, be = insideOf(W.map, e.x, e.z);
@@ -207,6 +231,7 @@ export function step(W, dt, input = {}) {
   if (W.freeze > 0) { W.freeze -= dt; return; }
   updatePlayer(W, dt, input);
   updateEnemies(W, dt);
+  updateHouses(W, dt);
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
   if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200);     // события забирает рендер; потолок защищает, если никто не забирает
 }

@@ -58,11 +58,23 @@ export function buildTown(map, cfg, rnd) {
     const floor = new THREE.Mesh(merged(floorL), lamb(true));
     const roofMat = lamb(true); roofMat.transparent = true;
     const roof = new THREE.Mesh(merged(roofL), roofMat);
-    group.add(walls, floor, roof);
-    items.push({ b, walls, roof, a: 1, cut: 1 });
+    // дверь: створка на петле, открывается внутрь
+    const hinge = new THREE.Group(), pan = new THREE.Mesh(new THREE.BoxGeometry(vert ? .12 : hw * 2 - .05, 2.15, vert ? hw * 2 - .05 : .12), new THREE.MeshLambertMaterial({ color: '#5a3d26' }));
+    pan.position.set(vert ? 0 : hw - .02, 1.08, vert ? hw - .02 : 0);
+    hinge.add(pan); hinge.position.set(vert ? d.x : d.x - hw, 0, vert ? d.z - hw : d.z);
+    walls.add(hinge);
+    const doorDir = { n: -1, s: 1, e: -1, w: 1 }[d.side];
+    // сундук: тёмный ящик с жёлтым свечением, пока полон
+    const ch = new THREE.Group(); ch.position.set(b.chest.x, 0, b.chest.z);
+    ch.add(new THREE.Mesh(new THREE.BoxGeometry(.9, .5, .6), new THREE.MeshLambertMaterial({ color: '#4a3220' })));
+    ch.children[0].position.y = .25;
+    const lid = new THREE.Group(); lid.position.set(0, .5, -.3); const lm = new THREE.Mesh(new THREE.BoxGeometry(.94, .16, .64), new THREE.MeshLambertMaterial({ color: '#5a4028' })); lm.position.set(0, .08, .3); lid.add(lm); ch.add(lid);
+    const glow = new THREE.Mesh(new THREE.BoxGeometry(.5, .06, .3), new THREE.MeshBasicMaterial({ color: '#ffc860' })); glow.position.set(0, .56, 0); ch.add(glow);
+    group.add(walls, floor, roof, ch);
+    items.push({ b, walls, roof, a: 1, cut: 1, hinge, doorDir, vert, ch, lid, glow });
   }
 
-  function update(inside, dt) {
+  function update(inside, dt, wmap = map) {
     const k = Math.min(1, dt * 9);
     for (const it of items) {
       const on = it.b.id === inside;
@@ -70,6 +82,9 @@ export function buildTown(map, cfg, rnd) {
       it.cut += ((on ? M.cutH : 1) - it.cut) * k;
       it.roof.material.opacity = it.a; it.roof.visible = it.a > .03;
       it.walls.scale.y = Math.max(.01, it.cut);
+      const sb = wmap.buildings[it.b.id];
+      it.hinge.rotation.y = sb.door.open * Math.PI / 2 * it.doorDir;
+      it.glow.visible = sb.chest.ready; it.lid.rotation.x = sb.chest.ready ? 0 : -1.1;
     }
     const cur = inside >= 0 ? map.buildings[inside] : null;
     if (cur) light.position.set(cur.x, 2.4, cur.z);

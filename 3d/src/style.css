@@ -19,7 +19,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:15px/1
 #bAtk.on,#bRoll.on{filter:brightness(1.5);transform:scale(.95)}
 #dmg{position:fixed;inset:0;pointer-events:none;overflow:hidden}
 .num{position:absolute;font-weight:800;font-size:18px;color:#f3e3c4;text-shadow:0 2px 0 #000,0 0 4px #000;animation:rise .8s ease-out forwards;transform:translate(-50%,-50%)}
-.num.crit{color:#ffd27a;font-size:24px}.num.hurt{color:#ff5a5a}.num.dodge{color:#9fd0ff;font-size:16px}
+.num.crit{color:#ffd27a;font-size:24px}.num.hurt{color:#ff5a5a}.num.loot{color:#ffc860;font-size:17px}.num.dodge{color:#9fd0ff;font-size:16px}
 @keyframes rise{to{margin-top:-46px;opacity:0}}
 #flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(transparent 40%,rgba(180,10,20,.6));opacity:0;transition:opacity .35s}
 #flash.on{opacity:1;transition:none}

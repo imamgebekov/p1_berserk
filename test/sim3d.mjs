@@ -78,7 +78,7 @@ const P = CFG3.player;
 {
   let W = mk(); const e = spawnEnemy(W, 'imp', 0, 8); const d0 = Math.hypot(e.x - W.player.x, e.z - W.player.z); run(W, 1, {});
   ok(Math.hypot(e.x - W.player.x, e.z - W.player.z) < d0 - 2, 'враг идёт к герою');
-  W = mk(); const e3 = spawnEnemy(W, 'imp', 0, 40); e3.cd = 99; run(W, 1, {}); ok(Math.abs(e3.z - 40) < .01, 'враг за пределами aggro стоит');
+  W = mk(); const e3 = spawnEnemy(W, 'imp', 0, 40); e3.cd = 99; run(W, 1, {}); ok(Math.abs(e3.z - 40) < .01, 'враг за пределами слуха стоит');
   // полный цикл: приблизился → замах → удар → отдых
   W = mk(); const e4 = spawnEnemy(W, 'imp', 0, 1.4); e4.cd = 0; const seen = []; let hp0 = W.player.hp;
   let hpAtRec = null;
@@ -100,7 +100,7 @@ const P = CFG3.player;
 {
   let W = mk(1, c => { c.enemies.count = 5; }); W.player.inv = 1e9; run(W, 30, {});
   ok(aliveEnemies(W).length === 5, `держит 5 врагов: ${aliveEnemies(W).length}`);
-  const d = aliveEnemies(W).map(e => Math.hypot(e.x - W.player.x, e.z - W.player.z)); ok(d.every(v => v < W.cfg.enemies.aggro + 8), 'враги появляются рядом (по кольцу)');
+  const d = aliveEnemies(W).map(e => Math.hypot(e.x - W.player.x, e.z - W.player.z)); ok(d.every(v => v < W.cfg.enemies.ring[1] + 3), 'враги появляются рядом (по кольцу)');
   W = mk(1, c => { c.enemies.count = 0; }); run(W, 20, {}); ok(W.enemies.length === 0, 'count=0 — врагов нет');
   W = mk(3, c => { c.enemies.count = 12; c.enemies.brutePart = .3; }); W.player.inv = 1e9; run(W, 120, {}); const br = W.enemies.filter(e => e.type === 'brute').length; ok(br > 0 && br < 12, 'есть и рогачи, и бесы');
   // убили — через respawn появляется новый

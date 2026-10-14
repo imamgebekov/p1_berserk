@@ -57,7 +57,7 @@ $('again').addEventListener('click', () => { respawnPlayer(W); $('dead').hidden 
 document.addEventListener('visibilitychange', () => { if (document.hidden) input.release(); });
 
 const hpFill = $('hpFill'), hpTxt = $('hpTxt'), killsEl = $('kills');
-let lastHp = -1, lastKills = -1, last = performance.now();
+let lastHp = -1, lastKills = -1, lastAsh = -1, last = performance.now();
 function loop(now) {
   const real = (now - last) / 1000, dt = Math.max(0, Math.min(.05, real)); last = now;
   if (!panelOpen && !landscape) {
@@ -69,7 +69,7 @@ function loop(now) {
   if (renderer) renderer.render(W, panelOpen || landscape ? 0 : dt);
   const hp = Math.ceil(W.player.hp);
   if (hp !== lastHp) { lastHp = hp; hpFill.style.transform = `scaleX(${W.player.hp / W.player.maxhp})`; hpTxt.textContent = hp; }
-  if (W.kills !== lastKills) { lastKills = W.kills; killsEl.textContent = 'убито ' + W.kills; }
+  if (W.kills !== lastKills || W.ash !== lastAsh) { lastKills = W.kills; lastAsh = W.ash; killsEl.textContent = `убито ${W.kills} · пепел ${W.ash}`; }
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
   requestAnimationFrame(loop);
 }

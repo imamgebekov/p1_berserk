@@ -163,7 +163,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     camera.lookAt(cam.x, cfg.view.camLookUp, cam.z);
     scene.fog.density = cfg.view.fogDensity;
 
-    town.update(W.inside, dt);
+    town.update(W.inside, dt, W.map);
     // костёр: мерцание света и пламени
     const fl = .8 + .2 * Math.sin(t * 17) + .1 * Math.sin(t * 29.3);
     fire.light.intensity = 26 * fl; fire.flames.forEach((f, i) => { f.scale.y = .8 + .35 * Math.sin(t * (9 + i * 4) + i); f.rotation.y = t * (2 + i); });
@@ -202,6 +202,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (v.k === 'hit') { burst(v.x, 1.1, v.z, 8, v.crit ? '#ffd27a' : '#a1121f'); hooks.onText && hooks.onText(v.x, 2, v.z, String(v.dmg), v.crit ? 'crit' : ''); }
       else if (v.k === 'die') burst(v.x, 1, v.z, 18, '#6d0c14', 6);
       else if (v.k === 'hurt') { burst(v.x, 1.2, v.z, 10, '#c0222c'); hooks.onText && hooks.onText(v.x, 2.4, v.z, '−' + v.dmg, 'hurt'); hooks.onHurt && hooks.onHurt(); }
+      else if (v.k === 'loot') { burst(v.x, .8, v.z, 12, v.type === 'heal' ? '#c0222c' : '#ffc860', 3); hooks.onText && hooks.onText(v.x, 1.8, v.z, v.type === 'heal' ? '+' + v.n + ' ♥' : '+' + v.n + ' пепла', 'loot'); }
       else if (v.k === 'swing') swingFx = 1;
       else if (v.k === 'roll') burst(v.x, .2, v.z, 6, '#6a5a4a', 2.5);
       else if (v.k === 'dodge') hooks.onText && hooks.onText(v.x, 2.6, v.z, 'Уклон!', 'dodge');

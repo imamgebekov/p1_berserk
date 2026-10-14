@@ -64,6 +64,11 @@ try {
   if (await page.evaluate(() => window.__b3d.W.inside) !== 0) bad('внутри дома герой не «внутри»');
   const roofA = await page.evaluate(() => window.__b3d.renderer.town.items[0].roof.visible);
   if (roofA) bad('крыша не скрылась, когда герой в доме');
+  // сундук и дверь в браузере
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings[1]; w.player.hp = 40; w.player.x = b.chest.x; w.player.z = b.chest.z; });
+  await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-chest.png') });
+  if (await page.evaluate(() => window.__b3d.W.map.buildings[1].chest.ready)) bad('сундук не открылся от касания');
+  if (!(await page.$('#kills').then(e => e.textContent())).includes('пепел')) bad('в HUD нет пепла');
   await page.evaluate(() => { const w = window.__b3d.W, c = window.__b3d.cfg; w.player.x = -4; w.player.z = 2; c.view.camDist = 32; });
   await page.waitForTimeout(1200); await page.screenshot({ path: join(out, '3d-town.png') });
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; window.__b3d.cfg.view.camDist = 19; });

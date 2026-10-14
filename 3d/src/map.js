@@ -3,6 +3,14 @@
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+const vertDoor = side => side === 'e' || side === 'w';
+// сундук: в дальнем от двери углу
+function chestSpot(b, x0, x1, z0, z1, t) {
+  const sx = b.door === 'e' ? -1 : b.door === 'w' ? 1 : 0, sz = b.door === 's' ? -1 : b.door === 'n' ? 1 : 0;
+  const x = sx ? (sx > 0 ? x1 - t - .7 : x0 + t + .7) : x0 + t + .7, z = sz ? (sz > 0 ? z1 - t - .7 : z0 + t + .7) : z0 + t + .7;
+  return { x, z, ready: true, t: 0 };
+}
+
 export function makeMap(cfg) {
   const M = cfg.map, t = M.wall, hw = M.doorW / 2;
   const buildings = [], walls = [];
@@ -10,11 +18,13 @@ export function makeMap(cfg) {
     const x0 = b.x - b.w / 2, x1 = b.x + b.w / 2, z0 = b.z - b.d / 2, z1 = b.z + b.d / 2;
     const off = b.off || 0;
     // дверь: центр проёма, точки «снаружи» и «внутри» для ходьбы врагов, ось стены
-    const door = { side: b.door, x: 0, z: 0, out: { x: 0, z: 0 }, in: { x: 0, z: 0 } };
+    const door = { open: 0, rect: null, side: b.door, x: 0, z: 0, out: { x: 0, z: 0 }, in: { x: 0, z: 0 } };
     const dx = b.door === 'e' ? 1 : b.door === 'w' ? -1 : 0, dz = b.door === 's' ? 1 : b.door === 'n' ? -1 : 0;
     door.x = b.x + dx * b.w / 2 + (dz ? off : 0); door.z = b.z + dz * b.d / 2 + (dx ? off : 0);
     door.out = { x: door.x + dx * 1.7, z: door.z + dz * 1.7 };
     door.in = { x: door.x - dx * 1.7, z: door.z - dz * 1.7 };
+    door.rect = vertDoor(b.door) ? { x0: b.door === 'e' ? x1 - t : x0, x1: b.door === 'e' ? x1 : x0 + t, z0: door.z - hw, z1: door.z + hw }
+      : { x0: door.x - hw, x1: door.x + hw, z0: b.door === 's' ? z1 - t : z0, z1: b.door === 's' ? z1 : z0 + t };
     const bw = [];
     // стены по x (север/юг) с вырезом под дверь
     const hSeg = (z, zz, side) => {
@@ -28,7 +38,7 @@ export function makeMap(cfg) {
     hSeg(z0, z0 + t, 'n'); hSeg(z1 - t, z1, 's'); vSeg(x0, x0 + t, 'w'); vSeg(x1 - t, x1, 'e');
     const w2 = bw.filter(r => r.x1 - r.x0 > 1e-6 && r.z1 - r.z0 > 1e-6);
     walls.push(...w2);
-    buildings.push({ id, x: b.x, z: b.z, w: b.w, d: b.d, x0, x1, z0, z1, ix0: x0 + t, ix1: x1 - t, iz0: z0 + t, iz1: z1 - t, door, walls: w2, kind: b.kind || 0 });
+    buildings.push({ id, x: b.x, z: b.z, w: b.w, d: b.d, x0, x1, z0, z1, ix0: x0 + t, ix1: x1 - t, iz0: z0 + t, iz1: z1 - t, door, walls: w2, kind: b.kind || 0, chest: chestSpot(b, x0, x1, z0, z1, t) });
   });
   return { buildings, walls, cfg: M };
 }
@@ -50,7 +60,8 @@ export function resolve(map, o, r) {
   for (let it = 0; it < 2; it++) {
     for (const b of map.buildings) {
       if (o.x < b.x0 - r || o.x > b.x1 + r || o.z < b.z0 - r || o.z > b.z1 + r) continue;
-      for (const w of b.walls) {
+      const list = b.door.open < .6 ? b.walls.concat(b.door.rect) : b.walls;
+      for (const w of list) {
         const cx = clamp(o.x, w.x0, w.x1), cz = clamp(o.z, w.z0, w.z1), dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz;
         if (d2 >= r * r) continue;
         hit = true;
