@@ -33,6 +33,8 @@ jobs:
       - name: Сборка
         run: npm run build
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true     # пробуем включить Pages автоматически (может не хватить прав токена — тогда включите вручную)
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
