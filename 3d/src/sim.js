@@ -513,7 +513,7 @@ export function step(W, dt, input = {}) {
   for (const k of ['reap', 'bul']) { const o = W[k]; if (o.n && (o.t -= dt) <= 0) { o.n = 0; o.t = 0; } }
   if (W.combo.n && (W.combo.t -= dt) <= 0) W.combo.n = 0;
   refreshGear(W);
-  if (W.freeze > 0) { W.freeze -= dt; return; }
+  if (W.freeze > 0) { W.freeze -= dt; if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200); return; }
   updatePlayer(W, dt, input);
   tickPlayer(W, dt);
   for (let i = W.echoQ.length - 1; i >= 0; i--) { const q = W.echoQ[i]; if ((q.t -= dt) <= 0) { W.echoQ.splice(i, 1); if (!W.player.dead) attackHit(W, q.mult, true); } }
