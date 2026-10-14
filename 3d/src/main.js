@@ -11,7 +11,7 @@ import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sf
 import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLine, questMark } from './quests3d.js';
-import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty } from './sim.js';
+import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName } from './sim.js';
 import { drawMap } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSave, createSaver, unpackSeen, exportSave, importSave } from './save3d.js';
@@ -42,7 +42,7 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(cfg.bag.slots);
-if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
+if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); for (const id of Object.keys(saved.dseen)) unpackSeen(saved.dseen[id], W.levels[id].seen); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
 const saver = createSaver(W);
 const input = createInput(document, window);
 let panelOpen = false, landscape = false;
@@ -76,6 +76,7 @@ function onEvent(v) {
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
   else if (v.k === 'place') showPlace(v.place);
+  else if (v.k === 'travel') { saver.write(); if (!reduce) { const f = $('fade'); f.style.setProperty('--fade', cfg.dungeons.fade + 's'); f.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on'))); } }
   else if (v.k === 'playerDead') {
     const parts = []; if (v.lost) parts.push(`Потеряно ${v.lost} пепла${W.tomb ? ': он лежит там, где вы пали' : ''}.`); if (v.burned) parts.push('Сгорели уровни улучшения.');
     $('deadTxt').textContent = v.iron ? 'Конец пути. Железный режим: сохранение стёрто.' : (parts.join(' ') || 'Потерь нет.');
@@ -219,11 +220,12 @@ const questBtn = $('questBtn'), trackerEl = $('tracker'); questBtn.addEventListe
 let lastTrack = '', lastMark = '';
 const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
 talk.addEventListener('click', e => { e.stopImmediatePropagation(); (W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : shop).open(); }, true);
+const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); usePortal(W); }, true);
 // карта: миникарта в углу, большая карта по касанию
 const miniCtx = $('mini').getContext('2d'), mapCv = $('mapCv'), mapCtx = mapCv.getContext('2d'), mapEl = $('map');
 let miniT = 0;
 function drawMini() { drawMap(miniCtx, W, { w: 92, h: 92, scale: 2.1, cx: W.player.x, cz: W.player.z, full: false }); }
-function drawFull() { drawMap(mapCtx, W, { w: 640, h: 640, scale: 640 / (cfg.world.radius * 2 + 6), cx: 0, cz: 0, full: true }); const pl = W.place; $('mapLegend').textContent = (pl ? `Вы здесь: ${pl.name}. ` : 'Вы в глуши. ') + 'Зелёные круги безопасны, красные опасны (чем краснее, тем хуже). Жёлтые точки: нетронутые контейнеры. Торговец золотой, кузнец рыжий. Закрытое туманом ещё не исследовано.'; }
+function drawFull() { const B = W.map.bounds, cx = B ? (B.x0 + B.x1) / 2 : 0, cz = B ? (B.z0 + B.z1) / 2 : 0, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : cfg.world.radius * 2 + 6; drawMap(mapCtx, W, { w: 640, h: 640, scale: 640 / span, cx, cz, full: true }); const pl = W.place; $('mapLegend').textContent = B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}. Светлый квадрат: лестница наверх. Жёлтые точки: нетронутые контейнеры. Закрытое туманом ещё не исследовано.` : (pl ? `Вы здесь: ${pl.name}. ` : 'Вы в глуши. ') + 'Коричневые квадраты: люки в погреба и подземелья. Зелёные круги безопасны, красные опасны (чем краснее, тем хуже). Жёлтые точки: нетронутые контейнеры. Торговец золотой, кузнец рыжий. Закрытое туманом ещё не исследовано.'; }
 const mapOpen = () => { drawFull(); mapEl.hidden = false; panelOpen = true; input.release(); };
 const mapClose = () => { mapEl.hidden = true; panelOpen = false; };
 $('miniBtn').addEventListener('click', () => (mapEl.hidden ? mapOpen() : mapClose()));
@@ -245,6 +247,7 @@ function loop(now) {
   }
   if (renderer) renderer.render(W, panelOpen || landscape ? 0 : dt);
   { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : 'Торговать'; if (talk.textContent !== l) talk.textContent = l; } }
+  { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q); if (portalBtn.textContent !== l) portalBtn.textContent = l; } }
   { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); } } }
   { const n = W.combo.n; if (n !== lastCombo) { comboEl.hidden = n < 2; if (n >= 2) { comboEl.innerHTML = `×${n}<small>+${Math.round(Math.min(.3, n * .02) * 100)}%</small>`; comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); } lastCombo = n; } }
   { const key = Object.keys(W.pst).map(k => k + Math.ceil(W.pst[k].t) + (W.pst[k].n || '')).join(); if (key !== lastSt) { lastSt = key; statusRow.textContent = ''; for (const k of Object.keys(W.pst)) { const c = document.createElement('span'); c.className = 'stch'; c.style.color = STATUS_COLOR[k]; c.textContent = `${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`; statusRow.appendChild(c); } } }
@@ -264,4 +267,4 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };
+window.__b3d = { usePortal: () => usePortal(W), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };

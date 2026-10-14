@@ -2,7 +2,7 @@
 import { makeMap, propsBlocked } from './map.js';
 import { buildDecor } from './decor.js';
 import { buildTown } from './town.js';
-import { buildContainers } from './containers.js';
+import { buildLevelView, buildSurfaceView } from './levelview.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeSoldier, animateSoldier } from './models.js';
@@ -68,7 +68,6 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const decor = buildDecor(map, mulberry32(cfg.world.seed + 2)); scene.add(decor.group);
   const npcs = [];
   for (const b of map.buildings) if (b.npc) { const n = makeNpc(b.npc.kind); n.group.position.set(b.npc.x, 0, b.npc.z); n.pos = b.npc; n.mark = new THREE.Mesh(new THREE.OctahedronGeometry(.22), new THREE.MeshBasicMaterial({ color: '#e8c04a' })); n.mark.position.set(0, 2.6, 0); n.mark.visible = false; n.group.add(n.mark); scene.add(n.group); npcs.push(n); }
-  const conts = buildContainers(map); scene.add(conts.group);
 
   // деревья и камни одним мешем (один вызов отрисовки)
   const rnd = mulberry32(cfg.world.seed), parts = [];
@@ -84,6 +83,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   scene.add(props);
 
   const fire = makeCampfire(); scene.add(fire.group);
+  // фонарь героя: светит только в подземельях (там нет неба и солнца)
+  const lantern = new THREE.PointLight('#ffb070', 0, 16, 1.4); scene.add(lantern);
 
   // пепел в воздухе
   const ashN = 140, ashPos = new Float32Array(ashN * 3);
@@ -93,6 +94,18 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   scene.add(ash);
 
   // герой и враги
+  // виды уровней строятся при первом входе; поверхность прячется, пока герой внизу
+  const surfaceObjs = [dome, ground, town.group, decor.group, props, fire.group, ash, ...npcs.map(n => n.group)];
+  const views = new Map(); let shownLvl = null, conts = null, curView = null;
+  function showLevel(W) {
+    const id = W.lvl, L = W.levels[id];
+    if (!views.has(id)) { const v = L.def ? buildLevelView(L, cfg) : buildSurfaceView(L); scene.add(v.group); views.set(id, v); }
+    for (const [k, v] of views) v.group.visible = k === id;
+    const up = !L.def; for (const o of surfaceObjs) o.visible = up;
+    sun.visible = up; lantern.intensity = up ? 0 : 22;
+    if (!up) { scene.fog.color.set('#070504'); scene.background.set('#070504'); hemi.color.set('#6a5a50'); hemi.groundColor.set('#1a1210'); hemi.intensity = .9; }
+    lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts;
+  }
   const hero = makeHero(); scene.add(hero.group);
   const heroShadow = shadow(.7); scene.add(heroShadow);
   const ents = new Map(), allyEnts = new Map();
@@ -232,15 +245,18 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
     camera.position.set(cam.x + Math.sin(yaw) * hd + (Math.random() - .5) * sh, Math.sin(pitch) * dist + cfg.view.camLookUp + (Math.random() - .5) * sh, cam.z + Math.cos(yaw) * hd);
     camera.lookAt(cam.x, cfg.view.camLookUp, cam.z);
-    scene.fog.density = cfg.view.fogDensity;
-    if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток
+    if (W.lvl !== shownLvl) showLevel(W);
+    const under = W.lvl !== 'surface';
+    scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity;
+    if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); }
+    else if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток
       lastLight = W.light; const k = skyAt(W.light, cfg.daynight.sky);
       scene.fog.color.set(k.fog); scene.background.set(k.fog);
       hemi.color.set(k.hemiSky); hemi.groundColor.set(k.hemiGround); hemi.intensity = k.hemiI;
       sun.color.set(k.sun); sun.intensity = k.sunI; dome.material.color.set(k.dome);
     }
 
-    town.update(W.inside, dt, W.map);
+    if (!under) town.update(W.inside, dt, W.map);
     conts.update(W, t);
     for (const n of npcs) { const dx = p.x - n.pos.x, dz = p.z - n.pos.z; if (Math.hypot(dx, dz) < 9) n.group.rotation.y += angDiffTo(Math.atan2(dx, dz), n.group.rotation.y) * Math.min(1, dt * 6); n.root.position.y = Math.sin(t * 2) * .02; { const mk = questMark(W, n.kind || n.pos.kind); n.mark.visible = !!mk; if (mk) { n.mark.material.color.set(mk === 'ready' ? '#7ad06a' : '#e8c04a'); n.mark.position.y = 2.6 + Math.sin(t * 3) * .08; n.mark.rotation.y = t * 2; } } n.armL.rotation.x = Math.sin(t * 1.6) * .08; n.armR.rotation.x = -Math.sin(t * 1.6) * .08; }
     // костёр: мерцание света и пламени
@@ -322,7 +338,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const m of pool) if (m.visible) { const u = m.userData; u.life -= dt; if (u.life <= 0) { m.visible = false; continue; } u.vy -= 14 * dt; m.position.x += u.vx * dt; m.position.y = Math.max(.07, m.position.y + u.vy * dt); m.position.z += u.vz * dt; }
 
     stepFx(dt); updateTele(W, t); updateFoes(W, t);
-    if (W.tomb) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, 0, W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
+    if (W.tomb && (W.tomb.lvl || 'surface') === W.lvl) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, 0, W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
     for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
     gl.render(scene, camera);
   }

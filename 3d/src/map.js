@@ -55,7 +55,8 @@ export function makeMap(cfg) {
   for (const sp of M.spots || []) addC(sp.kind, sp.x, sp.z, -1);
   // созданные генератором: не ближе 1.6 м к уже стоящим (могилы и алтарь не слипаются)
   for (const sp of gen.spots) if (!containers.some(c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1);
-  return { buildings, walls, containers, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads };
+  const portals = ((cfg.dungeons && cfg.dungeons.list) || []).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
+  return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads };
 }
 
 // какой дом содержит точку (внутри стен), иначе −1
@@ -88,11 +89,41 @@ export function resolve(map, o, r) {
       }
     }
   }
+  for (const w of map.blocks || []) {           // стены подземелий: прямоугольники без дверей
+    if (o.x < w.x0 - r || o.x > w.x1 + r || o.z < w.z0 - r || o.z > w.z1 + r) continue;
+    const cx = clamp(o.x, w.x0, w.x1), cz = clamp(o.z, w.z0, w.z1), dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz;
+    if (d2 >= r * r) continue;
+    hit = true;
+    if (d2 > 1e-12) { const d = Math.sqrt(d2), k = (r - d) / d; o.x += dx * k; o.z += dz * k; }
+    else { const l = o.x - w.x0, rr = w.x1 - o.x, tp = o.z - w.z0, bt = w.z1 - o.z, m = Math.min(l, rr, tp, bt); if (m === l) o.x = w.x0 - r; else if (m === rr) o.x = w.x1 + r; else if (m === tp) o.z = w.z0 - r; else o.z = w.z1 + r; }
+  }
   for (const q of map.solids) {
     const dx = o.x - q.x, dz = o.z - q.z, d = Math.hypot(dx, dz), m = q.r + r;
     if (d < m) { hit = true; if (d > 1e-9) { o.x = q.x + dx / d * m; o.z = q.z + dz / d * m; } else o.x += m; }
   }
   return hit;
+}
+
+// удержать точку в пределах уровня: на поверхности — круг мира, в подземелье — его прямоугольник
+export function keepIn(map, o, R) {
+  const B = map.bounds;
+  if (B) { o.x = clamp(o.x, B.x0, B.x1); o.z = clamp(o.z, B.z0, B.z1); return; }
+  const l = Math.hypot(o.x, o.z); if (l > R) { o.x *= R / l; o.z *= R / l; }
+}
+
+// карта подземелья: комнаты (прямоугольники пола) и стены вокруг них, контейнеры, лестница наверх.
+// Пока одна комната — стены замыкают её по периметру; проходы между комнатами появятся вместе с коридорами.
+export function makeLevelMap(cfg, def) {
+  const D = cfg.dungeons, t = D.wall, rooms = def.rooms.map(r => ({ x0: r.x - r.w / 2, x1: r.x + r.w / 2, z0: r.z - r.d / 2, z1: r.z + r.d / 2 }));
+  const blocks = [];
+  for (const r of rooms) blocks.push({ x0: r.x0 - t, x1: r.x1 + t, z0: r.z0 - t, z1: r.z0 }, { x0: r.x0 - t, x1: r.x1 + t, z0: r.z1, z1: r.z1 + t }, { x0: r.x0 - t, x1: r.x0, z0: r.z0, z1: r.z1 }, { x0: r.x1, x1: r.x1 + t, z0: r.z0, z1: r.z1 });
+  const bounds = { x0: Math.min(...rooms.map(r => r.x0)), x1: Math.max(...rooms.map(r => r.x1)), z0: Math.min(...rooms.map(r => r.z0)), z1: Math.max(...rooms.map(r => r.z1)) };
+  const containers = [];
+  for (const c of def.chests || []) containers.push({ id: containers.length, kind: c.kind, x: c.x, z: c.z, b: -1, ready: false, t: 0, items: [], locked: false, keyTier: 0 });
+  const cx = (bounds.x0 + bounds.x1) / 2, cz = (bounds.z0 + bounds.z1) / 2;
+  const place = { id: def.id, name: def.name, type: 'dungeon', x: cx, z: cz, r: Math.hypot(bounds.x1 - bounds.x0, bounds.z1 - bounds.z0) + 4, danger: def.danger || 0 };
+  const portals = [{ x: def.exit.x, z: def.exit.z, to: 'surface', tx: def.back.x, tz: def.back.z, up: true }];
+  return { level: def.id, buildings: [], walls: blocks, blocks, rooms, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids: [], decor: [], roads: [] };
 }
 
 // сдвиг с шагами не длиннее 0.25: быстрый перекат не пролетает сквозь стену

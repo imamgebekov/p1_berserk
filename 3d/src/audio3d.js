@@ -85,6 +85,7 @@ const SFX = {
   dawn: { gap: 2, f: () => { tone(330, 1.2, 'sine', .06, 494); tone(494, 1.2, 'sine', .04, 659, .1); } },
   shot: { gap: .1, f: () => { noise(.16, .08, 900, 2600, 'bandpass'); tone(520, .1, 'triangle', .03, 880); } },
   elite: { gap: 1.5, f: () => { tone(90, .5, 'sawtooth', .09, 50); tone(135, .5, 'square', .03, 75); } },
+  travel: { gap: .5, f: () => { for (let i = 0; i < 3; i++) noise(.08, .07, 400, 150, 'lowpass', i * .13); tone(70, .45, 'sine', .07, 50, .05); } },
   step: { gap: .1, f: () => noise(.05, .035, 500 + Math.random() * 300, 200) }
 };
 export function sfx(name) {

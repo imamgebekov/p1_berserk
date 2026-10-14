@@ -1,0 +1,62 @@
+// Вид уровней: подземелье (пол, низкие стены, лестница наверх, факелы) и люки на поверхности. Только графика.
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { buildContainers } from './containers.js';
+
+const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
+const mat = c => new THREE.MeshLambertMaterial({ color: c });
+
+// лестница наверх: ступени поднимаются к ближней стене
+function stairs(q, B) {
+  const g = new THREE.Group(), toX = Math.abs(q.x - B.x0) < Math.abs(q.x - B.x1) ? -1 : 1;
+  const parts = []; for (let i = 0; i < 4; i++) parts.push(box(.45, .18 * (i + 1), 1.6, toX * (i * .45 - .2), .09 * (i + 1), 0));
+  g.add(new THREE.Mesh(mergeGeometries(parts), mat('#5a5048')));
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4), new THREE.MeshBasicMaterial({ color: '#d8b070', transparent: true, opacity: .22, depthWrite: false }));
+  glow.rotation.x = -Math.PI / 2; glow.position.set(0, .04, 0); g.add(glow);
+  g.position.set(q.x, 0, q.z); return g;
+}
+
+// люк в земле: рама и две створки
+export function makeHatch(q) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(mergeGeometries([box(1.7, .12, .14, 0, .06, -.78), box(1.7, .12, .14, 0, .06, .78), box(.14, .12, 1.7, -.78, .06, 0), box(.14, .12, 1.7, .78, .06, 0)]), mat('#2a2018')));
+  g.add(new THREE.Mesh(mergeGeometries([box(.7, .08, 1.42, -.36, .05, 0), box(.7, .08, 1.42, .36, .05, 0)]), mat('#5a3f28')));
+  g.add(new THREE.Mesh(mergeGeometries([box(.06, .1, .3, -.06, .12, 0), box(.06, .1, .3, .06, .12, 0)]), mat('#8a8070')));
+  g.position.set(q.x, 0, q.z); return g;
+}
+
+export function buildLevelView(L, cfg) {
+  const M = L.map, D = cfg.dungeons, group = new THREE.Group();
+  // пол: по прямоугольнику на комнату, с лёгкой «плиткой» из полос
+  const floor = [], seams = [];
+  for (const r of M.rooms) {
+    const w = r.x1 - r.x0, d = r.z1 - r.z0, cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
+    floor.push(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2).translate(cx, 0, cz));
+    for (let x = r.x0 + 1.5; x < r.x1; x += 1.5) seams.push(box(.05, .01, d, x, .005, cz));
+    for (let z = r.z0 + 1.5; z < r.z1; z += 1.5) seams.push(box(w, .01, .05, cx, .005, z));
+  }
+  group.add(new THREE.Mesh(mergeGeometries(floor), mat('#2c2622')));
+  if (seams.length) group.add(new THREE.Mesh(mergeGeometries(seams), mat('#1a1614')));
+  // стены одним мешем; сверху тёмный «срез», чтобы читалась толщина
+  const walls = M.blocks.map(w => box(w.x1 - w.x0, D.wallH, w.z1 - w.z0, (w.x0 + w.x1) / 2, D.wallH / 2, (w.z0 + w.z1) / 2));
+  group.add(new THREE.Mesh(mergeGeometries(walls), mat('#4a4038')));
+  const caps = M.blocks.map(w => box(w.x1 - w.x0, .04, w.z1 - w.z0, (w.x0 + w.x1) / 2, D.wallH + .02, (w.z0 + w.z1) / 2));
+  group.add(new THREE.Mesh(mergeGeometries(caps), new THREE.MeshBasicMaterial({ color: '#141010' })));
+  // факелы на стенах (без источников света: светящиеся кубики; свет даёт фонарь героя)
+  const torches = [], flames = [];
+  for (const r of M.rooms) for (const [x, z] of [[r.x0 + .12, (r.z0 + r.z1) / 2], [r.x1 - .12, (r.z0 + r.z1) / 2], [(r.x0 + r.x1) / 2, r.z0 + .12]]) {
+    torches.push(box(.1, .5, .1, x, D.wallH * .55, z)); flames.push(box(.16, .2, .16, x, D.wallH * .55 + .32, z));
+  }
+  group.add(new THREE.Mesh(mergeGeometries(torches), mat('#3a2a1a')));
+  const fl = new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })); group.add(fl);
+  for (const q of M.portals) group.add(stairs(q, M.bounds));
+  const conts = buildContainers(M); group.add(conts.group);
+  return { group, conts, flame: fl };
+}
+
+// поверхность: контейнеры по карте мира и люки
+export function buildSurfaceView(L) {
+  const group = new THREE.Group(), conts = buildContainers(L.map); group.add(conts.group);
+  for (const q of L.map.portals) group.add(makeHatch(q));
+  return { group, conts, flame: null };
+}

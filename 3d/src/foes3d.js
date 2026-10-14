@@ -55,6 +55,7 @@ function hitsWall(map, x, z) {
     const list = b.door.open < .6 ? b.walls.concat(b.door.rect) : b.walls;
     for (const w of list) if (x >= w.x0 && x <= w.x1 && z >= w.z0 && z <= w.z1) return true;
   }
+  for (const w of map.blocks || []) if (x >= w.x0 && x <= w.x1 && z >= w.z0 && z <= w.z1) return true;     // стены подземелий
   return false;
 }
 

@@ -290,6 +290,23 @@ try {
   await page.waitForTimeout(1200); await page.screenshot({ path: join(out, '3d-town.png') });
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; window.__b3d.cfg.view.camDist = 19; });
 
+  // погреб: кнопка у люка, спуск, лестница, подъём
+  await page.evaluate(() => { const w = window.__b3d.W, d = window.__b3d.cfg.dungeons.list[0]; w.player.x = d.at.x + .6; w.player.z = d.at.z; });
+  await page.waitForTimeout(400); await page.screenshot({ path: join(out, '3d-hatch.png') });
+  const pb = await page.evaluate(() => { const b = document.getElementById('portalBtn'), r = b.getBoundingClientRect(); return { hidden: b.hidden, text: b.textContent, h: r.height, w: r.width, l: r.left, rt: r.right }; });
+  if (pb.hidden || !/Спуститься/.test(pb.text)) bad('у люка нет кнопки «Спуститься»: ' + JSON.stringify(pb));
+  if (pb.h < 44 || pb.l < 0 || pb.rt > 390) bad('кнопка люка мала или вылезает за экран: ' + JSON.stringify(pb));
+  await page.tap('#portalBtn'); await page.waitForTimeout(900);
+  if (await page.evaluate(() => window.__b3d.W.lvl) !== 'cellar_cooper') bad('по кнопке не спустились в погреб');
+  await page.screenshot({ path: join(out, '3d-cellar.png') });
+  await page.tap('#miniBtn'); await page.waitForTimeout(250); await page.screenshot({ path: join(out, '3d-cellar-map.png') }); await page.tap('#mapClose');
+  await page.evaluate(() => { const w = window.__b3d.W, d = window.__b3d.cfg.dungeons.list[0]; w.player.x = d.exit.x + .3; w.player.z = d.exit.z; });
+  await page.waitForTimeout(300);
+  if (!/Подняться/.test(await page.textContent('#portalBtn'))) bad('у лестницы нет кнопки «Подняться»');
+  await page.tap('#portalBtn'); await page.waitForTimeout(700);
+  if (await page.evaluate(() => window.__b3d.W.lvl) !== 'surface') bad('по кнопке не поднялись наверх');
+  await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; });
+
   // ползунки
   await page.tap('#gear'); await page.waitForTimeout(200);
   const rows = await page.$$eval('#tweaks input', a => a.length);

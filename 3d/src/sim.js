@@ -24,12 +24,14 @@ import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
-import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt } from './map.js';
+import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn } from './map.js';
+import { initLevels, withLevel, depthAt, onSurface, portalNear, backToSurface, SURFACE } from './levels3d.js';
 
 export function createWorld(cfg, rng = Math.random) {
   const W = makeWorld(cfg, rng); attachFx(W);
   const cell = cfg.map.cell, n = Math.ceil(2 * cfg.world.radius / cell) + 2; W.seenN = n; W.seen = new Uint8Array(n * n);
-  for (const c of W.map.containers) refill(W, c);
+  initLevels(W);
+  for (const id of Object.keys(W.levels)) withLevel(W, id, () => { for (const c of W.map.containers) refill(W, c); });
   restock(W);
   for (const def of cfg.bosses.list) spawnBoss(W, def);
   return W;
@@ -71,7 +73,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0 },
     enemies: []
   };
@@ -79,7 +81,7 @@ function makeWorld(cfg, rng) {
 
 
 export function spawnEnemy(W, type, x, z) {
-  const C = W.cfg.enemies[type], E = W.cfg.enemies, depth = clamp(len(x, z) / W.cfg.world.radius, 0, 1), pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * (1 + E.dangerHp * danger) * W.dif.hp);
+  const C = W.cfg.enemies[type], E = W.cfg.enemies, depth = depthAt(W, x, z), pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * (1 + E.dangerHp * danger) * W.dif.hp);
   const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * W.dif.dmg * (W.night ? W.cfg.daynight.night.dmg : 1), danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
   rollElite(W, e, depth, danger);
   W.enemies.push(e);
@@ -140,7 +142,7 @@ function killPlayer(W) {
   const p = W.player, D = W.dif.death;
   p.hp = 0; p.dead = true; p.state = 'dead'; p.deadT = 0;
   const lost = Math.floor(W.inv.ash * D.ash); W.inv.ash -= lost;
-  if (D.tomb && lost > 0) W.tomb = { x: p.x, z: p.z, ash: lost };
+  if (D.tomb && lost > 0) W.tomb = { x: p.x, z: p.z, ash: lost, lvl: W.lvl };
   let burned = 0; if (D.gear) for (const sl of Object.keys(W.inv.up)) if (W.inv.up[sl] > 0) { W.inv.up[sl]--; burned++; if (!W.inv.up[sl]) delete W.inv.up[sl]; }
   W.ev.push({ k: 'playerDead', x: p.x, z: p.z, lost, burned, iron: W.iron });
 }
@@ -182,7 +184,7 @@ export function killEnemy(W, e, share) {
 }
 
 function dropLoot(W, e) {
-  const depth = clamp(len(e.x, e.z) / W.cfg.world.radius + .1 * (e.danger || 0), 0, 1);
+  const depth = clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1);
   const rolls = e.elite ? W.cfg.elite.lootRolls : 1;
   for (let r = 0; r < rolls; r++) for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck + (e.elite ? W.cfg.elite.luck : 0))) {
     const a = W.rng() * TAU;
@@ -288,7 +290,7 @@ function attackHit(W, mult = 1, echo = false) {
 }
 
 function updatePlayer(W, dt, input) {
-  const p = W.player, P = W.cfg.player, R = W.cfg.world.radius;
+  const p = W.player, P = W.cfg.player;
   if (p.dead) { p.deadT += dt; p.vx = p.vz = 0; return; }
   if (p.inv > 0) p.inv -= dt;
   if (p.rollCd > 0) p.rollCd -= dt;
@@ -331,9 +333,9 @@ function updatePlayer(W, dt, input) {
   }
   if (W.gear.regen > 0 && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + W.gear.regen * dt);
   if (p.calm > 0) p.calm -= dt;
-  else if (len(p.x, p.z) < P.fire.radius && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);
+  else if (onSurface(W) && len(p.x, p.z) < P.fire.radius && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);
   slide(W.map, p, p.vx * dt, p.vz * dt, P.radius);
-  const l = len(p.x, p.z); if (l > R) { p.x *= R / l; p.z *= R / l; }
+  keepIn(W.map, p, W.cfg.world.radius);
   W.inside = insideOf(W.map, p.x, p.z);
 }
 
@@ -407,9 +409,10 @@ function updateEnemies(W, dt) {
   }
   for (const e of live) resolve(W.map, e, E[e.type].radius);
   resolve(W.map, p, W.cfg.player.radius);
-  { const R = W.cfg.world.radius, l = len(p.x, p.z); if (l > R) { p.x *= R / l; p.z *= R / l; } }    // расталкивание не выносит героя за границу
+  keepIn(W.map, p, W.cfg.world.radius);                         // расталкивание не выносит героя за границу
   W.enemies = W.enemies.filter(e => !(e.dead && e.deadT > .6));
-  // держим нужное число врагов
+  // держим нужное число врагов (кольцом вокруг героя — только на поверхности; в подземельях свои правила)
+  if (!onSurface(W)) return;
   const alive = W.enemies.filter(e => !e.dead && !e.boss).length;
   const bonus = W.place && W.place.danger ? Math.round(W.place.danger * E.dangerCount) : 0;
   if (alive < (E.count === 0 ? 0 : Math.max(1, E.count + bonus + W.dif.count + (W.night ? W.cfg.daynight.night.count : 0))) && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = spawnRing(W) === false ? .1 : E.respawn; } }
@@ -417,9 +420,9 @@ function updateEnemies(W, dt) {
 }
 const P_RADIUS = W => W.cfg.player.radius;
 
-// наполнить контейнер заново: глубина (расстояние от костра) и удача героя улучшают добычу
+// наполнить контейнер заново: глубина (расстояние от костра или глубина подземелья) и удача героя улучшают добычу
 function refill(W, c) {
-  const def = CONTAINERS[c.kind], depth = clamp(len(c.x, c.z) / W.cfg.world.radius, 0, 1);
+  const def = CONTAINERS[c.kind], depth = depthAt(W, c.x, c.z);
   const pl = placeAt(W.map, c.x, c.z);
   c.items = rollLoot(def, W.rng, depth, W.gear.luck, pl && pl.danger ? pl.danger * W.cfg.enemies.dangerLoot : 0);
   c.ready = c.items.length > 0; c.t = 0;
@@ -439,7 +442,10 @@ function updateHouses(W, dt) {
   }
   { const nb = p.dead ? null : W.map.buildings.find(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach); W.nearNpc = nb ? nb.npc.kind : null; W.nearMerchant = W.nearNpc === 'merchant'; }
   if ((W.shop.t += dt) > W.cfg.shop.restock) restock(W);
-  if (W.tomb && !p.dead && len(p.x - W.tomb.x, p.z - W.tomb.z) < 1.6) { W.inv.ash += W.tomb.ash; W.ev.push({ k: 'tomb', ash: W.tomb.ash, x: W.tomb.x, z: W.tomb.z }); W.tomb = null; }
+  if (W.tomb && (W.tomb.lvl || SURFACE) === W.lvl && !p.dead && len(p.x - W.tomb.x, p.z - W.tomb.z) < 1.6) { W.inv.ash += W.tomb.ash; W.ev.push({ k: 'tomb', ash: W.tomb.ash, x: W.tomb.x, z: W.tomb.z }); W.tomb = null; }
+  W.nearPortal = portalNear(W);
+  // контейнеры других уровней тоже наполняются со временем
+  for (const L of Object.values(W.levels)) if (L.id !== W.lvl) for (const c of L.map.containers) if (!c.ready && (c.t += dt) >= M.containerRespawn) withLevel(W, L.id, () => refill(W, c));
   for (const c of W.map.containers) {
     const def = CONTAINERS[c.kind];
     if (c.cd > 0) c.cd -= dt;
@@ -522,7 +528,7 @@ export function step(W, dt, input = {}) {
   updateAllies(W, dt);
   updateFoes(W, dt);
   updateHouses(W, dt);
-  for (const def of W.cfg.bosses.list) { const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) spawnBoss(W, def); }
+  for (const def of W.cfg.bosses.list) { const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, SURFACE, () => spawnBoss(W, def)); }     // боссы живут наверху, даже если герой в подземелье
   { let hb = null; for (const e of W.enemies) if (e.boss && !e.dead && e.alert && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!e.b.enraged, id: e.id }; break; } W.hudBoss = hb; }
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
   if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200);     // события забирает рендер; потолок защищает, если никто не забирает
@@ -530,6 +536,7 @@ export function step(W, dt, input = {}) {
 
 export function respawnPlayer(W) {
   const P = W.cfg.player, p = W.player;
+  backToSurface(W);
   Object.assign(p, { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0 });
   W.enemies = W.enemies.filter(e => e.boss && !e.dead); W.proj.length = 0; W.haz.length = 0; W.spawnT = 1.2; W.pst = {}; W.echoQ.length = 0; W.combo.n = 0;
 }
@@ -539,3 +546,4 @@ export * from './squad3d.js';
 export * from './places3d.js';
 export * from './progress3d.js';
 export * from './economy3d.js';
+export * from './levels3d.js';

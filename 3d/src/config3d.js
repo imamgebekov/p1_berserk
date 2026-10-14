@@ -97,6 +97,18 @@ export const CFG3 = {
         phases: [{ at: .66, summon: { type: 'hound', n: 3 } }, { at: .33, summon: { type: 'hound', n: 4 } }, { at: .3, enrage: true }] }
     ]
   },
+  // подземелья и погреба: отдельные уровни со своей картой, врагами и туманом. at — люк на поверхности; rooms — комнаты (центр x, z и размеры w, d)
+  // в локальных координатах уровня; back — где герой встаёт наверху, выйдя из погреба; entry — где появляется герой; exit — лестница наверх; depth 0–1 — «глубина» для добычи и силы врагов
+  dungeons: {
+    reach: 1.8,           // на каком расстоянии от люка или лестницы появляется кнопка
+    wall: .6, wallH: 1.4, // толщина и высота стен (низкие: камера смотрит сверху)
+    fade: .4,             // затемнение при переходе, с (при prefers-reduced-motion — без него)
+    list: [
+      { id: 'cellar_cooper', name: 'Погреб Бондаря', at: { x: -19.5, z: 19.6 }, back: { x: -17.2, z: 19.6 }, depth: .25, danger: 1,
+        rooms: [{ x: 0, z: 0, w: 9, d: 7 }], entry: { x: -1.5, z: 0 }, exit: { x: -3.6, z: 0 },
+        chests: [{ kind: 'barrel', x: 3.4, z: -2.4 }, { kind: 'crate', x: 3.4, z: 2.4 }] }
+    ]
+  },
   squad: {
     baseMax: 1, perLevels: 8, cap: 4, follow: 2.8, leash: 30, sight: 13, regen: 1.2, fireRegen: 7, xpShare: .5,
     types: {

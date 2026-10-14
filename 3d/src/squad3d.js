@@ -72,7 +72,7 @@ export function updateAllies(W, dt) {
       if (len(p.x - a.x, p.z - a.z) > S.leash) { a.x = sx; a.z = sz; resolve(W.map, a, .45); }
       else if (d > .9) { const sp = T.speed * (d > 6 ? 1.5 : 1); a.face = Math.atan2(dx, dz); slide(W.map, a, dx / d * sp * dt, dz / d * sp * dt, .45); }
       // восстановление: вне боя понемногу, у костра быстро
-      if (a.calm <= 0 && a.hp < a.maxhp) a.hp = Math.min(a.maxhp, a.hp + (len(a.x, a.z) < W.cfg.player.fire.radius ? S.fireRegen : S.regen) * dt);
+      if (a.calm <= 0 && a.hp < a.maxhp) a.hp = Math.min(a.maxhp, a.hp + (W.lvl === 'surface' && len(a.x, a.z) < W.cfg.player.fire.radius ? S.fireRegen : S.regen) * dt);
     }
     a.moving = len(a.x - px, a.z - pz) > .4 * dt * 3;
   });

@@ -8,7 +8,7 @@
     "dev": "vite --host --port 5174",
     "build": "vite build",
     "preview": "vite preview --host --port 5174",
-    "test": "node test/items.mjs && node test/economy.mjs && node test/progress.mjs && node test/combat.mjs && node test/sim3d.mjs && node test/map3d.mjs && node test/items3d.mjs && node test/inv3d.mjs && node test/world3d.mjs && node test/shop3d.mjs && node test/progress3d.mjs && node test/places3d.mjs && node test/squad3d.mjs && node test/weapons3d.mjs && node test/boss3d.mjs && node test/sets3d.mjs && node test/difficulty3d.mjs && node test/craft3d.mjs && node test/quests3d.mjs && node test/daynight3d.mjs && node test/prefs3d.mjs && node test/foes3d.mjs && node test/balance3d.mjs && node test/headless.mjs",
+    "test": "node test/items.mjs && node test/economy.mjs && node test/progress.mjs && node test/combat.mjs && node test/sim3d.mjs && node test/map3d.mjs && node test/items3d.mjs && node test/inv3d.mjs && node test/world3d.mjs && node test/shop3d.mjs && node test/progress3d.mjs && node test/places3d.mjs && node test/squad3d.mjs && node test/weapons3d.mjs && node test/boss3d.mjs && node test/sets3d.mjs && node test/difficulty3d.mjs && node test/craft3d.mjs && node test/quests3d.mjs && node test/daynight3d.mjs && node test/prefs3d.mjs && node test/foes3d.mjs && node test/dungeon3d.mjs && node test/balance3d.mjs && node test/headless.mjs",
     "balance": "node tools/balance.mjs",
     "icons": "node tools/make-icons.mjs",
     "test:browser": "node test/browser.mjs && node test/browser-progress.mjs && node test/browser-polish.mjs && node test/browser3d.mjs",

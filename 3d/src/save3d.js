@@ -28,6 +28,11 @@ export function importSave(text, slots, storage = globalThis.localStorage) {
   } catch (e) { return 'bad'; }
 }
 
+// уровни: поверхность или подземелье из конфига; туман подземелий хранится строками по id
+const levelId = v => (typeof v === 'string' && CFG3.dungeons.list.some(d => d.id === v) ? v : 'surface');
+function sanitizeDseen(o) { const r = {}; if (o && typeof o === 'object') for (const d of CFG3.dungeons.list) if (typeof o[d.id] === 'string' && o[d.id].length < 400) r[d.id] = o[d.id]; return r; }
+function packDseen(W) { const r = {}; if (W.levels) for (const L of Object.values(W.levels)) if (L.def && L.seen.some(v => v)) r[L.id] = packSeen(L.seen); return r; }
+
 export function loadSave(slots, storage = globalThis.localStorage) {
   try {
     const raw = storage.getItem(KEY); if (!raw) return null;
@@ -39,12 +44,12 @@ export function loadSave(slots, storage = globalThis.localStorage) {
     // очков не может быть больше, чем уровней: иначе сбрасываем распределение (защита от испорченного сохранения)
     const spent = Object.values(prog.skills).reduce((a, b) => a + b, 0);
     if (spent + prog.sp > prog.lv - 1) { prog.skills = {}; prog.sp = prog.lv - 1; }
-    return { inv: deserialize(d.inv, slots), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: typeof d.seen === 'string' && d.seen.length < 4000 ? d.seen : '', bosses: d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash) } : null, known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [] };
+    return { inv: deserialize(d.inv, slots), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: typeof d.seen === 'string' && d.seen.length < 4000 ? d.seen : '', bosses: d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [] };
   } catch (e) { return null; }
 }
 export function createSaver(W, storage = globalThis.localStorage) {
   let last = '';
-  const snap = () => JSON.stringify({ v: VERSION, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills }, seen: packSeen(W.seen), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead).map(a => ({ type: a.type, hp: Math.round(a.hp) })) });
+  const snap = () => JSON.stringify({ v: VERSION, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills }, seen: packSeen(W.levels ? W.levels.surface.seen : W.seen), dseen: packDseen(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead).map(a => ({ type: a.type, hp: Math.round(a.hp) })) });
   return {
     write(force) { if (W.ironDead) return false; const s = snap(); if (!force && s === last) return false; try { storage.setItem(KEY, s); last = s; return true; } catch (e) { return false; } },
     reset() { try { storage.removeItem(KEY); } catch (e) { /* ок */ } last = ''; }
