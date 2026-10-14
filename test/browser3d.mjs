@@ -157,6 +157,30 @@ try {
     let seen = false; for (let i = 0; i < 40 && !seen; i++) { await page.waitForTimeout(100); seen = await page.evaluate(() => window.__b3d.W.enemies.some(x => x.boss && x.b && x.b.state === 'wind')); }
     if (!seen) bad('босс не начал атаку с предупреждением'); await page.screenshot({ path: join(out, '3d-boss.png') }); }
   await page.evaluate(() => { const w = window.__b3d.W; w.enemies = w.enemies.filter(x => !x.boss); w.cfg.player.hp = 100; w.player.x = 0; w.player.z = 4; w.player.inv = 1e9; });
+  // сеты: карточка части показывает комплект и бонусы; сложность в ⚙
+  await page.evaluate(() => { const w = window.__b3d.W; w.inv.eq.head = 'a_head_helm_mail'; w.inv.eq.body = 'a_body_mail_mail'; w.inv.bag.push({ id: 'a_boots_greaves_mail', n: 1 }); w.inv.bag.push({ id: 'a_cloak_cloak_mail', n: 1 }); });
+  await page.tap('#bagBtn'); await page.waitForTimeout(200);
+  await page.tap('.item:has(.nm:text("Кольчужные поножи"))'); await page.waitForTimeout(120);
+  { const t = await page.$eval('#bagCard', e => e.textContent); if (!t.includes('Сет «Рыцарь» 2/4') || !t.includes('шипы')) bad('карточка не показывает сет: ' + t.slice(0, 160)); }
+  await page.screenshot({ path: join(out, '3d-set.png') });
+  await page.tap('#bagCard .acts .main'); await page.waitForTimeout(100);
+  if (!(await page.$eval('#bagStats', e => e.textContent)).includes('Рыцарь')) bad('в статах нет активного сета');
+  await page.tap('#bagClose'); await page.waitForTimeout(100);
+  await page.evaluate(() => { const w = window.__b3d.W; w.inv.eq.head = w.inv.eq.body = w.inv.eq.boots = null; w.inv.bag = []; });
+  await page.tap('#gear'); await page.waitForTimeout(200);
+  await page.screenshot({ path: join(out, '3d-difficulty.png') });
+  await page.tap('#difTabs .tab[data-id="ashen"]'); await page.waitForTimeout(100);
+  if ((await page.evaluate(() => window.__b3d.W.difficulty)) !== 'ashen') bad('сложность не переключилась');
+  await page.evaluate(() => { const w = window.__b3d.W; w.lv = 1; w.kills = 0; w.inv.ash = 0; w.inv.bag = []; });
+  await page.tap('#difTabs .tab[data-id="eclipse"]'); await page.waitForTimeout(100);
+  if (await page.$eval('#ironBtn', e => e.hidden)) bad('железный режим не предложен на «Затмении» в свежей игре');
+  await page.tap('#difTabs .tab[data-id="berserk"]'); await page.tap('#tweakClose'); await page.waitForTimeout(100);
+  // смерть: пепел остаётся могилой
+  await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 30; w.player.z = 30; w.inv.ash = 400; w.player.inv = 0; w.player.hp = 1; w.cfg.player.hp = 100; const e = window.__b3d.spawn('brute', 31, 30); e.alert = true; e.state = 'wind'; e.t = w.cfg.enemies.brute.wind - .01; });
+  await page.waitForTimeout(1800);
+  { const r = await page.evaluate(() => ({ dead: !document.getElementById('dead').hidden, txt: document.getElementById('deadTxt').textContent, tomb: window.__b3d.W.tomb })); if (!r.dead || !r.txt.includes('100') || !r.tomb) bad('экран смерти без штрафа: ' + JSON.stringify(r)); }
+  await page.screenshot({ path: join(out, '3d-death.png') }); await page.tap('#again'); await page.waitForTimeout(200);
+  await page.evaluate(() => { const w = window.__b3d.W; w.tomb = null; w.inv.ash = 0; w.player.x = 0; w.player.z = 4; w.player.inv = 1e9; w.enemies = w.enemies.filter(x => x.boss); });
   // новые враги: рисуются без ошибок
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; w.cfg.enemies.count = 0; w.enemies.length = 0; for (const [i, t] of ['hound', 'ghoul', 'imp', 'brute'].entries()) window.__b3d.spawn(t, -3 + i * 2, -3); });
   await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-monsters.png') });

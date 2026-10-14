@@ -5,7 +5,7 @@ import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith, createCaptain } from './shop.js';
 import { createSkills } from './skillsui.js';
-import { xpNeed, reveal, restoreAllies, restoreBosses } from './sim.js';
+import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty } from './sim.js';
 import { drawMap } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSave, createSaver, unpackSeen } from './save3d.js';
@@ -36,7 +36,7 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(cfg.bag.slots);
-if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); }
+if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; }
 const saver = createSaver(W);
 const input = createInput(document, window);
 let panelOpen = false, landscape = false;
@@ -65,6 +65,12 @@ function onEvent(v) {
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
   else if (v.k === 'place') showPlace(v.place);
+  else if (v.k === 'playerDead') {
+    const parts = []; if (v.lost) parts.push(`Потеряно ${v.lost} пепла${W.tomb ? ': он лежит там, где вы пали' : ''}.`); if (v.burned) parts.push('Сгорели уровни улучшения.');
+    $('deadTxt').textContent = v.iron ? 'Конец пути. Железный режим: сохранение стёрто.' : (parts.join(' ') || 'Потерь нет.');
+    if (v.iron) { W.ironDead = true; saver.reset(); $('again').textContent = 'Начать заново'; }
+  }
+  else if (v.k === 'tomb') toast(`Вы нашли свой пепел: +${v.ash}`, '', '#e8c04a');
   else if (v.k === 'bossaggro') toast(`${v.name} проснулся`, 'bad');
   else if (v.k === 'bossphase') toast(`${v.name}: ${v.what}`, 'bad');
   else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
@@ -120,12 +126,26 @@ const smith = createSmith(document, W, cfg, {
   onClose: () => { panelOpen = false; saver.write(); },
   onChange: () => { saver.write(); bag.render(); }
 });
+// сложность: выбор в панели ⚙; железный режим только на свежей игре при «Затмении»
+const difTabs = $('difTabs'), difText = $('difText'), ironBtn = $('ironBtn');
+for (const [id, lv] of Object.entries(cfg.difficulty.levels)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.id = id; b.textContent = lv.name; b.addEventListener('click', () => { if (W.iron) return; setDifficulty(W, id); saver.write(); renderDif(); }); difTabs.appendChild(b); }
+const fresh = () => W.lv === 1 && W.kills === 0 && W.inv.ash === 0 && !W.inv.bag.length;
+function renderDif() {
+  for (const b of difTabs.children) { b.classList.toggle('on', b.dataset.id === W.difficulty); b.disabled = W.iron && b.dataset.id !== W.difficulty; }
+  difText.textContent = W.dif.text;
+  ironBtn.hidden = !(W.difficulty === 'eclipse' && (W.iron || fresh()));
+  ironBtn.textContent = W.iron ? 'Железный режим включён: смерть стирает сохранение' : (ironArmed ? 'Точно? Назад пути не будет' : 'Включить железный режим (смерть стирает сохранение)');
+  ironBtn.classList.toggle('warn', ironArmed || W.iron);
+}
+let ironArmed = false;
+ironBtn.addEventListener('click', () => { if (W.iron) return; if (!ironArmed) { ironArmed = true; renderDif(); setTimeout(() => { ironArmed = false; renderDif(); }, 3000); return; } ironArmed = false; W.iron = true; saver.write(); renderDif(); });
+renderDif();
 createTweakPanel(document, cfg, defaults, {
   onChange: t => { if (t && (t.reload || t.path === 'view.pixelScale')) fit(); },
-  onOpen: () => { panelOpen = true; input.release(); },
+  onOpen: () => { panelOpen = true; input.release(); renderDif(); },
   onClose: () => { panelOpen = false; }
 });
-$('again').addEventListener('click', () => { respawnPlayer(W); $('dead').hidden = true; });
+$('again').addEventListener('click', () => { if (W.ironDead) { location.reload(); return; } respawnPlayer(W); $('dead').hidden = true; });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { input.release(); saver.write(); } });
 addEventListener('pagehide', () => saver.write());
 

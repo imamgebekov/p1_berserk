@@ -18,6 +18,7 @@ export const SLOTS = ['weapon', 'head', 'body', 'cloak', 'boots', 'ring', 'amule
 export const SLOT_NAME = { weapon: 'Оружие', head: 'Голова', body: 'Тело', cloak: 'Плащ', boots: 'Ноги', ring: 'Кольцо', amulet: 'Амулет' };
 export const STAT_NAME = { dmg: 'урон', armor: 'броня', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
 
+import { NAMED_ARMOR } from './sets3d.js';
 import { TRAITS, PERKS, MATERIAL_PERKS, ELEMENTS, ENCHANTED_KINDS, UNIQUES, weaponText } from './weapons3d.js';
 
 const ITEMS = [];
@@ -107,6 +108,9 @@ for (const slot of Object.keys(ATYPES)) for (const [t, nm, g, base, extra] of AT
   if (!Object.values(stats).some(v => v)) continue;
   add({ id: idOf('a', slot, t, m), name: `${adj[GI[g]]} ${nm}`, cat: 'armor', slot, pool: slot, rar, stats, value: val * (base / 3 + .5), kind: t, mat: m });
 }
+
+// именные вещи сетов боссов (пул setunique: выпадают с боссов)
+for (const [set, slot, name, stats] of NAMED_ARMOR) add({ id: `as_${set}_${slot}`, name, cat: 'armor', slot, pool: 'setunique', rar: 4, stats: { ...stats }, value: 480 + (stats.armor || 0) * 14, kind: 'set', mat: 'set_' + set });
 
 // ---------- кольца и амулеты: тип × эффект ----------
 // эффект: [id, родительный, статы, редкость, цена]

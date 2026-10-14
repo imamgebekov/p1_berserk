@@ -26,7 +26,7 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     junkBtn.hidden = tab !== 'sell';
     listEl.textContent = '';
     if (tab === 'buy') {
-      W.shop.stock.forEach((s, i) => { const it = BY_ID[s.id], price = buyPrice(it, cfg); listEl.appendChild(row(it, s.n, it.stats ? statLine(it) : it.text || '', price, 'Купить', () => { const r = buyItem(W, i); if (r === 'ash') flash('Не хватает пепла'); else if (r === 'full') flash('Сумка полна'); else if (r === 'far') flash('Подойдите к торговцу'); }, W.inv.ash >= price, betterThanWorn(W.inv, it) ? '▲' : '')); });
+      W.shop.stock.forEach((s, i) => { const it = BY_ID[s.id], price = buyPrice(it, cfg, W.dif.buy); listEl.appendChild(row(it, s.n, it.stats ? statLine(it) : it.text || '', price, 'Купить', () => { const r = buyItem(W, i); if (r === 'ash') flash('Не хватает пепла'); else if (r === 'full') flash('Сумка полна'); else if (r === 'far') flash('Подойдите к торговцу'); }, W.inv.ash >= price, betterThanWorn(W.inv, it) ? '▲' : '')); });
       if (!W.shop.stock.length) listEl.appendChild(el('div', 'emptyl', 'Всё раскуплено. Витрина обновится позже.'));
     } else {
       const rows = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).sort((a, b) => b.it.rar - a.it.rar || a.it.name.localeCompare(b.it.name, 'ru'));

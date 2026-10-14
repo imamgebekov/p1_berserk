@@ -1,6 +1,6 @@
 // Сумка и экипировка: окно с надетым, списком вещей, карточкой вещи и действиями.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine } from './data/items.js';
-import { betterThanWorn, equipAt, unequip, score, nameOf } from './inv.js';
+import { betterThanWorn, equipAt, unequip, score, nameOf, SET_OF, setCounts, bonusText } from './inv.js';
 import { PERKS } from './data/weapons3d.js';
 import { useItem, dropItem, refreshGear, sellItem, sellPrice } from './sim.js';
 
@@ -22,6 +22,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset } = 
     const parts = [`Урон ${Math.round(P.attackDamage + g.dmg)}`, `Броня ${g.armor}`, `Здоровье ${Math.ceil(p.hp)}/${p.maxhp}`];
     if (g.spd) parts.push(`Скорость ${g.spd > 0 ? '+' : ''}${g.spd}%`);
     parts.push(`Крит ${Math.round(12 + g.crit)}%`);
+    for (const c of setCounts(W.inv)) if (c.n >= 2) parts.push(`«${c.set.name}» ${c.n}/4`);
     parts.splice(1, 0, `Ур. ${W.lv}`);
     if (g.leech) parts.push(`Вампиризм ${g.leech}%`);
     if (g.luck) parts.push(`Удача ${g.luck}`);
@@ -40,6 +41,13 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset } = 
       const cur = W.inv.eq[it.slot], c = cur && BY_ID[cur];
       if (c) { const d = Math.round(score(it) - score(c)); cardEl.appendChild(el('div', 'cmp ' + (d > 0 ? 'up' : d < 0 ? 'down' : ''), `Надето: ${c.name} (${statLine(c)}) — ${d > 0 ? 'лучше на ' + d : d < 0 ? 'хуже на ' + -d : 'так же'}`)); }
       else cardEl.appendChild(el('div', 'cmp up', 'Слот пуст'));
+    }
+    const st = SET_OF[it.id];
+    if (st) {
+      const n = (setCounts(W.inv).find(c => c.set === st) || { n: 0 }).n;
+      const box = el('div', 'setbox'); box.append(el('div', 'setname', `Сет «${st.name}» ${n}/4`));
+      for (const [need, b] of [[2, st.b2], [4, st.b4]]) box.append(el('div', 'setline' + (n >= need ? ' on' : ''), `${need} части: ${bonusText(b)}`));
+      cardEl.appendChild(box);
     }
     if (it.perks && it.perks.length) cardEl.appendChild(el('div', 'cs', 'Свойства: ' + it.perks.map(id => PERKS[id].name).join(', ')));
     if (it.text) cardEl.appendChild(el('div', 'ct', it.text));

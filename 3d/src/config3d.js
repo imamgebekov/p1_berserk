@@ -86,13 +86,13 @@ export const CFG3 = {
   bosses: {
     respawn: 600, aggro: 28, leash: 70, enrageSpeed: 1.25, enrageCd: .7, enrageDmg: 1.2, minionCap: 6,
     list: [
-      { type: 'devourer', x: -44, z: -36,
+      { type: 'devourer', set: 'pogost', x: -44, z: -36,
         attacks: [{ kind: 'slam', wind: 1.0, r: 4.2, mul: 1, cd: 3, range: 5 }, { kind: 'slam', wind: 1.5, r: 7, mul: 1.5, cd: 10, range: 99 }],
         phases: [{ at: .66, summon: { type: 'ghoul', n: 2 } }, { at: .33, summon: { type: 'ghoul', n: 3 } }, { at: .3, enrage: true }] },
-      { type: 'lord', x: -60, z: 44,
+      { type: 'lord', set: 'eclipse', x: -60, z: 44,
         attacks: [{ kind: 'charge', wind: .9, len: 13, width: 2.6, mul: 1.1, cd: 5, range: 16 }, { kind: 'nova', wind: 1.1, r: 8, inner: 2.6, mul: .9, cd: 8, range: 99 }, { kind: 'slam', wind: .7, r: 3.2, mul: .9, cd: 2.5, range: 3.6 }],
         phases: [{ at: .3, enrage: true }] },
-      { type: 'chief', x: 56, z: -52,
+      { type: 'chief', set: 'rust', x: 56, z: -52,
         attacks: [{ kind: 'charge', wind: 1.0, len: 11, width: 3, mul: 1.2, cd: 6, range: 14 }, { kind: 'slam', wind: .9, r: 4.6, mul: 1.1, cd: 3, range: 5 }],
         phases: [{ at: .66, summon: { type: 'hound', n: 3 } }, { at: .33, summon: { type: 'hound', n: 4 } }, { at: .3, enrage: true }] }
     ]
@@ -107,6 +107,17 @@ export const CFG3 = {
   },
   smith: { max: 5, base: 10, costK: .45, pow: 1.35, bonus: .1, reach: 3.4 },   // улучшение +1…+5: цена = base + цена вещи × costK × (ур+1)^pow, каждый уровень даёт +bonus к статам
   level: { max: 30, base: 28, pow: 1.3, hpPer: 4, dmgPer: .4, healOnUp: .3 },   // опыт до следующего уровня = base × ур^pow; за уровень: +hpPer здоровья, +dmgPer урона, +1 очко навыка
+  // сложность. hp/dmg — множители врагов (и боссов), count — добавка к числу врагов, hear — слух врагов, luck — к удаче,
+  // xp — опыт, buy — цены торговца, boss — множитель времени возрождения боссов, death — штраф: ash — доля теряемого пепла (остаётся «могила»), gear — теряется уровень улучшения у надетого
+  difficulty: {
+    default: 'berserk',
+    levels: {
+      wanderer: { name: 'Странник', text: 'Враги слабее, потерь при смерти нет. Для знакомства с миром.', hp: .7, dmg: .7, count: -1, hear: .8, luck: 6, xp: 1.25, buy: .9, boss: 1.5, death: { ash: 0, tomb: false, gear: false } },
+      berserk:  { name: 'Берсерк', text: 'Как задумано. При смерти теряется четверть пепла, он лежит на месте гибели.', hp: 1, dmg: 1, count: 0, hear: 1, luck: 0, xp: 1, buy: 1, boss: 1, death: { ash: .25, tomb: true, gear: false } },
+      ashen:    { name: 'Пепельный', text: 'Враги крепче и злее, слышат дальше. Теряется половина пепла.', hp: 1.3, dmg: 1.3, count: 2, hear: 1.15, luck: 4, xp: 1.3, buy: 1.15, boss: .8, death: { ash: .5, tomb: true, gear: false } },
+      eclipse:  { name: 'Затмение', text: 'Беспощадно. Теряется 75% пепла, а у надетого сгорает по уровню улучшения.', hp: 1.7, dmg: 1.7, count: 4, hear: 1.3, luck: 10, xp: 1.6, buy: 1.3, boss: .6, death: { ash: .75, tomb: true, gear: true } }
+    }
+  },
   respecBase: 40,       // сброс навыков стоит respecBase × уровень пепла
   bag: { slots: 30 },
   gear: { armorK: .035, maxSpd: 45, pickup: 1.3, dropLife: 90 },   // броня: урон /(1+брони×armorK); подбор с земли

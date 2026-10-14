@@ -117,3 +117,9 @@ button{font:inherit;color:var(--ink)}
 @media (prefers-reduced-motion:reduce){#boss.enr #bossFill{animation:none}}
 body:has(#boss:not([hidden])) #place{display:none}
 #boss{text-align:left}
+
+#difTabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0}#difTabs .tab{flex:1 1 40%}
+#ironBtn{margin:0 0 8px;width:100%}
+.setbox{margin-top:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#1a1110}
+.setname{font-weight:700;color:#e8c04a;font-size:13px}.setline{font-size:12.5px;opacity:.5;margin-top:2px}.setline.on{opacity:1;color:#a8e0a0}
+#deadTxt{min-height:0}

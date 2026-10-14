@@ -1,5 +1,6 @@
 // Сумка и экипировка: чистая логика (тестируется в Node). Состояние — { bag: [{id,n}], eq: {слот: id|null}, ash }.
-import { BY_ID, SLOTS } from './data/items.js';
+import { BY_ID, SLOTS, CATALOG, STAT_NAME } from './data/items.js';
+import { SETS, SET_SLOTS, FX_TEXT } from './data/sets3d.js';
 
 export const UP_MAX = 5;
 // up — уровень улучшения (+N) у надетых вещей по слотам; в сумке — поле up у записи
@@ -35,11 +36,44 @@ export function unequip(inv, slot, maxSlots) {
 }
 export const nameOf = (id, up) => (up ? `+${up} ` : '') + BY_ID[id].name;
 
+// ---- сеты ----
+// какому сету принадлежит вещь: по материалу (обычные) или по списку (именные)
+export const SET_OF = {};
+for (const st of SETS) {
+  const ids = st.pieces || CATALOG.filter(i => i.cat === 'armor' && i.mat === st.mat && SET_SLOTS.includes(i.slot)).map(i => i.id);
+  st.ids = ids; for (const id of ids) SET_OF[id] = st;
+}
+// сколько частей каждого сета надето: [{ set, n }]
+export function setCounts(inv) {
+  const c = new Map();
+  for (const slot of SET_SLOTS) { const st = SET_OF[inv.eq[slot]]; if (st) c.set(st, (c.get(st) || 0) + 1); }
+  return [...c].map(([set, n]) => ({ set, n }));
+}
+// суммарный бонус сетов: числа и особые эффекты
+export function setBonus(inv) {
+  const stats = {}, fx = {};
+  for (const { set, n } of setCounts(inv)) for (const [need, b] of [[2, set.b2], [4, set.b4]]) {
+    if (n < need || !b) continue;
+    for (const [k, v] of Object.entries(b.stats || {})) stats[k] = (stats[k] || 0) + v;
+    for (const [k, v] of Object.entries(b.fx || {})) fx[k] = Math.max(fx[k] || 0, v);
+  }
+  return { stats, fx };
+}
+
+// текст бонуса сета: «+5 броня; шипы: …»
+export function bonusText(b) {
+  if (!b) return '';
+  const parts = Object.entries(b.stats || {}).map(([k, v]) => `+${v} ${STAT_NAME[k]}`);
+  for (const [k, v] of Object.entries(b.fx || {})) parts.push(FX_TEXT[k](v));
+  return parts.join('; ');
+}
+
 // суммарные характеристики экипировки и временных баффов
 export function gearStats(inv, buffs = [], bonus = .1, extra = null) {
   const g = { dmg: 0, armor: 0, hp: 0, spd: 0, reach: 0, crit: 0, leech: 0, luck: 0, swing: 1, arc: 0, rollcd: 0, regen: 0, stealth: 0, trade: 0 };
   for (const slot of SLOTS) { const id = inv.eq[slot], it = id && BY_ID[id]; if (!it) continue; const m = 1 + (inv.up[slot] || 0) * bonus; for (const [k, v] of Object.entries(it.stats)) { if (k === 'swing') g.swing *= v; else if (v > 0 && (k === 'dmg' || k === 'armor' || k === 'hp' || k === 'crit' || k === 'leech')) g[k] += Math.round(v * m); else g[k] += v; } }
   for (const b of buffs) g[b.stat] += b.amt;
+  { const sb = setBonus(inv).stats; for (const k of Object.keys(sb)) g[k] += sb[k]; }
   if (extra) for (const k of Object.keys(extra)) { if (k === 'swingMul') g.swing *= extra[k]; else g[k] += extra[k]; }
   return g;
 }
