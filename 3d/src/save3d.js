@@ -10,11 +10,30 @@ export const packSeen = a => { let s = ''; for (let i = 0; i < a.length; i += 6)
 export const unpackSeen = (s, a) => { if (typeof s !== 'string') return; for (let i = 0; i < s.length; i++) { const v = B64.indexOf(s[i]); if (v < 0) continue; for (let k = 0; k < 6; k++) if (i * 6 + k < a.length) a[i * 6 + k] = (v >> k) & 1; } };
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
+// миграции старых версий: MIGRATIONS[n] переводит сохранение из версии n в n+1. Пока версия одна; сюда добавляются шаги.
+const MIGRATIONS = {};
+export function migrate(d) { while (Number.isInteger(d.v) && d.v < VERSION && MIGRATIONS[d.v]) { MIGRATIONS[d.v](d); d.v++; } return d; }
+
+// перенос сохранения между устройствами: текст «B3D1:» + base64 от JSON; при вставке проходит те же проверки, что и обычная загрузка
+const PREFIX = 'B3D1:';
+export function exportSave(storage = globalThis.localStorage) {
+  try { const raw = storage.getItem(KEY); if (!raw) return ''; return PREFIX + btoa(unescape(encodeURIComponent(raw))); } catch (e) { return ''; }
+}
+export function importSave(text, slots, storage = globalThis.localStorage) {
+  try {
+    const t = String(text || '').trim(); if (!t.startsWith(PREFIX) || t.length > 600000) return 'bad';
+    const raw = decodeURIComponent(escape(atob(t.slice(PREFIX.length))));
+    const probe = { getItem: () => raw }; if (!loadSave(slots, probe)) return 'bad';
+    storage.setItem(KEY, raw); return 'ok';
+  } catch (e) { return 'bad'; }
+}
+
 export function loadSave(slots, storage = globalThis.localStorage) {
   try {
     const raw = storage.getItem(KEY); if (!raw) return null;
     const d = JSON.parse(raw);
-    if (!d || d.v !== VERSION) return null;
+    if (!d || typeof d !== 'object') return null;
+    migrate(d); if (d.v !== VERSION) return null;       // более новое сохранение (из будущей версии) не трогаем
     const pr = d.prog || {}, num = (v, a, b, def) => (Number.isFinite(v) ? Math.max(a, Math.min(b, Math.floor(v))) : def);
     const prog = { lv: num(pr.lv, 1, 99, 1), xp: num(pr.xp, 0, 1e9, 0), sp: num(pr.sp, 0, 999, 0), skills: sanitizeSkills(pr.skills) };
     // очков не может быть больше, чем уровней: иначе сбрасываем распределение (защита от испорченного сохранения)

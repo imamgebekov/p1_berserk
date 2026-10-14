@@ -109,6 +109,17 @@ try {
   await page.evaluate(() => { const w = window.__b3d.W; w.t = 0; }); await page.waitForTimeout(600);
   if (await page.evaluate(() => window.__b3d.W.night)) bad('день не вернулся');
   await page.tap('#gear'); await page.waitForTimeout(150); const m0 = await page.$eval('#muteBtn', e => e.textContent); await page.tap('#muteBtn'); const m1 = await page.$eval('#muteBtn', e => e.textContent); if (m0 === m1) bad('кнопка звука не переключилась'); await page.tap('#muteBtn'); await page.tap('#tweakClose'); await page.waitForTimeout(100);
+  // телефон: левша и размер кнопок меняют раскладку, код сохранения выгружается
+  await page.tap('#gear'); await page.waitForTimeout(150);
+  { const x0 = await page.$eval('#bAtk', e => e.getBoundingClientRect().left), w0 = await page.$eval('#bAtk', e => e.getBoundingClientRect().width);
+    await page.tap('#leftyBtn'); await page.tap('.tab[data-v="1.2"]'); await page.waitForTimeout(100);
+    const x1 = await page.$eval('#bAtk', e => e.getBoundingClientRect().left), w1 = await page.$eval('#bAtk', e => e.getBoundingClientRect().width);
+    if (!(x1 < x0 && w1 > w0)) bad(`левша/размер не сработали: x ${x0}→${x1}, w ${w0}→${w1}`);
+    await page.tap('#leftyBtn'); await page.tap('.tab[data-v="1"]'); }
+  await page.tap('#fpsBtn'); await page.waitForTimeout(700); if (!/кадр/.test(await page.$eval('#fps', e => e.textContent))) bad('счётчик кадров не показан'); await page.tap('#fpsBtn');
+  await page.tap('#expBtn'); await page.waitForTimeout(200); if (!(await page.$eval('#saveCode', e => e.value)).startsWith('B3D1:')) bad('код сохранения не выгружен');
+  await page.screenshot({ path: join(out, '3d-prefs.png') });
+  await page.tap('#tweakClose'); await page.waitForTimeout(100);
   // задания: кнопка рядом с торговцем, взять и увидеть в трекере
   await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'merchant'); w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; });
   await page.waitForTimeout(400);

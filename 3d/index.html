@@ -23,6 +23,7 @@
 
 <div id="statusRow" aria-live="polite"></div>
 <div id="boss" hidden><div id="bossName"></div><div id="bossBar"><i id="bossFill"></i></div></div>
+<div id="fps" hidden></div>
 <div id="toasts" aria-live="polite"></div>
 <div id="place" aria-live="polite" hidden></div>
 <button id="miniBtn" type="button" aria-label="Открыть карту"><canvas id="mini" width="92" height="92"></canvas></button>
@@ -121,6 +122,19 @@
     <p id="difText" class="note"></p>
     <button id="ironBtn" type="button" class="reset" hidden></button>
     <button id="muteBtn" type="button" class="reset"></button>
+    <h2>Управление</h2>
+    <div class="prefs">
+      <button id="leftyBtn" type="button" class="reset"></button>
+      <div id="uiTabs" class="tabs"></div>
+      <button id="vibBtn" type="button" class="reset"></button>
+      <button id="fpsBtn" type="button" class="reset"></button>
+      <button id="hintBtn" type="button" class="reset"></button>
+    </div>
+    <h2>Сохранение</h2>
+    <p class="note">Перенос на другое устройство: скопируйте код, там вставьте его и нажмите «Загрузить».</p>
+    <div class="prow"><button id="expBtn" type="button">Скопировать код</button><button id="impBtn" type="button">Загрузить</button></div>
+    <textarea id="saveCode" rows="3" spellcheck="false" placeholder="Код сохранения B3D1:…"></textarea>
+    <div id="saveFlash"></div>
     <h2>Настройка прототипа</h2>
     <p class="note">Двигайте ползунки: игра меняется сразу. «Скопировать» отдаёт изменённые значения: пришлите их мне в чат.</p>
     <div id="tweaks"></div>

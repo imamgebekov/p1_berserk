@@ -15,8 +15,8 @@ html,body{margin:0;height:100%;position:fixed;inset:0;width:100%;background:var(
 #stick.on{opacity:1}
 #knob{position:absolute;left:34px;top:34px;width:44px;height:44px;border-radius:50%;background:#7a1a20;border:2px solid #000}
 #bAtk,#bRoll{position:fixed;border-radius:50%;border:3px solid #000;color:#fff;font-weight:700;font-size:15px;touch-action:none;text-shadow:0 1px 0 #000}
-#bAtk{right:calc(16px + env(safe-area-inset-right));bottom:calc(28px + env(safe-area-inset-bottom));width:92px;height:92px;background:radial-gradient(#d4202c,#7a0e16)}
-#bRoll{right:calc(24px + env(safe-area-inset-right));bottom:calc(138px + env(safe-area-inset-bottom));width:68px;height:68px;font-size:12px;background:radial-gradient(#4a3a34,#241917)}
+#bAtk{right:calc(16px + env(safe-area-inset-right));bottom:calc(28px + env(safe-area-inset-bottom));width:calc(92px * var(--ui,1));height:calc(92px * var(--ui,1));background:radial-gradient(#d4202c,#7a0e16)}
+#bRoll{right:calc(24px + env(safe-area-inset-right));bottom:calc(46px + 92px * var(--ui,1) + env(safe-area-inset-bottom));width:calc(68px * var(--ui,1));height:calc(68px * var(--ui,1));font-size:12px;background:radial-gradient(#4a3a34,#241917)}
 #bAtk.on,#bRoll.on{filter:brightness(1.5);transform:scale(.95)}
 #dmg{position:fixed;inset:0;pointer-events:none;overflow:hidden}
 .num{position:absolute;font-weight:800;font-size:18px;color:#f3e3c4;text-shadow:0 2px 0 #000,0 0 4px #000;animation:rise .8s ease-out forwards;transform:translate(-50%,-50%)}
@@ -101,7 +101,7 @@ button{font:inherit;color:var(--ink)}
 @media (prefers-reduced-motion:reduce){#place{animation:none}}
 #captainList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:5px;min-height:90px}#captainFlash{font-size:12.5px;color:#ff9a8a;min-height:0;margin-bottom:4px}.ssec{font-size:12px;opacity:.6;text-transform:uppercase;margin:6px 0 2px}.num.ally{color:#7aaaf0}
 
-#combo{position:fixed;right:calc(20px + env(safe-area-inset-right));bottom:calc(228px + env(safe-area-inset-bottom));font-size:26px;font-weight:900;color:#ffd27a;text-shadow:0 2px 0 #000,0 0 6px #000;pointer-events:none;transform-origin:right bottom}
+#combo{position:fixed;right:calc(20px + env(safe-area-inset-right));bottom:calc(136px + 92px * var(--ui,1) + env(safe-area-inset-bottom));font-size:26px;font-weight:900;color:#ffd27a;text-shadow:0 2px 0 #000,0 0 6px #000;pointer-events:none;transform-origin:right bottom}
 #combo.pop{animation:cpop .18s ease-out}#combo small{font-size:12px;opacity:.8;margin-left:4px}
 @keyframes cpop{0%{transform:scale(1.5)}100%{transform:scale(1)}}
 #statusRow{position:fixed;left:var(--pad);top:calc(env(safe-area-inset-top) + 100px);display:flex;gap:6px;pointer-events:none;z-index:4}
@@ -140,3 +140,14 @@ button.jrow{width:100%}.mats{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top
 #questBtn[hidden]{display:none}#questBtn.dot{border-color:#e8c04a;color:#ffd27a}
 #tracker{position:fixed;right:calc(var(--pad) + env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 128px);max-width:46%;font-size:12px;line-height:1.25;text-align:right;color:#e8c04a;text-shadow:0 1px 0 #000,0 0 4px #000;pointer-events:none}
 #tracker[hidden]{display:none}
+
+/* режим левши: кнопки слева (джойстик плавающий и так работает в любом месте экрана) */
+html[data-lefty] #bAtk{right:auto;left:calc(16px + env(safe-area-inset-left))}
+html[data-lefty] #bRoll{right:auto;left:calc(24px + env(safe-area-inset-left))}
+html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));transform-origin:left bottom}
+.prefs{display:flex;flex-direction:column;gap:6px;margin:4px 0 8px}.prefs .tabs{display:flex;gap:6px}.prefs .tab{flex:1}
+#saveCode{width:100%;min-height:64px;margin:6px 0;background:#120b0b;color:var(--ink);border:2px solid var(--line);border-radius:8px;font-size:12px;padding:6px;box-sizing:border-box}
+#saveFlash{font-size:12.5px;color:#a8e0a0;min-height:16px}#saveFlash.bad{color:#ff9a8a}
+#fps{position:fixed;left:calc(var(--pad) + 4px);top:calc(env(safe-area-inset-top) + 100px);font-size:11px;color:#a8e0a0;text-shadow:0 1px 0 #000;pointer-events:none}
+#fps[hidden]{display:none}
+.toast.hint{color:#9fdcff;font-weight:700}
