@@ -115,6 +115,24 @@ try {
     if (!(await page.evaluate(() => window.__b3d.W.inv.up.weapon === 1 && window.__b3d.W.inv.ash < 900))) bad('улучшение у кузнеца не сработало');
     await page.tap('#smithClose'); await page.waitForTimeout(100);
   }
+  // капитан: найм бойцов в отряд
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'captain'); w.lv = 20; w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.inv.ash = 3000; });
+  await page.waitForTimeout(500);
+  if ((await page.$eval('#talk', e => e.hidden || e.textContent)) !== 'Наём') bad('у капитана кнопка не «Наём»');
+  else {
+    await page.tap('#talk'); await page.waitForTimeout(250);
+    if (await page.evaluate(() => document.getElementById('captain').hidden)) bad('окно найма не открылось');
+    await page.screenshot({ path: join(out, '3d-captain.png') });
+    await page.tap('#captainList .srow:nth-child(2) .buy'); await page.tap('#captainList .srow:nth-child(3) .buy'); await page.waitForTimeout(150);
+    if ((await page.evaluate(() => window.__b3d.W.allies.length)) !== 2) bad('наём не сработал: ' + (await page.evaluate(() => window.__b3d.W.allies.length)));
+    { const small = await page.evaluate(() => [...document.querySelectorAll('#captain button')].filter(b => b.offsetParent && (b.getBoundingClientRect().height < 40 || b.getBoundingClientRect().width < 40)).map(b => b.textContent)); if (small.length) bad('кнопки найма мельче 40px: ' + small.join(',')); }
+    await page.tap('#captainClose'); await page.waitForTimeout(100);
+    await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; w.cfg.enemies.count = 0; w.enemies.length = 0; });
+    await page.waitForTimeout(2500); await page.screenshot({ path: join(out, '3d-squad.png') });
+    await page.evaluate(() => { const w = window.__b3d.W; window.__b3d.spawn('brute', w.player.x + 3, w.player.z - 4).alert = true; });
+    await page.waitForTimeout(2500); await page.screenshot({ path: join(out, '3d-squad-fight.png') });
+    await page.evaluate(() => { const w = window.__b3d.W; w.allies.length = 0; w.enemies.length = 0; w.lv = 1; });
+  }
   // новые враги: рисуются без ошибок
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; w.cfg.enemies.count = 0; w.enemies.length = 0; for (const [i, t] of ['hound', 'ghoul', 'imp', 'brute'].entries()) window.__b3d.spawn(t, -3 + i * 2, -3); });
   await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-monsters.png') });

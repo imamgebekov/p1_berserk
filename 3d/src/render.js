@@ -5,7 +5,7 @@ import { buildTown } from './town.js';
 import { buildContainers } from './containers.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc } from './models.js';
+import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeSoldier, animateSoldier } from './models.js';
 import { mulberry32 } from './sim.js';
 
 const FOG = '#150c0b';
@@ -90,7 +90,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // герой и враги
   const hero = makeHero(); scene.add(hero.group);
   const heroShadow = shadow(.7); scene.add(heroShadow);
-  const ents = new Map();
+  const ents = new Map(), allyEnts = new Map();
   const bars = new Map();
   const arcMat = new THREE.MeshBasicMaterial({ color: '#ffd9c0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
   const arc = new THREE.Mesh(new THREE.CircleGeometry(1, 24), arcMat); arc.rotation.x = -Math.PI / 2; arc.position.y = .08; scene.add(arc);
@@ -128,12 +128,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     return en;
   }
-  function bar(e) {
+  function bar(e, color = '#a1121f') {
     let b = bars.get(e.id);
     if (!b) {
       const g = new THREE.Group();
       const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .16), new THREE.MeshBasicMaterial({ color: '#120d0c', depthTest: false }));
-      const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, .1), new THREE.MeshBasicMaterial({ color: '#a1121f', depthTest: false }));
+      const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, .1), new THREE.MeshBasicMaterial({ color, depthTest: false }));
       fill.geometry.translate(.5, 0, 0); fill.position.set(-.5, 0, .01); bg.renderOrder = 10; fill.renderOrder = 11;
       g.add(bg, fill); scene.add(g); b = { g, fill }; bars.set(e.id, b);
     }
@@ -205,6 +205,17 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       const b = bar(e), dmg = e.hp < e.maxhp && !e.dead;
       b.g.visible = dmg; if (dmg) { b.g.position.set(e.x, 2.5 * cfg.enemies[e.type].scale + .3, e.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, e.hp / e.maxhp); }
     }
+    // отряд
+    const aliveA = new Set();
+    for (const a of W.allies) {
+      aliveA.add(a.id);
+      let en = allyEnts.get(a.id);
+      if (!en) { const m = makeSoldier(a.type, cfg), sh = shadow(.5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
+      en.m.group.position.set(a.x, 0, a.z); en.m.group.rotation.y = a.face; animateSoldier(en.m, a, t); en.sh.position.set(a.x, .03, a.z); en.sh.visible = !a.dead;
+      const b = bar({ id: 'a' + a.id }, '#3a8a4a'), show = a.hp < a.maxhp && !a.dead;
+      b.g.visible = show; if (show) { b.g.position.set(a.x, 2.7, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }
+    }
+    for (const [id, en] of allyEnts) if (!aliveA.has(id)) { scene.remove(en.m.group, en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); bars.delete('a' + id); } }
     for (const [id, en] of ents) if (!alive.has(id)) { scene.remove(en.m.group, en.sh, en.ring); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); bars.delete(id); } }
 
     // события боя → эффекты и подписи (подписи отдаёт hooks.onText)
@@ -217,6 +228,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'heal') hooks.onText && hooks.onText(v.x, 2.4, v.z, '+' + v.n + ' ♥', 'loot')
       else if (v.k === 'ash') hooks.onText && hooks.onText(v.x, 2.4, v.z, '+' + v.n + ' пепла', 'loot')
       else if (v.k === 'buff') burst(v.x, 1.2, v.z, 10, '#9fd0ff', 2)
+      else if (v.k === 'allyhurt') { burst(v.x, 1.1, v.z, 6, '#3a6aa8'); hooks.onText && hooks.onText(v.x, 2.5, v.z, '−' + v.dmg, 'ally'); }
+      else if (v.k === 'allydead') burst(v.x, 1, v.z, 14, '#3a6aa8', 5);
       else if (v.k === 'swing') swingFx = 1;
       else if (v.k === 'roll') burst(v.x, .2, v.z, 6, '#6a5a4a', 2.5);
       else if (v.k === 'dodge') hooks.onText && hooks.onText(v.x, 2.6, v.z, 'Уклон!', 'dodge');

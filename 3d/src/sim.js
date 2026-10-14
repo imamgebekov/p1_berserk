@@ -27,7 +27,7 @@ export function createWorld(cfg, rng = Math.random) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, allies: [], aid: 1, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0 },
     enemies: []
   };
@@ -74,6 +74,12 @@ function hurtPlayer(W, dmg, fromX, fromZ) {
   return true;
 }
 
+function killEnemy(W, e, share) {
+  if (e.dead) return;
+  e.dead = true; e.deadT = 0; W.kills++; W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
+  dropLoot(W, e); addXp(W, e, share);
+}
+
 function dropLoot(W, e) {
   const depth = clamp(len(e.x, e.z) / W.cfg.world.radius + .1 * (e.danger || 0), 0, 1);
   for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck)) {
@@ -113,7 +119,7 @@ function attackHit(W) {
     W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg: dealt, crit, id: e.id });
     hits++;
     e.alert = true;
-    if (e.hp <= 0) { e.dead = true; e.deadT = 0; W.kills++; W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id }); dropLoot(W, e); addXp(W, e); }
+    if (e.hp <= 0) killEnemy(W, e, 1);
   }
   if (hits) { W.freeze = W.cfg.fx.hitStop; W.shake = Math.max(W.shake, W.cfg.fx.shake); }
   return hits;
@@ -183,6 +189,15 @@ function updateEnemies(W, dt) {
       if (deep) e.alert = false;
       if (!e.alert && !deep && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
       else if (e.alert && d > H.lose) e.alert = false;
+      const al = pickAlly(W, e, d);                                     // союзник ближе героя: враг бьёт его
+      if (al) {
+        e.alert = true; e.tgt = al.id;
+        const ax = al.x - e.x, az = al.z - e.z, ad = len(ax, az) || 1e-6; e.face = Math.atan2(ax, az);
+        if (ad > C.range * .85) slide(W.map, e, ax / ad * C.speed * dt, az / ad * C.speed * dt, C.radius);
+        else { e.cd -= dt; if (e.cd <= 0) { e.state = 'wind'; e.t = 0; } }
+        continue;
+      }
+      e.tgt = 0;
       if (!p.dead && !e.alert && d < H.lose) {                       // не услышал: бредёт к герою вполсилы
         const gx = dx / d * C.speed * H.drift * dt, gz = dz / d * C.speed * H.drift * dt; slide(W.map, e, gx, gz, C.radius);
       }
@@ -196,7 +211,9 @@ function updateEnemies(W, dt) {
       e.t += dt; e.face = Math.atan2(dx, dz);
       if (e.t >= C.wind) {
         e.state = 'rec'; e.t = 0;
-        if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside) hurtPlayer(W, Math.round(C.damage * (e.dmgMul || 1)), e.x, e.z);
+        const ta = e.tgt && W.allies.find(a => a.id === e.tgt && !a.dead);
+        if (ta) { if (len(ta.x - e.x, ta.z - e.z) <= C.range + .9) hurtAlly(W, ta, Math.round(C.damage * (e.dmgMul || 1)), e); }
+        else if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside) hurtPlayer(W, Math.round(C.damage * (e.dmgMul || 1)), e.x, e.z);
         W.ev.push({ k: 'strike', x: e.x, z: e.z, id: e.id });
       }
     } else if (e.state === 'rec') {
@@ -240,6 +257,80 @@ function refill(W, c) {
   c.locked = !!def.locked; c.keyTier = def.locked ? (depth < .3 ? 1 : depth < .6 ? 2 : 3) : 0;
 }
 
+// ---- отряд ----
+export const squadMax = W => Math.min(W.cfg.squad.cap, W.cfg.squad.baseMax + Math.floor(W.lv / W.cfg.squad.perLevels));
+const liveAllies = W => W.allies.filter(a => !a.dead);
+function pickAlly(W, e, dPlayer) {
+  let best = null, bd = 8;
+  for (const a of W.allies) { if (a.dead) continue; const d = len(a.x - e.x, a.z - e.z); if (d < bd && d < dPlayer + 1.5 && insideOf(W.map, a.x, a.z) === insideOf(W.map, e.x, e.z)) { bd = d; best = a; } }
+  return best;
+}
+function hurtAlly(W, a, dmg, e) {
+  if (a.dead) return;
+  a.hp -= dmg; a.flash = .12; a.calm = 3;
+  const d = len(a.x - e.x, a.z - e.z) || 1; a.vx += (a.x - e.x) / d * 3; a.vz += (a.z - e.z) / d * 3;
+  W.ev.push({ k: 'allyhurt', x: a.x, z: a.z, dmg });
+  if (a.hp <= 0) { a.hp = 0; a.dead = true; a.deadT = 0; W.ev.push({ k: 'allydead', x: a.x, z: a.z, name: W.cfg.squad.types[a.type].name }); }
+}
+function spawnAlly(W, type, hp) {
+  const T = W.cfg.squad.types[type], p = W.player, ang = p.face + Math.PI + rr(W, -.8, .8);
+  const a = { id: W.aid++, type, x: p.x + Math.sin(ang) * 1.8, z: p.z + Math.cos(ang) * 1.8, vx: 0, vz: 0, face: p.face, hp: hp || T.hp, maxhp: T.hp, state: 'idle', t: 0, cd: 0, dead: false, deadT: 0, flash: 0, calm: 0, tgt: 0, moving: false };
+  resolve(W.map, a, .45); W.allies.push(a); return a;
+}
+export function hireAlly(W, type) {
+  const T = W.cfg.squad.types[type]; if (!T) return 'none';
+  if (W.nearNpc !== 'captain') return 'far';
+  if (liveAllies(W).length >= squadMax(W)) return 'full';
+  if (W.inv.ash < T.cost) return 'ash';
+  W.inv.ash -= T.cost; spawnAlly(W, type); W.ev.push({ k: 'hire', name: T.name }); return 'ok';
+}
+export function dismissAlly(W, id) { const i = W.allies.findIndex(a => a.id === id); if (i < 0) return false; W.allies.splice(i, 1); return true; }
+export function restoreAllies(W, list) {
+  W.allies.length = 0;
+  for (const s of Array.isArray(list) ? list : []) { if (liveAllies(W).length >= squadMax(W)) break; const T = s && W.cfg.squad.types[s.type]; if (T) spawnAlly(W, s.type, clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : T.hp, 1, T.hp)); }
+}
+function updateAllies(W, dt) {
+  const S = W.cfg.squad, p = W.player, live = liveAllies(W), enemies = W.enemies.filter(e => !e.dead);
+  for (let i = W.allies.length - 1; i >= 0; i--) { const a = W.allies[i]; if (a.dead) { a.deadT += dt; if (a.deadT > 1.4) W.allies.splice(i, 1); } }
+  live.forEach((a, idx) => {
+    const T = S.types[a.type];
+    if (a.flash > 0) a.flash -= dt; if (a.calm > 0) a.calm -= dt;
+    const px = a.x, pz = a.z;
+    slide(W.map, a, a.vx * dt, a.vz * dt, .45); const kd = Math.exp(-8 * dt); a.vx *= kd; a.vz *= kd;
+    // цель: ближайший враг рядом с союзником и не слишком далеко от героя
+    let tgt = null, bd = S.sight;
+    for (const e of enemies) { const d = len(e.x - a.x, e.z - a.z); if (d < bd && len(e.x - p.x, e.z - p.z) < S.sight + 8 && insideOf(W.map, e.x, e.z) === insideOf(W.map, a.x, a.z)) { bd = d; tgt = e; } }
+    if (a.state === 'wind') {
+      a.t += dt; if (a.tg && !a.tg.dead) a.face = Math.atan2(a.tg.x - a.x, a.tg.z - a.z);
+      if (a.t >= T.wind) {
+        a.state = 'rec'; a.t = 0;
+        const e = a.tg; if (e && !e.dead && len(e.x - a.x, e.z - a.z) <= T.range + W.cfg.enemies[e.type].radius + .5) {
+          const dmg = Math.round(T.dmg * rr(W, .9, 1.1)); e.hp -= dmg; e.flash = .12; e.alert = true;
+          const d = len(e.x - a.x, e.z - a.z) || 1, C = W.cfg.enemies[e.type], k = 3 / (C.scale > 1.2 ? 2.2 : 1); e.vx += (e.x - a.x) / d * k; e.vz += (e.z - a.z) / d * k;
+          if (e.state === 'wind') { e.state = 'chase'; e.t = 0; e.cd = .3; }
+          W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: false, id: e.id, ally: true });
+          if (e.hp <= 0) killEnemy(W, e, S.xpShare);
+        }
+      }
+    } else if (a.state === 'rec') { a.t += dt; if (a.t >= T.recover) { a.state = 'idle'; a.t = 0; } }
+    else if (tgt) {
+      const C = W.cfg.enemies[tgt.type], dx = tgt.x - a.x, dz = tgt.z - a.z, d = len(dx, dz) || 1e-6;
+      a.face = Math.atan2(dx, dz);
+      if (d > T.range + C.radius * .5) slide(W.map, a, dx / d * T.speed * dt, dz / d * T.speed * dt, .45);
+      else { a.state = 'wind'; a.t = 0; a.tg = tgt; }
+    } else {
+      // идти за героем: позиция в строю позади него
+      const n = live.length, ang = p.face + Math.PI + (idx - (n - 1) / 2) * .95, r = S.follow + (idx % 2) * .8;
+      const sx = p.x + Math.sin(ang) * r, sz = p.z + Math.cos(ang) * r, dx = sx - a.x, dz = sz - a.z, d = len(dx, dz);
+      if (len(p.x - a.x, p.z - a.z) > S.leash) { a.x = sx; a.z = sz; resolve(W.map, a, .45); }
+      else if (d > .9) { const sp = T.speed * (d > 6 ? 1.5 : 1); a.face = Math.atan2(dx, dz); slide(W.map, a, dx / d * sp * dt, dz / d * sp * dt, .45); }
+      // восстановление: вне боя понемногу, у костра быстро
+      if (a.calm <= 0 && a.hp < a.maxhp) a.hp = Math.min(a.maxhp, a.hp + (len(a.x, a.z) < W.cfg.player.fire.radius ? S.fireRegen : S.regen) * dt);
+    }
+    a.moving = len(a.x - px, a.z - pz) > .4 * dt * 3;
+  });
+}
+
 // ---- места и карта ----
 export function trackPlace(W, dt) {
   const p = W.player, pl = placeAt(W.map, p.x, p.z);
@@ -256,9 +347,9 @@ export const isSeen = (W, x, z) => { const c = W.cfg.map.cell, R = W.cfg.world.r
 
 // ---- опыт, уровни, навыки ----
 export const xpNeed = (lv, cfg) => Math.round(cfg.level.base * Math.pow(lv, cfg.level.pow));
-export function addXp(W, e) {
+export function addXp(W, e, share = 1) {
   const L = W.cfg.level, depth = clamp(len(e.x, e.z) / W.cfg.world.radius, 0, 1), C = W.cfg.enemies[e.type];
-  gainXp(W, Math.round((C.xp || 5) * (1 + depth * .8) * (1 + W.cfg.enemies.dangerXp * (e.danger || 0))));
+  gainXp(W, Math.round((C.xp || 5) * (1 + depth * .8) * (1 + W.cfg.enemies.dangerXp * (e.danger || 0)) * share) || 1);
 }
 export function gainXp(W, n) {
   const L = W.cfg.level; if (W.lv >= L.max) return;
@@ -334,7 +425,7 @@ function updateHouses(W, dt) {
   const M = W.cfg.map, p = W.player, live = W.enemies.filter(e => !e.dead);
   for (const b of W.map.buildings) {
     const d = b.door, r = M.doorReach;
-    const near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r);
+    const near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r) || W.allies.some(a => !a.dead && len(a.x - d.x, a.z - d.z) < r);
     d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
   }
   { const nb = p.dead ? null : W.map.buildings.find(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach); W.nearNpc = nb ? nb.npc.kind : null; W.nearMerchant = W.nearNpc === 'merchant'; }
@@ -410,6 +501,7 @@ export function step(W, dt, input = {}) {
   updatePlayer(W, dt, input);
   trackPlace(W, dt);
   updateEnemies(W, dt);
+  updateAllies(W, dt);
   updateHouses(W, dt);
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
   if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200);     // события забирает рендер; потолок защищает, если никто не забирает
@@ -417,6 +509,6 @@ export function step(W, dt, input = {}) {
 
 export function respawnPlayer(W) {
   const P = W.cfg.player, p = W.player;
-  Object.assign(p, { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0 });
+  Object.assign(p, { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0 });
   W.enemies.length = 0; W.spawnT = 1.2;
 }

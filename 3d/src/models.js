@@ -166,11 +166,43 @@ export function makeCampfire() {
 // торговец: человек в фартуке и шляпе, стоит за прилавком и поворачивается к герою
 export function makeNpc(kind = 'merchant') {
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
-  const smith = kind === 'smith', m = c => lam(c);
-  root.add(box(.5, .8, .3, m(smith ? '#2a2420' : '#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m(smith ? '#6a4a3a' : '#5a4a3a'), 0, 1.25, 0), box(.5, .5, .42, m(smith ? '#2a2420' : '#8a7a62'), 0, smith ? 1.1 : 1.0, .02), box(.42, .42, .42, m(smith ? '#b89a7a' : '#cdb89a'), 0, 1.95, 0));
-  if (!smith) root.add(box(.8, .08, .8, m('#2a1c12'), 0, 2.2, 0), box(.46, .3, .46, m('#2a1c12'), 0, 2.38, 0));
+  const smith = kind === 'smith', cap = kind === 'captain', m = c => lam(c);
+  root.add(box(.5, .8, .3, m(smith ? '#2a2420' : '#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m(smith ? '#6a4a3a' : cap ? '#3a4a68' : '#5a4a3a'), 0, 1.25, 0), box(.5, .5, .42, m(smith ? '#2a2420' : '#8a7a62'), 0, smith ? 1.1 : 1.0, .02), box(.42, .42, .42, m(smith ? '#b89a7a' : '#cdb89a'), 0, 1.95, 0));
+  if (cap) root.add(box(.5, .3, .5, m('#8a8f98'), 0, 2.2, 0), box(.1, .35, .14, m('#a1121f'), 0, 2.5, 0), box(.1, 1.6, .1, m('#6a5a46'), .72, .8, .1));
+  else if (!smith) root.add(box(.8, .08, .8, m('#2a1c12'), 0, 2.2, 0), box(.46, .3, .46, m('#2a1c12'), 0, 2.38, 0));
   else root.add(box(.5, .12, .46, m('#1a1614'), 0, 2.2, 0), box(.12, .5, .12, m('#6a645c'), .72, .8, .1), box(.34, .2, .2, m('#6a645c'), .72, 1.1, .1));
   const armL = limb(.2, .7, .2, m('#5a4a3a'), .5, 1.6, 0), armR = limb(.2, .7, .2, m('#5a4a3a'), -.5, 1.6, 0);
   root.add(armL, armR);
   return { group: g, root, armL, armR };
+}
+
+// боец отряда: цвет накидки и оружие зависят от вида
+export function makeSoldier(type, cfg) {
+  const T = cfg.squad.types[type], mats = [];
+  const M = c => { const m = lam(c); mats.push(m); return m; };
+  const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
+  const tint = M(T.tint), metal = M('#8a8f98'), skin = M('#cdb89a'), dark = M('#2a2420'), cloth = M('#4a3a2c');
+  root.add(box(.62, .8, .38, tint, 0, 1.25, 0), box(.64, .12, .4, dark, 0, .88, 0), box(.4, .4, .4, skin, 0, 1.85, 0));
+  const helm = type === 'guard' ? box(.46, .22, .46, metal, 0, 2.08, 0) : type === 'soldier' ? box(.46, .34, .46, metal, 0, 2.05, 0) : box(.5, .4, .5, M('#1a1a1e'), 0, 2.06, 0);
+  root.add(helm);
+  if (type === 'soldier') root.add(box(.1, .22, .06, metal, 0, 1.9, .26));
+  if (type === 'veteran') root.add(box(.1, .35, .14, M('#a1121f'), 0, 2.4, -.05));
+  const armL = limb(.2, .7, .22, tint, .42, 1.55, 0), armR = limb(.2, .7, .22, tint, -.42, 1.55, 0);
+  const legL = limb(.26, .6, .28, cloth, .16, .6, 0), legR = limb(.26, .6, .28, cloth, -.16, .6, 0);
+  // оружие в правой руке
+  if (type === 'guard') armR.add(box(.07, 2.1, .07, M('#6a5a46'), 0, -.2, .25), box(.12, .3, .05, metal, 0, .95, .25));
+  else if (type === 'soldier') { armR.add(box(.08, 1.0, .12, metal, 0, -.55, .3)); armL.add(box(.1, .62, .5, tint, .1, -.35, .15), box(.12, .2, .2, metal, .1, -.35, .15)); }
+  else armR.add(box(.12, 1.7, .08, metal, 0, -.45, .3), box(.34, .1, .12, dark, 0, .35, .3));
+  root.add(armL, armR, legL, legR);
+  return { group: g, root, armL, armR, legL, legR, flash: f => { for (const m of mats) m.emissive.setRGB(f, f * .8, f * .8); } };
+}
+export function animateSoldier(m, a, time) {
+  const mv = a.moving && !a.dead, ph = time * 10 + a.id * 1.3;
+  m.legL.rotation.x = mv ? Math.sin(ph) * .8 : 0; m.legR.rotation.x = mv ? -Math.sin(ph) * .8 : 0;
+  m.armL.rotation.x = mv ? -Math.sin(ph) * .5 : 0; m.armR.rotation.x = mv ? Math.sin(ph) * .5 : 0;
+  m.root.rotation.x = 0; m.root.position.y = mv ? Math.abs(Math.sin(ph)) * .06 : 0; m.root.position.z = 0; m.root.rotation.z = 0;
+  if (a.state === 'wind') { const k = Math.min(1, a.t / .3); m.armR.rotation.x = -2.2 * k; m.root.rotation.x = -.2 * k; }
+  else if (a.state === 'rec') { m.armR.rotation.x = -2.2 + 3 * Math.min(1, a.t * 6); m.root.rotation.x = .25; }
+  if (a.dead) { const k = Math.min(1, a.deadT / .5); m.root.rotation.z = 1.4 * k; m.root.position.y = -.4 * k; }
+  m.flash(a.flash > 0 ? .8 : 0);
 }

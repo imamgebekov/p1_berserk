@@ -1,7 +1,7 @@
 // Окно торговли: «Купить» (витрина) и «Продать» (сумка). Продавать можно только рядом с торговцем.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, statLine } from './data/items.js';
 import { betterThanWorn, nameOf } from './inv.js';
-import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, refreshGear, upgradeItem, upgradeCost } from './sim.js';
+import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
 
 export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const $ = id => doc.getElementById(id);
@@ -75,5 +75,41 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const open = () => { render(); root.hidden = false; onOpen && onOpen(); };
   const close = () => { root.hidden = true; onClose && onClose(); };
   $('smithClose').addEventListener('click', close);
+  return { open, close, render, isOpen: () => !root.hidden };
+}
+
+// Капитан Заставы: найм бойцов в отряд
+export function createCaptain(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
+  const $ = id => doc.getElementById(id);
+  const root = $('captain'), listEl = $('captainList'), headEl = $('captainHead'), flashEl = $('captainFlash');
+  let flashT = 0, armed = 0;
+  const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+  const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2400); };
+  function render() {
+    const live = W.allies.filter(a => !a.dead), max = squadMax(W);
+    headEl.textContent = `Застава · отряд ${live.length}/${max} · пепел ${W.inv.ash}`;
+    listEl.textContent = '';
+    listEl.appendChild(el('div', 'ssec', 'Нанять'));
+    for (const [id, T] of Object.entries(cfg.squad.types)) {
+      const r = el('div', 'srow'), info = el('div', 'sinfo');
+      const nm = el('span', 'nm', T.name); nm.style.color = T.tint === '#2e2e34' ? '#c8c8d8' : T.tint;
+      info.append(nm, el('div', 'sub', `${T.text} Здоровье ${T.hp}, урон ${T.dmg}.`));
+      const full = live.length >= max, b = el('button', 'buy' + (full || W.inv.ash < T.cost ? ' no' : ''), `Нанять · ${T.cost}`); b.type = 'button';
+      b.addEventListener('click', () => { const res = hireAlly(W, id); flash(res === 'ok' ? `${T.name} в отряде` : res === 'ash' ? 'Не хватает пепла' : res === 'full' ? `Отряд полон (мест: ${max}). Новые места открываются с уровнем` : 'Подойдите к капитану'); render(); onChange && onChange(); });
+      r.append(info, b); listEl.appendChild(r);
+    }
+    listEl.appendChild(el('div', 'ssec', 'Отряд'));
+    if (!live.length) listEl.appendChild(el('div', 'emptyl', 'Пока никого. Бойцы идут за вами, бьют врагов и гибнут навсегда. Лечатся сами вне боя, у костра быстрее.'));
+    for (const a of live) {
+      const T = cfg.squad.types[a.type], r = el('div', 'srow'), info = el('div', 'sinfo');
+      info.append(el('span', 'nm', T.name), el('div', 'sub', `Здоровье ${Math.ceil(a.hp)}/${a.maxhp}`));
+      const b = el('button', 'buy', armed === a.id ? 'Точно?' : 'Уволить'); b.type = 'button';
+      b.addEventListener('click', () => { if (armed !== a.id) { armed = a.id; setTimeout(() => { armed = 0; render(); }, 2500); render(); return; } armed = 0; dismissAlly(W, a.id); render(); onChange && onChange(); });
+      r.append(info, b); listEl.appendChild(r);
+    }
+  }
+  const open = () => { render(); root.hidden = false; onOpen && onOpen(); };
+  const close = () => { root.hidden = true; onClose && onClose(); };
+  $('captainClose').addEventListener('click', close);
   return { open, close, render, isOpen: () => !root.hidden };
 }
