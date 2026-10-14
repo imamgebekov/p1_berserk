@@ -33,3 +33,15 @@ export function stepNums(dt) {
   for (let i = 0; i < ns.length; i++) { ns[i].t += dt; if (ns[i].t < .8) ns[k++] = ns[i]; }
   ns.length = k;
 }
+
+// Подписи над добычей: название вещи цветом редкости взлетает и гаснет (рисуются в высоком разрешении)
+export function lootPopup(x, z, text, col) {
+  if (W.popups.length >= CFG.fx.maxPopups) W.popups.shift();
+  W.popups.push({ x, z, text, col, t: 0 });
+}
+export function stepPopups(dt) {
+  const ps = W.popups;
+  let k = 0;
+  for (let i = 0; i < ps.length; i++) { ps[i].t += dt; if (ps[i].t < CFG.fx.popupLife) ps[k++] = ps[i]; }
+  ps.length = k;
+}

@@ -76,6 +76,22 @@ export function createRenderer(cv, lo) {
       dctx.fillStyle = n.col; dctx.fillText(n.name, x, (G - 20) * V.SY);
     }
 
+    // подписи добычи: название вещи цветом редкости
+    if (W.popups.length) {
+      dctx.font = `bold ${Math.round(12 * V.DPR)}px Georgia, serif`;
+      for (const p of W.popups) {
+        const life = CFG.fx.popupLife, a = p.t < life * .6 ? 1 : 1 - (p.t - life * .6) / (life * .4);
+        const half = dctx.measureText(p.text).width / 2 + 4;
+        const x = Math.min(cv.width - half, Math.max(half, (p.x - W.camX) * V.SX));
+        const y = (G - p.z - (reduce ? 0 : p.t * 14)) * V.SY;
+        dctx.globalAlpha = Math.max(0, a);
+        dctx.fillStyle = 'rgba(0,0,0,.75)'; dctx.fillText(p.text, x + 1, y + 1);
+        dctx.fillStyle = p.col; dctx.fillText(p.text, x, y);
+      }
+      dctx.globalAlpha = 1;
+      dctx.font = `${Math.round(11 * V.DPR)}px ui-monospace, Menlo, monospace`;
+    }
+
     // подписи городских NPC
     for (const t of TOWN_NPCS) {
       const x = (t.x() - W.camX) * V.SX;

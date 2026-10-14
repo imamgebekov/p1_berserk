@@ -16,7 +16,7 @@ const freshP = () => ({
 });
 
 const freshW = () => ({
-  enemies: [], parts: [], nums: [], npcs: [], boss: null,
+  enemies: [], parts: [], nums: [], popups: [], npcs: [], boss: null,
   T: 0, freeze: 0, shake: 0, hurtFlash: 0, camX: 0,
   spawnT: CFG.spawn.firstDelay, killsSinceLord: 0, started: false, paused: false,
   ecl: 0, cycle: 0, maxT: CFG.eclipse.firstTimer, timer: CFG.eclipse.firstTimer,

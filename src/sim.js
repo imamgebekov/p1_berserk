@@ -6,7 +6,7 @@ import { chat, npcSay, idleLine } from './chat.js';
 import { runTimers } from './clock.js';
 import { sfx, setDrone } from './audio.js';
 import { burst } from './fx.js';
-import { stepParticles, stepNums } from './fx.js';
+import { stepParticles, stepNums, stepPopups } from './fx.js';
 import { spawnEnemy, spawnBoss } from './world.js';
 import { startSwing, hurtEnemy, hurtPlayer, rollSwing, speedMult } from './combat.js';
 import { updateNpcs } from './npc.js';
@@ -126,7 +126,7 @@ function update(dt) {
   updateNpcs(dt);
 
   stepParticles(dt, false);
-  stepNums(dt);
+  stepNums(dt); stepPopups(dt);
 
   if (W.hurtFlash > 0) W.hurtFlash -= dt;
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * CFG.fx.shakeDecay);

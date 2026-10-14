@@ -220,6 +220,7 @@ export const CFG = {
     freezeCrit: .075,
     shakeDecay: 18,
     hurtFlash: .35,
+    maxPopups: 6, popupLife: 1.9,
     maxParticles: 220       // потолок, чтобы кадр на телефоне не разрастался
   }
 };

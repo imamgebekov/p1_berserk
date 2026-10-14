@@ -40,6 +40,7 @@ function invariants(scn, f) {
   if (W.enemies.length > CFG.spawn.maxAlive + 2) fail(scn, f, `врагов слишком много: ${W.enemies.length}`);
   if (W.boss && !W.enemies.includes(W.boss)) fail(scn, f, 'boss не в списке врагов');
   if (W.parts.length > CFG.fx.maxParticles + 40) fail(scn, f, `частиц ${W.parts.length}`);
+  if (W.popups.length > CFG.fx.maxPopups) fail(scn, f, `подписей добычи ${W.popups.length}`);
   if (W.timers.length > 200) fail(scn, f, `утечка таймеров: ${W.timers.length}`);
   if (W.chatLog.length > CFG.chat.maxLines) fail(scn, f, `чат ${W.chatLog.length}`);
   for (const k of ['camX', 'T', 'ecl', 'timer', 'shake']) if (!fin(W[k])) return fail(scn, f, `W.${k}=${W[k]}`);

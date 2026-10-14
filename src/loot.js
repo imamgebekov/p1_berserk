@@ -5,7 +5,7 @@ import { clamp, random, pick, riIn } from './util.js';
 import { ITEMS } from './data/items.js';
 import { newItem, giveItem, defOf, sellValue } from './inventory.js';
 import { chat } from './chat.js';
-import { burst } from './fx.js';
+import { burst, lootPopup } from './fx.js';
 import { sfx } from './audio.js';
 
 const byRarity = {};
@@ -75,6 +75,7 @@ export function lootFor(e) {
     const col = cols[def.rarity].color;
     chat('', where === 'bag' ? 'Получено: ' + def.name : 'Сумка полна, продано: ' + def.name + ' (+' + sellValue(it) + ')', 'loot', col);
     burst(e.x, e.h * .6, def.rarity === 'common' ? 4 : 12, [col, '#f6eed9'], 40, 50);
+    lootPopup(e.x, e.h + 8, where === 'bag' ? def.name : def.name + ' (продано)', col);
     sfx.loot(def.rarity);
   }
 }

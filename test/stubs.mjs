@@ -11,6 +11,7 @@ export function fakeCtx() {
     fillRect: (...a) => { finite('fillRect', a); stats.fillRect++; },
     drawImage: (img, ...a) => { finite('drawImage', a); stats.drawImage++; },
     setTransform: (...a) => finite('setTransform', a),
+    measureText: t => { if (typeof t !== 'string') bad('measureText', [t]); return { width: t.length * 6 }; },
     fillText: (t, x, y) => { finite('fillText', [x, y]); stats.fillText++; },
     createRadialGradient: (...a) => { finite('createRadialGradient', a); return grad(); }
   };
