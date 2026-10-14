@@ -39,7 +39,7 @@ const nightT = (() => { for (let t = 0; t < D.len; t++) if (isNight(t, D)) retur
 // ---- звук ----
 ok(SFX_NAMES.length >= 34, 'звуков мало: ' + SFX_NAMES.length);
 sfx('hit'); sfx('нет'); setAmbient(.5, 1); setVolume(5); // без контекста ничего не падает
-const src = readFileSync(new URL('../3d/src/sim.js', import.meta.url), 'utf8') + readFileSync(new URL('../3d/src/boss3d.js', import.meta.url), 'utf8') + readFileSync(new URL('../3d/src/status3d.js', import.meta.url), 'utf8') + readFileSync(new URL('../3d/src/craft3d.js', import.meta.url), 'utf8');
+const src = ['sim', 'squad3d', 'progress3d', 'economy3d', 'places3d'].map(f => readFileSync(new URL(`../3d/src/${f}.js`, import.meta.url), 'utf8')).join('') + readFileSync(new URL('../3d/src/boss3d.js', import.meta.url), 'utf8') + readFileSync(new URL('../3d/src/status3d.js', import.meta.url), 'utf8') + readFileSync(new URL('../3d/src/craft3d.js', import.meta.url), 'utf8');
 for (const k of ['swing', 'hit', 'hurt', 'die', 'roll', 'pickup', 'open', 'unlock', 'locked', 'level', 'bossaggro', 'bossdead', 'boom', 'craft', 'hire', 'tomb']) ok(SFX_NAMES.includes(k) && src.includes(`k: '${k}'`), 'звук и событие ' + k);
 for (const k of ['dusk', 'dawn']) ok(SFX_NAMES.includes(k), 'звук ' + k);
 

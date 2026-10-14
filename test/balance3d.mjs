@@ -2,7 +2,7 @@
 // Печатает таблицу (убито, урон за убийство, доля смертей) и проверяет «лестницу силы»:
 // голые руки далеко от костра умирают, экипировка по месту выживает, перебор экипировки у костра скучен, но безопасен.
 import { CFG3 } from '../3d/src/config3d.js';
-import { createWorld, step, mulberry32, aliveEnemies } from '../3d/src/sim.js';
+import { createWorld, step, mulberry32, aliveEnemies, setDifficulty } from '../3d/src/sim.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const TIERS = {
   'без вещей': {},
@@ -18,6 +18,7 @@ function run(tier, place, seed) {
   const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.map.places = []; cfg.bosses.list = [];   // меряем чистую глубину, без зон и боссов
   for (const t of ['imp', 'brute', 'hound', 'ghoul']) { cfg.enemies[t].hp = Math.round(cfg.enemies[t].hp * HPM); cfg.enemies[t].damage = Math.round(cfg.enemies[t].damage * DMM); }
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3));
+  if (process.env.BAL_DIF) setDifficulty(W, process.env.BAL_DIF); if (process.env.BAL_NIGHT) W.t = 195;
   Object.assign(W.inv.eq, TIERS[tier]); W.player.x = PLACES[place][0]; W.player.z = PLACES[place][1];
   let taken = 0; const dodge = mulberry32(seed + 99);
   for (let i = 0; i < 60 * SECONDS; i += 1) {

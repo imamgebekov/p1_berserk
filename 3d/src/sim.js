@@ -1,16 +1,17 @@
 // Логика 3D-прототипа без графики: игрок, враги, бой. Координаты (x, z) на плоскости, y — вверх (только в рендере).
 // Угол «face»: вперёд = (sin θ, cos θ). Мир создаётся фабрикой, чтобы тестироваться в Node.
 
-const TAU = Math.PI * 2;
-const DEG = Math.PI / 180;
 export const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const len = (x, z) => Math.hypot(x, z);
 
 export function mulberry32(a) {
   return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
 
+import { TAU, DEG, clamp, len, rr } from './util3d.js';
+import { pickAlly, hurtAlly, updateAllies } from './squad3d.js';
+import { trackPlace, reveal } from './places3d.js';
+import { addXp, gainXp } from './progress3d.js';
+import { restock } from './economy3d.js';
 import { BY_ID } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
@@ -75,7 +76,6 @@ function makeWorld(cfg, rng) {
   };
 }
 
-const rr = (W, a, b) => a + W.rng() * (b - a);
 
 export function spawnEnemy(W, type, x, z) {
   const C = W.cfg.enemies[type], E = W.cfg.enemies, depth = clamp(len(x, z) / W.cfg.world.radius, 0, 1), pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * (1 + E.dangerHp * danger) * W.dif.hp);
@@ -168,7 +168,7 @@ function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   return true;
 }
 
-function killEnemy(W, e, share) {
+export function killEnemy(W, e, share) {
   if (e.dead) return;
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
   dropLoot(W, e); addXp(W, e, share);
@@ -421,167 +421,6 @@ function refill(W, c) {
   c.locked = !!def.locked; c.keyTier = def.locked ? (depth < .3 ? 1 : depth < .6 ? 2 : 3) : 0;
 }
 
-// ---- отряд ----
-export const squadMax = W => Math.min(W.cfg.squad.cap, W.cfg.squad.baseMax + Math.floor(W.lv / W.cfg.squad.perLevels));
-const liveAllies = W => W.allies.filter(a => !a.dead);
-function pickAlly(W, e, dPlayer) {
-  let best = null, bd = 8;
-  for (const a of W.allies) { if (a.dead) continue; const d = len(a.x - e.x, a.z - e.z); if (d < bd && d < dPlayer + 1.5 && insideOf(W.map, a.x, a.z) === insideOf(W.map, e.x, e.z)) { bd = d; best = a; } }
-  return best;
-}
-function hurtAlly(W, a, dmg, e) {
-  if (a.dead) return;
-  a.hp -= dmg; a.flash = .12; a.calm = 3;
-  const d = len(a.x - e.x, a.z - e.z) || 1; a.vx += (a.x - e.x) / d * 3; a.vz += (a.z - e.z) / d * 3;
-  W.ev.push({ k: 'allyhurt', x: a.x, z: a.z, dmg });
-  if (a.hp <= 0) { a.hp = 0; a.dead = true; a.deadT = 0; W.ev.push({ k: 'allydead', x: a.x, z: a.z, name: W.cfg.squad.types[a.type].name }); }
-}
-function spawnAlly(W, type, hp) {
-  const T = W.cfg.squad.types[type], p = W.player, ang = p.face + Math.PI + rr(W, -.8, .8);
-  const a = { id: W.aid++, type, x: p.x + Math.sin(ang) * 1.8, z: p.z + Math.cos(ang) * 1.8, vx: 0, vz: 0, face: p.face, hp: hp || T.hp, maxhp: T.hp, state: 'idle', t: 0, cd: 0, dead: false, deadT: 0, flash: 0, calm: 0, tgt: 0, moving: false };
-  resolve(W.map, a, .45); W.allies.push(a); return a;
-}
-export function hireAlly(W, type) {
-  const T = W.cfg.squad.types[type]; if (!T) return 'none';
-  if (W.nearNpc !== 'captain') return 'far';
-  if (liveAllies(W).length >= squadMax(W)) return 'full';
-  if (W.inv.ash < T.cost) return 'ash';
-  W.inv.ash -= T.cost; spawnAlly(W, type); questEvent(W, 'hire'); W.ev.push({ k: 'hire', name: T.name }); return 'ok';
-}
-export function dismissAlly(W, id) { const i = W.allies.findIndex(a => a.id === id); if (i < 0) return false; W.allies.splice(i, 1); return true; }
-export function restoreAllies(W, list) {
-  W.allies.length = 0;
-  for (const s of Array.isArray(list) ? list : []) { if (liveAllies(W).length >= squadMax(W)) break; const T = s && W.cfg.squad.types[s.type]; if (T) spawnAlly(W, s.type, clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : T.hp, 1, T.hp)); }
-}
-function updateAllies(W, dt) {
-  const S = W.cfg.squad, p = W.player, live = liveAllies(W), enemies = W.enemies.filter(e => !e.dead);
-  for (let i = W.allies.length - 1; i >= 0; i--) { const a = W.allies[i]; if (a.dead) { a.deadT += dt; if (a.deadT > 1.4) W.allies.splice(i, 1); } }
-  live.forEach((a, idx) => {
-    const T = S.types[a.type];
-    if (a.flash > 0) a.flash -= dt; if (a.calm > 0) a.calm -= dt;
-    const px = a.x, pz = a.z;
-    slide(W.map, a, a.vx * dt, a.vz * dt, .45); const kd = Math.exp(-8 * dt); a.vx *= kd; a.vz *= kd;
-    // цель: ближайший враг рядом с союзником и не слишком далеко от героя
-    let tgt = null, bd = S.sight;
-    for (const e of enemies) { const d = len(e.x - a.x, e.z - a.z); if (d < bd && len(e.x - p.x, e.z - p.z) < S.sight + 8 && insideOf(W.map, e.x, e.z) === insideOf(W.map, a.x, a.z)) { bd = d; tgt = e; } }
-    if (a.state === 'wind') {
-      a.t += dt; if (a.tg && !a.tg.dead) a.face = Math.atan2(a.tg.x - a.x, a.tg.z - a.z);
-      if (a.t >= T.wind) {
-        a.state = 'rec'; a.t = 0;
-        const e = a.tg; if (e && !e.dead && len(e.x - a.x, e.z - a.z) <= T.range + W.cfg.enemies[e.type].radius + .5) {
-          const dmg = Math.round(T.dmg * rr(W, .9, 1.1)); e.hp -= dmg; e.flash = .12; e.alert = true;
-          const d = len(e.x - a.x, e.z - a.z) || 1, C = W.cfg.enemies[e.type], k = 3 / (C.scale > 1.2 ? 2.2 : 1); e.vx += (e.x - a.x) / d * k; e.vz += (e.z - a.z) / d * k;
-          if (e.state === 'wind') { e.state = 'chase'; e.t = 0; e.cd = .3; }
-          W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: false, id: e.id, ally: true });
-          if (e.hp <= 0) killEnemy(W, e, S.xpShare);
-        }
-      }
-    } else if (a.state === 'rec') { a.t += dt; if (a.t >= T.recover) { a.state = 'idle'; a.t = 0; } }
-    else if (tgt) {
-      const C = W.cfg.enemies[tgt.type], dx = tgt.x - a.x, dz = tgt.z - a.z, d = len(dx, dz) || 1e-6;
-      a.face = Math.atan2(dx, dz);
-      if (d > T.range + C.radius * .5) slide(W.map, a, dx / d * T.speed * dt, dz / d * T.speed * dt, .45);
-      else { a.state = 'wind'; a.t = 0; a.tg = tgt; }
-    } else {
-      // идти за героем: позиция в строю позади него
-      const n = live.length, ang = p.face + Math.PI + (idx - (n - 1) / 2) * .95, r = S.follow + (idx % 2) * .8;
-      const sx = p.x + Math.sin(ang) * r, sz = p.z + Math.cos(ang) * r, dx = sx - a.x, dz = sz - a.z, d = len(dx, dz);
-      if (len(p.x - a.x, p.z - a.z) > S.leash) { a.x = sx; a.z = sz; resolve(W.map, a, .45); }
-      else if (d > .9) { const sp = T.speed * (d > 6 ? 1.5 : 1); a.face = Math.atan2(dx, dz); slide(W.map, a, dx / d * sp * dt, dz / d * sp * dt, .45); }
-      // восстановление: вне боя понемногу, у костра быстро
-      if (a.calm <= 0 && a.hp < a.maxhp) a.hp = Math.min(a.maxhp, a.hp + (len(a.x, a.z) < W.cfg.player.fire.radius ? S.fireRegen : S.regen) * dt);
-    }
-    a.moving = len(a.x - px, a.z - pz) > .4 * dt * 3;
-  });
-}
-
-// ---- места и карта ----
-export function trackPlace(W, dt) {
-  const p = W.player, pl = placeAt(W.map, p.x, p.z);
-  if ((pl && pl.id) !== (W.place && W.place.id)) { W.place = pl; if (pl) { W.known.places[pl.id] = 1; questEvent(W, 'visit', { place: pl.id }); } W.ev.push({ k: 'place', place: pl }); }
-  if ((W.revealT -= dt) <= 0) { W.revealT = .3; reveal(W, p.x, p.z, W.cfg.map.reveal); }
-}
-export function reveal(W, x, z, r) {
-  const c = W.cfg.map.cell, R = W.cfg.world.radius, n = W.seenN, i0 = Math.floor((x - r + R) / c), i1 = Math.floor((x + r + R) / c), j0 = Math.floor((z - r + R) / c), j1 = Math.floor((z + r + R) / c);
-  for (let j = Math.max(0, j0); j <= Math.min(n - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(n - 1, i1); i++) {
-    const cx = (i + .5) * c - R, cz = (j + .5) * c - R; if (Math.hypot(cx - x, cz - z) <= r + c * .5) W.seen[j * n + i] = 1;
-  }
-}
-export const isSeen = (W, x, z) => { const c = W.cfg.map.cell, R = W.cfg.world.radius, i = Math.floor((x + R) / c), j = Math.floor((z + R) / c); return i >= 0 && j >= 0 && i < W.seenN && j < W.seenN && W.seen[j * W.seenN + i] === 1; };
-
-// ---- опыт, уровни, навыки ----
-export const xpNeed = (lv, cfg) => Math.round(cfg.level.base * Math.pow(lv, cfg.level.pow));
-export function addXp(W, e, share = 1) {
-  const L = W.cfg.level, depth = clamp(len(e.x, e.z) / W.cfg.world.radius, 0, 1), C = W.cfg.enemies[e.type];
-  gainXp(W, Math.round((C.xp || 5) * (1 + depth * .8) * (1 + W.cfg.enemies.dangerXp * (e.danger || 0)) * share) || 1);
-}
-export function gainXp(W, n) {
-  const L = W.cfg.level; if (W.lv >= L.max) return;
-  n = Math.max(1, Math.round(n * W.dif.xp * (W.night ? W.cfg.daynight.night.xp : 1)));
-  W.xp += n; W.ev.push({ k: 'xp', n, x: W.player.x, z: W.player.z });
-  while (W.lv < L.max && W.xp >= xpNeed(W.lv, W.cfg)) {
-    W.xp -= xpNeed(W.lv, W.cfg); W.lv++; W.sp++;
-    refreshGear(W); const p = W.player; p.hp = Math.min(p.maxhp, p.hp + p.maxhp * L.healOnUp);
-    W.ev.push({ k: 'level', lv: W.lv, x: p.x, z: p.z });
-  }
-  if (W.lv >= L.max) W.xp = 0;
-}
-export function spendSkill(W, id) {
-  const r = canRank(W.skills, id, W.sp); if (r !== 'ok') return r;
-  W.skills[id] = (W.skills[id] || 0) + 1; W.sp--; refreshGear(W); return 'ok';
-}
-export const respecCost = W => W.cfg.respecBase * W.lv;
-export function respec(W) {
-  const spent = Object.values(W.skills).reduce((a, b) => a + b, 0); if (!spent) return 'none';
-  const cost = respecCost(W); if (W.inv.ash < cost) return 'ash';
-  W.inv.ash -= cost; W.sp += spent; W.skills = {}; refreshGear(W); return 'ok';
-}
-
-// ---- кузнец: улучшение вещей за пепел ----
-export const upgradeCost = (it, lvl, cfg) => Math.round(cfg.smith.base + it.value * cfg.smith.costK * Math.pow(lvl + 1, cfg.smith.pow));
-// where: { slot } для надетой или { idx } для вещи в сумке
-export function upgradeItem(W, where) {
-  if (W.nearNpc !== 'smith') return 'far';
-  const inv = W.inv, e = where.slot ? null : inv.bag[where.idx];
-  const id = where.slot ? inv.eq[where.slot] : e && e.id, it = id && BY_ID[id];
-  if (!it || !it.slot) return 'none';
-  const lvl = where.slot ? inv.up[where.slot] || 0 : e.up || 0;
-  if (lvl >= W.cfg.smith.max) return 'max';
-  const cost = upgradeCost(it, lvl, W.cfg);
-  if (inv.ash < cost) return 'ash';
-  inv.ash -= cost; if (where.slot) inv.up[where.slot] = lvl + 1; else e.up = lvl + 1;
-  W.ev.push({ k: 'upgrade', x: W.player.x, z: W.player.z, lvl: lvl + 1 }); return 'ok';
-}
-
-// ---- торговля ----
-export const sellPrice = (it, cfg, up = 0, trade = 0) => Math.max(1, Math.round(it.value * cfg.shop.sellMul * (1 + up * .25) * (1 + trade / 100)));
-export const buyPrice = (it, cfg, mul = 1) => Math.max(2, Math.round(it.value * cfg.shop.buyMul * mul));
-export function restock(W) {
-  const out = SHOP_STAPLES.map(([id, n]) => ({ id, n }));
-  for (const it of rollLoot(SHOP, W.rng, .12, W.gear.luck)) { const ex = out.find(o => o.id === it.id); if (ex) ex.n += it.n; else out.push({ ...it }); }
-  W.shop.stock = out; W.shop.t = 0;
-}
-export function buyItem(W, i) {
-  const s = W.shop.stock[i]; if (!s || !W.nearMerchant) return 'far'; if (W.night) return 'closed';
-  const it = BY_ID[s.id], price = buyPrice(it, W.cfg, W.dif.buy);
-  if (W.inv.ash < price) return 'ash';
-  if (addItem(W.inv, s.id, 1, W.cfg.bag.slots) > 0) return 'full';
-  W.inv.ash -= price; s.n -= 1; if (s.n <= 0) W.shop.stock.splice(i, 1);
-  W.ev.push({ k: 'pickup', id: s.id, n: 1 }); return 'ok';
-}
-export function sellItem(W, idx, n = 1) {
-  const s = W.inv.bag[idx]; if (!s) return 'none'; if (!W.nearMerchant) return 'far'; if (W.night) return 'closed';
-  const q = Math.min(n, s.n), it = BY_ID[s.id];
-  W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade) * q; removeAt(W.inv, idx, q); return 'ok';
-}
-// продать весь хлам разом: безделушки, деньги, записки и материалы (оружие, броня, ключи и расходники остаются)
-export function sellJunk(W) {
-  if (!W.nearMerchant || W.night) return -1;
-  let sum = 0;
-  for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if (it.cat === 'curio' || it.cat === 'material') { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
-  W.inv.ash += sum; return sum;
-}
-
 // положить в сумку; возвращает остаток
 function give(W, id, n) { const left = addItem(W.inv, id, n, W.cfg.bag.slots); if (n - left > 0) { W.ev.push({ k: 'pickup', id, n: n - left }); W.known.items[id] = 1; } return left; }
 
@@ -688,3 +527,9 @@ export function respawnPlayer(W) {
   Object.assign(p, { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0 });
   W.enemies = W.enemies.filter(e => e.boss && !e.dead); W.spawnT = 1.2; W.pst = {}; W.echoQ.length = 0; W.combo.n = 0;
 }
+
+// публичный API прежний: модули вынесены, но всё доступно из sim.js
+export * from './squad3d.js';
+export * from './places3d.js';
+export * from './progress3d.js';
+export * from './economy3d.js';
