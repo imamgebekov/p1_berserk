@@ -1,11 +1,11 @@
 import { CFG3 } from './config3d.js';
-import { createWorld, step, respawnPlayer, spawnEnemy } from './sim.js';
+import { createWorld, step, respawnPlayer, spawnEnemy, spawnBoss } from './sim.js';
 import { BY_ID, RARITY } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith, createCaptain } from './shop.js';
 import { createSkills } from './skillsui.js';
-import { xpNeed, reveal, restoreAllies } from './sim.js';
+import { xpNeed, reveal, restoreAllies, restoreBosses } from './sim.js';
 import { drawMap } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSave, createSaver, unpackSeen } from './save3d.js';
@@ -36,7 +36,7 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(cfg.bag.slots);
-if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); restoreAllies(W, saved.squad); }
+if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); }
 const saver = createSaver(W);
 const input = createInput(document, window);
 let panelOpen = false, landscape = false;
@@ -65,6 +65,9 @@ function onEvent(v) {
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
   else if (v.k === 'place') showPlace(v.place);
+  else if (v.k === 'bossaggro') toast(`${v.name} проснулся`, 'bad');
+  else if (v.k === 'bossphase') toast(`${v.name}: ${v.what}`, 'bad');
+  else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
   else if (v.k === 'allydead') toast(`${v.name} пал`, 'bad');
   else if (v.k === 'hire') toast(`${v.name} теперь с вами`, 'sys');
   else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков ✦`, '', '#e8c04a');
@@ -137,6 +140,8 @@ const mapOpen = () => { drawFull(); mapEl.hidden = false; panelOpen = true; inpu
 const mapClose = () => { mapEl.hidden = true; panelOpen = false; };
 $('miniBtn').addEventListener('click', () => (mapEl.hidden ? mapOpen() : mapClose()));
 $('mapClose').addEventListener('click', mapClose);
+const bossEl = $('boss'), bossFill = $('bossFill'), bossName = $('bossName');
+let lastBoss = '';
 const comboEl = $('combo'), statusRow = $('statusRow');
 let lastCombo = 0, lastSt = '';
 const hpFill = $('hpFill'), hpTxt = $('hpTxt'), killsEl = $('kills');
@@ -151,6 +156,7 @@ function loop(now) {
   }
   if (renderer) renderer.render(W, panelOpen || landscape ? 0 : dt);
   { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : 'Торговать'; if (talk.textContent !== l) talk.textContent = l; } }
+  { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); } } }
   { const n = W.combo.n; if (n !== lastCombo) { comboEl.hidden = n < 2; if (n >= 2) { comboEl.innerHTML = `×${n}<small>+${Math.round(Math.min(.3, n * .02) * 100)}%</small>`; comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); } lastCombo = n; } }
   { const key = Object.keys(W.pst).map(k => k + Math.ceil(W.pst[k].t) + (W.pst[k].n || '')).join(); if (key !== lastSt) { lastSt = key; statusRow.textContent = ''; for (const k of Object.keys(W.pst)) { const c = document.createElement('span'); c.className = 'stch'; c.style.color = STATUS_COLOR[k]; c.textContent = `${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`; statusRow.appendChild(c); } } }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
@@ -163,4 +169,4 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };
+window.__b3d = { spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };

@@ -12,8 +12,9 @@ export function mulberry32(a) {
 }
 
 import { BY_ID } from './data/items.js';
-import { CONTAINERS, SHOP, SHOP_STAPLES, rollLoot, rollDrop } from './data/loot.js';
+import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
+import { initBoss, updateBoss } from './boss3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats } from './inv.js';
@@ -24,6 +25,7 @@ export function createWorld(cfg, rng = Math.random) {
   const cell = cfg.map.cell, n = Math.ceil(2 * cfg.world.radius / cell) + 2; W.seenN = n; W.seen = new Uint8Array(n * n);
   for (const c of W.map.containers) refill(W, c);
   restock(W);
+  for (const def of cfg.bosses.list) spawnBoss(W, def);
   return W;
 }
 // контекст оружия: умение типа и объединённые параметры свойств
@@ -38,6 +40,10 @@ function attachFx(W) {
   W.fx = {
     kill: e => killEnemy(W, e, 1),
     hp: (e, frac, base) => Math.round(base + e.maxhp * frac),
+    slide: (e, dx, dz, r) => slide(W.map, e, dx, dz, r),
+    hurtP: (dmg, x, z, on) => hurtPlayer(W, dmg, x, z, on),
+    hurtA: (a, dmg, e) => hurtAlly(W, a, dmg, e),
+    spawn: (type, x, z) => spawnEnemy(W, type, x, z),
     react: (e, name, dmg, area) => {
       W.ev.push({ k: 'react', name, x: e.x, z: e.z });
       if (area) { for (const o of W.enemies) if (!o.dead && len(o.x - e.x, o.z - e.z) < area.r) dealDamage(W, o, Math.round(area.d), 'venom'); }
@@ -55,7 +61,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), inside: -1, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), inside: -1, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0 },
     enemies: []
   };
@@ -85,6 +91,29 @@ function pickW2(table, rng) { let t = 0; for (const a of table) t += a[1]; let r
 
 export const aliveEnemies = W => W.enemies.filter(e => !e.dead);
 
+// босс: здоровье из конфига (без роста от глубины), логово — точка появления
+export function spawnBoss(W, def) {
+  const C = W.cfg.enemies[def.type], e = spawnEnemy(W, def.type, def.x, def.z);
+  e.hp = e.maxhp = C.hp; e.dmgMul = 1; initBoss(W, e, def); resolve(W.map, e, C.radius); e.b.home = { x: e.x, z: e.z };
+  delete W.bossDead[def.type]; return e;
+}
+function bossDefeated(W, e) {
+  const C = W.cfg.enemies[e.type], p = W.player;
+  const items = [{ id: pickItem('unique', 4, W.rng).id, n: 1 }, { id: 'key_black', n: 1 }, ...rollLoot(BOSS_LOOT, W.rng, 1, W.gear.luck)];
+  items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0 }); });
+  for (const m of e.b.minions) if (!m.dead) { m.dead = true; m.deadT = 0; }
+  W.bossDead[e.type] = W.cfg.bosses.respawn;
+  W.ev.push({ k: 'bossdead', name: C.name, x: e.x, z: e.z });
+}
+export function restoreBosses(W, dead) {
+  if (!dead || typeof dead !== 'object') return;
+  for (const def of W.cfg.bosses.list) {
+    const t = dead[def.type]; if (!(Number.isFinite(t) && t > 0)) continue;
+    const e = W.enemies.find(x => x.boss && x.type === def.type); if (e) { e.dead = true; e.deadT = 9; }
+    W.bossDead[def.type] = Math.min(W.cfg.bosses.respawn, t);
+  }
+}
+
 function hurtPlayer(W, dmg, fromX, fromZ, on) {
   const p = W.player;
   if (p.dead) return false;
@@ -105,7 +134,7 @@ function hurtPlayer(W, dmg, fromX, fromZ, on) {
 
 function killEnemy(W, e, share) {
   if (e.dead) return;
-  e.dead = true; e.deadT = 0; W.kills++; W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
+  e.dead = true; e.deadT = 0; W.kills++; if (e.boss) bossDefeated(W, e); W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
   dropLoot(W, e); addXp(W, e, share);
   if (share >= 1) {                                                   // свойства оружия за убийство
     const pm = W.wp.pm;
@@ -276,6 +305,7 @@ function updateEnemies(W, dt) {
     const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e);
     slide(W.map, e, e.vx * dt, e.vz * dt, C.radius);
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
+    if (e.boss) { updateBoss(W, e, dt, spd); continue; }
     if (isStunned(e)) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); continue; }        // оглушённый не двигается и не бьёт
     if (e.state === 'chase') {
       e.face = Math.atan2(dx, dz);
@@ -336,7 +366,7 @@ function updateEnemies(W, dt) {
   { const R = W.cfg.world.radius, l = len(p.x, p.z); if (l > R) { p.x *= R / l; p.z *= R / l; } }    // расталкивание не выносит героя за границу
   W.enemies = W.enemies.filter(e => !(e.dead && e.deadT > .6));
   // держим нужное число врагов
-  const alive = W.enemies.filter(e => !e.dead).length;
+  const alive = W.enemies.filter(e => !e.dead && !e.boss).length;
   const bonus = W.place && W.place.danger ? Math.round(W.place.danger * E.dangerCount) : 0;
   if (alive < E.count + bonus && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = spawnRing(W) === false ? .1 : E.respawn; } }
   else W.spawnT = Math.max(W.spawnT, .6);
@@ -604,6 +634,8 @@ export function step(W, dt, input = {}) {
   updateEnemies(W, dt);
   updateAllies(W, dt);
   updateHouses(W, dt);
+  for (const def of W.cfg.bosses.list) { const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) spawnBoss(W, def); }
+  { let hb = null; for (const e of W.enemies) if (e.boss && !e.dead && e.alert && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!e.b.enraged, id: e.id }; break; } W.hudBoss = hb; }
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
   if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200);     // события забирает рендер; потолок защищает, если никто не забирает
 }
@@ -611,5 +643,5 @@ export function step(W, dt, input = {}) {
 export function respawnPlayer(W) {
   const P = W.cfg.player, p = W.player;
   Object.assign(p, { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0 });
-  W.enemies.length = 0; W.spawnT = 1.2; W.pst = {}; W.echoQ.length = 0; W.combo.n = 0;
+  W.enemies = W.enemies.filter(e => e.boss && !e.dead); W.spawnT = 1.2; W.pst = {}; W.echoQ.length = 0; W.combo.n = 0;
 }

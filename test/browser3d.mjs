@@ -148,6 +148,15 @@ try {
   { const r = await page.evaluate(() => ({ n: window.__b3d.W.combo.n, st: Object.keys(window.__b3d.W.__foe.st || {}), shown: !document.getElementById('combo').hidden }));
     if (r.n < 3 || !r.shown) bad('счётчик комбо не растёт или не виден: ' + JSON.stringify(r)); if (!r.st.includes('burn') && !(await page.evaluate(() => window.__b3d.W.__foe.hp < 5000))) bad('меч с огнём не бьёт: ' + JSON.stringify(r)); }
   await page.evaluate(() => { const w = window.__b3d.W; w.inv.eq.weapon = null; w.enemies.length = 0; w.cfg.player.autoAim = 0; });
+  // босс: полоса здоровья, предупреждение, подпись
+  await page.evaluate(() => { const w = window.__b3d.W; w.enemies = w.enemies.filter(x => !x.boss); const e = window.__b3d.spawnBoss('devourer'); w.cfg.player.hp = 5000; w.player.hp = w.player.maxhp = 5000; w.player.inv = 0; w.player.x = e.x + 8; w.player.z = e.z; w.player.face = -Math.PI / 2; });
+  await page.waitForTimeout(500);
+  if (await page.$eval('#boss', e => e.hidden)) bad('полоса босса не показана рядом с логовом');
+  else { const nm = await page.$eval('#bossName', e => e.textContent); if (!nm.includes('Пожиратель')) bad('имя босса: ' + nm);
+    await page.evaluate(() => { const w = window.__b3d.W, e = w.enemies.find(x => x.boss && x.type === 'devourer'); w.player.x = e.x + 4; w.player.z = e.z; e.b.cd = 0; });
+    let seen = false; for (let i = 0; i < 40 && !seen; i++) { await page.waitForTimeout(100); seen = await page.evaluate(() => window.__b3d.W.enemies.some(x => x.boss && x.b && x.b.state === 'wind')); }
+    if (!seen) bad('босс не начал атаку с предупреждением'); await page.screenshot({ path: join(out, '3d-boss.png') }); }
+  await page.evaluate(() => { const w = window.__b3d.W; w.enemies = w.enemies.filter(x => !x.boss); w.cfg.player.hp = 100; w.player.x = 0; w.player.z = 4; w.player.inv = 1e9; });
   // новые враги: рисуются без ошибок
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; w.cfg.enemies.count = 0; w.enemies.length = 0; for (const [i, t] of ['hound', 'ghoul', 'imp', 'brute'].entries()) window.__b3d.spawn(t, -3 + i * 2, -3); });
   await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-monsters.png') });

@@ -25,6 +25,8 @@ export const CONTAINERS = {
 // витрина торговца
 export const SHOP = { name: 'Витрина', q: .8, slots: [11, 13], pools: [['weapon', 2], ['body', 1], ['head', 1], ['boots', 1], ['cloak', 1], ['ring', 1], ['amulet', 1], ['potion', 3], ['medic', 2], ['food', 2], ['material', 1], ['key', 1]] };
 export const SHOP_STAPLES = [['p_heal1', 3], ['h_rag_bandage', 5], ['f_rye', 6], ['key_rust', 2]];
+// добыча боссов (кроме гарантированного уникального клинка)
+export const BOSS_LOOT = { name: 'Добыча босса', q: 3, slots: [3, 3], pools: [['weapon', 1], ['body', 1], ['head', 1], ['boots', 1], ['ring', 2], ['amulet', 2], ['potion', 2], ['key', 1]] };
 // выпадение с монстров
 export const DROPS = {
   imp:   { chance: .45, slots: [1, 1], q: 0, pools: [['material', 4], ['coin', 3], ['food', 2], ['curio', 1], ['medic', 1]] },

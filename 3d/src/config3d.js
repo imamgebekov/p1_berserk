@@ -81,6 +81,22 @@ export const CFG3 = {
 
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4 },   // цена покупки = цена вещи × buyMul, продажи × sellMul; витрина обновляется раз в restock секунд
   // отряд: наёмники из Заставы. Идут за героем, бьют врагов, умирают насовсем. Мест в отряде: baseMax + 1 за каждые perLevels уровней, но не больше cap
+  // боссы: логово (x, z), атаки с предупреждением, фазы по здоровью. attacks: kind slam (круг), charge (рывок по линии), nova (кольцо огня), summon (подмога);
+  // wind — время предупреждения, mul — множитель урона, cd — перезарядка, range — с какого расстояния применяется. phases: at — доля здоровья
+  bosses: {
+    respawn: 600, aggro: 28, leash: 70, enrageSpeed: 1.25, enrageCd: .7, enrageDmg: 1.2, minionCap: 6,
+    list: [
+      { type: 'devourer', x: -44, z: -36,
+        attacks: [{ kind: 'slam', wind: 1.0, r: 4.2, mul: 1, cd: 3, range: 5 }, { kind: 'slam', wind: 1.5, r: 7, mul: 1.5, cd: 10, range: 99 }],
+        phases: [{ at: .66, summon: { type: 'ghoul', n: 2 } }, { at: .33, summon: { type: 'ghoul', n: 3 } }, { at: .3, enrage: true }] },
+      { type: 'lord', x: -60, z: 44,
+        attacks: [{ kind: 'charge', wind: .9, len: 13, width: 2.6, mul: 1.1, cd: 5, range: 16 }, { kind: 'nova', wind: 1.1, r: 8, inner: 2.6, mul: .9, cd: 8, range: 99 }, { kind: 'slam', wind: .7, r: 3.2, mul: .9, cd: 2.5, range: 3.6 }],
+        phases: [{ at: .3, enrage: true }] },
+      { type: 'chief', x: 56, z: -52,
+        attacks: [{ kind: 'charge', wind: 1.0, len: 11, width: 3, mul: 1.2, cd: 6, range: 14 }, { kind: 'slam', wind: .9, r: 4.6, mul: 1.1, cd: 3, range: 5 }],
+        phases: [{ at: .66, summon: { type: 'hound', n: 3 } }, { at: .33, summon: { type: 'hound', n: 4 } }, { at: .3, enrage: true }] }
+    ]
+  },
   squad: {
     baseMax: 1, perLevels: 8, cap: 4, follow: 2.8, leash: 30, sight: 13, regen: 1.2, fireRegen: 7, xpShare: .5,
     types: {
@@ -141,6 +157,10 @@ export const CFG3 = {
     dangerCount: 1.2,     // в опасной зоне держим на (уровень × dangerCount) врагов больше
     dangerXp: .25,        // опыт ×(1 + dangerXp × уровень)
     dangerLoot: .6,       // качество добычи контейнеров в зоне: + уровень × dangerLoot
+    // боссы: свои типы врагов (в bosses лежат логово, атаки, фазы). heavy: не сбиваются ударом, отбрасываются слабо
+    devourer: { boss: true, name: 'Пожиратель Погоста', xp: 700,  hp: 6500, speed: 2.7, damage: 44, range: 3.2, wind: .6, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun'], on: ['poison', .8, 3, 6] },
+    lord:     { boss: true, name: 'Слуга Затмения',     xp: 1000, hp: 8500, speed: 4.4, damage: 52, range: 2.8, wind: .6, recover: .8, radius: 1.2, scale: 2.1, heavy: true, immune: ['stun', 'freeze'], on: ['burn', .6, 4, 4] },
+    chief:    { boss: true, name: 'Вожак Ржавых',       xp: 1400, hp: 11500, speed: 3.2, damage: 62, range: 3.4, wind: .7, recover: .9, radius: 1.7, scale: 2.7, heavy: true, immune: ['stun'], on: ['bleed', .8, 4, 5] },
     // слух: чем громче герой, тем дальше его слышат. Услышавший идёт к герою, пока тот не уйдёт дальше `lose`
     hear: { idle: 10, run: 17, fight: 25, house: .55, lose: 32, drift: .3 },   // drift: доля скорости, с которой «бредёт» неуслышавший
     knockDecay: 9

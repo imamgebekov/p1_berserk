@@ -169,6 +169,27 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const m = new THREE.Mesh(new THREE.RingGeometry(.85, 1, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide }));
     m.rotation.x = -Math.PI / 2; m.position.set(x, .1, z); scene.add(m); fxPool.push({ m, t: .35, kind: 'ring', r });
   }
+  // предупреждение босса: круг, кольцо или линия рывка, пока идёт замах
+  const teleRing = new THREE.Mesh(new THREE.RingGeometry(.97, 1, 48), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+  const teleDisc = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+  const teleInner = new THREE.Mesh(new THREE.RingGeometry(.97, 1, 32), new THREE.MeshBasicMaterial({ color: '#8affc0', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+  const teleLine = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+  for (const m of [teleRing, teleDisc, teleInner, teleLine]) { m.rotation.x = -Math.PI / 2; m.position.y = .09; m.visible = false; scene.add(m); }
+  function updateTele(W, t) {
+    teleRing.visible = teleDisc.visible = teleInner.visible = teleLine.visible = false;
+    for (const e of W.enemies) {
+      if (!e.boss || e.dead || !e.b || e.b.state !== 'wind') continue;
+      const a = e.b.atk, k = Math.min(1, a.t / a.wind), pulse = .25 + .25 * Math.sin(t * 30) + .2 * k;
+      if (a.kind === 'charge') {
+        teleLine.visible = true; teleLine.scale.set(a.width, a.len, 1); teleLine.position.set(a.x + a.dx * a.len / 2, .09, a.z + a.dz * a.len / 2);
+        teleLine.rotation.set(-Math.PI / 2, 0, -Math.atan2(a.dx, a.dz)); teleLine.rotation.order = 'YXZ'; teleLine.rotation.set(-Math.PI / 2, Math.atan2(a.dx, a.dz), 0); teleLine.material.opacity = pulse;
+      } else {
+        teleRing.visible = true; teleRing.position.set(a.x, .09, a.z); teleRing.scale.setScalar(a.r); teleRing.material.opacity = .9;
+        teleDisc.visible = true; teleDisc.position.set(a.x, .08, a.z); teleDisc.scale.setScalar(a.r * (a.kind === 'nova' ? 1 : k)); teleDisc.material.opacity = pulse * .6;
+        if (a.kind === 'nova') { teleInner.visible = true; teleInner.position.set(a.x, .1, a.z); teleInner.scale.setScalar(a.inner); teleInner.material.opacity = .9; }
+      }
+    }
+  }
   function stepFx(dt) {
     for (let i = fxPool.length - 1; i >= 0; i--) {
       const f = fxPool[i]; f.t -= dt;
@@ -250,6 +271,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'buff') burst(v.x, 1.2, v.z, 10, '#9fd0ff', 2)
       else if (v.k === 'dot') { hooks.onText && hooks.onText(v.x, 2.2, v.z, String(v.dmg), 'dot-' + v.fx); }
       else if (v.k === 'react') { burst(v.x, 1.2, v.z, 16, '#bfe8ff', 5); hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }
+      else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
       else if (v.k === 'finisher') { ringFx(v.x, v.z, 3, '#ffd9c0'); burst(v.x, .6, v.z, 10, '#ffd9c0', 5); }
@@ -266,7 +288,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     // частицы
     for (const m of pool) if (m.visible) { const u = m.userData; u.life -= dt; if (u.life <= 0) { m.visible = false; continue; } u.vy -= 14 * dt; m.position.x += u.vx * dt; m.position.y = Math.max(.07, m.position.y + u.vy * dt); m.position.z += u.vz * dt; }
 
-    stepFx(dt);
+    stepFx(dt); updateTele(W, t);
     for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
     gl.render(scene, camera);
   }

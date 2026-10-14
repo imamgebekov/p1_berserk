@@ -80,21 +80,25 @@ const LOOKS = {
   imp: { body: '#3b3345', dark: '#1a121a', eye: '#ff3030' },
   brute: { body: '#4a3430', dark: '#2a1c1a', eye: '#ff3030' },
   hound: { body: '#55503f', dark: '#2a2620', eye: '#ffb020' },
-  ghoul: { body: '#58675a', dark: '#2a3a30', eye: '#b8ff90' }
+  ghoul: { body: '#58675a', dark: '#2a3a30', eye: '#b8ff90' },
+  devourer: { shape: 'ghoul', body: '#3c4e44', dark: '#1a2a22', eye: '#e8ff60', crown: '#c8d8a0' },
+  lord: { shape: 'imp', body: '#2a2028', dark: '#0e0a10', eye: '#ff7a20', crown: '#ff9a40' },
+  chief: { shape: 'brute', body: '#5a2c24', dark: '#2a1210', eye: '#ffc030', crown: '#d8c8a8' }
 };
 export function makeMonster(kind, cfg) {
   const mats = [], L = LOOKS[kind] || LOOKS.imp;
   const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
   const body = M(L.body), dark = M(L.dark), bone = M('#d8cfbd');
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
-  const hound = kind === 'hound', ghoul = kind === 'ghoul';
+  const shape = L.shape || kind, hound = shape === 'hound', ghoul = shape === 'ghoul';
   root.add(box(hound ? .6 : .8, hound ? .7 : .85, hound ? .8 : .55, body, 0, .95, 0));
   const head = box(.55, .5, hound ? .7 : .5, body, 0, hound ? 1.45 : 1.65, hound ? .35 : .05); root.add(head);
   root.add(box(.1, .1, .05, basic(L.eye), .12, hound ? 1.5 : 1.7, hound ? .72 : .31), box(.1, .1, .05, basic(L.eye), -.12, hound ? 1.5 : 1.7, hound ? .72 : .31));
-  if (kind === 'brute') { root.add(box(.12, .5, .12, bone, .3, 2.05, .05)); root.add(box(.12, .5, .12, bone, -.3, 2.05, .05)); }
+  if (shape === 'brute') { root.add(box(.12, .5, .12, bone, .3, 2.05, .05)); root.add(box(.12, .5, .12, bone, -.3, 2.05, .05)); }
   else if (hound) { root.add(box(.14, .35, .1, dark, .2, 1.8, .3)); root.add(box(.14, .35, .1, dark, -.2, 1.8, .3)); root.add(box(.12, .12, .6, body, 0, 1.1, -.65)); }
   else if (ghoul) { root.add(box(.5, .1, .5, dark, 0, 1.95, .05)); root.add(box(.2, .5, .12, dark, 0, 1.5, -.3)); }
   else { root.add(box(.14, .3, .1, body, .3, 1.95, 0)); root.add(box(.14, .3, .1, body, -.3, 1.95, 0)); }
+  if (L.crown) { const cm = basic(L.crown); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; root.add(box(.1, .42, .1, cm, Math.cos(a) * .3, 2.25 + (i % 2) * .12, Math.sin(a) * .3 + .05)); } root.add(box(.3, .4, .3, cm, .62, 1.7, 0), box(.3, .4, .3, cm, -.62, 1.7, 0)); }
   const al = ghoul ? 1.05 : .75;
   const armL = limb(.22, al, .24, body, .55, 1.3, 0), armR = limb(.22, al, .24, body, -.55, 1.3, 0);
   const legL = limb(.3, .6, .3, dark, .22, .6, 0), legR = limb(.3, .6, .3, dark, -.22, .6, 0);

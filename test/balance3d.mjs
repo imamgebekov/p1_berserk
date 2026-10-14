@@ -15,7 +15,7 @@ const SEEDS = Number(process.env.BAL_SEEDS || 10), SECONDS = 90;
 const HPM = Number(process.env.BAL_HP || 1), DMM = Number(process.env.BAL_DMG || 1);       // ручки для подбора чисел
 
 function run(tier, place, seed) {
-  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.map.places = [];   // меряем чистую глубину, без зон
+  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.map.places = []; cfg.bosses.list = [];   // меряем чистую глубину, без зон и боссов
   for (const t of ['imp', 'brute', 'hound', 'ghoul']) { cfg.enemies[t].hp = Math.round(cfg.enemies[t].hp * HPM); cfg.enemies[t].damage = Math.round(cfg.enemies[t].damage * DMM); }
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3));
   Object.assign(W.inv.eq, TIERS[tier]); W.player.x = PLACES[place][0]; W.player.z = PLACES[place][1];
@@ -55,5 +55,22 @@ ok(g('железо', 'у костра').kills >= 15, 'у костра в жел�
 // костёр лечит, когда спокойно, и не лечит в бою
 { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; const W = createWorld(cfg, mulberry32(1)); W.player.x = 1; W.player.z = 1; W.player.hp = 30;
   for (let i = 0; i < 60; i++) step(W, 1 / 60, {}); ok(W.player.hp > 36, 'костёр не лечит'); W.player.hp = 30; W.player.calm = 3; for (let i = 0; i < 120; i++) step(W, 1 / 60, {}); ok(W.player.hp < 31, 'костёр лечит в бою (calm)'); W.player.x = 30; W.player.hp = 30; for (let i = 0; i < 300; i++) step(W, 1 / 60, {}); ok(W.player.hp === 30, 'лечит вдали от костра'); }
+// бой с боссом: бот в экипировке «сталь» и «чёрное» против Пожирателя Погоста один на один, 150 секунд
+function bossFight(tier, seed) {
+  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.bosses.list = cfg.bosses.list.filter(b => b.type === 'devourer');
+  const W = createWorld(cfg, mulberry32(seed * 131 + 7)); Object.assign(W.inv.eq, TIERS[tier]); W.lv = BOSS_LV[tier]; W.player.x = -44 + 9; W.player.z = -36; const dodge = mulberry32(seed + 5);
+  for (let i = 0; i < 60 * 150; i++) {
+    const p = W.player, e = W.enemies.find(x => x.boss && !x.dead); if (!e) return { win: true, t: i / 60 }; const d = Math.hypot(e.x - p.x, e.z - p.z), C = cfg.enemies[e.type];
+    const inp = { mx: 0, mz: 0, attack: false, roll: false };
+    if (d > 3.2) { inp.mx = (e.x - p.x) / d; inp.mz = (e.z - p.z) / d; } inp.attack = d < cfg.player.attackRange + W.gear.reach + C.radius * .5 + .3;
+    if (e.b.state === 'wind' && e.b.atk.t > e.b.atk.wind - .22 && p.rollCd <= 0 && dodge() < .5) { inp.roll = true; inp.mx = -(e.x - p.x) / d; inp.mz = -(e.z - p.z) / d; inp.attack = false; }
+    for (const m of W.enemies) if (!m.boss && !m.dead && Math.hypot(m.x - p.x, m.z - p.z) < 4 && d > 6) { inp.mx = (m.x - p.x); inp.mz = (m.z - p.z); inp.attack = true; }
+    step(W, 1 / 60, inp); if (p.dead) return { win: false, t: i / 60 };
+  }
+  return { win: false, t: 150 };
+}
+const BOSS_LV = { 'сталь': 12, 'чёрное': 22 };
+const bossRes = {}; for (const tier of ['сталь', 'чёрное']) { let w = 0, t = 0; const N = 6; for (let sd = 0; sd < N; sd++) { const r = bossFight(tier, sd); w += r.win ? 1 : 0; t += r.t; } bossRes[tier] = { win: w / N, t: t / N }; console.log(`босс / ${tier}`.padEnd(26), `побед ${(w / N * 100).toFixed(0)}%  среднее время ${(t / N).toFixed(0)} с`); }
+ok(bossRes['чёрное'].win >= bossRes['сталь'].win, 'в лучшей экипировке босса бить не проще'); ok(bossRes['сталь'].win <= .7, 'босс слишком лёгок для «стали»: ' + bossRes['сталь'].win); ok(bossRes['чёрное'].win >= .3, 'босс непроходим даже в лучшей экипировке: ' + bossRes['чёрное'].win);
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Баланс 3D: OK');

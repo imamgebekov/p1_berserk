@@ -30,6 +30,8 @@ export function drawMap(ctx, W, v) {
   // непустые контейнеры в открытых клетках
   ctx.fillStyle = '#ffc860';
   for (const c of M.containers) if (c.ready && isSeen(W, c.x, c.z)) ctx.fillRect(X(c.x) - 1.5, Y(c.z) - 1.5, 3, 3);
+  // логова боссов (видны в открытых клетках; серые — убитые и ещё не вернувшиеся)
+  for (const d of W.cfg.bosses.list) { if (!isSeen(W, d.x, d.z)) continue; const dead = W.bossDead[d.type] !== undefined; ctx.save(); ctx.translate(X(d.x), Y(d.z)); ctx.rotate(Math.PI / 4); ctx.fillStyle = dead ? '#6a6a6a' : '#ff3a2a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; const r = Math.max(3.5, sc * 1.6); ctx.fillRect(-r, -r, r * 2, r * 2); ctx.strokeRect(-r, -r, r * 2, r * 2); ctx.restore(); }
   // туман войны
   const cell = W.cfg.map.cell, n = W.seenN;
   ctx.fillStyle = full ? 'rgba(6,4,3,.94)' : 'rgba(6,4,3,.9)';
