@@ -5,7 +5,7 @@ import { clamp, vrnd } from '../util.js';
 import { env } from '../env.js';
 import { R, num, setCtx, g } from './gfx.js';
 import { drawSky, drawGround, drawProps } from './scene.js';
-import { drawPlayer, drawEnemy, drawNpc } from './sprites.js';
+import { drawPlayer, drawEnemy, drawNpc, drawArrows } from './sprites.js';
 import { createFxPool } from './fxpool.js';
 import { drawTown } from './town.js';
 import { TOWN_NPCS } from '../town.js';
@@ -53,6 +53,7 @@ export function createRenderer(cv, lo) {
     drawTown(pool);
     W.npcs.forEach(drawNpc);
     W.enemies.forEach(drawEnemy);
+    drawArrows();
     if (!P.dead) drawPlayer(pool, dt);
     pool.step(dt); pool.draw();
     // частицы

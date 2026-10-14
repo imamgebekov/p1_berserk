@@ -186,7 +186,7 @@ const share = (type, x, lv, cycle, n = 30000) => {
     for (const ids of sets) {
       const eq = eqOf(ids);
       for (const f of [1, -1]) for (const rage of [false, true]) for (const swing of [-1, 0, .2, .5, .9, 1]) for (const heavy of [false, true]) {
-        Object.assign(pose, { f, rage, swing, heavy, moving: swing < 0 && heavy, walk: swing * 3, white: rage && heavy, T: pose.T + .013 });
+        Object.assign(pose, { f, rage, swing, heavy, moving: swing < 0 && heavy, walk: swing * 3, white: rage && heavy, T: pose.T + .013, roll: swing === 1 ? .5 : swing === .9 ? 0 : swing === .5 ? 1 : -1 });
         const before = stats.fillRect;
         try { drawHero(pose, eq, pool); pool.step(1 / 60); pool.draw(); } catch (e) { ok(false, `отрисовка ${ids.join('+') || 'пусто'} f=${f} rage=${rage} swing=${swing}: ${e.message}`); }
         worst = Math.max(worst, stats.fillRect - before);

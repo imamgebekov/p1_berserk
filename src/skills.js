@@ -20,7 +20,8 @@ export function mods() {
     hp: r('vigor') * E.vigor.hp,
     healMult: 1 + r('fireHeal') * E.fireHeal.healMult,
     healRadius: r('fireHeal') * E.fireHeal.radius,
-    speed: r('swift') * E.swift.speed
+    speed: r('swift') * E.swift.speed,
+    rollCd: r('swift') * E.swift.rollCd
   };
 }
 

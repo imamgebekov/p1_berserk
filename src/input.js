@@ -1,7 +1,7 @@
 // Ввод: большие кнопки пульта (pointer events, мультитач) и клавиатура для отладки на компьютере.
 import { keys } from './state.js';
 import { ensureAudio } from './audio.js';
-import { tryBrand } from './combat.js';
+import { tryBrand, tryRoll } from './combat.js';
 
 export function bindInput(doc, win) {
   doc.querySelectorAll('.btn').forEach(b => {
@@ -10,9 +10,9 @@ export function bindInput(doc, win) {
       e.preventDefault(); ensureAudio();
       try { b.setPointerCapture(e.pointerId); } catch (_) { /* не критично */ }
       b.classList.add('on');
-      if (k === 'brand') tryBrand(); else keys[k] = true;
+      if (k === 'brand') tryBrand(); else if (k === 'roll') tryRoll(); else keys[k] = true;
     };
-    const off = () => { b.classList.remove('on'); if (k !== 'brand') keys[k] = false; };
+    const off = () => { b.classList.remove('on'); if (k !== 'brand' && k !== 'roll') keys[k] = false; };
     b.addEventListener('pointerdown', on);
     b.addEventListener('pointerup', off);
     b.addEventListener('pointercancel', off);
@@ -24,7 +24,7 @@ export function bindInput(doc, win) {
 
   const KM = { ArrowLeft: 'l', ArrowRight: 'r', z: 'atk', Z: 'atk', x: 'jump', X: 'jump', ArrowUp: 'jump' };
   win.addEventListener('keydown', e => {
-    if (e.key === 'c' || e.key === 'C') tryBrand(); else if (KM[e.key]) keys[KM[e.key]] = true;
+    if (e.key === 'c' || e.key === 'C') tryBrand(); else if (e.key === 'v' || e.key === 'V') tryRoll(); else if (KM[e.key]) keys[KM[e.key]] = true;
   });
   win.addEventListener('keyup', e => { if (KM[e.key]) keys[KM[e.key]] = false; });
   const release = () => { keys.l = keys.r = keys.atk = keys.jump = false; };

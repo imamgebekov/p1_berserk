@@ -5,10 +5,10 @@ import { rnd, ri, pick, sgn, clamp, random } from './util.js';
 import { chat, npcSay, idleLine } from './chat.js';
 import { runTimers } from './clock.js';
 import { sfx, setDrone } from './audio.js';
-import { burst } from './fx.js';
 import { stepParticles, stepNums, stepPopups } from './fx.js';
-import { spawnEnemy, spawnBoss } from './world.js';
-import { startSwing, hurtEnemy, hurtPlayer, rollSwing, speedMult } from './combat.js';
+import { spawnEnemy, spawnBoss, pickSpawnType } from './world.js';
+import { updateEnemies, updateProjectiles } from './ai.js';
+import { startSwing, hurtEnemy, rollSwing, speedMult } from './combat.js';
 import { updateNpcs } from './npc.js';
 import { weaponLen } from './data/looks.js';
 import { mods } from './skills.js';
@@ -25,13 +25,23 @@ function updatePlayer(dt) {
   const C = CFG.player, rage = P.rageOn > 0;
   const dir = (keys.r ? 1 : 0) - (keys.l ? 1 : 0);
   const spd = (rage ? C.rageSpeed : C.walkSpeed) * speedMult(), active = P.swingT >= 0;
-  if (dir) { P.x += dir * spd * (active ? C.swingMoveFactor : 1) * dt; if (!active) P.face = dir; P.walk += dt * 10; }
+  const rolling = P.rollT >= 0;
+  if (P.rollCd > 0) P.rollCd -= dt;
+  if (P.dodgeCd > 0) P.dodgeCd -= dt;
+  if (rolling) {
+    // перекат: рывок вперёд с затуханием; пока длится — ни ходьбы, ни прыжка, ни удара
+    const R = CFG.roll, p = P.rollT / R.duration;
+    P.rollT += dt;
+    P.x += P.rollDir * R.speed * (1.25 - .75 * p) * dt;
+    if (random() < dt * 40) W.parts.length < CFG.fx.maxParticles && W.parts.push({ x: P.x - P.rollDir * 4, z: 1, vx: -P.rollDir * rnd(5, 25), vz: rnd(5, 25), life: rnd(.2, .45), c: pick(['#6a5a4a', '#3a2d26']), s: 1 });
+    if (P.rollT >= R.duration) { P.rollT = -1; P.rollCd = Math.max(.2, R.cooldown - mods().rollCd); }
+  } else if (dir) { P.x += dir * spd * (active ? C.swingMoveFactor : 1) * dt; if (!active) P.face = dir; P.walk += dt * 10; }
   P.x += P.vx * dt; P.vx *= Math.pow(C.knockDecay, dt);
   P.x = clamp(P.x, 12, CFG.world.length - 12);
-  if (keys.jump && P.z === 0) { P.vz = C.jumpVel; sfx.jump(); }
+  if (!rolling && keys.jump && P.z === 0) { P.vz = C.jumpVel; sfx.jump(); }
   if (P.z > 0 || P.vz > 0) { P.vz -= C.gravity * dt; P.z += P.vz * dt; if (P.z <= 0) { P.z = 0; P.vz = 0; } }
 
-  if (keys.atk && P.swingT < 0) startSwing();
+  if (!rolling && keys.atk && P.swingT < 0) startSwing();
   if (P.swingT >= 0) {
     P.swingT += dt;
     const p = P.swingT / P.swingDur;
@@ -40,7 +50,8 @@ function updatePlayer(dt) {
       for (const e of W.enemies.slice()) {
         if (P.hitSet.has(e.id)) continue;
         const dx = (e.x - P.x) * P.face;
-        if (dx > C.hitBehind && dx < reach + e.w / 2 && P.z < e.h + C.hitHeightSlack) {
+        const ez = e.z || 0;                                  // прыгун в воздухе
+        if (dx > C.hitBehind && dx < reach + e.w / 2 && P.z < ez + e.h + C.hitHeightSlack && ez < P.z + 22) {
           P.hitSet.add(e.id);
           const sw = rollSwing();
           hurtEnemy(e, sw.dmg, P.face, P.heavy, sw.crit);
@@ -81,36 +92,7 @@ function updateSpawns(dt) {
   if (Math.abs(x - P.x) <= S.minDistance) return;
   if (W.killsSinceLord >= S.lordEvery) {
     spawnEnemy('lord', x); W.killsSinceLord = 0; chat('', 'Из тени вышел Слуга Затмения.', 'sys');
-  } else spawnEnemy(random() < S.impChance ? 'imp' : 'brute', x);
-}
-
-function updateEnemies(dt) {
-  const A = CFG.enemyAi;
-  for (const e of W.enemies.slice()) {
-    if (e.flash > 0) e.flash -= dt;
-    e.x += e.vx * dt; e.vx *= Math.pow(.01, dt);
-    const isBoss = e.type === 'boss';
-    if (!isBoss) e.x = clamp(e.x, CFG.world.town + 20, CFG.world.length - 20);
-    if (!W.boss && Math.abs(e.x - P.x) > A.despawnDist && !isBoss) { W.enemies.splice(W.enemies.indexOf(e), 1); continue; }
-    const d = P.x - e.x; e.face = sgn(d);
-    if (P.dead) continue;
-    if (e.st === 'walk') {
-      if (Math.abs(d) > e.reach) { if (Math.abs(d) < A.aggroDist) e.x += e.face * e.spd * dt; }
-      else { e.cd -= dt; if (e.cd <= 0) { e.st = 'wind'; e.t = 0; } }
-    } else if (e.st === 'wind') {
-      e.t += dt;
-      if (e.t >= e.wind) {
-        e.st = 'rec'; e.t = 0;
-        const cx = isBoss ? e.x + e.face * A.bossSlamForward : e.x;
-        const range = isBoss ? A.bossSlamRange : e.reach + 6;
-        if (Math.abs(P.x - cx) < range && P.z < (isBoss ? A.bossSlamMaxZ : e.h * A.lordHitZ)) hurtPlayer(e.dmg, e.face);
-        if (isBoss) { sfx.slam(); W.shake = Math.max(W.shake, CFG.fx.shakeBoss); burst(cx, 2, 16, ['#6a5a4a', '#3a2d26', '#a1121f'], 80, 30); }
-      }
-    } else if (e.st === 'rec') {
-      e.t += dt;
-      if (e.t > (isBoss ? A.bossRecoverTime : A.recoverTime)) { e.st = 'walk'; e.cd = rnd(A.cooldown[0], A.cooldown[1]) * (isBoss ? A.bossCooldownMult : 1); }
-    }
-  }
+  } else spawnEnemy(pickSpawnType(), x);
 }
 
 function update(dt) {
@@ -127,6 +109,7 @@ function update(dt) {
   updatePlayer(dt);
   updateSpawns(dt);
   updateEnemies(dt);
+  updateProjectiles(dt);
   updateNpcs(dt);
 
   stepParticles(dt, false);

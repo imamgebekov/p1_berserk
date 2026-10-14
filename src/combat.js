@@ -1,6 +1,6 @@
 // Бой: удары, урон, смерть, Клеймо, опыт, добыча.
 import { CFG, xpNeed } from './config.js';
-import { P, W } from './state.js';
+import { P, W, keys } from './state.js';
 import { rndIn, pick, random } from './util.js';
 import { recalc, armorReduction } from './inventory.js';
 import { lootFor, ashFor } from './loot.js';
@@ -10,7 +10,7 @@ import { emit } from './events.js';
 import { chat, npcSay } from './chat.js';
 import { after } from './clock.js';
 import { sfx } from './audio.js';
-import { burst, dmgNum, BLOOD } from './fx.js';
+import { burst, dmgNum, lootPopup, BLOOD } from './fx.js';
 import { env } from './env.js';
 
 export function gainXP(n) {
@@ -75,8 +75,32 @@ export function hurtEnemy(e, dmg, face, heavy, crit = false) {
   if (e.hp <= 0) killEnemy(e);
 }
 
+// Перекат: рывок с неуязвимостью. true, если начался
+export function tryRoll() {
+  if (P.dead || !W.started || W.paused || W.hold || P.rollT >= 0 || P.rollCd > 0 || P.z > 0) return false;
+  const dir = keys.r ? 1 : keys.l ? -1 : P.face;
+  P.rollT = 0; P.rollDir = dir; P.face = dir; P.rollDodged = false;
+  P.inv = Math.max(P.inv, CFG.roll.invuln);
+  P.swingT = -1; P.comboT = 0;                    // перекат отменяет замах
+  burst(P.x, 2, 6, ['#6a5a4a', '#3a2d26'], 40, 12);
+  sfx.roll();
+  return true;
+}
+
+// Удар/стрела попали в героя во время переката: уворот награждается Клеймом
+function perfectDodge() {
+  if (P.dodgeCd > 0) return;
+  P.dodgeCd = CFG.roll.dodgeCd;
+  lootPopup(P.x, 30, 'Уклон!', '#8fd08a');
+  if (!P.rollDodged) { P.rollDodged = true; addRage(CFG.roll.dodgeRage); emit('dodge'); }
+  W.shake = Math.max(W.shake, CFG.fx.shakeDodge);
+  sfx.dodge();
+}
+
 export function hurtPlayer(dmg, dir) {
-  if (P.inv > 0 || P.dead) return;
+  if (P.dead) return;
+  if (P.rollT >= 0) { perfectDodge(); return; }
+  if (P.inv > 0) return;
   if (P.rageOn > 0) dmg = Math.round(dmg * CFG.rage.damageTaken);
   dmg = Math.max(1, Math.round(dmg * (1 - armorReduction(P.stats.armor))));
   P.hp -= dmg; P.inv = CFG.player.invAfterHit; P.vx = dir * CFG.player.hurtKnock;

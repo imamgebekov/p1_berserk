@@ -69,6 +69,7 @@ function progress(type, pred) {
 }
 
 on('kill', e => progress('kill', q => q.target === e.type));
+on('dodge', () => progress('dodge', () => true));
 on('eclipse', d => { if (d && d.survived) progress('eclipse', () => true); });
 on('gear', check);
 

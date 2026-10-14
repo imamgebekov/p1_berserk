@@ -19,6 +19,7 @@ import { createConfirmer } from './ui/common.js';
 import { stock, buy } from './shop.js';
 import { giveItem, newItem, recalc } from './inventory.js';
 import { createSaver, applySave } from './save.js';
+import { spawnEnemy, spawnBoss } from './world.js';
 import { ITEMS_BY_ID } from './data/items.js';
 import './quests.js';          // подписывается на события шины
 
@@ -102,4 +103,4 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 // для отладки с компьютера и для браузерного теста: window.__berserk
-window.__berserk = { W, V, P, pauseUI, giveItem, newItem, inventoryUI, townUI, stock, buy, saver, applySave, slotOf: id => ITEMS_BY_ID[id].slot, recalc };
+window.__berserk = { W, V, P, pauseUI, spawn: spawnEnemy, spawnBoss, giveItem, newItem, inventoryUI, townUI, stock, buy, saver, applySave, slotOf: id => ITEMS_BY_ID[id].slot, recalc };

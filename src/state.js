@@ -14,12 +14,13 @@ const freshP = () => ({
   stats: { dmg: 0, armor: 0, hp: 0, speed: 0, crit: 0, rage: 0 },
   newItems: 0,
   rageDur: CFG.rage.duration,
+  rollT: -1, rollCd: 0, rollDir: 1, rollDodged: false, dodgeCd: 0,
   // прогресс: очки навыков, ранги навыков, задания { id: { st: 'active'|'done'|'claimed', n } }
   sp: 0, skills: {}, quests: {}
 });
 
 const freshW = () => ({
-  enemies: [], parts: [], nums: [], popups: [], npcs: [], boss: null,
+  enemies: [], proj: [], parts: [], nums: [], popups: [], npcs: [], boss: null,
   T: 0, freeze: 0, shake: 0, hurtFlash: 0, camX: 0,
   spawnT: CFG.spawn.firstDelay, killsSinceLord: 0, started: false, paused: false, hold: false,
   ecl: 0, cycle: 0, maxT: CFG.eclipse.firstTimer, timer: CFG.eclipse.firstTimer,

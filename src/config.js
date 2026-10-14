@@ -50,6 +50,12 @@ export const CFG = {
     hurtKnock: 90
   },
 
+  // Перекат: короткая неуязвимость и рывок; успешный уворот даёт Клеймо
+  roll: {
+    duration: .32, speed: 150, invuln: .42, cooldown: .9,   // неуязвим весь перекат, invuln — с небольшим запасом после него
+    dodgeRage: 12, dodgeCd: .25
+  },
+
   rage: {
     max: 100,
     duration: 9,
@@ -68,8 +74,17 @@ export const CFG = {
   enemies: {
     imp:   { w: 6,  h: 8,  hp: 18,  spd: 40, dmg: 5,  xp: 6,   reach: 9,  wind: .38 },
     brute: { w: 10, h: 15, hp: 48,  spd: 24, dmg: 10, xp: 14,  reach: 13, wind: .55 },
+    archer: { w: 6, h: 13, hp: 24,  spd: 26, dmg: 7,  xp: 10,  reach: 0,  wind: .6 },
+    leaper: { w: 8, h: 10, hp: 30,  spd: 34, dmg: 9,  xp: 12,  reach: 0,  wind: .5 },
     lord:  { w: 16, h: 24, hp: 150, spd: 20, dmg: 16, xp: 60,  reach: 18, wind: .7 },
     boss:  { w: 26, h: 44, hp: 600, spd: 15, dmg: 30, xp: 220, reach: 40, wind: .95 }
+  },
+  // Предвестник: на половине здоровья вторая фаза
+  bossPhase: {
+    hpFrac: .5,
+    speedMult: 1.35, cooldownMult: .6, windMult: .85,
+    sweepChance: .45, sweepRange: 74, sweepWind: .8, sweepMaxZ: 10,
+    summon: ['imp', 'imp'], summonSpread: 36
   },
   scaling: { perPlayerLevel: .12, perCycle: .1, bossPerCycle: .25 },
   enemyAi: {
@@ -83,6 +98,11 @@ export const CFG = {
     knockLight: 60,
     knockHeavy: 110,
     knockResist: { boss: .1, lord: .5 },
+    archerCooldown: [1.4, 2.6], archerRecover: .6,
+    archerRange: [62, 104],  // лучник держится на таком расстоянии
+    archerRetreat: 1.25,     // скорость отступления относительно обычной
+    arrowSpeed: 115, arrowLife: 2.4, arrowZ: 9, arrowHitZ: 14, arrowHitX: 5, maxArrows: 12,
+    leapRange: 74, leapSpeed: 150, leapVz: 120, leapGravity: 400, leapDamageMult: 1.3, leapRecover: .75,
     bossSlamRange: 28,
     bossSlamForward: 22,
     bossSlamMaxZ: 10,
@@ -97,7 +117,13 @@ export const CFG = {
     minDistance: 80,
     townMargin: 40,
     lordEvery: 9,           // каждый N-й убитый — Слуга
-    impChance: .6
+    // состав обычных спавнов: вес и уровень героя, с которого враг появляется
+    pool: [
+      { type: 'imp', w: 40, minLv: 1 },
+      { type: 'brute', w: 28, minLv: 1 },
+      { type: 'archer', w: 16, minLv: 3 },
+      { type: 'leaper', w: 16, minLv: 4 }
+    ]
   },
 
   eclipse: {
@@ -111,7 +137,7 @@ export const CFG = {
 
   loot: {
     // Пепел за убийство: диапазон по типу врага, умножается на (1 + (ур-1)*ashPerLevel + глубина*ashPerDepth)
-    ash: { imp: [1, 3], brute: [2, 5], lord: [10, 16] },
+    ash: { imp: [1, 3], brute: [2, 5], archer: [2, 4], leaper: [2, 5], lord: [10, 16] },
     ashPerLevel: .03,
     ashPerDepth: .4,
     bossAshBase: 100,       // + bossAshPerCycle за каждый уже побеждённый круг + ваш вклад в % урона
@@ -136,6 +162,8 @@ export const CFG = {
     drops: {
       imp:   { chance: .14, rolls: 1, table: 'normal', luck: 0 },
       brute: { chance: .26, rolls: 1, table: 'normal', luck: .3 },
+      archer: { chance: .22, rolls: 1, table: 'normal', luck: .2 },
+      leaper: { chance: .24, rolls: 1, table: 'normal', luck: .25 },
       lord:  { chance: .85, rolls: 1, table: 'elite',  luck: 1.0 },
       boss:  { chance: 1,   rolls: 3, table: 'boss',   luck: 1.5 }
     }
@@ -159,7 +187,7 @@ export const CFG = {
       brandDur:  { seconds: 1.5 },                // секунд Клейма за ранг
       vigor:     { hp: 12 },                      // здоровья за ранг
       fireHeal:  { healMult: .6, radius: 8 },     // + к скорости лечения у костра и радиусу за ранг
-      swift:     { speed: 4 }                     // % скорости за ранг
+      swift:     { speed: 4, rollCd: .12 }        // % скорости и сокращение перезарядки переката (с) за ранг
     }
   },
 
@@ -247,7 +275,7 @@ export const CFG = {
   fx: {
     freezeLight: .05, freezeHeavy: .067, freezeRage: .083, freezeHurt: .067, freezeBrand: .133,
     shakeLight: 2, shakeHeavy: 4, shakeHurt: 5, shakeBrand: 8, shakeBoss: 6, shakeBossDown: 8,
-    freezeCrit: .075,
+    freezeCrit: .075, shakeDodge: 1,
     shakeDecay: 18,
     hurtFlash: .35,
     maxPopups: 6, popupLife: 1.9,

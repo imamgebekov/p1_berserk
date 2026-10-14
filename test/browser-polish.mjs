@@ -103,7 +103,7 @@ try {
     await page.tap('#resume'); await page.waitForTimeout(100);
     const after = await geo(page, '.btn, .mbtn'); const p2 = id => after.find(b => b.id === id);
     if (!(p2('batk').x < p2('bl').x && p2('bjump').x < p2('br').x && pos('batk').x > pos('bl').x)) bad('раскладка левши не зеркальна: ' + JSON.stringify(after.map(a => [a.id, Math.round(a.x)])));
-    const pad = after.filter(g => ['bl', 'br', 'batk', 'bjump', 'bbrand', 'mhero', 'mbag', 'mskills'].includes(g.id));
+    const pad = after.filter(g => ['bl', 'br', 'batk', 'bjump', 'broll', 'bbrand', 'mhero', 'mbag', 'mskills'].includes(g.id));
     for (let i = 0; i < pad.length; i++) for (let j = i + 1; j < pad.length; j++) { const a = pad[i], c = pad[j]; if (a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h) bad(`левша: кнопки #${a.id} и #${c.id} пересекаются`); }
     for (const b of pad) if (b.x < 0 || b.x + b.w > 391) bad(`левша: кнопка #${b.id} вне экрана`);
     await page.screenshot({ path: join(out, 'polish_lefty.png') });

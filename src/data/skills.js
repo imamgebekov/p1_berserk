@@ -19,7 +19,7 @@ export const SKILLS = {
   brandDur:  { name: 'Тлеющее Клеймо', max: 3, req: 'brandGain', desc: 'Клеймо горит дольше.', effect: r => `Клеймо длится на ${(r * E().brandDur.seconds).toFixed(1).replace('.0', '')} с дольше` },
   vigor:     { name: 'Живучесть',      max: 3, req: null,        desc: 'Больше здоровья.', effect: r => `Здоровье +${r * E().vigor.hp}` },
   fireHeal:  { name: 'Целебный огонь', max: 3, req: 'vigor',     desc: 'Костёр лечит быстрее и дальше.', effect: r => `Лечение у костра +${pct(r * E().fireHeal.healMult)}%, радиус +${r * E().fireHeal.radius}` },
-  swift:     { name: 'Лёгкая поступь', max: 2, req: 'fireHeal',  desc: 'Быстрее ходьба.', effect: r => `Скорость +${r * E().swift.speed}%` }
+  swift:     { name: 'Лёгкая поступь', max: 2, req: 'fireHeal',  desc: 'Быстрее ходьба.', effect: r => `Скорость +${r * E().swift.speed}%, перекат быстрее на ${(r * E().swift.rollCd).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')} с` }
 };
 
 export const SKILL_IDS = Object.keys(SKILLS);

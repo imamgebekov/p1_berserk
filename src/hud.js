@@ -10,7 +10,7 @@ export function createHud(doc) {
   const $ = id => doc.getElementById(id);
   const el = {
     hp: $('hpf'), rg: $('rgf'), rgbar: $('rgbar'), lv: $('lv'), ash: $('ash'), kills: $('kills'), onl: $('onl'),
-    boss: $('boss'), bh: $('bhf'), tm: $('timer'), brand: $('bbrand'), dead: $('dead'), chat: $('chat'), badge: $('bagBadge'), talk: $('talk'), quest: $('quest'), spBadge: $('spBadge')
+    boss: $('boss'), bh: $('bhf'), tm: $('timer'), brand: $('bbrand'), dead: $('dead'), chat: $('chat'), badge: $('bagBadge'), talk: $('talk'), quest: $('quest'), spBadge: $('spBadge'), roll: $('broll'), bossName: $('bossName')
   };
   const last = {};
   const text = (k, node, v) => { if (last[k] !== v) { last[k] = v; node.textContent = v; } };
@@ -51,6 +51,7 @@ export function createHud(doc) {
     bar('rg', el.rg, P.rage / CFG.rage.max);
     const full = P.rage >= CFG.rage.max && P.rageOn <= 0;
     flag('full', el.rgbar, 'full', full); flag('ready', el.brand, 'ready', full);
+    flag('rollcd', el.roll, 'cd', P.rollCd > 0 || P.rollT >= 0);
     text('lv', el.lv, String(P.lv)); text('ash', el.ash, String(P.ash)); text('kills', el.kills, String(P.kills));
     text('onl', el.onl, String(W.online));
     text('badge', el.badge, String(P.newItems)); hide('badge', el.badge, P.newItems <= 0);
@@ -61,7 +62,7 @@ export function createHud(doc) {
     if (el.spBadge) { text('sp', el.spBadge, String(P.sp)); hide('spb', el.spBadge, P.sp <= 0); }
     hide('boss', el.boss, !W.boss);
     hide('dead', el.dead, !P.dead);
-    if (W.boss) { bar('bh', el.bh, W.boss.hp / W.boss.maxhp); text('tm', el.tm, ''); }
+    if (W.boss) { bar('bh', el.bh, W.boss.hp / W.boss.maxhp); text('bname', el.bossName, W.boss.phase === 2 ? 'Предвестник Затмения — ярость' : 'Предвестник Затмения'); text('tm', el.tm, ''); }
     else {
       const t = Math.max(0, Math.ceil(W.timer));
       text('tm', el.tm, 'Затмение через ' + Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'));

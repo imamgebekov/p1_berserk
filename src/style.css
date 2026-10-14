@@ -1,4 +1,4 @@
-:root { --ink:#0b0908; --ash:#2a2523; --bone:#d8cfbd; --blood:#a1121f; --ember:#e0602a; --pad:208px; }
+:root { --ink:#0b0908; --ash:#2a2523; --bone:#d8cfbd; --blood:#a1121f; --ember:#e0602a; --pad:232px; }
 * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; }
 html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-behavior:none; touch-action:none;
   -webkit-user-select:none; user-select:none; color:var(--bone);
@@ -27,6 +27,7 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 #boss[hidden] { display:none; }
 #boss .bar { height:11px; margin-top:3px; }
 #bhf { background:linear-gradient(#e0e0e0,#8a8a8a); }
+#boss .bar::after { content:''; position:absolute; left:50%; top:0; width:1px; height:100%; background:#a1121f; }
 #timer { margin-top:10px; text-align:center; font-size:13px; color:#9a8f7c; text-shadow:0 1px 0 #000; }
 #chat { position:absolute; left:12px; bottom:10px; width:64%; font-size:12px; line-height:1.35; text-shadow:0 1px 0 #000; }
 #chat div { margin-top:2px; opacity:.92; transition:opacity 1.2s; }
@@ -47,11 +48,13 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 .btn { position:absolute; display:flex; align-items:center; justify-content:center; background:#17110f; color:var(--bone);
   border:2px solid #5a4a3a; font-size:15px; letter-spacing:.03em; touch-action:none; transition:none; }
 .btn.on { border-color:var(--blood); background:#2a0e10; }
-#bl { left:10px; top:32px; width:76px; height:104px; font-size:30px; }
-#br { left:92px; top:32px; width:76px; height:104px; font-size:30px; }
-#batk { right:10px; top:24px; width:100px; height:108px; font-size:19px; border-color:#8a7a62; }
-#bjump { right:116px; top:64px; width:72px; height:72px; }
-#bbrand { right:116px; top:-6px; width:72px; height:64px; border-color:#4a2a1a; color:#7a6a58; }
+#bl { left:10px; top:40px; width:76px; height:112px; font-size:30px; }
+#br { left:92px; top:40px; width:76px; height:112px; font-size:30px; }
+#batk { right:10px; top:28px; width:100px; height:124px; font-size:19px; border-color:#8a7a62; }
+#bbrand { right:116px; top:0; width:72px; height:52px; border-color:#4a2a1a; color:#7a6a58; }
+#broll { right:116px; top:56px; width:72px; height:52px; border-color:#3a5a4a; font-size:14px; }
+#bjump { right:116px; top:112px; width:72px; height:52px; }
+.btn.cd { opacity:.42; }
 #bbrand.ready { border-color:var(--ember); color:var(--ember); background:#2a1208; animation:pulse .6s infinite alternate; }
 
 /* нижний ряд меню пульта */
@@ -74,8 +77,8 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 .veil button:active { background:#2a0e10; }
 #hint { font-size:13px; color:#6e6455; margin-top:22px; max-width:34ch; line-height:1.55; }
 
-@media (max-height:640px) { :root { --pad:176px; } #bl,#br { height:84px; top:34px; } #batk { height:92px; width:92px; top:30px; }
-  #bjump { top:54px; height:66px; } #bbrand { top:-6px; height:54px; } }
+@media (max-height:640px) { :root { --pad:200px; } #bl,#br { height:92px; top:30px; } #batk { height:100px; width:92px; top:24px; }
+  #bbrand { top:2px; height:44px; } #broll { top:48px; height:44px; } #bjump { top:94px; height:44px; } }
 @media (prefers-reduced-motion: reduce) { .bar.rage.full, #bbrand.ready { animation:none; } #chat div { transition:none; } }
 
 /* экран «Сумка» */
@@ -237,4 +240,4 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 .lefty #bl { left:auto; right:92px; }
 .lefty #br { left:auto; right:10px; }
 .lefty #batk { right:auto; left:10px; }
-.lefty #bjump, .lefty #bbrand { right:auto; left:116px; }
+.lefty #bjump, .lefty #bbrand, .lefty #broll { right:auto; left:116px; }

@@ -40,7 +40,7 @@ try {
     await page.evaluate(() => { const B = window.__berserk; B.P.sp = 3; B.P.lv = 4; B.recalc(); B.W.spawnT = 999; });
     const geo = await page.evaluate(() => [...document.querySelectorAll('.mbtn, .btn, #talk')].filter(e => e.offsetParent !== null).map(e => { const r = e.getBoundingClientRect(); return { id: e.id, x: r.x, y: r.y, w: r.width, h: r.height }; }));
     for (const g of geo) if (g.w < 44 || g.h < 44) bad(`кнопка #${g.id} ${g.w}×${g.h} < 44px`);
-    const pad = geo.filter(g => ['bl', 'br', 'batk', 'bjump', 'bbrand', 'mhero', 'mbag', 'mskills'].includes(g.id));
+    const pad = geo.filter(g => ['bl', 'br', 'batk', 'bjump', 'broll', 'bbrand', 'mhero', 'mbag', 'mskills'].includes(g.id));
     for (let i = 0; i < pad.length; i++) for (let j = i + 1; j < pad.length; j++) { const a = pad[i], c = pad[j]; if (a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h) bad(`кнопки #${a.id} и #${c.id} пересекаются`); }
     if (!pad.some(g => g.id === 'mskills')) bad('нет кнопки «Навыки»');
     await page.waitForFunction(() => !document.getElementById('spBadge').hidden, null, { timeout: 3000 }).catch(() => bad('нет значка очков навыков на кнопке'));

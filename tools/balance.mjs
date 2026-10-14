@@ -14,23 +14,26 @@ import { upgradeCost, upgradeChance } from '../src/smith.js';
 export const KILLS_PER_MIN = Number(process.env.KILLS_PER_MIN || 18);   // измерено headless-ботом (с учётом убийств «игроков»)
 const avg = r => (r[0] + r[1]) / 2;
 
-// доля убитых по типам: каждый (lordEvery+1)-й спавн — Слуга, остальные imp/brute по impChance
-function mix() {
+// доля убитых по типам: каждый (lordEvery+1)-й спавн — Слуга, остальные — по весам пула (враги открываются с уровня)
+function mix(lv = 10) {
   const lord = 1 / (CFG.spawn.lordEvery + 1), rest = 1 - lord;
-  return { imp: rest * CFG.spawn.impChance, brute: rest * (1 - CFG.spawn.impChance), lord };
+  const pool = CFG.spawn.pool.filter(p => lv >= p.minLv), sum = pool.reduce((s, p) => s + p.w, 0);
+  const m = { lord };
+  for (const p of pool) m[p.type] = rest * p.w / sum;
+  return m;
 }
 
 const xAt = depth => CFG.world.town + depth * (CFG.world.length - CFG.world.town);
 
 export function ashPerKill(lv, depth) {
-  const m = mix(), mult = 1 + (lv - 1) * CFG.loot.ashPerLevel + depth * CFG.loot.ashPerDepth;
+  const m = mix(lv), mult = 1 + (lv - 1) * CFG.loot.ashPerLevel + depth * CFG.loot.ashPerDepth;
   return Object.entries(m).reduce((s, [t, w]) => s + w * avg(CFG.loot.ash[t]) * mult, 0);
 }
 
 // ожидаемая стоимость продажи выпавших вещей на одно убийство и вероятности редкостей
 export function dropStats(lv, depth, n = 40000) {
   resetState(); setRng(mulberry32(11)); P.lv = lv;
-  const m = mix(), x = xAt(depth);
+  const m = mix(lv), x = xAt(depth);
   let value = 0; const per = { rare: 0, cursed: 0, branded: 0, items: 0 };
   for (const [type, w] of Object.entries(m)) {
     let v = 0;

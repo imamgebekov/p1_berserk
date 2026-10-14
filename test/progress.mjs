@@ -114,7 +114,7 @@ const fakeStorage = (opts = {}) => {
   for (const q of QUESTS) {
     ok(q.title && q.text && q.goal >= 1 && q.reward && (q.reward.ash || q.reward.xp || q.reward.sp || q.reward.item || q.reward.rarity), `задание ${q.id}: поля`);
     ok(!q.after || ids.has(q.after), `задание ${q.id}: after`);
-    ok(['kill', 'eclipse', 'equip', 'upgrade', 'level'].includes(q.type), `задание ${q.id}: тип`);
+    ok(['kill', 'eclipse', 'equip', 'upgrade', 'level', 'dodge'].includes(q.type), `задание ${q.id}: тип`);
     if (q.reward.item) ok(ITEMS_BY_ID[q.reward.item], `задание ${q.id}: предмет-награда`);
     if (q.type === 'kill') ok(CFG.enemies[q.target], `задание ${q.id}: враг ${q.target}`);
   }

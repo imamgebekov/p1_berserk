@@ -1,10 +1,13 @@
 // Задания Хранителя костра. type: kill (target — тип врага), eclipse (пережить гибель Предвестника),
-// equip (занять N слотов), upgrade (оружие до +N), level (достичь уровня N).
+// equip (занять N слотов), upgrade (оружие до +N), level (достичь уровня N), dodge (N уклонов перекатом).
 // reward: ash, xp, sp (очки навыков), item (id вещи) или rarity (случайная вещь этой редкости).
 // after — задание, после которого это становится доступным.
 export const QUESTS = [
   { id: 'q_brutes', title: 'Рогачи у границы', text: 'Убей 10 рогачей: они вытоптали тропу к городу.', type: 'kill', target: 'brute', goal: 10, reward: { ash: 70, xp: 40 } },
   { id: 'q_imps', title: 'Мелкая нечисть', text: 'Убей 15 бесов, что пляшут у границы пустоши.', type: 'kill', target: 'imp', goal: 15, reward: { ash: 55, xp: 30 } },
+  { id: 'q_archers', title: 'Костяные лучники', text: 'Убей 8 лучников. Не стой на линии выстрела: перепрыгни стрелу или перекатись.', type: 'kill', target: 'archer', goal: 8, reward: { ash: 90, xp: 70 }, after: 'q_imps' },
+  { id: 'q_leapers', title: 'Прыгуны', text: 'Убей 8 прыгунов. Они приседают перед броском: у тебя есть миг.', type: 'kill', target: 'leaper', goal: 8, reward: { ash: 100, xp: 80 }, after: 'q_archers' },
+  { id: 'q_dodge', title: 'Лёгкие ноги', text: 'Увернись перекатом от ударов и стрел 5 раз: на экране появится «Уклон!».', type: 'dodge', goal: 5, reward: { ash: 80, xp: 60 } },
   { id: 'q_dress', title: 'Одеться по погоде', text: 'Надень вещи в трёх разных слотах.', type: 'equip', goal: 3, reward: { ash: 60, item: 'h_iron_helm' } },
   { id: 'q_eclipse', title: 'Пережди затмение', text: 'Дождись гибели Предвестника и сам не падай, пока он на ногах.', type: 'eclipse', goal: 1, reward: { ash: 150, sp: 1 }, after: 'q_brutes' },
   { id: 'q_lords', title: 'Слуги Затмения', text: 'Убей 2 Слуг Затмения: они выходят из тени.', type: 'kill', target: 'lord', goal: 2, reward: { ash: 120, xp: 90 }, after: 'q_imps' },

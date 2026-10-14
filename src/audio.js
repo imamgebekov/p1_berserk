@@ -72,6 +72,11 @@ export const sfx = {
   kill: () => { tone(160, .2, 'square', .06, 50); },
   level: () => { [523, 659, 784, 1046].forEach((f, i) => after(i * .09, () => tone(f, .35, 'triangle', .07))); },
   brand: () => { tone(70, .9, 'sawtooth', .12, 35); noise(.6, .14, 300, 100); },
+  roll: () => noise(.18, .1, 900, 260),
+  dodge: () => { tone(1250, .09, 'triangle', .05, 1900); noise(.08, .08, 3000, 1200); },
+  twang: () => { tone(420, .12, 'sawtooth', .04, 150); noise(.05, .06, 2200, 900); },
+  leap: () => { tone(180, .18, 'square', .05, 90); noise(.12, .09, 700, 250); },
+  roar: () => { tone(55, .8, 'sawtooth', .13, 28); noise(.5, .16, 260, 90); },
   anvil: ok => {
     tone(ok ? 880 : 300, .25, 'square', .07, ok ? 1760 : 150); noise(.12, .15, 2500, 800);
     if (ok) after(.12, () => tone(1320, .3, 'triangle', .05));

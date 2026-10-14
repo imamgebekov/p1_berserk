@@ -7,7 +7,7 @@ import { setRng, mulberry32 } from '../src/util.js';
 import { env } from '../src/env.js';
 import { step } from '../src/sim.js';
 import { makeNpcs } from '../src/world.js';
-import { rise, tryBrand } from '../src/combat.js';
+import { rise, tryBrand, tryRoll } from '../src/combat.js';
 import { ensureAudio } from '../src/audio.js';
 import { createRenderer } from '../src/render/index.js';
 import { newItem, giveItem, equipFromBag, recalc } from '../src/inventory.js';
@@ -46,6 +46,10 @@ function invariants(scn, f) {
   if (W.enemies.length > CFG.spawn.maxAlive + 2) fail(scn, f, `врагов слишком много: ${W.enemies.length}`);
   if (W.boss && !W.enemies.includes(W.boss)) fail(scn, f, 'boss не в списке врагов');
   if (W.parts.length > CFG.fx.maxParticles + 40) fail(scn, f, `частиц ${W.parts.length}`);
+  if (W.proj.length > CFG.enemyAi.maxArrows) fail(scn, f, `стрел ${W.proj.length}`);
+  for (const a of W.proj) if (!fin(a.x) || !fin(a.z) || !fin(a.vx)) fail(scn, f, 'стрела NaN');
+  for (const e of W.enemies) if (!fin(e.z) || e.z < -1e-6 || e.z > 60) fail(scn, f, `враг ${e.type} z=${e.z}`);
+  if (!fin(P.rollT) || P.rollT > CFG.roll.duration + 1e-6 || P.rollCd < -1 || P.rollCd > 3) fail(scn, f, `перекат rollT=${P.rollT} cd=${P.rollCd}`);
   if (W.popups.length > CFG.fx.maxPopups) fail(scn, f, `подписей добычи ${W.popups.length}`);
   if (W.timers.length > 200) fail(scn, f, `утечка таймеров: ${W.timers.length}`);
   if (W.chatLog.length > CFG.chat.maxLines) fail(scn, f, `чат ${W.chatLog.length}`);
@@ -74,6 +78,7 @@ function randomPlayer(seed) {
       if (--hold[k] <= 0) { keys[k] = rr() < (k === 'atk' ? .6 : k === 'jump' ? .2 : .4); hold[k] = 5 + Math.floor(rr() * 50); }
     }
     if (rr() < .01) tryBrand();
+    if (rr() < .02) tryRoll();
   };
 }
 function botPlayer() {
@@ -88,6 +93,8 @@ function botPlayer() {
       keys.jump = t.type === 'boss' && t.st === 'wind' && P.z === 0;
     } else { keys.r = P.x < CFG.world.town + 120; keys.atk = false; keys.jump = false; }
     if (P.rage >= CFG.rage.max) tryBrand();
+    // уворот: враг замахнулся рядом или стрела рядом
+    if (W.enemies.some(e => (e.st === 'wind' || e.st === 'leap') && Math.abs(e.x - P.x) < 40) || W.proj.some(a => Math.abs(a.x - P.x) < 18)) tryRoll();
   };
 }
 

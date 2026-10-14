@@ -211,11 +211,31 @@ function drawWeapon(pose, eq, hx, hy, ang, pool) {
 
 const TRAIL = { ember: '#ff8a3a', curse: '#b070e8', brand: '#e0402a', sparks: '#f6eed9' };
 
+// ---- перекат: герой свёрнут в комок, голова вращается ----
+function drawRoll(pose, eq, pool) {
+  const { sx, fy, f, T } = pose, p = pose.roll;
+  const X = (dx, w) => f > 0 ? sx + dx : sx - dx - w + 1;
+  const body = pose.white ? '#e8e0cc' : eq.body ? palOf(eq.body)[0] : pose.rage ? '#2a0a0c' : '#100c0b';
+  const cloak = eq.cloak ? palOf(eq.cloak)[0] : '#080606';
+  const fr = (p * 7) | 0;
+  if (pose.rage) R(sx - 9, fy - 14, 18, 14, `rgba(190,20,30,${env.reduce ? .15 : .14})`);
+  R(X(-11, 6), fy - 7, 6, 4, cloak);                                  // плащ тянется следом
+  R(X(-5, 10), fy - 10, 10, 8, body);
+  R(X(-5, 10), fy - 10, 10, 1, '#5a544a'); R(X(-5, 1), fy - 10, 1, 8, '#3a362f');   // блик по краю, чтобы силуэт читался
+  R(X(-4, 8), fy - 6, 8, 1, '#2a2422');
+  const hp = [[3, -11], [5, -6], [3, -2], [-2, -3]][fr % 4];
+  R(X(hp[0], 4), fy + hp[1], 4, 4, '#cdb89a'); R(X(hp[0], 4), fy + hp[1] - 1, 4, 1, '#0a0808');
+  const pal = eq.weapon ? palOf(eq.weapon) : DEFAULT_STEEL;
+  R(X(-9, 6), fy - 11, 6, 1, pal[0]); R(X(-10, 2), fy - 12, 2, 3, '#2a1a12');
+  if (pool && !env.reduce && Math.random() < pose.dt * 45) pool.emit(sx - f * 6, fy - 1, '#6a5a4a', -f * vrnd(5, 30), -vrnd(2, 18), .35);
+}
+
 // ---- сборка героя ----
 // pose: { sx, fy, f, T, dt, rage, moving, walk, white, swing (-1 | 0..1), heavy, ang? (угол клинка в покое) }
 export function drawHero(pose, eq, pool) {
   const { sx, fy, f, T } = pose;
   const X = (dx, w) => f > 0 ? sx + dx : sx - dx - w + 1;
+  if (pose.roll >= 0) { drawRoll(pose, eq, pool); return; }
   if (pose.rage) R(sx - 8, fy - 24, 16, 24, `rgba(190,20,30,${env.reduce ? .15 : .12 + .06 * Math.sin(T * 14)})`);
   drawCape(X, pose, eq.cloak, pool);
   const st = pose.moving ? (Math.sin(pose.walk) > 0 ? 1 : 0) : 0;

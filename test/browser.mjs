@@ -22,6 +22,7 @@ await server.listen();
 const url = `http://127.0.0.1:${server.config.server.port}/`;
 
 const problems = [];
+const bad2 = m => problems.push(m);
 const browser = await chromium.launch();
 async function session(label, device) {
   const ctx = await browser.newContext(device);
@@ -33,6 +34,13 @@ async function session(label, device) {
   await page.goto(url);
   await page.waitForSelector('#go');
   await page.tap('#go');
+  // кнопка «Перекат»: тап запускает перекат, дальше перезарядка
+  await page.evaluate(() => { window.__berserk.W.spawnT = 1e9; });
+  await page.tap('#broll');
+  const rl = await page.evaluate(() => ({ rolling: window.__berserk.P.rollT >= 0 || window.__berserk.P.rollCd > 0, inv: window.__berserk.P.inv }));
+  if (!rl.rolling || rl.inv <= 0) bad2(`${label}: кнопка «Перекат» не запустила перекат (${JSON.stringify(rl)})`);
+  await page.waitForTimeout(1100);
+  await page.evaluate(() => { window.__berserk.W.spawnT = 1.5; });
 
   // геометрия кнопок
   const geo = await page.evaluate(() => [...document.querySelectorAll('.btn,.mbtn,#mute,.veil button')].map(b => {
@@ -41,7 +49,7 @@ async function session(label, device) {
   for (const b of geo.filter(b => b.vis)) {
     if (b.w < 44 || b.h < 44) problems.push(`${label}: кнопка #${b.id} ${b.w}×${b.h} < 44px`);
   }
-  const pad = geo.filter(b => ['bl', 'br', 'batk', 'bjump', 'bbrand', 'mhero', 'mbag', 'mskills'].includes(b.id));
+  const pad = geo.filter(b => ['bl', 'br', 'batk', 'bjump', 'broll', 'bbrand', 'mhero', 'mbag', 'mskills'].includes(b.id));
   for (let i = 0; i < pad.length; i++) for (let j = i + 1; j < pad.length; j++) {
     const a = pad[i], c = pad[j];
     if (a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h) problems.push(`${label}: кнопки #${a.id} и #${c.id} пересекаются`);
