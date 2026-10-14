@@ -6,12 +6,14 @@ import { env } from '../env.js';
 import { R, num, setCtx, g } from './gfx.js';
 import { drawSky, drawGround, drawProps } from './scene.js';
 import { drawPlayer, drawEnemy, drawNpc } from './sprites.js';
+import { createFxPool } from './fxpool.js';
 
 export function createRenderer(cv, lo) {
   const dctx = cv.getContext('2d');
   setCtx(lo.getContext('2d'));
   let vig = null;
   const ashFx = [];
+  const pool = createFxPool();
 
   function resize(cssW, cssH, dpr) {
     V.DPR = Math.min(dpr || 1, CFG.view.maxDpr);
@@ -37,7 +39,8 @@ export function createRenderer(cv, lo) {
     drawSky(); drawGround(); drawProps();
     W.npcs.forEach(drawNpc);
     W.enemies.forEach(drawEnemy);
-    if (!P.dead) drawPlayer();
+    if (!P.dead) drawPlayer(pool, dt);
+    pool.step(dt); pool.draw();
     // частицы
     for (const p of W.parts) { g.globalAlpha = clamp(p.life * 2, 0, 1); R(p.x - W.camX, G - p.z, p.s, p.s, p.c); }
     g.globalAlpha = 1;

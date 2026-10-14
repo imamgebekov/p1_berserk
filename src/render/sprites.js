@@ -1,64 +1,18 @@
 // Спрайты героя, врагов и «игроков». Всё — прямоугольники, ни одной картинки.
 // (Шаг 2 превратит героя в слоистый спрайт.)
 import { W, P, V, keys } from '../state.js';
-import { lerp, clamp } from '../util.js';
-import { env } from '../env.js';
+import { lerp } from '../util.js';
 import { R, line, g } from './gfx.js';
+import { drawHero } from './hero.js';
 
-function drawSword(hx, hy, ang, f, len, rage) {
-  const c = Math.cos(ang) * f, s = Math.sin(ang);
-  const steel = rage ? '#e8c8c0' : '#cfc9bb', edge = '#7d776b';
-  for (let i = 0; i <= len; i++) {
-    const x = hx + c * i, y = hy + s * i;
-    if (i < 5) R(x, y, 2, 2, '#2a1a12');
-    else if (i === 5 || i === 6) { R(x - s * 2, y + c * 2, 2, 2, '#8a7a62'); R(x, y, 2, 2, '#8a7a62'); R(x + s * 2, y - c * 2, 2, 2, '#8a7a62'); }
-    else { R(x, y, 2, 2, steel); if (i % 3 === 0) R(x + 1, y + 1, 1, 1, edge); }
-  }
-}
+const pose = { sx: 0, fy: 0, f: 1, T: 0, dt: 0, rage: false, moving: false, walk: 0, white: false, swing: -1, heavy: false };
 
-export function drawPlayer() {
-  const T = W.T, camX = W.camX, G = V.G;
-  const sx = Math.round(P.x - camX), fy = Math.round(G - P.z), f = P.face, rage = P.rageOn > 0;
-  const moving = (keys.l || keys.r) && P.swingT < 0;
-  const st = moving ? (Math.sin(P.walk) > 0 ? 1 : 0) : 0;
-  const white = P.inv > 0 && Math.floor(T * 22) % 2 === 0;
-  const cloak = white ? '#e8e0cc' : (rage ? '#2a0a0c' : '#100c0b');
-  const X = (dx, w) => f > 0 ? sx + dx : sx - dx - w + 1;
-  if (rage) R(sx - 8, fy - 24, 16, 24, `rgba(190,20,30,${.12 + .06 * Math.sin(T * 14)})`);
-  // плащ
-  const sway = env.reduce ? 0 : Math.round(Math.sin(T * 4) * 1);
-  R(X(-7 - sway, 3), fy - 13, 3, 9, '#080606');
-  // ноги
-  R(X(-3, 2), fy - 5, 2, 5 - st, '#191413'); R(X(1, 2), fy - 5, 2, 5 - (1 - st), '#191413');
-  // тело
-  R(X(-4, 8), fy - 13, 8, 8, cloak);
-  R(X(-5, 3), fy - 14, 3, 3, '#4a463f');
-  R(X(-4, 8), fy - 6, 8, 1, '#2a2422');
-  // голова
-  R(X(-2, 5), fy - 18, 5, 5, '#cdb89a');
-  R(X(-3, 7), fy - 20, 7, 3, '#0a0808'); R(X(-3, 2), fy - 21, 2, 1, '#0a0808'); R(X(0, 2), fy - 21, 2, 1, '#0a0808');
-  R(X(1, 1), fy - 16, 1, 1, rage ? '#ff3030' : '#1a1210');
-  // меч
-  const hx = sx + f * 3, hy = fy - 10;
-  let ang;
-  if (P.swingT >= 0) {
-    const p = clamp(P.swingT / P.swingDur, 0, 1), e = 1 - Math.pow(1 - p, 3);
-    const a0 = -2.0, a1 = 1.0;
-    ang = lerp(a0, a1, e);
-    if (p > .15) {
-      g.globalAlpha = .45;
-      for (let k = 1; k < 9; k++) {
-        const ak = ang - k * .13;
-        if (ak < a0) break;
-        const L = P.heavy ? 36 : 30;
-        R(hx + Math.cos(ak) * f * L, hy + Math.sin(ak) * L, 2, 2, rage ? '#ff6a4a' : '#e8e0cc');
-      }
-      g.globalAlpha = 1;
-    }
-  } else ang = -1.85 + (moving ? Math.sin(P.walk) * .06 : 0);
-  drawSword(hx, hy, ang, f, P.heavy && P.swingT >= 0 ? 34 : 29, rage);
-  // рука
-  R(X(2, 3), fy - 11, 3, 2, cloak);
+export function drawPlayer(pool, dt) {
+  pose.sx = Math.round(P.x - W.camX); pose.fy = Math.round(V.G - P.z); pose.f = P.face; pose.T = W.T; pose.dt = dt;
+  pose.rage = P.rageOn > 0; pose.moving = (keys.l || keys.r) && P.swingT < 0; pose.walk = P.walk;
+  pose.white = P.inv > 0 && Math.floor(W.T * 22) % 2 === 0;
+  pose.swing = P.swingT >= 0 ? P.swingT / P.swingDur : -1; pose.heavy = P.heavy;
+  drawHero(pose, P.eq, pool);
 }
 
 export function drawEnemy(e) {

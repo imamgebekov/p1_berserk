@@ -38,6 +38,8 @@ export const CFG = {
     hitWindow: [.3, .78],   // доля замаха, когда клинок бьёт
     reachLight: 32,
     reachHeavy: 40,
+    weaponBaseLen: 29,      // длина стартового меча; каждый px длины клинка сверх этого даёт reachPerLen к дальности
+    reachPerLen: .4,
     comboWindow: .55,       // окно продолжения цепочки после удара
     comboLength: 3,         // третий удар тяжёлый
     hitBehind: -3,          // насколько можно задеть за спиной

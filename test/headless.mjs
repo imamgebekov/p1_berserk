@@ -10,6 +10,8 @@ import { makeNpcs } from '../src/world.js';
 import { rise, tryBrand } from '../src/combat.js';
 import { ensureAudio } from '../src/audio.js';
 import { createRenderer } from '../src/render/index.js';
+import { newItem, giveItem, equipFromBag, recalc } from '../src/inventory.js';
+import { ITEMS } from '../src/data/items.js';
 
 globalThis.AudioContext = FakeAudioContext;
 const SEED = Number(process.env.SEED || 1337);
@@ -128,6 +130,14 @@ const strong = run('сильный герой (босс)', {
   preset: () => { P.lv = 25; P.maxhp = P.hp = 400; }
 });
 results.push(strong);
+
+// полный комплект экипировки (проклятый и клеймёный): эффекты оружия, броня, плащ — в полном кадре
+for (const [label, rarity] of [['клеймёный комплект', 'branded'], ['проклятый комплект', 'cursed']]) {
+  results.push(run('бот: ' + label, {
+    control: botPlayer, frames: 6000, seed: 31,
+    preset: () => { P.lv = 10; recalc(); for (const it of ITEMS.filter(i => i.rarity === rarity)) { giveItem(newItem(it.id)); equipFromBag(P.bag.length - 1); } P.hp = P.maxhp; }
+  }));
+}
 
 // детерминизм
 {

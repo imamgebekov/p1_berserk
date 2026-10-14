@@ -79,7 +79,9 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
   padding:calc(env(safe-area-inset-top) + 6px) 10px calc(env(safe-area-inset-bottom) + 8px); overflow:hidden; }
 .panel[hidden] { display:none; }
 .ph { display:flex; align-items:center; gap:10px; min-height:48px; }
-.ph h3 { flex:1; font-size:24px; font-weight:700; letter-spacing:.08em; text-shadow:2px 2px 0 var(--blood); }
+.tabs { flex:1; display:flex; gap:6px; }
+.tab { min-height:48px; padding:0 16px; background:#17110f; color:#9a8f7c; border:2px solid #3a2d26; font:inherit; font-size:17px; letter-spacing:.04em; touch-action:manipulation; }
+.tab.on { color:var(--bone); border-color:var(--blood); background:#2a0e10; }
 #bagAsh { font-size:14px; color:#c9a56a; }
 .x { min-width:48px; min-height:48px; background:#17110f; border:2px solid #5a4a3a; color:var(--bone); font-size:20px; touch-action:manipulation; }
 .lbl { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:#6e6455; margin:10px 0 4px; }
@@ -115,3 +117,20 @@ html, body { height:100%; background:var(--ink); overflow:hidden; overscroll-beh
 .cbtn.close { flex-basis:100%; min-height:44px; color:#9a8f7c; }
 .cbtn:disabled { opacity:.45; }
 #chat .loot { }
+
+/* вкладка «Герой» */
+#heroTab, #bagTab { flex:1; min-height:0; display:flex; flex-direction:column; }
+#heroTab[hidden], #bagTab[hidden] { display:none; }
+.hname { display:flex; align-items:baseline; gap:10px; font-size:22px; margin-top:6px; }
+.hname b { color:var(--ember); }
+.xpbar { height:8px; background:#120d0c; border:1px solid #4a3d33; margin-top:6px; overflow:hidden; }
+.xpbar i { display:block; height:100%; background:linear-gradient(#e0c070,#a0802a); transform-origin:0 50%; transform:scaleX(0); }
+#hXpTxt { font-size:12px; color:#6e6455; margin-top:3px; }
+.hstage { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:10px; }
+.hslots { display:flex; flex-direction:column; gap:6px; width:56px; }
+.hslots .cell { width:56px; height:56px; aspect-ratio:auto; }
+#hPrev { width:min(230px, calc(100vw - 150px)); height:auto; aspect-ratio:52/48; image-rendering:pixelated; background:#0e0b0a; border:2px solid #3a2d26; }
+#hStats { margin-top:12px; }
+#hStats .crow { font-size:15px; }
+#hHint { margin-top:8px; font-size:12px; color:#6e6455; line-height:1.4; }
+@media (max-height:640px) { #hPrev { width:min(200px, calc(100vw - 140px)); } #hStats .crow { font-size:14px; padding:2px 0; } .hslots .cell { width:48px; height:48px; } .hslots { width:48px; } }

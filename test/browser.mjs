@@ -92,6 +92,30 @@ async function session(label, device) {
   if (after.w !== 'w_bone_edge') problems.push(`${label}: оружие не надето (${after.w})`);
   await page.screenshot({ path: join(out, label.replace(/\W+/g, '_') + '_bag.png') });
   await page.tap('#bagClose');
+  // вкладка «Герой»: предпросмотр рисуется, слоты нажимаются, ничего не вылезает за экран
+  await page.tap('#mhero');
+  await page.waitForSelector('#heroTab:not([hidden])');
+  await page.waitForTimeout(350);
+  const hero = await page.evaluate(() => {
+    const cv = document.getElementById('hPrev'), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    let lit = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 60) lit++;
+    const sizes = [...document.querySelectorAll('#bag .tab, #hL .cell, #hR .cell, #bagClose')].map(e => { const r = e.getBoundingClientRect(); return Math.min(r.width, r.height); });
+    const stageRight = document.querySelector('.hstage').getBoundingClientRect().right;
+    return { lit, small: sizes.filter(v => v < 44).length, running: window.__berserk.inventoryUI.previewRunning(), tab: window.__berserk.inventoryUI.tab(),
+      overflow: stageRight > innerWidth + 1 || document.documentElement.scrollHeight > innerHeight, paused: window.__berserk.W.paused };
+  });
+  if (hero.tab !== 'hero' || !hero.paused) problems.push(`${label}: вкладка «Герой» не открылась (${hero.tab}, пауза=${hero.paused})`);
+  if (hero.lit < 20) problems.push(`${label}: предпросмотр героя пустой (${hero.lit} светлых пикселей)`);
+  if (!hero.running) problems.push(`${label}: анимация предпросмотра не идёт`);
+  if (hero.small) problems.push(`${label}: на вкладке «Герой» ${hero.small} элементов меньше 44px`);
+  if (hero.overflow) problems.push(`${label}: вкладка «Герой» выходит за вьюпорт`);
+  await page.screenshot({ path: join(out, label.replace(/\W+/g, '_') + '_hero.png') });
+  await page.tap('#hL .cell:nth-child(1)');
+  const sw = await page.evaluate(() => ({ tab: window.__berserk.inventoryUI.tab(), card: !document.getElementById('cardWrap').hidden, running: window.__berserk.inventoryUI.previewRunning() }));
+  if (sw.tab !== 'bag' || !sw.card) problems.push(`${label}: тап по слоту героя не открыл карточку (${JSON.stringify(sw)})`);
+  if (sw.running) problems.push(`${label}: предпросмотр не остановился при уходе с вкладки`);
+  await page.tap('.cbtn.close');
+  await page.tap('#bagClose');
   const unp = await page.evaluate(() => window.__berserk.W.paused);
   if (unp) problems.push(`${label}: пауза не снялась после закрытия сумки`);
   await page.screenshot({ path: join(out, label.replace(/\W+/g, '_') + '.png') });

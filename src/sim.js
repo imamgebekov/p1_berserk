@@ -10,6 +10,7 @@ import { stepParticles, stepNums } from './fx.js';
 import { spawnEnemy, spawnBoss } from './world.js';
 import { startSwing, hurtEnemy, hurtPlayer, rollSwing, speedMult } from './combat.js';
 import { updateNpcs } from './npc.js';
+import { weaponLen } from './data/looks.js';
 
 export function step(dt) {
   W.T += dt;
@@ -34,7 +35,7 @@ function updatePlayer(dt) {
     P.swingT += dt;
     const p = P.swingT / P.swingDur;
     if (p > C.hitWindow[0] && p < C.hitWindow[1]) {
-      const reach = P.heavy ? C.reachHeavy : C.reachLight;
+      const reach = (P.heavy ? C.reachHeavy : C.reachLight) + (weaponLen(P.eq) - C.weaponBaseLen) * C.reachPerLen;
       for (const e of W.enemies.slice()) {
         if (P.hitSet.has(e.id)) continue;
         const dx = (e.x - P.x) * P.face;

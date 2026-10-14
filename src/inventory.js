@@ -3,6 +3,7 @@ import { CFG } from './config.js';
 import { P, W } from './state.js';
 import { clamp } from './util.js';
 import { ITEMS_BY_ID, SLOTS, STAT_KEYS } from './data/items.js';
+import { weaponLen } from './data/looks.js';
 
 export const emptyStats = () => ({ dmg: 0, armor: 0, hp: 0, speed: 0, crit: 0, rage: 0 });
 export const defOf = it => ITEMS_BY_ID[it.id];
@@ -43,8 +44,10 @@ export function recalc() {
 // Что видит игрок на экране персонажа / в итоговой строке
 export function derived() {
   const s = P.stats, C = CFG.player;
+  const dmg = Math.max(1, Math.round(C.baseDamage + P.lv * C.damagePerLevel + s.dmg));
   return {
-    dmg: Math.max(1, Math.round(C.baseDamage + P.lv * C.damagePerLevel + s.dmg)),
+    dmg, heavy: Math.round(dmg * C.heavyMult),
+    reach: Math.round(C.reachLight + (weaponLen(P.eq) - C.weaponBaseLen) * C.reachPerLen),
     armor: s.armor, reduction: Math.round(100 * armorReduction(s.armor)),
     hp: P.maxhp, speed: s.speed, crit: s.crit, rage: s.rage
   };

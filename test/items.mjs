@@ -7,6 +7,12 @@ import { newItem, giveItem, equipFromBag, unequip, sellFromBag, dropFromBag, rec
 import { rollDrop, luckAt, maxTierFor, depthAt } from '../src/loot.js';
 import { rollSwing, hurtPlayer } from '../src/combat.js';
 import { drawIcon, ICON_KEYS } from '../src/icons.js';
+import { LOOKS, DEFAULT_WEAPON, weaponLen } from '../src/data/looks.js';
+import { drawHero } from '../src/render/hero.js';
+import { createFxPool } from '../src/render/fxpool.js';
+import { setCtx } from '../src/render/gfx.js';
+import { fakeCtx, stats } from './stubs.mjs';
+import { env } from '../src/env.js';
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
@@ -88,7 +94,7 @@ const share = (type, x, lv, cycle, n = 30000) => {
   // доля убийств, с которых что-то выпадает
   ok(get('imp', 'town', 1, 0).perKill < get('brute', 'town', 1, 0).perKill && get('brute', 'town', 1, 0).perKill < get('lord', 'town', 3, 0).perKill, 'шанс дропа не растёт imp<brute<lord');
   resetState();
-  console.log(`глубина(2500)=${depthAt(2500).toFixed(2)}; удача: город ур.1=${luckAt(330).toFixed(2)}, край ур.20=${luckAt(2500).toFixed(2)}; tier: ${maxTierFor(luckAt(330))}→${maxTierFor(luckAt(2500))}`);
+  console.log(`глубина(2500)=${depthAt(2500).toFixed(2)}; удача: город ур.1=${luckAt(330).toFixed(2)}, край ур.1=${luckAt(2500).toFixed(2)}; tier: ${maxTierFor(luckAt(330))}→${maxTierFor(luckAt(2500))}`);
 }
 
 // ---------- 3. инвентарь: фаззинг ----------
@@ -150,6 +156,57 @@ const share = (type, x, lv, cycle, n = 30000) => {
   const cmp = compare(P.bag[0]);
   ok(cmp.length === 1 && cmp[0].k === 'dmg' && cmp[0].diff === 3, 'сравнение с надетым: ' + JSON.stringify(cmp));
   ok(sellValue(newItem('w_brand_giant')) === Math.round(560 * CFG.items.sellRatio), 'цена продажи');
+}
+
+// ---------- 5. внешний вид ----------
+{
+  const kinds = { weapon: ['blade', 'curved', 'cleaver', 'slab', 'great', 'serrated', 'axe'], head: ['hood', 'helm', 'mask', 'crown'], body: ['rags', 'leather', 'mail', 'plate', 'hide', 'shroud'], cloak: ['rag', 'trav', 'ash', 'raven', 'tatter', 'flow'] };
+  const lens = [];
+  for (const it of ITEMS) {
+    const L = LOOKS[it.id];
+    ok(L, `${it.id}: нет внешнего вида в data/looks.js`);
+    if (!L) continue;
+    if (kinds[it.slot]) ok(kinds[it.slot].includes(L.kind), `${it.id}: неизвестный вид ${L.kind}`);
+    if (it.slot === 'weapon') { ok(L.len >= 22 && L.len <= 46 && L.w >= 2 && L.w <= 5, `${it.id}: длина/ширина клинка`); lens.push(L.len); }
+    if (it.slot === 'cloak') ok(L.len >= 6 && L.len <= 14 && L.w >= 3 && L.w <= 6, `${it.id}: размеры плаща`);
+    if (it.rarity !== 'common' && it.slot === 'weapon') ok(L.fx, `${it.id}: у редкого оружия нет эффекта`);
+  }
+  ok(new Set(lens).size >= 6, 'у оружия слишком мало разных длин: ' + [...new Set(lens)].join());
+  ok(new Set(ITEMS.filter(i => i.slot === 'weapon').map(i => LOOKS[i.id].kind)).size >= 6, 'мало разных силуэтов оружия');
+
+  // отрисовка каждого предмета во всех позах: без исключений и NaN, в бюджете прямоугольников
+  const pose = { sx: 50, fy: 100, f: 1, T: 1.3, dt: 1 / 60, rage: false, moving: false, walk: 0, white: false, swing: -1, heavy: false };
+  const eqOf = ids => { const eq = { weapon: null, head: null, body: null, cloak: null, amulet: null, ring: null }; for (const id of ids) eq[ITEMS_BY_ID[id].slot] = { uid: 1, id, up: 0 }; return eq; };
+  const sets = [[], ...ITEMS.map(i => [i.id]), ITEMS.filter(i => i.rarity === 'branded').map(i => i.id), ITEMS.filter(i => i.rarity === 'cursed').map(i => i.id)];
+  setCtx(fakeCtx());
+  let worst = 0;
+  for (const reduce of [false, true]) {
+    env.reduce = reduce;
+    const pool = createFxPool();
+    for (const ids of sets) {
+      const eq = eqOf(ids);
+      for (const f of [1, -1]) for (const rage of [false, true]) for (const swing of [-1, 0, .2, .5, .9, 1]) for (const heavy of [false, true]) {
+        Object.assign(pose, { f, rage, swing, heavy, moving: swing < 0 && heavy, walk: swing * 3, white: rage && heavy, T: pose.T + .013 });
+        const before = stats.fillRect;
+        try { drawHero(pose, eq, pool); pool.step(1 / 60); pool.draw(); } catch (e) { ok(false, `отрисовка ${ids.join('+') || 'пусто'} f=${f} rage=${rage} swing=${swing}: ${e.message}`); }
+        worst = Math.max(worst, stats.fillRect - before);
+      }
+    }
+    ok(pool.size <= 48, 'пул частиц переполнен');
+  }
+  env.reduce = false;
+  ok(worst < 420, `герой рисуется ${worst} прямоугольниками за кадр (бюджет 420)`);
+  console.log(`Отрисовка героя: ${sets.length} комплектов × позы, пик ${worst} fillRect на героя`);
+
+  // длина клинка влияет на дальность
+  resetState(); recalc();
+  const r0 = derived().reach;
+  giveItem(newItem('w_brand_giant')); equipFromBag(0);
+  const r1 = derived().reach; unequip('weapon');
+  giveItem(newItem('w_rust_cleaver')); equipFromBag(P.bag.length - 1);
+  const r2 = derived().reach;
+  ok(r0 === CFG.player.reachLight && r1 > r0 + 4 && r2 < r0, `дальность: стартовый ${r0}, исполин ${r1}, тесак ${r2}`);
+  ok(weaponLen({ weapon: null }) === DEFAULT_WEAPON.len && DEFAULT_WEAPON.len === CFG.player.weaponBaseLen, 'длина стартового меча не совпадает с конфигом');
 }
 
 if (fails.length) { console.error('\nПРОВАЛ (предметы):\n' + fails.slice(0, 20).join('\n')); process.exit(1); }

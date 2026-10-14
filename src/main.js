@@ -55,4 +55,5 @@ function loop(now) {
 requestAnimationFrame(loop);
 
 // для отладки с компьютера: window.__berserk
-window.__berserk = { W, P, giveItem, newItem, inventoryUI };
+import { ITEMS_BY_ID } from './data/items.js';
+window.__berserk = { W, P, giveItem, newItem, inventoryUI, slotOf: id => ITEMS_BY_ID[id].slot, recalc };

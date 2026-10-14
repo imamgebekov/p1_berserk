@@ -29,18 +29,40 @@
   <div class="btn" id="bjump" data-k="jump">Прыжок</div>
   <div class="btn" id="batk" data-k="atk">Удар</div>
   <div id="menu">
+    <button class="mbtn" id="mhero" type="button">Герой</button>
     <button class="mbtn" id="mbag" type="button">Сумка<b id="bagBadge" hidden>0</b></button>
   </div>
 </div>
 
 <div class="panel" id="bag" hidden>
-  <div class="ph"><h3>Сумка</h3><span id="bagAsh"></span><button class="x" id="bagClose" type="button" aria-label="Закрыть">✕</button></div>
-  <div class="lbl">Надето</div>
-  <div id="eq"></div>
-  <div class="lbl">Вещи</div>
-  <div id="grid"></div>
-  <div id="bagSum"></div>
-  <div id="bagMsg"></div>
+  <div class="ph">
+    <div class="tabs" role="tablist">
+      <button class="tab" id="tabHero" type="button" role="tab">Герой</button>
+      <button class="tab" id="tabBag" type="button" role="tab">Сумка</button>
+    </div>
+    <span id="bagAsh"></span>
+    <button class="x" id="bagClose" type="button" aria-label="Закрыть">✕</button>
+  </div>
+  <div id="heroTab">
+    <div class="hname"><span>Странник</span><b id="hLv"></b></div>
+    <div class="xpbar"><i id="hXp"></i></div>
+    <div id="hXpTxt"></div>
+    <div class="hstage">
+      <div class="hslots" id="hL"></div>
+      <canvas id="hPrev" width="52" height="48" aria-label="Герой"></canvas>
+      <div class="hslots" id="hR"></div>
+    </div>
+    <div id="hStats"></div>
+    <div id="hHint">Нажмите на слот, чтобы открыть предмет. Нажмите на героя — посмотреть его с Клеймом.</div>
+  </div>
+  <div id="bagTab" hidden>
+    <div class="lbl">Надето</div>
+    <div id="eq"></div>
+    <div class="lbl">Вещи</div>
+    <div id="grid"></div>
+    <div id="bagSum"></div>
+    <div id="bagMsg"></div>
+  </div>
 </div>
 <div id="cardWrap" hidden><div id="card"></div></div>
 
