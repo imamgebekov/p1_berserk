@@ -512,7 +512,10 @@ function refill(W, c) {
 }
 
 // положить в сумку; возвращает остаток
-function give(W, id, n) { const left = addItem(W.inv, id, n, W.cfg.bag.slots); if (n - left > 0) { W.ev.push({ k: 'pickup', id, n: n - left }); W.known.items[id] = 1; } return left; }
+// сумка: базовые места + навык «Глубокие карманы»; bagCap — наибольшая возможная (для загрузки сохранения)
+export const bagSlots = W => W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
+export const bagCap = cfg => cfg.bag.slots + SKILLS.pockets.max * SKILLS.pockets.stats.bag;
+function give(W, id, n) { const left = addItem(W.inv, id, n, bagSlots(W)); if (n - left > 0) { W.ev.push({ k: 'pickup', id, n: n - left }); W.known.items[id] = 1; } return left; }
 
 // двери открываются сами, когда рядом кто-то есть; контейнеры отдают добычу при касании и позже наполняются снова
 function updateHouses(W, dt) {

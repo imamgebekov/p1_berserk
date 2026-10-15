@@ -30,7 +30,7 @@ export function craft(W, id) {
   const st = craftStatus(W, r); if (st !== 'ok') return st;
   const tmp = { bag: JSON.parse(JSON.stringify(W.inv.bag)), eq: W.inv.eq, up: W.inv.up, ash: 0 };
   for (const [mid, n] of r.mats) take(tmp, mid, n);
-  if (addItem(tmp, r.result.id, r.result.n, W.cfg.bag.slots) > 0) return 'full';
+  if (addItem(tmp, r.result.id, r.result.n, W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0)) > 0) return 'full';
   W.inv.bag = tmp.bag; W.inv.ash -= r.ash; W.known.items[r.result.id] = 1;
   W.ev.push({ k: 'craft', id: r.result.id, n: r.result.n }); W.fx.quest('craft', { item: r.result.id }); return 'ok';
 }

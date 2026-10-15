@@ -3,7 +3,7 @@ import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine } from './data/ite
 import { betterThanWorn, equipAt, unequip, scoreUp, nameOf, SET_OF, setCounts, bonusText, statDiff } from './inv.js';
 import { iconURL, slotIconURL } from './itemicons.js';
 import { PERKS } from './data/weapons3d.js';
-import { useItem, dropItem, refreshGear, sellItem, sellPrice } from './sim.js';
+import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots } from './sim.js';
 import { readTome } from './craft3d.js';
 
 const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
@@ -74,7 +74,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     cardEl.appendChild(el('div', 'cv', `Продажа: ${sellPrice(it, cfg, up, W.gear.trade)} пепла (только у торговца)`));
     const row = el('div', 'acts');
     const btn = (label, fn, cls) => { const b = el('button', cls || '', label); b.type = 'button'; b.addEventListener('click', () => { fn(); render(); onChange && onChange(); }); row.appendChild(b); };
-    if (sel.from === 'eq') btn('Снять', () => { if (!unequip(W.inv, sel.slot, cfg.bag.slots)) flash('Сумка полна'); else sel = null; }, 'main');
+    if (sel.from === 'eq') btn('Снять', () => { if (!unequip(W.inv, sel.slot, bagSlots(W))) flash('Сумка полна'); else sel = null; }, 'main');
     else {
       if (it.slot) btn('Надеть', () => { equipAt(W.inv, sel.i); sel = null; }, 'main');
       if (it.cat === 'tome') btn('Прочитать', () => { const r = readTome(W, sel.i); if (r === 'known') flash('Эта книга уже прочитана'); else sel = null; }, 'main');
@@ -89,7 +89,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
 
   function render() {
     refreshGear(W);
-    headEl.textContent = `Сумка ${W.inv.bag.length}/${cfg.bag.slots} · пепел ${W.inv.ash}`;
+    headEl.textContent = `Сумка ${W.inv.bag.length}/${bagSlots(W)} · пепел ${W.inv.ash}`;
     statsEl.textContent = stats();
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
     // надетое

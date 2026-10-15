@@ -31,7 +31,7 @@ export function buyItem(W, i) {
   const s = W.shop.stock[i]; if (!s || !W.nearMerchant) return 'far'; if (W.night) return 'closed';
   const it = BY_ID[s.id], price = buyPrice(it, W.cfg, W.dif.buy);
   if (W.inv.ash < price) return 'ash';
-  if (addItem(W.inv, s.id, 1, W.cfg.bag.slots) > 0) return 'full';
+  if (addItem(W.inv, s.id, 1, W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0)) > 0) return 'full';
   W.inv.ash -= price; s.n -= 1; if (s.n <= 0) W.shop.stock.splice(i, 1);
   W.ev.push({ k: 'pickup', id: s.id, n: 1 }); return 'ok';
 }

@@ -201,3 +201,8 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 #bagEq .slot .stx{display:none}#bagEq .slot .ic{width:78%;height:78%}
 [data-desk] #bagEq .slot{aspect-ratio:auto;padding:4px 6px;justify-content:flex-start}[data-desk] #bagEq .slot .stx{display:flex}[data-desk] #bagEq .slot .ic{width:34px;height:34px}
 .num.alarm{color:#ff4a3a;font-size:30px;font-weight:900}.num.lost{color:#c8c0b0;font-size:24px}
+/* заполненность сумки на кнопке: жёлтая от 80%, красная — полная */
+#bagBtn{position:relative}
+#bagFill{position:absolute;right:-6px;bottom:-7px;min-width:30px;padding:1px 4px;border-radius:8px;background:#1d1413;border:1.5px solid var(--line);font-size:10.5px;font-weight:700;line-height:1.2;color:var(--ink);pointer-events:none;font-variant-numeric:tabular-nums}
+#bagFill.warn{color:#ffd27a;border-color:#c8a040}#bagFill.full{color:#fff;background:#a01820;border-color:#000}
+

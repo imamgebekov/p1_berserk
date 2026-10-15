@@ -7,8 +7,8 @@ const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const mk = (seed = 1) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; return createWorld(cfg, mulberry32(seed)); };
 
 // данные
-ok(BRANCHES.length === 3 && BRANCHES.every(b => b.skills.length === 5), 'три ветки по пять навыков');
-ok(Object.keys(SKILLS).length === 15, 'id навыков повторяются');
+ok(BRANCHES.length === 3 && BRANCHES.every(b => b.skills.length >= 5), 'три ветки, в каждой не меньше пяти навыков');
+ok(Object.keys(SKILLS).length === BRANCHES.reduce((n, b) => n + b.skills.length, 0), 'id навыков повторяются');
 for (const s of Object.values(SKILLS)) { ok(s.max >= 3 && s.text && s.name, 'навык ' + s.id); ok(Object.keys(s.stats).length, 'нет эффекта ' + s.id); }
 // очков хватает на много, но не на всё
 ok(MAX_RANKS > CFG3.level.max - 1, `рангов (${MAX_RANKS}) меньше очков уровней (${CFG3.level.max - 1}): нечего выбирать после макс. уровня — должно быть больше`);

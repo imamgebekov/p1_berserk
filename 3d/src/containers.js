@@ -62,13 +62,20 @@ export function buildContainers(map) {
     }
     // вещи на земле
     const dr = W.drops;
-    while (dropPool.length < dr.length) { const m = new THREE.Mesh(dropGeo, new THREE.MeshBasicMaterial({ color: '#fff' })); group.add(m); dropPool.push(m); }
+    // ромб цвета редкости; от редкого и выше — столб света, выше и ярче с редкостью; только что выпавшее подпрыгивает «фонтаном»
+    while (dropPool.length < dr.length) {
+      const m = new THREE.Mesh(dropGeo, new THREE.MeshBasicMaterial({ color: '#fff' })), beam = new THREE.Mesh(geo(.09, 1, .09), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: .45, depthWrite: false, blending: THREE.AdditiveBlending }));
+      m.userData.beam = beam; group.add(m, beam); dropPool.push(m);
+    }
     for (let i = 0; i < dropPool.length; i++) {
-      const m = dropPool[i], q = dr[i];
-      if (!q) { m.visible = false; continue; }
-      m.visible = true; m.position.set(q.x, .45 + Math.sin(t * 4 + i) * .08, q.z); m.rotation.y = t * 2.5;
-      const col = RARITY[BY_ID[q.id].rar].color; if (m.userData.col !== col) { m.userData.col = col; m.material.color.set(col); }
-      m.scale.setScalar(q.t > W.cfg.gear.dropLife - 8 ? .6 + .4 * Math.abs(Math.sin(t * 12)) : 1);
+      const m = dropPool[i], q = dr[i], beam = m.userData.beam;
+      if (!q) { m.visible = beam.visible = false; continue; }
+      const rar = BY_ID[q.id].rar, hop = q.t < .45 ? Math.sin(q.t / .45 * Math.PI) * 1.3 : 0;
+      m.visible = true; m.position.set(q.x, .45 + hop + Math.sin(t * 4 + i) * .08, q.z); m.rotation.y = t * 2.5;
+      const col = RARITY[rar].color; if (m.userData.col !== col) { m.userData.col = col; m.material.color.set(col); beam.material.color.set(col); }
+      const blink = q.t > W.cfg.gear.dropLife - 8 ? .6 + .4 * Math.abs(Math.sin(t * 12)) : 1;
+      m.scale.setScalar((1 + rar * .18) * blink);
+      beam.visible = rar >= 2; if (beam.visible) { const h = 1.6 + rar * 1.1; beam.scale.set(1 + rar * .4, h, 1 + rar * .4); beam.position.set(q.x, h / 2, q.z); beam.material.opacity = (.25 + .1 * rar) * (.75 + .25 * Math.sin(t * 5 + i)) * blink; }
     }
   }
   return { group, update, items };

@@ -52,6 +52,12 @@ try {
     await page.tap('#bagBtn'); await page.waitForTimeout(300);
     const r = await bagInfo(page);
     if (r.n !== r.bagN) bad(`плиток ${r.n}, вещей ${r.bagN}`);
+    { const f = await page.evaluate(() => { const e = document.getElementById('bagFill'); return { t: e.textContent, c: e.className }; });
+      if (f.t !== r.bagN + '/30' || f.c !== '') bad('бирка сумки: ' + JSON.stringify(f));
+      await page.evaluate(async () => { const { addItem } = await import('/3d/src/inv.js'), W = window.__b3d.W, ids = ['a_head_cap_leather', 'a_body_jerkin_leather', 'a_boots_boots_leather', 'w_sword_iron']; for (let i = 0; W.inv.bag.length < 30; i++) addItem(W.inv, ids[i % 4], 1, 30); });
+      await page.waitForFunction(() => document.getElementById('bagFill').textContent === '30/30', null, { timeout: 3000 }).catch(() => {});      // кадры в безголовом браузере редкие
+      const g = await page.evaluate(() => { const e = document.getElementById('bagFill'); return { t: e.textContent, c: e.className }; });
+      if (g.t !== '30/30' || g.c !== 'full') bad('полная сумка не отмечена: ' + JSON.stringify(g)); }
     if (r.minW < 44) bad('плитка уже 44 px: ' + r.minW);
     if (r.over > 0) bad('сумка прокручивается вбок на ' + r.over + ' px');
     if (!r.icons) bad('не у всех плиток загружен значок 16×16');

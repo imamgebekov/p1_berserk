@@ -20,11 +20,12 @@ export const BRANCHES = [
     { id: 'nose', name: 'Чутьё добычи', max: 5, stats: { luck: 4 }, text: '+4 удачи за ранг' },
     { id: 'eye', name: 'Меткий глаз', max: 3, stats: { reach: .2 }, text: '+0,2 дальности удара за ранг' },
     { id: 'sneak', name: 'Тихий шаг', max: 4, stats: { stealth: 6 }, text: 'шум тише: враги слышат на 6% ближе за ранг' },
-    { id: 'haggle', name: 'Торговая жилка', max: 4, stats: { trade: 5 }, text: '+5% к цене продажи за ранг' }
+    { id: 'haggle', name: 'Торговая жилка', max: 4, stats: { trade: 5 }, text: '+5% к цене продажи за ранг' },
+    { id: 'pockets', name: 'Глубокие карманы', max: 3, tier: 1, stats: { bag: 3 }, text: '+3 места в сумке за ранг' }      // tier — открывается рано, не по порядку
   ] }
 ];
 export const TIER_STEP = 3;           // очков в ветке на каждый следующий навык
-export const SKILLS = Object.fromEntries(BRANCHES.flatMap(b => b.skills.map((s, i) => [s.id, { ...s, branch: b.id, tier: i }])));
+export const SKILLS = Object.fromEntries(BRANCHES.flatMap(b => b.skills.map((s, i) => [s.id, { ...s, branch: b.id, tier: s.tier ?? i }])));
 export const MAX_RANKS = BRANCHES.flatMap(b => b.skills).reduce((a, s) => a + s.max, 0);
 
 export const spentIn = (skills, branchId) => BRANCHES.find(b => b.id === branchId).skills.reduce((a, s) => a + (skills[s.id] || 0), 0);

@@ -9,7 +9,7 @@ import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTr
 import { mulberry32 } from './sim.js';
 import { questMark } from './quests3d.js';
 import { skyAt } from './daynight.js';
-import { BY_ID } from './data/items.js';
+import { BY_ID, RARITY } from './data/items.js';
 import { trailOn } from './anim3d.js';
 import { createFx } from './fx3d.js';
 
@@ -413,6 +413,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
+      else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { fx.flash(v.x, 1.4, v.z, 2.6, RARITY[4].color); burst(v.x, 1, v.z, 12, RARITY[4].color, 4); }
       else if (v.k === 'spot') hooks.onText && hooks.onText(v.x, 2.9, v.z, '!', 'alarm');
       else if (v.k === 'lost') hooks.onText && hooks.onText(v.x, 2.9, v.z, '?', 'lost');
       else if (v.k === 'block') { const p0 = W.player; let dx = p0.x - v.x, dz = p0.z - v.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; fx.spray(v.x + dx * .6, 1.1, v.z + dz * .6, dx, dz, 8, '#ffe8b0', 6, .9, { life: .25, g: 8, s: .07 }); fx.flash(v.x + dx * .6, 1.1, v.z + dz * .6, 1.1, '#ffffff'); hooks.onText && hooks.onText(v.x, 2.2, v.z, 'щит', 'dodge'); }

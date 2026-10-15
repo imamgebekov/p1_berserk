@@ -70,7 +70,7 @@ export function bonusText(b) {
 
 // суммарные характеристики экипировки и временных баффов
 export function gearStats(inv, buffs = [], bonus = .1, extra = null) {
-  const g = { dmg: 0, armor: 0, hp: 0, spd: 0, reach: 0, crit: 0, leech: 0, luck: 0, swing: 1, arc: 0, rollcd: 0, regen: 0, stealth: 0, trade: 0 };
+  const g = { dmg: 0, armor: 0, hp: 0, spd: 0, reach: 0, crit: 0, leech: 0, luck: 0, swing: 1, arc: 0, rollcd: 0, regen: 0, stealth: 0, trade: 0, bag: 0 };
   for (const slot of SLOTS) { const id = inv.eq[slot], it = id && BY_ID[id]; if (!it) continue; const m = 1 + (inv.up[slot] || 0) * bonus; for (const [k, v] of Object.entries(it.stats)) { if (k === 'swing') g.swing *= v; else if (v > 0 && (k === 'dmg' || k === 'armor' || k === 'hp' || k === 'crit' || k === 'leech')) g[k] += Math.round(v * m); else g[k] += v; } }
   for (const b of buffs) g[b.stat] += b.amt;
   { const sb = setBonus(inv).stats; for (const k of Object.keys(sb)) g[k] += sb[k]; }

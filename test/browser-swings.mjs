@@ -91,6 +91,14 @@ try {
   });
   await page.screenshot({ path: join(out, '3d-spot.png'), clip: { x: 0, y: 100, width: 390, height: 460 } });
   if (!spot.alert || !spot.marks) bad('сторож не заметил героя или нет «!»: ' + JSON.stringify(spot));
+  // добыча на земле: ромбы растут с редкостью, у редких и выше — столб света
+  await page.evaluate(async () => {
+    const W = window.__b3d.W, p = W.player, { BY_ID } = await import('/3d/src/data/items.js'); W.enemies.forEach(e => { if (!e.boss) e.dead = true; });
+    const pick = r => Object.keys(BY_ID).find(k => BY_ID[k].rar === r && BY_ID[k].slot);
+    [0, 1, 2, 3, 4].forEach((r, i) => W.drops.push({ id: pick(r), n: 1, x: p.x - 3 + i * 1.5, z: p.z + 2.5, t: 1, cd: 9 }));
+  });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: join(out, '3d-drops.png'), clip: { x: 0, y: 120, width: 390, height: 420 } });
   await ctx.close();
   for (const l of logs) bad(l);
 } finally { await browser.close(); await dev.close(); }

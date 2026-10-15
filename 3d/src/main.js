@@ -11,7 +11,7 @@ import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sf
 import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLine, questMark } from './quests3d.js';
-import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel } from './sim.js';
+import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap } from './sim.js';
 import { drawMap } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSave, createSaver, unpackSeen, applyDseen, applyDungeonState, exportSave, importSave } from './save3d.js';
@@ -44,7 +44,7 @@ try {
 }
 
 const W = createWorld(cfg);
-const saved = loadSave(cfg.bag.slots);
+const saved = loadSave(bagCap(cfg));
 if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
 const saver = createSaver(W);
 const input = createInput(document, window);
@@ -79,6 +79,7 @@ function onEvent(v) {
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
   else if (v.k === 'place') showPlace(v.place);
+  else if (v.k === 'drop') { const it = BY_ID[v.id]; if (it && it.rar >= 3) { toast(`✦ Выпало: ${it.name}`, '', RARITY[it.rar].color); sfx(it.rar >= 4 ? 'brand' : 'rare'); } }
   else if (v.k === 'key') toast(`🗝 Ключ на связке: ${cfg.dungeons.keys[v.key] || 'ключ'}`, '', '#e8c04a');
   else if (v.k === 'doorLocked') toast(`Заперто: нужен ${cfg.dungeons.keys[v.key] || 'ключ'}`, 'bad');
   else if (v.k === 'travel') { saver.write(); if (!reduce) { const f = $('fade'); f.style.setProperty('--fade', cfg.dungeons.fade + 's'); f.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on'))); } }
@@ -208,6 +209,7 @@ const muteBtn = $('muteBtn');
 const showMute = () => { muteBtn.textContent = isMuted() ? '🔇 Звук выключен' : '🔊 Звук включён'; };
 muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); });
 showMute();
+const bagFill = $('bagFill');
 let ambT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0, lowT = 0, lowShown = false;
 // личные настройки: левша, размер кнопок, вибрация, счётчик кадров, подсказки
 const prefBtn = (id, get, label, flip) => { const b = $(id); const show = () => { b.textContent = label(get()); }; b.addEventListener('click', () => { flip(); savePrefs(P); applyPrefs(); }); return show; };
@@ -236,7 +238,7 @@ $('expBtn').addEventListener('click', async () => {
   sflash(ok ? 'Код скопирован. Вставьте его на другом устройстве' : 'Скопируйте код из поля вручную');
 });
 $('impBtn').addEventListener('click', () => {
-  if (importSave(codeEl.value, cfg.bag.slots) !== 'ok') { sflash('Код не подходит: нужна строка, начинающаяся с B3D1:', true); return; }
+  if (importSave(codeEl.value, bagCap(cfg)) !== 'ok') { sflash('Код не подходит: нужна строка, начинающаяся с B3D1:', true); return; }
   sflash('Сохранение загружено, перезапуск…'); W.ironDead = true; setTimeout(() => location.reload(), 600);    // ironDead блокирует перезапись старым состоянием при выходе
 });
 const questBtn = $('questBtn'), trackerEl = $('tracker'); questBtn.addEventListener('click', e => { e.stopImmediatePropagation(); quests.open('here'); }, true);
@@ -268,6 +270,7 @@ function loop(now) {
     if (W.player.dead) inp.attack = inp.roll = false;
     step(W, dt, inp);
   }
+  { const n = W.inv.bag.length, m = bagSlots(W), s = n + '/' + m, cls = n >= m ? 'full' : n >= m * .8 ? 'warn' : ''; if (bagFill.textContent !== s) bagFill.textContent = s; if (bagFill.className !== cls) bagFill.className = cls; }     // заполненность сумки на кнопке
   if (renderer) renderer.render(W, panelOpen || landscape ? 0 : dt);
   { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
   { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; } }
