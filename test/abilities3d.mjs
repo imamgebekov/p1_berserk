@@ -48,7 +48,8 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 {
   const W = mk(); upgradeAbility(W, 'charge'); const on = foe(W, 0, 3), off = foe(W, 4, 3); still(W);
   useAbility(W, 0); run(W, T.charge.time + .2, () => { still(W); return {}; });
-  const moved = W.player.z - 40; ok(moved > T.charge.dist * .7, `рывок сдвинул на ${moved.toFixed(1)} м`);
+  const moved = W.player.z - 40, stopAt = 3 - CFG3.enemies.brute.radius - T.charge.stop; ok(Math.abs(moved - Math.max(1.5, stopAt)) < .4, `рывок к врагу в 3 м сдвинул на ${moved.toFixed(1)} м`);
+  { const V = mk(); upgradeAbility(V, 'charge'); useAbility(V, 0); run(V, T.charge.time + .2); ok(V.player.z - 40 > T.charge.dist * .8, 'рывок без цели короче полного'); }
   ok(on.hp < on.maxhp && off.hp === off.maxhp, 'рывок не ударил того, кто на пути, или ударил стороннего');
   ok(on.hp >= on.maxhp - 200, 'враг на пути ударен много раз');
 }

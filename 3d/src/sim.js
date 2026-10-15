@@ -251,9 +251,9 @@ function dropLoot(W, e) {
 
 function attackStart(W, heavy = 0) {
   const p = W.player, P = W.cfg.player, H = P.heavy;
-  // автоприцел: ближайший враг в радиусе autoAim
-  let best = null, bd = P.autoAim;
-  for (const e of W.enemies) { if (e.dead) continue; const d = len(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; best = e; } }
+  // автоприцел: ближайший враг в радиусе autoAim; у лука — ближайший видимый в пределах дальности (после переката не стрелять за спину)
+  const tr = W.wp.trait; let best = null, bd = tr.ranged ? tr.range : P.autoAim;
+  for (const e of W.enemies) { if (e.dead) continue; const d = len(e.x - p.x, e.z - p.z); if (d < bd && (!tr.ranged || !lineBlocked(W.map, p.x, p.z, e.x, e.z))) { bd = d; best = e; } }
   if (best) p.face = Math.atan2(best.x - p.x, best.z - p.z);
   // цепочка: удары в пределах 0,9 с друг от друга; каждый третий — завершающий. Удар сразу после переката — рывок-удар
   // тяжёлый удар (heavy — доля заряда 0–1) цепочку не продолжает и сбрасывает
