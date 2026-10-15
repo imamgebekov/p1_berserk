@@ -55,8 +55,9 @@ export function makeMap(cfg) {
   for (const sp of M.spots || []) addC(sp.kind, sp.x, sp.z, -1);
   // созданные генератором: не ближе 1.6 м к уже стоящим (могилы и алтарь не слипаются)
   for (const sp of gen.spots) if (!containers.some(c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1);
+  const camp = campOf(cfg), { blocks, foeBlocks } = camp ? campWalls(camp) : { blocks: [], foeBlocks: [] };
   const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
-  return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads };
+  return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, camp, blocks, foeBlocks };
 }
 
 // какой дом содержит точку (внутри стен), иначе −1
@@ -145,7 +146,7 @@ export function lineBlocked(map, x0, z0, x1, z1) {
   const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / .25)), inR = (w, x, z) => x > w.x0 && x < w.x1 && z > w.z0 && z < w.z1;
   for (let i = 1; i < n; i++) {
     const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n;
-    if (map.blocks.some(w => inR(w, x, z)) || map.doors.some(d => d.open < .6 && inR(d.rect, x, z))) return true;
+    if (map.blocks.some(w => inR(w, x, z)) || (map.doors || []).some(d => d.open < .6 && inR(d.rect, x, z))) return true;
   }
   return false;
 }
@@ -268,5 +269,35 @@ export function solveLocks(map, startX, startZ) {
   }
   const rooms = seen.filter(Boolean).length;
   return { rooms, all: rooms === R, order, stuck: map.doors.filter(d => d.lock && !open.has(d.id)).map(d => d.id) };
+}
+
+// ---- закрытый лагерь ----
+// лагерь есть, если в конфиге есть его место (тесты чистого боя убирают места — и лагерь с ними)
+export function campOf(cfg) { const C = cfg.camp; return C && (cfg.map.places || []).some(p => p.id === C.place) ? C : null; }
+export const insideCamp = (C, x, z, pad = 0) => !!C && Math.hypot(x - C.x, z - C.z) < C.r - pad;
+// ворота: точка на окружности; alongX — проём тянется вдоль x (ворота на юге и севере)
+export function campGates(C) { return C.gates.map(a => { const r = a * Math.PI / 180; return { a, x: C.x + Math.sin(r) * C.r, z: C.z + Math.cos(r) * C.r, alongX: Math.abs(Math.cos(r)) > .7 }; }); }
+// частокол: кольцо маленьких квадратов (столкновения — только прямоугольники), в воротах — проём; для врагов проём закрыт полосой
+export function campWalls(C) {
+  const blocks = [], foeBlocks = [], n = Math.ceil(2 * Math.PI * C.r / C.step), gapA = (C.gateW / 2) / C.r, s = Math.max(C.wall / 2, C.step * .6);
+  for (let i = 0; i < n; i++) {
+    const a = i / n * 2 * Math.PI;
+    if (C.gates.some(g => { let d = Math.abs(a - g * Math.PI / 180) % (2 * Math.PI); if (d > Math.PI) d = 2 * Math.PI - d; return d < gapA; })) continue;
+    const x = C.x + Math.sin(a) * C.r, z = C.z + Math.cos(a) * C.r;
+    blocks.push({ x0: x - s, x1: x + s, z0: z - s, z1: z + s, camp: true });
+  }
+  for (const g of campGates(C)) { const w = C.gateW / 2 + .4, d = C.foeDepth / 2, nx = Math.sign(g.x - C.x), nz = Math.sign(g.z - C.z); foeBlocks.push(g.alongX ? { x0: g.x - w, x1: g.x + w, z0: g.z - d, z1: g.z + d, nx: 0, nz } : { x0: g.x - d, x1: g.x + d, z0: g.z - w, z1: g.z + w, nx, nz: 0 }); }     // n — наружу
+  return { blocks, foeBlocks };
+}
+// враг не проходит ворота лагеря
+// враг не проходит ворота лагеря: попал в полосу ворот — выталкивается всегда наружу (даже из внутренней половины проёма)
+export function blockFoe(map, o, r) {
+  let hit = false;
+  for (const w of map.foeBlocks || []) {
+    if (o.x < w.x0 - r || o.x > w.x1 + r || o.z < w.z0 - r || o.z > w.z1 + r) continue;
+    if (w.nz) o.z = w.nz > 0 ? w.z1 + r : w.z0 - r; else o.x = w.nx > 0 ? w.x1 + r : w.x0 - r;
+    hit = true;
+  }
+  return hit;
 }
 

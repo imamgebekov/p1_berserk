@@ -24,7 +24,7 @@ import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
-import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked } from './map.js';
+import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
 import { initLevels, withLevel, depthAt, onSurface, portalNear, backToSurface, SURFACE } from './levels3d.js';
 
 export function createWorld(cfg, rng = Math.random) {
@@ -95,6 +95,7 @@ function spawnRing(W) {
   let x = p.x + Math.sin(a) * d, z = p.z + Math.cos(a) * d;
   const l = len(x, z); if (l > R) { x *= R / l; z *= R / l; }
   if (nearBuilding(W.map, x, z, 1.5)) return false;                 // не рождаем врагов в стенах
+  if (W.map.camp && insideCamp(W.map.camp, x, z, -W.map.camp.spawnPad)) return false;   // и в лагере, и у самого частокола
   { const pl = placeAt(W.map, x, z); if (pl && pl.safe) return false; }   // и в безопасных местах
   const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)];
   const type = reg ? pickW2(reg.filter(a => a[2] !== 'night' || W.night), W.rng) : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';     // 'night' — только ночью
@@ -385,10 +386,12 @@ function updateEnemies(W, dt) {
       const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' || p.state === 'charge' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100) * (W.place && W.place.safe ? .5 : 1) * W.dif.hear;
       const pe = placeAt(W.map, e.x, e.z), deep = pe && pe.safe && len(e.x - pe.x, e.z - pe.z) < pe.r - 4;    // в глубине безопасного места враги теряют след и не слышат
       if (deep) e.alert = false;
+      const sheltered = !!W.map.camp && insideCamp(W.map.camp, p.x, p.z) && !insideCamp(W.map.camp, e.x, e.z);   // герой за частоколом: враг снаружи его теряет
+      if (sheltered) e.alert = false;
       const hops = roomHops(W.map, e.x, e.z, p.x, p.z);           // в подземелье слышно только через немного комнат
       const shut = hops > 0 && !!W.map.adj && !pathStep(W.map, e.x, e.z, p.x, p.z);   // запертая дверь глушит: к герою не пройти — не тревожится и не толпится у двери
       if (shut) e.alert = false;
-      if (!e.alert && !deep && !shut && hops <= W.cfg.dungeons.hearRooms && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
+      if (!e.alert && !deep && !shut && !sheltered && hops <= W.cfg.dungeons.hearRooms && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
       else if (e.alert && d > H.lose) e.alert = false;
       if (C.ai && foeAI(W, e, C, d, dx, dz, dt, hops === 0 && insideOf(W.map, e.x, e.z) === W.inside)) continue;   // особое поведение: щит, фитиль, рывок, тень
       const al = pickAlly(W, e, d);                                     // союзник ближе героя: враг бьёт его
@@ -400,7 +403,7 @@ function updateEnemies(W, dt) {
         continue;
       }
       e.tgt = 0;
-      if (!p.dead && !e.alert && d < H.lose && hops === 0) {          // не услышал: бредёт к герою вполсилы (в подземелье — только в той же комнате)
+      if (!p.dead && !e.alert && d < H.lose && hops === 0 && !sheltered) {          // не услышал: бредёт к герою вполсилы (в подземелье — только в той же комнате)
         const gx = dx / d * spd * H.drift * dt, gz = dz / d * spd * H.drift * dt; slide(W.map, e, gx, gz, C.radius);
       }
       if (!p.dead && e.alert) {
@@ -440,7 +443,7 @@ function updateEnemies(W, dt) {
       if (d < m && d > 1e-6) { const k = (m - d) / d; a.x += dx * k * .8; a.z += dz * k * .8; p.x -= dx * k * .2; p.z -= dz * k * .2; }
     }
   }
-  for (const e of live) resolve(W.map, e, E[e.type].radius);
+  for (const e of live) { resolve(W.map, e, E[e.type].radius); blockFoe(W.map, e, E[e.type].radius); }     // ворота лагеря для врагов закрыты
   resolve(W.map, p, W.cfg.player.radius);
   keepIn(W.map, p, W.cfg.world.radius);                         // расталкивание не выносит героя за границу
   W.enemies = W.enemies.filter(e => !(e.dead && e.deadT > .6));
@@ -470,7 +473,9 @@ function updateHouses(W, dt) {
   const M = W.cfg.map, p = W.player, live = W.enemies.filter(e => !e.dead);
   for (const b of W.map.buildings) {
     const d = b.door, r = M.doorReach;
-    const near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r) || W.allies.some(a => !a.dead && len(a.x - d.x, a.z - d.z) < r);
+    // боец открывает дверь, только если ему нужно в этот дом или из него (там он сам или герой) — иначе обходит дом снаружи, а не забредает внутрь
+    const inB = o => insideOf(W.map, o.x, o.z) === b.id, mine = inB(p);
+    const near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r) || W.allies.some(a => !a.dead && len(a.x - d.x, a.z - d.z) < r && (mine || inB(a)));
     d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
   }
   for (const d of W.map.doors || []) {      // двери подземелий: так же открываются, когда рядом кто-то есть

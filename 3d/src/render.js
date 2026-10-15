@@ -1,5 +1,5 @@
 // Сцена Three.js: мир, свет, камера, спецэффекты. Рисует в маленьком разрешении и растягивает без сглаживания.
-import { makeMap, propsBlocked } from './map.js';
+import { makeMap, propsBlocked, campGates } from './map.js';
 import { buildDecor } from './decor.js';
 import { buildTown } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
@@ -98,7 +98,29 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
   // герой и враги
   // виды уровней строятся при первом входе; поверхность прячется, пока герой внизу
-  const surfaceObjs = [dome, ground, town.group, decor.group, props, fire.group, ash, ...npcs.map(n => n.group)];
+  // частокол лагеря: брёвна по кругу одним мешем, у ворот — столбы с перекладиной и факелы
+  const palisade = new THREE.Group();
+  if (map.camp) {
+    const C = map.camp, logs = [], tops = [], rnd = mulberry32(cfg.world.seed + 9), gapA = (C.gateW / 2) / C.r, n = Math.ceil(2 * Math.PI * C.r / (C.step * .55));
+    for (let i = 0; i < n; i++) {
+      const a = i / n * 2 * Math.PI;
+      if (C.gates.some(g => { let d = Math.abs(a - g * Math.PI / 180) % (2 * Math.PI); if (d > Math.PI) d = 2 * Math.PI - d; return d < gapA; })) continue;
+      const h = C.h * (.85 + rnd() * .3), x = C.x + Math.sin(a) * C.r, z = C.z + Math.cos(a) * C.r;
+      logs.push(new THREE.BoxGeometry(.38, h, .38).translate(0, h / 2, 0).rotateY(a).translate(x, 0, z));
+      tops.push(new THREE.ConeGeometry(.24, .4, 4).translate(0, h + .2, 0).rotateY(a).translate(x, 0, z));
+    }
+    const ring = []; for (const y of [.6, 1.6]) for (let i = 0; i < n; i += 2) { const a = i / n * 2 * Math.PI; if (C.gates.some(g => { let d = Math.abs(a - g * Math.PI / 180) % (2 * Math.PI); if (d > Math.PI) d = 2 * Math.PI - d; return d < gapA + .05; })) continue; ring.push(new THREE.BoxGeometry(.9, .1, .44).translate(0, y, 0).rotateY(a + Math.PI / 2).translate(C.x + Math.sin(a) * C.r, 0, C.z + Math.cos(a) * C.r)); }
+    palisade.add(new THREE.Mesh(mergeGeometries(logs), new THREE.MeshLambertMaterial({ color: '#5a3e26' })), new THREE.Mesh(mergeGeometries(tops), new THREE.MeshLambertMaterial({ color: '#3e2a18' })), new THREE.Mesh(mergeGeometries(ring), new THREE.MeshLambertMaterial({ color: '#2e2016' })));
+    const posts = [], beams = [], flames = [];
+    for (const g of campGates(C)) {
+      const a = g.a * Math.PI / 180, w = C.gateW / 2 + .2, tx = Math.cos(a), tz = -Math.sin(a);       // вдоль частокола
+      for (const s of [-1, 1]) { const px = g.x + tx * w * s, pz = g.z + tz * w * s; posts.push(new THREE.BoxGeometry(.6, C.h + 1.2, .6).translate(px, (C.h + 1.2) / 2, pz)); flames.push(new THREE.BoxGeometry(.22, .3, .22).translate(px, C.h + 1.45, pz)); }
+      beams.push(new THREE.BoxGeometry(C.gateW + 1.2, .4, .5).rotateY(a + Math.PI / 2).translate(g.x, C.h + .9, g.z));
+    }
+    palisade.add(new THREE.Mesh(mergeGeometries(posts), new THREE.MeshLambertMaterial({ color: '#4a3220' })), new THREE.Mesh(mergeGeometries(beams), new THREE.MeshLambertMaterial({ color: '#3a2618' })), new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })));
+    scene.add(palisade);
+  }
+  const surfaceObjs = [dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   function showLevel(W) {
     const id = W.lvl, L = W.levels[id];

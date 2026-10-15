@@ -1,6 +1,7 @@
 // Мир вокруг домов: дороги, кладбище, ферма, рынок, руины, лагерь, фонари. Чистая геометрия (Node-тесты).
 // Результат: decor — список предметов для рендера, solids — круги, о которые спотыкаются, spots — дополнительные контейнеры.
 
+import { campOf, campGates, insideCamp } from './map.js';
 const TAU = Math.PI * 2;
 export function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
@@ -18,14 +19,23 @@ export function genWorld(cfg, buildings) {
   const solid = (t, x, z, r, extra = {}) => { if (blocksDoor(x, z, r)) return false; put(t, x, z, extra); solids.push({ x, z, r }); return true; };
   const ring = (x, z, r, n, f) => { for (let i = 0; i < n; i++) { const a = rnd() * TAU, d = Math.sqrt(rnd()) * r; f(x + Math.cos(a) * d, z + Math.sin(a) * d, i); } };
 
-  // дороги: от костра к двери каждого здания (кроме самых дальних лачуг — те к ближайшему соседу)
-  for (const b of buildings) roads.push([{ x: 0, z: 0 }, { x: b.door.out.x, z: b.door.out.z }]);
+  // дороги: от костра к двери каждого здания; к домам за частоколом лагеря — через ближайшие ворота
+  const camp = campOf(cfg), gates = camp ? campGates(camp) : [], used = new Set();
+  for (const b of buildings) {
+    const o = b.door.out;
+    if (!camp || insideCamp(camp, o.x, o.z)) { roads.push([{ x: 0, z: 0 }, { x: o.x, z: o.z }]); continue; }
+    const g = gates.reduce((a, q) => (Math.hypot(q.x - o.x, q.z - o.z) < Math.hypot(a.x - o.x, a.z - o.z) ? q : a));
+    const r = g.a * Math.PI / 180, gx = camp.x + Math.sin(r) * (camp.r + camp.roadOut), gz = camp.z + Math.cos(r) * (camp.r + camp.roadOut);     // из ворот — прямо наружу, потом к дому: дорога не срезает частокол
+    if (!used.has(g.a)) { used.add(g.a); roads.push([{ x: 0, z: 0 }, { x: g.x, z: g.z }], [{ x: g.x, z: g.z }, { x: gx, z: gz }]); }
+    roads.push([{ x: gx, z: gz }, { x: o.x, z: o.z }]);
+  }
+  const nearWall = (x, z) => camp && Math.abs(Math.hypot(x - camp.x, z - camp.z) - camp.r) < 2;
   // фонари вдоль дорог через каждые ~11 м (только вблизи центра), не на домах
   for (const [a, b] of roads) {
     const L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.floor(L / 11);
     for (let i = 1; i <= n; i++) {
       const k = i * 11 / L, nx = -(b.z - a.z) / L, nz = (b.x - a.x) / L, x = a.x + (b.x - a.x) * k + nx * 1.8, z = a.z + (b.z - a.z) * k + nz * 1.8;
-      if (L > 14 && !inBuilding(x, z, 1.5) && !decor.some(d => d.t === 'lamp' && Math.hypot(d.x - x, d.z - z) < 7)) put('lamp', x, z);
+      if (L > 14 && !inBuilding(x, z, 1.5) && !nearWall(x, z) && !decor.some(d => d.t === 'lamp' && Math.hypot(d.x - x, d.z - z) < 7)) put('lamp', x, z);
     }
   }
 

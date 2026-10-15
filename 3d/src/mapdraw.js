@@ -29,6 +29,16 @@ export function drawMap(ctx, W, v) {
   for (const [a, b] of M.roads) { ctx.beginPath(); ctx.moveTo(X(a.x), Y(a.z)); ctx.lineTo(X(b.x), Y(b.z)); ctx.stroke(); }
   // здания
   for (const b of M.buildings) { ctx.fillStyle = KIND[b.kind] || KIND.house; ctx.fillRect(X(b.x0), Y(b.z0), Math.max(2, b.w * sc), Math.max(2, b.d * sc)); }
+  // частокол лагеря: кольцо с проёмами ворот
+  if (M.camp) {
+    const C = M.camp, gapA = (C.gateW / 2) / C.r; ctx.strokeStyle = '#a07a4a'; ctx.lineWidth = Math.max(1.5, sc * .6);
+    const gs = C.gates.map(g => g * Math.PI / 180).sort((a, b) => a - b);
+    for (let i = 0; i < gs.length; i++) {
+      const a0 = gs[i] + gapA, a1 = (i + 1 < gs.length ? gs[i + 1] : gs[0] + 2 * Math.PI) - gapA; ctx.beginPath();
+      for (let k = 0; k <= 24; k++) { const a = a0 + (a1 - a0) * k / 24, x = X(C.x + Math.sin(a) * C.r), y = Y(C.z + Math.cos(a) * C.r); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+      ctx.stroke();
+    }
+  }
   // костёр
   ctx.fillStyle = '#ff7a30'; ctx.beginPath(); ctx.arc(X(0), Y(0), Math.max(2, sc * .9), 0, 6.2832); ctx.fill();
   // торговцы и прочие NPC

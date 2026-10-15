@@ -6,7 +6,7 @@ import { equipAt, unequip, serialize, deserialize, addItem, gearStats } from '..
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0;
 const W = createWorld(cfg, mulberry32(7)); W.player.inv = 1e9;
-const shopB = W.map.buildings.find(b => b.npc); ok(shopB && shopB.kind === 'shop', 'в мире нет лавки с торговцем');
+const shopB = W.map.buildings.find(b => b.npc && b.npc.kind === 'merchant'); ok(shopB && shopB.kind === 'shop', 'в мире нет лавки с торговцем');
 // нет арбитража: купить дороже, чем продать, у любой вещи
 for (const it of CATALOG) ok(buyPrice(it, cfg) > sellPrice(it, cfg), 'арбитраж ' + it.id);
 ok(W.shop.stock.length >= 8 && ['p_heal1', 'key_rust', 'f_rye'].every(id => W.shop.stock.some(s => s.id === id)), 'витрина пуста или без базовых товаров: ' + W.shop.stock.length);

@@ -5,6 +5,8 @@ import { insideOf } from '../3d/src/map.js';
 import { loadSave, createSaver } from '../3d/src/save3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const mk = (seed = 1, f) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; if (f) f(cfg); return createWorld(cfg, mulberry32(seed)); };
+// собрать отряд у героя: капитан теперь в лагере, ближе поводка, и бойцы сами за перенесённым героем не телепортируются
+const gather = W => { W.allies.forEach((a, i) => { a.x = W.player.x + 1.2 + i * .8; a.z = W.player.z + 1; }); };
 const atCaptain = W => { const b = W.map.buildings.find(b => b.npc && b.npc.kind === 'captain'); W.player.x = b.npc.x + 1; W.player.z = b.npc.z; W.player.inv = 1e9; step(W, 1 / 60, {}); return b; };
 const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i++) step(W, 1 / 60, inp); };
 
@@ -19,18 +21,18 @@ const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i+
   ok(hireAlly(W, 'soldier') === 'ok' && hireAlly(W, 'veteran') === 'ok', 'второй и третий'); ok(hireAlly(W, 'guard') === 'full', 'отряд переполнен');
   const id = W.allies[0].id; ok(dismissAlly(W, id) && W.allies.length === 2 && !dismissAlly(W, id), 'увольнение'); ok(hireAlly(W, 'guard') === 'ok', 'место освободилось'); }
 // следование: идут за героем, догоняют, телепорт при отрыве
-{ const W = mk(3); W.lv = 16; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'guard'); hireAlly(W, 'soldier'); W.player.x = 0; W.player.z = 10;
+{ const W = mk(3); W.lv = 16; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'guard'); hireAlly(W, 'soldier'); W.player.x = 0; W.player.z = 10; gather(W);
   run(W, 3, { mz: -1 }); const d = a => Math.hypot(a.x - W.player.x, a.z - W.player.z); ok(W.allies.every(a => d(a) < 7), 'бойцы отстали: ' + W.allies.map(d).map(x => x.toFixed(1)));
   run(W, 3); ok(W.allies.every(a => d(a) < 5), 'бойцы не подошли к стоящему герою');
   W.player.x = -60; W.player.z = 0; run(W, .5); ok(W.allies.every(a => d(a) < 8), 'бойцы не телепортировались при отрыве');
   ok(W.allies.every(a => !(W.map.walls.some(w => Math.hypot(Math.max(w.x0, Math.min(w.x1, a.x)) - a.x, Math.max(w.z0, Math.min(w.z1, a.z)) - a.z) < .3))), 'боец застрял в стене'); }
 // бой: бойцы убивают врагов, опыт и добыча идут герою
-{ const W = mk(4); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'veteran'); W.player.x = 0; W.player.z = 10; run(W, 1);
+{ const W = mk(4); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'veteran'); W.player.x = 0; W.player.z = 10; gather(W); run(W, 1);
   const e = spawnEnemy(W, 'imp', 6, 10); e.alert = false; e.cd = 99; const xp0 = W.xp + W.lv * 1e4; run(W, 5);
   ok(e.dead && W.kills === 1, 'боец не убил беса'); ok(W.xp + W.lv * 1e4 > xp0, 'опыт за убийство бойца не получен'); }
-{ let drops = 0; for (let sd = 0; sd < 40; sd++) { const W = mk(200 + sd); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'veteran'); W.player.x = 0; W.player.z = 10; run(W, 1); const e = spawnEnemy(W, 'brute', 5, 10); e.alert = false; e.cd = 99; e.hp = 5; run(W, 3); drops += W.drops.length + W.inv.bag.length; } ok(drops > 15, 'добыча с убитых бойцами не выпадает: ' + drops); }
+{ let drops = 0; for (let sd = 0; sd < 40; sd++) { const W = mk(200 + sd); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'veteran'); W.player.x = 0; W.player.z = 10; gather(W); run(W, 1); const e = spawnEnemy(W, 'brute', 5, 10); e.alert = false; e.cd = 99; e.hp = 5; run(W, 3); drops += W.drops.length + W.inv.bag.length; } ok(drops > 15, 'добыча с убитых бойцами не выпадает: ' + drops); }
 // враги бьют бойцов, боец может погибнуть
-{ const W = mk(5); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'guard'); W.player.x = 0; W.player.z = 10; W.player.inv = 1e9; run(W, 1);
+{ const W = mk(5); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'guard'); W.player.x = 0; W.player.z = 10; gather(W); W.player.inv = 1e9; run(W, 1);
   for (let i = 0; i < 4; i++) { const e = spawnEnemy(W, 'brute', 3 + i, 12); e.alert = true; e.hp = e.maxhp = 9999; }
   let hurt = false, dead = false; for (let i = 0; i < 60 * 25 && !dead; i++) { step(W, 1 / 60, {}); if (W.ev.some(v => v.k === 'allyhurt')) hurt = true; if (W.ev.some(v => v.k === 'allydead')) dead = true; W.ev.length = 0; }
   ok(hurt, 'враги не бьют бойца'); ok(dead, 'боец должен был погибнуть под четырьмя рогачами'); run(W, 2); ok(!W.allies.length, 'мёртвый боец не убран'); }

@@ -79,6 +79,11 @@ try {
   if ((await ev(() => window.__b3d.W.lvl)) !== 'surface') bad('E у лестницы не поднимает');
   await ev(() => { const p = window.__b3d.W.player; p.x = 0; p.z = 4; }); await safe();
 
+  // закрытый лагерь: частокол и ворота
+  await ev(() => { const b = window.__b3d, C = b.cfg.camp, p = b.W.player; p.x = C.x + C.r - 6; p.z = C.z + 3; p.face = Math.PI / 2; });
+  await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-desk-camp.png') });
+  if (!(await ev(() => !!window.__b3d.W.map.camp && window.__b3d.W.map.blocks.length > 100))) bad('нет частокола лагеря');
+  await ev(() => { const p = window.__b3d.W.player; p.x = 0; p.z = 4; });
   // окна: M — карта, I — сумка, N — навыки, Esc — закрыть, Esc на пустом месте — меню с клавишами
   await page.keyboard.press('KeyM'); await page.waitForTimeout(250);
   if (!(await shown('map'))) bad('M не открыла карту');

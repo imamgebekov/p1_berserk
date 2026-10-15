@@ -32,16 +32,16 @@ export const CFG3 = {
     buildings: [
       // деревня вокруг костра
       { x: -14, z: -6,  w: 8,  d: 6, door: 'e', kind: 'house',     chests: ['chest', 'wardrobe'] },
-      { x: 13,  z: -10, w: 7,  d: 6, door: 'w', kind: 'house',     chests: ['coffer', 'crate'] },
+      { x: 13,  z: -10, w: 7,  d: 6, door: 'w', kind: 'smithy',    chests: ['coffer', 'crate'], npc: 'smith' },      // кузнец переехал в лагерь
       { x: -4,  z: -20, w: 9,  d: 6, door: 's', kind: 'house',     chests: ['ironchest', 'rack', 'barrel'] },
-      { x: 20,  z: 6,   w: 6,  d: 7, door: 'w', kind: 'house',     chests: ['sack', 'chest'] },
+      { x: 20,  z: 6,   w: 6,  d: 7, door: 'w', kind: 'barracks',  chests: ['sack', 'chest'], npc: 'captain' },     // и капитан
       { x: -18, z: 14,  w: 7,  d: 7, door: 'e', kind: 'house',     chests: ['locked', 'shelf'] },
       { x: 6,   z: 24,  w: 8,  d: 6, door: 'n', kind: 'house',     chests: ['medchest', 'crate', 'barrel'] },
       { x: -8,  z: 9,   w: 7,  d: 6, door: 'e', kind: 'shop',      chests: ['crate', 'coffer'], npc: 'merchant' },
-      { x: -28, z: 30,  w: 9,  d: 7, door: 'n', kind: 'smithy',    chests: ['smithchest', 'smithchest', 'rack', 'ironchest'], npc: 'smith' },
+      { x: -28, z: 30,  w: 9,  d: 7, door: 'n', kind: 'smithy',    chests: ['smithchest', 'smithchest', 'rack', 'ironchest'] },     // старая кузница
       { x: 28,  z: -26, w: 12, d: 8, door: 'w', kind: 'tavern',    chests: ['barrel', 'barrel', 'crate', 'chest'] },
       { x: -34, z: -20, w: 7,  d: 11, door: 's', kind: 'chapel',   chests: ['altar', 'shelf', 'coffer'] },
-      { x: 48,  z: 8,   w: 11, d: 7, door: 'w', kind: 'barracks',  chests: ['rack', 'rack', 'armorstand', 'ironchest'], npc: 'captain' },
+      { x: 48,  z: 8,   w: 11, d: 7, door: 'w', kind: 'barracks',  chests: ['rack', 'rack', 'armorstand', 'ironchest'] },     // старая застава
       { x: 30,  z: 40,  w: 10, d: 8, door: 'n', kind: 'warehouse', chests: ['crate', 'crate', 'barrel', 'locked'] },
       { x: 36,  z: -8,  w: 6,  d: 6, door: 'w', kind: 'house',     chests: ['cache', 'corpse'] },
       { x: -36, z: 2,   w: 6,  d: 6, door: 'e', kind: 'house',     chests: ['ironchest', 'armorstand'] },
@@ -99,8 +99,9 @@ export const CFG3 = {
         phases: [{ at: .66, summon: { type: 'hound', n: 3 } }, { at: .33, summon: { type: 'hound', n: 4 } }, { at: .3, enrage: true }] }
     ]
   },
-  // подземелья и погреба: отдельные уровни со своей картой, врагами и туманом. at — люк на поверхности; rooms — комнаты (центр x, z и размеры w, d)
-  // в локальных координатах уровня; back — где герой встаёт наверху, выйдя из погреба; entry — где появляется герой; exit — лестница наверх; depth 0–1 — «глубина» для добычи и силы врагов
+  // закрытый лагерь: частокол по кругу (центр x, z, радиус r) вокруг места place; gates — ворота (угол, град: 0 — юг +z, 90 — восток +x, 180 — север, 270 — запад).
+  // Внутри не рождаются враги; ворота для врагов закрыты (полоса глубиной foeDepth), для героя и отряда открыты. Нет места place в map.places — нет и лагеря (тесты чистого боя)
+  camp: { place: 'brod', x: 0, z: 2, r: 30, wall: .7, step: .8, h: 2.4, gates: [0, 90, 180, 270], gateW: 5, foeDepth: 2.5, spawnPad: 3, roadOut: 7 },     // roadOut — на сколько дорога выходит из ворот прямо, м
   // подземелья и погреба: отдельные уровни со своей картой, врагами и туманом. at — люк на поверхности; back — где герой встаёт наверху, выйдя наружу;
   // rooms — комнаты и коридоры: прямоугольники пола (центр x, z и размеры w, d) в локальных координатах уровня; где прямоугольники касаются — проход;
   // doors — двери в проходах между комнатами a и b; entry — где появляется герой; exit — лестница наверх; depth 0–1 — «глубина» для добычи и силы врагов;

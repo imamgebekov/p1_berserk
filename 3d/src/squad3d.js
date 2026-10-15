@@ -1,7 +1,7 @@
 // Отряд: найм, бой, следование и лечение союзников.
 import { len, clamp, rr } from './util3d.js';
 import { questEvent } from './quests3d.js';
-import { insideOf, resolve, slide, pathStep, roomHops } from './map.js';
+import { insideOf, resolve, slide, pathStep, roomHops, insideCamp, campGates } from './map.js';
 import { killEnemy } from './sim.js';
 
 // ---- отряд ----
@@ -36,6 +36,34 @@ export function restoreAllies(W, list) {
   W.allies.length = 0;
   for (const s of Array.isArray(list) ? list : []) { if (liveAllies(W).length >= squadMax(W)) break; const T = s && W.cfg.squad.types[s.type]; if (T) spawnAlly(W, s.type, clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : T.hp, 1, T.hp)); }
 }
+// дом на пути: боец в другом доме, чем герой (или снаружи, когда герой внутри), — идёт через дверь, как враги
+function doorGoal(W, a, p) {
+  const ia = insideOf(W.map, a.x, a.z), ip = insideOf(W.map, p.x, p.z); if (ia === ip) return null;
+  const near = (u, v) => len(u.x - v.x, u.z - v.z) < 1.2;
+  if (ia >= 0) { const dr = W.map.buildings[ia].door; return near(a, dr.in) ? dr.out : dr.in; }
+  const dr = W.map.buildings[ip].door; return near(a, dr.out) ? dr.in : dr.out;
+}
+// шаг с обходом: упёрся (продвинулся меньше трети шага) — пробует свернуть на 45° и 90°, сначала в ту же сторону, что в прошлый раз
+function steer(W, a, ux, uz, dist) {
+  const x0 = a.x, z0 = a.z;
+  slide(W.map, a, ux * dist, uz * dist, .45);
+  if (len(a.x - x0, a.z - z0) >= dist * .35 || dist < 1e-4) return;
+  const side = a.side || 1;
+  for (const k of [side * .8, -side * .8, side * 1.6, -side * 1.6]) {
+    a.x = x0; a.z = z0; const c = Math.cos(k), s = Math.sin(k);
+    slide(W.map, a, (ux * c + uz * s) * dist, (-ux * s + uz * c) * dist, .45);
+    if (len(a.x - x0, a.z - z0) >= dist * .5) { a.side = Math.sign(k); return; }
+  }
+}
+// частокол лагеря: боец и герой по разные стороны — через удобные ворота (сначала к точке перед проёмом, потом за него)
+function campGoal(W, a, p) {
+  const C = W.map.camp; if (!C) return null;
+  const ia = insideCamp(C, a.x, a.z), ip = insideCamp(C, p.x, p.z); if (ia === ip) return null;
+  const g = campGates(C).reduce((b, q) => (len(q.x - a.x, q.z - a.z) + len(q.x - p.x, q.z - p.z) < len(b.x - a.x, b.z - a.z) + len(b.x - p.x, b.z - p.z) ? q : b));
+  const nx = (g.x - C.x) / C.r, nz = (g.z - C.z) / C.r, s = ia ? 1 : -1, before = { x: g.x - nx * 2 * s, z: g.z - nz * 2 * s }, past = { x: g.x + nx * 2.5 * s, z: g.z + nz * 2.5 * s };
+  const along = Math.abs((a.x - g.x) * -nz + (a.z - g.z) * nx);          // насколько боец в стороне от оси ворот
+  return along < C.gateW / 2 - .6 && len(a.x - g.x, a.z - g.z) < 3 ? past : before;
+}
 export function updateAllies(W, dt) {
   const S = W.cfg.squad, p = W.player, live = liveAllies(W), enemies = W.enemies.filter(e => !e.dead);
   for (let i = W.allies.length - 1; i >= 0; i--) { const a = W.allies[i]; if (a.dead) { a.deadT += dt; if (a.deadT > 1.4) W.allies.splice(i, 1); } }
@@ -63,20 +91,21 @@ export function updateAllies(W, dt) {
     else if (tgt) {
       const C = W.cfg.enemies[tgt.type], dx = tgt.x - a.x, dz = tgt.z - a.z, d = len(dx, dz) || 1e-6;
       const wp = pathStep(W.map, a.x, a.z, tgt.x, tgt.z);       // цель в соседней комнате: через проход
-      if (wp) { const wx = wp.x - a.x, wz = wp.z - a.z, wd = len(wx, wz) || 1e-6; a.face = Math.atan2(wx, wz); slide(W.map, a, wx / wd * T.speed * dt, wz / wd * T.speed * dt, .45); }
+      if (wp) { const wx = wp.x - a.x, wz = wp.z - a.z, wd = len(wx, wz) || 1e-6; a.face = Math.atan2(wx, wz); steer(W, a, wx / wd, wz / wd, T.speed * dt); }
       else {
         a.face = Math.atan2(dx, dz);
-        if (d > T.range + C.radius * .5) slide(W.map, a, dx / d * T.speed * dt, dz / d * T.speed * dt, .45);
+        if (d > T.range + C.radius * .5) steer(W, a, dx / d, dz / d, T.speed * dt);
         else { a.state = 'wind'; a.t = 0; a.tg = tgt; }
       }
     } else {
       // идти за героем: позиция в строю позади него
       const n = live.length, ang = p.face + Math.PI + (idx - (n - 1) / 2) * .95, r = S.follow + (idx % 2) * .8;
       const sx = p.x + Math.sin(ang) * r, sz = p.z + Math.cos(ang) * r, dx = sx - a.x, dz = sz - a.z, d = len(dx, dz);
-      const wp = pathStep(W.map, a.x, a.z, p.x, p.z);     // в подземелье герой в другой комнате: идти через проходы
+      const inHouse = insideOf(W.map, a.x, a.z) >= 0;
+      const wp = pathStep(W.map, a.x, a.z, p.x, p.z) || (inHouse && doorGoal(W, a, p)) || campGoal(W, a, p) || doorGoal(W, a, p);     // подземелье — проходы; наверху — выйти из дома, ворота лагеря, дверь дома героя
       if (len(p.x - a.x, p.z - a.z) > S.leash) { a.x = sx; a.z = sz; resolve(W.map, a, .45); }
-      else if (wp) { const wx = wp.x - a.x, wz = wp.z - a.z, wd = len(wx, wz) || 1e-6; a.face = Math.atan2(wx, wz); slide(W.map, a, wx / wd * T.speed * 1.5 * dt, wz / wd * T.speed * 1.5 * dt, .45); }
-      else if (d > .9) { const sp = T.speed * (d > 6 ? 1.5 : 1); a.face = Math.atan2(dx, dz); slide(W.map, a, dx / d * sp * dt, dz / d * sp * dt, .45); }
+      else if (wp) { const wx = wp.x - a.x, wz = wp.z - a.z, wd = len(wx, wz) || 1e-6; a.face = Math.atan2(wx, wz); steer(W, a, wx / wd, wz / wd, T.speed * 1.5 * dt); }
+      else if (d > .9) { const sp = T.speed * (d > 6 ? 1.5 : 1); a.face = Math.atan2(dx, dz); steer(W, a, dx / d, dz / d, sp * dt); }
       // восстановление: вне боя понемногу, у костра быстро
       if (a.calm <= 0 && a.hp < a.maxhp) a.hp = Math.min(a.maxhp, a.hp + (W.lvl === 'surface' && len(a.x, a.z) < W.cfg.player.fire.radius ? S.fireRegen : S.regen) * dt);
     }
