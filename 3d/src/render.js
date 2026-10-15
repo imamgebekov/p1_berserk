@@ -6,6 +6,7 @@ import { buildLevelView, buildSurfaceView } from './levelview.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
+import { heroOf } from './data/heroes3d.js';
 import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul } from './ambient3d.js';
 import { mulberry32 } from './sim.js';
 import { questMark } from './quests3d.js';
@@ -144,7 +145,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (!up) { scene.fog.color.set('#070504'); scene.background.set('#070504'); hemi.color.set('#6a5a50'); hemi.groundColor.set('#1a1210'); hemi.intensity = .9; }
     lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts; fx.clear();
   }
-  const hero = makeHero(); scene.add(hero.group);
+  const hero = makeHero(); scene.add(hero.group); let heroLook = null;
   // кольцо заряда тяжёлого удара под героем: растёт с зарядом, при полном — оранжевое и пульсирует
   const chargeRing = new THREE.Mesh(new THREE.RingGeometry(.82, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffd9c0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
   chargeRing.visible = false; scene.add(chargeRing);
@@ -346,6 +347,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     camera.lookAt(cam.x, cfg.view.camLookUp, cam.z);
     if (W.lvl !== shownLvl) showLevel(W);
     const under = W.lvl !== 'surface';
+    if (W.hero !== heroLook) { heroLook = W.hero; hero.setLook(heroOf(W.hero).look); }
     scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1);     // на рассвете туман гуще
     if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
     else if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток

@@ -25,7 +25,7 @@ try {
   const page = await ctx.newPage(); page.setDefaultTimeout(8000);
   page.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push(m.type() + ': ' + m.text()); });
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
-  await page.goto(url + '?shot'); await page.waitForTimeout(1500);
+  await page.goto(url + '?shot&hero=thorn'); await page.waitForTimeout(1500);
 
   const st = () => page.evaluate(() => { const W = window.__b3d.W, p = W.player; return { x: p.x, z: p.z, hp: p.hp, kills: W.kills, en: W.enemies.filter(e => !e.dead).length, t: W.t, state: p.state }; });
   if (await page.evaluate(() => !document.getElementById('nogl').hidden)) bad('WebGL не поднялся');

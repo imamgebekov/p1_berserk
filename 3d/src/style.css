@@ -206,3 +206,15 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 #bagFill{position:absolute;right:-6px;bottom:-7px;min-width:30px;padding:1px 4px;border-radius:8px;background:#1d1413;border:1.5px solid var(--line);font-size:10.5px;font-weight:700;line-height:1.2;color:var(--ink);pointer-events:none;font-variant-numeric:tabular-nums}
 #bagFill.warn{color:#ffd27a;border-color:#c8a040}#bagFill.full{color:#fff;background:#a01820;border-color:#000}
 
+
+/* выбор героя (B1) */
+#heroPick{overflow:auto;justify-content:flex-start;padding-top:calc(24px + env(safe-area-inset-top))}
+#heroPick h2{margin:0;font-size:22px}
+#heroCards{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:980px}
+.hcard{width:280px;max-width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px;background:#1b1211;border:2px solid var(--line);border-radius:12px;text-align:center}
+.hcard canvas{width:96px;height:96px;image-rendering:pixelated;image-rendering:crisp-edges}
+.hcard .nm{font-size:18px;font-weight:700}.hcard .role{font-size:13px;color:#e8c04a}.hcard .txt{font-size:13px;opacity:.8;line-height:1.3}
+.hcard .wk{font-size:12px;opacity:.65;line-height:1.3}
+.hcard button{min-height:44px;min-width:160px;margin-top:4px;padding:0 18px;background:#241514;border:2px solid var(--line);border-radius:10px;font-weight:600}
+.hcard.shut{opacity:.55}.hcard.shut button{pointer-events:none}
+.tile.nw{opacity:.55}.tile .bt.no{color:#e05040}

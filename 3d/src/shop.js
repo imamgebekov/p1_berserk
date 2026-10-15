@@ -1,6 +1,7 @@
 // Окно торговли: «Купить» (витрина) и «Продать» (сумка). Продавать можно только рядом с торговцем.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, statLine } from './data/items.js';
 import { betterThanWorn, nameOf } from './inv.js';
+import { canWield, NOT_FOR } from './data/heroes3d.js';
 import { RECIPES } from './data/recipes3d.js';
 import { TOME_BY_ID } from './data/tomes3d.js';
 import { craft, craftStatus, missing, recipeKnown } from './craft3d.js';
@@ -30,7 +31,7 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     junkBtn.hidden = tab !== 'sell';
     listEl.textContent = '';
     if (tab === 'buy') {
-      sh.stock.forEach((s, i) => { const it = BY_ID[s.id], price = buyPrice(it, cfg, mul); listEl.appendChild(row(it, s.n, it.stats ? statLine(it) : it.text || '', price, 'Купить', () => { const r = buyItem(W, i); if (r === 'closed') flash('Торговец спит до рассвета'); else if (r === 'ash') flash('Не хватает пепла'); else if (r === 'full') flash('Сумка полна'); else if (r === 'far') flash('Подойдите к торговцу'); }, W.inv.ash >= price, betterThanWorn(W.inv, it) ? '▲' : '')); });
+      sh.stock.forEach((s, i) => { const it = BY_ID[s.id], price = buyPrice(it, cfg, mul); listEl.appendChild(row(it, s.n, (canWield(W.hero, it) ? '' : NOT_FOR[W.hero] + ' · ') + (it.stats ? statLine(it) : it.text || ''), price, 'Купить', () => { const r = buyItem(W, i); if (r === 'closed') flash('Торговец спит до рассвета'); else if (r === 'ash') flash('Не хватает пепла'); else if (r === 'full') flash('Сумка полна'); else if (r === 'far') flash('Подойдите к торговцу'); }, W.inv.ash >= price, canWield(W.hero, it) && betterThanWorn(W.inv, it) ? '▲' : '')); });
       if (!sh.stock.length) listEl.appendChild(el('div', 'emptyl', wand ? 'Всё раскуплено. Сказочный торговец скоро уедет.' : 'Всё раскуплено. Витрина обновится позже.'));
     } else {
       const rows = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).sort((a, b) => b.it.rar - a.it.rar || a.it.name.localeCompare(b.it.name, 'ru'));

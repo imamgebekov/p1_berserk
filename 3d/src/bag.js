@@ -1,6 +1,7 @@
 // Сумка и экипировка: окно с надетым, списком вещей, карточкой вещи и действиями.
-import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine } from './data/items.js';
+import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine, KIND_NAME } from './data/items.js';
 import { betterThanWorn, equipAt, unequip, scoreUp, nameOf, SET_OF, setCounts, bonusText, statDiff } from './inv.js';
+import { canWield, heroOf, NOT_FOR } from './data/heroes3d.js';
 import { iconURL, slotIconURL } from './itemicons.js';
 import { PERKS } from './data/weapons3d.js';
 import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots } from './sim.js';
@@ -57,7 +58,9 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       }
       cardEl.appendChild(g);
     }
-    if (it.slot && sel.from === 'bag') {
+    const mine = canWield(W.hero, it);
+    if (!mine) cardEl.appendChild(el('div', 'cmp down', `${NOT_FOR[W.hero]}: ${heroOf(W.hero).name} держит ${heroOf(W.hero).kinds.map(k => KIND_NAME[k]).join(', ')}. Можно продать торговцу.`));
+    if (it.slot && sel.from === 'bag' && mine) {
       const cur = W.inv.eq[it.slot], c = cur && BY_ID[cur];
       if (c) { const d = Math.round(scoreUp(it, up, cfg.smith.bonus) - scoreUp(c, W.inv.up[it.slot] || 0, cfg.smith.bonus)); cardEl.appendChild(el('div', 'cmp ' + (d > 0 ? 'up' : d < 0 ? 'down' : ''), `Надето: ${c.name} — в целом ${d > 0 ? 'лучше на ' + d : d < 0 ? 'хуже на ' + -d : 'так же'}`)); }
       else cardEl.appendChild(el('div', 'cmp up', 'Слот пуст'));
@@ -76,7 +79,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     const btn = (label, fn, cls) => { const b = el('button', cls || '', label); b.type = 'button'; b.addEventListener('click', () => { fn(); render(); onChange && onChange(); }); row.appendChild(b); };
     if (sel.from === 'eq') btn('Снять', () => { if (!unequip(W.inv, sel.slot, bagSlots(W))) flash('Сумка полна'); else sel = null; }, 'main');
     else {
-      if (it.slot) btn('Надеть', () => { equipAt(W.inv, sel.i); sel = null; }, 'main');
+      if (it.slot && mine) btn('Надеть', () => { if (equipAt(W.inv, sel.i, W.hero)) sel = null; }, 'main');
       if (it.cat === 'tome') btn('Прочитать', () => { const r = readTome(W, sel.i); if (r === 'known') flash('Эта книга уже прочитана'); else sel = null; }, 'main');
       if (it.use) btn('Использовать', () => { if (!useItem(W, sel.i)) flash('Сейчас не нужно'); else if (!W.inv.bag[sel.i] || W.inv.bag[sel.i].id !== it.id) sel = null; }, 'main');
       btn(`Продать · ${sellPrice(it, cfg, up, W.gear.trade) * n}`, () => { if (sellItem(W, sel.i, n) === 'far') flash('Продавать можно только у торговца'); else sel = null; });
@@ -113,8 +116,9 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       b.append(icon(r.it));
       if (r.s.n > 1) b.append(el('span', 'cnt', '×' + r.s.n));
       if (r.s.up) b.append(el('span', 'upg', '+' + r.s.up));
-      if (betterThanWorn(W.inv, r.it)) b.append(el('span', 'bt', '▲'));
-      b.title = nameOf(r.it.id, r.s.up || 0) + (r.s.n > 1 ? ' ×' + r.s.n : '') + (r.it.stats ? ' — ' + statLine(r.it) : '');
+      const mine = canWield(W.hero, r.it);
+      if (!mine) { b.classList.add('nw'); b.append(el('span', 'bt no', '✕')); } else if (betterThanWorn(W.inv, r.it)) b.append(el('span', 'bt', '▲'));
+      b.title = nameOf(r.it.id, r.s.up || 0) + (r.s.n > 1 ? ' ×' + r.s.n : '') + (r.it.stats ? ' — ' + statLine(r.it) : '') + (mine ? '' : ' — ' + NOT_FOR[W.hero]);
       b.setAttribute('aria-label', b.title);
       b.addEventListener('click', () => { sel = { from: 'bag', i: r.i }; render(); });
       listEl.appendChild(b);

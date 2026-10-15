@@ -77,7 +77,7 @@ for (const def of D.list) {
   W.keys.cellar_cooper = true; W.keys.crypt_iron = true; W.levels.cellar_cooper.map.doors.find(d => d.lock).locked = false;
   sv.write(true);
   const d = JSON.parse(st.o['berserk3d.save']);
-  ok(d.v === 2 && d.keys.includes('crypt_iron') && d.unlocked.cellar_cooper.length === 1, 'в сохранении нет ключей или отпертой двери: ' + JSON.stringify({ v: d.v, keys: d.keys, u: d.unlocked }));
+  ok(d.v >= 2 && d.keys.includes('crypt_iron') && d.unlocked.cellar_cooper.length === 1, 'в сохранении нет ключей или отпертой двери: ' + JSON.stringify({ v: d.v, keys: d.keys, u: d.unlocked }));
   const s = loadSave(CFG3.bag.slots, st), W2 = mk(4); applyDungeonState(W2, s);
   ok(W2.keys.cellar_cooper && W2.keys.crypt_iron && !W2.levels.cellar_cooper.map.doors.find(x => x.lock).locked, 'после загрузки нет ключей или дверь снова заперта');
   ok(W2.levels.crypt_pogost.map.doors.every(x => x.locked), 'загрузка отперла чужие двери');

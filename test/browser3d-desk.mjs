@@ -26,7 +26,7 @@ try {
   const page = await ctx.newPage(); page.setDefaultTimeout(8000);
   page.on('console', m => { if (['error', 'warning'].includes(m.type()) && !/GPU stall due to ReadPixels/.test(m.text())) logs.push(m.type() + ': ' + m.text()); });   // ReadPixels — от скриншотов большого окна
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
-  await page.goto(url + '?shot'); await page.waitForTimeout(1500);
+  await page.goto(url + '?shot&hero=thorn'); await page.waitForTimeout(1500);
   const ev = (f, arg) => page.evaluate(f, arg);
   const shown = id => ev(id => { const el = document.getElementById(id); return !!el && !el.hidden && getComputedStyle(el).display !== 'none'; }, id);
   const safe = () => ev(() => { const W = window.__b3d.W; W.player.maxhp = W.player.hp = 1e6; W.player.inv = 99; W.enemies.forEach(e => { if (!e.boss) e.dead = true; }); });
@@ -146,6 +146,44 @@ try {
   if ((await ev(() => window.__b3d.W.t)) <= ta) bad('в низком окне игра стоит');
   await page.screenshot({ path: join(out, '3d-desk-low.png') });
   await ctx.close();
+  // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
+  { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);
+    pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
+    await pg.goto(url + '?shot'); await pg.waitForTimeout(1200);
+    const info = await pg.evaluate(() => ({ shown: !document.getElementById('heroPick').hidden, cards: [...document.querySelectorAll('.hcard')].map(c => ({ id: c.dataset.hero, shut: c.classList.contains('shut'), h: c.querySelector('button').getBoundingClientRect().height, dis: c.querySelector('button').disabled })), panel: window.__b3d.ui().panelOpen }));
+    if (!info.shown || info.cards.length !== 3 || !info.panel) bad('нет экрана выбора героя или игра не на паузе: ' + JSON.stringify(info));
+    if (!info.cards.every(c => c.h >= 44)) bad('кнопки выбора героя меньше 44 px');
+    if (!info.cards.find(c => c.id === 'jay').dis || info.cards.find(c => c.id === 'vale').dis) bad('Сойка открыта или Вейл закрыт');
+    await pg.screenshot({ path: join(out, '3d-desk-heroes.png') });
+    await pg.keyboard.press('Digit3'); await pg.waitForTimeout(150);
+    if (!(await pg.evaluate(() => !document.getElementById('heroPick').hidden))) bad('3 выбрала закрытую Сойку');
+    await pg.keyboard.press('Digit2'); await pg.waitForTimeout(300);
+    const r = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, hidden: document.getElementById('heroPick').hidden, panel: window.__b3d.ui().panelOpen, hp: window.__b3d.W.player.maxhp }));
+    if (r.hero !== 'vale' || !r.hidden || r.panel) bad('2 не выбрала Вейла: ' + JSON.stringify(r));
+    await pg.waitForTimeout(600); await pg.screenshot({ path: join(out, '3d-desk-vale.png') });
+    // чужое оружие в сумке помечено и не надевается
+    await pg.evaluate(() => { window.__b3d.W.inv.bag.push({ id: 'w_axe_iron', n: 1 }); });
+    await pg.keyboard.press('KeyI'); await pg.waitForTimeout(300);
+    const nw = pg.locator('#bag .tile.nw'); if ((await nw.count()) !== 1) bad('топор в сумке Вейла не помечен');
+    else { await nw.first().click(); await pg.waitForTimeout(200);
+      const card = await pg.evaluate(() => ({ txt: document.getElementById('bag').textContent, wear: [...document.querySelectorAll('#bag .acts button')].some(b => /Надеть/.test(b.textContent)) }));
+      if (!/Не для Вейла/.test(card.txt) || card.wear) bad('у чужого топора нет пометки или есть «Надеть»');
+      await pg.screenshot({ path: join(out, '3d-desk-vale-bag.png') }); }
+    await pg.keyboard.press('Escape'); await pg.waitForTimeout(150);
+    await pg.reload(); await pg.waitForTimeout(1200);
+    const r2 = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, shown: !document.getElementById('heroPick').hidden }));
+    if (r2.hero !== 'vale' || r2.shown) bad('после перезагрузки герой не Вейл или снова выбор: ' + JSON.stringify(r2));
+    await c2.close(); }
+  // на телефоне карточки идут столбиком и прокручиваются; кнопка Вейла достижима и выбирает его
+  { const c3 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c3.newPage(); pg.setDefaultTimeout(8000);
+    pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
+    await pg.goto(url + '?shot'); await pg.waitForTimeout(1200);
+    const wide = await pg.evaluate(() => [...document.querySelectorAll('.hcard')].every(c => { const r = c.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }));
+    if (!wide) bad('карточки героев шире экрана телефона');
+    await pg.screenshot({ path: join(out, '3d-phone-heroes.png') });
+    await pg.locator('.hcard[data-hero="vale"] button').tap();
+    if ((await pg.evaluate(() => window.__b3d.W.hero)) !== 'vale') bad('на телефоне Вейл не выбирается касанием');
+    await c3.close(); }
   for (const l of logs) bad(l);
 } finally { await browser.close(); await dev.close(); }
 

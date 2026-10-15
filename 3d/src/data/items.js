@@ -50,6 +50,7 @@ const WTYPES = [
   ['greatsword', 'двуручник', 'm', 10, .6, 4, 1.25],
   ['chain_ball', 'кистень', 'm', 6, .2, 5, .95]
 ];
+export const KIND_NAME = Object.fromEntries(WTYPES.map(t => [t[0], t[1]]));     // «sword» → «меч»
 // материал: [id, [м, ж, ср], множитель, редкость, цена]
 const WMATS = [
   ['rust', ['Ржавый', 'Ржавая', 'Ржавое'], .6, 0, 4],

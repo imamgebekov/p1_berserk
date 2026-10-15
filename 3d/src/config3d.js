@@ -112,6 +112,8 @@ export const CFG3 = {
   // smokeKinds — дома с дымом из трубы (и все дома с жителем), chimneyH — высота трубы над стеной, smoke — клубов на трубу;
   // fogPeak — фаза суток самого густого тумана (рассвет), fogWidth — ширина утра в долях суток, fogAmp — насколько гуще (×(1 + fogAmp))
   ambient: { on: true, villagers: 5, walk: 1.3, pause: [3, 9], fireGap: 3.2, birds: 12, scare: 6, flySpeed: 7, flyUp: 3.5, flyTime: 4, back: 45, smokeKinds: ['house', 'tavern', 'smithy'], chimneyH: 1.4, smoke: 6, fogPeak: .04, fogWidth: .1, fogAmp: 1.4 },
+  // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
+  heroes: { thorn: { hp: 1, speed: 1, crit: 0 }, vale: { hp: .85, speed: 1.1, crit: 6 }, jay: { hp: .9, speed: 1.05, crit: 0 } },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4 },   // цена покупки = цена вещи × buyMul, продажи × sellMul; витрина обновляется раз в restock секунд
   // отряд: наёмники из Заставы. Идут за героем, бьют врагов, умирают насовсем. Мест в отряде: baseMax + 1 за каждые perLevels уровней, но не больше cap
   // боссы: логово (x, z), атаки с предупреждением, фазы по здоровью. attacks: kind slam (круг), charge (рывок по линии), nova (кольцо огня), summon (подмога);

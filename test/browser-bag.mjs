@@ -47,7 +47,7 @@ try {
     const page = await ctx.newPage(); page.setDefaultTimeout(8000);
     page.on('console', m => { if (['error', 'warning'].includes(m.type()) && !/GPU stall due to ReadPixels/.test(m.text())) logs.push(m.type() + ': ' + m.text()); });
     page.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await page.goto(url + '?shot'); await page.waitForTimeout(1200);
+    await page.goto(url + '?shot&hero=thorn'); await page.waitForTimeout(1200);
     await fill(page);
     await page.tap('#bagBtn'); await page.waitForTimeout(300);
     const r = await bagInfo(page);
@@ -82,7 +82,7 @@ try {
     const page = await ctx.newPage(); page.setDefaultTimeout(8000);
     page.on('console', m => { if (['error', 'warning'].includes(m.type()) && !/GPU stall due to ReadPixels/.test(m.text())) logs.push(m.type() + ': ' + m.text()); });
     page.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await page.goto(url + '?shot'); await page.waitForTimeout(1200);
+    await page.goto(url + '?shot&hero=thorn'); await page.waitForTimeout(1200);
     await fill(page);
     await page.keyboard.press('KeyI'); await page.waitForTimeout(300);
     await page.locator('#bagList .tile').first().click(); await page.waitForTimeout(200);

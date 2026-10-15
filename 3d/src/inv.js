@@ -1,6 +1,7 @@
 // Сумка и экипировка: чистая логика (тестируется в Node). Состояние — { bag: [{id,n}], eq: {слот: id|null}, ash }.
 import { BY_ID, SLOTS, CATALOG, STAT_NAME } from './data/items.js';
 import { SETS, SET_SLOTS, FX_TEXT } from './data/sets3d.js';
+import { canWield } from './data/heroes3d.js';
 
 export const UP_MAX = 5;
 // up — уровень улучшения (+N) у надетых вещей по слотам; в сумке — поле up у записи
@@ -20,8 +21,10 @@ export function removeAt(inv, idx, n = 1) {
 }
 export const countOf = (inv, id) => inv.bag.reduce((c, s) => c + (s.id === id ? s.n : 0), 0);
 
-export function equipAt(inv, idx) {
+// hero — кто надевает: чужое оружие не надевается (без героя — без проверки)
+export function equipAt(inv, idx, hero) {
   const s = inv.bag[idx], it = s && BY_ID[s.id]; if (!it || !it.slot) return false;
+  if (hero && !canWield(hero, it)) return false;
   const prev = inv.eq[it.slot], prevUp = inv.up[it.slot] || 0;
   removeAt(inv, idx, 1);
   inv.eq[it.slot] = it.id; if (s.up) inv.up[it.slot] = s.up; else delete inv.up[it.slot];
@@ -90,12 +93,14 @@ export function betterThanWorn(inv, it) {
 
 // сохранение: только проверенные id; чужое и неизвестное отбрасываем
 export function serialize(inv) { return { bag: inv.bag.map(s => (s.up ? { id: s.id, n: s.n, up: s.up } : { id: s.id, n: s.n })), eq: { ...inv.eq }, up: { ...inv.up }, ash: inv.ash }; }
-export function deserialize(data, maxSlots) {
+// hero — чьё сохранение: чужое оружие в руке уходит в сумку (даже сверх размера — вещи не пропадают)
+export function deserialize(data, maxSlots, hero) {
   const inv = createInv();
   if (!data || typeof data !== 'object') return inv;
   for (const s of Array.isArray(data.bag) ? data.bag : []) if (s && BY_ID[s.id] && Number.isFinite(s.n) && s.n > 0) { const n = Math.min(Math.floor(s.n), BY_ID[s.id].stack); if (BY_ID[s.id].slot && Number.isFinite(s.up) && s.up > 0) { if (inv.bag.length < maxSlots) inv.bag.push({ id: s.id, n: 1, up: Math.min(UP_MAX, Math.floor(s.up)) }); } else addItem(inv, s.id, n, maxSlots); }
   for (const slot of SLOTS) { const id = data.eq && data.eq[slot]; if (id && BY_ID[id] && BY_ID[id].slot === slot) { inv.eq[slot] = id; const u = data.up && data.up[slot]; if (Number.isFinite(u) && u > 0) inv.up[slot] = Math.min(UP_MAX, Math.floor(u)); } }
   inv.ash = Number.isFinite(data.ash) && data.ash > 0 ? Math.floor(data.ash) : 0;
+  const w = inv.eq.weapon; if (hero && w && !canWield(hero, BY_ID[w])) { const e = { id: w, n: 1 }; if (inv.up.weapon) e.up = inv.up.weapon; inv.bag.unshift(e); delete inv.eq.weapon; delete inv.up.weapon; }
   return inv;
 }
 

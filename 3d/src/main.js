@@ -12,7 +12,9 @@ import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLine, questMark } from './quests3d.js';
 import { eventLine } from './events3d.js';
-import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap } from './sim.js';
+import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear } from './sim.js';
+import { HEROES, HERO_IDS } from './data/heroes3d.js';
+import { KIND_NAME } from './data/items.js';
 import { drawMap } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSave, createSaver, unpackSeen, applyDseen, applyDungeonState, exportSave, importSave } from './save3d.js';
@@ -46,10 +48,42 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(bagCap(cfg));
-if (saved) { W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
+if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
 const saver = createSaver(W);
+
+// выбор героя: при новой игре (сохранения нет) — три карточки; игра стоит, пока герой не выбран. ?hero=id — выбрать сразу (тесты)
+function drawPortrait(cv, L) {
+  const g = cv.getContext('2d'), r = (c, x, y, w, h) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+  g.clearRect(0, 0, 16, 16);
+  r(L.cape, 3, 7, 10, Math.round(8 * L.capeLen) + 1); r(L.cloth, 4, 8, 8, 8); r('#cdb89a', 5, 2, 6, 6); r(L.hair, 5, 1, 6, 2); r(L.hair, 4, 2, 1, 4);
+  r('#1a1210', 6, 4, 1, 1); r('#1a1210', 9, 4, 1, 1);
+  if (L.hood) { r(L.cape, 4, 1, 8, 2); r(L.cape, 4, 1, 1, 7); r(L.cape, 11, 1, 1, 7); }
+  if (L.shoulder) { r('#4a463f', 2, 8, 3, 2); }
+  if (L.quiver) { r('#6a4a2a', 12, 6, 2, 7); r('#c8b890', 12, 4, 1, 2); r('#c8b890', 13, 5, 1, 1); }
+}
+function pickHero(id) {
+  const H = HEROES[id]; if (!H || !H.open || $('heroPick').hidden) return;
+  W.hero = id; refreshGear(W); W.player.hp = W.player.maxhp;
+  $('heroPick').hidden = true; panelOpen = false; saver.write(true);
+  toast(`${H.name} выходит из пепла`, '', '#e8c04a');
+}
+function openHeroPick() {
+  const box = $('heroCards'); box.textContent = '';
+  HERO_IDS.forEach((id, i) => {
+    const H = HEROES[id], c = document.createElement('div'), add = (tag, cls, txt) => { const e = document.createElement(tag); e.className = cls; e.textContent = txt; c.append(e); return e; };
+    c.className = 'hcard' + (H.open ? '' : ' shut'); c.dataset.hero = id;
+    const cv = document.createElement('canvas'); cv.width = cv.height = 16; drawPortrait(cv, H.look); c.append(cv);
+    add('div', 'nm', H.name); add('div', 'role', H.role); add('div', 'txt', H.text);
+    add('div', 'wk', H.kinds.length ? 'Оружие: ' + H.kinds.map(k => KIND_NAME[k]).join(', ') + '.' : H.soon);
+    const b = add('button', '', H.open ? 'Выбрать' + (desk ? ' · ' + (i + 1) : '') : 'Скоро'); b.type = 'button'; b.disabled = !H.open;
+    b.addEventListener('click', () => pickHero(id));
+    box.append(c);
+  });
+  $('heroPick').hidden = false; panelOpen = true; input.release();
+}
 const input = createInput(document, window);
 let panelOpen = false, landscape = false;
+{ const q = new URLSearchParams(location.search).get('hero'); if (!saved) { openHeroPick(); if (q) pickHero(q); } }
 
 function onText(x, y, z, txt, cls) {
   if (!renderer) return;
@@ -198,6 +232,7 @@ if (desk) {
   addEventListener('keydown', e => {
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
     const c = e.code;
+    if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3'].indexOf(c); if (n >= 0) pickHero(HERO_IDS[n]); return; }
     if (!$('dead').hidden) { if (c === 'Enter' || c === 'KeyE') $('again').click(); return; }
     if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.main'); if (open) open.click(); else $('gear').click(); return; }
     if (c === 'KeyM') { if (!panelOpen || !mapEl.hidden) $('miniBtn').click(); return; }

@@ -28,8 +28,8 @@ export function makeHero() {
   const mats = [];
   const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
-  const cloth = M('#6a5148'), skin = M('#cdb89a'), dark = M('#3a2c28'), cape = M('#7a1e26');
-  const legL = limb(.28, .8, .32, M('#4a3a35'), .2, .8, 0), legR = limb(.28, .8, .32, M('#4a3a35'), -.2, .8, 0);
+  const cloth = M('#6a5148'), skin = M('#cdb89a'), dark = M('#3a2c28'), cape = M('#7a1e26'), legs = M('#4a3a35');
+  const legL = limb(.28, .8, .32, legs, .2, .8, 0), legR = limb(.28, .8, .32, legs, -.2, .8, 0);
   const torso = box(.78, .85, .45, cloth, 0, 1.25, 0);
   const belt = box(.8, .12, .47, M('#2a2422'), 0, .88, 0);
   const shoulder = box(.4, .28, .5, M('#4a463f'), .42, 1.6, 0);
@@ -43,9 +43,13 @@ export function makeHero() {
   const sword = new THREE.Group(); sword.position.set(-.48, 0, .12);
   swing.add(sword);
   const armL = limb(.2, .75, .22, cloth, .5, 1.62, 0);
-  root.add(legL, legR, torso, belt, shoulder, head, hair, hair2, eyeL, eyeR, cloak, swing, armL);
+  const hood = new THREE.Group(); hood.add(box(.54, .2, .54, cape, 0, 2.18, -.02), box(.54, .5, .14, cape, 0, 1.95, -.26)); hood.visible = false;
+  const quiver = new THREE.Group(); quiver.position.set(-.18, 1.35, -.34); quiver.rotation.z = .35; quiver.add(box(.18, .7, .18, M('#6a4a2a'), 0, 0, 0), box(.04, .22, .04, M('#d8c8a0'), .04, .45, 0), box(.04, .26, .04, M('#d8c8a0'), -.04, .47, 0)); quiver.visible = false;
+  root.add(legL, legR, torso, belt, shoulder, head, hair, hair2, eyeL, eyeR, cloak, swing, armL, hood, quiver);
   const set = f => flasher(mats)(f);
   const h = { group: g, root, legL, legR, cloak, swing, sword, armL, head, flash: set, kind: 'hero', weapon: null, wkey: '', family: 'fists' };
+  // вид героя (data/heroes3d.js → look): цвета одежды, плаща, волос; наплечник, капюшон, колчан, длина плаща
+  h.setLook = L => { cloth.color.set(L.cloth); cape.color.set(L.cape); dark.color.set(L.hair); legs.color.set(L.legs); shoulder.visible = L.shoulder; hood.visible = L.hood; hair.visible = !L.hood; quiver.visible = L.quiver; cloak.scale.y = L.capeLen; };
   // надеть модель оружия (kind — тип, mat — материал); у кулаков модель — сам кулак
   h.setWeapon = (kind, mat) => {
     const key = kind + '|' + mat; if (key === h.wkey) return; h.wkey = key;
