@@ -134,7 +134,7 @@ export const CFG3 = {
           { id: 'c4', x: 25, z: -17, w: 6, d: 2 }, { id: 'vault', x: 32, z: -17, w: 8, d: 8 }
         ],
         doors: [{ a: 'c2', b: 'tombs' }, { a: 'c4', b: 'vault' }],
-        foes: [['ghoul', 4], ['witch', 1], ['imp', 1]],
+        foes: [['ghoul', 4], ['witch', 1], ['imp', 1], ['lunger', 1], ['shade', 1]],
         spawns: [{ room: 'c1', n: 1 }, { room: 'nave', n: 3 }, { room: 'tombs', n: 3 }, { room: 'ossuary', n: 2 }, { room: 'vault', n: 2 }],
         entry: { x: -.5, z: 0 }, exit: { x: -3, z: 0 },
         chests: [{ kind: 'grave', x: 13.5, z: -19.5 }, { kind: 'grave', x: 15, z: 15.5 }, { kind: 'corpse', x: 19.5, z: 12.5 }, { kind: 'altar', x: 34.5, z: -17 }, { kind: 'coffer', x: 32, z: -19.8 }] }
@@ -156,11 +156,11 @@ export const CFG3 = {
   elite: {
     chance: .04, depthK: .03, dangerK: .03, nightK: .03, hp: 1.9, dmg: 1.2, xp: 3, scale: 1.2, luck: 10, lootRolls: 2,
     affixes: {
-      swift:     { name: 'Быстрый',       speed: 1.45, color: '#7ad0ff' },
-      armored:   { name: 'Бронированный', hp: 1.6, color: '#c8c8d8' },
-      vampiric:  { name: 'Кровопийца',    heal: .6, color: '#d03060' },
-      explosive: { name: 'Взрывной',      r: 3.2, delay: .9, dmg: 38, color: '#ff9a30' },
-      burning:   { name: 'Пылающий',      on: ['burn', .8, 3, 5], immune: ['burn'], color: '#ff6a20' }
+      swift:     { name: 'Быстрый',       nameF: 'Быстрая',       speed: 1.45, color: '#7ad0ff' },
+      armored:   { name: 'Бронированный', nameF: 'Бронированная', hp: 1.6, color: '#c8c8d8' },
+      vampiric:  { name: 'Кровопийца',    nameF: 'Кровопийца',    heal: .6, color: '#d03060' },
+      explosive: { name: 'Взрывной',      nameF: 'Взрывная',      r: 3.2, delay: .9, dmg: 38, color: '#ff9a30' },
+      burning:   { name: 'Пылающий',      nameF: 'Пылающая',      on: ['burn', .8, 3, 5], immune: ['burn'], color: '#ff6a20' }
     }
   },
   // сутки: len — секунд на полный круг; start — на какой фазе начинается игра (0.3 — полдень, 0.0 — рассвет);
@@ -222,17 +222,26 @@ export const CFG3 = {
     brutePart: .3,        // доля рогачей среди врагов
     imp:   { name: 'Бес', xp: 14, hp: 126, speed: 3.4, damage: 11,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
     brute: { name: 'Рогач', xp: 45, hp: 390, speed: 2.2, damage: 28, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6 },
-    hound: { name: 'Гончая', on: ['bleed', .6, 2.5, 4], xp: 10, hp: 90, speed: 5.6, damage: 10,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85 },   // быстрая, хрупкая; рыщет у руин и лагеря
+    hound: { name: 'Гончая', g: 'f', on: ['bleed', .6, 2.5, 4], xp: 10, hp: 90, speed: 5.6, damage: 10,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85 },   // быстрая, хрупкая; рыщет у руин и лагеря
     ghoul: { name: 'Упырь', on: ['poison', .7, 2, 6], xp: 33, hp: 270, speed: 2.8, damage: 20, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2 },   // упырь: у кладбища и в часовне
     // дальний бой: ranged.keep — на каком расстоянии держится от героя; стрела летит со speed, колдовство накрывает пятно r через delay секунд
     archer: { name: 'Лучник Ржавых', xp: 22, hp: 150, speed: 3.2, damage: 14, range: 13, wind: .9, recover: 1.3, radius: .45, scale: 1, ranged: { kind: 'arrow', speed: 14, keep: [6, 10] } },
     witch: { name: 'Колдун Затмения', xp: 38, hp: 200, speed: 2.8, damage: 26, range: 14, wind: 1.1, recover: 2.4, radius: .5, scale: 1.05, on: ['burn', .5, 3, 5], ranged: { kind: 'hex', r: 2.4, delay: 1.0, keep: [7, 11] } },
-    // кто водится в области (по ближайшей зоне карты); остальное — бесы и рогачи по brutePart
+    // особое поведение (ai, 3d/src/foes3d.js); g — род имени ('f' — женский) для подписей элиты
+    // shield: щит спереди (guard.arc — ширина, град; mul — сколько урона проходит; turn — скорость поворота, рад/с); пробивают фланг, удар из переката, тяжёлый удар, оглушение
+    shield: { name: 'Щитоносец Ржавых', ai: 'shield', xp: 40, hp: 300, speed: 2.4, damage: 22, range: 1.9, wind: .65, recover: .9, radius: .6, scale: 1.3, guard: { arc: 110, mul: .15, turn: 2.2, breakStun: .9 } },
+    // bomber: подбегает на fuse.at и поджигает фитиль: через fuse.t взрыв радиуса fuse.r (ранит героя, отряд и других врагов), сам гибнет
+    bomber: { name: 'Тлеющий', ai: 'bomber', xp: 18, hp: 70, speed: 4.6, damage: 34, range: 1.6, wind: .4, recover: .6, radius: .45, scale: .95, fuse: { at: 2.2, t: 1.2, r: 2.8 }, on: ['burn', 1, 3, 4] },
+    // lunge: с min–max целится aim секунд (полоса на земле), потом рывок по прямой len м со скоростью speed; w — ширина полосы; cd — перезарядка
+    lunger: { name: 'Копейщик Погоста', ai: 'lunge', xp: 30, hp: 200, speed: 2.9, damage: 30, range: 1.8, wind: .6, recover: 1.1, radius: .5, scale: 1.15, lunge: { min: 4, max: 9, aim: .8, speed: 15, len: 8, w: .9, cd: 3.5, mul: 1.3 }, on: ['bleed', .5, 3, 4] },
+    // blink: с min–max исчезает и появляется за спиной героя (behind м), замах после этого дольше на extra с; cd — перезарядка
+    shade: { name: 'Тень', g: 'f', ai: 'blink', xp: 26, hp: 110, speed: 3.6, damage: 24, range: 1.5, wind: .75, recover: .8, radius: .45, scale: 1.05, blink: { min: 5, max: 12, cd: 5, behind: 1.7, extra: .3 }, immune: ['bleed', 'poison'] },
+    // кто водится в области (по ближайшей зоне карты); третий элемент 'night' — только ночью; остальное — бесы и рогачи по brutePart
     regions: {
-      graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1], ['witch', 1]],
-      ruins: [['hound', 4], ['brute', 3], ['imp', 2], ['witch', 2]],
-      camp: [['hound', 3], ['brute', 4], ['imp', 2], ['archer', 4]],
-      farm: [['hound', 3], ['imp', 4], ['ghoul', 1], ['archer', 2]]
+      graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1], ['witch', 1], ['lunger', 2], ['shade', 3, 'night']],
+      ruins: [['hound', 4], ['brute', 3], ['imp', 2], ['witch', 2], ['bomber', 2]],
+      camp: [['hound', 3], ['brute', 4], ['imp', 2], ['archer', 4], ['shield', 3]],
+      farm: [['hound', 3], ['imp', 4], ['ghoul', 1], ['archer', 2], ['bomber', 1]]
     },
     depthHp: 1.6,          // враги вдали от костра крепче: здоровье × (1 + depthHp × глубина), глубина 0 у костра, 1 у границы
     depthDmg: 1.0,         // и бьют сильнее: урон × (1 + depthDmg × глубина)

@@ -40,6 +40,10 @@ export const DROPS = {
   ghoul: { chance: .7, slots: [1, 2], q: 1, pools: [['curio', 3], ['coin', 2], ['material', 2], ['monstermat', 3], ['ring', 1], ['amulet', 1], ['medic', 1]] },
   archer: { chance: .6, slots: [1, 2], q: 1, pools: [['material', 3], ['coin', 2], ['food', 2], ['weapon', 1], ['medic', 1], ['monstermat', 1]] },
   witch: { chance: .75, slots: [1, 2], q: 2, pools: [['curio', 3], ['coin', 2], ['amulet', 1], ['ring', 1], ['medic', 2], ['monstermat', 2], ['material', 1]] },
+  shield: { chance: .8, slots: [1, 2], q: 1, pools: [['material', 3], ['body', 2], ['head', 1], ['coin', 2], ['weapon', 1], ['key', 1]] },
+  bomber: { chance: .5, slots: [1, 1], q: 0, pools: [['material', 3], ['monstermat', 2], ['potion', 1], ['coin', 2]] },
+  lunger: { chance: .65, slots: [1, 2], q: 1, pools: [['weapon', 2], ['monstermat', 3], ['curio', 2], ['coin', 1], ['medic', 1]] },
+  shade: { chance: .7, slots: [1, 2], q: 2, pools: [['curio', 3], ['ring', 1], ['amulet', 2], ['monstermat', 2], ['coin', 1]] },
   brute: { chance: .85, slots: [1, 2], q: 1, pools: [['material', 3], ['monstermat', 2], ['coin', 2], ['weapon', 1], ['body', 1], ['potion', 1], ['key', 1], ['ring', 1]] }
 };
 

@@ -92,15 +92,20 @@ const LOOKS = {
   witch: { shape: 'imp', body: '#3a2450', dark: '#140a1e', eye: '#e070ff', crown: '#9a48d0' },
   devourer: { shape: 'ghoul', body: '#3c4e44', dark: '#1a2a22', eye: '#e8ff60', crown: '#c8d8a0' },
   lord: { shape: 'imp', body: '#2a2028', dark: '#0e0a10', eye: '#ff7a20', crown: '#ff9a40' },
-  chief: { shape: 'brute', body: '#5a2c24', dark: '#2a1210', eye: '#ffc030', crown: '#d8c8a8' }
+  chief: { shape: 'brute', body: '#5a2c24', dark: '#2a1210', eye: '#ffc030', crown: '#d8c8a8' },
+  shield: { shape: 'brute', body: '#5a4a3a', dark: '#2a2018', eye: '#ffb030', prop: 'shield' },
+  bomber: { shape: 'imp', body: '#4a2a1a', dark: '#1e1008', eye: '#ffd040', prop: 'ember' },
+  lunger: { shape: 'bones', body: '#cfc4a8', dark: '#5a5244', eye: '#80ffd0', prop: 'spear' },
+  shade: { shape: 'imp', body: '#2a2a3a', dark: '#101018', eye: '#c0d0ff', ghost: true }
 };
 export function makeMonster(kind, cfg) {
   const mats = [], L = LOOKS[kind] || LOOKS.imp;
   const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
   const body = M(L.body), dark = M(L.dark), bone = M('#d8cfbd');
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
-  const shape = L.shape || kind, hound = shape === 'hound', ghoul = shape === 'ghoul';
-  root.add(box(hound ? .6 : .8, hound ? .7 : .85, hound ? .8 : .55, body, 0, .95, 0));
+  const shape = L.shape || kind, hound = shape === 'hound', ghoul = shape === 'ghoul', bones = shape === 'bones';
+  root.add(box(hound ? .6 : bones ? .5 : .8, hound ? .7 : .85, hound ? .8 : bones ? .3 : .55, body, 0, .95, 0));
+  if (bones) for (let i = 0; i < 3; i++) root.add(box(.62, .06, .36, dark, 0, .8 + i * .16, 0));     // рёбра
   const head = box(.55, .5, hound ? .7 : .5, body, 0, hound ? 1.45 : 1.65, hound ? .35 : .05); root.add(head);
   root.add(box(.1, .1, .05, basic(L.eye), .12, hound ? 1.5 : 1.7, hound ? .72 : .31), box(.1, .1, .05, basic(L.eye), -.12, hound ? 1.5 : 1.7, hound ? .72 : .31));
   if (shape === 'brute') { root.add(box(.12, .5, .12, bone, .3, 2.05, .05)); root.add(box(.12, .5, .12, bone, -.3, 2.05, .05)); }
@@ -108,13 +113,19 @@ export function makeMonster(kind, cfg) {
   else if (ghoul) { root.add(box(.5, .1, .5, dark, 0, 1.95, .05)); root.add(box(.2, .5, .12, dark, 0, 1.5, -.3)); }
   else { root.add(box(.14, .3, .1, body, .3, 1.95, 0)); root.add(box(.14, .3, .1, body, -.3, 1.95, 0)); }
   if (L.crown) { const cm = basic(L.crown); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; root.add(box(.1, .42, .1, cm, Math.cos(a) * .3, 2.25 + (i % 2) * .12, Math.sin(a) * .3 + .05)); } root.add(box(.3, .4, .3, cm, .62, 1.7, 0), box(.3, .4, .3, cm, -.62, 1.7, 0)); }
-  const al = ghoul ? 1.05 : .75;
+  // предметы видов: щит спереди, тлеющее пузо, копьё
+  let ember = null;
+  if (L.prop === 'shield') { const sm = M('#6a645a'), rim = M('#3a342c'); root.add(box(1.0, 1.15, .14, sm, 0, 1.05, .5)); root.add(box(1.08, .12, .16, rim, 0, 1.6, .5)); root.add(box(1.08, .12, .16, rim, 0, .5, .5)); root.add(box(.22, .22, .2, M('#a89a70'), 0, 1.05, .6)); }
+  if (L.prop === 'ember') { ember = basic('#ff7a20'); root.add(new THREE.Mesh(new THREE.BoxGeometry(.6, .5, .1), ember).translateY(.95).translateZ(.29)); }
+  const al = ghoul ? 1.05 : bones ? .95 : .75;
   const armL = limb(.22, al, .24, body, .55, 1.3, 0), armR = limb(.22, al, .24, body, -.55, 1.3, 0);
   const legL = limb(.3, .6, .3, dark, .22, .6, 0), legR = limb(.3, .6, .3, dark, -.22, .6, 0);
   armL.add(box(.1, .22, .08, bone, 0, -al - .07, .1)); armR.add(box(.1, .22, .08, bone, 0, -al - .07, .1));
+  if (L.prop === 'spear') { armR.add(box(.08, 2.6, .08, M('#5a3e26'), 0, -al, .6).rotateX(Math.PI / 2)); armR.add(box(.16, .4, .05, M('#b8b4a8'), 0, -al, 1.95).rotateX(Math.PI / 2)); }
   root.add(armL, armR, legL, legR);
+  if (L.ghost) for (const m of mats) { m.transparent = true; m.opacity = .55; m.depthWrite = false; }      // тень: полупрозрачная
   const s = cfg.enemies[kind].scale; g.scale.set(s, s, s);
-  return { group: g, root, armL, armR, legL, legR, head, flash: flasher(mats), kind };
+  return { group: g, root, armL, armR, legL, legR, head, flash: flasher(mats), kind, ember, ghost: !!L.ghost, mats };
 }
 
 export function animateMonster(m, e, time, cfg) {
@@ -124,10 +135,13 @@ export function animateMonster(m, e, time, cfg) {
   const ph = time * (6 + C.speed) + e.id * 1.7;
   m.legL.rotation.x = moving ? Math.sin(ph) * .8 : 0; m.legR.rotation.x = moving ? -Math.sin(ph) * .8 : 0;
   m.armL.rotation.x = moving ? -Math.sin(ph) * .6 : 0; m.armR.rotation.x = moving ? Math.sin(ph) * .6 : 0;
-  m.root.position.y = moving ? Math.abs(Math.sin(ph)) * .08 : 0; m.root.rotation.x = 0; m.root.rotation.z = 0; m.root.position.z = 0; m.root.scale.set(1, 1, 1);
+  m.root.position.y = moving ? Math.abs(Math.sin(ph)) * .08 : 0; m.root.rotation.x = 0; m.root.rotation.z = 0; m.root.position.z = 0; m.root.position.x = 0; m.root.scale.set(1, 1, 1);
   let red = 0;
-  if (e.state === 'wind') {
-    const k = Math.min(1, e.t / C.wind);
+  if (e.state === 'aim') { const k = Math.min(1, e.t / .2); m.root.rotation.x = .25 * k; m.armR.rotation.x = -1.4 * k; m.armL.rotation.x = -1.1 * k; red = .25 + .25 * Math.sin(time * 30); }
+  else if (e.state === 'dash') { m.root.rotation.x = .45; m.armR.rotation.x = -1.5; m.armL.rotation.x = -1.2; m.legL.rotation.x = .9; m.legR.rotation.x = -.9; }
+  else if (e.state === 'fuse') { const k = e.t / C.fuse.t; m.root.position.x = Math.sin(time * 60) * .05 * k; m.root.scale.set(1 + .2 * k, 1 - .1 * k, 1 + .2 * k); red = .3 + .5 * k * (.5 + .5 * Math.sin(time * (10 + 40 * k))); }
+  else if (e.state === 'wind') {
+    const k = Math.min(1, Math.max(0, e.t) / C.wind);
     m.armL.rotation.x = m.armR.rotation.x = -2.4 * k; m.root.rotation.x = -.3 * k; m.root.position.z = -.15 * k;
     red = .35 + .35 * Math.sin(time * 40);
   } else if (e.state === 'rec') {
@@ -144,6 +158,8 @@ export function animateMonster(m, e, time, cfg) {
     const pu = .6 + .4 * Math.sin(time * 14);
     tint = st.stun ? [.4 * pu, .38 * pu, .02] : st.freeze ? [.04, .22, .45] : st.burn ? [.5 * (.7 + .3 * Math.sin(time * 31)), .16, 0] : st.poison ? [0, .3, .04] : st.bleed ? [.38, 0, 0] : null;
   }
+  if (m.ember) m.ember.color.setHSL(.07, 1, .45 + .15 * Math.sin(time * 9 + e.id) + (e.state === 'fuse' ? .2 : 0));
+  if (m.ghost) { const o = e.dead ? .3 : .4 + .2 * Math.sin(time * 7 + e.id); for (const mm of m.mats) mm.opacity = o; }
   m.flash(Math.max(red, e.flash > 0 ? .9 : 0), tint);
 }
 

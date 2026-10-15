@@ -22,6 +22,8 @@ export const QUESTS = [
   // ---- капитан Заставы ----
   { id: 'c_lager', giver: 'captain', name: 'Лагерь Ржавых', text: 'Разведайте лагерь. Только разведайте: идти в одиночку не советую.', type: 'visit', place: 'lager', minLv: 6, reward: { ash: 150, xp: 100, items: [['p_heal3', 1]] } },
   { id: 'c_brutes', giver: 'captain', name: 'Рогачи у границы', text: 'Шестеро рогачей не дают вывозить зерно. Заберите их.', type: 'kill', enemy: 'brute', n: 6, minLv: 5, reward: { ash: 220, xp: 140 } },
+  { id: 'c_shields', giver: 'captain', name: 'Стена из щитов', text: 'У Ржавых завелись щитоносцы. В лоб их не взять: заходите сбоку, бейте из переката или с размаха.', type: 'kill', enemy: 'shield', n: 5, minLv: 6, reward: { ash: 240, xp: 160 } },
+  { id: 'c_bombers', giver: 'captain', name: 'Тлеющие в руинах', text: 'Тлеющие бросаются под ноги и рвутся. Шестерых — и дорога к руинам снова наша. Держитесь подальше, когда зашипят.', type: 'kill', enemy: 'bomber', n: 6, minLv: 5, reward: { ash: 200, xp: 130, items: [['p_heal2', 1]] } },
   { id: 'c_hire', giver: 'captain', name: 'Свой отряд', text: 'Нанимайте бойца. Один человек в пустошах не воин, а добыча.', type: 'hire', reward: { ash: 100, xp: 40 } },
   { id: 'c_ruins', giver: 'captain', name: 'Руины Скорби', text: 'Что там стряслось? Дойдите до руин и вернитесь с вестями.', type: 'visit', place: 'ruiny', minLv: 7, after: 'c_lager', reward: { ash: 180, xp: 120 } },
   { id: 'c_archers', giver: 'captain', name: 'Стрелки на холме', text: 'Лучники Ржавых бьют по обозам издалека. Сократите их: четверых хватит.', type: 'kill', enemy: 'archer', n: 4, minLv: 6, after: 'c_lager', reward: { ash: 200, xp: 160 } },

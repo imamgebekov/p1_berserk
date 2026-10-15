@@ -255,11 +255,24 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { m.position.set(q.x, 1.1, q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });
     hazMeshes.forEach((h, i) => {
       const z = W.haz[i]; h.ring.visible = h.disc.visible = !!z; if (!z) return;
-      const k = Math.min(1, z.t / z.delay), pulse = .3 + .25 * Math.sin(t * 28) + .25 * k, col = z.by === 'elite' ? '#ff7a20' : '#d060ff';
-      h.ring.material.color.set(col); h.disc.material.color.set(z.by === 'elite' ? '#c04a10' : '#8a30c0');
+      const k = Math.min(1, z.t / z.delay), pulse = .3 + .25 * Math.sin(t * 28) + .25 * k, fire = z.by === 'elite' || z.bomber, col = fire ? '#ff7a20' : '#d060ff';      // взрыв (элита, тлеющий) — оранжевый, колдовство — фиолетовое
+      h.ring.material.color.set(col); h.disc.material.color.set(fire ? '#c04a10' : '#8a30c0');
       h.ring.position.x = h.disc.position.x = z.x; h.ring.position.z = h.disc.position.z = z.z; h.ring.scale.setScalar(z.r); h.disc.scale.setScalar(z.r * k);
       h.ring.material.opacity = .9; h.disc.material.opacity = pulse * .6;
     });
+  }
+  // полоса прицела копейщика: прямоугольник на земле перед ним, наливается к рывку
+  const lineTele = [];
+  for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, .5), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false })); m.visible = false; scene.add(m); lineTele.push(m); }
+  function updateLines(W, t) {
+    let i = 0;
+    for (const e of W.enemies) {
+      if (i >= lineTele.length) break;
+      if (e.dead || e.state !== 'aim' || !e.tele) continue;
+      const m = lineTele[i++], k = Math.min(1, e.t / e.tele.aim);
+      m.visible = true; m.position.set(e.x, .07, e.z); m.rotation.y = e.face; m.scale.set(e.tele.w, 1, e.tele.len * (.3 + .7 * k)); m.material.opacity = .25 + .35 * k + .1 * Math.sin(t * 30);
+    }
+    for (; i < lineTele.length; i++) lineTele[i].visible = false;
   }
   function updateTele(W, t) {
     teleRing.visible = teleDisc.visible = teleInner.visible = teleLine.visible = false;
@@ -378,6 +391,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
+      else if (v.k === 'block') { const p0 = W.player; let dx = p0.x - v.x, dz = p0.z - v.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; fx.spray(v.x + dx * .6, 1.1, v.z + dz * .6, dx, dz, 8, '#ffe8b0', 6, .9, { life: .25, g: 8, s: .07 }); fx.flash(v.x + dx * .6, 1.1, v.z + dz * .6, 1.1, '#ffffff'); hooks.onText && hooks.onText(v.x, 2.2, v.z, 'щит', 'dodge'); }
+      else if (v.k === 'blink') { fx.ash(v.x, .4, v.z, 10, ['#2a2a3a', '#4a4a60', '#101018']); fx.ash(v.x2, .4, v.z2, 10, ['#2a2a3a', '#4a4a60', '#c0d0ff']); }
+      else if (v.k === 'lunge') burst(v.x, .3, v.z, 6, '#6a5a4a', 3);
       else if (v.k === 'chargeFull') fx.flash(v.x, 1.6, v.z, 1.4, '#ff8a30');
       else if (v.k === 'heavy') { ringFx(v.x + Math.sin(v.face) * 1.6, v.z + Math.cos(v.face) * 1.6, 2.5 + 1.5 * v.power, '#ff9a50'); }
       else if (v.k === 'finisher') { ringFx(v.x, v.z, 3, '#ffd9c0'); burst(v.x, .6, v.z, 10, '#ffd9c0', 5); fx.flash(v.x + Math.sin(v.face) * 1.5, .8, v.z + Math.cos(v.face) * 1.5, 2.2, '#ffd9c0'); }
@@ -394,7 +410,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     // частицы
     fx.update(dt);
 
-    stepFx(dt); updateTele(W, t); updateFoes(W, t);
+    stepFx(dt); updateTele(W, t); updateLines(W, t); updateFoes(W, t);
     if (W.tomb && (W.tomb.lvl || 'surface') === W.lvl) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, 0, W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
     for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
     gl.render(scene, camera);

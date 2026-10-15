@@ -20,7 +20,7 @@ import { initBoss, updateBoss } from './boss3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent } from './quests3d.js';
 import { lightOf, isNight } from './daynight.js';
-import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes } from './foes3d.js';
+import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
@@ -48,6 +48,7 @@ export function weaponCtx(item) {
 function attachFx(W) {
   W.fx = {
     kill: e => killEnemy(W, e, 1),
+    deal: (e, dmg, fx) => dealDamage(W, e, dmg, fx),
     hp: (e, frac, base) => Math.round(base + e.maxhp * frac),
     slide: (e, dx, dz, r) => slide(W.map, e, dx, dz, r),
     reveal: (x, z, r) => reveal(W, x, z, r),
@@ -96,7 +97,7 @@ function spawnRing(W) {
   if (nearBuilding(W.map, x, z, 1.5)) return false;                 // не рождаем врагов в стенах
   { const pl = placeAt(W.map, x, z); if (pl && pl.safe) return false; }   // и в безопасных местах
   const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)];
-  const type = reg ? pickW2(reg, W.rng) : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';
+  const type = reg ? pickW2(reg.filter(a => a[2] !== 'night' || W.night), W.rng) : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';     // 'night' — только ночью
   spawnEnemy(W, type, x, z);
 }
 function pickW2(table, rng) { let t = 0; for (const a of table) t += a[1]; let r = rng() * t; for (const a of table) { r -= a[1]; if (r <= 0) return a[0]; } return table[0][0]; }
@@ -220,12 +221,14 @@ function dealDamage(W, e, dmg, fx) {
 
 // удар по врагу: урон, вампиризм, отбрасывание, прерывание замаха
 function strike(W, e, dmg, o) {
-  const p = W.player, P = W.cfg.player, C = W.cfg.enemies[e.type];
+  const p = W.player, P = W.cfg.player, C = W.cfg.enemies[e.type], gm = guardMul(W, e, C, o);
+  if (gm < 1) { dmg = Math.max(1, Math.round(dmg * gm)); o = { ...o, knock: o.knock * .3 }; }      // щит: удар спереди почти не проходит
+  if (C.guard && o.heavy) applyStatus(W, e, 'stun', 0, C.guard.breakStun);                          // тяжёлый удар ломает защиту
   e.hp -= dmg; e.flash = .12; p.calm = P.fire.calm;
   if (W.gear.leech > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * W.gear.leech / 100);
   const heavy = C.heavy || e.aff === 'armored', k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
-  if (e.state === 'wind' && !heavy) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах
+  if (e.state === 'wind' && !heavy && gm >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах (щит — нет)
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: o.crit, fin: !!o.fin, id: e.id, fx: o.fx || null });
   e.alert = true;
   if (e.hp <= 0) killEnemy(W, e, 1);
@@ -272,7 +275,7 @@ function attackHit(W, mult = 1, echo = false) {
     const crit = W.rng() < .12 + W.gear.crit / 100;
     if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
     const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null;
-    strike(W, e, dmg, { crit, dx, dz, d, knock: (tr.knock || 1) * (p.fin && !echo ? 1.6 : 1) * (hk ? 1 + (H.knock - 1) * hk : 1), fx, fin: (p.fin && !echo) || hk > 0 });
+    strike(W, e, dmg, { crit, dx, dz, d, knock: (tr.knock || 1) * (p.fin && !echo ? 1.6 : 1) * (hk ? 1 + (H.knock - 1) * hk : 1), fx, fin: (p.fin && !echo) || hk > 0, heavy: hk > 0, roll: p.rollAtk && !echo });
     if (hk && !e.dead) applyStatus(W, e, 'stun', 0, H.stun * hk);
     hits++;
     weaponStatuses(W, e, dmg, crit, p);
@@ -376,14 +379,16 @@ function updateEnemies(W, dt) {
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
     if (e.boss) { updateBoss(W, e, dt, spd); continue; }
     if (isStunned(e)) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); continue; }        // оглушённый не двигается и не бьёт
+    if (C.ai && (e.state === 'aim' || e.state === 'dash' || e.state === 'fuse')) { foeAI(W, e, C, d, dx, dz, dt, true); continue; }    // прицел, рывок, фитиль
     if (e.state === 'chase') {
-      e.face = Math.atan2(dx, dz);
+      turnTo(e, C, Math.atan2(dx, dz), dt);
       const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' || p.state === 'charge' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100) * (W.place && W.place.safe ? .5 : 1) * W.dif.hear;
       const pe = placeAt(W.map, e.x, e.z), deep = pe && pe.safe && len(e.x - pe.x, e.z - pe.z) < pe.r - 4;    // в глубине безопасного места враги теряют след и не слышат
       if (deep) e.alert = false;
       const hops = roomHops(W.map, e.x, e.z, p.x, p.z);           // в подземелье слышно только через немного комнат
       if (!e.alert && !deep && hops <= W.cfg.dungeons.hearRooms && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
       else if (e.alert && d > H.lose) e.alert = false;
+      if (C.ai && foeAI(W, e, C, d, dx, dz, dt, hops === 0 && insideOf(W.map, e.x, e.z) === W.inside)) continue;   // особое поведение: щит, фитиль, рывок, тень
       const al = pickAlly(W, e, d);                                     // союзник ближе героя: враг бьёт его
       if (al) {
         e.alert = true; e.tgt = al.id;
@@ -404,7 +409,7 @@ function updateEnemies(W, dt) {
         else { e.cd -= dt; if (e.cd <= 0) { e.state = 'wind'; e.t = 0; } }
       }
     } else if (e.state === 'wind') {
-      e.t += dt; e.face = Math.atan2(dx, dz);
+      e.t += dt; turnTo(e, C, Math.atan2(dx, dz), dt);
       if (e.t >= C.wind) {
         e.state = 'rec'; e.t = 0;
         const ta = e.tgt && W.allies.find(a => a.id === e.tgt && !a.dead);

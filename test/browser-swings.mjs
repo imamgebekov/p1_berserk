@@ -65,6 +65,20 @@ try {
   if (hits.live.decals < 2) bad('нет пятен на земле: ' + JSON.stringify(hits.live));
   if (!hits.nums.some(n => /crit/.test(n) && /!$/.test(n)) || !hits.nums.some(n => /\bfin\b/.test(n))) bad('цифры крита и завершающего не выделены: ' + hits.nums.join(' | '));
   await page.evaluate(() => { const W = window.__b3d.W; W.freeze = 0; });
+  // новые враги: щитоносец, тлеющий с фитилём, копейщик целится (полоса), тень
+  const beasts = await page.evaluate(async () => {
+    const b = window.__b3d, W = b.W, p = W.player; W.freeze = 0; W.enemies.forEach(e => { if (!e.boss) e.dead = true; }); p.face = Math.PI * .75;
+    const at = (t, ang, d) => { const e = b.spawn(t, p.x + Math.sin(p.face + ang) * d, p.z + Math.cos(p.face + ang) * d); e.cd = 99; e.face = Math.atan2(p.x - e.x, p.z - e.z); return e; };
+    const sh = at('shield', -.5, 3.2), bo = at('bomber', .45, 2.6), lu = at('lunger', 1.3, 4.5), sd = at('shade', -1.4, 3);
+    const C = b.cfg.enemies;
+    bo.state = 'fuse'; bo.t = .6; W.haz.push({ x: bo.x, z: bo.z, r: C.bomber.fuse.r, t: .6, delay: 99, dmg: 0, by: bo.id, bomber: true });
+    lu.state = 'aim'; lu.t = .6; lu.tele = { len: C.lunger.lunge.len, w: C.lunger.lunge.w, aim: C.lunger.lunge.aim };
+    W.freeze = 999; await new Promise(r => setTimeout(r, 400));
+    return W.enemies.filter(e => !e.dead && !e.boss).map(e => e.type).sort().join(',');
+  });
+  await page.screenshot({ path: join(out, '3d-beasts.png'), clip: { x: 0, y: 100, width: 390, height: 460 } });
+  if (beasts !== 'bomber,lunger,shade,shield') bad('новые враги не появились: ' + beasts);
+  await page.evaluate(() => { const W = window.__b3d.W; W.freeze = 0; W.haz.length = 0; });
   await ctx.close();
   for (const l of logs) bad(l);
 } finally { await browser.close(); await dev.close(); }
