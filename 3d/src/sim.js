@@ -12,6 +12,7 @@ import { pickAlly, hurtAlly, updateAllies } from './squad3d.js';
 import { trackPlace, reveal } from './places3d.js';
 import { addXp, gainXp } from './progress3d.js';
 import { restock } from './economy3d.js';
+import { updateWanderer, nearWanderer, blockCart } from './events3d.js';
 import { BY_ID } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
@@ -25,7 +26,7 @@ import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMu
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
-import { initLevels, withLevel, depthAt, onSurface, portalNear, backToSurface, SURFACE } from './levels3d.js';
+import { initLevels, withLevel, depthAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 
 export function createWorld(cfg, rng = Math.random) {
   const W = makeWorld(cfg, rng); attachFx(W);
@@ -491,6 +492,7 @@ function updateEnemies(W, dt) {
   }
   for (const e of live) { resolve(W.map, e, E[e.type].radius); blockFoe(W.map, e, E[e.type].radius); }     // ворота лагеря для врагов закрыты
   resolve(W.map, p, W.cfg.player.radius);
+  blockCart(W, p, W.cfg.player.radius);
   keepIn(W.map, p, W.cfg.world.radius);                         // расталкивание не выносит героя за границу
   W.enemies = W.enemies.filter(e => !(e.dead && e.deadT > .6));
   // держим нужное число врагов (кольцом вокруг героя — только на поверхности; в подземельях свои правила)
@@ -540,8 +542,9 @@ function updateHouses(W, dt) {
     const r = M.doorReach, near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r) || W.allies.some(a => !a.dead && len(a.x - d.x, a.z - d.z) < r);
     d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
   }
-  { const nb = p.dead ? null : W.map.buildings.find(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach); W.nearNpc = nb ? nb.npc.kind : null; W.nearMerchant = W.nearNpc === 'merchant'; }
+  { const nb = p.dead ? null : W.map.buildings.find(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach); W.nearNpc = nb ? nb.npc.kind : nearWanderer(W) ? 'wanderer' : null; W.nearMerchant = W.nearNpc === 'merchant' || W.nearNpc === 'wanderer'; }
   if ((W.shop.t += dt) > W.cfg.shop.restock) restock(W);
+  updateWanderer(W, dt);
   if (W.tomb && (W.tomb.lvl || SURFACE) === W.lvl && !p.dead && len(p.x - W.tomb.x, p.z - W.tomb.z) < 1.6) { W.inv.ash += W.tomb.ash; W.ev.push({ k: 'tomb', ash: W.tomb.ash, x: W.tomb.x, z: W.tomb.z }); W.tomb = null; }
   W.nearPortal = portalNear(W);
   // контейнеры других уровней тоже наполняются со временем
@@ -579,6 +582,10 @@ function updateHouses(W, dt) {
 export function useItem(W, idx) {
   const s = W.inv.bag[idx], it = s && BY_ID[s.id]; if (!it || !it.use || W.player.dead) return false;
   const p = W.player, u = it.use;
+  if (u.recall) {          // свиток возврата: в лагерь, откуда угодно
+    travel(W, SURFACE, 0, 4);
+    W.ev.push({ k: 'recall', x: p.x, z: p.z }); removeAt(W.inv, idx, 1); return true;
+  }
   if (u.cleanse) { if (!cleansePlayer(W, u.cleanse) && !u.heal && !u.buff) return false; W.ev.push({ k: 'cleanse', x: p.x, z: p.z }); }
   if (u.heal) { const h = Math.min(u.heal, p.maxhp - p.hp); if (h <= 0 && !u.buff && !u.ash) return false; p.hp += Math.max(0, h); if (h > 0) W.ev.push({ k: 'heal', x: p.x, z: p.z, n: Math.round(h) }); }
   if (u.ash) { const n = Math.round(u.ash[0] + W.rng() * (u.ash[1] - u.ash[0])); W.inv.ash += n; W.ev.push({ k: 'ash', x: p.x, z: p.z, n }); }

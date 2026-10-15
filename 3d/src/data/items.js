@@ -152,6 +152,14 @@ for (const [id, name, use, rar, val] of POTIONS) {
   const txt = [use.heal ? (use.heal >= 900 ? 'Полностью лечит.' : `Лечит на ${use.heal}.`) : '', use.buff ? `${cap(STAT_NAME[use.buff.stat])} +${use.buff.amt} на ${use.buff.t} с.` : ''].filter(Boolean).join(' ');
   add({ id: 'p_' + id, name, cat: 'consumable', pool: 'potion', rar, stack: 5, value: val, use, text: txt });
 }
+// товар сказочного торговца (пул 'fairy' — в сундуках и с врагов не выпадает)
+const FAIRY = [
+  ['p_fairy_elixir', 'Эликсир феи', { heal: 999, buff: { stat: 'regen', amt: 3, t: 60 } }, 3, 220, 'Полностью лечит, потом минуту затягивает раны (+3 здоровья в секунду).'],
+  ['p_fairy_dust', 'Звёздная пыль', { buff: { stat: 'luck', amt: 40, t: 300 } }, 3, 260, 'Удача +40 на 5 минут: добыча заметно лучше.'],
+  ['p_fairy_might', 'Сказочная сила', { buff: { stat: 'dmg', amt: 30, t: 60 } }, 4, 320, 'Урон +30 на минуту.'],
+  ['u_recall', 'Свиток возврата', { recall: true }, 2, 150, 'Прочитать: мгновенно перенестись в лагерь (и из подземелья тоже).']
+];
+for (const [id, name, use, rar, val, text] of FAIRY) add({ id, name, cat: 'consumable', pool: 'fairy', rar, stack: 5, value: val, use, text, ...(use.recall ? { icon: 'book' } : {}) });
 const MEDIC = [
   ['rag_bandage', 'Тряпичный бинт', 12, 0, 6], ['linen_bandage', 'Льняная перевязка', 22, 1, 14], ['salve', 'Мазь из пепла', 40, 2, 38], ['poultice', 'Припарка', 18, 0, 9], ['stitch', 'Набор для шитья ран', 55, 2, 60]
 ];

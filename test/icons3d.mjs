@@ -18,7 +18,7 @@ for (const it of Object.values(BY_ID)) {
   ok(filled >= 20, `${it.id}: значок почти пустой (${filled})`);
   ok(Object.values(P).every(c => /^#[0-9a-f]{6}$/i.test(c)), `${it.id}: плохой цвет ${JSON.stringify(P)}`);
   ok(P.a !== '#a8a090' || ['material', 'craftmat'].includes(it.pool), `${it.id}: нет своего цвета`);
-  if (!(it.cat === 'consumable' && it.pool === 'potion')) ok(P.r === RARITY[it.rar].color, `${it.id}: камень не цвета редкости`);
+  if (!(it.cat === 'consumable' && (it.pool === 'potion' || it.pool === 'fairy'))) ok(P.r === RARITY[it.rar].color, `${it.id}: камень не цвета редкости`);
 }
 ok(Object.keys(TEMPLATES).every(k => used.has(k) || k === 'fists'), 'есть неиспользуемые шаблоны: ' + Object.keys(TEMPLATES).filter(k => !used.has(k)).join(','));
 // разные виды оружия — разные значки

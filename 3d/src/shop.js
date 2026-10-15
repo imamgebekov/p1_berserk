@@ -4,7 +4,7 @@ import { betterThanWorn, nameOf } from './inv.js';
 import { RECIPES } from './data/recipes3d.js';
 import { TOME_BY_ID } from './data/tomes3d.js';
 import { craft, craftStatus, missing, recipeKnown } from './craft3d.js';
-import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
+import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, shopOf, priceMulOf, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
 
 export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const $ = id => doc.getElementById(id);
@@ -24,13 +24,14 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   };
   function render() {
     refreshGear(W);
-    headEl.textContent = `Торговец · пепел ${W.inv.ash}`;
+    const wand = W.nearNpc === 'wanderer' && W.wanderer, sh = shopOf(W), mul = W.dif.buy * priceMulOf(W);
+    headEl.textContent = wand ? `Сказочный торговец · уедет через ${Math.max(0, Math.ceil(wand.t))} с · пепел ${W.inv.ash}` : `Торговец · пепел ${W.inv.ash}`;
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
     junkBtn.hidden = tab !== 'sell';
     listEl.textContent = '';
     if (tab === 'buy') {
-      W.shop.stock.forEach((s, i) => { const it = BY_ID[s.id], price = buyPrice(it, cfg, W.dif.buy); listEl.appendChild(row(it, s.n, it.stats ? statLine(it) : it.text || '', price, 'Купить', () => { const r = buyItem(W, i); if (r === 'closed') flash('Торговец спит до рассвета'); else if (r === 'ash') flash('Не хватает пепла'); else if (r === 'full') flash('Сумка полна'); else if (r === 'far') flash('Подойдите к торговцу'); }, W.inv.ash >= price, betterThanWorn(W.inv, it) ? '▲' : '')); });
-      if (!W.shop.stock.length) listEl.appendChild(el('div', 'emptyl', 'Всё раскуплено. Витрина обновится позже.'));
+      sh.stock.forEach((s, i) => { const it = BY_ID[s.id], price = buyPrice(it, cfg, mul); listEl.appendChild(row(it, s.n, it.stats ? statLine(it) : it.text || '', price, 'Купить', () => { const r = buyItem(W, i); if (r === 'closed') flash('Торговец спит до рассвета'); else if (r === 'ash') flash('Не хватает пепла'); else if (r === 'full') flash('Сумка полна'); else if (r === 'far') flash('Подойдите к торговцу'); }, W.inv.ash >= price, betterThanWorn(W.inv, it) ? '▲' : '')); });
+      if (!sh.stock.length) listEl.appendChild(el('div', 'emptyl', wand ? 'Всё раскуплено. Сказочный торговец скоро уедет.' : 'Всё раскуплено. Витрина обновится позже.'));
     } else {
       const rows = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).sort((a, b) => b.it.rar - a.it.rar || a.it.name.localeCompare(b.it.name, 'ru'));
       for (const r of rows) {

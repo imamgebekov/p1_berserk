@@ -5,7 +5,7 @@ import { buildTown } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeSoldier, animateSoldier } from './models.js';
+import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeCart, makeSoldier, animateSoldier } from './models.js';
 import { mulberry32 } from './sim.js';
 import { questMark } from './quests3d.js';
 import { skyAt } from './daynight.js';
@@ -120,6 +120,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     palisade.add(new THREE.Mesh(mergeGeometries(posts), new THREE.MeshLambertMaterial({ color: '#4a3220' })), new THREE.Mesh(mergeGeometries(beams), new THREE.MeshLambertMaterial({ color: '#3a2618' })), new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })));
     scene.add(palisade);
   }
+  const cart = makeCart(); cart.group.visible = false; scene.add(cart.group);   // повозка сказочного торговца
+  const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const surfaceObjs = [dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   function showLevel(W) {
@@ -345,6 +347,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (!under) town.update(W.inside, dt, W.map);
     conts.update(W, t);
     for (const n of npcs) { const dx = p.x - n.pos.x, dz = p.z - n.pos.z; if (Math.hypot(dx, dz) < 9) n.group.rotation.y += angDiffTo(Math.atan2(dx, dz), n.group.rotation.y) * Math.min(1, dt * 6); n.root.position.y = Math.sin(t * 2) * .02; { const mk = questMark(W, n.kind || n.pos.kind); n.mark.visible = !!mk; if (mk) { n.mark.material.color.set(mk === 'ready' ? '#7ad06a' : '#e8c04a'); n.mark.position.y = 2.6 + Math.sin(t * 3) * .08; n.mark.rotation.y = t * 2; } } n.armL.rotation.x = Math.sin(t * 1.6) * .08; n.armR.rotation.x = -Math.sin(t * 1.6) * .08; }
+    { const w = W.wanderer; cart.group.visible = !under && !!w;
+      if (w && !under) {
+        cart.group.position.set(w.x, 0, w.z); cart.group.rotation.y = w.face;
+        const nx = w.x + Math.cos(w.face) * 1.6 + Math.sin(w.face) * .6, nz = w.z - Math.sin(w.face) * 1.6 + Math.cos(w.face) * .6;
+        cart.npc.group.rotation.y = Math.atan2(p.x - nx, p.z - nz) - w.face;
+        cart.lamp.material.color.setHSL(.78, .9, .72 + (calm ? 0 : .12 * Math.sin(t * 4)));
+        if (!calm) { cart.mark.position.y = 3.4 + Math.sin(t * 2.5) * .15; cart.mark.rotation.y = t * 2; if (Math.random() < dt * 5) burst(nx + (Math.random() - .5) * 3, 1.5 + Math.random() * 1.5, nz + (Math.random() - .5) * 3, 1, Math.random() < .5 ? '#c8a0ff' : '#ffe8a0', .6); }
+      } }
     // костёр: мерцание света и пламени
     const fl = .8 + .2 * Math.sin(t * 17) + .1 * Math.sin(t * 29.3);
     fire.light.intensity = 26 * fl; fire.flames.forEach((f, i) => { f.scale.y = .8 + .35 * Math.sin(t * (9 + i * 4) + i); f.rotation.y = t * (2 + i); });
@@ -414,6 +424,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
       else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { fx.flash(v.x, 1.4, v.z, 2.6, RARITY[4].color); burst(v.x, 1, v.z, 12, RARITY[4].color, 4); }
+      else if (v.k === 'wanderer' || v.k === 'wanderLeave') { burst(v.x, 1.6, v.z, 26, '#c8a0ff', 3); fx.ash(v.x, 1, v.z, 10, ['#8a7aa0', '#c8b8e0', '#5a4a70']); }
+      else if (v.k === 'recall') { burst(v.x, 1.2, v.z, 30, '#c8a0ff', 4); fx.flash(v.x, 1.2, v.z, 2.2, '#e0c8ff'); }
       else if (v.k === 'spot') hooks.onText && hooks.onText(v.x, 2.9, v.z, '!', 'alarm');
       else if (v.k === 'lost') hooks.onText && hooks.onText(v.x, 2.9, v.z, '?', 'lost');
       else if (v.k === 'block') { const p0 = W.player; let dx = p0.x - v.x, dz = p0.z - v.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; fx.spray(v.x + dx * .6, 1.1, v.z + dz * .6, dx, dz, 8, '#ffe8b0', 6, .9, { life: .25, g: 8, s: .07 }); fx.flash(v.x + dx * .6, 1.1, v.z + dz * .6, 1.1, '#ffffff'); hooks.onText && hooks.onText(v.x, 2.2, v.z, 'щит', 'dodge'); }

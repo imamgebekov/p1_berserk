@@ -27,22 +27,26 @@ export function restock(W) {
   for (const it of rollLoot(SHOP, W.rng, .12, W.gear.luck)) { const ex = out.find(o => o.id === it.id); if (ex) ex.n += it.n; else out.push({ ...it }); }
   W.shop.stock = out; W.shop.t = 0;
 }
+// у повозки сказочного торговца — его витрина, наценка и торговля ночью
+export const shopOf = W => (W.nearNpc === 'wanderer' && W.wanderer) || W.shop;
+export const priceMulOf = W => W.nearNpc === 'wanderer' ? W.cfg.wanderer.priceMul : 1;
+const closed = W => W.night && W.nearNpc !== 'wanderer';
 export function buyItem(W, i) {
-  const s = W.shop.stock[i]; if (!s || !W.nearMerchant) return 'far'; if (W.night) return 'closed';
-  const it = BY_ID[s.id], price = buyPrice(it, W.cfg, W.dif.buy);
+  const sh = shopOf(W), s = sh.stock[i]; if (!s || !W.nearMerchant) return 'far'; if (closed(W)) return 'closed';
+  const it = BY_ID[s.id], price = buyPrice(it, W.cfg, W.dif.buy * priceMulOf(W));
   if (W.inv.ash < price) return 'ash';
   if (addItem(W.inv, s.id, 1, W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0)) > 0) return 'full';
-  W.inv.ash -= price; s.n -= 1; if (s.n <= 0) W.shop.stock.splice(i, 1);
+  W.inv.ash -= price; s.n -= 1; if (s.n <= 0) sh.stock.splice(i, 1);
   W.ev.push({ k: 'pickup', id: s.id, n: 1 }); return 'ok';
 }
 export function sellItem(W, idx, n = 1) {
-  const s = W.inv.bag[idx]; if (!s) return 'none'; if (!W.nearMerchant) return 'far'; if (W.night) return 'closed';
+  const s = W.inv.bag[idx]; if (!s) return 'none'; if (!W.nearMerchant) return 'far'; if (closed(W)) return 'closed';
   const q = Math.min(n, s.n), it = BY_ID[s.id];
   W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade) * q; removeAt(W.inv, idx, q); return 'ok';
 }
 // продать весь хлам разом: безделушки, деньги, записки и материалы (оружие, броня, ключи и расходники остаются)
 export function sellJunk(W) {
-  if (!W.nearMerchant || W.night) return -1;
+  if (!W.nearMerchant || closed(W)) return -1;
   let sum = 0;
   for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if (it.cat === 'curio' || it.cat === 'material') { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
   W.inv.ash += sum; return sum;

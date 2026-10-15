@@ -84,6 +84,15 @@ try {
   await page.waitForTimeout(500); await page.screenshot({ path: join(out, '3d-desk-camp.png') });
   if (!(await ev(() => !!window.__b3d.W.map.camp && window.__b3d.W.map.blocks.length > 100))) bad('нет частокола лагеря');
   await ev(() => { const p = window.__b3d.W.player; p.x = 0; p.z = 4; });
+  // сказочный торговец: повозка видна, E открывает его витрину с заголовком и таймером
+  await ev(() => { const W = window.__b3d.W, p = W.player; W.wanderer = { x: p.x + 2.8, z: p.z, face: 1, t: 120, stock: [{ id: 'p_fairy_elixir', n: 2 }, { id: 'u_recall', n: 1 }] }; W.wandT = 1e9; });
+  await page.waitForFunction(() => window.__b3d.W.nearNpc === 'wanderer', null, { timeout: 4000 }).catch(() => bad('у повозки нет торговца'));
+  await page.waitForTimeout(300); await page.screenshot({ path: join(out, '3d-desk-wanderer.png') });
+  await page.keyboard.press('KeyE'); await page.waitForTimeout(250);
+  if (!(await shown('shop'))) bad('E не открыла витрину сказочного торговца');
+  else { const h = await ev(() => document.getElementById('shopHead').textContent + ' | ' + document.getElementById('shopList').textContent); if (!/Сказочный торговец/.test(h) || !/Эликсир феи/.test(h)) bad('витрина не сказочная: ' + h.slice(0, 120)); await page.screenshot({ path: join(out, '3d-desk-wanderer-shop.png') }); }
+  await page.keyboard.press('Escape'); await page.waitForTimeout(150);
+  await ev(() => { const W = window.__b3d.W; W.wanderer = null; W.player.x = 0; W.player.z = 4; });
   // окна: M — карта, I — сумка, N — навыки, Esc — закрыть, Esc на пустом месте — меню с клавишами
   await page.keyboard.press('KeyM'); await page.waitForTimeout(250);
   if (!(await shown('map'))) bad('M не открыла карту');

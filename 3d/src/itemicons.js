@@ -87,23 +87,24 @@ export const TEMPLATE_CHARS = '.badecrw';
 
 const WEAPON_T = { sword: 'sword', rapier: 'sword', knife: 'dagger', dagger: 'dagger', greatsword: 'greatsword', axe: 'axe', war_axe: 'axe', sickle: 'scythe', scythe: 'scythe',
   spear: 'polearm', halberd: 'polearm', hammer: 'hammer', club: 'mace', mace: 'mace', pick: 'hammer', flail: 'flail', chain_ball: 'flail', fists: 'fists' };
-const CAT_T = { food: 'food', potion: 'potion', medic: 'medic', coin: 'coin', material: 'ingot', craftmat: 'ingot', monstermat: 'hide', trophy: 'skull', tome: 'book', bosstome: 'book', book: 'book', curio: 'gem', key: 'key' };
+const CAT_T = { food: 'food', potion: 'potion', fairy: 'potion', medic: 'medic', coin: 'coin', material: 'ingot', craftmat: 'ingot', monstermat: 'hide', trophy: 'skull', tome: 'book', bosstome: 'book', book: 'book', curio: 'gem', key: 'key' };
 export function templateOf(it) {
   if (!it) return 'gem';
   if (it.slot === 'weapon') return WEAPON_T[it.kind] || 'sword';
   if (it.slot) return it.slot;
+  if (it.icon) return it.icon;
   return CAT_T[it.pool] || CAT_T[it.cat] || 'gem';
 }
 
 // цвета: основной — по материалу (металл, кожа, кость…) или виду расходника; r — редкость (у зелий — цвет зелья)
 const MAT = { rust: '#8a5a3a', iron: '#9a9890', tempered: '#b8b4a8', bone: '#d8ccb0', steel: '#cfc9bb', black: '#4a4652', blood: '#9a2428', unique: '#e2c27a',
   rag: '#8a7a62', leather: '#8a6038', studded: '#7a6448', mail: '#a8a8a0', plate: '#c0bcb0', ash: '#6a6260', set_pogost: '#5a6a58', set_eclipse: '#4a3460', set_rust: '#8a4a2a' };
-const CAT = { ring: '#d8b860', amulet: '#c8a050', food: '#c89050', potion: '#d0d8e0', medic: '#e8e0d0', coin: '#e0b040', material: '#a8a090', craftmat: '#a8a090', monstermat: '#8a6a4a', trophy: '#e0d8c8', tome: '#6a3a2a', bosstome: '#3a2a4a', book: '#7a5a3a', curio: '#c0b090', key: '#c8a040' };
-const POTION = { p_heal1: '#d03838', p_heal2: '#e04848', p_heal3: '#ff5a5a' };
+const CAT = { ring: '#d8b860', amulet: '#c8a050', food: '#c89050', potion: '#d0d8e0', fairy: '#e0d0ff', medic: '#e8e0d0', coin: '#e0b040', material: '#a8a090', craftmat: '#a8a090', monstermat: '#8a6a4a', trophy: '#e0d8c8', tome: '#6a3a2a', bosstome: '#3a2a4a', book: '#7a5a3a', curio: '#c0b090', key: '#c8a040' };
+const POTION = { p_heal1: '#d03838', p_heal2: '#e04848', p_heal3: '#ff5a5a', p_fairy_elixir: '#ff8ad8', p_fairy_dust: '#ffe070', p_fairy_might: '#b070ff', u_recall: '#9a70e0' };
 const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), f = c => Math.max(0, Math.min(255, Math.round(c * k))); return '#' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(f).map(x => x.toString(16).padStart(2, '0')).join(''); };
 export function paletteOf(it) {
   const rar = RARITY[(it && it.rar) || 0].color, base = (it && (MAT[it.mat] || CAT[it.pool] || CAT[it.cat])) || '#a8a090';
-  const r = it && it.cat === 'consumable' && it.pool === 'potion' ? (POTION[it.id] || (/mana|ash/.test(it.id) ? '#4a8ad8' : '#7ad060')) : rar;
+  const r = it && it.cat === 'consumable' && (it.pool === 'potion' || it.pool === 'fairy') ? (POTION[it.id] || (/mana|ash/.test(it.id) ? '#4a8ad8' : '#7ad060')) : rar;
   return { b: '#140c0a', a: base, d: shade(base, 1.35), e: shade(base, .62), c: '#6a4a2a', r, w: '#e8e0d0' };
 }
 // сетка цветов 16×16 (null — прозрачно)
