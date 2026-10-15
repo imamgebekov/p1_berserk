@@ -20,8 +20,9 @@ html,body{margin:0;height:100%;position:fixed;inset:0;width:100%;background:var(
 #bAtk.on,#bRoll.on{filter:brightness(1.5);transform:scale(.95)}
 #dmg{position:fixed;inset:0;pointer-events:none;overflow:hidden}
 .num{position:absolute;font-weight:800;font-size:18px;color:#f3e3c4;text-shadow:0 2px 0 #000,0 0 4px #000;animation:rise .8s ease-out forwards;transform:translate(-50%,-50%)}
-.num.crit{color:#ffd27a;font-size:24px}.num.hurt{color:#ff5a5a}.num.loot{color:#ffc860;font-size:17px}.num.xp{color:#d8b04a;font-size:14px}.num.dodge{color:#9fd0ff;font-size:16px}
+.num.crit{color:#ffd27a;font-size:26px;animation:rise .8s ease-out forwards,pop .18s ease-out}.num.fin{color:#ffb07a;font-size:22px;animation:rise .8s ease-out forwards,pop .18s ease-out}.num.hurt{color:#ff5a5a}.num.loot{color:#ffc860;font-size:17px}.num.xp{color:#d8b04a;font-size:14px}.num.dodge{color:#9fd0ff;font-size:16px}
 @keyframes rise{to{margin-top:-46px;opacity:0}}
+@keyframes pop{from{transform:translate(-50%,-50%) scale(1.7)}to{transform:translate(-50%,-50%) scale(1)}}
 #flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(transparent 40%,rgba(180,10,20,.6));opacity:0;transition:opacity .35s}
 #flash.on{opacity:1;transition:none}
 .veil{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:rgba(8,4,5,.88);z-index:20}

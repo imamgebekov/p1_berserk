@@ -46,6 +46,25 @@ try {
     await page.screenshot({ path: join(out, `3d-swing-${fam}-${step}.png`), clip: { x: 45, y: 150, width: 300, height: 330 } });
   }
   await page.evaluate(() => { const W = window.__b3d.W; W.freeze = 0; W.player.state = 'idle'; });
+  // попадания и смерть: брызги прочь от героя, искры, вспышка, пятна, пепел; цифры крита и завершающего крупнее
+  const hits = await page.evaluate(async () => {
+    const b = window.__b3d, W = b.W, p = W.player;
+    const { BY_ID } = await import('/3d/src/data/items.js'), { refreshGear } = await import('/3d/src/sim.js');
+    W.inv.eq.weapon = Object.keys(BY_ID).find(k => BY_ID[k].kind === 'sword' && BY_ID[k].mat === 'steel'); refreshGear(W);
+    p.face = Math.PI * .75; const fx = Math.sin(p.face), fz = Math.cos(p.face);
+    const e1 = b.spawn('imp', p.x + fx * 1.8, p.z + fz * 1.8), e2 = b.spawn('ghoul', p.x + fx * 2.2 + fz, p.z + fz * 2.2 - fx);
+    W.freeze = 999;
+    W.ev.push({ k: 'hit', x: e1.x, z: e1.z, dmg: 23, crit: true, id: e1.id }, { k: 'hit', x: e2.x, z: e2.z, dmg: 31, fin: true, id: e2.id }, { k: 'hit', x: e2.x, z: e2.z, dmg: 4, fx: 'burn', id: e2.id });
+    e2.hp = 0; e2.dead = true; e2.deadT = 0; W.ev.push({ k: 'die', x: e2.x, z: e2.z, type: e2.type, id: e2.id });
+    await new Promise(r => setTimeout(r, 160));
+    const live = b.renderer.fx.live(), nums = [...document.querySelectorAll('#dmg .num')].map(d => d.className + ':' + d.textContent);
+    return { live, nums };
+  });
+  await page.screenshot({ path: join(out, '3d-hits.png'), clip: { x: 20, y: 120, width: 350, height: 380 } });
+  if (hits.live.parts < 20) bad('мало частиц после попаданий: ' + JSON.stringify(hits.live));
+  if (hits.live.decals < 2) bad('нет пятен на земле: ' + JSON.stringify(hits.live));
+  if (!hits.nums.some(n => /crit/.test(n) && /!$/.test(n)) || !hits.nums.some(n => /\bfin\b/.test(n))) bad('цифры крита и завершающего не выделены: ' + hits.nums.join(' | '));
+  await page.evaluate(() => { const W = window.__b3d.W; W.freeze = 0; });
   await ctx.close();
   for (const l of logs) bad(l);
 } finally { await browser.close(); await dev.close(); }

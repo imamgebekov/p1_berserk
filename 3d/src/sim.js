@@ -224,7 +224,7 @@ function strike(W, e, dmg, o) {
   const heavy = C.heavy || e.aff === 'armored', k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
   if (e.state === 'wind' && !heavy) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах
-  W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: o.crit, id: e.id, fx: o.fx || null });
+  W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: o.crit, fin: !!o.fin, id: e.id, fx: o.fx || null });
   e.alert = true;
   if (e.hp <= 0) killEnemy(W, e, 1);
 }
@@ -269,7 +269,7 @@ function attackHit(W, mult = 1, echo = false) {
     const crit = W.rng() < .12 + W.gear.crit / 100;
     if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
     const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null;
-    strike(W, e, dmg, { crit, dx, dz, d, knock: (tr.knock || 1) * (p.fin && !echo ? 1.6 : 1), fx });
+    strike(W, e, dmg, { crit, dx, dz, d, knock: (tr.knock || 1) * (p.fin && !echo ? 1.6 : 1), fx, fin: p.fin && !echo });
     hits++;
     weaponStatuses(W, e, dmg, crit, p);
     if (crit && W.setFx.ignite && !e.dead && W.rng() < W.setFx.ignite) applyStatus(W, e, 'burn', 4, 4);

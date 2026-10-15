@@ -74,6 +74,7 @@ export function animateHero(h, p, time, dt, cfg, swingMul = 1) {
     h.root.rotation.x = k * Math.PI * 2; h.root.position.y = .85 + Math.sin(k * Math.PI) * .25; h.root.scale.set(.85, .75, .85);
   }
   if (dead) { h.root.rotation.x = -Math.min(1.5, p.deadT * 4); h.root.position.y = .3; }
+  else if (!roll && h.hurtT > 0) { const k = h.hurtT / .22; h.root.rotation.x -= .4 * k; h.root.position.y += .06 * k; }     // ранен: вздрагивает назад
   // вспышка при уроне: мигаем во время неуязвимости
   h.flash(p.inv > 0 && !roll && Math.floor(time * 20) % 2 ? .7 : 0);
 }
@@ -121,7 +122,7 @@ export function animateMonster(m, e, time, cfg) {
   const ph = time * (6 + C.speed) + e.id * 1.7;
   m.legL.rotation.x = moving ? Math.sin(ph) * .8 : 0; m.legR.rotation.x = moving ? -Math.sin(ph) * .8 : 0;
   m.armL.rotation.x = moving ? -Math.sin(ph) * .6 : 0; m.armR.rotation.x = moving ? Math.sin(ph) * .6 : 0;
-  m.root.position.y = moving ? Math.abs(Math.sin(ph)) * .08 : 0; m.root.rotation.x = 0; m.root.rotation.z = 0; m.root.position.z = 0;
+  m.root.position.y = moving ? Math.abs(Math.sin(ph)) * .08 : 0; m.root.rotation.x = 0; m.root.rotation.z = 0; m.root.position.z = 0; m.root.scale.set(1, 1, 1);
   let red = 0;
   if (e.state === 'wind') {
     const k = Math.min(1, e.t / C.wind);
@@ -131,7 +132,10 @@ export function animateMonster(m, e, time, cfg) {
     const k = Math.min(1, e.t / .25);
     m.armL.rotation.x = m.armR.rotation.x = -2.4 + 3.2 * Math.min(1, k * 3); m.root.rotation.x = .4 * (1 - k); m.root.position.z = .25 * (1 - k);
   }
-  if (e.dead) { const k = Math.min(1, e.deadT / .5); m.root.rotation.z = 1.4 * k; m.root.position.y = -.5 * k; red = 0; }
+  // попадание: откидывается назад и сплющивается (e.flash ставит симуляция)
+  if (!e.dead && e.flash > 0) { const k = Math.min(1, e.flash / .12); m.root.rotation.x -= .45 * k; m.root.position.z -= .12 * k; m.root.scale.set(1 + .12 * k, 1 - .16 * k, 1 + .12 * k); }
+  // смерть: валится за 0,3 с, потом оседает и тает (тело убирается через 0,6 с)
+  if (e.dead) { const k = Math.min(1, e.deadT / .3), f = Math.max(0, Math.min(1, (e.deadT - .3) / .3)); m.root.rotation.z = 1.4 * k; m.root.position.y = -.5 * k - .4 * f; m.root.scale.setScalar(1 - .75 * f); red = 0; }
   // цвет статуса: горит, мёрзнет, отравлен, кровоточит, оглушён
   let tint = null; const st = e.st;
   if (st && !e.dead) {

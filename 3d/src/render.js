@@ -11,6 +11,7 @@ import { questMark } from './quests3d.js';
 import { skyAt } from './daynight.js';
 import { BY_ID } from './data/items.js';
 import { trailOn } from './anim3d.js';
+import { createFx } from './fx3d.js';
 
 const FOG = '#150c0b';
 
@@ -106,7 +107,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const up = !L.def; for (const o of surfaceObjs) o.visible = up;
     sun.visible = up; lantern.visible = !up;
     if (!up) { scene.fog.color.set('#070504'); scene.background.set('#070504'); hemi.color.set('#6a5a50'); hemi.groundColor.set('#1a1210'); hemi.intensity = .9; }
-    lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts;
+    lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts; fx.clear();
   }
   const hero = makeHero(); scene.add(hero.group);
   // след клинка: лента между началом и концом рабочей части оружия за последние кадры (светится и гаснет)
@@ -147,15 +148,28 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const a = deg * Math.PI / 180; arc.geometry = new THREE.CircleGeometry(1, 24, Math.PI / 2 - a / 2, a);
   }
 
-  // частицы-кубики
-  const pool = []; const pg = new THREE.BoxGeometry(.14, .14, .14);
-  for (let i = 0; i < 48; i++) { const m = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ color: '#a1121f' })); m.visible = false; m.userData = { life: 0, vx: 0, vy: 0, vz: 0 }; scene.add(m); pool.push(m); }
-  let pi = 0;
-  function burst(x, y, z, n, color, sp = 4) {
-    for (let k = 0; k < n; k++) {
-      const m = pool[pi = (pi + 1) % pool.length]; m.visible = true; m.material.color.set(color); m.position.set(x, y, z);
-      const a = Math.random() * 6.283; m.userData = { life: .5 + Math.random() * .4, vx: Math.cos(a) * sp * Math.random(), vy: 2 + Math.random() * 3, vz: Math.sin(a) * sp * Math.random() };
-    }
+  // эффекты боя: частицы, пятна на земле, вспышки (fx3d.js)
+  const fx = createFx(scene, camera), burst = fx.burst, BLOOD = '#4a080c', HURT_T = .22;
+  const DECAL_FX = { burn: '#1a1410', venom: '#2e4a1a', bleed: BLOOD };      // холод и гроза пятен не оставляют
+  // попадание: брызги прочь от героя, искры, вспышка, пятно; урон от статусов и молний — только мелкие брызги своего цвета
+  function hitFx(v, p) {
+    const col = v.fx ? FXCOL[v.fx] : '#a1121f';
+    if (v.fx && !v.crit && !v.fin && v.dmg < 12) { burst(v.x, 1.1, v.z, 4, col, 2.5); return; }
+    let dx = v.x - p.x, dz = v.z - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
+    const big = v.crit || v.fin;
+    fx.spray(v.x, 1.1, v.z, dx, dz, big ? 12 : 7, col, big ? 7 : 5, .75);
+    fx.spray(v.x, 1.2, v.z, dx, dz, big ? 6 : 3, v.crit ? '#ffd27a' : '#fff1d0', big ? 9 : 7, .5, { life: .22, g: 6, s: .07 });
+    fx.flash(v.x + dx * .3, 1.2, v.z + dz * .3, big ? 1.6 : .9, v.crit ? '#ffd27a' : '#ffe8d0');
+    const dc = v.fx ? DECAL_FX[v.fx] : BLOOD;
+    if (dc && Math.random() < (big ? 1 : .6)) fx.decal(v.x + dx * (.4 + Math.random() * .6), v.z + dz * (.4 + Math.random() * .6), big ? .75 : .45, dc, dx, dz);
+  }
+  // смерть: кровь веером, пепел вверх, большое пятно
+  function dieFx(v, p) {
+    let dx = v.x - p.x, dz = v.z - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
+    const s = (cfg.enemies[v.type] && cfg.enemies[v.type].scale) || 1;
+    fx.spray(v.x, 1, v.z, dx, dz, Math.round(10 * s), '#6d0c14', 6, 1.1);
+    fx.ash(v.x, .6, v.z, Math.round(16 * s));
+    fx.decal(v.x, v.z, 1.1 * s, BLOOD);
   }
 
   function shadow(r) {
@@ -298,6 +312,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     // герой
     hero.group.position.set(p.x, 0, p.z); hero.group.rotation.y = p.face;
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); }
+    if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
     animateHero(hero, p, t, dt, cfg, W.gear.swing || 1);
     updateTrail(W, p, dt);
     heroShadow.position.set(p.x, .03, p.z);
@@ -341,9 +356,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     // события боя → эффекты и подписи (подписи отдаёт hooks.onText)
     for (const v of W.ev) {
       hooks.onEvent && hooks.onEvent(v);
-      if (v.k === 'hit') { burst(v.x, 1.1, v.z, 8, v.fx ? FXCOL[v.fx] : v.crit ? '#ffd27a' : '#a1121f'); hooks.onText && hooks.onText(v.x, 2, v.z, String(v.dmg), v.crit ? 'crit' : ''); }
-      else if (v.k === 'die') burst(v.x, 1, v.z, 18, '#6d0c14', 6);
-      else if (v.k === 'hurt') { burst(v.x, 1.2, v.z, 10, '#c0222c'); hooks.onText && hooks.onText(v.x, 2.4, v.z, '−' + v.dmg, 'hurt'); hooks.onHurt && hooks.onHurt(); }
+      if (v.k === 'hit') { hitFx(v, p); hooks.onText && hooks.onText(v.x, 2, v.z, String(v.dmg) + (v.crit ? '!' : ''), v.crit ? 'crit' : v.fin ? 'fin' : ''); }
+      else if (v.k === 'die') dieFx(v, p);
+      else if (v.k === 'hurt') { burst(v.x, 1.2, v.z, 10, '#c0222c'); fx.decal(v.x + (Math.random() - .5), v.z + (Math.random() - .5), .4, BLOOD); hero.hurtT = HURT_T; hooks.onText && hooks.onText(v.x, 2.4, v.z, '−' + v.dmg, 'hurt'); hooks.onHurt && hooks.onHurt(); }
       else if (v.k === 'open') burst(v.x, .9, v.z, 10, '#ffc860', 3)
       else if (v.k === 'heal') hooks.onText && hooks.onText(v.x, 2.4, v.z, '+' + v.n + ' ♥', 'loot')
       else if (v.k === 'ash') hooks.onText && hooks.onText(v.x, 2.4, v.z, '+' + v.n + ' пепла', 'loot')
@@ -353,7 +368,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
-      else if (v.k === 'finisher') { ringFx(v.x, v.z, 3, '#ffd9c0'); burst(v.x, .6, v.z, 10, '#ffd9c0', 5); }
+      else if (v.k === 'finisher') { ringFx(v.x, v.z, 3, '#ffd9c0'); burst(v.x, .6, v.z, 10, '#ffd9c0', 5); fx.flash(v.x + Math.sin(v.face) * 1.5, .8, v.z + Math.cos(v.face) * 1.5, 2.2, '#ffd9c0'); }
       else if (v.k === 'pstatus') burst(v.x, 1.2, v.z, 8, v.kind === 'poison' ? '#7ad060' : v.kind === 'burn' ? '#ff8a30' : '#d03030', 2);
       else if (v.k === 'pdot') hooks.onText && hooks.onText(v.x, 2.6, v.z, '−' + v.dmg, 'hurt')
       else if (v.k === 'cleanse') burst(v.x, 1.2, v.z, 10, '#9fe8ff', 2.5);
@@ -365,7 +380,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     W.ev.length = 0;
     // частицы
-    for (const m of pool) if (m.visible) { const u = m.userData; u.life -= dt; if (u.life <= 0) { m.visible = false; continue; } u.vy -= 14 * dt; m.position.x += u.vx * dt; m.position.y = Math.max(.07, m.position.y + u.vy * dt); m.position.z += u.vz * dt; }
+    fx.update(dt);
 
     stepFx(dt); updateTele(W, t); updateFoes(W, t);
     if (W.tomb && (W.tomb.lvl || 'surface') === W.lvl) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, 0, W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
@@ -373,5 +388,5 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     gl.render(scene, camera);
   }
 
-  return { render, resize, project, gl, camera, scene, town, info: () => gl.info.render, hero };
+  return { render, resize, project, gl, camera, scene, town, info: () => gl.info.render, hero, fx };
 }
