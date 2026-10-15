@@ -13,6 +13,7 @@ import { trackPlace, reveal } from './places3d.js';
 import { addXp, gainXp } from './progress3d.js';
 import { restock } from './economy3d.js';
 import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
+import { useAbility, dashStep, tickAbilities } from './abilities3d.js';
 import { BY_ID } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
@@ -76,7 +77,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), hero: DEFAULT_HERO, inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), hero: DEFAULT_HERO, ap: 0, ab: {}, acd: {}, abuf: {}, inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
@@ -204,6 +205,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   if (W.gear.block > 0 && fromX !== undefined && p.state !== 'atk' && p.state !== 'charge' && Math.abs(angDiff(Math.atan2(fromX - p.x, fromZ - p.z), p.face)) < W.cfg.block.arc * DEG / 2) {
     dmg *= 1 - Math.min(80, W.gear.block) / 100; knock *= W.cfg.block.knock; W.ev.push({ k: 'block', x: p.x, z: p.z, face: p.face, hero: true });
   }
+  if (W.abuf.iron > 0) { dmg *= W.abuf.ironTaken; knock = 0; }          // несокрушимость: меньше урона, не отбрасывает
   dmg = Math.max(1, Math.round(dmg / (1 + Math.max(0, W.gear.armor) * W.cfg.gear.armorK)));
   p.calm = W.cfg.player.fire.calm;
   p.hp -= dmg; p.inv = W.cfg.player.hurtInvuln; W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
@@ -253,7 +255,7 @@ function attackStart(W, heavy = 0) {
   if (heavy) { p.chain = 0; p.fin = false; } else { p.chain = W.t - p.lastAtkEnd < .9 ? p.chain + 1 : 1; p.fin = p.chain % 3 === 0; }
   p.rollAtk = W.t - p.lastRollEnd < .5;
   const dual = offDmg(W) > 0;
-  p.state = 'atk'; p.atkT = 0; p.atkHit = false; p.heavy = heavy; p.swingMul = W.gear.swing * (heavy ? H.swing : 1) * (dual ? W.cfg.dual.swing : 1);
+  p.state = 'atk'; p.atkT = 0; p.atkHit = false; p.heavy = heavy; p.swingMul = W.gear.swing * (heavy ? H.swing : 1) * (dual ? W.cfg.dual.swing : 1) * (W.abuf.rage > 0 ? W.abuf.rageSwing : 1);
   p.hand = dual && !heavy && p.chain % 2 === 0 ? 1 : 0;     // два клинка: удары чередуют руки (1 — левая)
   const lunge = W.wp.trait.ranged ? 0 : P.attackLunge * (p.rollAtk ? 1.4 : 1) * (p.fin ? 1.2 : 1) * (heavy ? H.lunge : 1);     // стрелок не делает выпада
   if (heavy) W.ev.push({ k: 'heavy', x: p.x, z: p.z, face: p.face, power: heavy });
@@ -310,7 +312,7 @@ function shoot(W, mult = 1, echo = false) {
   let best = null, bd = range;
   for (const e of W.enemies) { if (e.dead) continue; const dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz); if (d < bd && Math.abs(angDiff(Math.atan2(dx, dz), p.face)) < S.assist * DEG && !lineBlocked(W.map, p.x, p.z, e.x, e.z)) { bd = d; best = e; } }
   if (best) p.face = Math.atan2(best.x - p.x, best.z - p.z);
-  let m = mult * (1 + Math.min(.3, W.combo.n * .02));
+  let m = mult * (1 + Math.min(.3, W.combo.n * .02)) * rageMul(W);
   if (p.fin && !echo) m *= tr.finisherMul || 1.5;
   if (hk) m *= 1 + (H.mul - 1) * hk;
   if (W.setFx.rage && p.hp < p.maxhp * .4) m *= 1 + W.setFx.rage;
@@ -348,6 +350,18 @@ function offDmg(W) {
   if (!it || it.slot !== 'weapon' || !canOff(W.hero, it)) return 0;
   return it.stats.dmg * (1 + (W.inv.up.offhand || 0) * W.cfg.smith.bonus) * W.cfg.dual.mul;
 }
+// ярость берсерка: множитель урона, пока действует (иначе ровно 1 — бой без умений не меняется)
+const rageMul = W => (W.abuf.rage > 0 ? W.abuf.rageMul : 1);
+// удар умением по врагу: урон героя (с оружием, вторым клинком, яростью и критом) × mult, отброс, оглушение
+export function abilityHit(W, e, mult, o = {}) {
+  const p = W.player, P = W.cfg.player, tr = W.wp.trait, dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz) || 1;
+  let dmg = Math.round((P.attackDamage + W.gear.dmg + offDmg(W)) * mult * rageMul(W) * rr(W, .9, 1.15));
+  const crit = W.rng() < .12 + W.gear.crit / 100; if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
+  strike(W, e, dmg, { crit, dx, dz, d, knock: o.knock || 1, fx: o.fx || null, fin: true, heavy: !!o.heavy });
+  if (!e.dead && o.stun) applyStatus(W, e, 'stun', 0, o.stun);
+  W.combo.n = Math.min(99, W.combo.n + 1); W.combo.t = 2.2;
+  return dmg;
+}
 function attackHit(W, mult = 1, echo = false) {
   const p = W.player, P = W.cfg.player, wp = W.wp, tr = wp.trait, pm = wp.pm, H = P.heavy, hk = echo ? 0 : p.heavy || 0;
   const half = ((tr.arc || P.attackArc) + W.gear.arc + H.arc * hk) * DEG / 2, reach = P.attackRange + W.gear.reach + H.reach * hk;
@@ -358,7 +372,7 @@ function attackHit(W, mult = 1, echo = false) {
     const C = W.cfg.enemies[e.type], dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz);
     if (d > reach + C.radius) continue;
     if (Math.abs(angDiff(Math.atan2(dx, dz), p.face)) > half) continue;
-    let m = mult * cb;
+    let m = mult * cb * rageMul(W);
     if (p.fin && !echo) m *= tr.finisherMul || 1.5;
     if (p.rollAtk && !echo) m *= 1.4;
     if (hk) m *= 1 + (H.mul - 1) * hk;
@@ -411,7 +425,8 @@ function updatePlayer(W, dt, input) {
   if (pressed) { p.holdT = 0; p.atkBuf = H.buffer; } else if (held) p.holdT += dt;
 
   // перекат
-  if (input.roll && p.state !== 'roll' && p.rollCd <= 0) {
+  if (input.ability) useAbility(W, input.ability - 1);          // умения: 1–5
+  if (input.roll && p.state !== 'roll' && p.state !== 'dash' && p.rollCd <= 0) {
     const dl = moving ? ml : 0;
     p.rollDirX = moving ? mx / dl : Math.sin(p.face); p.rollDirZ = moving ? mz / dl : Math.cos(p.face);
     p.state = 'roll'; p.rollT = 0; p.rollCd = Math.max(.25, P.rollCooldown - W.gear.rollcd); p.inv = Math.max(p.inv, P.rollInvuln);
@@ -419,7 +434,10 @@ function updatePlayer(W, dt, input) {
     W.ev.push({ k: 'roll', x: p.x, z: p.z });
     if (W.setFx.rollBlast) { W.ev.push({ k: 'boom', x: p.x, z: p.z, r: 3 }); for (const o of W.enemies) if (!o.dead && len(o.x - p.x, o.z - p.z) < 3) dealDamage(W, o, W.setFx.rollBlast, 'storm'); }
   }
-  if (p.state === 'roll') {
+  if (p.state === 'dash') {                                    // рывок умения: летит по прямой, бьёт всех на пути
+    p.dashT += dt; p.vx = p.dashX * p.dashV; p.vz = p.dashZ * p.dashV; dashStep(W);
+    if (p.dashT >= p.dashDur) { p.state = 'idle'; p.vx *= .2; p.vz *= .2; }
+  } else if (p.state === 'roll') {
     if (pressed) p.rollPress = true;
     if (p.atkBuf > 0) p.atkBuf -= dt;
     p.rollT += dt;
@@ -476,6 +494,7 @@ function updateEnemies(W, dt) {
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
     if (e.boss) { updateBoss(W, e, dt, spd); continue; }
     if (isStunned(e)) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); continue; }        // оглушённый не двигается и не бьёт
+    if (e.st && e.st.fear) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); e.face = Math.atan2(-dx, -dz); slide(W.map, e, -dx / d * spd * W.cfg.abilities.fearSpeed * dt, -dz / d * spd * W.cfg.abilities.fearSpeed * dt, C.radius); continue; }     // в страхе бежит от героя и не бьёт
     if (C.ai && (e.state === 'aim' || e.state === 'dash' || e.state === 'fuse')) { foeAI(W, e, C, d, dx, dz, dt, true); continue; }    // прицел, рывок, фитиль
     if (e.state === 'chase') {
       const posted = e.mode === 'guard' || e.mode === 'patrol';      // сторож или патрульный: пока не заметил — своими делами
@@ -691,6 +710,7 @@ export function step(W, dt, input = {}) {
   if (W.freeze > 0) { W.freeze -= dt; if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200); return; }
   updatePlayer(W, dt, input);
   tickPlayer(W, dt);
+  tickAbilities(W, dt);
   for (let i = W.echoQ.length - 1; i >= 0; i--) { const q = W.echoQ[i]; if ((q.t -= dt) <= 0) { W.echoQ.splice(i, 1); if (!W.player.dead) { if (W.wp.trait.ranged) shoot(W, q.mult, true); else attackHit(W, q.mult, true); } } }
   trackPlace(W, dt);
   updateEnemies(W, dt);

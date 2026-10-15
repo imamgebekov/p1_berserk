@@ -84,7 +84,8 @@ export function animateHero(h, p, time, dt, cfg, swingMul = 1) {
   // оружие: поза удара по семейству движений и шагу цепочки (прямой, обратный, завершающий); swingMul — скорость удара от вещей
   const hit = cfg.player.attackHitAt / cfg.player.attackTime;
   const q = atk ? swingPose(h.family, p.heavy ? 'fin' : stepOf(p.chain, p.fin), p.atkT / (cfg.player.attackTime * swingMul), hit, p.heavy > 0)
-    : p.state === 'charge' ? chargePose(h.family, p.chargeT, cfg.player.heavy.full, time) : REST;
+    : p.state === 'charge' ? chargePose(h.family, p.chargeT, cfg.player.heavy.full, time)
+    : p.state === 'dash' ? swingPose(h.family, 'fin', Math.min(.9, .3 + p.dashT / p.dashDur * .6), .5) : REST;     // рывок умения — размах завершающего удара
   h.swing.rotation.y = q.yaw; h.sword.rotation.x = q.pitch; h.sword.rotation.z = q.tilt; h.sword.position.z = .12 + q.reach;
   h.root.rotation.y = q.twist; h.root.rotation.x = q.lean; h.root.position.y += q.lift;
   if (roll) {
@@ -94,7 +95,7 @@ export function animateHero(h, p, time, dt, cfg, swingMul = 1) {
   if (dead) { h.root.rotation.x = -Math.min(1.5, p.deadT * 4); h.root.position.y = .3; }
   else if (!roll && h.hurtT > 0) { const k = h.hurtT / .22; h.root.rotation.x -= .4 * k; h.root.position.y += .06 * k; }     // ранен: вздрагивает назад
   // вспышка при уроне: мигаем во время неуязвимости
-  h.flash(p.inv > 0 && !roll && Math.floor(time * 20) % 2 ? .7 : 0);
+  h.flash(p.inv > 0 && !roll && p.state !== 'dash' && Math.floor(time * 20) % 2 ? .7 : 0);
 }
 
 // ---------- враги ----------

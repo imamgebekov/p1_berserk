@@ -451,6 +451,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
       else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { fx.flash(v.x, 1.4, v.z, 2.6, RARITY[4].color); burst(v.x, 1, v.z, 12, RARITY[4].color, 4); }
+      else if (v.k === 'ability') {                   // умения: вспышки и кольца
+        const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30' }[v.id] || '#ffe8b0';
+        if (v.id === 'cry' || v.id === 'whirl') for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r = v.id === 'cry' ? 2.5 : 1.8; burst(v.x + Math.sin(a) * r, 1, v.z + Math.cos(a) * r, 2, col, 3); }
+        else burst(v.x, 1.2, v.z, 18, col, 3);
+        fx.flash(v.x, 1.3, v.z, v.id === 'whirl' ? 2.6 : 1.6, col);
+        if (v.id === 'cry' && hooks.onText) hooks.onText(v.x, 3.2, v.z, 'А-а-а!', 'alarm');
+      }
       else if (v.k === 'evFight' || v.k === 'evRaid') { burst(v.x, 1.4, v.z, 14, '#ffb040', 3); hooks.onText && hooks.onText(v.x, 3, v.z, '!', 'alarm'); }
       else if (v.k === 'evDone') { burst(v.x, 1.4, v.z, 30, '#ffd27a', 4); fx.flash(v.x, 1.4, v.z, 1.8, '#ffe8a0'); }
       else if (v.k === 'wanderer' || v.k === 'wanderLeave') { burst(v.x, 1.6, v.z, 26, '#c8a0ff', 3); fx.ash(v.x, 1, v.z, 10, ['#8a7aa0', '#c8b8e0', '#5a4a70']); }

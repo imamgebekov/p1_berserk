@@ -156,6 +156,21 @@ try {
   const blk = await ev(() => { const W = window.__b3d.W, p = W.player; return W.gear.block; });
   if (!(blk > 0)) bad('щит не дал блока');
   await page.waitForTimeout(400); await page.screenshot({ path: join(out, '3d-desk-shield.png') });
+  // умения Торна: вкладка «Умения» — 5 строк, «+» вкладывает очко; клавиша 1 — рывок, на кнопке перезарядка
+  await ev(() => { const W = window.__b3d.W; W.lv = 30; W.ap = 28; W.ab = {}; W.acd = {}; W.player.x = 0; W.player.z = 4; W.player.face = 0; });
+  await page.keyboard.press('KeyN'); await page.waitForTimeout(250);
+  await page.locator('#skillTabs .tab', { hasText: 'Умения' }).click(); await page.waitForTimeout(150);
+  const rows = await ev(() => document.querySelectorAll('#skillList .skrow').length);
+  if (rows !== 5) bad('во вкладке «Умения» не 5 строк: ' + rows);
+  for (let i = 0; i < 5; i++) await page.locator('#skillList .skrow .plus').nth(i).click();
+  await page.screenshot({ path: join(out, '3d-desk-abilities.png') });
+  if ((await ev(() => Object.keys(window.__b3d.W.ab).length)) !== 5) bad('«+» не вложил очки в умения');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+  const vis = await ev(() => [...document.querySelectorAll('#abil .ab')].filter(b => !b.hidden).length);
+  if (vis !== 5) bad('на панели не 5 кнопок умений: ' + vis);
+  await page.keyboard.press('Digit1');
+  await page.waitForFunction(() => window.__b3d.W.acd.charge > 0, null, { timeout: 4000 }).catch(() => bad('клавиша 1 не запустила рывок'));
+  await page.keyboard.press('Digit3'); await page.waitForTimeout(400); await page.screenshot({ path: join(out, '3d-desk-ability-bar.png') });
   await ctx.close();
   // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
   { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);
@@ -205,6 +220,21 @@ try {
     const hit = await pg.evaluate(() => window.__b3d.W.enemies.some(e => !e.dead && e.maxhp === 5000 && e.hp < 5000));
     if (!fly || !hit) bad(`стрела Сойки не вылетела (${fly}) или не попала (${hit})`);
     await c4.close(); }
+  // телефон: веер кнопок умений не налезает на «Удар», «Перекат» и друг на друга, кнопки не меньше 44 px, касание запускает умение
+  { const c5 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c5.newPage(); pg.setDefaultTimeout(8000);
+    pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
+    await pg.goto(url + '?shot&hero=thorn'); await pg.waitForTimeout(1200);
+    await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { charge: 1, cry: 1, whirl: 1, iron: 1, rage: 1 }; });
+    await pg.waitForTimeout(400);
+    const r = await pg.evaluate(() => { const box = el => el.getBoundingClientRect(), list = [...document.querySelectorAll('#abil .ab')].filter(b => !b.hidden).map(box), atk = box(document.getElementById('bAtk')), roll = box(document.getElementById('bRoll'));
+      const over = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; let bad = 0;
+      list.forEach((a, i) => { if (over(a, atk) || over(a, roll) || a.left < 0 || a.right > innerWidth) bad++; list.forEach((b, j) => { if (j > i && over(a, b)) bad++; }); });
+      return { n: list.length, bad, min: Math.min(...list.map(a => Math.min(a.width, a.height))) }; });
+    if (r.n !== 5 || r.bad || r.min < 44) bad('кнопки умений на телефоне: ' + JSON.stringify(r));
+    await pg.screenshot({ path: join(out, '3d-phone-abilities.png') });
+    await pg.locator('#abil .ab[data-i="2"]').tap();
+    await pg.waitForFunction(() => window.__b3d.W.acd.whirl > 0, null, { timeout: 4000 }).catch(() => bad('касание кнопки не запустило вихрь'));
+    await c5.close(); }
   // на телефоне карточки идут столбиком и прокручиваются; кнопка Вейла достижима и выбирает его
   { const c3 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c3.newPage(); pg.setDefaultTimeout(8000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));

@@ -1,7 +1,7 @@
 // Тест полировки телефона 3D: личные настройки, подсказки, вибрация, экспорт и импорт сохранения, версии.
 import { CFG3 } from '../3d/src/config3d.js';
 import { sanitizePrefs, loadPrefs, savePrefs, DEFAULT_PREFS, HINTS, nextHint, buzz, UI_SCALES } from '../3d/src/prefs3d.js';
-import { createSaver, loadSave, exportSave, importSave, migrate } from '../3d/src/save3d.js';
+import { createSaver, loadSave, exportSave, importSave, migrate, SAVE_VERSION } from '../3d/src/save3d.js';
 import { createWorld, step, mulberry32 } from '../3d/src/sim.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; }, o }; };
@@ -33,10 +33,11 @@ ok(new Set(HINTS.map(h => h.id)).size === HINTS.length && HINTS.every(h => /^[a-
   const before = JSON.stringify(b.o); for (const bad of ['', null, 'привет', 'B3D1:', 'B3D1:!!!', 'B3D1:' + btoa('not json'), 'B3D1:' + btoa(JSON.stringify({ v: 99 })), 'B3D1:' + btoa(JSON.stringify([1, 2])), 'X' + code]) ok(importSave(bad, 30, b) === 'bad', 'отказ: ' + String(bad).slice(0, 20));
   ok(JSON.stringify(b.o) === before, 'плохой код ничего не испортил'); ok(importSave(code + ' \n', 30, mem()) === 'ok', 'пробелы вокруг кода'); }
 // ---- версии ----
-{ const st = mem(); st.setItem('berserk3d.save', JSON.stringify({ v: 4, inv: {} })); ok(loadSave(30, st) === null, 'сохранение из будущей версии не читается'); st.setItem('berserk3d.save', 'мусор'); ok(loadSave(30, st) === null, 'мусор'); st.setItem('berserk3d.save', 'null'); ok(loadSave(30, st) === null, 'null');
-  const d0 = { v: 3 }; ok(migrate(d0) === d0 && d0.v === 3 && !('keys' in d0) && !('hero' in d0), 'миграция текущей версии ничего не делает');
-  const d1 = { v: 1 }; migrate(d1); ok(d1.v === 3 && Array.isArray(d1.keys) && !d1.keys.length && d1.unlocked && !Object.keys(d1.unlocked).length, 'миграция 1 → 2: пустая связка ключей');
-  const d2 = { v: 2, keys: ['k'] }; migrate(d2); ok(d2.v === 3 && d2.hero === 'thorn' && d2.keys[0] === 'k', 'миграция 2 → 3: старое сохранение — Торн'); }
+{ const st = mem(); st.setItem('berserk3d.save', JSON.stringify({ v: SAVE_VERSION + 1, inv: {} })); ok(loadSave(30, st) === null, 'сохранение из будущей версии не читается'); st.setItem('berserk3d.save', 'мусор'); ok(loadSave(30, st) === null, 'мусор'); st.setItem('berserk3d.save', 'null'); ok(loadSave(30, st) === null, 'null');
+  const d0 = { v: SAVE_VERSION }; ok(migrate(d0) === d0 && d0.v === SAVE_VERSION && !('keys' in d0) && !('hero' in d0) && !('prog' in d0), 'миграция текущей версии ничего не делает');
+  const d1 = { v: 1 }; migrate(d1); ok(d1.v === SAVE_VERSION && Array.isArray(d1.keys) && !d1.keys.length && d1.unlocked && !Object.keys(d1.unlocked).length, 'миграция 1 → 2: пустая связка ключей');
+  const d2 = { v: 2, keys: ['k'] }; migrate(d2); ok(d2.v === SAVE_VERSION && d2.hero === 'thorn' && d2.keys[0] === 'k', 'миграция 2 → 3: старое сохранение — Торн');
+  const d3 = { v: 3, prog: { lv: 10 } }; migrate(d3); ok(d3.v === SAVE_VERSION && d3.prog.ap === 10 - 3 + 1 && !Object.keys(d3.prog.ab).length, 'миграция 3 → 4: очки умений по уровню'); }
 
 if (fails.length) { console.error('prefs3d FAIL\n' + fails.join('\n')); process.exit(1); }
 console.log('prefs3d OK, подсказок:', HINTS.length);

@@ -218,3 +218,21 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 .hcard button{min-height:44px;min-width:160px;margin-top:4px;padding:0 18px;background:#241514;border:2px solid var(--line);border-radius:10px;font-weight:600}
 .hcard.shut{opacity:.55}.hcard.shut button{pointer-events:none}
 .tile.nw{opacity:.55}.tile .bt.no{color:#e05040}
+
+/* умения (B3): веер слева от «Удара» на телефоне, панель внизу на компьютере; заливка — перезарядка */
+#abil .ab{position:fixed;width:calc(50px * var(--ui,1));height:calc(50px * var(--ui,1));border-radius:50%;border:3px solid #000;background:radial-gradient(#5a3a20,#2a1a10);color:#ffe8b0;font-size:22px;touch-action:none;text-shadow:0 1px 0 #000;overflow:hidden;padding:0}
+#abil .ab[hidden]{display:none}
+#abil .ab::after{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(rgba(0,0,0,.7) calc(var(--cd,0) * 360deg),transparent 0);pointer-events:none}
+#abil .ab.on{filter:brightness(1.4)}#abil .ab .k{position:absolute;right:4px;bottom:1px;font-size:10px;color:#e8d8b0;display:none}
+#abil .ab[data-i="0"]{right:calc(118px + env(safe-area-inset-right));bottom:calc(30px + env(safe-area-inset-bottom))}
+#abil .ab[data-i="1"]{right:calc(124px + env(safe-area-inset-right));bottom:calc(88px + env(safe-area-inset-bottom))}
+#abil .ab[data-i="2"]{right:calc(100px + env(safe-area-inset-right));bottom:calc(144px + env(safe-area-inset-bottom))}
+#abil .ab[data-i="3"]{right:calc(176px + env(safe-area-inset-right));bottom:calc(30px + env(safe-area-inset-bottom))}
+#abil .ab[data-i="4"]{right:calc(182px + env(safe-area-inset-right));bottom:calc(88px + env(safe-area-inset-bottom))}
+html[data-lefty] #abil .ab{right:auto!important}
+html[data-lefty] #abil .ab[data-i="0"]{left:calc(118px + env(safe-area-inset-left))}html[data-lefty] #abil .ab[data-i="1"]{left:calc(124px + env(safe-area-inset-left))}
+html[data-lefty] #abil .ab[data-i="2"]{left:calc(100px + env(safe-area-inset-left))}html[data-lefty] #abil .ab[data-i="3"]{left:calc(176px + env(safe-area-inset-left))}
+html[data-lefty] #abil .ab[data-i="4"]{left:calc(182px + env(safe-area-inset-left))}
+[data-desk] #abil{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;zoom:var(--dz,1)}
+[data-desk] #abil .ab{position:relative;right:auto!important;left:auto!important;bottom:auto!important;width:54px;height:54px}
+[data-desk] #abil .ab .k{display:block}

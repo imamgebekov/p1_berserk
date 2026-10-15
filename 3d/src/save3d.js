@@ -5,7 +5,10 @@ import { serializeKnown, sanitizeKnown } from './craft3d.js';
 import { CFG3 } from './config3d.js';
 import { serializeQuests, sanitizeQuests } from './quests3d.js';
 import { HEROES, DEFAULT_HERO } from './data/heroes3d.js';
-const KEY = 'berserk3d.save', VERSION = 3;
+import { ABILITIES } from './data/abilities3d.js';
+const KEY = 'berserk3d.save', VERSION = 4;
+export const SAVE_VERSION = VERSION;
+const abPoints = lv => Math.max(0, lv - CFG3.abilities.from + 1);
 
 export const packSeen = a => { let s = ''; for (let i = 0; i < a.length; i += 6) { let v = 0; for (let k = 0; k < 6; k++) v |= (a[i + k] ? 1 : 0) << k; s += B64[v]; } return s; };
 export const unpackSeen = (s, a) => { if (typeof s !== 'string') return; for (let i = 0; i < s.length; i++) { const v = B64.indexOf(s[i]); if (v < 0) continue; for (let k = 0; k < 6; k++) if (i * 6 + k < a.length) a[i * 6 + k] = (v >> k) & 1; } };
@@ -14,7 +17,8 @@ const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 // миграции старых версий: MIGRATIONS[n] переводит сохранение из версии n в n+1. Пока версия одна; сюда добавляются шаги.
 const MIGRATIONS = {
   1: d => { d.keys = []; d.unlocked = {}; },         // 1 → 2: связка ключей подземелий и отпертые двери
-  2: d => { d.hero = DEFAULT_HERO; }                  // 2 → 3: герой; все прежние сохранения — Торн
+  2: d => { d.hero = DEFAULT_HERO; },                 // 2 → 3: герой; все прежние сохранения — Торн
+  3: d => { const pr = d.prog || (d.prog = {}); pr.ab = {}; pr.ap = abPoints(Number.isFinite(pr.lv) ? Math.floor(pr.lv) : 1); }     // 3 → 4: очки умений по уровню
 };
 export function migrate(d) { while (Number.isInteger(d.v) && d.v < VERSION && MIGRATIONS[d.v]) { MIGRATIONS[d.v](d); d.v++; } return d; }
 
@@ -63,12 +67,18 @@ export function loadSave(slots, storage = globalThis.localStorage) {
     const spent = Object.values(prog.skills).reduce((a, b) => a + b, 0);
     if (spent + prog.sp > prog.lv - 1) { prog.skills = {}; prog.sp = prog.lv - 1; }
     const hero = HEROES[d.hero] && HEROES[d.hero].open ? d.hero : DEFAULT_HERO;      // неизвестный или ещё закрытый герой — Торн
+    // умения: только свои id и ранги 1..maxRank; очков умений не больше, чем дал уровень — иначе сбрасываются только умения
+    { const ids = (ABILITIES[hero] || []).map(x => x.id), ab = {}, src = pr.ab && typeof pr.ab === 'object' ? pr.ab : {};
+      for (const id of ids) { const r = src[id]; if (Number.isInteger(r) && r > 0) ab[id] = Math.min(CFG3.abilities.maxRank, r); }
+      let ap = num(pr.ap, 0, 999, 0); const total = abPoints(prog.lv), spentA = Object.values(ab).reduce((a, b) => a + b, 0);
+      if (spentA + ap > total) { for (const k of Object.keys(ab)) delete ab[k]; ap = total; }
+      prog.ab = ab; prog.ap = ap; }
     return { hero, inv: deserialize(d.inv, slots, hero), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: typeof d.seen === 'string' && d.seen.length < 4000 ? d.seen : '', bosses: d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [] };
   } catch (e) { return null; }
 }
 export function createSaver(W, storage = globalThis.localStorage) {
   let last = '';
-  const snap = () => JSON.stringify({ v: VERSION, hero: W.hero, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills }, seen: packSeen(W.levels ? W.levels.surface.seen : W.seen), dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest).map(a => ({ type: a.type, hp: Math.round(a.hp) })) });
+  const snap = () => JSON.stringify({ v: VERSION, hero: W.hero, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab }, seen: packSeen(W.levels ? W.levels.surface.seen : W.seen), dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest).map(a => ({ type: a.type, hp: Math.round(a.hp) })) });
   return {
     write(force) { if (W.ironDead) return false; const s = snap(); if (!force && s === last) return false; try { storage.setItem(KEY, s); last = s; return true; } catch (e) { return false; } },
     reset() { try { storage.removeItem(KEY); } catch (e) { /* ок */ } last = ''; }

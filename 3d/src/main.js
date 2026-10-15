@@ -14,6 +14,7 @@ import { trackerLine, questMark } from './quests3d.js';
 import { eventLine } from './events3d.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
+import { abilityView } from './abilities3d.js';
 import { KIND_NAME } from './data/items.js';
 import { drawMap } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
@@ -63,7 +64,7 @@ function drawPortrait(cv, L) {
 }
 function pickHero(id) {
   const H = HEROES[id]; if (!H || !H.open || $('heroPick').hidden) return;
-  W.hero = id; if (H.start && !W.inv.eq.weapon) W.inv.eq.weapon = H.start; refreshGear(W); W.player.hp = W.player.maxhp;
+  input.release(); W.hero = id; if (H.start && !W.inv.eq.weapon) W.inv.eq.weapon = H.start; refreshGear(W); W.player.hp = W.player.maxhp;
   $('heroPick').hidden = true; panelOpen = false; saver.write(true);
   toast(`${H.name} выходит из пепла`, '', '#e8c04a');
 }
@@ -83,6 +84,21 @@ function openHeroPick() {
 }
 const input = createInput(document, window);
 let panelOpen = false, landscape = false;
+// кнопки умений: видны только вкачанные; на кнопке значок, номер клавиши (на компьютере) и заливка перезарядки
+const abilBtns = [0, 1, 2, 3, 4].map(i => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'ab'; b.dataset.i = i; b.hidden = true;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); b.classList.add('on'); input.ability(i + 1); });
+  for (const t of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(t, () => b.classList.remove('on'));
+  $('abil').append(b); return b;
+});
+let abilKey = '';
+function drawAbil() {
+  const v = abilityView(W), key = v.map(a => a.id + a.rank + Math.ceil(a.cd * 10)).join() + panelOpen + landscape;
+  if (key === abilKey) return; abilKey = key;
+  abilBtns.forEach((b, i) => { const a = v[i], show = !!a && a.rank > 0 && !panelOpen && !landscape && !W.player.dead; if (b.hidden === show) b.hidden = !show; if (!show) return;
+    if (b.dataset.id !== a.id) { b.dataset.id = a.id; b.textContent = a.icon; const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k); b.setAttribute('aria-label', `${a.name} (${i + 1})`); b.title = `${a.name} · клавиша ${i + 1}`; }
+    b.style.setProperty('--cd', a.cd > 0 ? (a.cd / a.cdMax).toFixed(3) : 0); });
+}
 { const q = new URLSearchParams(location.search).get('hero'); if (!saved) { openHeroPick(); if (q) pickHero(q); } }
 
 function onText(x, y, z, txt, cls) {
@@ -143,7 +159,7 @@ function onEvent(v) {
   else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
   else if (v.k === 'allydead') toast(`${v.name} пал`, 'bad');
   else if (v.k === 'hire') toast(`${v.name} теперь с вами`, 'sys');
-  else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков ✦`, '', '#e8c04a');
+  else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков ✦` + (v.lv >= cfg.abilities.from ? ' и умений' : '') + (cfg.abilities.unlock.includes(v.lv) ? ' · открылось умение' : ''), '', '#e8c04a');
   else if (v.k === 'xp') onText(v.x, 3, v.z, '+' + v.n + ' оп.', 'xp');
 }
 function showPlace(pl) {
@@ -320,8 +336,13 @@ function loop(now) {
   { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; } }
   { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); } } }
   { const n = W.combo.n; if (n !== lastCombo) { comboEl.hidden = n < 2; if (n >= 2) { comboEl.innerHTML = `×${n}<small>+${Math.round(Math.min(.3, n * .02) * 100)}%</small>`; comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); } lastCombo = n; } }
-  { const key = Object.keys(W.pst).map(k => k + Math.ceil(W.pst[k].t) + (W.pst[k].n || '')).join(); if (key !== lastSt) { lastSt = key; statusRow.textContent = ''; for (const k of Object.keys(W.pst)) { const c = document.createElement('span'); c.className = 'stch'; c.style.color = STATUS_COLOR[k]; c.textContent = `${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`; statusRow.appendChild(c); } } }
+  { const ab = W.abuf, buffs = [ab.iron > 0 && ['Несокрушимость', ab.iron, '#9fd0ff'], ab.rage > 0 && ['Ярость', ab.rage, '#ff6a4a']].filter(Boolean);     // статусы и баффы умений
+    const key = Object.keys(W.pst).map(k => k + Math.ceil(W.pst[k].t) + (W.pst[k].n || '')).join() + buffs.map(b => b[0] + Math.ceil(b[1])).join();
+    if (key !== lastSt) { lastSt = key; statusRow.textContent = ''; const chip = (txt, col) => { const c = document.createElement('span'); c.className = 'stch'; c.style.color = col; c.textContent = txt; statusRow.appendChild(c); };
+      for (const k of Object.keys(W.pst)) chip(`${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`, STATUS_COLOR[k]);
+      for (const b of buffs) chip(`${b[0]} ${Math.ceil(b[1])}с`, b[2]); } }
   { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); questBtn.textContent = mk === 'ready' ? '📜 Сдать задание' : mk ? '📜 Есть задания ❗' : '📜 Задания'; } }
+  drawAbil();
   { const tl = eventLine(W) || trackerLine(W); if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) $('fps').textContent = f + ' кадр/с'; if (f < 32 && !panelOpen && !landscape) lowT += .5; else lowT = Math.max(0, lowT - .5); if (lowT >= 6 && !lowShown && cfg.view.pixelScale < 5) { lowShown = true; toast('Мало кадров: в ⚙ увеличьте «Размер пикселя»', 'bad'); } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast('💡 ' + ((desk && h.desk) || h.text), 'hint'); } }
@@ -331,7 +352,7 @@ function loop(now) {
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; hpFill.style.transform = `scaleX(${W.player.hp / W.player.maxhp})`; hpTxt.textContent = Math.ceil(W.player.hp); }
-  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; killsEl.textContent = `Ур. ${W.lv} · пепел ${W.inv.ash} · ${W.night ? '🌙' : '☀'} ${clockText(W.t, cfg.daynight)}`; xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0); } }
+  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; killsEl.textContent = `Ур. ${W.lv} · пепел ${W.inv.ash} · ${W.night ? '🌙' : '☀'} ${clockText(W.t, cfg.daynight)}`; xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
   requestAnimationFrame(loop);
 }
