@@ -171,7 +171,7 @@ try {
   // оружие со стихией: поджигает, комбо растёт, карточка показывает свойства
   await page.evaluate(() => { const w = window.__b3d.W; w.inv.bag.push({ id: 'w_sword_steel_fire', n: 1 }); w.inv.bag.push({ id: 'wu_ember', n: 1 }); w.player.x = 0; w.player.z = 4; w.cfg.enemies.count = 0; w.enemies.length = 0; });
   await page.tap('#bagBtn'); await page.waitForTimeout(200);
-  await page.tap('.item:has(.nm:text("Угль Затмения"))'); await page.waitForTimeout(120);
+  await page.tap('#bagList .tile[title^="Угль Затмения"]'); await page.waitForTimeout(120);
   { const t = await page.$eval('#bagCard', e => e.textContent); if (!t.includes('Пламя') || !t.includes('Добивание')) bad('в карточке уникального клинка нет свойств: ' + t.slice(0, 120)); }
   await page.screenshot({ path: join(out, '3d-unique.png') });
   await page.tap('#bagCard .acts .main'); await page.tap('#bagClose'); await page.waitForTimeout(150);
@@ -205,7 +205,7 @@ try {
   // сеты: карточка части показывает комплект и бонусы; сложность в ⚙
   await page.evaluate(() => { const w = window.__b3d.W; w.inv.eq.head = 'a_head_helm_mail'; w.inv.eq.body = 'a_body_mail_mail'; w.inv.bag.push({ id: 'a_boots_greaves_mail', n: 1 }); w.inv.bag.push({ id: 'a_cloak_cloak_mail', n: 1 }); });
   await page.tap('#bagBtn'); await page.waitForTimeout(200);
-  await page.tap('.item:has(.nm:text("Кольчужные поножи"))'); await page.waitForTimeout(120);
+  await page.tap('#bagList .tile[title^="Кольчужные поножи"]'); await page.waitForTimeout(120);
   { const t = await page.$eval('#bagCard', e => e.textContent); if (!t.includes('Сет «Рыцарь» 2/4') || !t.includes('шипы')) bad('карточка не показывает сет: ' + t.slice(0, 160)); }
   await page.screenshot({ path: join(out, '3d-set.png') });
   await page.tap('#bagCard .acts .main'); await page.waitForTimeout(100);
@@ -229,7 +229,7 @@ try {
   // крафт и книги: прочитать том в сумке, ковка у кузнеца, журнал знаний
   await page.evaluate(() => { const w = window.__b3d.W; w.enemies = w.enemies.filter(x => x.boss); w.known = { tomes: {}, bestiary: {}, places: {}, kinds: {}, items: {} }; w.inv.bag = [{ id: 'tome_atlas_polya', n: 1 }, { id: 'm_ore', n: 6 }, { id: 'm_coal', n: 2 }]; w.inv.ash = 100; w.known.items.m_ore = 1; w.known.items.m_coal = 1; });
   await page.tap('#bagBtn'); await page.waitForTimeout(200);
-  await page.tap('.item:has(.nm:text("Атлас Сухих Полей"))'); await page.waitForTimeout(120);
+  await page.tap('#bagList .tile[title^="Атлас Сухих Полей"]'); await page.waitForTimeout(120);
   await page.screenshot({ path: join(out, '3d-tome.png') });
   await page.tap('#bagCard .acts .main'); await page.waitForTimeout(150);
   if (!(await page.evaluate(() => window.__b3d.W.known.tomes.atlas_polya && window.__b3d.W.known.bestiary.hound === 2))) bad('книга не прочитана');
@@ -281,13 +281,13 @@ try {
   await page.screenshot({ path: join(out, '3d-bag.png') });
   { const geoB = await page.evaluate(() => [...document.querySelectorAll('#bag button')].filter(b => b.offsetParent).map(b => { const r = b.getBoundingClientRect(); return { t: b.textContent.slice(0, 14), w: r.width, h: r.height }; }));
     const small = geoB.filter(b => b.h < 40 || b.w < 40); if (small.length) bad('кнопки сумки меньше 40px: ' + JSON.stringify(small.slice(0, 3))); }
-  await page.tap('.item:has(.nm:text("Чёрный двуручник"))'); await page.waitForTimeout(150);
+  await page.tap('#bagList .tile[title^="Чёрный двуручник"]'); await page.waitForTimeout(150);
   await page.screenshot({ path: join(out, '3d-bag-card.png') });
   await page.tap('#bagCard .acts .main'); await page.waitForTimeout(150);
   if (await page.evaluate(() => window.__b3d.W.inv.eq.weapon) !== 'w_greatsword_black') bad('предмет не надет');
   await page.waitForTimeout(120);
   if (!(await page.evaluate(() => window.__b3d.W.gear.dmg >= 20))) bad('надетое оружие не влияет на урон');
-  await page.tap('.tab[data-tab="use"]'); await page.tap('.item:has(.nm:text("Зелье лечения"))'); await page.tap('#bagCard .acts .main'); await page.waitForTimeout(150);
+  await page.tap('.tab[data-tab="use"]'); await page.tap('#bagList .tile[title^="Зелье лечения"]'); await page.tap('#bagCard .acts .main'); await page.waitForTimeout(150);
   if (await page.evaluate(() => window.__b3d.W.inv.bag.some(s => s.id === 'p_heal2'))) bad('зелье не выпито');
   if (!(await page.evaluate(() => window.__b3d.W.player.hp > 40))) bad('зелье не лечит');
   await page.tap('#bagClose'); await page.waitForTimeout(100);

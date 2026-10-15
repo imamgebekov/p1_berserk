@@ -1,6 +1,7 @@
 // Сумка и экипировка: окно с надетым, списком вещей, карточкой вещи и действиями.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine } from './data/items.js';
-import { betterThanWorn, equipAt, unequip, score, nameOf, SET_OF, setCounts, bonusText } from './inv.js';
+import { betterThanWorn, equipAt, unequip, scoreUp, nameOf, SET_OF, setCounts, bonusText, statDiff } from './inv.js';
+import { iconURL, slotIconURL } from './itemicons.js';
 import { PERKS } from './data/weapons3d.js';
 import { useItem, dropItem, refreshGear, sellItem, sellPrice } from './sim.js';
 import { readTome } from './craft3d.js';
@@ -15,6 +16,9 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
 
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const nm = (it, n, up = 0) => { const s = el('span', 'nm', nameOf(it.id, up) + (n > 1 ? ' ×' + n : '')); s.style.color = RARITY[it.rar].color; return s; };
+  // значок вещи (пиксельный, 16×16, растягивается без размытия) и пустой слот
+  const icon = (it, cls = 'ic') => { const i = el('img', cls); i.alt = ''; i.src = iconURL(doc, it); i.draggable = false; return i; };
+  const fmt = (k, v) => (k === 'swing' ? (v < 1 ? 'быстрая' : v > 1 ? 'медленная' : 'обычная') : k === 'reach' ? (v > 0 ? '+' : '') + Number(v).toFixed(1) : String(v));
 
   for (const [id, label] of TABS) { const b = el('button', 'tab', label); b.type = 'button'; b.dataset.tab = id; b.addEventListener('click', () => { tab = id; sel = null; render(); }); tabsEl.appendChild(b); }
 
@@ -36,11 +40,24 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     const id = sel.from === 'eq' ? W.inv.eq[sel.slot] : (W.inv.bag[sel.i] || {}).id, it = id && BY_ID[id];
     if (!it) { sel = null; cardEl.hidden = true; return; }
     const n = sel.from === 'bag' ? W.inv.bag[sel.i].n : 1, up = sel.from === 'eq' ? W.inv.up[sel.slot] || 0 : W.inv.bag[sel.i].up || 0;
-    const h = el('div', 'ch'); h.append(nm(it, n, sel.from === 'eq' ? W.inv.up[sel.slot] || 0 : W.inv.bag[sel.i].up || 0)); h.append(el('span', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : ''))); cardEl.appendChild(h);
-    if (it.stats) cardEl.appendChild(el('div', 'cs', statLine(it)));
+    cardEl.className = 'r' + it.rar;
+    const h = el('div', 'ch'), t = el('div', 'cht'); h.append(icon(it, 'ic big'));
+    t.append(nm(it, n, up), el('div', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : ''))); h.append(t); cardEl.appendChild(h);
+    // характеристики: у вещи из сумки — рядом с надетым (было → стало), стрелка — лучше или хуже
+    const worn = it.slot && sel.from === 'bag' && W.inv.eq[it.slot] ? BY_ID[W.inv.eq[it.slot]] : null;
+    if (it.stats) {
+      const g = el('div', 'stg');
+      for (const r of statDiff(it, worn, up, worn ? W.inv.up[it.slot] || 0 : 0, cfg.smith.bonus)) {
+        if (!worn && !(r.k in it.stats)) continue;
+        const row = el('div', 'str' + (r.d > 0 ? ' up' : r.d < 0 ? ' down' : ''));
+        row.append(el('span', 'sk', r.name), el('span', 'sv', worn ? `${fmt(r.k, r.a)} → ${fmt(r.k, r.b)}` : fmt(r.k, r.b)), el('span', 'sd', r.d > 0 ? '▲' : r.d < 0 ? '▼' : ''));
+        g.appendChild(row);
+      }
+      cardEl.appendChild(g);
+    }
     if (it.slot && sel.from === 'bag') {
       const cur = W.inv.eq[it.slot], c = cur && BY_ID[cur];
-      if (c) { const d = Math.round(score(it) - score(c)); cardEl.appendChild(el('div', 'cmp ' + (d > 0 ? 'up' : d < 0 ? 'down' : ''), `Надето: ${c.name} (${statLine(c)}) — ${d > 0 ? 'лучше на ' + d : d < 0 ? 'хуже на ' + -d : 'так же'}`)); }
+      if (c) { const d = Math.round(scoreUp(it, up, cfg.smith.bonus) - scoreUp(c, W.inv.up[it.slot] || 0, cfg.smith.bonus)); cardEl.appendChild(el('div', 'cmp ' + (d > 0 ? 'up' : d < 0 ? 'down' : ''), `Надето: ${c.name} — в целом ${d > 0 ? 'лучше на ' + d : d < 0 ? 'хуже на ' + -d : 'так же'}`)); }
       else cardEl.appendChild(el('div', 'cmp up', 'Слот пуст'));
     }
     const st = SET_OF[it.id];
@@ -77,9 +94,11 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     eqEl.textContent = '';
     for (const slot of SLOTS) {
       const id = W.inv.eq[slot], it = id && BY_ID[id];
-      const b = el('button', 'slot' + (sel && sel.from === 'eq' && sel.slot === slot ? ' sel' : '')); b.type = 'button';
-      b.append(el('span', 'sl', SLOT_NAME[slot]));
-      if (it) b.append(nm(it, 1, W.inv.up[slot] || 0)); else b.append(el('span', 'nm empty', '—'));
+      const b = el('button', 'slot' + (it ? ' r' + it.rar : ' none') + (sel && sel.from === 'eq' && sel.slot === slot ? ' sel' : '')); b.type = 'button';
+      if (it) b.append(icon(it)); else { const i = el('img', 'ic ghost'); i.alt = ''; i.src = slotIconURL(doc, slot); b.append(i); }
+      const tx = el('span', 'stx'); tx.append(el('span', 'sl', SLOT_NAME[slot]));
+      if (it) tx.append(nm(it, 1, W.inv.up[slot] || 0)); else tx.append(el('span', 'nm empty', 'пусто'));
+      b.append(tx); b.title = it ? nameOf(it.id, W.inv.up[slot] || 0) : SLOT_NAME[slot] + ': пусто';
       b.addEventListener('click', () => { if (it) { sel = { from: 'eq', slot }; render(); } });
       eqEl.appendChild(b);
     }
@@ -88,10 +107,13 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     const rows = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).filter(r => tab === 'all' || tabOf(r.it) === tab).sort((a, b) => b.it.rar - a.it.rar || a.it.name.localeCompare(b.it.name, 'ru'));
     if (!rows.length) listEl.appendChild(el('div', 'emptyl', W.inv.bag.length ? 'В этой вкладке пусто.' : 'Сумка пуста. Ищите сундуки, бочки и могилы, обшаривайте дома.'));
     for (const r of rows) {
-      const b = el('button', 'item' + (sel && sel.from === 'bag' && sel.i === r.i ? ' sel' : '')); b.type = 'button';
-      const dot = el('i', 'dot'); dot.style.background = RARITY[r.it.rar].color; b.append(dot, nm(r.it, r.s.n, r.s.up || 0));
-      if (betterThanWorn(W.inv, r.it)) b.append(el('span', 'up', '▲'));
-      b.append(el('span', 'sub', r.it.stats ? statLine(r.it) : r.it.use ? r.it.text : ''));
+      const b = el('button', 'tile r' + r.it.rar + (sel && sel.from === 'bag' && sel.i === r.i ? ' sel' : '')); b.type = 'button';
+      b.append(icon(r.it));
+      if (r.s.n > 1) b.append(el('span', 'cnt', '×' + r.s.n));
+      if (r.s.up) b.append(el('span', 'upg', '+' + r.s.up));
+      if (betterThanWorn(W.inv, r.it)) b.append(el('span', 'bt', '▲'));
+      b.title = nameOf(r.it.id, r.s.up || 0) + (r.s.n > 1 ? ' ×' + r.s.n : '') + (r.it.stats ? ' — ' + statLine(r.it) : '');
+      b.setAttribute('aria-label', b.title);
       b.addEventListener('click', () => { sel = { from: 'bag', i: r.i }; render(); });
       listEl.appendChild(b);
     }

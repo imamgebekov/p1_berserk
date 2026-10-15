@@ -98,3 +98,17 @@ export function deserialize(data, maxSlots) {
   inv.ash = Number.isFinite(data.ash) && data.ash > 0 ? Math.floor(data.ash) : 0;
   return inv;
 }
+
+// сравнение по характеристикам: строки {k, name, a — у надетого, b — у этой вещи, d — +1 лучше / −1 хуже / 0}; у скорости удара меньше — лучше.
+// upIt, upWorn — уровни заточки (как в gearStats: урон, броня, здоровье, крит, вампиризм × (1 + уровень × bonus))
+const UPS = ['dmg', 'armor', 'hp', 'crit', 'leech'];
+const upped = (st, up, bonus) => { const o = { ...st }; if (up) for (const k of UPS) if (o[k] > 0) o[k] = Math.round(o[k] * (1 + up * bonus)); return o; };
+export function statDiff(it, worn, upIt = 0, upWorn = 0, bonus = .1) {
+  const a = upped((worn && worn.stats) || {}, upWorn, bonus), b = upped((it && it.stats) || {}, upIt, bonus), keys = [...new Set([...Object.keys(b), ...Object.keys(a)])];
+  return keys.map(k => {
+    const x = a[k] ?? (k === 'swing' ? 1 : 0), y = b[k] ?? (k === 'swing' ? 1 : 0), better = k === 'swing' ? y < x : y > x, worse = k === 'swing' ? y > x : y < x;
+    return { k, name: STAT_NAME[k] || k, a: x, b: y, d: worn ? (better ? 1 : worse ? -1 : 0) : 0 };
+  });
+}
+// оценка вещи с учётом заточки (для строки «в целом лучше на N»)
+export const scoreUp = (it, up = 0, bonus = .1) => score({ stats: upped(it.stats || {}, up, bonus) });

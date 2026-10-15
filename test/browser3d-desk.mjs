@@ -88,7 +88,7 @@ try {
   await page.keyboard.press('KeyI'); await page.waitForTimeout(250);
   if (!(await shown('bag'))) bad('I не открыла сумку');
   const bb = await ev(() => { const r = document.querySelector('#bag .pbox').getBoundingClientRect(); return { w: r.width, l: r.left }; });
-  if (bb.w > 1000 || bb.l < 100) bad('сумка растянута на весь экран: ' + JSON.stringify(bb));
+  if (bb.w > 1440 * .9 || bb.l < 60) bad('сумка растянута на весь экран: ' + JSON.stringify(bb));     // две колонки шире, но по центру с полями
   await page.screenshot({ path: join(out, '3d-desk-bag.png') });
   await page.keyboard.press('Escape'); await page.waitForTimeout(150);
   if (await shown('bag')) bad('Esc не закрыл сумку');
