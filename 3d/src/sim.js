@@ -77,7 +77,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), hero: DEFAULT_HERO, ap: 0, ab: {}, acd: {}, abuf: {}, inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: makeMap(cfg), hero: DEFAULT_HERO, ap: 0, ab: {}, acd: {}, abuf: {}, traps: [], zones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
@@ -324,6 +324,15 @@ function shoot(W, mult = 1, echo = false) {
   W.ev.push({ k: 'shoot', x: p.x, z: p.z, face: p.face, heavy: hk > 0, bolt: !!tr.bolt });
   if (!echo && pm.echo && W.rng() < pm.echo) W.echoQ.push({ t: .2, mult: .7 });
 }
+// стрела умения (Сойка): летит как из её лука (без лука — как из короткого), урон героя × mult; extra: pierce, poison [dps, t], kind
+export function abilityArrow(W, ang, mult, extra = {}) {
+  const p = W.player, S = W.cfg.shoot, tr = W.wp.trait.ranged ? W.wp.trait : TRAITS.bow, pm = W.wp.pm;
+  let dmg = Math.round((W.cfg.player.attackDamage + W.gear.dmg) * mult * rageMul(W) * rr(W, .9, 1.15));
+  const crit = W.rng() < .12 + W.gear.crit / 100; if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
+  const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null, sx = Math.sin(ang), sz = Math.cos(ang);
+  const q = { friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * tr.speed, vz: sz * tr.speed, dmg, crit, fx, hk: 0, fin: false, knock: tr.knock || 1, pierce: (tr.pierce || 0) + (extra.pierce || 0), hit: [], life: tr.range / tr.speed, kind: extra.kind || (tr.bolt ? 'bolt' : 'arrow'), poison: extra.poison };
+  W.proj.push(q); return q;
+}
 // стрелы героя: летят, бьют первых врагов на пути (арбалет — насквозь pierce врагов), гаснут о стену и по дальности
 function updateArrows(W, dt) {
   const S = W.cfg.shoot;
@@ -336,6 +345,7 @@ function updateArrows(W, dt) {
       q.hit.push(e.id);
       strike(W, e, q.dmg, { crit: q.crit, dx: q.vx, dz: q.vz, d: len(q.vx, q.vz), knock: q.knock, fx: q.fx, fin: q.fin || q.hk > 0, heavy: q.hk > 0 });
       if (q.hk && !e.dead) applyStatus(W, e, 'stun', 0, W.cfg.player.heavy.stun * q.hk * S.stun);
+      if (q.poison && !e.dead) applyStatus(W, e, 'poison', q.poison[0], q.poison[1]);          // ядовитая стрела умения
       weaponStatuses(W, e, q.dmg, q.crit, W.player);
       W.combo.n = Math.min(99, W.combo.n + 1); W.combo.t = 2.2;
       if (q.hit.length > q.pierce) { end = true; break; }

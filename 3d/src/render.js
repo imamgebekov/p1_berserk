@@ -280,6 +280,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   for (const m of [teleRing, teleDisc, teleInner, teleLine]) { m.rotation.x = -Math.PI / 2; m.position.y = .09; m.visible = false; scene.add(m); }
   // стрелы и пятна колдовства: небольшие пулы мешей
   const projMeshes = [], hazMeshes = [];
+  // капканы и круги града стрел (умения Сойки)
+  const trapMeshes = [0, 1, 2, 3].map(() => { const g = new THREE.Group(), mt = new THREE.MeshLambertMaterial({ color: '#6a6458' }); for (const s of [-1, 1]) { const j = new THREE.Mesh(new THREE.BoxGeometry(.9, .12, .12), mt); j.position.set(0, .08, s * .22); g.add(j); for (let k = -2; k <= 2; k++) { const t = new THREE.Mesh(new THREE.BoxGeometry(.06, .14, .06), mt); t.position.set(k * .18, .16, s * .16); g.add(t); } } g.add(new THREE.Mesh(new THREE.BoxGeometry(.3, .05, .3), new THREE.MeshLambertMaterial({ color: '#3a2a1a' }))); g.visible = false; scene.add(g); return g; });
+  const zoneMeshes = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(.92, 1, 40), new THREE.MeshBasicMaterial({ color: '#eef4ff', transparent: true, opacity: .55, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(m); return m; });
   for (let i = 0; i < 24; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.14, .14, .9), new THREE.MeshBasicMaterial({ color: '#ffd27a' })); m.visible = false; m.userData.k = 'foe'; scene.add(m); projMeshes.push(m); }
   for (let i = 0; i < 6; i++) {
     const ring = new THREE.Mesh(new THREE.RingGeometry(.94, 1, 40), new THREE.MeshBasicMaterial({ color: '#d060ff', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
@@ -288,7 +291,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ring.position.y = .1; disc.position.y = .08; hazMeshes.push({ ring, disc });
   }
   function updateFoes(W, t) {
-    projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { const k = q.friendly ? q.kind : 'foe'; if (m.userData.k !== k) { m.userData.k = k; m.material.color.set(k === 'foe' ? '#ffd27a' : k === 'bolt' ? '#b8c4d8' : '#eef4ff'); m.scale.set(k === 'bolt' ? 1.4 : 1, k === 'bolt' ? 1.4 : 1, k === 'bolt' ? .8 : 1); } m.position.set(q.x, 1.1, q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });     // свои стрелы светлые, болт толще
+    trapMeshes.forEach((g, i) => { const tp = W.traps[i]; g.visible = !!tp; if (tp) g.position.set(tp.x, 0, tp.z); });
+    zoneMeshes.forEach((m, i) => { const zn = W.zones[i]; m.visible = !!zn; if (zn) { m.position.set(zn.x, .06, zn.z); m.scale.setScalar(zn.r); if (Math.random() < .5) burst(zn.x + (Math.random() - .5) * zn.r * 1.6, 3.5, zn.z + (Math.random() - .5) * zn.r * 1.6, 1, '#eef4ff', 1); } });
+    projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { const k = q.friendly ? q.kind : 'foe'; if (m.userData.k !== k) { m.userData.k = k; m.material.color.set(k === 'foe' ? '#ffd27a' : k === 'bolt' ? '#b8c4d8' : k === 'venom' ? '#7ad060' : '#eef4ff'); m.scale.set(k === 'bolt' ? 1.4 : 1, k === 'bolt' ? 1.4 : 1, k === 'bolt' ? .8 : 1); } m.position.set(q.x, 1.1, q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });     // свои стрелы светлые, болт толще
     hazMeshes.forEach((h, i) => {
       const z = W.haz[i]; h.ring.visible = h.disc.visible = !!z; if (!z) return;
       const k = Math.min(1, z.t / z.delay), pulse = .3 + .25 * Math.sin(t * 28) + .25 * k, fire = z.by === 'elite' || z.bomber, col = fire ? '#ff7a20' : '#d060ff';      // взрыв (элита, тлеющий) — оранжевый, колдовство — фиолетовое
@@ -452,12 +457,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
       else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { fx.flash(v.x, 1.4, v.z, 2.6, RARITY[4].color); burst(v.x, 1, v.z, 12, RARITY[4].color, 4); }
       else if (v.k === 'ability') {                   // умения: вспышки и кольца
-        const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30' }[v.id] || '#ffe8b0';
+        const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30', leap: '#c8e0b0', volley: '#eef4ff', trap: '#8a8478', venom: '#7ad060', rain: '#eef4ff' }[v.id] || '#ffe8b0';
         if (v.id === 'cry' || v.id === 'whirl') for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r = v.id === 'cry' ? 2.5 : 1.8; burst(v.x + Math.sin(a) * r, 1, v.z + Math.cos(a) * r, 2, col, 3); }
         else burst(v.x, 1.2, v.z, 18, col, 3);
         fx.flash(v.x, 1.3, v.z, v.id === 'whirl' ? 2.6 : 1.6, col);
         if (v.id === 'cry' && hooks.onText) hooks.onText(v.x, 3.2, v.z, 'А-а-а!', 'alarm');
       }
+      else if (v.k === 'trapSnap') { burst(v.x, .4, v.z, 14, '#8a8478', 3); hooks.onText && hooks.onText(v.x, 2.2, v.z, 'Капкан!', 'alarm'); }
       else if (v.k === 'evFight' || v.k === 'evRaid') { burst(v.x, 1.4, v.z, 14, '#ffb040', 3); hooks.onText && hooks.onText(v.x, 3, v.z, '!', 'alarm'); }
       else if (v.k === 'evDone') { burst(v.x, 1.4, v.z, 30, '#ffd27a', 4); fx.flash(v.x, 1.4, v.z, 1.8, '#ffe8a0'); }
       else if (v.k === 'wanderer' || v.k === 'wanderLeave') { burst(v.x, 1.6, v.z, 26, '#c8a0ff', 3); fx.ash(v.x, 1, v.z, 10, ['#8a7aa0', '#c8b8e0', '#5a4a70']); }

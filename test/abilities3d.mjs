@@ -94,5 +94,28 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   const cost = respecAbilityCost(W), ap = W.ap; ok(respecAbilities(W) === 'ok' && W.ap === ap + 6 && !Object.keys(W.ab).length && W.inv.ash === 1e5 - cost, 'сброс умений не вернул очки');
 }
 
+// ---------- 9. Сойка: отскок, залп, капкан, яд, град ----------
+{
+  const J = A.jay, mkJ = (seed = 1) => { const W = mk(30, seed); W.hero = 'jay'; W.inv.eq.weapon = 'w_bow_iron'; refreshGear(W); return W; };
+  ok(ABILITIES.jay.length === 5 && ABILITIES.jay.every(a => J[a.id] && [0, 4].every(r => typeof a.text(J[a.id], r) === 'string')), 'у Сойки не 5 описанных умений');
+  { const W = mkJ(); upgradeAbility(W, 'leap'); const e = foe(W, 0, 4); still(W); ok(useAbility(W, 0) === 'ok', 'отскок не сработал');
+    run(W, .8, () => { still(W); return {}; }); ok(W.player.z < 40 - J.leap.dist * .7 && e.hp < e.maxhp, `отскок: герой на ${(W.player.z - 40).toFixed(1)}, враг цел ${e.hp === e.maxhp}`); }
+  { const W = mkJ(); upgradeAbility(W, 'volley'); const s15 = 15 * Math.PI / 180, a = foe(W, 0, 7), b = foe(W, Math.sin(s15) * 9, Math.cos(s15) * 9); still(W);     // веер строится от ближайшего врага
+    const n0 = W.proj.length; useAbility(W, 1); ok(W.proj.filter(q => q.friendly).length - n0 === J.volley.n, 'в залпе не столько стрел');
+    run(W, 1, () => { still(W); return {}; }); ok(a.hp < a.maxhp && b.hp < b.maxhp, 'залп не задел цель и соседа в веере'); }
+  { const W = mkJ(); upgradeAbility(W, 'trap'); useAbility(W, 2); const tp = W.traps[0];
+    ok(tp && Math.abs(tp.z - (40 + J.trap.ahead)) < .01, 'капкан не впереди');
+    const e = foe(W, 0, J.trap.ahead); run(W, .1); ok(e.hp < e.maxhp && e.st && e.st.root && !W.traps.length, 'капкан не схватил врага');
+    const x0 = e.x, z0 = e.z; e.cd = 0; e.alert = true; W.player.x += 6; run(W, 1); ok(Math.hypot(e.x - x0, e.z - z0) < .3, 'враг в корнях ходит');
+    W.acd = {}; for (let k = 0; k < 3; k++) { useAbility(W, 2); W.acd = {}; } ok(W.traps.length === J.trap.max, 'капканов больше предела'); }
+  { const W = mkJ(); upgradeAbility(W, 'venom'); const e1 = foe(W, 0, 4), e2 = foe(W, 0, 7); still(W); useAbility(W, 3);
+    run(W, .8, () => { still(W); return {}; }); ok(e1.st && e1.st.poison && e2.hp < e2.maxhp, 'ядовитая стрела не травит или не пробивает'); }
+  { const W = mkJ(); upgradeAbility(W, 'rain'); const a = foe(W, 0, 9), b = foe(W, 1.5, 9), c = foe(W, 0, 9 + J.rain.r + 3); still(W); useAbility(W, 4);
+    const zn = W.zones[0]; ok(zn && Math.hypot(zn.x - a.x, zn.z - a.z) < .1, 'град не над ближайшим врагом');
+    run(W, J.rain.t + .2, () => { still(W); return {}; });
+    const hitsA = a.maxhp - a.hp; ok(hitsA > 0 && b.hp < b.maxhp && c.hp === c.maxhp && !W.zones.length, 'град бьёт не по кругу или не кончился');
+    ok(hitsA > (W.cfg.player.attackDamage + W.gear.dmg) * J.rain.mul[0] * 5, 'град ударил мало раз: ' + hitsA); }
+}
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Умения 3D: OK');

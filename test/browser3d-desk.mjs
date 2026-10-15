@@ -219,6 +219,11 @@ try {
     await pg.waitForTimeout(900);
     const hit = await pg.evaluate(() => window.__b3d.W.enemies.some(e => !e.dead && e.maxhp === 5000 && e.hp < 5000));
     if (!fly || !hit) bad(`стрела Сойки не вылетела (${fly}) или не попала (${hit})`);
+    // град стрел (клавиша 5) встаёт над врагом
+    await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { rain: 1, trap: 1 }; W.acd = {}; });
+    await pg.keyboard.press('Digit5');
+    await pg.waitForFunction(() => window.__b3d.W.zones.length > 0, null, { timeout: 4000 }).catch(() => bad('клавиша 5 не вызвала град стрел'));
+    await pg.keyboard.press('Digit3'); await pg.waitForTimeout(500); await pg.screenshot({ path: join(out, '3d-desk-jay-rain.png') });
     await c4.close(); }
   // телефон: веер кнопок умений не налезает на «Удар», «Перекат» и друг на друга, кнопки не меньше 44 px, касание запускает умение
   { const c5 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c5.newPage(); pg.setDefaultTimeout(8000);
