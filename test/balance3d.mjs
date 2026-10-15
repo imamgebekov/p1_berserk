@@ -79,12 +79,12 @@ function delve(tier, id, seed) {
   const cfg = JSON.parse(JSON.stringify(CFG3)); if (BUF) cfg.player.heavy.buffer = Number(BUF); cfg.enemies.count = 0; cfg.bosses.list = [];
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3)), def = cfg.dungeons.list.find(d => d.id === id);
   if (process.env.BAL_DIF) setDifficulty(W, process.env.BAL_DIF);
-  Object.assign(W.inv.eq, TIERS[tier]); travel(W, id, def.entry.x, def.entry.z);
+  Object.assign(W.inv.eq, TIERS[tier]); for (const k of Object.keys(cfg.dungeons.keys)) W.keys[k] = true; travel(W, id, def.entry.x, def.entry.z);    // замки — в locks3d.mjs
   const total = aliveEnemies(W).length, dodge = mulberry32(seed + 99);
   for (let i = 0; i < 60 * 240; i++) {
     const p = W.player, en = aliveEnemies(W); if (!en.length) return { dead: false, t: i / 60, frac: 1 };
     let tgt = null, bd = 1e9; for (const e of en) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; tgt = e; } }
-    const inp = { mx: 0, mz: 0, attack: false, roll: false }, wp = pathStep(W.map, p.x, p.z, tgt.x, tgt.z);
+    const inp = { mx: 0, mz: 0, attack: false, roll: false }, wp = pathStep(W.map, p.x, p.z, tgt.x, tgt.z, W.keys);
     if (wp) { const dx = wp.x - p.x, dz = wp.z - p.z, d = Math.hypot(dx, dz) || 1; inp.mx = dx / d; inp.mz = dz / d; inp.attackPress = bd < 2; }
     else {
       const C = cfg.enemies[tgt.type], reach = cfg.player.attackRange + W.gear.reach + C.radius * .5;

@@ -4,14 +4,16 @@ import { sanitizeSkills } from './data/skills3d.js';
 import { serializeKnown, sanitizeKnown } from './craft3d.js';
 import { CFG3 } from './config3d.js';
 import { serializeQuests, sanitizeQuests } from './quests3d.js';
-const KEY = 'berserk3d.save', VERSION = 1;
+const KEY = 'berserk3d.save', VERSION = 2;
 
 export const packSeen = a => { let s = ''; for (let i = 0; i < a.length; i += 6) { let v = 0; for (let k = 0; k < 6; k++) v |= (a[i + k] ? 1 : 0) << k; s += B64[v]; } return s; };
 export const unpackSeen = (s, a) => { if (typeof s !== 'string') return; for (let i = 0; i < s.length; i++) { const v = B64.indexOf(s[i]); if (v < 0) continue; for (let k = 0; k < 6; k++) if (i * 6 + k < a.length) a[i * 6 + k] = (v >> k) & 1; } };
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 // миграции старых версий: MIGRATIONS[n] переводит сохранение из версии n в n+1. Пока версия одна; сюда добавляются шаги.
-const MIGRATIONS = {};
+const MIGRATIONS = {
+  1: d => { d.keys = []; d.unlocked = {}; }          // 1 → 2: связка ключей подземелий и отпертые двери
+};
 export function migrate(d) { while (Number.isInteger(d.v) && d.v < VERSION && MIGRATIONS[d.v]) { MIGRATIONS[d.v](d); d.v++; } return d; }
 
 // перенос сохранения между устройствами: текст «B3D1:» + base64 от JSON; при вставке проходит те же проверки, что и обычная загрузка
@@ -37,6 +39,16 @@ export function applyDseen(W, dseen) {
   for (const [id, s] of Object.entries(dseen || {})) { const L = W.levels[id], k = s.indexOf(':'); if (L && Number(s.slice(0, k)) === L.seenN) unpackSeen(s.slice(k + 1), L.seen); }
 }
 
+// ключи подземелий и отпертые двери: только известные id; номера дверей проверяются при применении к миру
+const keyIds = () => Object.keys(CFG3.dungeons.keys || {});
+function sanitizeKeys(a) { return Array.isArray(a) ? [...new Set(a.filter(k => keyIds().includes(k)))] : []; }
+function sanitizeUnlocked(o) { const r = {}; if (o && typeof o === 'object') for (const d of CFG3.dungeons.list) if (Array.isArray(o[d.id])) r[d.id] = o[d.id].filter(n => Number.isInteger(n) && n >= 0 && n < 64); return r; }
+function packUnlocked(W) { const r = {}; if (W.levels) for (const L of Object.values(W.levels)) if (L.def) { const ids = (L.map.doors || []).filter(d => d.lock && !d.locked).map(d => d.id); if (ids.length) r[L.id] = ids; } return r; }
+export function applyDungeonState(W, saved) {
+  for (const k of saved.keys || []) W.keys[k] = true;
+  for (const [id, ids] of Object.entries(saved.unlocked || {})) { const L = W.levels && W.levels[id]; if (L) for (const n of ids) { const d = L.map.doors[n]; if (d && d.lock) d.locked = false; } }
+}
+
 export function loadSave(slots, storage = globalThis.localStorage) {
   try {
     const raw = storage.getItem(KEY); if (!raw) return null;
@@ -48,12 +60,12 @@ export function loadSave(slots, storage = globalThis.localStorage) {
     // очков не может быть больше, чем уровней: иначе сбрасываем распределение (защита от испорченного сохранения)
     const spent = Object.values(prog.skills).reduce((a, b) => a + b, 0);
     if (spent + prog.sp > prog.lv - 1) { prog.skills = {}; prog.sp = prog.lv - 1; }
-    return { inv: deserialize(d.inv, slots), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: typeof d.seen === 'string' && d.seen.length < 4000 ? d.seen : '', bosses: d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [] };
+    return { inv: deserialize(d.inv, slots), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: typeof d.seen === 'string' && d.seen.length < 4000 ? d.seen : '', bosses: d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [] };
   } catch (e) { return null; }
 }
 export function createSaver(W, storage = globalThis.localStorage) {
   let last = '';
-  const snap = () => JSON.stringify({ v: VERSION, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills }, seen: packSeen(W.levels ? W.levels.surface.seen : W.seen), dseen: packDseen(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead).map(a => ({ type: a.type, hp: Math.round(a.hp) })) });
+  const snap = () => JSON.stringify({ v: VERSION, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills }, seen: packSeen(W.levels ? W.levels.surface.seen : W.seen), dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead).map(a => ({ type: a.type, hp: Math.round(a.hp) })) });
   return {
     write(force) { if (W.ironDead) return false; const s = snap(); if (!force && s === last) return false; try { storage.setItem(KEY, s); last = s; return true; } catch (e) { return false; } },
     reset() { try { storage.removeItem(KEY); } catch (e) { /* ок */ } last = ''; }

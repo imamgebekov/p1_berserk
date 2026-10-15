@@ -32,6 +32,8 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     if (g.leech) parts.push(`Вампиризм ${g.leech}%`);
     if (g.luck) parts.push(`Удача ${g.luck}`);
     if (g.reach) parts.push(`Дальность ${g.reach > 0 ? '+' : ''}${g.reach.toFixed(1)}`);
+    const ks = Object.keys(W.keys || {}).filter(k => W.keys[k]).map(k => (cfg.dungeons.keys || {})[k] || k);
+    if (ks.length) parts.push('🗝 ' + ks.join(', '));                     // связка ключей подземелий
     return parts.join(' · ');
   }
 

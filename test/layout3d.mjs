@@ -11,13 +11,13 @@ const D = CFG3.dungeons;
 const area = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0));
 const center = r => ({ x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 });
 const free = (M, x, z, r) => { const o = { x, z }; resolve(M, o, r); return Math.hypot(o.x - x, o.z - z) < 1e-6; };
-const mk = (seed = 1) => { const c = clone(); c.enemies.count = 0; for (const d of c.dungeons.list) d.spawns = []; return createWorld(c, mulberry32(seed)); };   // геометрия без врагов: они — в delve3d.mjs
+const mk = (seed = 1) => { const c = clone(); c.enemies.count = 0; for (const d of c.dungeons.list) d.spawns = []; const W = createWorld(c, mulberry32(seed)); for (const k of Object.keys(c.dungeons.keys)) W.keys[k] = true; return W; };   // ключи — в locks3d.mjs   // геометрия без врагов: они — в delve3d.mjs
 // довести героя до точки: по графу комнат через проходы; false — не дошёл за время
 function walkTo(W, tx, tz, sec = 25) {
   const p = W.player;
   for (let i = 0; i < sec * 60; i++) {
     if (Math.hypot(p.x - tx, p.z - tz) < .7) return true;
-    const w = pathStep(W.map, p.x, p.z, tx, tz) || { x: tx, z: tz }, dx = w.x - p.x, dz = w.z - p.z, d = Math.hypot(dx, dz) || 1;
+    const w = pathStep(W.map, p.x, p.z, tx, tz, W.keys) || { x: tx, z: tz }, dx = w.x - p.x, dz = w.z - p.z, d = Math.hypot(dx, dz) || 1;
     step(W, 1 / 60, { mx: dx / d, mz: dz / d });
   }
   return false;

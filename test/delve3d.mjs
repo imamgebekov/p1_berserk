@@ -67,6 +67,7 @@ for (const def of [CEL, CRY]) {
   travel(W, CRY.id, CRY.entry.x, CRY.entry.z);
   for (const e of alive(W)) e.dead = true;
   const M = W.map, r = M.rooms.find(q => q.id === 'tombs');      // за дверью и четырьмя проходами, в пределах «потери следа»
+  for (const d of M.doors) d.locked = false;                     // герой уже отпер двери (замки — в locks3d.mjs)
   const e = spawnEnemy(W, 'ghoul', (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2); e.alert = true;
   W.player.x = CRY.entry.x; W.player.z = CRY.entry.z;
   let t = 0; for (; t < 40 * 60; t++) { step(W, 1 / 60, {}); if (Math.hypot(e.x - W.player.x, e.z - W.player.z) < 3) break; e.alert = true; }
@@ -95,7 +96,7 @@ for (const def of [CEL, CRY]) {
 
 // ---------- 6. отряд дерётся внизу ----------
 {
-  const W = mk(7); W.lv = 20; W.player.inv = 99; W.player.hp = 1e6; W.player.maxhp = 1e6;
+  const W = mk(7); W.lv = 20; W.player.inv = 99; W.player.hp = 1e6; W.player.maxhp = 1e6; for (const k of Object.keys(CFG3.dungeons.keys)) W.keys[k] = true;
   W.player.x = CEL.at.x + .5; W.player.z = CEL.at.z;
   spawnAlly(W, 'guard'); spawnAlly(W, 'guard'); spawnAlly(W, 'guard');
   travel(W, CEL.id, CEL.entry.x, CEL.entry.z);

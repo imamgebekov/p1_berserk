@@ -158,12 +158,14 @@ export function roomAt(map, x, z) {
 
 // следующая точка пути из (x, z) к (tx, tz) по графу комнат (поиск в ширину по проходам); null — та же комната или вне комнат.
 // Сначала подойти к проходу по нормали (точка «до»), выровнявшись — пройти его (точка «за»): так не цепляются за углы
-export function pathStep(map, x, z, tx, tz) {
+// keys — связка ключей идущего (у героя): дверь, от которой есть ключ, проходима; враги и отряд идут без ключей
+export function pathStep(map, x, z, tx, tz, keys = null) {
   const ra = roomAt(map, x, z), rb = roomAt(map, tx, tz);
   if (!map.adj || ra < 0 || rb < 0 || ra === rb) return null;
   const prev = new Array(map.rooms.length).fill(-2); prev[ra] = -1;
   const q = [ra];
-  while (q.length && prev[rb] === -2) { const r = q.shift(); for (const li of map.adj[r]) { const l = map.links[li], o = l.a === r ? l.b : l.a; if (prev[o] === -2) { prev[o] = li; q.push(o); } } }
+  const shut = l => { const d = l.door >= 0 && map.doors[l.door]; return !!d && d.locked && !(keys && keys[d.lock]); };      // через запертую дверь пути нет
+  while (q.length && prev[rb] === -2) { const r = q.shift(); for (const li of map.adj[r]) { const l = map.links[li], o = l.a === r ? l.b : l.a; if (prev[o] === -2 && !shut(l)) { prev[o] = li; q.push(o); } } }
   if (prev[rb] === -2) return null;
   let r = rb, li = prev[r];
   for (;;) { const l = map.links[li], o = l.a === r ? l.b : l.a; if (o === ra) break; r = o; li = prev[r]; }
@@ -197,13 +199,13 @@ export function makeLevelMap(cfg, def) {
     if (!L) throw new Error(`дверь ${dd.a}–${dd.b} в ${def.id}: комнаты не соприкасаются`);
     const rect = L.vert ? { x0: L.line - t / 2, x1: L.line + t / 2, z0: L.s0, z1: L.s1 } : { x0: L.s0, x1: L.s1, z0: L.line - t / 2, z1: L.line + t / 2 };
     L.door = doors.length;
-    doors.push({ id: doors.length, x: L.x, z: L.z, vert: L.vert, s0: L.s0, s1: L.s1, line: L.line, w: L.s1 - L.s0, rect, open: 0, link: links.indexOf(L) });
+    doors.push({ id: doors.length, x: L.x, z: L.z, vert: L.vert, s0: L.s0, s1: L.s1, line: L.line, w: L.s1 - L.s0, rect, open: 0, link: links.indexOf(L), lock: dd.lock || null, locked: !!dd.lock, cd: 0 });
   }
   // сколько проходов между комнатами (поиск в ширину из каждой): по этому числу враги слышат героя
   const hops = rooms.map((_, s) => { const h = rooms.map(() => Infinity); h[s] = 0; const q = [s]; while (q.length) { const r = q.shift(); for (const li of adj[r]) { const l = links[li], o = l.a === r ? l.b : l.a; if (h[o] === Infinity) { h[o] = h[r] + 1; q.push(o); } } } return h; });
   const bounds = { x0: Math.min(...rooms.map(r => r.x0)), x1: Math.max(...rooms.map(r => r.x1)), z0: Math.min(...rooms.map(r => r.z0)), z1: Math.max(...rooms.map(r => r.z1)) };
   const containers = [];
-  for (const c of def.chests || []) containers.push({ id: containers.length, kind: c.kind, x: c.x, z: c.z, b: -1, ready: false, t: 0, items: [], locked: false, keyTier: 0 });
+  for (const c of def.chests || []) containers.push({ id: containers.length, kind: c.kind, x: c.x, z: c.z, b: -1, ready: false, t: 0, items: [], locked: false, keyTier: 0, key: c.key || null });
   const cx = (bounds.x0 + bounds.x1) / 2, cz = (bounds.z0 + bounds.z1) / 2;
   const place = { id: def.id, name: def.name, type: 'dungeon', x: cx, z: cz, r: Math.hypot(bounds.x1 - bounds.x0, bounds.z1 - bounds.z0) + 4, danger: def.danger || 0 };
   const portals = [{ x: def.exit.x, z: def.exit.z, to: 'surface', tx: def.back.x, tz: def.back.z, up: true }];
@@ -248,3 +250,23 @@ export function placeAt(map, x, z) {
   for (const p of map.cfg.places || []) { const d = Math.hypot(x - p.x, z - p.z); if (d < p.r && (!best || p.r < best.r)) best = p; }
   return best;
 }
+
+// «нет тупика»: открываем подземелье как игрок — ходим по незапертому, собираем ключи из сундуков, отпираем двери, пока можно.
+// Возвращает { rooms — сколько комнат достижимо, all — все ли, order — порядок ключей, stuck — двери, которые так и не открылись }
+export function solveLocks(map, startX, startZ) {
+  const R = map.rooms.length, seen = new Array(R).fill(false), keys = new Set(), open = new Set(), order = [];
+  const st = roomAt(map, startX, startZ); if (st < 0) return { rooms: 0, all: false, order, stuck: map.doors.filter(d => d.lock).map(d => d.id) };
+  let grew = true; seen[st] = true;
+  while (grew) {
+    grew = false;
+    for (let r = 0; r < R; r++) if (seen[r]) for (const li of map.adj[r]) {
+      const l = map.links[li], o = l.a === r ? l.b : l.a, d = l.door >= 0 ? map.doors[l.door] : null;
+      if (d && d.lock && !open.has(d.id)) { if (keys.has(d.lock)) { open.add(d.id); grew = true; } else continue; }
+      if (!seen[o]) { seen[o] = true; grew = true; }
+    }
+    for (const c of map.containers) if (c.key && !keys.has(c.key)) { const cr = roomAt(map, c.x, c.z); if (cr >= 0 && seen[cr]) { keys.add(c.key); order.push(c.key); grew = true; } }
+  }
+  const rooms = seen.filter(Boolean).length;
+  return { rooms, all: rooms === R, order, stuck: map.doors.filter(d => d.lock && !open.has(d.id)).map(d => d.id) };
+}
+

@@ -33,8 +33,9 @@ ok(new Set(HINTS.map(h => h.id)).size === HINTS.length && HINTS.every(h => /^[a-
   const before = JSON.stringify(b.o); for (const bad of ['', null, 'привет', 'B3D1:', 'B3D1:!!!', 'B3D1:' + btoa('not json'), 'B3D1:' + btoa(JSON.stringify({ v: 99 })), 'B3D1:' + btoa(JSON.stringify([1, 2])), 'X' + code]) ok(importSave(bad, 30, b) === 'bad', 'отказ: ' + String(bad).slice(0, 20));
   ok(JSON.stringify(b.o) === before, 'плохой код ничего не испортил'); ok(importSave(code + ' \n', 30, mem()) === 'ok', 'пробелы вокруг кода'); }
 // ---- версии ----
-{ const st = mem(); st.setItem('berserk3d.save', JSON.stringify({ v: 2, inv: {} })); ok(loadSave(30, st) === null, 'сохранение из будущей версии не читается'); st.setItem('berserk3d.save', 'мусор'); ok(loadSave(30, st) === null, 'мусор'); st.setItem('berserk3d.save', 'null'); ok(loadSave(30, st) === null, 'null');
-  const d0 = { v: 1 }; ok(migrate(d0) === d0 && d0.v === 1, 'миграция текущей версии ничего не делает'); }
+{ const st = mem(); st.setItem('berserk3d.save', JSON.stringify({ v: 3, inv: {} })); ok(loadSave(30, st) === null, 'сохранение из будущей версии не читается'); st.setItem('berserk3d.save', 'мусор'); ok(loadSave(30, st) === null, 'мусор'); st.setItem('berserk3d.save', 'null'); ok(loadSave(30, st) === null, 'null');
+  const d0 = { v: 2 }; ok(migrate(d0) === d0 && d0.v === 2 && !('keys' in d0), 'миграция текущей версии ничего не делает');
+  const d1 = { v: 1 }; migrate(d1); ok(d1.v === 2 && Array.isArray(d1.keys) && !d1.keys.length && d1.unlocked && !Object.keys(d1.unlocked).length, 'миграция 1 → 2: пустая связка ключей'); }
 
 if (fails.length) { console.error('prefs3d FAIL\n' + fails.join('\n')); process.exit(1); }
 console.log('prefs3d OK, подсказок:', HINTS.length);

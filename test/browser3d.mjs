@@ -310,10 +310,14 @@ try {
   if (await page.evaluate(() => window.__b3d.W.lvl) !== 'cellar_cooper') bad('по кнопке не спустились в погреб');
   await page.screenshot({ path: join(out, '3d-cellar.png') });
   await page.tap('#miniBtn'); await page.waitForTimeout(250); await page.screenshot({ path: join(out, '3d-cellar-map.png') }); await page.tap('#mapClose');
-  // дверь кладовой открывается, когда герой рядом
-  await page.evaluate(() => { const w = window.__b3d.W, d = w.map.doors[0]; w.player.x = d.x - 1.2; w.player.z = d.z; });
+  // дверь кладовой заперта: без ключа не открывается (замок на створке, напоминание); с ключом на связке — отпирается
+  await page.evaluate(() => { const w = window.__b3d.W, d = w.map.doors[0]; w.keys = {}; w.player.x = d.x - 1.2; w.player.z = d.z; });
+  await page.waitForTimeout(600); await page.screenshot({ path: join(out, '3d-cellar-locked.png') });
+  { const r = await page.evaluate(() => ({ open: window.__b3d.W.map.doors[0].open, locked: window.__b3d.W.map.doors[0].locked, toast: [...document.querySelectorAll('.toast')].map(t => t.textContent).join(' | ') }));
+    if (!r.locked || r.open > .1 || !/Заперто/.test(r.toast)) bad('дверь кладовой не заперта или нет напоминания: ' + JSON.stringify(r)); }
+  await page.evaluate(() => { window.__b3d.W.keys.cellar_cooper = true; });
   await page.waitForTimeout(600); await page.screenshot({ path: join(out, '3d-cellar-door.png') });
-  if (!(await page.evaluate(() => window.__b3d.W.map.doors[0].open > .9))) bad('дверь в погребе не открылась рядом с героем');
+  if (!(await page.evaluate(() => window.__b3d.W.map.doors[0].open > .9 && !window.__b3d.W.map.doors[0].locked))) bad('с ключом дверь в погребе не открылась');
   // скрытый склеп: собирается и рисуется (вход пока только для проверки)
   const crypt = await page.evaluate(() => { const b = window.__b3d, d = b.cfg.dungeons.list.find(q => q.hidden); if (!d) return null; b.travel(d.id, 17, 0); return d.id; });
   if (crypt) {

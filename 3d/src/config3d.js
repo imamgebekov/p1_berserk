@@ -115,16 +115,18 @@ export const CFG3 = {
     doorMax: 3,           // самый широкий проход, в который можно поставить дверь, м
     seenMax: 1200,        // предел длины строки тумана одного подземелья в сохранении
     path: { before: 1, past: 1.2, slack: .5 },   // путь через проход: точка до него и за ним, м; slack — запас к краю проёма
+    // ключи подземелий: лежат в сундуках (chests[].key), висят на связке (не в сумке, не теряются), открывают двери с lock
+    keys: { cellar_cooper: 'Ключ Бондаря', crypt_iron: 'Железный ключ Склепа', crypt_bone: 'Костяной ключ Склепа' },
     hearRooms: 2,         // враг слышит героя, только если между ними не больше стольких проходов (иначе сбегается всё подземелье)
     respawnAway: 300,     // через сколько секунд отсутствия подземелье снова наполняется врагами
     spawnPad: 1.2, spawnSafe: 5,   // враги появляются не ближе spawnPad к стенам и не ближе spawnSafe ко входу, м
     list: [
       { id: 'cellar_cooper', name: 'Погреб Бондаря', at: { x: -19.5, z: 19.6 }, back: { x: -17.2, z: 19.6 }, depth: .25, danger: 1,
         rooms: [{ id: 'main', x: 0, z: 0, w: 9, d: 7 }, { id: 'pass', x: 5.5, z: 0, w: 2, d: 2 }, { id: 'store', x: 9, z: 0, w: 5, d: 5 }],
-        doors: [{ a: 'pass', b: 'store' }],
+        doors: [{ a: 'pass', b: 'store', lock: 'cellar_cooper' }],
         foes: [['hound', 2], ['ghoul', 1]], spawns: [{ room: 'store', n: 2 }, { room: 'main', n: 1, type: 'hound' }],
         entry: { x: -1.5, z: 0 }, exit: { x: -3.6, z: 0 },
-        chests: [{ kind: 'barrel', x: 3.4, z: -2.4 }, { kind: 'crate', x: 10.2, z: 1.5 }, { kind: 'sack', x: 10.2, z: -1.5 }] },
+        chests: [{ kind: 'barrel', x: 3.4, z: -2.4, key: 'cellar_cooper' }, { kind: 'crate', x: 10.2, z: 1.5 }, { kind: 'sack', x: 10.2, z: -1.5 }] },
       { id: 'crypt_pogost', name: 'Склеп Погоста', hidden: true, at: { x: -30, z: -12 }, back: { x: -28, z: -12 }, depth: .7, danger: 2,
         rooms: [
           { id: 'hall', x: 0, z: 0, w: 8, d: 6 },
@@ -133,11 +135,11 @@ export const CFG3 = {
           { id: 'c3', x: 17, z: 8, w: 2, d: 6 }, { id: 'ossuary', x: 17, z: 14, w: 8, d: 6 },
           { id: 'c4', x: 25, z: -17, w: 6, d: 2 }, { id: 'vault', x: 32, z: -17, w: 8, d: 8 }
         ],
-        doors: [{ a: 'c2', b: 'tombs' }, { a: 'c4', b: 'vault' }],
+        doors: [{ a: 'c2', b: 'tombs', lock: 'crypt_iron' }, { a: 'c4', b: 'vault', lock: 'crypt_bone' }],
         foes: [['ghoul', 4], ['witch', 1], ['imp', 1], ['lunger', 1], ['shade', 1]],
         spawns: [{ room: 'c1', n: 1 }, { room: 'nave', n: 3 }, { room: 'tombs', n: 3 }, { room: 'ossuary', n: 2 }, { room: 'vault', n: 2 }],
         entry: { x: -.5, z: 0 }, exit: { x: -3, z: 0 },
-        chests: [{ kind: 'grave', x: 13.5, z: -19.5 }, { kind: 'grave', x: 15, z: 15.5 }, { kind: 'corpse', x: 19.5, z: 12.5 }, { kind: 'altar', x: 34.5, z: -17 }, { kind: 'coffer', x: 32, z: -19.8 }] }
+        chests: [{ kind: 'grave', x: 13.5, z: -19.5, key: 'crypt_bone' }, { kind: 'grave', x: 15, z: 15.5, key: 'crypt_iron' }, { kind: 'corpse', x: 19.5, z: 12.5 }, { kind: 'altar', x: 34.5, z: -17 }, { kind: 'coffer', x: 32, z: -19.8 }] }
     ]
   },
   squad: {

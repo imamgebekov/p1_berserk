@@ -59,9 +59,12 @@ export function buildLevelView(L, cfg) {
     hinge.add(new THREE.Mesh(new THREE.BoxGeometry(w, D.wallH * .95, th).translate(w / 2, D.wallH * .475, 0), doorMat));
     hinge.add(new THREE.Mesh(mergeGeometries([box(w, .08, th + .04, w / 2, D.wallH * .25, 0), box(w, .08, th + .04, w / 2, D.wallH * .7, 0)]), bandMat));
     if (d.vert) { hinge.position.set(d.line, 0, d.s0); hinge.rotation.y = -Math.PI / 2; } else hinge.position.set(d.s0, 0, d.line);
-    group.add(hinge); doors.push({ d, hinge, base: hinge.rotation.y });
+    // замок на запертой двери: золотая коробка с дужкой посередине створки (с обеих сторон)
+    let lock = null;
+    if (d.lock) { lock = new THREE.Group(); const gold = new THREE.MeshBasicMaterial({ color: '#d8a838' }); lock.add(new THREE.Mesh(new THREE.BoxGeometry(.3, .32, th + .3), gold), new THREE.Mesh(new THREE.BoxGeometry(.06, .2, th + .34), new THREE.MeshBasicMaterial({ color: '#2a1a08' })).translateY(-.02)); lock.position.set(w / 2, D.wallH * .5, 0); hinge.add(lock); }
+    group.add(hinge); doors.push({ d, hinge, base: hinge.rotation.y, lock });
   }
-  function update() { for (const it of doors) it.hinge.rotation.y = it.base + it.d.open * Math.PI / 2; }
+  function update() { for (const it of doors) { it.hinge.rotation.y = it.base + it.d.open * Math.PI / 2; if (it.lock) it.lock.visible = !!it.d.locked; } }
   const conts = buildContainers(M); group.add(conts.group);
   return { group, conts, flame: fl, update };
 }
