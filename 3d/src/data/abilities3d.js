@@ -1,5 +1,5 @@
 // Активные умения героев: имена, значки (символ на кнопке) и описания по рангу. Числа — в config3d.js → abilities.
-// Порядок в списке героя = слот (клавиши 1–5) и уровень открытия (abilities.unlock).
+// Порядок в списке героя = слот (клавиши 1–5); уровни рангов — abilities.ranks.
 const pct = v => Math.round(v * 100) + '%';
 const n = v => String(v).replace('.', ',');           // русская запятая в дробях
 export const ABILITIES = {
@@ -25,3 +25,12 @@ export const ABILITIES = {
     { id: 'execute', name: 'Смертельный удар', icon: '✝', text: (A, r) => `Удар ×${n(A.mul[r])}, сильнее по раненому; врага (не босса) ниже ${Math.round(A.kill[r] * 100)}% здоровья добивает сразу. Перезарядка ${n(A.cd[r])} с.` }
   ]
 };
+
+// ---- правила рангов (чистые, для боя, сохранения и окна навыков) ----
+export const rankLvs = (cfg, i) => cfg.abilities.ranks[i] || [];
+// очков умений к уровню lv: по одному за каждый уже наступивший уровень ранга
+export const abilityPointsAt = (lv, cfg) => cfg.abilities.ranks.flat().filter(l => l <= lv).length;
+// сколько рангов умения слота i доступно на уровне lv
+export const ranksOpenAt = (lv, cfg, i) => rankLvs(cfg, i).filter(l => l <= lv).length;
+// индекс в списках силы (5 чисел) для ранга: у умения с одним рангом — самый сильный
+export const rankIdx = (cfg, i, rank) => Math.min(4, rank - 1 + (5 - rankLvs(cfg, i).length));

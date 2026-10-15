@@ -105,7 +105,7 @@
   </div>
 </section>
 
-<div id="heroPick" class="veil" hidden><h2>Кто выходит из пепла?</h2><div id="heroCards"></div><p class="note">Герой выбирается один раз на всю игру. Другого можно взять, сбросив прогресс в сумке («Сбросить прогресс»).</p></div>
+<div id="heroPick" class="veil" hidden><h2>Кто выходит из пепла?</h2><div id="heroCards"></div><p id="heroNote" class="note">Героя можно сменить потом в меню (⚙): уровень, пепел и вещи останутся.</p><button id="heroCancel" type="button" class="reset" hidden>Отмена</button></div>
 <section id="bag" hidden>
   <div class="pbox">
     <div class="bhead"><h2 id="bagHead">Сумка</h2><button id="bagQuests" type="button" class="jbtn" aria-label="Задания">📜</button><button id="bagJournal" type="button" class="jbtn" aria-label="Журнал знаний">📖</button><button id="bagClose" type="button" class="main">Играть</button></div>
@@ -121,7 +121,10 @@
 
 <section id="panel" hidden>
   <div class="pbox">
-    <p id="keysHelp" class="note" hidden>⌨ WASD или стрелки — ходить · пробел или левая кнопка мыши — удар (держать — тяжёлый удар) · Shift или правая кнопка — перекат · E — люк, торговец · M — карта · I — сумка · N — навыки · Q — задания · Esc — меню и закрыть окно</p>
+    <p id="keysHelp" class="note" hidden>⌨ WASD или стрелки — ходить · пробел или левая кнопка мыши — удар (держать — тяжёлый удар) · Shift или правая кнопка — перекат · E — люк, торговец · M — карта · I — сумка · N — навыки · Q — задания · 1–5 — умения · Esc — меню и закрыть окно</p>
+    <h2>Герой</h2>
+    <p id="heroNow" class="note"></p>
+    <button id="heroSwitch" type="button" class="reset">Сменить героя</button>
     <h2>Сложность</h2>
     <div id="difTabs" class="tabs"></div>
     <p id="difText" class="note"></p>

@@ -1,6 +1,6 @@
 // Активные умения (B3): очки умений, ранги, перезарядки и действия. Действия собраны из того, что уже есть в бою:
 // удар по врагу (abilityHit), статусы (страх, оглушение), баффы (броня), рывок (состояние героя 'dash').
-import { ABILITIES } from './data/abilities3d.js';
+import { ABILITIES, rankLvs, abilityPointsAt, rankIdx } from './data/abilities3d.js';
 import { abilityHit, abilityArrow } from './sim.js';
 import { lineBlocked, insideOf, resolve } from './map.js';
 import { applyStatus } from './status3d.js';
@@ -8,16 +8,17 @@ import { len } from './util3d.js';
 
 export const heroAbilities = W => ABILITIES[W.hero] || [];
 const cfgOf = (W, id) => (W.cfg.abilities[W.hero] || {})[id];
-export const unlockLv = (W, i) => W.cfg.abilities.unlock[i];
-// очков умений за уровень lv: по одному за каждый уровень с from-го
-export const abilityPoints = (lv, cfg) => Math.max(0, lv - cfg.abilities.from + 1);
+export const unlockLv = (W, i) => rankLvs(W.cfg, i)[0];
+// очков умений к уровню lv: по одному за каждый наступивший уровень ранга (abilities.ranks)
+export const abilityPoints = (lv, cfg) => abilityPointsAt(lv, cfg);
 export const spentAbility = ab => Object.values(ab || {}).reduce((a, b) => a + b, 0);
 
-// можно ли улучшить: 'ok' | 'lvl' (рано) | 'max' | 'points'
+// можно ли улучшить: 'ok' | 'lvl' (следующий ранг — на более высоком уровне) | 'max' | 'points'
 export function canUpgrade(W, id) {
   const i = heroAbilities(W).findIndex(a => a.id === id); if (i < 0) return 'none';
-  if (W.lv < unlockLv(W, i)) return 'lvl';
-  if ((W.ab[id] || 0) >= W.cfg.abilities.maxRank) return 'max';
+  const L = rankLvs(W.cfg, i), rank = W.ab[id] || 0;
+  if (rank >= L.length) return 'max';
+  if (W.lv < L[rank]) return 'lvl';
   return W.ap > 0 ? 'ok' : 'points';
 }
 export function upgradeAbility(W, id) { const r = canUpgrade(W, id); if (r !== 'ok') return r; W.ab[id] = (W.ab[id] || 0) + 1; W.ap--; return 'ok'; }
@@ -34,7 +35,7 @@ export function useAbility(W, i) {
   const rank = W.ab[def.id] || 0; if (!rank) return 'rank';
   if ((W.acd[def.id] || 0) > 0) return 'cd';
   if (p.dead || p.state === 'roll' || p.state === 'dash') return 'busy';
-  const A = cfgOf(W, def.id), r = rank - 1;
+  const A = cfgOf(W, def.id), r = rankIdx(W.cfg, i, rank);
   if (ACT[def.id](W, A, r) === false) return 'target';
   W.acd[def.id] = A.cd[r];
   W.ev.push({ k: 'ability', id: def.id, x: p.x, z: p.z, face: p.face });
@@ -142,7 +143,7 @@ export function tickAbilities(W, dt) {
 // для интерфейса: список умений героя с состоянием
 export function abilityView(W) {
   return heroAbilities(W).map((a, i) => {
-    const A = cfgOf(W, a.id), rank = W.ab[a.id] || 0, r = Math.max(0, rank - 1);
-    return { ...a, slot: i, lv: unlockLv(W, i), rank, open: W.lv >= unlockLv(W, i), cd: W.acd[a.id] || 0, cdMax: A.cd[r], now: rank ? a.text(A, r) : '', next: rank < W.cfg.abilities.maxRank ? a.text(A, rank) : '' };
+    const A = cfgOf(W, a.id), L = rankLvs(W.cfg, i), rank = W.ab[a.id] || 0, r = rankIdx(W.cfg, i, Math.max(1, rank));
+    return { ...a, slot: i, lv: L[0], max: L.length, nextLv: rank < L.length ? L[rank] : 0, rank, open: W.lv >= L[0], cd: W.acd[a.id] || 0, cdMax: A.cd[r], now: rank ? a.text(A, r) : '', next: rank < L.length ? a.text(A, rankIdx(W.cfg, i, rank + 1)) : '' };
   });
 }

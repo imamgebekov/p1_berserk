@@ -14,7 +14,7 @@ export function gainXp(W, n) {
   n = Math.max(1, Math.round(n * W.dif.xp * (W.night ? W.cfg.daynight.night.xp : 1)));
   W.xp += n; W.ev.push({ k: 'xp', n, x: W.player.x, z: W.player.z });
   while (W.lv < L.max && W.xp >= xpNeed(W.lv, W.cfg)) {
-    W.xp -= xpNeed(W.lv, W.cfg); W.lv++; W.sp++; if (W.lv >= W.cfg.abilities.from) W.ap++;     // очко умений — с уровня from
+    W.xp -= xpNeed(W.lv, W.cfg); W.lv++; W.sp++; W.ap += W.cfg.abilities.ranks.flat().filter(l => l === W.lv).length;     // очко умений — на уровнях рангов
     refreshGear(W); const p = W.player; p.hp = Math.min(p.maxhp, p.hp + p.maxhp * L.healOnUp);
     W.ev.push({ k: 'level', lv: W.lv, x: p.x, z: p.z });
   }

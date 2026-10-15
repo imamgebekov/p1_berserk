@@ -5,14 +5,14 @@
 export const HEROES = {
   thorn: {
     name: 'Торн', role: 'Тяжёлый мечник',
-    text: 'Крепкий и неспешный. Рубит тяжёлым железом, держит удар. Позже — щит во второй руке.',
+    text: 'Крепкий и неспешный. Рубит тяжёлым железом, держит удар; во второй руке — щит.',
     kinds: ['sword', 'axe', 'war_axe', 'greatsword', 'mace', 'club', 'hammer', 'pick', 'flail', 'chain_ball', 'scythe', 'halberd', 'spear'], off: ['shield'],
     look: { cloth: '#6a5148', cape: '#7a1e26', hair: '#3a2c28', legs: '#4a3a35', shoulder: true, hood: false, quiver: false, capeLen: 1 },
     open: true
   },
   vale: {
     name: 'Вейл', role: 'Дуэлянт',
-    text: 'Быстрый и хрупкий. Лёгкие клинки, точные удары, чаще крит. Позже — второй клинок.',
+    text: 'Быстрый и хрупкий. Лёгкие клинки, точные удары, чаще крит; во второй руке — ещё один клинок.',
     kinds: ['dagger', 'knife', 'sickle', 'rapier', 'sword'], off: ['dagger', 'knife', 'sickle', 'rapier', 'sword'],
     look: { cloth: '#d8d0c0', cape: '#3a4a7a', hair: '#e8e0c8', legs: '#2a2a34', shoulder: false, hood: false, quiver: false, capeLen: .7 },
     open: true

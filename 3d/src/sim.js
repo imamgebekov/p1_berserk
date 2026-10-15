@@ -25,8 +25,8 @@ import { lightOf, isNight } from './daynight.js';
 import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
-import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
-import { DEFAULT_HERO, canOff } from './data/heroes3d.js';
+import { createInv, addItem, removeAt, gearStats, setBonus, equipAt } from './inv.js';
+import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
 import { initLevels, withLevel, depthAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 
@@ -702,6 +702,23 @@ function goalOf(W, e) {
 
 // input: { mx, mz (−1..1), attack (держится), roll (нажатие) }
 // пересчёт характеристик от надетого и баффов (вызывается каждый шаг и при смене экипировки в сумке)
+// смена героя без потери прогресса: уровень, пепел, вещи и навыки остаются; очки умений возвращаются (умения у героев свои);
+// чужое оружие и вторая рука уходят в сумку (даже сверх размера), в руку — лучшее своё из сумки или стартовое оружие героя
+export function switchHero(W, id) {
+  const H = HEROES[id]; if (!H || !H.open || id === W.hero) return false;
+  W.hero = id; W.ap += Object.values(W.ab).reduce((a, b) => a + b, 0); W.ab = {}; W.acd = {}; W.abuf = {}; W.traps = []; W.zones = [];
+  W.allies = W.allies.filter(a => !a.decoy);
+  const inv = W.inv, back = slot => { const e = { id: inv.eq[slot], n: 1 }; if (inv.up[slot]) e.up = inv.up[slot]; inv.bag.unshift(e); inv.eq[slot] = null; delete inv.up[slot]; };
+  if (inv.eq.weapon && !canWield(id, BY_ID[inv.eq.weapon])) back('weapon');
+  if (inv.eq.offhand && !canOff(id, BY_ID[inv.eq.offhand])) back('offhand');
+  if (!inv.eq.weapon) {
+    let bi = -1, bd = -1; inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; if (it.slot === 'weapon' && canWield(id, it) && it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus) > bd) { bd = it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus); bi = i; } });
+    if (bi >= 0) equipAt(inv, bi, id); else if (H.start) inv.eq.weapon = H.start;
+  }
+  refreshGear(W); W.player.hp = Math.min(W.player.hp, W.player.maxhp);
+  W.ev.push({ k: 'heroSwitch', id });
+  return true;
+}
 // множители героя (config3d.js → heroes); неизвестный герой — Торн
 export const heroMul = W => W.cfg.heroes[W.hero] || W.cfg.heroes[DEFAULT_HERO];
 export function refreshGear(W) {

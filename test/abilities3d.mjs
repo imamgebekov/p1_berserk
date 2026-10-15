@@ -26,23 +26,24 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 // ---------- 1. данные и очки ----------
 {
   const L = ABILITIES.thorn; ok(L.length === 5 && L.every(a => T[a.id] && a.icon && [0, 1, 2, 3, 4].every(r => typeof a.text(T[a.id], r) === 'string')), 'у Торна не 5 описанных умений');
-  ok(A.unlock.join() === '3,8,15,25,30' && A.maxRank === 5, 'уровни открытия не 3/8/15/25/30');
+  ok(A.ranks.map(r => r[0]).join() === '3,8,15,25,30' && A.ranks.flat().length === 21 && new Set(A.ranks.flat()).size === 21 && A.ranks.every(r => r.every((l, k) => !k || l > r[k - 1])), 'уровни открытия не 3/8/15/25/30 или ранги не по возрастанию');
   const c = clone(); c.enemies.count = 0; c.map.places = []; const W = createWorld(c, mulberry32(2)); W.hero = 'thorn';
-  gainXp(W, 1e3); const lv = W.lv; ok(W.ap === Math.max(0, lv - 2), `очков умений ${W.ap} на уровне ${lv}`);
+  gainXp(W, 1e3); const lv = W.lv; ok(W.ap === abilityPoints(lv, c) && abilityPoints(2, c) === 0 && abilityPoints(3, c) === 1 && abilityPoints(4, c) === 1, `очков умений ${W.ap} на уровне ${lv}`);
   for (let i = 0; i < 400 && W.lv < 30; i++) gainXp(W, 1e5);
-  ok(W.lv === 30 && W.ap === 28 && W.sp === 29, `на 30-м уровне умений ${W.ap}, навыков ${W.sp}`);
+  ok(W.lv === 30 && W.ap === 21 && W.sp === 29, `на 30-м уровне умений ${W.ap}, навыков ${W.sp}`);
 }
 // ---------- 2. открытие, ранги, перезарядка ----------
 {
   const W = mk(7);
   ok(canUpgrade(W, 'charge') === 'ok' && canUpgrade(W, 'cry') === 'lvl', 'клич открыт раньше 8-го уровня');
   ok(useAbility(W, 0) === 'rank', 'невкачанное умение сработало');
-  max(W, 'charge'); ok(W.ab.charge === 5 && canUpgrade(W, 'charge') === 'max', 'ранг выше 5');
-  ok(W.ap === abilityPoints(7, CFG3) - 5, 'очки не списались');
+  max(W, 'charge'); ok(W.ab.charge === 3 && canUpgrade(W, 'charge') === 'lvl' && W.ap === 0, `на 7-м уровне рывок ранга ${W.ab.charge} (нужно 3: уровни 3, 5, 7)`);
+  { const N = mk(9); max(N, 'charge'); ok(N.ab.charge === 4 && N.ap === 1 && upgradeAbility(N, 'cry') === 'ok', `на 9-м уровне рывок ${N.ab.charge} (уровни рангов 3, 5, 7, 9), лишнее очко — в клич`); }
+  { const M = mk(30); max(M, 'charge'); max(M, 'rage'); ok(M.ab.charge === 5 && canUpgrade(M, 'charge') === 'max' && M.ab.rage === 1 && canUpgrade(M, 'rage') === 'max', 'ранги не 5 или у финального умения больше одного'); }
   ok(useAbility(W, 0) === 'ok' && useAbility(W, 0) !== 'ok', 'рывок сработал дважды подряд');
   { const V = mk(); upgradeAbility(V, 'whirl'); ok(useAbility(V, 2) === 'ok' && useAbility(V, 2) === 'cd' && V.acd.whirl === T.whirl.cd[0], 'нет перезарядки'); }
-  run(W, T.charge.cd[4] + .3); ok(useAbility(W, 0) === 'ok', 'перезарядка не прошла');
-  const v = abilityView(W); ok(v.length === 5 && v[0].rank === 5 && !v[1].open && v[0].cdMax === T.charge.cd[4], 'вид умений для интерфейса не тот');
+  run(W, T.charge.cd[2] + .3); ok(useAbility(W, 0) === 'ok', 'перезарядка не прошла');     // ранг 3 — перезарядка третьего ранга
+  const v = abilityView(W); ok(v.length === 5 && v[0].rank === 3 && v[0].nextLv === 9 && !v[1].open && v[0].cdMax === T.charge.cd[2] && v[4].max === 1, 'вид умений для интерфейса не тот');
 }
 // ---------- 3. рывок ----------
 {
@@ -89,7 +90,9 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   const st = mem(); createSaver(W, st).write(true); const s = loadSave(30, st);
   ok(s && s.prog.ab.charge === 5 && s.prog.ab.cry === 1 && s.prog.ap === W.ap, 'умения не сохранились');
   const d = JSON.parse(st.o['berserk3d.save']); d.prog.ap = 99; st.setItem('berserk3d.save', JSON.stringify(d));
-  const s2 = loadSave(30, st); ok(s2 && !Object.keys(s2.prog.ab).length && s2.prog.ap === abilityPoints(20, CFG3) && s2.prog.skills.hand === 2, 'лишние очки умений сбросили не только умения');
+  const s2 = loadSave(30, st); ok(s2 && s2.prog.ab.charge === 5 && s2.prog.ap === abilityPoints(20, CFG3) - 6 && s2.prog.skills.hand === 2, 'очки умений не пересчитаны по уровню');
+  { const e = JSON.parse(st.o['berserk3d.save']); e.prog.lv = 9; e.prog.skills = {}; e.prog.sp = 8; st.setItem('berserk3d.save', JSON.stringify(e)); const s4 = loadSave(30, st);
+    ok(s4 && s4.prog.ab.charge === 4 && s4.prog.ab.cry === 1 && s4.prog.ap === 0, 'ранги выше уровня не срезаны: ' + JSON.stringify(s4 && s4.prog.ab)); st.setItem('berserk3d.save', JSON.stringify(d)); }
   const d3 = JSON.parse(st.o['berserk3d.save']); d3.v = 3; delete d3.prog.ab; delete d3.prog.ap; st.setItem('berserk3d.save', JSON.stringify(d3));
   const s3 = loadSave(30, st); ok(s3 && s3.prog.ap === abilityPoints(20, CFG3), 'миграция 3 → 4 не дала очков по уровню');
   const cost = respecAbilityCost(W), ap = W.ap; ok(respecAbilities(W) === 'ok' && W.ap === ap + 6 && !Object.keys(W.ab).length && W.inv.ash === 1e5 - cost, 'сброс умений не вернул очки');
@@ -140,8 +143,8 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
     run(W, V.shadow.t[0]); ok(!W.allies.some(x => x.decoy), 'тень не исчезла по времени'); }
   { const W = mkV(); upgradeAbility(W, 'execute'); const e = foe(W, 0, 1.6); e.hp = e.maxhp * (V.execute.kill[0] - .05); still(W);
     ok(useAbility(W, 4) === 'ok' && e.dead, 'смертельный удар не добил раненого');
-    const W2 = mkV(); upgradeAbility(W2, 'execute'); const f = foe(W2, 0, 1.6), g = foe(W2, 3, 1.6); g.hp = g.maxhp * .3; g.x = W2.player.x; g.z = W2.player.z + 1.6; f.x = 99; still(W2); W2.rng = () => .5;
-    useAbility(W2, 4); const dHurt = g.maxhp * .3 - g.hp; const W3 = mkV(); upgradeAbility(W3, 'execute'); const h = foe(W3, 0, 1.6); still(W3); W3.rng = () => .5; useAbility(W3, 4); const dFull = h.maxhp - h.hp;
+    const W2 = mkV(); upgradeAbility(W2, 'execute'); const f = foe(W2, 0, 1.6), g = foe(W2, 3, 1.6); g.hp = g.maxhp * .35; g.x = W2.player.x; g.z = W2.player.z + 1.6; f.x = 99; still(W2); W2.rng = () => .5;
+    useAbility(W2, 4); const dHurt = g.maxhp * .35 - g.hp; const W3 = mkV(); upgradeAbility(W3, 'execute'); const h = foe(W3, 0, 1.6); still(W3); W3.rng = () => .5; useAbility(W3, 4); const dFull = h.maxhp - h.hp;
     ok(!g.dead && dHurt > dFull * 1.3, `по раненому не сильнее: ${dHurt.toFixed(0)} против ${dFull}`);
     const bs = mkV(); upgradeAbility(bs, 'execute'); const bo = foe(bs, 0, 1.6); bo.boss = true; bo.hp = bo.maxhp * .05; still(bs); useAbility(bs, 4); ok(!bo.dead, 'смертельный удар добил босса'); }
 }

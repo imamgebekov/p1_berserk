@@ -1,7 +1,8 @@
 // Тест героев 3D (шаг B1): у каждого вида оружия есть хозяин, чужое оружие не надевается, множители героя работают
 // (у Торна — как раньше), сохранение версии 3 хранит героя, старое сохранение — Торн, чужое оружие в руке уходит в сумку.
 import { CFG3 } from '../3d/src/config3d.js';
-import { createWorld, step, mulberry32, refreshGear } from '../3d/src/sim.js';
+import { createWorld, step, mulberry32, refreshGear, switchHero } from '../3d/src/sim.js';
+import { abilityPoints, upgradeAbility } from '../3d/src/abilities3d.js';
 import { HEROES, HERO_IDS, DEFAULT_HERO, canWield } from '../3d/src/data/heroes3d.js';
 import { CATALOG, BY_ID, KIND_NAME } from '../3d/src/data/items.js';
 import { addItem, equipAt } from '../3d/src/inv.js';
@@ -57,6 +58,18 @@ const weapon = kind => CATALOG.find(i => i.slot === 'weapon' && i.kind === kind 
   HEROES.jay.open = false;     // закрытый герой (как Сойка в B1) в сохранении — Торн
   for (const bad of ['jay', 'gatz', 42]) { const e = JSON.parse(st.o['berserk3d.save']); e.v = 3; e.hero = bad; st.setItem('berserk3d.save', JSON.stringify(e)); const s3 = loadSave(30, st); ok(s3 && s3.hero === 'thorn', `герой «${bad}» не заменён Торном`); }
   HEROES.jay.open = true;
+}
+
+// ---------- 5. смена героя без потери прогресса ----------
+{
+  const W = mk('thorn'); W.lv = 20; W.ap = abilityPoints(20, CFG3); W.inv.ash = 777; W.skills = { hand: 2 };
+  Object.assign(W.inv.eq, { weapon: 'w_greatsword_black', offhand: 's_tower_iron' }); W.inv.up.weapon = 2; upgradeAbility(W, 'charge'); upgradeAbility(W, 'cry'); refreshGear(W);
+  ok(!switchHero(W, 'thorn') && !switchHero(W, 'gatz'), 'смена на того же или неизвестного героя прошла');
+  ok(switchHero(W, 'jay') && W.hero === 'jay', 'Сойка не выбралась');
+  ok(W.lv === 20 && W.inv.ash === 777 && W.skills.hand === 2 && W.ap === abilityPoints(20, CFG3) && !Object.keys(W.ab).length, 'смена героя потеряла прогресс или не вернула очки умений');
+  ok(W.inv.eq.weapon === HEROES.jay.start && !W.inv.eq.offhand && W.inv.bag.some(s => s.id === 'w_greatsword_black' && s.up === 2) && W.inv.bag.some(s => s.id === 's_tower_iron'), 'чужое не ушло в сумку или Сойка без лука');
+  W.inv.bag.push({ id: 'w_rapier_steel', n: 1 }, { id: 'w_dagger_iron', n: 1 });
+  ok(switchHero(W, 'vale') && BY_ID[W.inv.eq.weapon].kind === 'rapier' && W.inv.bag.some(s => s.id === HEROES.jay.start), 'Вейл не взял лучший свой клинок из сумки');
 }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }

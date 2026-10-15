@@ -12,7 +12,7 @@ import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLine, questMark } from './quests3d.js';
 import { eventLine } from './events3d.js';
-import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear } from './sim.js';
+import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView } from './abilities3d.js';
 import { KIND_NAME } from './data/items.js';
@@ -62,13 +62,19 @@ function drawPortrait(cv, L) {
   if (L.shoulder) { r('#4a463f', 2, 8, 3, 2); }
   if (L.quiver) { r('#6a4a2a', 12, 6, 2, 7); r('#c8b890', 12, 4, 1, 2); r('#c8b890', 13, 5, 1, 1); }
 }
+let heroSwitching = false;      // экран выбора открыт из меню: смена героя с сохранением прогресса
 function pickHero(id) {
   const H = HEROES[id]; if (!H || !H.open || $('heroPick').hidden) return;
-  input.release(); W.hero = id; if (H.start && !W.inv.eq.weapon) W.inv.eq.weapon = H.start; refreshGear(W); W.player.hp = W.player.maxhp;
-  $('heroPick').hidden = true; panelOpen = false; saver.write(true);
-  toast(`${H.name} выходит из пепла`, '', '#e8c04a');
+  input.release();
+  if (heroSwitching) { if (!switchHero(W, id)) return; toast(`Теперь вы — ${H.name}. Очки умений вернулись`, '', '#e8c04a'); }
+  else { W.hero = id; if (H.start && !W.inv.eq.weapon) W.inv.eq.weapon = H.start; refreshGear(W); W.player.hp = W.player.maxhp; toast(`${H.name} выходит из пепла`, '', '#e8c04a'); }
+  closeHeroPick(); saver.write(true);
 }
-function openHeroPick() {
+function closeHeroPick() { $('heroPick').hidden = true; panelOpen = false; heroSwitching = false; }
+function openHeroPick(switching = false) {
+  heroSwitching = switching;
+  $('heroCancel').hidden = !switching;
+  $('heroNote').textContent = switching ? 'Уровень, пепел, вещи и навыки останутся. Очки умений вернутся: умения у героев свои. Чужое оружие уйдёт в сумку.' : 'Героя можно сменить потом в меню (⚙): уровень, пепел и вещи останутся.';
   const box = $('heroCards'); box.textContent = '';
   HERO_IDS.forEach((id, i) => {
     const H = HEROES[id], c = document.createElement('div'), add = (tag, cls, txt) => { const e = document.createElement(tag); e.className = cls; e.textContent = txt; c.append(e); return e; };
@@ -76,7 +82,8 @@ function openHeroPick() {
     const cv = document.createElement('canvas'); cv.width = cv.height = 16; drawPortrait(cv, H.look); c.append(cv);
     add('div', 'nm', H.name); add('div', 'role', H.role); add('div', 'txt', H.text);
     add('div', 'wk', H.kinds.length ? 'Оружие: ' + H.kinds.map(k => KIND_NAME[k]).join(', ') + '.' : H.soon);
-    const b = add('button', '', H.open ? 'Выбрать' + (desk ? ' · ' + (i + 1) : '') : 'Скоро'); b.type = 'button'; b.disabled = !H.open;
+    const cur = switching && id === W.hero; if (cur) c.classList.add('cur');
+    const b = add('button', '', cur ? 'Сейчас' : H.open ? 'Выбрать' + (desk ? ' · ' + (i + 1) : '') : 'Скоро'); b.type = 'button'; b.disabled = !H.open || cur;
     b.addEventListener('click', () => pickHero(id));
     box.append(c);
   });
@@ -84,6 +91,8 @@ function openHeroPick() {
 }
 const input = createInput(document, window);
 let panelOpen = false, landscape = false;
+$('heroCancel').addEventListener('click', closeHeroPick);
+$('heroSwitch').addEventListener('click', () => { $('tweakClose').click(); openHeroPick(true); });
 // кнопки умений: видны только вкачанные; на кнопке значок, номер клавиши (на компьютере) и заливка перезарядки
 const abilBtns = [0, 1, 2, 3, 4].map(i => {
   const b = document.createElement('button'); b.type = 'button'; b.className = 'ab'; b.dataset.i = i; b.hidden = true;
@@ -159,7 +168,7 @@ function onEvent(v) {
   else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
   else if (v.k === 'allydead') toast(`${v.name} пал`, 'bad');
   else if (v.k === 'hire') toast(`${v.name} теперь с вами`, 'sys');
-  else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков ✦` + (v.lv >= cfg.abilities.from ? ' и умений' : '') + (cfg.abilities.unlock.includes(v.lv) ? ' · открылось умение' : ''), '', '#e8c04a');
+  else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков ✦` + (cfg.abilities.ranks.flat().includes(v.lv) ? ' и умений' : '') + (cfg.abilities.ranks.some(r => r[0] === v.lv) ? ' · открылось умение' : ''), '', '#e8c04a');
   else if (v.k === 'xp') onText(v.x, 3, v.z, '+' + v.n + ' оп.', 'xp');
 }
 function showPlace(pl) {
@@ -176,7 +185,12 @@ function onHurt() {
 
 const fit = () => {
   landscape = !desk && innerWidth > innerHeight * 1.15 && innerHeight < 520;
-  if (desk) document.documentElement.style.setProperty('--dz', Math.min(cfg.view.desk.zoomMax, Math.max(1, innerHeight / cfg.view.desk.baseH)).toFixed(3));
+  if (desk) {
+    const st = document.documentElement.style, dz = Math.min(cfg.view.desk.zoomMax, Math.max(1, innerHeight / cfg.view.desk.baseH)), pz = Math.min(dz, 1.25);
+    st.setProperty('--dz', dz.toFixed(3)); st.setProperty('--pz', pz.toFixed(3));
+    // высоты окон — в пикселях, делённых на zoom: Safari и Chromium по-разному увеличивают проценты под zoom, а пиксели — одинаково
+    st.setProperty('--pbh', Math.floor(innerHeight * .84 / pz) + 'px'); st.setProperty('--blh', Math.floor(innerHeight * .64 / pz) + 'px');
+  }
   $('rotate').hidden = !landscape;
   renderer && renderer.resize(innerWidth, innerHeight);
 };
@@ -237,7 +251,7 @@ ironBtn.addEventListener('click', () => { if (W.iron) return; if (!ironArmed) { 
 renderDif();
 createTweakPanel(document, cfg, defaults, {
   onChange: t => { if (t && (t.reload || t.path === 'view.pixelScale')) fit(); setVolume(cfg.audio.volume); },
-  onOpen: () => { panelOpen = true; input.release(); renderDif(); },
+  onOpen: () => { panelOpen = true; input.release(); renderDif(); $('heroNow').textContent = `${HEROES[W.hero].name} — ${HEROES[W.hero].role.toLowerCase()}. Смена героя сохраняет уровень, пепел, вещи и навыки.`; },
   onClose: () => { panelOpen = false; }
 });
 // клавиши компьютера (физические, работают на любой раскладке): действие, карта, сумка, навыки, задания, меню
@@ -248,7 +262,7 @@ if (desk) {
   addEventListener('keydown', e => {
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
     const c = e.code;
-    if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3'].indexOf(c); if (n >= 0) pickHero(HERO_IDS[n]); return; }
+    if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3'].indexOf(c); if (n >= 0) pickHero(HERO_IDS[n]); else if (c === 'Escape' && heroSwitching) closeHeroPick(); return; }
     if (!$('dead').hidden) { if (c === 'Enter' || c === 'KeyE') $('again').click(); return; }
     if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.main'); if (open) open.click(); else $('gear').click(); return; }
     if (c === 'KeyM') { if (!panelOpen || !mapEl.hidden) $('miniBtn').click(); return; }

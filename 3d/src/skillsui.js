@@ -16,8 +16,8 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     for (const a of list) {
       const row = el('div', 'skrow' + (a.open ? '' : ' lock')), info = el('div', 'sinfo');
       const nm = el('span', 'nm', `${a.icon} ${a.name}`); nm.style.color = AC;
-      const pips = el('span', 'pips'); pips.style.setProperty('--pc', AC); for (let k = 0; k < cfg.abilities.maxRank; k++) pips.appendChild(el('i', k < a.rank ? 'on' : ''));
-      info.append(nm, pips, el('div', 'sub', !a.open ? `Откроется на уровне ${a.lv}` : a.rank ? `Сейчас: ${a.now}` + (a.next ? ` Дальше: ${a.next}` : ' Максимум.') : `Клавиша ${a.slot + 1}. ${a.next}`));
+      const pips = el('span', 'pips'); pips.style.setProperty('--pc', AC); for (let k = 0; k < a.max; k++) pips.appendChild(el('i', k < a.rank ? 'on' : ''));
+      info.append(nm, pips, el('div', 'sub', !a.open ? `Откроется на уровне ${a.lv}. ${a.next}` : (a.rank ? `Сейчас: ${a.now}` : `Клавиша ${a.slot + 1}.`) + (a.next ? ` ${a.rank ? 'Ранг ' + (a.rank + 1) : 'Открыть'}${a.nextLv > W.lv ? ' — с уровня ' + a.nextLv : ''}: ${a.next}` : ' Максимум.')));
       const st = canUpgrade(W, a.id), b = el('button', 'plus', '+'); b.type = 'button'; b.disabled = st !== 'ok'; b.setAttribute('aria-label', 'Улучшить: ' + a.name);
       b.addEventListener('click', () => { upgradeAbility(W, a.id); render(); onChange && onChange(); });
       row.append(info, b); listEl.appendChild(row);

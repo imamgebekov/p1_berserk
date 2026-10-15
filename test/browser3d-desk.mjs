@@ -171,6 +171,24 @@ try {
   await page.keyboard.press('Digit1');
   await page.waitForFunction(() => window.__b3d.W.acd.charge > 0, null, { timeout: 4000 }).catch(() => bad('клавиша 1 не запустила рывок'));
   await page.keyboard.press('Digit3'); await page.waitForTimeout(400); await page.screenshot({ path: join(out, '3d-desk-ability-bar.png') });
+  // смена героя из меню: уровень и пепел остаются, Esc отменяет, 2 — Вейл
+  await ev(() => { window.__b3d.W.inv.ash = 4321; });
+  await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+  if (!/Торн/.test(await ev(() => document.getElementById('heroNow').textContent))) bad('в меню не показан текущий герой');
+  await page.locator('#heroSwitch').click(); await page.waitForTimeout(250);
+  if (!(await shown('heroPick')) || !(await shown('heroCancel'))) bad('«Сменить героя» не открыла выбор с отменой');
+  await page.screenshot({ path: join(out, '3d-desk-hero-switch.png') });
+  await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+  if ((await shown('heroPick')) || (await ev(() => window.__b3d.W.hero)) !== 'thorn') bad('Esc не отменил смену героя');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(200); await page.locator('#heroSwitch').click(); await page.waitForTimeout(200);
+  await page.keyboard.press('Digit2'); await page.waitForTimeout(300);
+  const sw = await ev(() => ({ hero: window.__b3d.W.hero, lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash, panel: window.__b3d.ui().panelOpen }));
+  if (sw.hero !== 'vale' || sw.lv !== 30 || sw.ash !== 4321 || sw.panel) bad('смена героя потеряла прогресс: ' + JSON.stringify(sw));
+  // окна не выходят за экран (высота в пикселях под zoom)
+  await page.keyboard.press('KeyI'); await page.waitForTimeout(250);
+  const fitBag = await ev(() => { const r = document.querySelector('#bag .pbox').getBoundingClientRect(); return r.bottom <= innerHeight + 1 && r.top >= 0; });
+  if (!fitBag) bad('сумка выходит за экран');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(150);
   await ctx.close();
   // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
   { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);
