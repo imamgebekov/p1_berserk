@@ -9,6 +9,8 @@ import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTr
 import { mulberry32 } from './sim.js';
 import { questMark } from './quests3d.js';
 import { skyAt } from './daynight.js';
+import { BY_ID } from './data/items.js';
+import { trailOn } from './anim3d.js';
 
 const FOG = '#150c0b';
 
@@ -107,6 +109,32 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts;
   }
   const hero = makeHero(); scene.add(hero.group);
+  // след клинка: лента между началом и концом рабочей части оружия за последние кадры (светится и гаснет)
+  const TRAIL_N = 14, TRAIL_LIFE = .16, trailPos = new Float32Array(TRAIL_N * 6), trailCol = new Float32Array(TRAIL_N * 6), trailIdx = [];
+  for (let i = 0; i < TRAIL_N - 1; i++) trailIdx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
+  const trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3)); trailGeo.setAttribute('color', new THREE.BufferAttribute(trailCol, 3)); trailGeo.setIndex(trailIdx);
+  const trail = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+  trail.frustumCulled = false; trail.visible = false; scene.add(trail);
+  const trailS = [], trailC = new THREE.Color(), PERK_TRAIL = { fire: FXCOL.fire, frost: FXCOL.frost, venom: FXCOL.venom, storm: FXCOL.storm, rend: FXCOL.bleed, siphon: FXCOL.bleed };
+  function updateTrail(W, p, dt) {
+    for (const s of trailS) s.age += dt;
+    while (trailS.length && trailS[0].age > TRAIL_LIFE) trailS.shift();
+    const w = hero.weapon, P = cfg.player, sw = W.gear.swing || 1;
+    if (w && p.state === 'atk' && trailOn(p.atkT / (P.attackTime * sw), P.attackHitAt / P.attackTime)) {
+      hero.group.updateMatrixWorld(true);
+      trailS.push({ a: w.base.getWorldPosition(new THREE.Vector3()), b: w.tip.getWorldPosition(new THREE.Vector3()), age: 0 });
+      if (trailS.length > TRAIL_N) trailS.shift();
+    }
+    trail.visible = trailS.length > 1; if (!trail.visible) return;
+    const perk = (W.wp.perks || []).find(k => PERK_TRAIL[k]), str = p.fin ? .8 : .5;
+    trailC.set(perk ? PERK_TRAIL[perk] : '#fff1dc');
+    for (let i = 0; i < TRAIL_N; i++) {
+      const s = trailS[Math.min(i, trailS.length - 1)], f = Math.max(0, 1 - s.age / TRAIL_LIFE) * str * (i < trailS.length ? 1 : 0);
+      trailPos.set([s.a.x, s.a.y, s.a.z, s.b.x, s.b.y, s.b.z], i * 6);
+      trailCol.set([0, 0, 0, trailC.r * f, trailC.g * f, trailC.b * f], i * 6);     // у основания гаснет: виден только край размаха
+    }
+    trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.color.needsUpdate = true;
+  }
   const heroShadow = shadow(.7); scene.add(heroShadow);
   const ents = new Map(), allyEnts = new Map();
   const bars = new Map();
@@ -269,12 +297,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
     // герой
     hero.group.position.set(p.x, 0, p.z); hero.group.rotation.y = p.face;
-    animateHero(hero, p, t, dt, cfg);
+    { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); }
+    animateHero(hero, p, t, dt, cfg, W.gear.swing || 1);
+    updateTrail(W, p, dt);
     heroShadow.position.set(p.x, .03, p.z);
     // дуга удара
-    arcGeometry(cfg.player.attackArc);
+    arcGeometry(Math.min(360, (W.wp.trait.arc || cfg.player.attackArc) + (W.gear.arc || 0)));       // ширина и дальность дуги — как у надетого оружия
     if (swingFx > 0) swingFx = Math.max(0, swingFx - dt * 5);
-    arc.position.set(p.x, .08, p.z); arc.rotation.z = p.face; arc.scale.setScalar(cfg.player.attackRange); arcMat.opacity = swingFx * .5;
+    arc.position.set(p.x, .08, p.z); arc.rotation.z = p.face; arc.scale.setScalar(cfg.player.attackRange + (W.gear.reach || 0)); arcMat.opacity = swingFx * .5;
 
     // враги
     const alive = new Set();

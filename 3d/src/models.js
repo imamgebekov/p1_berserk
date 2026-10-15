@@ -1,5 +1,7 @@
 // Модели из кубиков (никаких внешних файлов): герой, бес, рогач, дерево, камень, костёр.
 import * as THREE from 'three';
+import { makeWeapon } from './weaponview.js';
+import { familyOf, stepOf, swingPose, REST } from './anim3d.js';
 
 const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
 const basic = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, ...extra });
@@ -26,7 +28,7 @@ export function makeHero() {
   const mats = [];
   const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
-  const cloth = M('#6a5148'), skin = M('#cdb89a'), dark = M('#3a2c28'), steel = M('#cfc9bb'), edge = M('#8d877b'), guard = M('#8a7a62'), grip = M('#2a1a12'), cape = M('#7a1e26');
+  const cloth = M('#6a5148'), skin = M('#cdb89a'), dark = M('#3a2c28'), cape = M('#7a1e26');
   const legL = limb(.28, .8, .32, M('#4a3a35'), .2, .8, 0), legR = limb(.28, .8, .32, M('#4a3a35'), -.2, .8, 0);
   const torso = box(.78, .85, .45, cloth, 0, 1.25, 0);
   const belt = box(.8, .12, .47, M('#2a2422'), 0, .88, 0);
@@ -36,18 +38,25 @@ export function makeHero() {
   const hair2 = box(.5, .36, .12, dark, 0, 1.98, -.22);
   const eyeL = box(.07, .07, .04, basic('#1a1210'), .1, 1.95, .24), eyeR = box(.07, .07, .04, basic('#1a1210'), -.1, 1.95, .24);
   const cloak = new THREE.Group(); cloak.position.set(0, 1.6, -.26); cloak.add(box(.78, 1.25, .1, cape, 0, -.62, 0));
-  // рука с мечом: swing крутится вокруг вертикали от плеча, sword — наклон лезвия
+  // рука с оружием: swing крутится вокруг вертикали от плеча, sword — держатель (наклон и вынос), в нём модель надетого оружия
   const swing = new THREE.Group(); swing.position.set(0, 1.55, 0);
   const sword = new THREE.Group(); sword.position.set(-.48, 0, .12);
-  sword.add(box(.12, .5, .12, grip, 0, 0, 0), box(.7, .12, .16, guard, 0, .28, 0), box(.24, 2.5, .09, steel, 0, 1.58, 0), box(.05, 2.5, .1, edge, .1, 1.58, 0), box(.2, .3, .08, steel, 0, 3.0, 0));
   swing.add(sword);
   const armL = limb(.2, .75, .22, cloth, .5, 1.62, 0);
   root.add(legL, legR, torso, belt, shoulder, head, hair, hair2, eyeL, eyeR, cloak, swing, armL);
   const set = f => flasher(mats)(f);
-  return { group: g, root, legL, legR, cloak, swing, sword, armL, head, flash: set, kind: 'hero' };
+  const h = { group: g, root, legL, legR, cloak, swing, sword, armL, head, flash: set, kind: 'hero', weapon: null, wkey: '', family: 'fists' };
+  // надеть модель оружия (kind — тип, mat — материал); у кулаков модель — сам кулак
+  h.setWeapon = (kind, mat) => {
+    const key = kind + '|' + mat; if (key === h.wkey) return; h.wkey = key;
+    if (h.weapon) sword.remove(h.weapon.group);
+    h.weapon = makeWeapon(kind, mat); sword.add(h.weapon.group);
+    h.family = familyOf(kind);
+  };
+  return h;
 }
 
-export function animateHero(h, p, time, dt, cfg) {
+export function animateHero(h, p, time, dt, cfg, swingMul = 1) {
   const speed = Math.hypot(p.vx, p.vz), run = Math.min(1, speed / cfg.player.speed);
   const ph = time * (7 + run * 6);
   const roll = p.state === 'roll', atk = p.state === 'atk', dead = p.dead;
@@ -56,15 +65,10 @@ export function animateHero(h, p, time, dt, cfg) {
   const bob = Math.abs(Math.sin(ph)) * .1 * run;
   h.root.position.y = bob; h.root.rotation.x = 0; h.root.scale.set(1, 1, 1);
   h.cloak.rotation.x = .12 + run * .5 + Math.sin(time * 3) * .05;
-  // меч
-  let yaw = -.35, pitch = .25, tilt = -.12;
-  if (atk) {
-    const t = p.atkT / cfg.player.attackTime, hit = cfg.player.attackHitAt / cfg.player.attackTime;
-    if (t < hit) { const k = t / hit; yaw = -.35 + (-1.7 + .35) * k; pitch = .25 + .65 * k; }
-    else { const k = Math.min(1, (t - hit) / (1 - hit) * 1.6); const ease = 1 - Math.pow(1 - k, 3); yaw = -1.7 + 3.3 * ease; pitch = .9 + .6 * ease; if (k >= 1) { yaw = 1.6; pitch = 1.5; } }
-    tilt = 0;
-  }
-  h.swing.rotation.y = yaw; h.sword.rotation.x = pitch; h.sword.rotation.z = tilt;
+  // оружие: поза удара по семейству движений и шагу цепочки (прямой, обратный, завершающий); swingMul — скорость удара от вещей
+  const q = atk ? swingPose(h.family, stepOf(p.chain, p.fin), p.atkT / (cfg.player.attackTime * swingMul), cfg.player.attackHitAt / cfg.player.attackTime) : REST;
+  h.swing.rotation.y = q.yaw; h.sword.rotation.x = q.pitch; h.sword.rotation.z = q.tilt; h.sword.position.z = .12 + q.reach;
+  h.root.rotation.y = q.twist; h.root.rotation.x = q.lean; h.root.position.y += q.lift;
   if (roll) {
     const k = p.rollT / cfg.player.rollTime;
     h.root.rotation.x = k * Math.PI * 2; h.root.position.y = .85 + Math.sin(k * Math.PI) * .25; h.root.scale.set(.85, .75, .85);
