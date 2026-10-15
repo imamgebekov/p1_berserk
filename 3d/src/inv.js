@@ -1,7 +1,7 @@
 // Сумка и экипировка: чистая логика (тестируется в Node). Состояние — { bag: [{id,n}], eq: {слот: id|null}, ash }.
 import { BY_ID, SLOTS, CATALOG, STAT_NAME } from './data/items.js';
 import { SETS, SET_SLOTS, FX_TEXT } from './data/sets3d.js';
-import { canWield } from './data/heroes3d.js';
+import { canWield, canOff } from './data/heroes3d.js';
 
 export const UP_MAX = 5;
 // up — уровень улучшения (+N) у надетых вещей по слотам; в сумке — поле up у записи
@@ -29,6 +29,15 @@ export function equipAt(inv, idx, hero) {
   removeAt(inv, idx, 1);
   inv.eq[it.slot] = it.id; if (s.up) inv.up[it.slot] = s.up; else delete inv.up[it.slot];
   if (prev) { const e = { id: prev, n: 1 }; if (prevUp) e.up = prevUp; inv.bag.splice(Math.min(idx, inv.bag.length), 0, e); }     // старая вещь встаёт на место новой
+  return true;
+}
+// во вторую руку: щит или (у дуэлянта) второй клинок
+export function equipOff(inv, idx, hero) {
+  const s = inv.bag[idx], it = s && BY_ID[s.id]; if (!it || !canOff(hero, it)) return false;
+  const prev = inv.eq.offhand, prevUp = inv.up.offhand || 0;
+  removeAt(inv, idx, 1);
+  inv.eq.offhand = it.id; if (s.up) inv.up.offhand = s.up; else delete inv.up.offhand;
+  if (prev) { const e = { id: prev, n: 1 }; if (prevUp) e.up = prevUp; inv.bag.splice(Math.min(idx, inv.bag.length), 0, e); }
   return true;
 }
 export function unequip(inv, slot, maxSlots) {
@@ -73,8 +82,9 @@ export function bonusText(b) {
 
 // суммарные характеристики экипировки и временных баффов
 export function gearStats(inv, buffs = [], bonus = .1, extra = null) {
-  const g = { dmg: 0, armor: 0, hp: 0, spd: 0, reach: 0, crit: 0, leech: 0, luck: 0, swing: 1, arc: 0, rollcd: 0, regen: 0, stealth: 0, trade: 0, bag: 0 };
-  for (const slot of SLOTS) { const id = inv.eq[slot], it = id && BY_ID[id]; if (!it) continue; const m = 1 + (inv.up[slot] || 0) * bonus; for (const [k, v] of Object.entries(it.stats)) { if (k === 'swing') g.swing *= v; else if (v > 0 && (k === 'dmg' || k === 'armor' || k === 'hp' || k === 'crit' || k === 'leech')) g[k] += Math.round(v * m); else g[k] += v; } }
+  const g = { block: 0, dmg: 0, armor: 0, hp: 0, spd: 0, reach: 0, crit: 0, leech: 0, luck: 0, swing: 1, arc: 0, rollcd: 0, regen: 0, stealth: 0, trade: 0, bag: 0 };
+  // второй клинок во второй руке бьёт сам (sim.js offDmg), в сумму характеристик не идёт
+  for (const slot of SLOTS) { const id = inv.eq[slot], it = id && BY_ID[id]; if (!it || (slot === 'offhand' && it.slot === 'weapon')) continue; const m = 1 + (inv.up[slot] || 0) * bonus; for (const [k, v] of Object.entries(it.stats)) { if (k === 'swing') g.swing *= v; else if (v > 0 && (k === 'dmg' || k === 'armor' || k === 'hp' || k === 'crit' || k === 'leech')) g[k] += Math.round(v * m); else g[k] += v; } }
   for (const b of buffs) g[b.stat] += b.amt;
   { const sb = setBonus(inv).stats; for (const k of Object.keys(sb)) g[k] += sb[k]; }
   if (extra) for (const k of Object.keys(extra)) { if (k === 'swingMul') g.swing *= extra[k]; else g[k] += extra[k]; }
@@ -98,9 +108,11 @@ export function deserialize(data, maxSlots, hero) {
   const inv = createInv();
   if (!data || typeof data !== 'object') return inv;
   for (const s of Array.isArray(data.bag) ? data.bag : []) if (s && BY_ID[s.id] && Number.isFinite(s.n) && s.n > 0) { const n = Math.min(Math.floor(s.n), BY_ID[s.id].stack); if (BY_ID[s.id].slot && Number.isFinite(s.up) && s.up > 0) { if (inv.bag.length < maxSlots) inv.bag.push({ id: s.id, n: 1, up: Math.min(UP_MAX, Math.floor(s.up)) }); } else addItem(inv, s.id, n, maxSlots); }
-  for (const slot of SLOTS) { const id = data.eq && data.eq[slot]; if (id && BY_ID[id] && BY_ID[id].slot === slot) { inv.eq[slot] = id; const u = data.up && data.up[slot]; if (Number.isFinite(u) && u > 0) inv.up[slot] = Math.min(UP_MAX, Math.floor(u)); } }
+  for (const slot of SLOTS) { const id = data.eq && data.eq[slot]; if (id && BY_ID[id] && (BY_ID[id].slot === slot || (slot === 'offhand' && BY_ID[id].slot === 'weapon'))) { inv.eq[slot] = id; const u = data.up && data.up[slot]; if (Number.isFinite(u) && u > 0) inv.up[slot] = Math.min(UP_MAX, Math.floor(u)); } }
   inv.ash = Number.isFinite(data.ash) && data.ash > 0 ? Math.floor(data.ash) : 0;
-  const w = inv.eq.weapon; if (hero && w && !canWield(hero, BY_ID[w])) { const e = { id: w, n: 1 }; if (inv.up.weapon) e.up = inv.up.weapon; inv.bag.unshift(e); delete inv.eq.weapon; delete inv.up.weapon; }
+  const back = slot => { const e = { id: inv.eq[slot], n: 1 }; if (inv.up[slot]) e.up = inv.up[slot]; inv.bag.unshift(e); delete inv.eq[slot]; delete inv.up[slot]; };
+  if (hero && inv.eq.weapon && !canWield(hero, BY_ID[inv.eq.weapon])) back('weapon');
+  if (inv.eq.offhand && (BY_ID[inv.eq.offhand].slot === 'weapon' ? !hero || !canOff(hero, BY_ID[inv.eq.offhand]) : hero && !canOff(hero, BY_ID[inv.eq.offhand]))) back('offhand');     // клинок во второй руке — только у своего героя
   return inv;
 }
 

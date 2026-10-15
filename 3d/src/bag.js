@@ -1,7 +1,7 @@
 // Сумка и экипировка: окно с надетым, списком вещей, карточкой вещи и действиями.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine, KIND_NAME } from './data/items.js';
-import { betterThanWorn, equipAt, unequip, scoreUp, nameOf, SET_OF, setCounts, bonusText, statDiff } from './inv.js';
-import { canWield, heroOf, NOT_FOR } from './data/heroes3d.js';
+import { betterThanWorn, equipAt, equipOff, unequip, scoreUp, nameOf, SET_OF, setCounts, bonusText, statDiff } from './inv.js';
+import { canWield, canOff, heroOf, NOT_FOR } from './data/heroes3d.js';
 import { iconURL, slotIconURL } from './itemicons.js';
 import { PERKS } from './data/weapons3d.js';
 import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots } from './sim.js';
@@ -80,6 +80,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     if (sel.from === 'eq') btn('Снять', () => { if (!unequip(W.inv, sel.slot, bagSlots(W))) flash('Сумка полна'); else sel = null; }, 'main');
     else {
       if (it.slot && mine) btn('Надеть', () => { if (equipAt(W.inv, sel.i, W.hero)) sel = null; }, 'main');
+      if (it.slot === 'weapon' && canOff(W.hero, it)) btn('Во вторую руку', () => { if (equipOff(W.inv, sel.i, W.hero)) sel = null; }, 'main');
       if (it.cat === 'tome') btn('Прочитать', () => { const r = readTome(W, sel.i); if (r === 'known') flash('Эта книга уже прочитана'); else sel = null; }, 'main');
       if (it.use) btn('Использовать', () => { if (!useItem(W, sel.i)) flash('Сейчас не нужно'); else if (!W.inv.bag[sel.i] || W.inv.bag[sel.i].id !== it.id) sel = null; }, 'main');
       btn(`Продать · ${sellPrice(it, cfg, up, W.gear.trade) * n}`, () => { if (sellItem(W, sel.i, n) === 'far') flash('Продавать можно только у торговца'); else sel = null; });

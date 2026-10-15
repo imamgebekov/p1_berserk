@@ -115,6 +115,9 @@ export const CFG3 = {
   // стрельба героя (луки и арбалеты): assist — наводка на врага в конусе ±assist° перед героем; заряд (тяжёлый удар) даёт
   // дальность ×(1 + chargeRange × заряд) и скорость стрелы ×(1 + chargeSpeed × заряд); hitR — запас попадания, м; spawn — откуда вылетает
   shoot: { assist: 25, chargeRange: .5, chargeSpeed: .4, hitR: .25, spawn: .8, stun: .5 },
+  // вторая рука (B2b): block.arc — ширина щита спереди, °; block.knock — доля отброса при блоке; dual.mul — доля урона второго клинка
+  // к каждому удару, dual.swing — удары с двумя клинками быстрее (×)
+  block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
   heroes: { thorn: { hp: 1, speed: 1, crit: 0 }, vale: { hp: .85, speed: 1.1, crit: 6 }, jay: { hp: .9, speed: 1.05, crit: 0 } },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4 },   // цена покупки = цена вещи × buyMul, продажи × sellMul; витрина обновляется раз в restock секунд

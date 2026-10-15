@@ -50,6 +50,17 @@ export function makeHero() {
   const h = { group: g, root, legL, legR, cloak, swing, sword, armL, head, flash: set, kind: 'hero', weapon: null, wkey: '', family: 'fists' };
   // вид героя (data/heroes3d.js → look): цвета одежды, плаща, волос; наплечник, капюшон, колчан, длина плаща
   h.setLook = L => { cloth.color.set(L.cloth); cape.color.set(L.cape); dark.color.set(L.hair); legs.color.set(L.legs); shoulder.visible = L.shoulder; hood.visible = L.hood; hair.visible = !L.hood; quiver.visible = L.quiver; cloak.scale.y = L.capeLen; };
+  // вторая рука: щит (форма buckler/tower) или второй клинок; key — что надето, null — пусто
+  h.okey = ''; h.off = null;
+  h.setOff = (key, kind, mat, form) => {
+    if (key === h.okey) return; h.okey = key;
+    if (h.off) armL.remove(h.off); h.off = null; if (!key) return;
+    const g2 = new THREE.Group(); g2.position.set(.05, -.72, .12);
+    if (kind === 'shield') { const big = form === 'tower', M2 = lam(({ iron: '#9a9890', tempered: '#b8b4a8', steel: '#cfc9bb', black: '#3e3a46' })[mat] || '#9a9890');
+      g2.add(box(.1, big ? 1.1 : .55, big ? .7 : .55, lam('#5a3e26'), .12, big ? .1 : 0, .05), box(.04, big ? 1.14 : .6, big ? .74 : .6, M2, .17, big ? .1 : 0, .05), box(.08, .16, .16, M2, .22, 0, .05)); }
+    else { const w = makeWeapon(kind, mat); w.group.rotation.x = Math.PI / 2; w.group.scale.setScalar(.85); g2.add(w.group); }
+    armL.add(g2); h.off = g2;
+  };
   // надеть модель оружия (kind — тип, mat — материал); у кулаков модель — сам кулак
   h.setWeapon = (kind, mat) => {
     const key = kind + '|' + mat; if (key === h.wkey) return; h.wkey = key;
@@ -61,6 +72,7 @@ export function makeHero() {
 }
 
 export function animateHero(h, p, time, dt, cfg, swingMul = 1) {
+  { const left = p.state === 'atk' && p.hand === 1; h.swing.scale.x = left ? -1 : 1; if (h.off) h.off.visible = !left; }     // удар левым клинком: размах зеркально, клинок «в замахе»
   const speed = Math.hypot(p.vx, p.vz), run = Math.min(1, speed / cfg.player.speed);
   const ph = time * (7 + run * 6);
   const roll = p.state === 'roll', atk = p.state === 'atk', dead = p.dead;

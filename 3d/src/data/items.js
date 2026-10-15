@@ -14,9 +14,9 @@ export const RARITY = [
   { id: 'brand', name: 'Клеймёный', color: '#e8643a' }
 ];
 
-export const SLOTS = ['weapon', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet'];
-export const SLOT_NAME = { weapon: 'Оружие', head: 'Голова', body: 'Тело', cloak: 'Плащ', boots: 'Ноги', ring: 'Кольцо', amulet: 'Амулет' };
-export const STAT_NAME = { dmg: 'урон', armor: 'броня', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
+export const SLOTS = ['weapon', 'offhand', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet'];
+export const SLOT_NAME = { weapon: 'Оружие', offhand: 'Вторая рука', head: 'Голова', body: 'Тело', cloak: 'Плащ', boots: 'Ноги', ring: 'Кольцо', amulet: 'Амулет' };
+export const STAT_NAME = { dmg: 'урон', armor: 'броня', block: 'блок %', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
 
 import { NAMED_ARMOR } from './sets3d.js';
 import { TOMES } from './tomes3d.js';
@@ -56,7 +56,7 @@ const RTYPES = [
   ['longbow', 'длинный лук', 'm', 7, 0, 6, 1.15],
   ['crossbow', 'арбалет', 'm', 10, 0, 2, 1.5]
 ];
-export const KIND_NAME = Object.fromEntries([...WTYPES, ...RTYPES].map(t => [t[0], t[1]]));     // «sword» → «меч»
+export const KIND_NAME = { ...Object.fromEntries([...WTYPES, ...RTYPES].map(t => [t[0], t[1]])), shield: 'щит' };     // «sword» → «меч»
 // материал: [id, [м, ж, ср], множитель, редкость, цена]
 const WMATS = [
   ['rust', ['Ржавый', 'Ржавая', 'Ржавое'], .6, 0, 4],
@@ -85,6 +85,13 @@ for (const [t, nm, g, base, , crit, swing] of RTYPES) for (const [m, adj, mult, 
   if (m === 'bone') stats.spd = 2;
   const perks = MATERIAL_PERKS[m] || [];
   add({ id: idOf('w', t, m), name: `${adj[GI[g]]} ${nm}`, cat: 'weapon', slot: 'weapon', pool: 'ranged', rar, stats, value: val * (base / 5 + .6), kind: t, mat: m, perks, text: weaponText(t, perks) });
+}
+// щиты (вторая рука Торна): [форма, имя, броня, блок %, скорость %]; блок — доля урона спереди, которую щит снимает
+const SHIELDS = [['buckler', 'баклер', 3, 30, 0], ['tower', 'ростовой щит', 7, 50, -6]];
+for (const [form, nm, arm, blk, spd] of SHIELDS) for (const m of ['iron', 'tempered', 'steel', 'black']) {
+  const [, adj, mult, rar, val] = WMATS.find(x => x[0] === m), stats = { armor: Math.round(arm * mult), block: Math.min(70, Math.round(blk * (.85 + .15 * mult))) };
+  if (spd) stats.spd = spd;
+  add({ id: idOf('s', form, m), name: `${adj[0]} ${nm}`, cat: 'armor', slot: 'offhand', pool: 'shield', rar, stats, value: val * (arm / 3 + .6), kind: 'shield', form, mat: m, text: `Блок спереди: −${stats.block}% урона и меньше отброса, пока не бьёте и не катитесь.` });
 }
 // зачарованные: стальные клинки со стихией (меч, топор, копьё)
 for (const t of ENCHANTED_KINDS) {

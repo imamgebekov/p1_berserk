@@ -37,6 +37,9 @@ export const TEMPLATES = {
   crossbow: [
     '....bawb........', '.....babb....bb.', '......bawb..bccb', '.......baabbccb.', '........bawccb..', '.........baab...', '........bccawb..', '.......bccbbaab.',
     '......bccb..bawb', '.....bccb....bab', '....bccb......ba', '...bccb........b', '..bcceb.........', '.bcceb..........', '..bbb...........', '................'],
+  offhand: [
+    '................', '..bbbbbbbbbbbb..', '..bdaaaeeaaaab..', '..bdaaaeeaaaab..', '..bdaaaeeaaaab..', '..bdaarrrraaab..', '..bdaarrrraaab..', '..bdaaaeeaaaab..',
+    '..bdaaaeeaaaab..', '..bdaaaeeaaaab..', '...baaaeeaaab...', '....baaeeaab....', '.....baeeab.....', '......beeb......', '.......bb.......', '................'],
   fists: [
     '................', '................', '....bbbbbbb.....', '...bdcdcdcdb....', '...bccccccccb...', '...bccccccccb...', '...bbbbbbbccb...', '....bccccccb....',
     '....bccccccb....', '.....bbbbbb.....', '................', '................', '................', '................', '................', '................'],

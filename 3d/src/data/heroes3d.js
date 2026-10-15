@@ -1,25 +1,26 @@
 // Герои: кто чем бьётся и как выглядит. Множители силы (здоровье, скорость) — в config3d.js → heroes.
-// kinds — разрешённые виды оружия (WTYPES и RTYPES из items.js); кулаки разрешены всем; start — оружие в руке при новой игре.
+// kinds — разрешённые виды оружия (WTYPES и RTYPES из items.js); кулаки разрешены всем; start — оружие в руке при новой игре;
+// off — что можно во вторую руку: щит (Торн) или второй клинок (Вейл).
 // open: false — карточка видна, но выбрать нельзя (soon — почему).
 export const HEROES = {
   thorn: {
     name: 'Торн', role: 'Тяжёлый мечник',
     text: 'Крепкий и неспешный. Рубит тяжёлым железом, держит удар. Позже — щит во второй руке.',
-    kinds: ['sword', 'axe', 'war_axe', 'greatsword', 'mace', 'club', 'hammer', 'pick', 'flail', 'chain_ball', 'scythe', 'halberd', 'spear'],
+    kinds: ['sword', 'axe', 'war_axe', 'greatsword', 'mace', 'club', 'hammer', 'pick', 'flail', 'chain_ball', 'scythe', 'halberd', 'spear'], off: ['shield'],
     look: { cloth: '#6a5148', cape: '#7a1e26', hair: '#3a2c28', legs: '#4a3a35', shoulder: true, hood: false, quiver: false, capeLen: 1 },
     open: true
   },
   vale: {
     name: 'Вейл', role: 'Дуэлянт',
     text: 'Быстрый и хрупкий. Лёгкие клинки, точные удары, чаще крит. Позже — второй клинок.',
-    kinds: ['dagger', 'knife', 'sickle', 'rapier', 'sword'],
+    kinds: ['dagger', 'knife', 'sickle', 'rapier', 'sword'], off: ['dagger', 'knife', 'sickle', 'rapier', 'sword'],
     look: { cloth: '#d8d0c0', cape: '#3a4a7a', hair: '#e8e0c8', legs: '#2a2a34', shoulder: false, hood: false, quiver: false, capeLen: .7 },
     open: true
   },
   jay: {
     name: 'Сойка', role: 'Лучница-разведчица',
     text: 'Бьёт издалека и не подпускает. Луки и арбалеты.',
-    kinds: ['bow', 'longbow', 'crossbow'], start: 'w_bow_rust',
+    kinds: ['bow', 'longbow', 'crossbow'], off: [], start: 'w_bow_rust',
     look: { cloth: '#4a5a3a', cape: '#3a4a2a', hair: '#5a3a22', legs: '#3a3428', shoulder: false, hood: true, quiver: true, capeLen: .8 },
     open: true
   }
@@ -27,7 +28,10 @@ export const HEROES = {
 export const HERO_IDS = Object.keys(HEROES);
 export const DEFAULT_HERO = 'thorn';
 export const heroOf = id => HEROES[id] || HEROES[DEFAULT_HERO];
-// можно ли герою держать вещь: ограничено только оружие
-export const canWield = (hero, it) => !it || it.slot !== 'weapon' || heroOf(hero).kinds.includes(it.kind);
+// можно ли герою держать вещь: ограничены оружие и вторая рука (щит)
+export const canWield = (hero, it) => !it || (it.slot === 'weapon' ? heroOf(hero).kinds.includes(it.kind) : it.slot === 'offhand' ? heroOf(hero).off.includes(it.kind) : true);
+// можно ли положить во вторую руку: щит — тому, кому он разрешён; клинок — дуэлянту (off — виды второго клинка)
+export const canOff = (hero, it) => !!it && (it.slot === 'offhand' || it.slot === 'weapon') && heroOf(hero).off.includes(it.kind);
+export const dualOf = hero => heroOf(hero).off.some(k => k !== 'shield');
 // названия видов оружия героя для карточки («меч, топор, …»)
 export const NOT_FOR = { thorn: 'Не для Торна', vale: 'Не для Вейла', jay: 'Не для Сойки' };

@@ -390,6 +390,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     // герой
     hero.group.position.set(p.x, 0, p.z); hero.group.rotation.y = p.face;
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); }
+    { const o = W.inv.eq.offhand && BY_ID[W.inv.eq.offhand]; hero.setOff(o ? o.id : '', o && o.kind, o && o.mat, o && o.form); }
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
     animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
     updateCharge(p, t);

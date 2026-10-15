@@ -145,6 +145,17 @@ try {
   if (await shown('rotate')) bad('в низком окне просит повернуть телефон');
   if ((await ev(() => window.__b3d.W.t)) <= ta) bad('в низком окне игра стоит');
   await page.screenshot({ path: join(out, '3d-desk-low.png') });
+  // Торн со щитом: в сумке 8 слотов, щит во второй руке и даёт блок
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(300);
+  await ev(() => { const W = window.__b3d.W; W.inv.eq.offhand = 's_tower_steel'; W.inv.eq.weapon = 'w_sword_steel'; W.player.x = 0; W.player.z = 4; });
+  await page.keyboard.press('KeyI'); await page.waitForTimeout(300);
+  const slots = await ev(() => document.querySelectorAll('#bag .slot').length);
+  if (slots !== 8) bad('в сумке не 8 слотов: ' + slots);
+  await page.screenshot({ path: join(out, '3d-desk-shield-bag.png') });
+  await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+  const blk = await ev(() => { const W = window.__b3d.W, p = W.player; return W.gear.block; });
+  if (!(blk > 0)) bad('щит не дал блока');
+  await page.waitForTimeout(400); await page.screenshot({ path: join(out, '3d-desk-shield.png') });
   await ctx.close();
   // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
   { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);
@@ -168,6 +179,13 @@ try {
       if (!/Не для Вейла/.test(card.txt) || card.wear) bad('у чужого топора нет пометки или есть «Надеть»');
       await pg.screenshot({ path: join(out, '3d-desk-vale-bag.png') }); }
     await pg.keyboard.press('Escape'); await pg.waitForTimeout(150);
+    // два клинка: рапира и кинжал во второй руке, удары чередуют руки
+    const hands = await pg.evaluate(async () => { const b = window.__b3d, W = b.W, p = W.player; W.inv.eq.weapon = 'w_rapier_iron'; W.inv.eq.offhand = 'w_dagger_iron'; p.inv = 1e9; p.x = 0; p.z = 4; p.face = 0;
+      const e = b.spawn('brute', 0, 5.4); e.hp = e.maxhp = 5000; e.cd = 99; const seen = new Set();
+      for (let i = 0; i < 6; i++) { p.atkBuf = .2; await new Promise(r => setTimeout(r, 420)); seen.add(p.hand); }
+      return [...seen]; });
+    if (!hands.includes(1)) bad('Вейл не бьёт левым клинком: ' + JSON.stringify(hands));
+    await pg.screenshot({ path: join(out, '3d-desk-vale-dual.png') });
     await pg.reload(); await pg.waitForTimeout(1200);
     const r2 = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, shown: !document.getElementById('heroPick').hidden }));
     if (r2.hero !== 'vale' || r2.shown) bad('после перезагрузки герой не Вейл или снова выбор: ' + JSON.stringify(r2));

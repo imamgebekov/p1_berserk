@@ -25,7 +25,7 @@ import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
-import { DEFAULT_HERO } from './data/heroes3d.js';
+import { DEFAULT_HERO, canOff } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
 import { initLevels, withLevel, depthAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 
@@ -199,11 +199,16 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
     return false;
   }
   if (W.setFx.lastStand && p.hp < p.maxhp * .4) dmg *= 1 - W.setFx.lastStand;
+  // щит: удар спереди ослаблен на блок %, отброс меньше; пока герой бьёт или заряжает — щит не закрывает
+  let knock = 5;
+  if (W.gear.block > 0 && fromX !== undefined && p.state !== 'atk' && p.state !== 'charge' && Math.abs(angDiff(Math.atan2(fromX - p.x, fromZ - p.z), p.face)) < W.cfg.block.arc * DEG / 2) {
+    dmg *= 1 - Math.min(80, W.gear.block) / 100; knock *= W.cfg.block.knock; W.ev.push({ k: 'block', x: p.x, z: p.z, face: p.face, hero: true });
+  }
   dmg = Math.max(1, Math.round(dmg / (1 + Math.max(0, W.gear.armor) * W.cfg.gear.armorK)));
   p.calm = W.cfg.player.fire.calm;
   p.hp -= dmg; p.inv = W.cfg.player.hurtInvuln; W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
   const d = len(p.x - fromX, p.z - fromZ) || 1;
-  p.vx += (p.x - fromX) / d * 5; p.vz += (p.z - fromZ) / d * 5;
+  p.vx += (p.x - fromX) / d * knock; p.vz += (p.z - fromZ) / d * knock;
   W.ev.push({ k: 'hurt', x: p.x, z: p.z, dmg });
   if (on && W.rng() < on[1]) applyPlayer(W, on[0], on[2], on[3]);
   const fx = W.setFx;
@@ -247,7 +252,9 @@ function attackStart(W, heavy = 0) {
   // тяжёлый удар (heavy — доля заряда 0–1) цепочку не продолжает и сбрасывает
   if (heavy) { p.chain = 0; p.fin = false; } else { p.chain = W.t - p.lastAtkEnd < .9 ? p.chain + 1 : 1; p.fin = p.chain % 3 === 0; }
   p.rollAtk = W.t - p.lastRollEnd < .5;
-  p.state = 'atk'; p.atkT = 0; p.atkHit = false; p.heavy = heavy; p.swingMul = W.gear.swing * (heavy ? H.swing : 1);
+  const dual = offDmg(W) > 0;
+  p.state = 'atk'; p.atkT = 0; p.atkHit = false; p.heavy = heavy; p.swingMul = W.gear.swing * (heavy ? H.swing : 1) * (dual ? W.cfg.dual.swing : 1);
+  p.hand = dual && !heavy && p.chain % 2 === 0 ? 1 : 0;     // два клинка: удары чередуют руки (1 — левая)
   const lunge = W.wp.trait.ranged ? 0 : P.attackLunge * (p.rollAtk ? 1.4 : 1) * (p.fin ? 1.2 : 1) * (heavy ? H.lunge : 1);     // стрелок не делает выпада
   if (heavy) W.ev.push({ k: 'heavy', x: p.x, z: p.z, face: p.face, power: heavy });
   p.vx += Math.sin(p.face) * lunge; p.vz += Math.cos(p.face) * lunge;
@@ -335,6 +342,12 @@ function updateArrows(W, dt) {
   }
 }
 
+// второй клинок (Вейл): доля его урона (с заточкой) к каждому удару; щит и пустая рука — 0
+function offDmg(W) {
+  const id = W.inv.eq.offhand, it = id && BY_ID[id];
+  if (!it || it.slot !== 'weapon' || !canOff(W.hero, it)) return 0;
+  return it.stats.dmg * (1 + (W.inv.up.offhand || 0) * W.cfg.smith.bonus) * W.cfg.dual.mul;
+}
 function attackHit(W, mult = 1, echo = false) {
   const p = W.player, P = W.cfg.player, wp = W.wp, tr = wp.trait, pm = wp.pm, H = P.heavy, hk = echo ? 0 : p.heavy || 0;
   const half = ((tr.arc || P.attackArc) + W.gear.arc + H.arc * hk) * DEG / 2, reach = P.attackRange + W.gear.reach + H.reach * hk;
@@ -354,7 +367,7 @@ function attackHit(W, mult = 1, echo = false) {
     if (tr.backstab && (!e.alert || Math.abs(angDiff(e.face, Math.atan2(-dx, -dz))) > 1.9)) m *= tr.backstab;
     if (pm.execute && e.hp < e.maxhp * pm.execute[0]) m *= pm.execute[1];
     if (pm.shatter && e.st && (e.st.freeze || e.st.stun)) m *= pm.shatter;
-    let dmg = Math.round((P.attackDamage + W.gear.dmg) * m * rr(W, .9, 1.15));
+    let dmg = Math.round((P.attackDamage + W.gear.dmg + offDmg(W)) * m * rr(W, .9, 1.15));
     const crit = W.rng() < .12 + W.gear.crit / 100;
     if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
     const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null;

@@ -1,5 +1,6 @@
 // Браузерный тест сумки 3D (шаг P5): сетка плиток со значками и рамкой редкости, надетое со значками, карточка с построчным сравнением,
 // на телефоне плитки не меньше 44 px и без горизонтальной прокрутки, на компьютере — две колонки. Скриншоты test/out/3d-bag-*.png.
+import { SLOTS } from '../3d/src/data/items.js';
 import { createServer } from 'vite';
 import { execSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -61,7 +62,7 @@ try {
     if (r.minW < 44) bad('плитка уже 44 px: ' + r.minW);
     if (r.over > 0) bad('сумка прокручивается вбок на ' + r.over + ' px');
     if (!r.icons) bad('не у всех плиток загружен значок 16×16');
-    if (r.eqIcons !== 7) bad('у надетого не 7 значков: ' + r.eqIcons);
+    if (r.eqIcons !== SLOTS.length) bad(`у надетого не ${SLOTS.length} значков: ` + r.eqIcons);
     if (r.rar < 2) bad('нет рамок великих и клеймёных вещей');
     if (r.cnt < 3 || r.upg < 1 || r.bt < 1) bad('нет пометок числа, улучшения или «лучше надетого»: ' + JSON.stringify(r));
     await page.screenshot({ path: join(out, '3d-bag-phone.png') });

@@ -7,12 +7,12 @@ export const CONTAINERS = {
   barrel:     { name: 'Бочка', q: 0, slots: [1, 2], pools: [['food', 4], ['potion', 1], ['material', 2], ['coin', 1]] },
   sack:       { name: 'Мешок', q: 0, slots: [1, 2], pools: [['food', 2], ['material', 2], ['curio', 2], ['coin', 2], ['cloak', 1]] },
   chest:      { name: 'Деревянный сундук', q: 1, slots: [2, 3], pools: [['weapon', 1], ['ranged', .6], ['body', 1], ['head', 1], ['food', 1], ['potion', 1], ['ring', 1], ['curio', 2], ['coin', 2], ['key', 1], ['tome', .4]] },
-  ironchest:  { name: 'Окованный сундук', q: 2, slots: [2, 4], pools: [['weapon', 2], ['ranged', 1], ['body', 1], ['head', 1], ['boots', 1], ['ring', 1], ['amulet', 1], ['potion', 2], ['coin', 2], ['key', 1], ['tome', .5]] },
-  locked:     { name: 'Запертый сундук', q: 3, slots: [3, 5], locked: true, minRar: 2, pools: [['weapon', 3], ['ranged', 1], ['body', 2], ['head', 2], ['boots', 1], ['cloak', 1], ['ring', 2], ['amulet', 2], ['potion', 2], ['coin', 1], ['tome', 1.2]] },
+  ironchest:  { name: 'Окованный сундук', q: 2, slots: [2, 4], pools: [['weapon', 2], ['ranged', 1], ['body', 1], ['shield', .6], ['head', 1], ['boots', 1], ['ring', 1], ['amulet', 1], ['potion', 2], ['coin', 2], ['key', 1], ['tome', .5]] },
+  locked:     { name: 'Запертый сундук', q: 3, slots: [3, 5], locked: true, minRar: 2, pools: [['weapon', 3], ['ranged', 1], ['body', 2], ['shield', .8], ['head', 2], ['boots', 1], ['cloak', 1], ['ring', 2], ['amulet', 2], ['potion', 2], ['coin', 1], ['tome', 1.2]] },
   coffer:     { name: 'Шкатулка', q: 2, slots: [1, 2], reach: 1.1, pools: [['ring', 3], ['amulet', 2], ['curio', 3], ['coin', 3]] },
   wardrobe:   { name: 'Шкаф', q: 1, slots: [1, 3], pools: [['head', 2], ['cloak', 3], ['body', 2], ['boots', 2], ['curio', 1]] },
   rack:       { name: 'Оружейная стойка', q: 1, slots: [1, 2], pools: [['weapon', 1], ['ranged', .7]] },
-  armorstand: { name: 'Стойка с бронёй', q: 1, slots: [1, 2], pools: [['head', 2], ['body', 2], ['boots', 1], ['cloak', 1]] },
+  armorstand: { name: 'Стойка с бронёй', q: 1, slots: [1, 2], pools: [['head', 2], ['body', 2], ['shield', 1], ['boots', 1], ['cloak', 1]] },
   medchest:   { name: 'Лекарский ящик', q: 1, slots: [2, 3], pools: [['medic', 4], ['potion', 3], ['food', 1], ['material', 1]] },
   smithchest: { name: 'Ящик кузнеца', q: 1, slots: [2, 3], pools: [['material', 4], ['weapon', 1], ['coin', 1], ['tome', .8]] },
   shelf:      { name: 'Книжная полка', q: 1, slots: [1, 2], pools: [['book', 5], ['tome', 1.5], ['curio', 1], ['potion', 1]] },
@@ -23,7 +23,7 @@ export const CONTAINERS = {
   wagon:      { name: 'Телега', q: 1, slots: [2, 4], reach: 1.8, pools: [['food', 2], ['material', 3], ['coin', 2], ['weapon', 1], ['sack', 0]] }
 };
 // витрина торговца
-export const SHOP = { name: 'Витрина', q: .8, slots: [11, 13], pools: [['weapon', 2], ['ranged', 1], ['body', 1], ['head', 1], ['boots', 1], ['cloak', 1], ['ring', 1], ['amulet', 1], ['potion', 3], ['medic', 2], ['food', 2], ['material', 1], ['key', 1], ['tome', 1]] };
+export const SHOP = { name: 'Витрина', q: .8, slots: [11, 13], pools: [['weapon', 2], ['ranged', 1], ['body', 1], ['shield', .8], ['head', 1], ['boots', 1], ['cloak', 1], ['ring', 1], ['amulet', 1], ['potion', 3], ['medic', 2], ['food', 2], ['material', 1], ['key', 1], ['tome', 1]] };
 export const SHOP_STAPLES = [['p_heal1', 3], ['h_rag_bandage', 5], ['f_rye', 6], ['key_rust', 2]];
 // трофеи и книги боссов: trophy — материал, n — сколько (минимум и шанс лишнего), tomes — книги по порядку (выпадает первая неизвестная)
 export const BOSS_DROPS = {

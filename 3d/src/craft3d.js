@@ -51,7 +51,7 @@ export function readTome(W, idx) {
 }
 
 // ---- источники предмета ----
-export const POOL_NAME = { food: 'еда', potion: 'зелья', medic: 'лекарства', material: 'материалы', monstermat: 'трофеи монстров', coin: 'монеты', curio: 'безделушки', book: 'записки', key: 'ключи', tome: 'книги', weapon: 'оружие', ranged: 'луки и арбалеты', head: 'шлемы', body: 'броня', cloak: 'плащи', boots: 'обувь', ring: 'кольца', amulet: 'амулеты' };
+export const POOL_NAME = { food: 'еда', potion: 'зелья', medic: 'лекарства', material: 'материалы', monstermat: 'трофеи монстров', coin: 'монеты', curio: 'безделушки', book: 'записки', key: 'ключи', tome: 'книги', weapon: 'оружие', ranged: 'луки и арбалеты', shield: 'щиты', head: 'шлемы', body: 'броня', cloak: 'плащи', boots: 'обувь', ring: 'кольца', amulet: 'амулеты' };
 export function sourcesOf(id) {
   const it = BY_ID[id], out = { containers: [], drops: [], bosses: [], shop: false, craft: [], uses: [] };
   for (const [k, d] of Object.entries(CONTAINERS)) if (d.pools.some(p => p[1] > 0 && p[0] === it.pool)) out.containers.push(k);

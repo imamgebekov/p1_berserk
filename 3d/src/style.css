@@ -196,9 +196,9 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 [data-desk] #bagReset{grid-column:2;grid-row:6}
 .slot.sel{outline:3px solid #fff;outline-offset:-1px}
 /* телефон: надетое — один ряд значков (названия — в карточке), чтобы сумке хватало места */
-#bagEq{grid-template-columns:repeat(7,1fr);gap:5px}
-#bagEq .slot{aspect-ratio:1;min-height:44px;padding:2px;justify-content:center}
-#bagEq .slot .stx{display:none}#bagEq .slot .ic{width:78%;height:78%}
+#bagEq{grid-template-columns:repeat(4,1fr);gap:5px}
+#bagEq .slot{aspect-ratio:auto;height:50px;min-height:44px;padding:2px;justify-content:center}
+#bagEq .slot .stx{display:none}#bagEq .slot .ic{width:40px;height:40px}
 [data-desk] #bagEq .slot{aspect-ratio:auto;padding:4px 6px;justify-content:flex-start}[data-desk] #bagEq .slot .stx{display:flex}[data-desk] #bagEq .slot .ic{width:34px;height:34px}
 .num.alarm{color:#ff4a3a;font-size:30px;font-weight:900}.num.lost{color:#c8c0b0;font-size:24px}
 /* заполненность сумки на кнопке: жёлтая от 80%, красная — полная */
