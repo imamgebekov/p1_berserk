@@ -146,6 +146,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts; fx.clear();
   }
   const hero = makeHero(); scene.add(hero.group); let heroLook = null;
+  // тень-двойник Вейла: тёмная копия героя с его клинком
+  const decoyModel = () => { const h = makeHero(); h.setLook({ cloth: '#1a1824', cape: '#2a1838', hair: '#0a0810', legs: '#14121c', shoulder: false, hood: false, quiver: false, capeLen: .7 }); h.setWeapon('rapier', 'black'); h.root.rotation.x = .12; return h; };
   // кольцо заряда тяжёлого удара под героем: растёт с зарядом, при полном — оранжевое и пульсирует
   const chargeRing = new THREE.Mesh(new THREE.RingGeometry(.82, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffd9c0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
   chargeRing.visible = false; scene.add(chargeRing);
@@ -430,7 +432,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const a of W.allies) {
       aliveA.add(a.id);
       let en = allyEnts.get(a.id);
-      if (!en) { const m = a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
+      if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
       en.m.group.position.set(a.x, 0, a.z); en.m.group.rotation.y = a.face;
       if (!a.guest) animateSoldier(en.m, a, t);
       else { en.m.group.visible = !a.dead; if (en.m.root) en.m.root.position.y = calm ? 0 : Math.abs(Math.sin(t * (a.moving ? 9 : 2))) * (a.moving ? .08 : .02); } en.sh.position.set(a.x, .03, a.z); en.sh.visible = !a.dead;
@@ -457,12 +459,17 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
       else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { fx.flash(v.x, 1.4, v.z, 2.6, RARITY[4].color); burst(v.x, 1, v.z, 12, RARITY[4].color, 4); }
       else if (v.k === 'ability') {                   // умения: вспышки и кольца
-        const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30', leap: '#c8e0b0', volley: '#eef4ff', trap: '#8a8478', venom: '#7ad060', rain: '#eef4ff' }[v.id] || '#ffe8b0';
+        const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30', blink: '#c8a0ff', parry: '#fff0c0', dance: '#c8d8ff', shadow: '#2a1838', execute: '#ff3030', leap: '#c8e0b0', volley: '#eef4ff', trap: '#8a8478', venom: '#7ad060', rain: '#eef4ff' }[v.id] || '#ffe8b0';
         if (v.id === 'cry' || v.id === 'whirl') for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r = v.id === 'cry' ? 2.5 : 1.8; burst(v.x + Math.sin(a) * r, 1, v.z + Math.cos(a) * r, 2, col, 3); }
         else burst(v.x, 1.2, v.z, 18, col, 3);
         fx.flash(v.x, 1.3, v.z, v.id === 'whirl' ? 2.6 : 1.6, col);
         if (v.id === 'cry' && hooks.onText) hooks.onText(v.x, 3.2, v.z, 'А-а-а!', 'alarm');
       }
+      else if (v.k === 'blink') { burst(v.x, 1.2, v.z, 14, '#8a6ad8', 3); burst(v.x2, 1.2, v.z2, 18, '#c8a0ff', 3); fx.flash(v.x2, 1.2, v.z2, 1.6, '#c8a0ff'); }
+      else if (v.k === 'parry') { fx.flash(v.x + Math.sin(v.face) * .8, 1.3, v.z + Math.cos(v.face) * .8, 1.8, '#ffffff'); burst(v.x, 1.3, v.z, 12, '#fff0c0', 4); hooks.onText && hooks.onText(v.x, 2.8, v.z, 'Парирование!', 'crit'); }
+      else if (v.k === 'danceHit') burst(v.x, 1.2, v.z, 6, '#c8d8ff', 3)
+      else if (v.k === 'shadowEnd') burst(v.x, 1.2, v.z, 16, '#2a1838', 2)
+      else if (v.k === 'execute') { fx.flash(v.x, 1.3, v.z, 2.4, '#ff3030'); hooks.onText && hooks.onText(v.x, 3, v.z, 'Казнь!', 'crit'); }
       else if (v.k === 'trapSnap') { burst(v.x, .4, v.z, 14, '#8a8478', 3); hooks.onText && hooks.onText(v.x, 2.2, v.z, 'Капкан!', 'alarm'); }
       else if (v.k === 'evFight' || v.k === 'evRaid') { burst(v.x, 1.4, v.z, 14, '#ffb040', 3); hooks.onText && hooks.onText(v.x, 3, v.z, '!', 'alarm'); }
       else if (v.k === 'evDone') { burst(v.x, 1.4, v.z, 30, '#ffd27a', 4); fx.flash(v.x, 1.4, v.z, 1.8, '#ffe8a0'); }

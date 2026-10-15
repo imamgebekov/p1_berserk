@@ -117,5 +117,33 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
     ok(hitsA > (W.cfg.player.attackDamage + W.gear.dmg) * J.rain.mul[0] * 5, 'град ударил мало раз: ' + hitsA); }
 }
 
+// ---------- 10. Вейл: выпад, парирование, танец, тень, смертельный удар ----------
+{
+  const V = A.vale, mkV = (seed = 1) => { const W = mk(30, seed); W.hero = 'vale'; W.inv.eq.weapon = 'w_rapier_iron'; refreshGear(W); return W; };
+  ok(ABILITIES.vale.length === 5 && ABILITIES.vale.every(a => V[a.id] && [0, 4].every(r => typeof a.text(V[a.id], r) === 'string')), 'у Вейла не 5 описанных умений');
+  { const W = mkV(); upgradeAbility(W, 'blink'); ok(useAbility(W, 0) === 'target' && !W.acd.blink, 'выпад без цели потратил перезарядку');
+    const e = foe(W, 0, 6); still(W); ok(useAbility(W, 0) === 'ok', 'выпад не сработал');
+    ok(W.player.z > e.z && Math.hypot(W.player.x - e.x, W.player.z - e.z) < 2.5 && e.hp < e.maxhp, `выпад: герой не за спиной (${W.player.z.toFixed(1)} при враге ${e.z.toFixed(1)}) или не ударил`);
+    const W2 = mkV(); upgradeAbility(W2, 'blink'); foe(W2, 0, -6); ok(useAbility(W2, 0) === 'target', 'выпад к врагу за спиной'); }
+  { const W = mkV(); upgradeAbility(W, 'parry'); const e = foe(W, 0, 1.4); useAbility(W, 1); const hp0 = W.player.hp;
+    const hit = hurtPlayer(W, 40, e.x, e.z, null, e); ok(!hit && W.player.hp === hp0 && e.st && e.st.stun && e.hp < e.maxhp, 'парирование не поймало удар');
+    run(W, V.parry.t[0] + .1); W.player.inv = 0; ok(hurtPlayer(W, 40, e.x, e.z, null, e) && W.player.hp < hp0, 'парирование не кончилось'); }
+  { const W = mkV(); upgradeAbility(W, 'dance'); const a = foe(W, 1.5, 0), b = foe(W, -1.5, 0), c = foe(W, 0, V.dance.r + 3); still(W);
+    useAbility(W, 2); run(W, V.dance.t + .2, () => { still(W); return {}; });
+    const ha = a.maxhp - a.hp, hb = b.maxhp - b.hp; ok(ha > 0 && c.hp === c.maxhp && W.abuf.dance <= 0, 'танец бьёт не тех или не кончился');
+    ok(ha + hb > (W.cfg.player.attackDamage + W.gear.dmg) * V.dance.mul[0] * (V.dance.hits - 1) * .8, 'в танце мало ударов'); }
+  { const W = mkV(); upgradeAbility(W, 'shadow'); useAbility(W, 3); const d = W.allies.find(x => x.decoy);
+    ok(d && d.guest && !W.allies.some(x => !x.guest), 'тень не появилась или стала бойцом отряда');
+    const e = foe(W, d.x - W.player.x + 1.2, d.z - W.player.z); e.cd = 0; e.alert = true; W.player.x -= 6; const hp0 = d.hp;
+    run(W, 2.5); ok(d.hp < hp0 && e.hp < e.maxhp, `тень не отвлекла (${hp0 - d.hp}) или не режет (${e.maxhp - e.hp})`);
+    run(W, V.shadow.t[0]); ok(!W.allies.some(x => x.decoy), 'тень не исчезла по времени'); }
+  { const W = mkV(); upgradeAbility(W, 'execute'); const e = foe(W, 0, 1.6); e.hp = e.maxhp * (V.execute.kill[0] - .05); still(W);
+    ok(useAbility(W, 4) === 'ok' && e.dead, 'смертельный удар не добил раненого');
+    const W2 = mkV(); upgradeAbility(W2, 'execute'); const f = foe(W2, 0, 1.6), g = foe(W2, 3, 1.6); g.hp = g.maxhp * .3; g.x = W2.player.x; g.z = W2.player.z + 1.6; f.x = 99; still(W2); W2.rng = () => .5;
+    useAbility(W2, 4); const dHurt = g.maxhp * .3 - g.hp; const W3 = mkV(); upgradeAbility(W3, 'execute'); const h = foe(W3, 0, 1.6); still(W3); W3.rng = () => .5; useAbility(W3, 4); const dFull = h.maxhp - h.hp;
+    ok(!g.dead && dHurt > dFull * 1.3, `по раненому не сильнее: ${dHurt.toFixed(0)} против ${dFull}`);
+    const bs = mkV(); upgradeAbility(bs, 'execute'); const bo = foe(bs, 0, 1.6); bo.boss = true; bo.hp = bo.maxhp * .05; still(bs); useAbility(bs, 4); ok(!bo.dead, 'смертельный удар добил босса'); }
+}
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Умения 3D: OK');
