@@ -106,6 +106,15 @@ try {
     await page.screenshot({ path: join(out, `3d-desk-event-${kind}.png`) });
   }
   await ev(() => { const W = window.__b3d.W; W.event = null; W.allies = W.allies.filter(a => !a.guest); W.enemies = W.enemies.filter(e => !e.evId); W.evT = 1e9; W.player.x = 0; W.player.z = 4; });
+  // оживление: жители ходят по лагерю, дым идёт, ворона взлетает от героя
+  { const l0 = await ev(() => window.__b3d.life()); await page.waitForTimeout(2500); const l1 = await ev(() => window.__b3d.life());
+    if (!l0 || l0.villagers.length < 3) bad('нет жителей в лагере: ' + JSON.stringify(l0 && l0.villagers.length));
+    else if (!l1.villagers.some((v, i) => Math.hypot(v.x - l0.villagers[i].x, v.z - l0.villagers[i].z) > .5)) bad('жители стоят на месте');
+    if (!(l1 && l1.puffs > 0)) bad('нет дыма из труб');
+    await page.screenshot({ path: join(out, '3d-desk-life.png') });
+    const c = l1.crows[0]; await ev(c => { const p = window.__b3d.W.player; p.x = c.x + 3; p.z = c.z; }, c);
+    await page.waitForFunction(() => window.__b3d.life().crows[0].state !== 'sit', null, { timeout: 3000 }).catch(() => bad('ворона не взлетела от героя'));
+    await ev(() => { const p = window.__b3d.W.player; p.x = 0; p.z = 4; }); }
   // окна: M — карта, I — сумка, N — навыки, Esc — закрыть, Esc на пустом месте — меню с клавишами
   await page.keyboard.press('KeyM'); await page.waitForTimeout(250);
   if (!(await shown('map'))) bad('M не открыла карту');

@@ -5,7 +5,8 @@ import { buildTown } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeCart, makeSoldier, animateSoldier } from './models.js';
+import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
+import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul } from './ambient3d.js';
 import { mulberry32 } from './sim.js';
 import { questMark } from './quests3d.js';
 import { skyAt } from './daynight.js';
@@ -122,7 +123,17 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   const cart = makeCart(); cart.group.visible = false; scene.add(cart.group);   // повозка сказочного торговца
   const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const surfaceObjs = [dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
+  // оживление: жители лагеря, вороны, дым из труб (только вид; числа — cfg.ambient)
+  const AMB = cfg.ambient, arnd = mulberry32(cfg.world.seed + 21), life = new THREE.Group();
+  const vStops = AMB.on ? villagerStops(map, cfg) : [], villagers = makeVillagers(vStops, AMB.villagers, arnd).map((v, i) => { const m = makeNpc('villager', ['#5a4a3a', '#4a3a4a', '#3a4a3a', '#6a5040', '#4a4436'][i % 5]); life.add(m.group); return { v, m }; });
+  const crows = (AMB.on ? makeBirds(map, cfg, arnd) : []).map(b => { const m = makeCrow(); m.group.rotation.y = b.face; life.add(m.group); return { b, m }; });
+  const pipes = AMB.on ? chimneys(map, cfg) : [];
+  if (pipes.length) life.add(new THREE.Mesh(mergeGeometries(pipes.map(c => new THREE.BoxGeometry(.5, AMB.chimneyH + .6, .5).translate(c.x, c.y - AMB.chimneyH / 2 + .3, c.z))), new THREE.MeshLambertMaterial({ color: '#3a302a' })));
+  const puffN = pipes.length * AMB.smoke, puffs = new THREE.InstancedMesh(new THREE.BoxGeometry(.5, .5, .5), new THREE.MeshBasicMaterial({ color: '#8a8078', transparent: true, opacity: .32, depthWrite: false }), Math.max(1, puffN));
+  puffs.count = calm ? 0 : puffN; puffs.frustumCulled = false; life.add(puffs);
+  const puffM = new THREE.Matrix4(), puffQ = new THREE.Quaternion(), puffS = new THREE.Vector3(), puffP = new THREE.Vector3();
+  scene.add(life);
+  const surfaceObjs = [life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   function showLevel(W) {
     const id = W.lvl, L = W.levels[id];
@@ -335,7 +346,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     camera.lookAt(cam.x, cfg.view.camLookUp, cam.z);
     if (W.lvl !== shownLvl) showLevel(W);
     const under = W.lvl !== 'surface';
-    scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity;
+    scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1);     // на рассвете туман гуще
     if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
     else if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток
       lastLight = W.light; const k = skyAt(W.light, cfg.daynight.sky);
@@ -355,6 +366,17 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         cart.lamp.material.color.setHSL(.78, .9, .72 + (calm ? 0 : .12 * Math.sin(t * 4)));
         if (!calm) { cart.mark.position.y = 3.4 + Math.sin(t * 2.5) * .15; cart.mark.rotation.y = t * 2; if (Math.random() < dt * 5) burst(nx + (Math.random() - .5) * 3, 1.5 + Math.random() * 1.5, nz + (Math.random() - .5) * 3, 1, Math.random() < .5 ? '#c8a0ff' : '#ffe8a0', .6); }
       } }
+    // оживление: жители ходят, вороны взлетают, дым из труб
+    if (!under) {
+      for (const { v, m } of villagers) { stepVillager(v, dt, vStops, AMB, Math.random); m.group.position.set(v.x, 0, v.z); m.group.rotation.y = v.face; m.root.position.y = v.moving && !calm ? Math.abs(Math.sin(t * 8 + v.id)) * .07 : 0; m.armL.rotation.x = v.moving && !calm ? Math.sin(t * 8 + v.id) * .5 : 0; m.armR.rotation.x = -m.armL.rotation.x; }
+      updateBirds(crows.map(c => c.b), p.x, p.z, dt, AMB);
+      for (const { b, m } of crows) { m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; m.group.position.set(b.x, b.y, b.z); m.group.rotation.y = b.face; const fl = b.state === 'fly' ? Math.sin(t * 22) * .9 : (b.peck < .3 ? .2 : 0); m.wl.rotation.z = fl; m.wr.rotation.z = -fl; }
+      for (let i = 0; i < puffs.count; i++) {
+        const c = pipes[(i / AMB.smoke) | 0], k = ((t / 4 + (i % AMB.smoke) / AMB.smoke + c.x * .013) % 1), s = .35 + k * 1.1 * (1 - k * .6);
+        puffP.set(c.x + k * 1.6 + Math.sin(t + i) * .15, c.y + .3 + k * 3.2, c.z + k * .4); puffS.set(s, s, s); puffM.compose(puffP, puffQ, puffS); puffs.setMatrixAt(i, puffM);
+      }
+      if (puffs.count) puffs.instanceMatrix.needsUpdate = true;
+    }
     // костёр: мерцание света и пламени
     const fl = .8 + .2 * Math.sin(t * 17) + .1 * Math.sin(t * 29.3);
     fire.light.intensity = 26 * fl; fire.flames.forEach((f, i) => { f.scale.y = .8 + .35 * Math.sin(t * (9 + i * 4) + i); f.rotation.y = t * (2 + i); });
@@ -457,5 +479,5 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     gl.render(scene, camera);
   }
 
-  return { render, resize, project, gl, camera, scene, town, info: () => gl.info.render, hero, fx };
+  return { render, resize, project, gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }

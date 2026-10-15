@@ -202,11 +202,12 @@ export function makeCampfire() {
 }
 
 // торговец: человек в фартуке и шляпе, стоит за прилавком и поворачивается к герою
-export function makeNpc(kind = 'merchant') {
+export function makeNpc(kind = 'merchant', tint = '#5a4a3a') {
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const smith = kind === 'smith', cap = kind === 'captain', wand = kind === 'wanderer', trav = kind === 'traveler', m = c => lam(c);
-  root.add(box(.5, .8, .3, m(smith ? '#2a2420' : '#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : trav ? '#4a5a34' : '#5a4a3a'), 0, 1.25, 0), box(.5, .5, .42, m(smith ? '#2a2420' : '#8a7a62'), 0, smith ? 1.1 : 1.0, .02), box(.42, .42, .42, m(smith ? '#b89a7a' : '#cdb89a'), 0, 1.95, 0));
+  root.add(box(.5, .8, .3, m(smith ? '#2a2420' : '#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : trav ? '#4a5a34' : tint), 0, 1.25, 0), box(.5, .5, .42, m(smith ? '#2a2420' : '#8a7a62'), 0, smith ? 1.1 : 1.0, .02), box(.42, .42, .42, m(smith ? '#b89a7a' : '#cdb89a'), 0, 1.95, 0));
   if (cap) root.add(box(.5, .3, .5, m('#8a8f98'), 0, 2.2, 0), box(.1, .35, .14, m('#a1121f'), 0, 2.5, 0), box(.1, 1.6, .1, m('#6a5a46'), .72, .8, .1));
+  else if (kind === 'villager') root.add(box(.44, .16, .44, m('#3a2a1e'), 0, 2.2, 0));     // житель: простая шапка
   else if (trav) root.add(box(.6, .12, .6, m('#3a2a1a'), 0, 2.2, 0), box(.36, .7, .3, m('#6a4a2a'), 0, 1.3, -.32));     // шляпа и котомка
   else if (wand) root.add(box(.9, .08, .9, m('#2e1e48'), 0, 2.2, 0), box(.46, .4, .46, m('#2e1e48'), 0, 2.42, 0), box(.3, .4, .3, m('#2e1e48'), .05, 2.8, -.04), box(.16, .3, .16, m('#c8a04a'), .1, 3.1, -.08));
   else if (!smith) root.add(box(.8, .08, .8, m('#2a1c12'), 0, 2.2, 0), box(.46, .3, .46, m('#2a1c12'), 0, 2.38, 0));
@@ -214,6 +215,15 @@ export function makeNpc(kind = 'merchant') {
   const armL = limb(.2, .7, .2, m('#5a4a3a'), .5, 1.6, 0), armR = limb(.2, .7, .2, m('#5a4a3a'), -.5, 1.6, 0);
   root.add(armL, armR);
   return { group: g, root, armL, armR };
+}
+
+// ворона: тело и два крыла (крылья машут в полёте)
+export function makeCrow() {
+  const g = new THREE.Group(), black = lam('#141012');
+  g.add(box(.22, .2, .42, black, 0, .16, 0), box(.16, .16, .18, black, 0, .3, .22), box(.06, .05, .12, lam('#3a3020'), 0, .28, .36));
+  const wl = new THREE.Group(), wr = new THREE.Group(); wl.position.set(.1, .22, 0); wr.position.set(-.1, .22, 0);
+  wl.add(box(.42, .04, .26, black, .21, 0, 0)); wr.add(box(.42, .04, .26, black, -.21, 0, 0)); g.add(wl, wr);
+  return { group: g, wl, wr };
 }
 
 // повозка сказочного торговца: кузов, колёса, полог, светящийся фонарь и сам торговец в остроконечной шляпе
