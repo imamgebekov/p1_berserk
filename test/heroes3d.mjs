@@ -20,7 +20,8 @@ const weapon = kind => CATALOG.find(i => i.slot === 'weapon' && i.kind === kind 
   for (const k of kinds) ok(HERO_IDS.some(h => HEROES[h].open && HEROES[h].kinds.includes(k)), `оружие «${k}» никому не подходит`);
   for (const h of HERO_IDS) ok(HEROES[h].kinds.every(k => KIND_NAME[k]) && CFG3.heroes[h], `у героя ${h} неизвестное оружие или нет чисел в конфиге`);
   ok(DEFAULT_HERO === 'thorn' && HEROES.thorn.kinds.includes('sword') && HEROES.thorn.kinds.includes('greatsword'), 'Торну не подходит меч или двуручник (оружие баланса)');
-  ok(!HEROES.jay.open && HEROES.jay.soon, 'Сойка открыта до луков');
+  ok(HEROES.jay.open && HEROES.jay.kinds.length && HEROES.jay.kinds.every(k => CATALOG.some(i => i.kind === k && i.pool === 'ranged')) && BY_ID[HEROES.jay.start] && canWield('jay', BY_ID[HEROES.jay.start]), 'Сойка без луков или без стартового лука');
+  ok(!canWield('jay', BY_ID[weapon('sword')]) && !canWield('thorn', BY_ID[HEROES.jay.start]) && !canWield('vale', BY_ID[HEROES.jay.start]), 'луки не только у Сойки');
   ok(canWield('vale', BY_ID[weapon('rapier')]) && !canWield('vale', BY_ID[weapon('hammer')]) && !canWield('thorn', BY_ID[weapon('dagger')]), 'запреты оружия не те');
   ok(canWield('vale', BY_ID[CATALOG.find(i => i.slot === 'body').id]), 'броня запрещена');
   const c = CFG3.heroes.thorn; ok(c.hp === 1 && c.speed === 1 && !c.crit, 'Торн не как прежний герой');
@@ -53,7 +54,9 @@ const weapon = kind => CATALOG.find(i => i.slot === 'weapon' && i.kind === kind 
   for (let i = 0; i < 30; i++) d.inv.bag.push({ id: weapon('hammer'), n: 1 });    // сумка полна — кинжал всё равно не пропадает
   st.setItem('berserk3d.save', JSON.stringify(d));
   const s2 = loadSave(30, st); ok(s2 && s2.hero === 'thorn' && !s2.inv.eq.weapon && s2.inv.bag.some(b => BY_ID[b.id].kind === 'dagger'), 'старое сохранение: не Торн или кинжал пропал');
+  HEROES.jay.open = false;     // закрытый герой (как Сойка в B1) в сохранении — Торн
   for (const bad of ['jay', 'gatz', 42]) { const e = JSON.parse(st.o['berserk3d.save']); e.v = 3; e.hero = bad; st.setItem('berserk3d.save', JSON.stringify(e)); const s3 = loadSave(30, st); ok(s3 && s3.hero === 'thorn', `герой «${bad}» не заменён Торном`); }
+  HEROES.jay.open = true;
 }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }

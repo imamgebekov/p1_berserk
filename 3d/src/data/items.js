@@ -50,7 +50,13 @@ const WTYPES = [
   ['greatsword', 'двуручник', 'm', 10, .6, 4, 1.25],
   ['chain_ball', 'кистень', 'm', 6, .2, 5, .95]
 ];
-export const KIND_NAME = Object.fromEntries(WTYPES.map(t => [t[0], t[1]]));     // «sword» → «меч»
+// стрелковое оружие (Сойка): [тип, имя, род, урон, —, крит, скорость удара]; дальность и полёт стрелы — в weapons3d.js (TRAITS)
+const RTYPES = [
+  ['bow', 'короткий лук', 'm', 5, 0, 4, .9],
+  ['longbow', 'длинный лук', 'm', 7, 0, 6, 1.15],
+  ['crossbow', 'арбалет', 'm', 10, 0, 2, 1.5]
+];
+export const KIND_NAME = Object.fromEntries([...WTYPES, ...RTYPES].map(t => [t[0], t[1]]));     // «sword» → «меч»
 // материал: [id, [м, ж, ср], множитель, редкость, цена]
 const WMATS = [
   ['rust', ['Ржавый', 'Ржавая', 'Ржавое'], .6, 0, 4],
@@ -70,6 +76,15 @@ for (const [t, nm, g, base, reach, crit, swing] of WTYPES) for (const [m, adj, m
   if (m === 'bone') stats.spd = 2;
   const perks = MATERIAL_PERKS[m] || [];
   add({ id: idOf('w', t, m), name: `${adj[GI[g]]} ${nm}`, cat: 'weapon', slot: 'weapon', pool: 'weapon', rar, stats, value: val * (base / 5 + .6), kind: t, mat: m, perks, text: weaponText(t, perks) });
+}
+for (const [t, nm, g, base, , crit, swing] of RTYPES) for (const [m, adj, mult, rar, val] of WMATS) {
+  const stats = { dmg: Math.round(base * mult) };
+  if (crit) stats.crit = Math.round(crit * (1 + (rar > 1 ? .4 : 0)));
+  if (swing !== 1) stats.swing = swing;
+  if (m === 'blood') stats.leech = 4;
+  if (m === 'bone') stats.spd = 2;
+  const perks = MATERIAL_PERKS[m] || [];
+  add({ id: idOf('w', t, m), name: `${adj[GI[g]]} ${nm}`, cat: 'weapon', slot: 'weapon', pool: 'ranged', rar, stats, value: val * (base / 5 + .6), kind: t, mat: m, perks, text: weaponText(t, perks) });
 }
 // зачарованные: стальные клинки со стихией (меч, топор, копьё)
 for (const t of ENCHANTED_KINDS) {

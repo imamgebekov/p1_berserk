@@ -21,7 +21,7 @@ import { initBoss, updateBoss } from './boss3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent } from './quests3d.js';
 import { lightOf, isNight } from './daynight.js';
-import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo } from './foes3d.js';
+import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus } from './inv.js';
@@ -248,7 +248,7 @@ function attackStart(W, heavy = 0) {
   if (heavy) { p.chain = 0; p.fin = false; } else { p.chain = W.t - p.lastAtkEnd < .9 ? p.chain + 1 : 1; p.fin = p.chain % 3 === 0; }
   p.rollAtk = W.t - p.lastRollEnd < .5;
   p.state = 'atk'; p.atkT = 0; p.atkHit = false; p.heavy = heavy; p.swingMul = W.gear.swing * (heavy ? H.swing : 1);
-  const lunge = P.attackLunge * (p.rollAtk ? 1.4 : 1) * (p.fin ? 1.2 : 1) * (heavy ? H.lunge : 1);
+  const lunge = W.wp.trait.ranged ? 0 : P.attackLunge * (p.rollAtk ? 1.4 : 1) * (p.fin ? 1.2 : 1) * (heavy ? H.lunge : 1);     // стрелок не делает выпада
   if (heavy) W.ev.push({ k: 'heavy', x: p.x, z: p.z, face: p.face, power: heavy });
   p.vx += Math.sin(p.face) * lunge; p.vz += Math.cos(p.face) * lunge;
   W.ev.push({ k: 'swing', x: p.x, z: p.z, face: p.face, fin: p.fin });
@@ -292,6 +292,46 @@ function weaponStatuses(W, e, dmg, crit, p) {
     let best = null, bd = pm.shock[2];
     for (const o of W.enemies) { if (o.dead || o === e) continue; const d = len(o.x - e.x, o.z - e.z); if (d < bd) { bd = d; best = o; } }
     if (best) { W.ev.push({ k: 'chain', x: e.x, z: e.z, x2: best.x, z2: best.z }); dealDamage(W, best, Math.round(dmg * pm.shock[1]), 'storm'); }
+  }
+}
+
+// выстрел из лука или арбалета: своя стрела (friendly) с уроном, критом и свойствами оружия; заряд — дальше, быстрее, сильнее.
+// Наводка: ближайший видимый враг в конусе перед героем
+function shoot(W, mult = 1, echo = false) {
+  const p = W.player, P = W.cfg.player, S = W.cfg.shoot, tr = W.wp.trait, pm = W.wp.pm, H = P.heavy, hk = echo ? 0 : p.heavy || 0;
+  const range = tr.range * (1 + S.chargeRange * hk), speed = tr.speed * (1 + S.chargeSpeed * hk);
+  let best = null, bd = range;
+  for (const e of W.enemies) { if (e.dead) continue; const dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz); if (d < bd && Math.abs(angDiff(Math.atan2(dx, dz), p.face)) < S.assist * DEG && !lineBlocked(W.map, p.x, p.z, e.x, e.z)) { bd = d; best = e; } }
+  if (best) p.face = Math.atan2(best.x - p.x, best.z - p.z);
+  let m = mult * (1 + Math.min(.3, W.combo.n * .02));
+  if (p.fin && !echo) m *= tr.finisherMul || 1.5;
+  if (hk) m *= 1 + (H.mul - 1) * hk;
+  if (W.setFx.rage && p.hp < p.maxhp * .4) m *= 1 + W.setFx.rage;
+  let dmg = Math.round((P.attackDamage + W.gear.dmg) * m * rr(W, .9, 1.15));
+  const crit = W.rng() < .12 + W.gear.crit / 100;
+  if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
+  const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null, sx = Math.sin(p.face), sz = Math.cos(p.face);
+  W.proj.push({ friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * speed, vz: sz * speed, dmg, crit, fx, hk, fin: p.fin && !echo, knock: (tr.knock || 1) * (hk ? 1 + (H.knock - 1) * hk : 1), pierce: tr.pierce || 0, hit: [], life: range / speed, kind: tr.bolt ? 'bolt' : 'arrow' });
+  W.ev.push({ k: 'shoot', x: p.x, z: p.z, face: p.face, heavy: hk > 0, bolt: !!tr.bolt });
+  if (!echo && pm.echo && W.rng() < pm.echo) W.echoQ.push({ t: .2, mult: .7 });
+}
+// стрелы героя: летят, бьют первых врагов на пути (арбалет — насквозь pierce врагов), гаснут о стену и по дальности
+function updateArrows(W, dt) {
+  const S = W.cfg.shoot;
+  for (let i = W.proj.length - 1; i >= 0; i--) {
+    const q = W.proj[i]; if (!q.friendly) continue;
+    q.life -= dt; q.x += q.vx * dt; q.z += q.vz * dt;
+    let end = q.life <= 0 || hitsWall(W.map, q.x, q.z) || lineBlocked(W.map, q.x - q.vx * dt, q.z - q.vz * dt, q.x, q.z);
+    if (!end) for (const e of W.enemies) {
+      if (e.dead || q.hit.includes(e.id) || len(e.x - q.x, e.z - q.z) > W.cfg.enemies[e.type].radius + S.hitR) continue;
+      q.hit.push(e.id);
+      strike(W, e, q.dmg, { crit: q.crit, dx: q.vx, dz: q.vz, d: len(q.vx, q.vz), knock: q.knock, fx: q.fx, fin: q.fin || q.hk > 0, heavy: q.hk > 0 });
+      if (q.hk && !e.dead) applyStatus(W, e, 'stun', 0, W.cfg.player.heavy.stun * q.hk * S.stun);
+      weaponStatuses(W, e, q.dmg, q.crit, W.player);
+      W.combo.n = Math.min(99, W.combo.n + 1); W.combo.t = 2.2;
+      if (q.hit.length > q.pierce) { end = true; break; }
+    }
+    if (end) { W.ev.push({ k: 'projend', x: q.x, z: q.z, friendly: true }); W.proj.splice(i, 1); }
   }
 }
 
@@ -385,12 +425,13 @@ function updatePlayer(W, dt, input) {
     if (p.atkBuf > 0 && p.state !== 'atk' && p.state !== 'charge') {
       // запомненное нажатие бьёт, только если враг ещё рядом (иначе удар в пустоту после того, как враг отошёл); свежее — всегда
       p.atkBuf = 0;
-      if (pressed || W.enemies.some(e => !e.dead && len(e.x - p.x, e.z - p.z) < P.attackRange + W.gear.reach + H.bufReach)) attackStart(W);
+      const reach = W.wp.trait.ranged ? W.wp.trait.range : P.attackRange + W.gear.reach + H.bufReach;     // лук: враг в пределах выстрела
+      if (pressed || W.enemies.some(e => !e.dead && len(e.x - p.x, e.z - p.z) < reach)) attackStart(W);
     }
     if (p.atkBuf > 0) p.atkBuf -= dt;
     if (p.state === 'atk') {
       p.atkT += dt;
-      if (!p.atkHit && p.atkT >= P.attackHitAt * p.swingMul) { p.atkHit = true; attackHit(W); }
+      if (!p.atkHit && p.atkT >= P.attackHitAt * p.swingMul) { p.atkHit = true; if (W.wp.trait.ranged) shoot(W); else attackHit(W); }
       if (p.atkT >= P.attackTime * p.swingMul) { p.state = 'idle'; p.lastAtkEnd = W.t; p.heavy = 0; }
     }
     // бег с разгоном; при ударе медленнее
@@ -637,10 +678,11 @@ export function step(W, dt, input = {}) {
   if (W.freeze > 0) { W.freeze -= dt; if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200); return; }
   updatePlayer(W, dt, input);
   tickPlayer(W, dt);
-  for (let i = W.echoQ.length - 1; i >= 0; i--) { const q = W.echoQ[i]; if ((q.t -= dt) <= 0) { W.echoQ.splice(i, 1); if (!W.player.dead) attackHit(W, q.mult, true); } }
+  for (let i = W.echoQ.length - 1; i >= 0; i--) { const q = W.echoQ[i]; if ((q.t -= dt) <= 0) { W.echoQ.splice(i, 1); if (!W.player.dead) { if (W.wp.trait.ranged) shoot(W, q.mult, true); else attackHit(W, q.mult, true); } } }
   trackPlace(W, dt);
   updateEnemies(W, dt);
   updateAllies(W, dt);
+  updateArrows(W, dt);
   updateFoes(W, dt);
   updateHouses(W, dt);
   for (const def of W.cfg.bosses.list) { const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, SURFACE, () => spawnBoss(W, def)); }     // боссы живут наверху, даже если герой в подземелье

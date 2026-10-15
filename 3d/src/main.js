@@ -63,7 +63,7 @@ function drawPortrait(cv, L) {
 }
 function pickHero(id) {
   const H = HEROES[id]; if (!H || !H.open || $('heroPick').hidden) return;
-  W.hero = id; refreshGear(W); W.player.hp = W.player.maxhp;
+  W.hero = id; if (H.start && !W.inv.eq.weapon) W.inv.eq.weapon = H.start; refreshGear(W); W.player.hp = W.player.maxhp;
   $('heroPick').hidden = true; panelOpen = false; saver.write(true);
   toast(`${H.name} выходит из пепла`, '', '#e8c04a');
 }

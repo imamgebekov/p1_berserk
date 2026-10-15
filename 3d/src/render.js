@@ -166,7 +166,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const s of trailS) s.age += dt;
     while (trailS.length && trailS[0].age > TRAIL_LIFE) trailS.shift();
     const w = hero.weapon, P = cfg.player, sw = p.swingMul || W.gear.swing || 1;
-    if (w && p.state === 'atk' && trailOn(p.atkT / (P.attackTime * sw), P.attackHitAt / P.attackTime)) {
+    if (w && p.state === 'atk' && hero.family !== 'bow' && trailOn(p.atkT / (P.attackTime * sw), P.attackHitAt / P.attackTime)) {
       hero.group.updateMatrixWorld(true);
       trailS.push({ a: w.base.getWorldPosition(new THREE.Vector3()), b: w.tip.getWorldPosition(new THREE.Vector3()), age: 0 });
       if (trailS.length > TRAIL_N) trailS.shift();
@@ -280,7 +280,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   for (const m of [teleRing, teleDisc, teleInner, teleLine]) { m.rotation.x = -Math.PI / 2; m.position.y = .09; m.visible = false; scene.add(m); }
   // стрелы и пятна колдовства: небольшие пулы мешей
   const projMeshes = [], hazMeshes = [];
-  for (let i = 0; i < 12; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.14, .14, .9), new THREE.MeshBasicMaterial({ color: '#ffd27a' })); m.visible = false; scene.add(m); projMeshes.push(m); }
+  for (let i = 0; i < 24; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.14, .14, .9), new THREE.MeshBasicMaterial({ color: '#ffd27a' })); m.visible = false; m.userData.k = 'foe'; scene.add(m); projMeshes.push(m); }
   for (let i = 0; i < 6; i++) {
     const ring = new THREE.Mesh(new THREE.RingGeometry(.94, 1, 40), new THREE.MeshBasicMaterial({ color: '#d060ff', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
     const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 36), new THREE.MeshBasicMaterial({ color: '#8a30c0', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
@@ -288,7 +288,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ring.position.y = .1; disc.position.y = .08; hazMeshes.push({ ring, disc });
   }
   function updateFoes(W, t) {
-    projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { m.position.set(q.x, 1.1, q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });
+    projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { const k = q.friendly ? q.kind : 'foe'; if (m.userData.k !== k) { m.userData.k = k; m.material.color.set(k === 'foe' ? '#ffd27a' : k === 'bolt' ? '#b8c4d8' : '#eef4ff'); m.scale.set(k === 'bolt' ? 1.4 : 1, k === 'bolt' ? 1.4 : 1, k === 'bolt' ? .8 : 1); } m.position.set(q.x, 1.1, q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });     // свои стрелы светлые, болт толще
     hazMeshes.forEach((h, i) => {
       const z = W.haz[i]; h.ring.visible = h.disc.visible = !!z; if (!z) return;
       const k = Math.min(1, z.t / z.delay), pulse = .3 + .25 * Math.sin(t * 28) + .25 * k, fire = z.by === 'elite' || z.bomber, col = fire ? '#ff7a20' : '#d060ff';      // взрыв (элита, тлеющий) — оранжевый, колдовство — фиолетовое

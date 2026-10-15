@@ -49,7 +49,7 @@ export function rangedFire(W, e, C) {
 }
 
 // стена на пути снаряда
-function hitsWall(map, x, z) {
+export function hitsWall(map, x, z) {
   for (const b of map.buildings) {
     if (x < b.x0 || x > b.x1 || z < b.z0 || z > b.z1) continue;
     const list = b.door.open < .6 ? b.walls.concat(b.door.rect) : b.walls;
@@ -64,7 +64,8 @@ export function updateFoes(W, dt) {
   const p = W.player, PR = W.cfg.player.radius;
   for (const e of W.enemies) if (e.elite && !e.seen && !e.dead && len(e.x - p.x, e.z - p.z) < 16) { e.seen = true; W.ev.push({ k: 'elite', name: eliteName(W, e), x: e.x, z: e.z }); }
   for (let i = W.proj.length - 1; i >= 0; i--) {
-    const q = W.proj[i]; q.life -= dt; q.x += q.vx * dt; q.z += q.vz * dt;
+    const q = W.proj[i]; if (q.friendly) continue;                // стрелы героя летят в sim.js (updateArrows)
+    q.life -= dt; q.x += q.vx * dt; q.z += q.vz * dt;
     let end = q.life <= 0 || hitsWall(W.map, q.x, q.z);
     if (!end && !p.dead && len(q.x - p.x, q.z - p.z) < PR + .3) { const by = W.enemies.find(e => e.id === q.from); hurtPlayer(W, q.dmg, q.x - q.vx * .1, q.z - q.vz * .1, q.on, by && !by.dead ? by : null); end = true; }
     if (!end) for (const a of W.allies) if (!a.dead && len(q.x - a.x, q.z - a.z) < .7) { hurtAlly(W, a, q.dmg, { x: q.x - q.vx * .1, z: q.z - q.vz * .1 }); end = true; break; }

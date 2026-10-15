@@ -153,10 +153,8 @@ try {
     const info = await pg.evaluate(() => ({ shown: !document.getElementById('heroPick').hidden, cards: [...document.querySelectorAll('.hcard')].map(c => ({ id: c.dataset.hero, shut: c.classList.contains('shut'), h: c.querySelector('button').getBoundingClientRect().height, dis: c.querySelector('button').disabled })), panel: window.__b3d.ui().panelOpen }));
     if (!info.shown || info.cards.length !== 3 || !info.panel) bad('нет экрана выбора героя или игра не на паузе: ' + JSON.stringify(info));
     if (!info.cards.every(c => c.h >= 44)) bad('кнопки выбора героя меньше 44 px');
-    if (!info.cards.find(c => c.id === 'jay').dis || info.cards.find(c => c.id === 'vale').dis) bad('Сойка открыта или Вейл закрыт');
+    if (info.cards.some(c => c.dis)) bad('какой-то герой закрыт: ' + JSON.stringify(info.cards));
     await pg.screenshot({ path: join(out, '3d-desk-heroes.png') });
-    await pg.keyboard.press('Digit3'); await pg.waitForTimeout(150);
-    if (!(await pg.evaluate(() => !document.getElementById('heroPick').hidden))) bad('3 выбрала закрытую Сойку');
     await pg.keyboard.press('Digit2'); await pg.waitForTimeout(300);
     const r = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, hidden: document.getElementById('heroPick').hidden, panel: window.__b3d.ui().panelOpen, hp: window.__b3d.W.player.maxhp }));
     if (r.hero !== 'vale' || !r.hidden || r.panel) bad('2 не выбрала Вейла: ' + JSON.stringify(r));
@@ -174,6 +172,21 @@ try {
     const r2 = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, shown: !document.getElementById('heroPick').hidden }));
     if (r2.hero !== 'vale' || r2.shown) bad('после перезагрузки герой не Вейл или снова выбор: ' + JSON.stringify(r2));
     await c2.close(); }
+  // Сойка: 3 — выбрать, в руке ржавый лук; выстрел по врагу — своя стрела летит и попадает
+  { const c4 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c4.newPage(); pg.setDefaultTimeout(8000);
+    pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
+    await pg.goto(url + '?shot'); await pg.waitForTimeout(1200);
+    await pg.keyboard.press('Digit3'); await pg.waitForTimeout(300);
+    const j = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, w: window.__b3d.W.inv.eq.weapon }));
+    if (j.hero !== 'jay' || j.w !== 'w_bow_rust') bad('Сойка не выбрана или без лука: ' + JSON.stringify(j));
+    const hp = await pg.evaluate(() => { const b = window.__b3d, W = b.W, p = W.player; p.inv = 1e9; p.x = 0; p.z = 4; p.face = 0; W.enemies.forEach(e => { e.dead = true; }); const e = b.spawn('brute', 0, 13); e.hp = e.maxhp = 5000; e.cd = 99; return e.hp; });
+    await pg.mouse.click(720, 450); await pg.waitForTimeout(200);
+    const fly = await pg.evaluate(() => window.__b3d.W.proj.some(q => q.friendly));
+    await pg.screenshot({ path: join(out, '3d-desk-jay-shot.png') });
+    await pg.waitForTimeout(900);
+    const hit = await pg.evaluate(() => window.__b3d.W.enemies.some(e => !e.dead && e.maxhp === 5000 && e.hp < 5000));
+    if (!fly || !hit) bad(`стрела Сойки не вылетела (${fly}) или не попала (${hit})`);
+    await c4.close(); }
   // на телефоне карточки идут столбиком и прокручиваются; кнопка Вейла достижима и выбирает его
   { const c3 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c3.newPage(); pg.setDefaultTimeout(8000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));

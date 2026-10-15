@@ -1,5 +1,6 @@
 // Герои: кто чем бьётся и как выглядит. Множители силы (здоровье, скорость) — в config3d.js → heroes.
-// kinds — разрешённые виды оружия (WTYPES из items.js); кулаки разрешены всем. open: false — карточка видна, но выбрать нельзя.
+// kinds — разрешённые виды оружия (WTYPES и RTYPES из items.js); кулаки разрешены всем; start — оружие в руке при новой игре.
+// open: false — карточка видна, но выбрать нельзя (soon — почему).
 export const HEROES = {
   thorn: {
     name: 'Торн', role: 'Тяжёлый мечник',
@@ -18,9 +19,9 @@ export const HEROES = {
   jay: {
     name: 'Сойка', role: 'Лучница-разведчица',
     text: 'Бьёт издалека и не подпускает. Луки и арбалеты.',
-    kinds: [],
+    kinds: ['bow', 'longbow', 'crossbow'], start: 'w_bow_rust',
     look: { cloth: '#4a5a3a', cape: '#3a4a2a', hair: '#5a3a22', legs: '#3a3428', shoulder: false, hood: true, quiver: true, capeLen: .8 },
-    open: false, soon: 'Откроется со следующим шагом: луки и арбалеты.'
+    open: true
   }
 };
 export const HERO_IDS = Object.keys(HEROES);
