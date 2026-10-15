@@ -200,3 +200,4 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 #bagEq .slot{aspect-ratio:1;min-height:44px;padding:2px;justify-content:center}
 #bagEq .slot .stx{display:none}#bagEq .slot .ic{width:78%;height:78%}
 [data-desk] #bagEq .slot{aspect-ratio:auto;padding:4px 6px;justify-content:flex-start}[data-desk] #bagEq .slot .stx{display:flex}[data-desk] #bagEq .slot .ic{width:34px;height:34px}
+.num.alarm{color:#ff4a3a;font-size:30px;font-weight:900}.num.lost{color:#c8c0b0;font-size:24px}

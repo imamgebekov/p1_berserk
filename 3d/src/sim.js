@@ -81,12 +81,51 @@ function makeWorld(cfg, rng) {
 }
 
 
-export function spawnEnemy(W, type, x, z) {
+export function spawnEnemy(W, type, x, z, mode = null) {
   const C = W.cfg.enemies[type], E = W.cfg.enemies, depth = depthAt(W, x, z), pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * (1 + E.dangerHp * danger) * W.dif.hp);
   const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * W.dif.dmg * (W.night ? W.cfg.daynight.night.dmg : 1), danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
   rollElite(W, e, depth, danger);
+  if (mode === 'guard' || mode === 'patrol') postEnemy(W, e, mode);
   W.enemies.push(e);
   return e;
+}
+// сторож стоит у поста и смотрит по сторонам; патрульный ходит по маршруту из точек вокруг места появления
+// сторож и патрульный замечают героя: глазами (конус, без стены на линии, тот же дом) или ушами — только шум боя
+function spotted(W, e, d, dx, dz, H) {
+  const P = W.cfg.enemies.posts, p = W.player;
+  const fight = p.state === 'atk' || p.state === 'roll' || p.state === 'charge';
+  if (fight && d < H.fight * P.fightHear * W.dif.hear) return true;
+  return d < P.range && Math.abs(angDiff(Math.atan2(dx, dz), e.face)) < P.angle * DEG / 2 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z);
+}
+// заметил — кричит: встают все рядом (и сторожа, и бродячие)
+function raiseAlarm(W, e) {
+  e.alert = true; W.ev.push({ k: 'spot', x: e.x, z: e.z, id: e.id });
+  const R = W.cfg.enemies.posts.alarm;
+  for (const o of W.enemies) if (o !== e && !o.dead && !o.alert && !o.boss && len(o.x - e.x, o.z - e.z) < R) o.alert = true;
+}
+// своими делами: сторож у поста озирается (вернётся, если ушёл), патрульный идёт к следующей точке маршрута
+function keepPost(W, e, C, spd, dt) {
+  const P = W.cfg.enemies.posts;
+  const go = (tx, tz, k) => { const gx = tx - e.x, gz = tz - e.z, gd = len(gx, gz); if (gd < .6) return true; e.face = Math.atan2(gx, gz); slide(W.map, e, gx / gd * spd * k * dt, gz / gd * spd * k * dt, C.radius); return false; };
+  if (e.mode === 'patrol') {
+    const q = e.route[e.ri], x0 = e.x, z0 = e.z;
+    if (go(q.x, q.z, P.patrolSpeed)) { e.ri = (e.ri + 1) % e.route.length; e.stuck = 0; return; }
+    e.stuck = len(e.x - x0, e.z - z0) < spd * P.patrolSpeed * dt * .3 ? (e.stuck || 0) + dt : 0;      // упёрся — через 3 с к следующей точке
+    if (e.stuck > 3) { e.ri = (e.ri + 1) % e.route.length; e.stuck = 0; }
+    return;
+  }
+  if (go(e.home.x, e.home.z, P.home)) e.face = e.look + Math.sin(W.t * P.look + e.id) * .9;
+}
+function postEnemy(W, e, mode) {
+  const P = W.cfg.enemies.posts;
+  e.mode = mode; e.home = { x: e.x, z: e.z }; e.face = rr(W, 0, TAU); e.look = e.face; e.ri = 0;
+  if (mode === 'patrol') {          // точки маршрута — свободные (не в доме и не в препятствии), иначе пропускаются
+    e.route = [{ x: e.x, z: e.z }];
+    for (let i = 1, tries = 0; i < P.patrolPts && tries < P.patrolPts * 6; tries++) {
+      const a = rr(W, 0, TAU), d = rr(W, P.patrolR * .5, P.patrolR), q = { x: e.x + Math.sin(a) * d, z: e.z + Math.cos(a) * d }, o = { ...q };
+      resolve(W.map, o, 1); if (len(o.x - q.x, o.z - q.z) < .01 && insideOf(W.map, q.x, q.z) < 0 && !lineBlocked(W.map, e.x, e.z, q.x, q.z)) { e.route.push(q); i++; }
+    }
+  }
 }
 
 function spawnRing(W) {
@@ -97,11 +136,12 @@ function spawnRing(W) {
   if (nearBuilding(W.map, x, z, 1.5)) return false;                 // не рождаем врагов в стенах
   if (W.map.camp && insideCamp(W.map.camp, x, z, -W.map.camp.spawnPad)) return false;   // и в лагере, и у самого частокола
   { const pl = placeAt(W.map, x, z); if (pl && pl.safe) return false; }   // и в безопасных местах
-  const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)];
-  const type = reg ? pickW2(reg.filter(a => a[2] !== 'night' || W.night), W.rng) : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';     // 'night' — только ночью
-  spawnEnemy(W, type, x, z);
+  const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)], posts = W.cfg.enemies.posts.modes;
+  const pick = reg ? pickEntry(reg.filter(a => (a[2] !== 'night' || W.night) && (!a[3] || posts)), W.rng) : null;      // 'night' — только ночью; сторожа и патрули — если включены
+  const type = pick ? pick[0] : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';
+  spawnEnemy(W, type, x, z, pick && pick[3] || null);
 }
-function pickW2(table, rng) { let t = 0; for (const a of table) t += a[1]; let r = rng() * t; for (const a of table) { r -= a[1]; if (r <= 0) return a[0]; } return table[0][0]; }
+function pickEntry(table, rng) { let t = 0; for (const a of table) t += a[1]; let r = rng() * t; for (const a of table) { r -= a[1]; if (r <= 0) return a; } return table[0]; }
 
 export function setDifficulty(W, id) {
   const lv = W.cfg.difficulty.levels[id]; if (!lv) return false;
@@ -382,7 +422,8 @@ function updateEnemies(W, dt) {
     if (isStunned(e)) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); continue; }        // оглушённый не двигается и не бьёт
     if (C.ai && (e.state === 'aim' || e.state === 'dash' || e.state === 'fuse')) { foeAI(W, e, C, d, dx, dz, dt, true); continue; }    // прицел, рывок, фитиль
     if (e.state === 'chase') {
-      turnTo(e, C, Math.atan2(dx, dz), dt);
+      const posted = e.mode === 'guard' || e.mode === 'patrol';      // сторож или патрульный: пока не заметил — своими делами
+      if (!posted || e.alert) turnTo(e, C, Math.atan2(dx, dz), dt);
       const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' || p.state === 'charge' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100) * (W.place && W.place.safe ? .5 : 1) * W.dif.hear;
       const pe = placeAt(W.map, e.x, e.z), deep = pe && pe.safe && len(e.x - pe.x, e.z - pe.z) < pe.r - 4;    // в глубине безопасного места враги теряют след и не слышат
       if (deep) e.alert = false;
@@ -391,8 +432,13 @@ function updateEnemies(W, dt) {
       const hops = roomHops(W.map, e.x, e.z, p.x, p.z);           // в подземелье слышно только через немного комнат
       const shut = hops > 0 && !!W.map.adj && !pathStep(W.map, e.x, e.z, p.x, p.z);   // запертая дверь глушит: к герою не пройти — не тревожится и не толпится у двери
       if (shut) e.alert = false;
-      if (!e.alert && !deep && !shut && !sheltered && hops <= W.cfg.dungeons.hearRooms && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
+      const wasAlert = e.alert;
+      if (posted && !e.alert && !deep && !shut && !sheltered && !p.dead && spotted(W, e, d, dx, dz, H)) raiseAlarm(W, e);
+      if (!e.alert && !posted && !deep && !shut && !sheltered && hops <= W.cfg.dungeons.hearRooms && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
       else if (e.alert && d > H.lose) e.alert = false;
+      if (posted && e.alert && len(e.x - e.home.x, e.z - e.home.z) > W.cfg.enemies.posts.leash) e.alert = false;       // далеко от поста — бросает погоню
+      if (posted && wasAlert && !e.alert) W.ev.push({ k: 'lost', x: e.x, z: e.z, id: e.id });
+      if (posted && !e.alert) { keepPost(W, e, C, spd, dt); continue; }
       if (C.ai && foeAI(W, e, C, d, dx, dz, dt, hops === 0 && insideOf(W.map, e.x, e.z) === W.inside)) continue;   // особое поведение: щит, фитиль, рывок, тень
       const al = pickAlly(W, e, d);                                     // союзник ближе героя: враг бьёт его
       if (al) {
@@ -403,7 +449,7 @@ function updateEnemies(W, dt) {
         continue;
       }
       e.tgt = 0;
-      if (!p.dead && !e.alert && d < H.lose && hops === 0 && !sheltered) {          // не услышал: бредёт к герою вполсилы (в подземелье — только в той же комнате)
+      if (!p.dead && !e.alert && d < H.lose && hops === 0 && !sheltered && !posted) {          // не услышал: бредёт к герою вполсилы (в подземелье — только в той же комнате)
         const gx = dx / d * spd * H.drift * dt, gz = dz / d * spd * H.drift * dt; slide(W.map, e, gx, gz, C.radius);
       }
       if (!p.dead && e.alert) {

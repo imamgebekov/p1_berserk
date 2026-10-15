@@ -86,6 +86,7 @@ const SFX = {
   shot: { gap: .1, f: () => { noise(.16, .08, 900, 2600, 'bandpass'); tone(520, .1, 'triangle', .03, 880); } },
   elite: { gap: 1.5, f: () => { tone(90, .5, 'sawtooth', .09, 50); tone(135, .5, 'square', .03, 75); } },
   travel: { gap: .5, f: () => { for (let i = 0; i < 3; i++) noise(.08, .07, 400, 150, 'lowpass', i * .13); tone(70, .45, 'sine', .07, 50, .05); } },
+  spot: { gap: .4, f: () => { tone(160, .22, 'sawtooth', .05, 260); noise(.15, .04, 900, 300); } },
   block: { gap: .08, f: () => { tone(1400, .08, 'square', .05, 900); noise(.08, .08, 3000, 1500, 'bandpass'); } },
   fuse: { gap: .3, f: () => { noise(1.1, .05, 2500, 4000, 'highpass'); tone(300, 1.1, 'square', .02, 900); } },
   blink: { gap: .3, f: () => { tone(900, .25, 'sine', .05, 200); noise(.2, .04, 1200, 400); } },

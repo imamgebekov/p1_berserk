@@ -142,11 +142,14 @@ export function roomHops(map, x0, z0, x1, z1) {
 }
 // стена подземелья или закрытая дверь на отрезке (шаг 0.25 м); на поверхности — нет
 export function lineBlocked(map, x0, z0, x1, z1) {
-  if (!map.blocks) return false;
   const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / .25)), inR = (w, x, z) => x > w.x0 && x < w.x1 && z > w.z0 && z < w.z1;
+  // дома на поверхности: только те, чью рамку задевает отрезок; стены и закрытая дверь
+  const bx0 = Math.min(x0, x1), bx1 = Math.max(x0, x1), bz0 = Math.min(z0, z1), bz1 = Math.max(z0, z1);
+  const houses = (map.buildings || []).filter(b => b.x1 > bx0 && b.x0 < bx1 && b.z1 > bz0 && b.z0 < bz1);
   for (let i = 1; i < n; i++) {
     const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n;
-    if (map.blocks.some(w => inR(w, x, z)) || (map.doors || []).some(d => d.open < .6 && inR(d.rect, x, z))) return true;
+    if ((map.blocks || []).some(w => inR(w, x, z)) || (map.doors || []).some(d => d.open < .6 && inR(d.rect, x, z))) return true;
+    for (const b of houses) if (b.walls.some(w => inR(w, x, z)) || (b.door.open < .6 && inR(b.door.rect, x, z))) return true;
   }
   return false;
 }

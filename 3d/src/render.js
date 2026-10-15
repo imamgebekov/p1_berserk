@@ -413,6 +413,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
+      else if (v.k === 'spot') hooks.onText && hooks.onText(v.x, 2.9, v.z, '!', 'alarm');
+      else if (v.k === 'lost') hooks.onText && hooks.onText(v.x, 2.9, v.z, '?', 'lost');
       else if (v.k === 'block') { const p0 = W.player; let dx = p0.x - v.x, dz = p0.z - v.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; fx.spray(v.x + dx * .6, 1.1, v.z + dz * .6, dx, dz, 8, '#ffe8b0', 6, .9, { life: .25, g: 8, s: .07 }); fx.flash(v.x + dx * .6, 1.1, v.z + dz * .6, 1.1, '#ffffff'); hooks.onText && hooks.onText(v.x, 2.2, v.z, 'щит', 'dodge'); }
       else if (v.k === 'blink') { fx.ash(v.x, .4, v.z, 10, ['#2a2a3a', '#4a4a60', '#101018']); fx.ash(v.x2, .4, v.z2, 10, ['#2a2a3a', '#4a4a60', '#c0d0ff']); }
       else if (v.k === 'lunge') burst(v.x, .3, v.z, 6, '#6a5a4a', 3);

@@ -241,10 +241,10 @@ export const CFG3 = {
     shade: { name: 'Тень', g: 'f', ai: 'blink', xp: 26, hp: 110, speed: 3.6, damage: 24, range: 1.5, wind: .75, recover: .8, radius: .45, scale: 1.05, blink: { min: 5, max: 12, cd: 5, behind: 1.7, extra: .3 }, immune: ['bleed', 'poison'] },
     // кто водится в области (по ближайшей зоне карты); третий элемент 'night' — только ночью; остальное — бесы и рогачи по brutePart
     regions: {
-      graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1], ['witch', 1], ['lunger', 2], ['shade', 3, 'night']],
-      ruins: [['hound', 4], ['brute', 3], ['imp', 2], ['witch', 2], ['bomber', 2]],
-      camp: [['hound', 3], ['brute', 4], ['imp', 2], ['archer', 4], ['shield', 3]],
-      farm: [['hound', 3], ['imp', 4], ['ghoul', 1], ['archer', 2], ['bomber', 1]]
+      graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1], ['witch', 1], ['lunger', 2], ['shade', 3, 'night'], ['ghoul', 3, null, 'patrol'], ['lunger', 1, null, 'guard']],
+      ruins: [['hound', 4], ['brute', 3], ['imp', 2], ['witch', 2], ['bomber', 2], ['brute', 2, null, 'guard'], ['witch', 1, null, 'guard']],
+      camp: [['hound', 3], ['brute', 4], ['imp', 2], ['archer', 4], ['shield', 3], ['archer', 3, null, 'guard'], ['shield', 2, null, 'patrol'], ['brute', 2, null, 'patrol']],
+      farm: [['hound', 3], ['imp', 4], ['ghoul', 1], ['archer', 2], ['bomber', 1], ['imp', 2, null, 'patrol']]
     },
     depthHp: 1.6,          // враги вдали от костра крепче: здоровье × (1 + depthHp × глубина), глубина 0 у костра, 1 у границы
     depthDmg: 1.0,         // и бьют сильнее: урон × (1 + depthDmg × глубина)
@@ -258,7 +258,11 @@ export const CFG3 = {
     lord:     { boss: true, name: 'Слуга Затмения',     xp: 1000, hp: 8500, speed: 4.4, damage: 52, range: 2.8, wind: .6, recover: .8, radius: 1.2, scale: 2.1, heavy: true, immune: ['stun', 'freeze'], on: ['burn', .6, 4, 4] },
     chief:    { boss: true, name: 'Вожак Ржавых',       xp: 1400, hp: 11500, speed: 3.2, damage: 62, range: 3.4, wind: .7, recover: .9, radius: 1.7, scale: 2.7, heavy: true, immune: ['stun'], on: ['bleed', .8, 4, 5] },
     // слух: чем громче герой, тем дальше его слышат. Услышавший идёт к герою, пока тот не уйдёт дальше `lose`
-    hear: { idle: 10, run: 17, fight: 25, house: .55, lose: 32, drift: .3 },   // drift: доля скорости, с которой «бредёт» неуслышавший
+    hear: { idle: 10, run: 17, fight: 25, house: .55, lose: 32, drift: .3 },
+    // сторожа и патрули (четвёртый элемент в таблице области: 'guard' — стоит у поста, 'patrol' — ходит по маршруту; без него — бродит, как раньше).
+    // Видят конусом (angle, град; range, м; стена закрывает обзор), слышат только бой (fightHear — доля слуха боя); заметив — кричат: встают соседи в alarm м.
+    // Отходят от поста не дальше leash м; потеряв героя — возвращаются. modes: false — все бродят (для сравнения боя с прошлыми версиями)
+    posts: { modes: true, angle: 120, range: 15, fightHear: .7, alarm: 11, leash: 28, look: .8, patrolPts: 3, patrolR: 9, patrolSpeed: .4, home: .55 },   // drift: доля скорости, с которой «бредёт» неуслышавший
     knockDecay: 9
   },
 

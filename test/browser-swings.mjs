@@ -79,6 +79,18 @@ try {
   await page.screenshot({ path: join(out, '3d-beasts.png'), clip: { x: 0, y: 100, width: 390, height: 460 } });
   if (beasts !== 'bomber,lunger,shade,shield') bad('новые враги не появились: ' + beasts);
   await page.evaluate(() => { const W = window.__b3d.W; W.freeze = 0; W.haz.length = 0; });
+  // сторож заметил героя: «!» над ним
+  const spot = await page.evaluate(async () => {
+    const b = window.__b3d, W = b.W, p = W.player; W.enemies.forEach(e => { if (!e.boss) e.dead = true; });
+    p.x = 62; p.z = -2; W.player.inv = 99;                       // за частоколом: в безопасном месте враги героя не замечают
+    await new Promise(r => setTimeout(r, 1500));                 // камера доезжает до героя (подписи за кадром не рисуются)
+    const { spawnEnemy } = await import('/3d/src/sim.js');
+    const e = spawnEnemy(W, 'brute', p.x + 2, p.z + 6, 'guard'); e.look = e.face = Math.atan2(p.x - e.x, p.z - e.z); e.cd = 99;
+    await new Promise(r => setTimeout(r, 350));
+    return { alert: e.alert, marks: [...document.querySelectorAll('#dmg .num.alarm')].length };
+  });
+  await page.screenshot({ path: join(out, '3d-spot.png'), clip: { x: 0, y: 100, width: 390, height: 460 } });
+  if (!spot.alert || !spot.marks) bad('сторож не заметил героя или нет «!»: ' + JSON.stringify(spot));
   await ctx.close();
   for (const l of logs) bad(l);
 } finally { await browser.close(); await dev.close(); }
