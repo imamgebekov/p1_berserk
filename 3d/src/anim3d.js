@@ -60,9 +60,11 @@ const easeOut = k => 1 - Math.pow(1 - k, 3);
 const easeInOut = k => (k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
 
 // поза в момент t (0–1 от длительности удара); hit — доля, когда удар наносит урон (контакт в середине размаха)
-export function swingPose(family, step, t, hit) {
+// wound — удар начинается из позы замаха (тяжёлый удар после заряда), без подъёма из стойки
+export function swingPose(family, step, t, hit, wound = false) {
   const K = (KEYS[family] || KEYS.slash)[step] || KEYS.slash.a, wind = K[0], strike = K[1];
   const tw = hit * .55, ts = Math.min(.92, hit + (1 - hit) * .35);     // конец замаха и конец размаха
+  if (wound && t < tw) return { ...wind };
   if (t <= 0) return { ...REST };
   if (t < tw) return mix(REST, wind, easeInOut(t / tw));
   if (t < ts) return mix(wind, strike, easeOut((t - tw) / (ts - tw)));
@@ -72,6 +74,13 @@ export function swingPose(family, step, t, hit) {
     return r;
   }
   return { ...REST };
+}
+
+// заряд тяжёлого удара: из стойки в позу завершающего замаха за .15 с; при полном заряде оружие дрожит
+export function chargePose(family, chargeT, full, time) {
+  const wind = (KEYS[family] || KEYS.slash).fin[0], q = mix(REST, wind, easeInOut(Math.min(1, chargeT / .15))), k = Math.min(1, chargeT / full);
+  q.yaw += Math.sin(time * 55) * .04 * k * k; q.pitch += Math.sin(time * 47) * .03 * k * k;
+  return q;
 }
 
 // след за клинком: видно ли его в этот момент (только во время размаха)

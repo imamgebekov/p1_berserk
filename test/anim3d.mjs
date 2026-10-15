@@ -2,7 +2,7 @@
 // начинаются и кончаются в стойке, прямой и обратный замахи идут в разные стороны, завершающий отличается, полный оборот не раскручивается назад.
 import { CFG3 } from '../3d/src/config3d.js';
 import { TRAITS } from '../3d/src/data/weapons3d.js';
-import { FAMILY, KEYS, REST, familyOf, stepOf, swingPose, trailOn } from '../3d/src/anim3d.js';
+import { FAMILY, KEYS, REST, familyOf, stepOf, swingPose, chargePose, trailOn } from '../3d/src/anim3d.js';
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
@@ -46,6 +46,15 @@ for (const fam of ['spin', 'flail']) {
 ok(KEYS.thrust.a[1].reach > .4 && KEYS.thrust.fin[1].reach > KEYS.thrust.a[1].reach, 'колющий выпад не выносит руку');
 ok(KEYS.smash.a[0].pitch < 0 && KEYS.smash.a[1].pitch > 1.7, 'дробящий: не замах из-за головы к земле');
 ok(KEYS.smash.fin[0].lift > .2, 'дробящий завершающий: нет прыжка');
+// заряд: поднимается в позу завершающего замаха, при полном дрожит; тяжёлый удар стартует из неё без рывка
+for (const fam of Object.keys(KEYS)) {
+  const wind = KEYS[fam].fin[0], q0 = chargePose(fam, 0, .9, 0), q1 = chargePose(fam, .5, .9, 0);
+  ok(near(q0, REST, 1e-9), `${fam}: заряд не начинается из стойки`);
+  ok(Math.abs(q1.lift - wind.lift) < 1e-9 && Math.abs(q1.lean - wind.lean) < 1e-9, `${fam}: заряд не приходит в позу замаха`);
+  const a = chargePose(fam, 2, .9, .1), b = chargePose(fam, 2, .9, .13);
+  ok(Math.abs(a.yaw - b.yaw) > 1e-4, `${fam}: полный заряд не дрожит`);
+  ok(near(swingPose(fam, 'fin', .01, hit, true), wind, 1e-9), `${fam}: тяжёлый удар стартует не из позы замаха`);
+}
 // след виден только в размахе
 ok(!trailOn(.02, hit) && trailOn(hit, hit) && !trailOn(.99, hit), 'след виден не только в размахе');
 

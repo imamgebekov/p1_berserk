@@ -110,6 +110,15 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts; fx.clear();
   }
   const hero = makeHero(); scene.add(hero.group);
+  // кольцо заряда тяжёлого удара под героем: растёт с зарядом, при полном — оранжевое и пульсирует
+  const chargeRing = new THREE.Mesh(new THREE.RingGeometry(.82, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffd9c0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  chargeRing.visible = false; scene.add(chargeRing);
+  function updateCharge(p, t) {
+    const on = p.state === 'charge'; chargeRing.visible = on; if (!on) return;
+    const H = cfg.player.heavy, k = Math.min(1, p.chargeT / H.full), full = k >= 1;
+    chargeRing.position.set(p.x, .06, p.z); chargeRing.scale.setScalar(.6 + 1.4 * k + (full ? Math.sin(t * 18) * .08 : 0));
+    chargeRing.material.color.set(full ? '#ff8a30' : '#ffd9c0'); chargeRing.material.opacity = .35 + .45 * k;
+  }
   // след клинка: лента между началом и концом рабочей части оружия за последние кадры (светится и гаснет)
   const TRAIL_N = 14, TRAIL_LIFE = .16, trailPos = new Float32Array(TRAIL_N * 6), trailCol = new Float32Array(TRAIL_N * 6), trailIdx = [];
   for (let i = 0; i < TRAIL_N - 1; i++) trailIdx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
@@ -120,14 +129,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function updateTrail(W, p, dt) {
     for (const s of trailS) s.age += dt;
     while (trailS.length && trailS[0].age > TRAIL_LIFE) trailS.shift();
-    const w = hero.weapon, P = cfg.player, sw = W.gear.swing || 1;
+    const w = hero.weapon, P = cfg.player, sw = p.swingMul || W.gear.swing || 1;
     if (w && p.state === 'atk' && trailOn(p.atkT / (P.attackTime * sw), P.attackHitAt / P.attackTime)) {
       hero.group.updateMatrixWorld(true);
       trailS.push({ a: w.base.getWorldPosition(new THREE.Vector3()), b: w.tip.getWorldPosition(new THREE.Vector3()), age: 0 });
       if (trailS.length > TRAIL_N) trailS.shift();
     }
     trail.visible = trailS.length > 1; if (!trail.visible) return;
-    const perk = (W.wp.perks || []).find(k => PERK_TRAIL[k]), str = p.fin ? .8 : .5;
+    const perk = (W.wp.perks || []).find(k => PERK_TRAIL[k]), str = p.heavy ? .6 + .5 * p.heavy : p.fin ? .8 : .5;
     trailC.set(perk ? PERK_TRAIL[perk] : '#fff1dc');
     for (let i = 0; i < TRAIL_N; i++) {
       const s = trailS[Math.min(i, trailS.length - 1)], f = Math.max(0, 1 - s.age / TRAIL_LIFE) * str * (i < trailS.length ? 1 : 0);
@@ -313,7 +322,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     hero.group.position.set(p.x, 0, p.z); hero.group.rotation.y = p.face;
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); }
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
-    animateHero(hero, p, t, dt, cfg, W.gear.swing || 1);
+    animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
+    updateCharge(p, t);
     updateTrail(W, p, dt);
     heroShadow.position.set(p.x, .03, p.z);
     // дуга удара
@@ -368,6 +378,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
+      else if (v.k === 'chargeFull') fx.flash(v.x, 1.6, v.z, 1.4, '#ff8a30');
+      else if (v.k === 'heavy') { ringFx(v.x + Math.sin(v.face) * 1.6, v.z + Math.cos(v.face) * 1.6, 2.5 + 1.5 * v.power, '#ff9a50'); }
       else if (v.k === 'finisher') { ringFx(v.x, v.z, 3, '#ffd9c0'); burst(v.x, .6, v.z, 10, '#ffd9c0', 5); fx.flash(v.x + Math.sin(v.face) * 1.5, .8, v.z + Math.cos(v.face) * 1.5, 2.2, '#ffd9c0'); }
       else if (v.k === 'pstatus') burst(v.x, 1.2, v.z, 8, v.kind === 'poison' ? '#7ad060' : v.kind === 'burn' ? '#ff8a30' : '#d03030', 2);
       else if (v.k === 'pdot') hooks.onText && hooks.onText(v.x, 2.6, v.z, '−' + v.dmg, 'hurt')

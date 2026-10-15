@@ -1,7 +1,7 @@
 // Модели из кубиков (никаких внешних файлов): герой, бес, рогач, дерево, камень, костёр.
 import * as THREE from 'three';
 import { makeWeapon } from './weaponview.js';
-import { familyOf, stepOf, swingPose, REST } from './anim3d.js';
+import { familyOf, stepOf, swingPose, chargePose, REST } from './anim3d.js';
 
 const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
 const basic = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, ...extra });
@@ -66,7 +66,9 @@ export function animateHero(h, p, time, dt, cfg, swingMul = 1) {
   h.root.position.y = bob; h.root.rotation.x = 0; h.root.scale.set(1, 1, 1);
   h.cloak.rotation.x = .12 + run * .5 + Math.sin(time * 3) * .05;
   // оружие: поза удара по семейству движений и шагу цепочки (прямой, обратный, завершающий); swingMul — скорость удара от вещей
-  const q = atk ? swingPose(h.family, stepOf(p.chain, p.fin), p.atkT / (cfg.player.attackTime * swingMul), cfg.player.attackHitAt / cfg.player.attackTime) : REST;
+  const hit = cfg.player.attackHitAt / cfg.player.attackTime;
+  const q = atk ? swingPose(h.family, p.heavy ? 'fin' : stepOf(p.chain, p.fin), p.atkT / (cfg.player.attackTime * swingMul), hit, p.heavy > 0)
+    : p.state === 'charge' ? chargePose(h.family, p.chargeT, cfg.player.heavy.full, time) : REST;
   h.swing.rotation.y = q.yaw; h.sword.rotation.x = q.pitch; h.sword.rotation.z = q.tilt; h.sword.position.z = .12 + q.reach;
   h.root.rotation.y = q.twist; h.root.rotation.x = q.lean; h.root.position.y += q.lift;
   if (roll) {

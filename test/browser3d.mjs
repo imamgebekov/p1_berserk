@@ -177,11 +177,21 @@ try {
   await page.tap('#bagCard .acts .main'); await page.tap('#bagClose'); await page.waitForTimeout(150);
   await page.evaluate(() => { const w = window.__b3d.W, p = w.player; p.face = Math.PI / 2; w.cfg.player.autoAim = 5.5; const e = window.__b3d.spawn('brute', p.x + 1.6, p.z); e.hp = e.maxhp = 5000; e.alert = true; e.state = 'rec'; e.t = -1e9; w.__foe = e; });
   { const b = await (await page.$('#bAtk')).boundingBox(); const cdp2 = await ctx.newCDPSession(page);
-    await cdp2.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + 20, y: b.y + 20, id: 2 }] }); await page.waitForTimeout(2200);
-    await page.screenshot({ path: join(out, '3d-combo.png') });
-    await cdp2.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); }
+    // серия — быстрыми касаниями (удержание теперь заряжает тяжёлый удар)
+    for (let i = 0; i < 8; i++) { await cdp2.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + 20, y: b.y + 20, id: 2 }] }); await page.waitForTimeout(70); await cdp2.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(200); }
+    await page.screenshot({ path: join(out, '3d-combo.png') }); }
   { const r = await page.evaluate(() => ({ n: window.__b3d.W.combo.n, st: Object.keys(window.__b3d.W.__foe.st || {}), shown: !document.getElementById('combo').hidden }));
-    if (r.n < 3 || !r.shown) bad('счётчик комбо не растёт или не виден: ' + JSON.stringify(r)); if (!r.st.includes('burn') && !(await page.evaluate(() => window.__b3d.W.__foe.hp < 5000))) bad('меч с огнём не бьёт: ' + JSON.stringify(r)); }
+    if (r.n < 3 || !r.shown) bad('счётчик комбо не растёт или не виден: ' + JSON.stringify(r));
+    // удержание: заряд (кольцо под героем), отпускание — тяжёлый удар
+    { const b = await (await page.$('#bAtk')).boundingBox(); const cdp3 = await ctx.newCDPSession(page);
+      const hp0 = await page.evaluate(() => window.__b3d.W.__foe.hp);
+      await cdp3.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + 20, y: b.y + 20, id: 3 }] }); await page.waitForTimeout(1500);
+      const st = await page.evaluate(() => window.__b3d.W.player.state); await page.screenshot({ path: join(out, '3d-charge.png') });
+      await cdp3.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(150);
+      const hv = await page.evaluate(() => window.__b3d.W.player.heavy); await page.waitForTimeout(700);
+      const hp1 = await page.evaluate(() => window.__b3d.W.__foe.hp);
+      if (st !== 'charge') bad('удержание кнопки «Удар» не заряжает: ' + st);
+      if (!(hv > .9) || !(hp1 < hp0)) bad(`отпускание после заряда не дало тяжёлый удар: heavy=${hv}, ${hp0} → ${hp1}`); } if (!r.st.includes('burn') && !(await page.evaluate(() => window.__b3d.W.__foe.hp < 5000))) bad('меч с огнём не бьёт: ' + JSON.stringify(r)); }
   await page.evaluate(() => { const w = window.__b3d.W; w.inv.eq.weapon = null; w.enemies.length = 0; w.cfg.player.autoAim = 0; });
   // босс: полоса здоровья, предупреждение, подпись
   await page.evaluate(() => { const w = window.__b3d.W; w.enemies = w.enemies.filter(x => !x.boss); const e = window.__b3d.spawnBoss('devourer'); w.cfg.player.hp = 5000; w.player.hp = w.player.maxhp = 5000; w.player.inv = 0; w.player.x = e.x + 8; w.player.z = e.z; w.player.face = -Math.PI / 2; });

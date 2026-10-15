@@ -74,7 +74,7 @@ function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
     cfg, rng, map: makeMap(cfg), inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
-    player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0 },
+    player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
 }
@@ -193,17 +193,19 @@ function dropLoot(W, e) {
   }
 }
 
-function attackStart(W) {
-  const p = W.player, P = W.cfg.player;
+function attackStart(W, heavy = 0) {
+  const p = W.player, P = W.cfg.player, H = P.heavy;
   // автоприцел: ближайший враг в радиусе autoAim
   let best = null, bd = P.autoAim;
   for (const e of W.enemies) { if (e.dead) continue; const d = len(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; best = e; } }
   if (best) p.face = Math.atan2(best.x - p.x, best.z - p.z);
   // цепочка: удары в пределах 0,9 с друг от друга; каждый третий — завершающий. Удар сразу после переката — рывок-удар
-  p.chain = W.t - p.lastAtkEnd < .9 ? p.chain + 1 : 1; p.fin = p.chain % 3 === 0;
+  // тяжёлый удар (heavy — доля заряда 0–1) цепочку не продолжает и сбрасывает
+  if (heavy) { p.chain = 0; p.fin = false; } else { p.chain = W.t - p.lastAtkEnd < .9 ? p.chain + 1 : 1; p.fin = p.chain % 3 === 0; }
   p.rollAtk = W.t - p.lastRollEnd < .5;
-  p.state = 'atk'; p.atkT = 0; p.atkHit = false;
-  const lunge = P.attackLunge * (p.rollAtk ? 1.4 : 1) * (p.fin ? 1.2 : 1);
+  p.state = 'atk'; p.atkT = 0; p.atkHit = false; p.heavy = heavy; p.swingMul = W.gear.swing * (heavy ? H.swing : 1);
+  const lunge = P.attackLunge * (p.rollAtk ? 1.4 : 1) * (p.fin ? 1.2 : 1) * (heavy ? H.lunge : 1);
+  if (heavy) W.ev.push({ k: 'heavy', x: p.x, z: p.z, face: p.face, power: heavy });
   p.vx += Math.sin(p.face) * lunge; p.vz += Math.cos(p.face) * lunge;
   W.ev.push({ k: 'swing', x: p.x, z: p.z, face: p.face, fin: p.fin });
 }
@@ -248,8 +250,8 @@ function weaponStatuses(W, e, dmg, crit, p) {
 }
 
 function attackHit(W, mult = 1, echo = false) {
-  const p = W.player, P = W.cfg.player, wp = W.wp, tr = wp.trait, pm = wp.pm;
-  const half = ((tr.arc || P.attackArc) + W.gear.arc) * DEG / 2, reach = P.attackRange + W.gear.reach;
+  const p = W.player, P = W.cfg.player, wp = W.wp, tr = wp.trait, pm = wp.pm, H = P.heavy, hk = echo ? 0 : p.heavy || 0;
+  const half = ((tr.arc || P.attackArc) + W.gear.arc + H.arc * hk) * DEG / 2, reach = P.attackRange + W.gear.reach + H.reach * hk;
   const cb = 1 + Math.min(.3, W.combo.n * .02);                       // комбо: +2% урона за каждое попадание в серии, до +30%
   let hits = 0;
   for (const e of W.enemies.slice()) {
@@ -260,6 +262,7 @@ function attackHit(W, mult = 1, echo = false) {
     let m = mult * cb;
     if (p.fin && !echo) m *= tr.finisherMul || 1.5;
     if (p.rollAtk && !echo) m *= 1.4;
+    if (hk) m *= 1 + (H.mul - 1) * hk;
     if (p.riposteT > 0 && tr.riposte) m *= tr.riposte;
     if (W.setFx.rage && p.hp < p.maxhp * .4) m *= 1 + W.setFx.rage;
     if (tr.backstab && (!e.alert || Math.abs(angDiff(e.face, Math.atan2(-dx, -dz))) > 1.9)) m *= tr.backstab;
@@ -269,7 +272,8 @@ function attackHit(W, mult = 1, echo = false) {
     const crit = W.rng() < .12 + W.gear.crit / 100;
     if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
     const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null;
-    strike(W, e, dmg, { crit, dx, dz, d, knock: (tr.knock || 1) * (p.fin && !echo ? 1.6 : 1), fx, fin: p.fin && !echo });
+    strike(W, e, dmg, { crit, dx, dz, d, knock: (tr.knock || 1) * (p.fin && !echo ? 1.6 : 1) * (hk ? 1 + (H.knock - 1) * hk : 1), fx, fin: (p.fin && !echo) || hk > 0 });
+    if (hk && !e.dead) applyStatus(W, e, 'stun', 0, H.stun * hk);
     hits++;
     weaponStatuses(W, e, dmg, crit, p);
     if (crit && W.setFx.ignite && !e.dead && W.rng() < W.setFx.ignite) applyStatus(W, e, 'burn', 4, 4);
@@ -279,7 +283,7 @@ function attackHit(W, mult = 1, echo = false) {
   if (hits) {
     W.combo.n = Math.min(99, W.combo.n + hits); W.combo.t = 2.2;
     if (!echo) {
-      W.freeze = W.cfg.fx.hitStop; W.shake = Math.max(W.shake, W.cfg.fx.shake * (p.fin ? 1.8 : 1));
+      W.freeze = W.cfg.fx.hitStop * (hk ? 1.6 : 1); W.shake = Math.max(W.shake, W.cfg.fx.shake * (p.fin ? 1.8 : 1) * (hk ? 1 + hk : 1));
       if (p.fin) W.ev.push({ k: 'finisher', x: p.x, z: p.z, face: p.face });
       if (tr.double) W.echoQ.push({ t: .22, mult: tr.double });
       if (pm.echo && W.rng() < pm.echo) W.echoQ.push({ t: .2, mult: .7 });
@@ -301,6 +305,12 @@ function updatePlayer(W, dt, input) {
   if (ml > 1) { mx /= ml; mz /= ml; }
   const moving = ml > .08;
 
+  // нажатие удара: attackPress — запомненное вводом (короткое касание между кадрами не теряется), attack — кнопка сейчас нажата.
+  // Нажатие во время переката ждёт его конца: удар в рывке (rollAtk); нажатие до переката гаснет как обычно
+  const H = P.heavy, held = !!input.attack, pressed = !!input.attackPress || (held && !p.atkHeld);
+  p.atkHeld = held;
+  if (pressed) { p.holdT = 0; p.atkBuf = H.buffer; } else if (held) p.holdT += dt;
+
   // перекат
   if (input.roll && p.state !== 'roll' && p.rollCd <= 0) {
     const dl = moving ? ml : 0;
@@ -311,19 +321,34 @@ function updatePlayer(W, dt, input) {
     if (W.setFx.rollBlast) { W.ev.push({ k: 'boom', x: p.x, z: p.z, r: 3 }); for (const o of W.enemies) if (!o.dead && len(o.x - p.x, o.z - p.z) < 3) dealDamage(W, o, W.setFx.rollBlast, 'storm'); }
   }
   if (p.state === 'roll') {
+    if (pressed) p.rollPress = true;
+    if (p.atkBuf > 0) p.atkBuf -= dt;
     p.rollT += dt;
     const k = 1.25 - .75 * (p.rollT / P.rollTime);
     p.vx = p.rollDirX * P.rollSpeed * k; p.vz = p.rollDirZ * P.rollSpeed * k;
-    if (p.rollT >= P.rollTime) { p.state = 'idle'; p.lastRollEnd = W.t; }
+    if (p.rollT >= P.rollTime) { p.state = 'idle'; p.lastRollEnd = W.t; if (p.rollPress) { p.rollPress = false; p.atkBuf = H.buffer; } }
   } else {
-    if (input.attack && p.state !== 'atk') attackStart(W);
+    // удар: нажатие — обычный (запоминается на buffer, если нажато во время удара: быстрые нажатия дают серию без пауз);
+    // удержание дольше hold — после удара заряд; отпустил — тяжёлый удар (если зарядил хотя бы min)
+    if (held && p.holdT >= H.hold && p.state !== 'atk' && p.state !== 'charge') { p.state = 'charge'; p.chargeT = 0; p.atkBuf = 0; W.ev.push({ k: 'charge', x: p.x, z: p.z }); }
+    if (p.state === 'charge') {
+      if (held) { const was = p.chargeT; p.chargeT += dt; if (was < H.full && p.chargeT >= H.full) W.ev.push({ k: 'chargeFull', x: p.x, z: p.z }); }
+      else if (p.chargeT >= H.min) attackStart(W, Math.min(1, p.chargeT / H.full));
+      else p.state = 'idle';
+    }
+    if (p.atkBuf > 0 && p.state !== 'atk' && p.state !== 'charge') {
+      // запомненное нажатие бьёт, только если враг ещё рядом (иначе удар в пустоту после того, как враг отошёл); свежее — всегда
+      p.atkBuf = 0;
+      if (pressed || W.enemies.some(e => !e.dead && len(e.x - p.x, e.z - p.z) < P.attackRange + W.gear.reach + H.bufReach)) attackStart(W);
+    }
+    if (p.atkBuf > 0) p.atkBuf -= dt;
     if (p.state === 'atk') {
       p.atkT += dt;
-      if (!p.atkHit && p.atkT >= P.attackHitAt * W.gear.swing) { p.atkHit = true; attackHit(W); }
-      if (p.atkT >= P.attackTime * W.gear.swing) { p.state = 'idle'; p.lastAtkEnd = W.t; }
+      if (!p.atkHit && p.atkT >= P.attackHitAt * p.swingMul) { p.atkHit = true; attackHit(W); }
+      if (p.atkT >= P.attackTime * p.swingMul) { p.state = 'idle'; p.lastAtkEnd = W.t; p.heavy = 0; }
     }
     // бег с разгоном; при ударе медленнее
-    const sp = P.speed * (1 + clamp(W.gear.spd, -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : 1);
+    const sp = P.speed * (1 + clamp(W.gear.spd, -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1);
     const tx = moving ? mx * sp : 0, tz = moving ? mz * sp : 0;
     const a = P.accel * dt;
     const dvx = tx - p.vx, dvz = tz - p.vz, dl = len(dvx, dvz);
@@ -353,7 +378,7 @@ function updateEnemies(W, dt) {
     if (isStunned(e)) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); continue; }        // оглушённый не двигается и не бьёт
     if (e.state === 'chase') {
       e.face = Math.atan2(dx, dz);
-      const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100) * (W.place && W.place.safe ? .5 : 1) * W.dif.hear;
+      const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' || p.state === 'charge' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100) * (W.place && W.place.safe ? .5 : 1) * W.dif.hear;
       const pe = placeAt(W.map, e.x, e.z), deep = pe && pe.safe && len(e.x - pe.x, e.z - pe.z) < pe.r - 4;    // в глубине безопасного места враги теряют след и не слышат
       if (deep) e.alert = false;
       const hops = roomHops(W.map, e.x, e.z, p.x, p.z);           // в подземелье слышно только через немного комнат
@@ -544,7 +569,7 @@ export function step(W, dt, input = {}) {
 export function respawnPlayer(W) {
   const P = W.cfg.player, p = W.player;
   backToSurface(W);
-  Object.assign(p, { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0 });
+  Object.assign(p, { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0, atkBuf: 0, chargeT: 0, heavy: 0 });
   W.enemies = W.enemies.filter(e => e.boss && !e.dead); W.proj.length = 0; W.haz.length = 0; W.spawnT = 1.2; W.pst = {}; W.echoQ.length = 0; W.combo.n = 0;
 }
 

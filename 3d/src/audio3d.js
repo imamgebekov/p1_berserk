@@ -86,6 +86,9 @@ const SFX = {
   shot: { gap: .1, f: () => { noise(.16, .08, 900, 2600, 'bandpass'); tone(520, .1, 'triangle', .03, 880); } },
   elite: { gap: 1.5, f: () => { tone(90, .5, 'sawtooth', .09, 50); tone(135, .5, 'square', .03, 75); } },
   travel: { gap: .5, f: () => { for (let i = 0; i < 3; i++) noise(.08, .07, 400, 150, 'lowpass', i * .13); tone(70, .45, 'sine', .07, 50, .05); } },
+  charge: { gap: .3, f: () => { tone(110, .55, 'sawtooth', .035, 220); noise(.5, .03, 300, 900, 'bandpass'); } },
+  chargeFull: { gap: .3, f: () => { tone(660, .12, 'triangle', .06, 990); tone(990, .2, 'sine', .04, 1320, .06); } },
+  heavy: { gap: .15, f: () => { noise(.25, .14, 2200, 300); tone(70, .35, 'sine', .12, 40, .08); noise(.3, .1, 400, 120, 'lowpass', .08); } },
   step: { gap: .1, f: () => noise(.05, .035, 500 + Math.random() * 300, 200) }
 };
 export function sfx(name) {

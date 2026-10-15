@@ -42,10 +42,42 @@ const P = CFG3.player;
   // несколько врагов в дуге
   { const W = mk(); W.player.face = 0; const es = [spawnEnemy(W, 'imp', 0, 2), spawnEnemy(W, 'imp', 1, 2), spawnEnemy(W, 'imp', -1, 1.8)]; es.forEach(x => x.cd = 99);
     run(W, .3, { attack: true }); ok(es.every(x => x.hp < x.maxhp), 'удар задевает всех в дуге'); }
-  // удар не повторяется внутри одного замаха, цепочка при удержании
+  // удар не повторяется внутри одного замаха; серия — быстрыми нажатиями; удержание — заряд, отпускание — тяжёлый удар
   { const W = mk(); W.player.face = 0; const e = spawnEnemy(W, 'brute', 0, 2.2); e.cd = 99; e.hp = e.maxhp = 9999;
-    run(W, P.attackTime - .03, { attack: true }); const one = e.maxhp - e.hp; ok(W.ev.filter(v => v.k === 'hit').length === 1, 'один замах — один удар');
-    run(W, P.attackTime * 2, { attack: true }); ok(W.ev.filter(v => v.k === 'hit').length >= 3, 'удержание кнопки даёт серию ударов'); }
+    run(W, P.attackTime - .03, { attack: true }); ok(W.ev.filter(v => v.k === 'hit').length === 1, 'один замах — один удар');
+    run(W, .05, {}); W.ev.length = 0;
+    for (let i = 0; i < Math.round(P.attackTime * 3 * 60); i++) step(W, 1 / 60, { attack: i % 6 < 2 });
+    ok(W.ev.filter(v => v.k === 'hit').length >= 3, 'быстрые нажатия дают серию ударов'); }
+  { const W = mk(); W.player.face = 0; const e = spawnEnemy(W, 'brute', 0, 2.2); e.cd = 99; e.hp = e.maxhp = 9999; const H = P.heavy;
+    run(W, H.hold + P.attackTime + .1, { attack: true });
+    ok(W.player.state === 'charge', 'удержание после удара — заряд: ' + W.player.state);
+    const hits0 = W.ev.filter(v => v.k === 'hit').length; run(W, 2, { attack: true });
+    ok(W.ev.filter(v => v.k === 'hit').length === hits0 && W.player.state === 'charge', 'пока держишь — не бьёт');
+    ok(W.ev.some(v => v.k === 'chargeFull'), 'полный заряд отмечен');
+    const hp0 = e.hp; W.ev.length = 0; run(W, P.attackTime * H.swing + .1, {});
+    const heavyHit = W.ev.find(v => v.k === 'hit');
+    ok(W.ev.some(v => v.k === 'heavy' && v.power === 1) && heavyHit && heavyHit.fin, 'отпустил — тяжёлый удар');
+    ok(e.st && e.st.stun && e.st.stun.t > 0, 'тяжёлый удар оглушает');
+    // сравнение с обычным ударом по такому же врагу (без крита и разброса не обойтись — сравниваем средние по многим ударам)
+    const avg = heavy => { let sum = 0; for (let s = 0; s < 40; s++) { const Wx = mk(s + 50); Wx.player.face = 0; const ex = spawnEnemy(Wx, 'brute', 0, 2.2); ex.cd = 99; ex.hp = ex.maxhp = 99999;
+      if (heavy) { run(Wx, H.hold + P.attackTime + H.full + .05, { attack: true }); Wx.ev.length = 0; run(Wx, P.attackTime * H.swing, {}); } else { run(Wx, P.attackTime, { attack: true }); }
+      const h = Wx.ev.filter(v => v.k === 'hit' && !v.fx); sum += h.length ? h[h.length - 1].dmg : 0; } return sum / 40; };
+    const r = avg(true) / avg(false);
+    ok(r > H.mul * .85 && r < H.mul * 1.15, `тяжёлый удар сильнее обычного в ~${H.mul} раза: ${r.toFixed(2)}`); }
+  // удар в рывке: нажатие во время переката — удар сразу после него (с бонусом rollAtk); нажатие до переката гаснет
+  { const W = mk(); W.player.face = 0; const e = spawnEnemy(W, 'brute', 0, 4.2); e.cd = 99; e.hp = e.maxhp = 9999;
+    step(W, 1 / 60, { roll: true, mz: 1 }); step(W, 1 / 60, { attackPress: true });
+    let start = -1; for (let i = 0; i < 60 && start < 0; i++) { step(W, 1 / 60, {}); if (W.player.state === 'atk') start = i; }
+    ok(start >= 0 && W.player.rollAtk, 'нажатие во время переката не дало удар в рывке');
+    const W2 = mk(); W2.player.face = 0; spawnEnemy(W2, 'brute', 0, 4.2).cd = 99;
+    step(W2, 1 / 60, { attackPress: true }); W2.player.state = 'idle'; step(W2, 1 / 60, { roll: true, mz: 1 }); let at = false;
+    for (let i = 0; i < 60; i++) { step(W2, 1 / 60, {}); if (W2.player.state === 'atk') at = true; }
+    ok(!at, 'нажатие до переката сработало после него'); }
+  // короткий заряд (меньше min) — удара нет, возврат в стойку
+  { const W = mk(); W.player.face = 0; const H = P.heavy; let i = 0;
+    for (; i < 120 && W.player.state !== 'charge'; i++) step(W, 1 / 60, { attack: true });
+    run(W, H.min * .5, { attack: true }); const st = W.player.state; W.ev.length = 0; run(W, .5, {});
+    ok(st === 'charge' && !W.ev.some(v => v.k === 'heavy') && W.player.state !== 'charge', 'слабый заряд отменяется'); }
   // замах прерывается ударом
   { const W = mk(); W.player.face = 0; const e = spawnEnemy(W, 'imp', 0, 1.2); e.state = 'wind'; e.t = 0; e.cd = 99; run(W, P.attackHitAt + .02, { attack: true });
     ok(e.state === 'chase', 'удар прерывает замах врага'); }
