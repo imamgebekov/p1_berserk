@@ -6,7 +6,7 @@ import { killEnemy } from './sim.js';
 
 // ---- отряд ----
 export const squadMax = W => Math.min(W.cfg.squad.cap, W.cfg.squad.baseMax + Math.floor(W.lv / W.cfg.squad.perLevels));
-export const liveAllies = W => W.allies.filter(a => !a.dead);
+export const liveAllies = W => W.allies.filter(a => !a.dead && !a.guest);     // подопечные событий (путник, обоз) — не отряд
 export function pickAlly(W, e, dPlayer) {
   let best = null, bd = 8;
   for (const a of W.allies) { if (a.dead) continue; const d = len(a.x - e.x, a.z - e.z); if (d < bd && d < dPlayer + 1.5 && insideOf(W.map, a.x, a.z) === insideOf(W.map, e.x, e.z)) { bd = d; best = a; } }
@@ -14,10 +14,10 @@ export function pickAlly(W, e, dPlayer) {
 }
 export function hurtAlly(W, a, dmg, e) {
   if (a.dead) return;
-  a.hp -= dmg; a.flash = .12; a.calm = 3;
+  a.hp -= dmg * (a.taken ?? 1); a.flash = .12; a.calm = 3;     // подопечные событий получают меньше (taken)
   const d = len(a.x - e.x, a.z - e.z) || 1; a.vx += (a.x - e.x) / d * 3; a.vz += (a.z - e.z) / d * 3;
   W.ev.push({ k: 'allyhurt', x: a.x, z: a.z, dmg });
-  if (a.hp <= 0) { a.hp = 0; a.dead = true; a.deadT = 0; W.ev.push({ k: 'allydead', x: a.x, z: a.z, name: W.cfg.squad.types[a.type].name }); }
+  if (a.hp <= 0) { a.hp = 0; a.dead = true; a.deadT = 0; if (!a.guest) W.ev.push({ k: 'allydead', x: a.x, z: a.z, name: W.cfg.squad.types[a.type].name }); }
 }
 export function spawnAlly(W, type, hp) {
   const T = W.cfg.squad.types[type], p = W.player, ang = p.face + Math.PI + rr(W, -.8, .8);

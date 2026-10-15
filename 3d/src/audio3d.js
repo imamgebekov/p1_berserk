@@ -89,6 +89,9 @@ const SFX = {
   rare: { gap: .3, f: () => { tone(880, .12, 'triangle', .05, 1320); tone(1320, .2, 'sine', .035, 1760, .08); } },
   brand: { gap: .5, f: () => { for (let i = 0; i < 4; i++) tone(660 * (1 + i * .25), .3, 'triangle', .045, 990 * (1 + i * .25), i * .07); noise(.4, .03, 3000, 6000, 'highpass', .1); } },
   wanderer: { gap: 1, f: () => { for (let i = 0; i < 6; i++) tone([1568, 1760, 2093, 1760, 2349, 2093][i], .35, 'sine', .03, 0, i * .11); } },   // бубенцы повозки
+  evStart: { gap: 1, f: () => { tone(392, .25, 'triangle', .05); tone(523, .4, 'triangle', .05, 0, .2); } },      // рожок
+  ambush: { gap: .8, f: () => { for (let i = 0; i < 3; i++) noise(.12, .06, 200, 80, 'lowpass', i * .14); tone(110, .5, 'sawtooth', .04, 70, .1); } },
+  evDone: { gap: 1, f: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, .3, 'triangle', .045, 0, i * .1)); } },
   recall: { gap: .5, f: () => { tone(330, .5, 'sine', .05, 990); noise(.5, .03, 400, 4000, 'bandpass'); } },
   spot: { gap: .4, f: () => { tone(160, .22, 'sawtooth', .05, 260); noise(.15, .04, 900, 300); } },
   block: { gap: .08, f: () => { tone(1400, .08, 'square', .05, 900); noise(.08, .08, 3000, 1500, 'bandpass'); } },

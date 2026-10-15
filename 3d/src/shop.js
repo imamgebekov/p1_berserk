@@ -115,7 +115,7 @@ export function createCaptain(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2400); };
   function render() {
-    const live = W.allies.filter(a => !a.dead), max = squadMax(W);
+    const live = W.allies.filter(a => !a.dead && !a.guest), max = squadMax(W);
     headEl.textContent = `Застава · отряд ${live.length}/${max} · пепел ${W.inv.ash}`;
     listEl.textContent = '';
     listEl.appendChild(el('div', 'ssec', 'Нанять'));

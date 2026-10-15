@@ -67,9 +67,12 @@ export function drawMap(ctx, W, v) {
   // враги рядом (на большой карте не показываем: туман — это неизвестность)
   if (!full) { ctx.fillStyle = '#ff3a30'; for (const e of W.enemies) if (!e.dead) { const x = X(e.x), y = Y(e.z); if (x > 0 && x < w && y > 0 && y < h) { ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 6.2832); ctx.fill(); } } }
   // свои бойцы
-  ctx.fillStyle = '#6ab0ff'; for (const a of W.allies || []) if (!a.dead) { ctx.beginPath(); ctx.arc(X(a.x), Y(a.z), 2.6, 0, 6.2832); ctx.fill(); }
+  ctx.fillStyle = '#6ab0ff'; for (const a of W.allies || []) if (!a.dead && !a.guest) { ctx.beginPath(); ctx.arc(X(a.x), Y(a.z), 2.6, 0, 6.2832); ctx.fill(); }
   // повозка сказочного торговца: видна и сквозь туман; на миникарте прижимается к краю, показывая направление
   if (!under && W.wanderer) { const m = 6, x = Math.min(w - m, Math.max(m, X(W.wanderer.x))), y = Math.min(h - m, Math.max(m, Y(W.wanderer.z))); ctx.fillStyle = '#c8a0ff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, 6.2832); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(x - 1, y - 1, 2, 2); }
+  // событие: золотой «!» над подопечным или местом засады; на миникарте прижимается к краю
+  if (!under && W.event) { const ev = W.event, g = ev.guest && W.allies.find(a => a.id === ev.guest), ex = g ? g.x : ev.x, ez = g ? g.z : ev.z, m = 7, x = Math.min(w - m, Math.max(m, X(ex))), y = Math.min(h - m, Math.max(m, Y(ez)));
+    ctx.fillStyle = '#ffc040'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 5.5, 0, 6.2832); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#1a1008'; ctx.fillRect(x - 1, y - 3.5, 2, 4.5); ctx.fillRect(x - 1, y + 2, 2, 1.6); }
   // герой: стрелка по направлению
   ctx.save(); ctx.translate(X(p.x), Y(p.z)); ctx.rotate(Math.atan2(Math.sin(p.face), -Math.cos(p.face)) + Math.PI);
   ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4.5, 5); ctx.lineTo(0, 2.5); ctx.lineTo(-4.5, 5); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();

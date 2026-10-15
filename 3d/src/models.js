@@ -204,9 +204,10 @@ export function makeCampfire() {
 // торговец: человек в фартуке и шляпе, стоит за прилавком и поворачивается к герою
 export function makeNpc(kind = 'merchant') {
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
-  const smith = kind === 'smith', cap = kind === 'captain', wand = kind === 'wanderer', m = c => lam(c);
-  root.add(box(.5, .8, .3, m(smith ? '#2a2420' : '#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : '#5a4a3a'), 0, 1.25, 0), box(.5, .5, .42, m(smith ? '#2a2420' : '#8a7a62'), 0, smith ? 1.1 : 1.0, .02), box(.42, .42, .42, m(smith ? '#b89a7a' : '#cdb89a'), 0, 1.95, 0));
+  const smith = kind === 'smith', cap = kind === 'captain', wand = kind === 'wanderer', trav = kind === 'traveler', m = c => lam(c);
+  root.add(box(.5, .8, .3, m(smith ? '#2a2420' : '#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : trav ? '#4a5a34' : '#5a4a3a'), 0, 1.25, 0), box(.5, .5, .42, m(smith ? '#2a2420' : '#8a7a62'), 0, smith ? 1.1 : 1.0, .02), box(.42, .42, .42, m(smith ? '#b89a7a' : '#cdb89a'), 0, 1.95, 0));
   if (cap) root.add(box(.5, .3, .5, m('#8a8f98'), 0, 2.2, 0), box(.1, .35, .14, m('#a1121f'), 0, 2.5, 0), box(.1, 1.6, .1, m('#6a5a46'), .72, .8, .1));
+  else if (trav) root.add(box(.6, .12, .6, m('#3a2a1a'), 0, 2.2, 0), box(.36, .7, .3, m('#6a4a2a'), 0, 1.3, -.32));     // шляпа и котомка
   else if (wand) root.add(box(.9, .08, .9, m('#2e1e48'), 0, 2.2, 0), box(.46, .4, .46, m('#2e1e48'), 0, 2.42, 0), box(.3, .4, .3, m('#2e1e48'), .05, 2.8, -.04), box(.16, .3, .16, m('#c8a04a'), .1, 3.1, -.08));
   else if (!smith) root.add(box(.8, .08, .8, m('#2a1c12'), 0, 2.2, 0), box(.46, .3, .46, m('#2a1c12'), 0, 2.38, 0));
   else root.add(box(.5, .12, .46, m('#1a1614'), 0, 2.2, 0), box(.12, .5, .12, m('#6a645c'), .72, .8, .1), box(.34, .2, .2, m('#6a645c'), .72, 1.1, .1));
@@ -216,13 +217,14 @@ export function makeNpc(kind = 'merchant') {
 }
 
 // повозка сказочного торговца: кузов, колёса, полог, светящийся фонарь и сам торговец в остроконечной шляпе
-export function makeCart() {
-  const g = new THREE.Group(), wood = lam('#5a3e26'), dark = lam('#2e2018'), cloth = lam('#4a2e6e'), trim = lam('#c8a04a');
+export function makeCart(wanderer = true) {
+  const g = new THREE.Group(), wood = lam('#5a3e26'), dark = lam('#2e2018'), cloth = lam(wanderer ? '#4a2e6e' : '#8a7a5a'), trim = lam(wanderer ? '#c8a04a' : '#5a4a32');
   g.add(box(1.8, .5, 3, wood, 0, .9, 0), box(1.9, .12, 3.1, dark, 0, 1.18, 0));
   for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const w = box(.14, .9, .9, dark, x, .45, z); g.add(w); }
   g.add(box(1.7, 1.2, 2.6, cloth, 0, 1.85, -.1), box(1.8, .3, 2.7, cloth, 0, 2.5, -.1), box(.12, .32, 2.75, trim, .86, 2.5, -.1), box(.12, .32, 2.75, trim, -.86, 2.5, -.1), box(.1, .1, 1.6, dark, 0, .75, 2.2));
   for (const z of [-.9, .3]) g.add(box(.5, .4, .5, lam('#6a4a2a'), .3, 1.4, z), box(.4, .3, .4, lam('#3a5a4a'), -.3, 1.35, z + .4));
-  const pole = box(.08, 1.6, .08, dark, .95, 2.2, 1.3), lamp = box(.26, .34, .26, basic('#e0c0ff'), .95, 2.9, 1.3); g.add(pole, lamp);
+  const pole = box(.08, 1.6, .08, dark, .95, 2.2, 1.3), lamp = box(.26, .34, .26, basic(wanderer ? '#e0c0ff' : '#ffc870'), .95, 2.9, 1.3); g.add(pole, lamp);
+  if (!wanderer) { const horse = new THREE.Group(), hide = lam('#4a3020'); horse.add(box(.7, .7, 1.7, hide, 0, 1.2, 0), box(.4, .7, .5, hide, 0, 1.75, .95), box(.2, .25, .4, lam('#2a1a10'), 0, 1.95, 1.3)); for (const [x, z] of [[-.25, -.6], [.25, -.6], [-.25, .6], [.25, .6]]) horse.add(box(.16, .85, .16, hide, x, .42, z)); horse.position.set(0, 0, 3.1); g.add(horse); return { group: g, lamp }; }
   const npc = makeNpc('wanderer'); npc.group.position.set(1.6, 0, .6); g.add(npc.group);
   const mark = new THREE.Mesh(new THREE.OctahedronGeometry(.26), basic('#c8a0ff')); mark.position.set(1.6, 3.4, .6); g.add(mark);
   return { group: g, npc, lamp, mark };

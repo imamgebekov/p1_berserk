@@ -400,10 +400,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const a of W.allies) {
       aliveA.add(a.id);
       let en = allyEnts.get(a.id);
-      if (!en) { const m = makeSoldier(a.type, cfg), sh = shadow(.5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
-      en.m.group.position.set(a.x, 0, a.z); en.m.group.rotation.y = a.face; animateSoldier(en.m, a, t); en.sh.position.set(a.x, .03, a.z); en.sh.visible = !a.dead;
-      const b = bar({ id: 'a' + a.id }, '#3a8a4a'), show = a.hp < a.maxhp && !a.dead;
-      b.g.visible = show; if (show) { b.g.position.set(a.x, 2.7, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }
+      if (!en) { const m = a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
+      en.m.group.position.set(a.x, 0, a.z); en.m.group.rotation.y = a.face;
+      if (!a.guest) animateSoldier(en.m, a, t);
+      else { en.m.group.visible = !a.dead; if (en.m.root) en.m.root.position.y = calm ? 0 : Math.abs(Math.sin(t * (a.moving ? 9 : 2))) * (a.moving ? .08 : .02); } en.sh.position.set(a.x, .03, a.z); en.sh.visible = !a.dead;
+      const b = bar({ id: 'a' + a.id }, a.guest ? '#d8b040' : '#3a8a4a'), show = (a.guest || a.hp < a.maxhp) && !a.dead;
+      b.g.visible = show; if (show) { b.g.position.set(a.x, a.cart ? 3.4 : 2.7, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }
     }
     for (const [id, en] of allyEnts) if (!aliveA.has(id)) { scene.remove(en.m.group, en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); bars.delete('a' + id); } }
     for (const [id, en] of ents) if (!alive.has(id)) { scene.remove(en.m.group, en.sh, en.ring); if (en.elite) scene.remove(en.elite); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); bars.delete(id); } }
@@ -424,6 +426,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
       else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { fx.flash(v.x, 1.4, v.z, 2.6, RARITY[4].color); burst(v.x, 1, v.z, 12, RARITY[4].color, 4); }
+      else if (v.k === 'evFight' || v.k === 'evRaid') { burst(v.x, 1.4, v.z, 14, '#ffb040', 3); hooks.onText && hooks.onText(v.x, 3, v.z, '!', 'alarm'); }
+      else if (v.k === 'evDone') { burst(v.x, 1.4, v.z, 30, '#ffd27a', 4); fx.flash(v.x, 1.4, v.z, 1.8, '#ffe8a0'); }
       else if (v.k === 'wanderer' || v.k === 'wanderLeave') { burst(v.x, 1.6, v.z, 26, '#c8a0ff', 3); fx.ash(v.x, 1, v.z, 10, ['#8a7aa0', '#c8b8e0', '#5a4a70']); }
       else if (v.k === 'recall') { burst(v.x, 1.2, v.z, 30, '#c8a0ff', 4); fx.flash(v.x, 1.2, v.z, 2.2, '#e0c8ff'); }
       else if (v.k === 'spot') hooks.onText && hooks.onText(v.x, 2.9, v.z, '!', 'alarm');

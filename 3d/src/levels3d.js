@@ -84,7 +84,7 @@ export function travel(W, id, x, z) {
   p.inv = Math.max(p.inv, .8);
   resolve(W.map, p, W.cfg.player.radius);
   W.proj.length = 0; W.haz.length = 0; W.echoQ.length = 0; W.inside = -1; W.hudBoss = null;
-  W.allies.forEach((a, i) => { if (a.dead) return; const ang = p.face + Math.PI + (i - 1) * .9; a.x = p.x + Math.sin(ang) * 1.4; a.z = p.z + Math.cos(ang) * 1.4; a.vx = a.vz = 0; a.state = 'idle'; a.tg = null; resolve(W.map, a, .45); });
+  W.allies.forEach((a, i) => { if (a.dead || a.guest) return; const ang = p.face + Math.PI + (i - 1) * .9; a.x = p.x + Math.sin(ang) * 1.4; a.z = p.z + Math.cos(ang) * 1.4; a.vx = a.vz = 0; a.state = 'idle'; a.tg = null; resolve(W.map, a, .45); });
   reveal(W, p.x, p.z, W.revR); W.revealT = .3;
   W.ev.push({ k: 'travel', to: id, up: id === SURFACE });
   return true;

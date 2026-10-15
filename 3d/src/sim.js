@@ -12,7 +12,7 @@ import { pickAlly, hurtAlly, updateAllies } from './squad3d.js';
 import { trackPlace, reveal } from './places3d.js';
 import { addXp, gainXp } from './progress3d.js';
 import { restock } from './economy3d.js';
-import { updateWanderer, nearWanderer, blockCart } from './events3d.js';
+import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
 import { BY_ID } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
@@ -545,6 +545,7 @@ function updateHouses(W, dt) {
   { const nb = p.dead ? null : W.map.buildings.find(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach); W.nearNpc = nb ? nb.npc.kind : nearWanderer(W) ? 'wanderer' : null; W.nearMerchant = W.nearNpc === 'merchant' || W.nearNpc === 'wanderer'; }
   if ((W.shop.t += dt) > W.cfg.shop.restock) restock(W);
   updateWanderer(W, dt);
+  updateEvents(W, dt);
   if (W.tomb && (W.tomb.lvl || SURFACE) === W.lvl && !p.dead && len(p.x - W.tomb.x, p.z - W.tomb.z) < 1.6) { W.inv.ash += W.tomb.ash; W.ev.push({ k: 'tomb', ash: W.tomb.ash, x: W.tomb.x, z: W.tomb.z }); W.tomb = null; }
   W.nearPortal = portalNear(W);
   // контейнеры других уровней тоже наполняются со временем

@@ -85,6 +85,28 @@ export const CFG3 = {
   // priceMul — наценка; fairy — сколько видов сказочных товаров; gear — сколько сильных вещей (от–до); uniqueChance — шанс именной вещи;
   // retry — повторная попытка, если сейчас поставить некуда (герой в подземелье, мёртв, нет места)
   wanderer: { on: true, first: [240, 480], every: [480, 960], stay: 180, linger: 8, dist: [25, 70], side: 3, campPad: 6, r: 1.6, priceMul: 1.6, fairy: 3, gear: [2, 3], uniqueChance: .15, reach: 3.4, retry: 30 },
+  // случайные события (одно за раз): first/every — когда (от–до, с); retry — повтор, если не к месту; kinds — веса видов.
+  // taken — доля урона, которую получают путник и обоз.
+  // rescue: путник в беде вне любых мест (dist от героя); враги появляются, когда герой ближе wake; wait/time — сколько ждёт и сколько длится бой.
+  // ambush: только на дороге (road — ширина) вне лагеря и безопасных мест; враги в r м впереди и с боков; flee — убежал дальше (или в лагерь) — засада кончилась.
+  // caravan: обоз ждёт за воротами, трогается, когда герой ближе start; едет, пока герой ближе follow; waves — доли пути с налётами (ahead м впереди).
+  // foes: враги по видам событий: n — [основа, + за глубину]; reward — пепел (от–до × (1 + глубина)), сундук box и бафф.
+  events: {
+    on: true, first: [300, 540], every: [420, 780], retry: 30, kinds: { rescue: 3, ambush: 3, caravan: 2 },
+    rescue: { name: 'Путник', hp: 300, taken: .4, dmg: 8, range: 1.9, cd: 1.2, dist: [30, 60], side: 4, campPad: 8, r: 1, wake: 18, wait: 240, time: 150, thanks: 4 },
+    ambush: { road: 3, campPad: 10, r: [7, 11], flee: 45, time: 120 },
+    caravan: { name: 'Обоз', hp: 420, taken: .6, r: 1.2, speed: 2.1, follow: 13, start: 5, arrive: 4, waves: [.3, .65], ahead: 9, wait: 300, time: 240, minLen: 14 },
+    foes: {
+      rescue: { n: [3, 2], types: [['imp', 3], ['hound', 3], ['brute', 1], ['ghoul', 1]] },
+      ambush: { n: [3, 2], types: [['brute', 2], ['hound', 3], ['archer', 2], ['imp', 2]] },
+      caravan: { n: [2, 2], types: [['hound', 3], ['imp', 2], ['brute', 2]] }
+    },
+    reward: {
+      rescue: { ash: [30, 60], box: 'chest', buff: { stat: 'luck', amt: 15, t: 300 } },
+      ambush: { ash: [20, 40], box: 'chest' },
+      caravan: { ash: [60, 110], box: 'ironchest' }
+    }
+  },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4 },   // цена покупки = цена вещи × buyMul, продажи × sellMul; витрина обновляется раз в restock секунд
   // отряд: наёмники из Заставы. Идут за героем, бьют врагов, умирают насовсем. Мест в отряде: baseMax + 1 за каждые perLevels уровней, но не больше cap
   // боссы: логово (x, z), атаки с предупреждением, фазы по здоровью. attacks: kind slam (круг), charge (рывок по линии), nova (кольцо огня), summon (подмога);
