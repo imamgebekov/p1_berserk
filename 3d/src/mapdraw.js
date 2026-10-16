@@ -35,6 +35,8 @@ export function drawMap(ctx, W, v) {
     for (const br of RV.bridges) { const s2 = Math.sin(br.ang) * br.len / 2, c2 = Math.cos(br.ang) * br.len / 2; ctx.lineWidth = Math.max(2, br.w * sc); ctx.beginPath(); ctx.moveTo(X(br.x - s2), Y(br.z - c2)); ctx.lineTo(X(br.x + s2), Y(br.z + c2)); ctx.stroke(); }
     ctx.lineCap = 'round';
   }
+  // замки (C4c): стены квадратом, проём ворот
+  if (!under) for (const c of M.cfg.castles || []) { if (!isSeen(W, c.x, c.z)) continue; ctx.strokeStyle = '#b0a898'; ctx.lineWidth = Math.max(2, sc * 1.2); ctx.strokeRect(X(c.x - 13), Y(c.z - 13), 26 * sc, 26 * sc); ctx.fillStyle = '#b0a898'; for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.fillRect(X(c.x + sx * 13) - 3, Y(c.z + sz * 13) - 3, 6, 6); }
   // костры (C3d): открытые — оранжевые, увиденные, но не открытые — серые
   if (!under) for (const f of M.fires || []) { const known = W.fires && W.fires[f.id]; if (!known && !isSeen(W, f.x, f.z)) continue; const x = X(f.x), y = Y(f.z), s = Math.max(3, Math.min(6, sc * 2));
     ctx.fillStyle = known ? '#ff9a30' : '#7a6a5a'; ctx.beginPath(); ctx.moveTo(x, y - s * 1.3); ctx.lineTo(x + s, y + s * .7); ctx.lineTo(x - s, y + s * .7); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); }

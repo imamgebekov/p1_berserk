@@ -48,5 +48,18 @@ for (const C of CFG3.map.castles) ok(Math.hypot(C.x, C.z) > CFG3.worldgen.coreR 
   createSaver(W, mem).write(true); const s = loadSave(30, mem);
   ok(s && s.dseen[d2.id] && s.keys.includes(d2.id + '_k0') && (s.unlocked[d1.id] || []).length, 'туман, ключи или двери этажей замка не сохранились'); }
 
+// ---------- 3. замок снаружи (C4c) ----------
+{ const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.bosses.list = []; c.events.on = false; c.wanderer.on = false;
+  for (const C of CFG3.map.castles) {
+    const W = createWorld(c, mulberry32(7)), p = W.player, g = { s: [0, 1], n: [0, -1], e: [1, 0], w: [-1, 0] }[W.map.cfg.castles.find(q => q.id === C.id).gate];
+    p.x = C.x + g[0] * 20; p.z = C.z + g[1] * 20;                                   // перед воротами — идём во двор
+    for (let i = 0; i < 60 * 6; i++) { const d = Math.hypot(C.x - p.x, C.z - p.z); if (d < 1) break; step(W, 1 / 60, { mx: (C.x - p.x) / d, mz: (C.z - p.z) / d }); }
+    ok(Math.hypot(C.x - p.x, C.z - p.z) < 1.5, `${C.id}: в ворота не войти`);
+    p.x = C.x - g[0] * 20; p.z = C.z - g[1] * 20;                                   // с обратной стороны — стена
+    for (let i = 0; i < 60 * 6; i++) step(W, 1 / 60, { mx: g[0], mz: g[1] });
+    ok(Math.hypot(C.x - p.x, C.z - p.z) > 13, `${C.id}: стену можно пройти насквозь`);
+  }
+  ok(!CFG3.dungeons.list.find(d => d.id === 'crypt_pogost').hidden, 'Склеп Погоста всё ещё скрыт'); }
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + [...new Set(fails)].slice(0, 20).join('\n')); process.exit(1); }
 console.log('Замки 3D: OK');

@@ -243,7 +243,7 @@ const BASE = {
         foes: [['hound', 2], ['ghoul', 1]], spawns: [{ room: 'store', n: 2 }, { room: 'main', n: 1, type: 'hound' }],
         entry: { x: -1.5, z: 0 }, exit: { x: -3.6, z: 0 },
         chests: [{ kind: 'barrel', x: 3.4, z: -2.4, key: 'cellar_cooper' }, { kind: 'crate', x: 10.2, z: 1.5 }, { kind: 'sack', x: 10.2, z: -1.5 }] },
-      { id: 'crypt_pogost', name: 'Склеп Погоста', hidden: true, at: { x: -30, z: -12 }, back: { x: -28, z: -12 }, depth: .7, danger: 2,
+      { id: 'crypt_pogost', name: 'Склеп Погоста', at: { x: -30, z: -12 }, back: { x: -28, z: -12 }, depth: .7, danger: 2,
         rooms: [
           { id: 'hall', x: 0, z: 0, w: 8, d: 6 },
           { id: 'c1', x: 8, z: 0, w: 8, d: 2 }, { id: 'nave', x: 17, z: 0, w: 10, d: 10 },

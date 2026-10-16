@@ -21,10 +21,11 @@ const walkTo = (W, tx, tz, sec = 20) => { const p = W.player; for (let i = 0; i 
   const hit = (a, w, pad = 0) => !(a.x1 < w.x0 - pad || a.x0 > w.x1 + pad || a.z1 < w.z0 - pad || a.z0 > w.z1 + pad);
   ok(!M.buildings.some(b => M.blocks.some(w => hit(b, w))), 'частокол врезается в дом');
   ok(!M.containers.some(c => M.blocks.some(w => hit({ x0: c.x, x1: c.x, z0: c.z, z1: c.z }, w, .6))), 'сундук в частоколе');
-  ok(!M.solids.some(s => M.blocks.some(w => hit({ x0: s.x, x1: s.x, z0: s.z, z1: s.z }, w, s.r))), 'препятствие в частоколе');
+  const ring = w => Math.hypot((w.x0 + w.x1) / 2 - M.camp.x, (w.z0 + w.z1) / 2 - M.camp.z) < M.camp.r + 3;     // только частокол лагеря (стены замков — свои)
+  ok(!M.solids.some(s => M.blocks.filter(ring).some(w => hit({ x0: s.x, x1: s.x, z0: s.z, z1: s.z }, w, s.r))), 'препятствие в частоколе');
   let cross = 0; for (const [a, b] of M.roads) for (let k = 0; k <= 60; k++) { const x = a.x + (b.x - a.x) * k / 60, z = a.z + (b.z - a.z) * k / 60; if (M.blocks.some(w => x > w.x0 && x < w.x1 && z > w.z0 && z < w.z1)) { cross++; break; } }
   ok(cross === 0, `дорог сквозь частокол: ${cross}`);
-  const c2 = clone(); c2.map.places = []; ok(!makeMap(c2).camp && !makeMap(c2).blocks.length, 'без места лагерь остался');
+  const c2 = clone(); c2.map.places = []; ok(!makeMap(c2).camp && !makeMap(c2).blocks.some(w => Math.hypot((w.x0 + w.x1) / 2, (w.z0 + w.z1) / 2) < 40), 'без места лагерь остался');
 }
 
 // ---------- 2. враги не рождаются в лагере ----------

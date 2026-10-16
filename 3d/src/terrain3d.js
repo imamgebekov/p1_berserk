@@ -108,7 +108,8 @@ export function buildHeights(cfg, map) {
   for (const P of map.paths || (map.roads || []).map(pts => ({ pts }))) for (let i = 1; i < P.pts.length; i++) { const a = P.pts[i - 1], b = P.pts[i]; add((x, z) => segD(x, z, a, b) - 3, Math.min(a.x, b.x), Math.max(a.x, b.x), Math.min(a.z, b.z), Math.max(a.z, b.z), 3); }     // ровно вдоль троп
   for (const p of map.cfg.places || []) if (p.safe) circle(p.x, p.z, p.r);
   for (const zn of map.cfg.zones || []) { if (zn.w) add((x, z) => Math.max(Math.abs(x - zn.x) - zn.w / 2 - 2, Math.abs(z - zn.z) - zn.d / 2 - 2), zn.x - zn.w / 2, zn.x + zn.w / 2, zn.z - zn.d / 2, zn.z + zn.d / 2, 2); else circle(zn.x, zn.z, zn.r + 2); }
-  for (const b of cfg.bosses.list) circle(b.x, b.z, 12);
+  for (const b of cfg.bosses.list) if (!b.level) circle(b.x, b.z, 12);
+  for (const c of map.cfg.castles || []) circle(c.x, c.z, 22);                   // двор и стены замка — ровно (C4c)
   for (const q of map.portals || []) circle(q.x, q.z, 4);
   for (const c of map.containers) circle(c.x, c.z, 2.5);
   for (const q of map.solids) circle(q.x, q.z, q.r + 1.5);

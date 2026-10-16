@@ -101,7 +101,22 @@ export function genWorld(cfg, buildings) {
   // колодец и бочки у костра, остатки частокола у границы
   solid('well', 6.5, -3.5, 1.1);
   for (const l of M.landmarks || []) solid(l.t, l.x, l.z, l.r, { rot: l.rot });     // ориентиры большого мира: башни, мельницы, крепости (C3b)
-  return { decor, solids, spots, roads, paths };
+  // стены замков (C4c): квадрат 2·H м, стена толщиной T, башни по углам, ворота шириной G со стороны лагеря; вход в подземелье — во дворе
+  const blocks = [];
+  for (const c of M.castles || []) {
+    const H = 13, T = 1.2, G = 5.5, sides = [['s', 0, 1], ['n', 0, -1], ['e', 1, 0], ['w', -1, 0]], to = [-c.x, -c.z], gate = sides.reduce((a, s) => (s[1] * to[0] + s[2] * to[1] > a[1] * to[0] + a[2] * to[1] ? s : a))[0];
+    c.gate = gate;
+    for (const [side, sx, sz] of sides) {
+      const segs = side === gate ? [[-H, -G / 2], [G / 2, H]] : [[-H, H]];
+      for (const [a, b] of segs) {
+        const r = sx ? { x0: c.x + sx * H - T / 2, x1: c.x + sx * H + T / 2, z0: c.z + a, z1: c.z + b } : { x0: c.x + a, x1: c.x + b, z0: c.z + sz * H - T / 2, z1: c.z + sz * H + T / 2 };
+        blocks.push(r); decor.push({ t: 'cwall', x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2, w: r.x1 - r.x0, d: r.z1 - r.z0 });
+      }
+      if (side === gate) decor.push({ t: 'cgate', x: c.x + sx * H, z: c.z + sz * H, rot: sx ? Math.PI / 2 : 0, w: G });
+    }
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = c.x + sx * H, z = c.z + sz * H; solids.push({ x, z, r: 2.2 }); decor.push({ t: 'ctower', x, z }); }
+  }
+  return { decor, solids, spots, roads, paths, blocks };
 }
 
 // кривая вдоль отрезка дороги: изгиб A·sin(πt) + малая волна; точки каждые step м; ok(x, z) — точка годится. Не годится — изгиб

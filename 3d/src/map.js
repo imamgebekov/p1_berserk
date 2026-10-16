@@ -59,6 +59,7 @@ export function makeMap(cfg) {
   for (const sp of gen.spots) if (!containers.some(c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1);
   { const coreR = cfg.worldgen && cfg.worldgen.on && cfg.world.radius > cfg.worldgen.coreR ? cfg.worldgen.coreR : Infinity; for (const c of containers) c.far = Math.hypot(c.x, c.z) > coreR; }     // сундуки пояса большого мира наполняются, когда герой рядом (C3b)
   const camp = campOf(cfg), { blocks, foeBlocks } = camp ? campWalls(camp) : { blocks: [], foeBlocks: [] };
+  blocks.push(...gen.blocks);                                                          // стены замков (C4c)
   const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden && !d.sub).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
   return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, paths: gen.paths, camp, blocks, foeBlocks, river: riverOf(cfg), plateaus: M.plateaus || [] };
 }
@@ -281,6 +282,7 @@ export function propsBlocked(map, x, z) {
   for (const q of map.solids) if (Math.hypot(q.x - x, q.z - z) < q.r + 1.5) return true;
   for (const [a, b] of pathSegs(map)) if (distSegPt(x, z, a, b) < 2.4) return true;
   if (inCliff(map.plateaus, x, z, 1.8)) return true;                     // не у края обрыва
+  for (const c of map.cfg.castles || []) if (Math.abs(x - c.x) < 19 && Math.abs(z - c.z) < 19) return true;     // не в замке и не у стен
   for (const P of map.plateaus || []) { const d = Math.hypot(x - P.x, z - P.z), a = Math.atan2(x - P.x, z - P.z); if (d > P.r - 3 && d < P.r + P.len + 2 && P.ramps.some(q => { let v = Math.abs(a - q) % 6.2832; if (v > 3.1416) v = 6.2832 - v; return v < P.rw + .15; })) return true; }     // и на въезде
   for (const zn of map.cfg.zones || []) { const hw = zn.w ? zn.w / 2 + 2 : zn.r + 3, hd = zn.d ? zn.d / 2 + 2 : zn.r + 3; if (Math.abs(x - zn.x) < hw && Math.abs(z - zn.z) < hd) return true; }
   for (const c of map.containers) if (Math.hypot(c.x - x, c.z - z) < 2) return true;
