@@ -202,30 +202,40 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // участок земли: холмы, пятна света, деревья и камни, трава (траву — кусками 16 м, чтобы отсекалась вне кадра)
   const land = new THREE.Group(), liveLand = new Map(), allSegs = pathSegs(map); scene.add(land);
   const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), E4 = new THREE.Euler(), P4 = new THREE.Vector3(), S4 = new THREE.Vector3(), C4 = new THREE.Color();
-  function buildLand(ci, cj) {
+  // постройка участка по частям (C5b): земля → деревья и камни → трава кусками; между частями — следующий кадр
+  function* landJob(ci, cj) {
     const g = new THREE.Group(), geo = hillsGeo(ci, cj), trees = [];
     g.add(new THREE.Mesh(geo, hillsMat));
     if (lightMat) { const lm = new THREE.Mesh(geo, lightMat); lm.renderOrder = 1; g.add(lm); }
+    land.add(g); liveLand.set(ci + ',' + cj, { g, geo, trees }); yield;
     const P = propsIn(map, cfg, ci, cj), pp = [];
     for (const q of P) { const k0 = pp.length; (q.tree ? addTree : addRock)(pp, mulberry32(q.seed), q.x, q.z, q.bare !== undefined ? { ...cfg.look, bare: q.bare } : cfg.look); const gy = Y(q.x, q.z); for (let k = k0; k < pp.length; k++) pp[k].translate(0, gy, 0); if (q.tree) trees.push(q.x, q.z); }
     if (pp.length) { for (const q of pp) if (!q.attributes.sway) q.setAttribute('sway', new THREE.BufferAttribute(new Float32Array(q.attributes.position.count), 1)); g.add(new THREE.Mesh(mergeGeometries(pp, false), propsMat)); pp.forEach(q => q.dispose()); }
+    yield;
     if (grassOn) {
-      const spots = grassIn(map, cfg, ci, cj, allSegs), cells = new Map();
+      const spots = grassIn(map, cfg, ci, cj, allSegs), cells = new Map(); yield;
       spots.forEach((q, i) => { const k = Math.floor(q.x / 16) + ',' + Math.floor(q.z / 16); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(i); });
+      let done = 0;
       for (const ids of cells.values()) {
         const m = new THREE.InstancedMesh(grassGeo, grassMat, ids.length);
         ids.forEach((i, j) => { const q = spots[i]; E4.set(0, q.rot, 0); Q4.setFromEuler(E4); P4.set(q.x, Y(q.x, q.z), q.z); S4.set(q.s, q.s, q.s); M4.compose(P4, Q4, S4); m.setMatrixAt(j, M4); C4.setHSL(.27 + (i % 7) * .012, .45, .38 + (i % 5) * .04); m.setColorAt(j, C4); });
         m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.computeBoundingSphere(); m.boundingSphere.radius += 1; g.add(m);
+        if (++done % 4 === 0) yield;
       }
     }
-    land.add(g); liveLand.set(ci + ',' + cj, { g, geo, trees }); return g;
   }
-  function dropLand(key) { const L = liveLand.get(key); land.remove(L.g); L.g.traverse(o => { if (o.isMesh && o.geometry !== grassGeo) o.geometry.dispose(); }); liveLand.delete(key); }
+  const jobs = new Map();
+  const buildLand = (ci, cj) => { for (const _ of landJob(ci, cj)); };      // целиком сразу (старт, перенос)
+  function dropLand(key) { jobs.delete(key); const L = liveLand.get(key); land.remove(L.g); L.g.traverse(o => { if (o.isMesh && o.geometry !== grassGeo) o.geometry.dispose(); }); liveLand.delete(key); }
   // подгрузка: нужные участки вокруг камеры; если не хватает многих (старт, перенос) — все сразу, иначе по одному за кадр
   const LAND_VIEW = 96;
   function streamLand(x, z) {
     const need = chunksAround(x, z, LAND_VIEW, cfg.world.radius), keys = new Set(need.map(q => q.ci + ',' + q.cj)), miss = need.filter(q => !liveLand.has(q.ci + ',' + q.cj));
-    for (const q of miss.length > 4 ? miss : miss.slice(0, 1)) buildLand(q.ci, q.cj);
+    if (miss.length > 4) { for (const [k, j] of jobs) { for (const _ of j); jobs.delete(k); } for (const q of miss) buildLand(q.ci, q.cj); }
+    else {                                                                    // на ходу: один шаг постройки за кадр, ближний участок — первым
+      if (!jobs.size && miss.length) { const q = miss[0], k = q.ci + ',' + q.cj; jobs.set(k, landJob(q.ci, q.cj)); }
+      for (const [k, j] of jobs) { if (j.next().done) jobs.delete(k); break; }
+    }
     for (const key of [...liveLand.keys()]) if (!keys.has(key)) { const [ci, cj] = key.split(',').map(Number), cx = (ci + .5) * CHUNK, cz = (cj + .5) * CHUNK; if (Math.hypot(cx - x, cz - z) > LAND_VIEW + CHUNK * 1.5) dropLand(key); }
   }
   let windNow = { s: 0, dir: [0, 1] };
