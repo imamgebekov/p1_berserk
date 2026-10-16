@@ -189,6 +189,19 @@ try {
   const fitBag = await ev(() => { const r = document.querySelector('#bag .pbox').getBoundingClientRect(); return r.bottom <= innerHeight + 1 && r.top >= 0; });
   if (!fitBag) bad('сумка выходит за экран');
   await page.keyboard.press('Escape'); await page.waitForTimeout(150);
+  // атмосфера звука (D1): после нажатия звук работает; у реки слышно воду и ставятся бульки, в лагере воды не слышно
+  { await page.keyboard.press('KeyW');
+    await ev(() => { const W = window.__b3d.W, P = W.map.river.bridges[0], s = Math.sin(P.ang), c = Math.cos(P.ang); W.enemies.length = 0; W.player.x = P.x - s * (P.len / 2 + 1); W.player.z = P.z - c * (P.len / 2 + 1); });
+    await page.waitForTimeout(1500);
+    const a1 = await ev(() => window.__b3d.audioStats());
+    if (a1.state !== 'running') console.log('  звук в браузере не запущен (' + a1.state + ') — проверка атмосферы пропущена');
+    else {
+      if (!a1.mix || a1.mix.water < .5 || a1.plips < 1) bad('у реки не слышно воды: ' + JSON.stringify(a1));
+      await ev(() => { const W = window.__b3d.W; W.player.x = 0; W.player.z = 3; }); await page.waitForTimeout(800);
+      const a2 = await ev(() => window.__b3d.audioStats());
+      if (a2.mix.water > .01) bad('у костра слышно реку: ' + JSON.stringify(a2.mix));
+      console.log('  звук: ' + JSON.stringify({ water: a1.mix.water.toFixed(2), birds: a1.mix.birds.toFixed(2), notes: a2.notes, plips: a2.plips, voices: a2.maxVoices }));
+    } }
   await ctx.close();
   // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
   { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);

@@ -262,7 +262,14 @@ export const CFG3 = {
       night: { fog: '#0a0608', hemiSky: '#5a5a8a', hemiGround: '#140c14', hemiI: 1.4, sun: '#7a8ac8', sunI: .55, dome: '#38384a' }
     }
   },
-  audio: { volume: .7 },
+  // звук: громкость всего, музыки и природы; атмосфера (D1) — журчание у реки, птицы и сова, своя музыка «лесная сказка»
+  audio: {
+    volume: .7, musicVol: .55, natureVol: .8, voices: 24, look: 1.2,          // предел одновременных голосов; ноты ставятся вперёд на look с
+    water: { near: 2, far: 25, vol: .09, plips: 6 },                     // полная громкость у берега, тишина дальше far м; бульков в секунду
+    birds: { vol: .05, gap: [2, 7], day: [.45, .75], owlGap: [9, 20], owlVol: .05 },   // пауза между трелями, рассвет→день (свет)
+    combat: { r: 16, n: 2, fade: 1.5 },                                   // встревоженных врагов в r м: n — полный бой; музыка и птицы стихают
+    music: { vol: .12, rest: [30, 60], dayBpm: 84, nightBpm: 70, nightVol: .6, phrase: 8, form: 'AABA' }
+  },
   difficulty: {
     default: 'berserk',
     levels: {
@@ -377,6 +384,8 @@ export const TWEAKS = [
   { path: 'enemies.imp.speed', label: 'Скорость бесов', min: 1, max: 7, step: .1 },
   { path: 'enemies.brute.hp', label: 'Здоровье рогача', min: 10, max: 300, step: 5 },
   { path: 'audio.volume', label: 'Громкость', min: 0, max: 1, step: .05 },
+  { path: 'audio.musicVol', label: 'Музыка', min: 0, max: 1, step: .05 },
+  { path: 'audio.natureVol', label: 'Природа', min: 0, max: 1, step: .05 },
   { path: 'daynight.len', label: 'Длина суток', min: 120, max: 1200, step: 30, unit: ' с' }
 ];
 

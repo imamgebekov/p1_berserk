@@ -1,4 +1,5 @@
 // Звук 3D: всё синтезируется (осцилляторы и шум), файлов нет. Контекст создаётся по первому касанию (правило iOS).
+import { composePiece, birdSong, owlCall } from './soundscape3d.js';
 let ac = null, master = null, noiseBuf = null, amb = null, volume = .7, muted = false, lastT = {};
 
 export function ensureAudio() {
@@ -16,6 +17,7 @@ export function ensureAudio() {
       o1.type = o2.type = 'sawtooth'; o1.frequency.value = 55; o2.frequency.value = 55.7; lf.type = 'lowpass'; lf.frequency.value = 150; dg.gain.value = 0;
       o1.connect(lf); o2.connect(lf); lf.connect(dg).connect(master); o1.start(); o2.start();
       amb = { wind: g, drone: dg };
+      buildAtmo();
     } catch (e) { ac = null; }
   }
   if (ac && ac.state !== 'running') { try { ac.resume(); } catch (e) { /* без звука */ } }
@@ -110,3 +112,103 @@ export function sfx(name) {
   const now = ac.currentTime; if (now - (lastT[name] || -9) < d.gap) return; lastT[name] = now; d.f();
 }
 export const SFX_NAMES = Object.keys(SFX);
+
+
+// ---- атмосфера (D1): журчание у реки, птицы и сова, своя музыка. Слои: шина природы и шина музыки (с эхом на задержке) ----
+let atmo = null, A = null, vol = { music: .55, nature: .8 }, rnd = Math.random;
+const voices = [];                                  // { s, e } — начало и конец каждого поставленного голоса (предел A.voices)
+const stats = { notes: 0, skipped: 0, birds: 0, owls: 0, plips: 0, pieces: 0, maxVoices: 0 };
+export const audioStats = () => ({ ...stats, voices: voices.length, state: ac ? ac.state : 'none', mix: atmo ? { ...atmo.mix } : null, playing: !!(atmo && atmo.piece) });
+export function setAtmoVolumes(music, nature) { vol = { music: Number(music) || 0, nature: Number(nature) || 0 }; if (atmo) applyMix(); }
+export const setAtmoRandom = f => { rnd = f; };     // для тестов
+function buildAtmo() {
+  const bus = v => { const g = ac.createGain(); g.gain.value = v; g.connect(master); return g; };
+  const nature = bus(0), music = bus(0);
+  // эхо для музыки: задержка с обратной связью через мягкий фильтр (дешевле свёртки)
+  const send = ac.createGain(), dl = ac.createDelay(1), fb = ac.createGain(), lp = ac.createBiquadFilter(), wet = ac.createGain();
+  send.gain.value = .35; dl.delayTime.value = .27; fb.gain.value = .38; lp.type = 'lowpass'; lp.frequency.value = 2400; wet.gain.value = .6;
+  music.connect(send); send.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(wet); wet.connect(master);
+  // журчание: два слоя шума (шорох и плеск) с качанием фильтра; громкость — waterG
+  const waterG = ac.createGain(); waterG.gain.value = 0; waterG.connect(nature);
+  for (const [fc, q, lf, depth, v] of [[1500, .8, .37, 500, .6], [520, .7, .23, 160, .5]]) {
+    const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(), o = ac.createOscillator(), og = ac.createGain();
+    src.buffer = noiseBuf; src.loop = true; src.playbackRate.value = fc > 1000 ? 1 : .93; f.type = 'bandpass'; f.frequency.value = fc; f.Q.value = q; g.gain.value = v;
+    o.frequency.value = lf; og.gain.value = depth; o.connect(og).connect(f.frequency); src.connect(f).connect(g).connect(waterG); src.start(); o.start();
+  }
+  atmo = { nature, music, waterG, mix: { water: 0, birds: 0, owl: 0, music: 0, combat: 0 }, piece: null, pieceT: 0, idx: 0, restUntil: 0, nextBird: 0, nextOwl: 0, nextPlip: 0, seed: 1 };
+}
+function applyMix() {
+  const t = ac.currentTime, m = atmo.mix, tau = A ? A.combat.fade / 3 : .5;
+  atmo.nature.gain.setTargetAtTime(vol.nature, t, .3);
+  atmo.music.gain.setTargetAtTime(vol.music * (A ? A.music.vol : .07) * m.music, t, tau);
+  atmo.waterG.gain.setTargetAtTime((A ? A.water.vol : .09) * m.water, t, .6);
+}
+// mix — из mixOf (soundscape3d.js), cfg — cfg.audio
+export function setScene(mix, cfg) { A = cfg; if (cfg) { vol.music = cfg.musicVol; vol.nature = cfg.natureVol; } if (!atmo || !ac) return; atmo.mix = mix; applyMix(); }
+
+// голос с огибающей: тип волны, частота (или свист f0→f1), атака и спад; уходит в шину bus через фильтр (по желанию)
+function voice(bus, o) {
+  const now = ac.currentTime; for (let i = voices.length - 1; i >= 0; i--) if (voices[i].e < now) voices.splice(i, 1);
+  const t = Math.max(o.t, now), end = t + o.d + (o.rel || .05);
+  let live = 0; for (const v of voices) if (v.s <= t + .01 && v.e > t) live++;           // звучат в момент начала ноты
+  if (live >= (A ? A.voices : 24) - (o.low ? 6 : 0)) { stats.skipped++; return false; }     // природа уступает музыке 6 голосов
+  const g = ac.createGain(), oscs = [];
+  for (const det of o.det || [0]) {
+    const os = ac.createOscillator(); os.type = o.type || 'sine'; os.frequency.setValueAtTime(o.f0, t); os.detune.value = det;
+    if (o.f1) os.frequency.exponentialRampToValueAtTime(o.f1, t + o.d);
+    if (o.vib) { const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = o.vib; lg.gain.value = o.f0 * .006; l.connect(lg).connect(os.frequency); l.start(t); l.stop(end + .05); }
+    oscs.push(os);
+  }
+  let head = g;
+  if (o.formants) { head = ac.createGain(); for (const [fc, q] of o.formants) { const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = fc; f.Q.value = q; head.connect(f); f.connect(g); } }
+  else if (o.lp) { head = ac.createBiquadFilter(); head.type = 'lowpass'; head.frequency.value = o.lp; head.connect(g); }
+  for (const os of oscs) os.connect(head);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(o.v, t + (o.att || .01));
+  if (o.pluck) g.gain.exponentialRampToValueAtTime(.0005, t + o.d + (o.rel || .05));
+  else { g.gain.setValueAtTime(o.v, t + Math.max(o.att || .01, o.d)); g.gain.linearRampToValueAtTime(0, end); }
+  g.connect(bus); for (const os of oscs) { os.start(t); os.stop(end + .05); }
+  voices.push({ s: t, e: end }); stats.maxVoices = Math.max(stats.maxVoices, live + 1); return true;
+}
+const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+const PART = {
+  flute: (n, t) => voice(atmo.music, { t, d: n.d, f0: hz(n.m), type: 'sine', det: [0, 4], v: .55 * n.v, att: .07, rel: .25, vib: 5.2 }),
+  harp: (n, t) => voice(atmo.music, { t, d: n.d, f0: hz(n.m), type: 'triangle', v: .35 * n.v, att: .005, rel: .4, pluck: true }),
+  pad: (n, t) => voice(atmo.music, { t, d: n.d, f0: hz(n.m), type: 'sawtooth', det: [-7, 7], lp: 1100, v: .12 * n.v, att: .5, rel: .5 }),
+  bass: (n, t) => voice(atmo.music, { t, d: n.d, f0: hz(n.m), type: 'sine', v: .35 * n.v, att: .2, rel: .6 }),
+  choir: (n, t) => voice(atmo.music, { t, d: n.d, f0: hz(n.m), type: 'sawtooth', det: [-5, 6], formants: [[720, 7], [1150, 8]], v: .5 * n.v, att: .5, rel: 1, vib: 4.6 })
+};
+// планировщик: вызывать часто (каждые ~0,2 с); ставит ноты, трели и бульки на A.look секунд вперёд
+export function tickAudio() {
+  if (!ac || !atmo || !A || muted || ac.state !== 'running') return;
+  const now = ac.currentTime, ahead = now + A.look, m = atmo.mix, M = A.music;
+  // музыка: кусок, потом тишина; в бою и под землёй шина молчит, но кусок доигрывается
+  if (!atmo.piece && now >= atmo.restUntil && m.music > 0) { atmo.piece = composePiece(atmo.seed++, m.night, M); atmo.pieceT = now + .2; atmo.idx = 0; stats.pieces++; }
+  const P = atmo.piece;
+  if (P) {
+    while (atmo.idx < P.notes.length && atmo.pieceT + P.notes[atmo.idx].t < ahead) {
+      const n = P.notes[atmo.idx++], t = atmo.pieceT + n.t;
+      if (t >= now && m.music > .02 && PART[n.part](n, t)) stats.notes++;
+    }
+    if (atmo.idx >= P.notes.length && now > atmo.pieceT + P.dur) { atmo.piece = null; atmo.restUntil = now + M.rest[0] + rnd() * (M.rest[1] - M.rest[0]); }
+  }
+  // птицы днём, сова ночью
+  if (m.birds > .05 && now >= atmo.nextBird) {
+    const s = birdSong(rnd), t0 = now + .1 + rnd() * .5, v = A.birds.vol * m.birds * (.4 + .6 * rnd());
+    for (const q of s.syl) voice(atmo.nature, { t: t0 + q.t, d: q.d, f0: q.f0, f1: q.f1, type: 'sine', v: v * q.v, att: .008, rel: .03, low: true });
+    stats.birds++; atmo.nextBird = now + (A.birds.gap[0] + rnd() * (A.birds.gap[1] - A.birds.gap[0])) / Math.max(.3, m.birds);
+  } else if (m.birds <= .05 && atmo.nextBird < now) atmo.nextBird = now + 1;
+  if (m.owl > .05 && now >= atmo.nextOwl) {
+    const t0 = now + .2; for (const q of owlCall(rnd)) voice(atmo.nature, { t: t0 + q.t, d: q.d, f0: q.f0, f1: q.f1, type: 'sine', v: A.birds.owlVol * m.owl * q.v, att: .08, rel: .2, low: true });
+    stats.owls++; atmo.nextOwl = now + A.birds.owlGap[0] + rnd() * (A.birds.owlGap[1] - A.birds.owlGap[0]);
+  } else if (m.owl <= .05 && atmo.nextOwl < now) atmo.nextOwl = now + 3;
+  // бульки у воды: короткий свист вверх (пузырёк)
+  if (m.water > .05) {
+    if (atmo.nextPlip < now) atmo.nextPlip = now;
+    while (atmo.nextPlip < ahead) {
+      const f = 500 + rnd() * 900;
+      if (voice(atmo.nature, { t: atmo.nextPlip, d: .05 + rnd() * .04, f0: f, f1: f * (1.6 + rnd() * .6), type: 'sine', v: A.water.vol * m.water * (.15 + .25 * rnd()), att: .004, rel: .02, low: true })) stats.plips++;
+      atmo.nextPlip += -Math.log(1 - rnd() * .999) / (A.water.plips * m.water);
+    }
+  }
+}
+export const __ctx = () => ac;     // для тестов (рендер без колонок)

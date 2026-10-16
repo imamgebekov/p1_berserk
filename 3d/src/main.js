@@ -7,7 +7,8 @@ import { createShop, createSmith, createCaptain } from './shop.js';
 import { createSkills } from './skillsui.js';
 import { createJournal } from './journal.js';
 import { createQuests } from './questsui.js';
-import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sfx } from './audio3d.js';
+import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sfx, setScene, tickAudio, audioStats } from './audio3d.js';
+import { mixOf } from './soundscape3d.js';
 import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLine, questMark } from './quests3d.js';
@@ -284,7 +285,7 @@ const showMute = () => { muteBtn.textContent = isMuted() ? '🔇 Звук вык
 muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); });
 showMute();
 const bagFill = $('bagFill');
-let ambT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0, lowT = 0, lowShown = false;
+let ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0, lowT = 0, lowShown = false;
 // личные настройки: левша, размер кнопок, вибрация, счётчик кадров, подсказки
 const prefBtn = (id, get, label, flip) => { const b = $(id); const show = () => { b.textContent = label(get()); }; b.addEventListener('click', () => { flip(); savePrefs(P); applyPrefs(); }); return show; };
 const uiTabs = $('uiTabs');
@@ -361,6 +362,7 @@ function loop(now) {
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) $('fps').textContent = f + ' кадр/с'; if (f < 32 && !panelOpen && !landscape) lowT += .5; else lowT = Math.max(0, lowT - .5); if (lowT >= 6 && !lowShown && cfg.view.pixelScale < 5) { lowShown = true; toast('Мало кадров: в ⚙ увеличьте «Размер пикселя»', 'bad'); } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast('💡 ' + ((desk && h.desk) || h.text), 'hint'); } }
   if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0); }
+  if ((atmoT += real) > .2) { atmoT = 0; setScene(mixOf(W, cfg.audio), cfg.audio); tickAudio(); }     // атмосфера: река, птицы, музыка
   if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; sfx('step'); }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
@@ -372,4 +374,4 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer };
+window.__b3d = { ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };

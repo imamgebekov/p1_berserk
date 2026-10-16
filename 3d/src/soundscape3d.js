@@ -1,0 +1,90 @@
+// Атмосфера звука (D1): чистая логика без Web Audio (проверяется в Node).
+// mixOf — громкость слоёв по месту героя: журчание у реки, птицы днём, сова ночью, музыка; бой и подземелье их глушат.
+// composePiece — своя музыка «лесная сказка»: вальс 3/4, форма AABA из фраз по 8 тактов, мелодия по аккордам с зерном
+// (каждый раз новая, ничего не копирует): флейта, арфа-переборы, струнный фон с басом, хор «а-а» без слов.
+// birdSong / owlCall — трели птиц и уханье совы (слоги со свистом частоты).
+import { waterDist } from './terrain3d.js';
+import { mulberry32 } from './sim.js';
+
+const clamp01 = v => Math.max(0, Math.min(1, v));
+const smooth = (a, b, v) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t); };
+
+export function mixOf(W, A) {
+  const p = W.player, under = W.lvl !== 'surface';
+  let n = 0; for (const e of W.enemies) if (!e.dead && e.alert && Math.hypot(e.x - p.x, e.z - p.z) < A.combat.r) n++;
+  const combat = p.dead ? 0 : clamp01(n / A.combat.n), danger = clamp01(W.place && W.place.danger ? W.place.danger / 3 : 0);
+  const rv = !under && W.map.river, d = rv ? Math.max(0, waterDist(rv, p.x, p.z)) : 1e9;
+  const water = rv ? 1 - smooth(A.water.near, A.water.far, d) : 0;
+  const day = under ? 0 : smooth(A.birds.day[0], A.birds.day[1], W.light);
+  const birds = day * (1 - danger * .8) * (1 - combat), owl = under ? 0 : (1 - day) * (W.night ? 1 : 0) * (1 - combat);
+  const music = under || p.dead ? 0 : (1 - combat) * (W.night ? A.music.nightVol : 1);
+  return { water, birds, owl, music, combat, night: !!W.night, under };
+}
+
+// ---- музыка ----
+const MAJOR = [0, 2, 4, 5, 7, 9, 11], MINOR = [0, 2, 3, 5, 7, 8, 10], ROOT = 62;     // ре мажор днём, ре минор ночью
+export const midiOf = (deg, scale) => ROOT + 12 * Math.floor(deg / 7) + scale[((deg % 7) + 7) % 7];
+const PROG = {
+  day: { A: [[0, 3, 0, 4, 0, 3, 4, 0], [0, 5, 3, 4, 0, 5, 4, 0], [0, 4, 5, 3, 0, 3, 4, 0]], B: [[5, 3, 0, 4, 5, 3, 1, 4], [3, 4, 2, 5, 3, 4, 1, 4]] },
+  night: { A: [[0, 5, 6, 0, 0, 3, 4, 0], [0, 6, 5, 6, 0, 3, 6, 0], [0, 3, 5, 4, 0, 5, 4, 0]], B: [[5, 6, 2, 3, 5, 6, 4, 4], [3, 2, 5, 6, 3, 2, 4, 4]] }
+};
+const RHYTHM = [[2, 1], [1, 1, 1], [3], [1.5, .5, 1], [1, .5, .5, 1], [1, 2]], CADENCE = [[3], [2, 1]];
+const pick = (r, a) => a[Math.floor(r() * a.length)];
+
+// мелодия фразы: первая нота такта — звук аккорда рядом с прошлой, остальные — шагом по ладу к «дуге» фразы; конец — тоника
+function melody(r, chords, lo, hi, start, peak, keep = null) {
+  const bars = []; let cur = start;
+  for (let b = 0; b < chords.length; b++) {
+    if (keep && keep[b]) { bars.push(keep[b]); cur = keep[b][keep[b].length - 1].deg; continue; }
+    const end = b === chords.length - 1, half = b === chords.length / 2 - 1, rh = end || half ? pick(r, CADENCE) : pick(r, RHYTHM);
+    const ch = [0, 2, 4].map(k => chords[b] + k), aim = lo + (peak - lo) * Math.sin(Math.PI * (b + .5) / chords.length), notes = []; let t = 0;
+    rh.forEach((len, i) => {
+      if (end && i === rh.length - 1) { const tons = [0, 7, 14, 21].filter(v => v >= lo && v <= hi); cur = tons.reduce((a, v) => (Math.abs(v - cur) < Math.abs(a - cur) ? v : a), tons[0]); }
+      else if (i === 0) { const c = []; for (let o = -14; o <= 21; o += 7) for (const k of ch) { const v = k + o; if (v >= lo && v <= hi) c.push(v); } const nearC = c.filter(v => Math.abs(v - cur) <= 3); cur = nearC.length ? pick(r, nearC) : c.reduce((a, v) => (Math.abs(v - cur) < Math.abs(a - cur) ? v : a), c[0]); }
+      else { const dir = cur < aim ? 1 : cur > aim ? -1 : (r() < .5 ? 1 : -1), step = r() < .2 ? 2 : 1; cur = Math.max(lo, Math.min(hi, cur + (r() < .8 ? dir : -dir) * step)); }
+      notes.push({ t, len, deg: cur }); t += len;
+    });
+    bars.push(notes);
+  }
+  return bars;
+}
+
+export function composePiece(seed, night = false, M = { dayBpm: 84, nightBpm: 70, phrase: 8, form: 'AABA' }) {
+  const r = mulberry32(seed * 7919 + 13), key = night ? 'night' : 'day', scale = night ? MINOR : MAJOR, P = PROG[key];
+  const bpm = night ? M.nightBpm : M.dayBpm, beat = 60 / bpm, barT = beat * 3;
+  const lo = night ? 5 : 7, hi = night ? 13 : 15;
+  const progA = pick(r, P.A), progB = pick(r, P.B);
+  const A1 = melody(r, progA, lo, hi, lo + 2, hi - 2);
+  const keepA = A1.map((b, i) => (i < progA.length - 2 ? b : null));
+  const phrases = [];
+  for (let i = 0; i < M.form.length; i++) {
+    const f = M.form[i];
+    if (f === 'B') phrases.push({ f, prog: progB, mel: melody(r, progB, lo + 1, hi, A1[A1.length - 1][0].deg, hi) });
+    else phrases.push({ f, prog: progA, mel: i === 0 ? A1 : melody(r, progA, lo, hi, lo + 2, hi - 2, keepA) });     // повтор A: начало то же, конец новый
+  }
+  const notes = []; let bar = 0;
+  phrases.forEach((ph, pi) => {
+    const last = pi === phrases.length - 1, rich = ph.f === 'B' || last;
+    ph.prog.forEach((root, b) => {
+      const t0 = bar * barT, chord = [0, 2, 4].map(k => root + k);
+      for (const k of chord) notes.push({ part: 'pad', t: t0, d: barT * .9, m: midiOf(k, scale), v: .5 });
+      notes.push({ part: 'bass', t: t0, d: barT, m: midiOf(root - 7, scale), v: .7 });
+      if (pi > 0) [0, 2, 4, 7, 4, 2].forEach((k, i) => notes.push({ part: 'harp', t: t0 + i * beat / 2, d: beat * 1.5, m: midiOf(root + k - 7, scale), v: i ? .5 : .7 }));
+      if (rich) for (const k of [root + 2, root + 4]) notes.push({ part: 'choir', t: t0, d: barT * 1.05, m: midiOf(k, scale), v: .5 });
+      for (const n of ph.mel[b]) notes.push({ part: 'flute', t: t0 + n.t * beat, d: n.len * beat * .95, m: midiOf(n.deg, scale), v: .8, deg: n.deg });
+      bar++;
+    });
+  });
+  notes.sort((a, b) => a.t - b.t);
+  return { bpm, beat, bars: bar, dur: bar * barT, night, scale, notes };
+}
+
+// ---- птицы и сова: слоги { t, d, f0, f1, v } ----
+export function birdSong(r) {
+  const kind = Math.floor(r() * 3), out = [];
+  if (kind === 0) { const n = 4 + Math.floor(r() * 6), f = 3000 + r() * 1500; for (let i = 0; i < n; i++) out.push({ t: i * .07, d: .045, f0: f, f1: f * 1.15, v: .7 + .3 * r() }); }                      // трель
+  else if (kind === 1) { const n = 2 + Math.floor(r() * 2); let t = 0; for (let i = 0; i < n; i++) { const up = i % 2 === 0, f = 2000 + r() * 900; out.push({ t, d: .22, f0: up ? f : f * 1.35, f1: up ? f * 1.35 : f, v: .8 }); t += .3; } }  // свист
+  else { const n = 2 + Math.floor(r() * 3); for (let i = 0; i < n; i++) out.push({ t: i * .13, d: .08, f0: 5200 - r() * 600, f1: 3000, v: .7 }); }     // чирик
+  return { kind, syl: out };
+}
+export const owlCall = r => { const f = 360 + r() * 40; return [{ t: 0, d: .35, f0: f, f1: f * .92, v: 1 }, { t: .55, d: .5, f0: f * 1.02, f1: f * .88, v: .9 }]; };
