@@ -1,5 +1,6 @@
 // Тест боссов 3D: появление, агро, предупреждения и атаки, фазы, ярость, иммунитеты, возврат, добыча, возрождение, сохранение.
 import { CFG3 } from '../3d/src/config3d.js';
+CFG3.terrain.on = false;      // эталон боя — плоское поле без реки (C2): цифры сравнимы с прошлыми версиями
 import { BY_ID } from '../3d/src/data/items.js';
 import { createWorld, step, mulberry32, spawnEnemy, hireAlly, restoreBosses, respawnPlayer, aliveEnemies } from '../3d/src/sim.js';
 import { applyStatus } from '../3d/src/status3d.js';

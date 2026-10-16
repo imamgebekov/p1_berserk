@@ -6,6 +6,7 @@ import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, spawnEnemy } from '../3d/src/sim.js';
 import { makeMap, makeLevelMap, resolve, lineBlocked } from '../3d/src/map.js';
 import { depthCurve, pointAtDepth } from '../3d/src/levels3d.js';
+import { pushWater } from '../3d/src/terrain3d.js';
 import { reveal } from '../3d/src/places3d.js';
 import { createSaver, loadSave, packSeen, packSeenChunks, unpackSeenChunks, seenSize, SAVE_VERSION } from '../3d/src/save3d.js';
 
@@ -38,6 +39,7 @@ function resolveRef(map, o, r) {
   for (const w of map.blocks || []) if (pushOutRef(o, r, w)) hit = true;
   for (const d of map.doors || []) if (d.open < .6 && pushOutRef(o, r, d.rect)) hit = true;
   for (const q of map.solids) { const dx = o.x - q.x, dz = o.z - q.z, d = Math.hypot(dx, dz), m = q.r + r; if (d < m) { hit = true; if (d > 1e-9) { o.x = q.x + dx / d * m; o.z = q.z + dz / d * m; } else o.x += m; } }
+  if (map.river && pushWater(map.river, o, r)) hit = true;      // река — полным перебором участков русла
   return hit;
 }
 function lineRef(map, x0, z0, x1, z1) {

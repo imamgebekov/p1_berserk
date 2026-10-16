@@ -2,6 +2,7 @@
 // Печатает таблицу (убито, урон за убийство, доля смертей) и проверяет «лестницу силы»:
 // голые руки далеко от костра умирают, экипировка по месту выживает, перебор экипировки у костра скучен, но безопасен.
 import { CFG3 } from '../3d/src/config3d.js';
+CFG3.terrain.on = false;      // эталон боя — плоское поле без реки (C2): цифры сравнимы с прошлыми версиями
 import { createWorld, step, mulberry32, aliveEnemies, setDifficulty, travel } from '../3d/src/sim.js';
 import { pathStep } from '../3d/src/map.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };

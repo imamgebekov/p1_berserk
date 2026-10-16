@@ -2,6 +2,7 @@
 // Стены — прямоугольники (AABB); герой и враги — круги, которые выталкиваются из стен и скользят вдоль них.
 
 import { genWorld } from './world3d.js';
+import { riverOf, pushWater, waterDist } from './terrain3d.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const vertDoor = side => side === 'e' || side === 'w';
@@ -57,7 +58,7 @@ export function makeMap(cfg) {
   for (const sp of gen.spots) if (!containers.some(c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1);
   const camp = campOf(cfg), { blocks, foeBlocks } = camp ? campWalls(camp) : { blocks: [], foeBlocks: [] };
   const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
-  return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, camp, blocks, foeBlocks };
+  return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, camp, blocks, foeBlocks, river: riverOf(cfg) };
 }
 
 // какой дом содержит точку (внутри стен), иначе −1
@@ -77,30 +78,31 @@ export function nearBuilding(map, x, z, pad) {
 // поэтому результат совпадает с полным перебором до бита
 const GCS = 8, GK = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
 function gridOf(map) {
-  const nb = map.buildings.length, nk = (map.blocks || []).length, nd = (map.doors || []).length, ns = (map.solids || []).length, G0 = map.grid;
-  if (G0 && G0.nb === nb && G0.nk === nk && G0.nd === nd && G0.ns === ns) return G0;
+  const nb = map.buildings.length, nk = (map.blocks || []).length, nd = (map.doors || []).length, ns = (map.solids || []).length, nw = map.river ? map.river.pts.length - 1 : 0, G0 = map.grid;
+  if (G0 && G0.nb === nb && G0.nk === nk && G0.nd === nd && G0.ns === ns && G0.nw === nw) return G0;
   const cells = new Map();
   const box = (kind, i, x0, z0, x1, z1) => {
     for (let cx = Math.floor(x0 / GCS), cx1 = Math.floor(x1 / GCS); cx <= cx1; cx++) for (let cz = Math.floor(z0 / GCS), cz1 = Math.floor(z1 / GCS); cz <= cz1; cz++) {
-      const k = GK(cx, cz); let c = cells.get(k); if (!c) cells.set(k, c = { b: [], k: [], d: [], s: [] }); c[kind].push(i);
+      const k = GK(cx, cz); let c = cells.get(k); if (!c) cells.set(k, c = { b: [], k: [], d: [], s: [], w: [] }); c[kind].push(i);
     }
   };
   map.buildings.forEach((b, i) => box('b', i, b.x0, b.z0, b.x1, b.z1));
   (map.blocks || []).forEach((w, i) => box('k', i, w.x0, w.z0, w.x1, w.z1));
   (map.doors || []).forEach((d, i) => box('d', i, d.rect.x0, d.rect.z0, d.rect.x1, d.rect.z1));
   (map.solids || []).forEach((q, i) => box('s', i, q.x - q.r, q.z - q.r, q.x + q.r, q.z + q.r));
-  const mark = { b: new Uint32Array(nb), k: new Uint32Array(nk), d: new Uint32Array(nd), s: new Uint32Array(ns) };
-  return (map.grid = { cells, nb, nk, nd, ns, mark, stamp: 0 });
+  if (map.river) { const P = map.river.pts, h = map.river.w / 2; for (let i = 0; i < nw; i++) box('w', i, Math.min(P[i].x, P[i + 1].x) - h, Math.min(P[i].z, P[i + 1].z) - h, Math.max(P[i].x, P[i + 1].x) + h, Math.max(P[i].z, P[i + 1].z) + h); }     // участки русла
+  const mark = { b: new Uint32Array(nb), k: new Uint32Array(nk), d: new Uint32Array(nd), s: new Uint32Array(ns), w: new Uint32Array(nw) };
+  return (map.grid = { cells, nb, nk, nd, ns, nw, mark, stamp: 0 });
 }
-const byNum = (a, b) => a - b;
+const byNum = (a, b) => a - b, KINDS = ['b', 'k', 'd', 's', 'w'];
 // индексы домов, стен, дверей и препятствий, чьи рамки задевают прямоугольник (в исходном порядке)
 export function nearby(map, x0, z0, x1, z1) {
-  const G = gridOf(map), out = { b: [], k: [], d: [], s: [] }, st = ++G.stamp;
+  const G = gridOf(map), out = { b: [], k: [], d: [], s: [], w: [] }, st = ++G.stamp;
   for (let cx = Math.floor(x0 / GCS), cx1 = Math.floor(x1 / GCS); cx <= cx1; cx++) for (let cz = Math.floor(z0 / GCS), cz1 = Math.floor(z1 / GCS); cz <= cz1; cz++) {
     const c = G.cells.get(GK(cx, cz)); if (!c) continue;
-    for (const kind of ['b', 'k', 'd', 's']) { const m = G.mark[kind], o = out[kind]; for (const i of c[kind]) if (m[i] !== st) { m[i] = st; o.push(i); } }
+    for (const kind of KINDS) { const m = G.mark[kind], o = out[kind]; for (const i of c[kind]) if (m[i] !== st) { m[i] = st; o.push(i); } }
   }
-  for (const kind of ['b', 'k', 'd', 's']) if (out[kind].length > 1) out[kind].sort(byNum);
+  for (const kind of KINDS) if (out[kind].length > 1) out[kind].sort(byNum);
   return out;
 }
 const RESOLVE_PAD = 4;    // запас поиска: выталкивания за один вызов не уводят дальше
@@ -132,6 +134,7 @@ export function resolve(map, o, r) {
     const q = map.solids[i], dx = o.x - q.x, dz = o.z - q.z, d = Math.hypot(dx, dz), m = q.r + r;
     if (d < m) { hit = true; if (d > 1e-9) { o.x = q.x + dx / d * m; o.z = q.z + dz / d * m; } else o.x += m; }
   }
+  if (map.river && N.w.length && pushWater(map.river, o, r, N.w)) hit = true;     // река (мосты — проходимы)
   return hit;
 }
 
@@ -273,6 +276,7 @@ export function propsBlocked(map, x, z) {
   for (const [a, b] of map.roads) if (distSegPt(x, z, a, b) < 2.4) return true;
   for (const zn of map.cfg.zones || []) { const hw = zn.w ? zn.w / 2 + 2 : zn.r + 3, hd = zn.d ? zn.d / 2 + 2 : zn.r + 3; if (Math.abs(x - zn.x) < hw && Math.abs(z - zn.z) < hd) return true; }
   for (const c of map.containers) if (Math.hypot(c.x - x, c.z - z) < 2) return true;
+  if (map.river && waterDist(map.river, x, z) < 1.5) return true;          // не в воде и не у самой кромки
   return Math.hypot(x, z) < 6;
 }
 import { distSeg as distSegPt } from './world3d.js';

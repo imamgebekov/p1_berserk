@@ -14,6 +14,7 @@ import { addXp, gainXp } from './progress3d.js';
 import { restock } from './economy3d.js';
 import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
 import { useAbility, dashStep, tickAbilities } from './abilities3d.js';
+import { waterDist, bridgeGoal } from './terrain3d.js';
 import { BY_ID } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
@@ -139,6 +140,7 @@ function spawnRing(W) {
   if (nearBuilding(W.map, x, z, 1.5)) return false;                 // не рождаем врагов в стенах
   if (W.map.camp && insideCamp(W.map.camp, x, z, -W.map.camp.spawnPad)) return false;   // и в лагере, и у самого частокола
   { const pl = placeAt(W.map, x, z); if (pl && pl.safe) return false; }   // и в безопасных местах
+  if (W.map.river && waterDist(W.map.river, x, z) < 1) return false;      // и в реке
   const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)], posts = W.cfg.enemies.posts.modes;
   const pick = reg ? pickEntry(reg.filter(a => (a[2] !== 'night' || W.night) && (!a[3] || posts)), W.rng) : null;      // 'night' — только ночью; сторожа и патрули — если включены
   const type = pick ? pick[0] : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';
@@ -698,7 +700,7 @@ function goalOf(W, e) {
   const p = W.player;
   if (W.map.adj) return pathStep(W.map, e.x, e.z, p.x, p.z) || p;     // подземелье: через проходы по графу комнат
   const be = insideOf(W.map, e.x, e.z);
-  if (be === W.inside) return p;
+  if (be === W.inside) return bridgeGoal(W.map.river, e.x, e.z, p.x, p.z) || p;     // за рекой — к мосту
   const near = (a, b) => len(a.x - b.x, a.z - b.z) < 2.4;
   if (be >= 0) { const dr = W.map.buildings[be].door; return near(e, dr.in) ? dr.out : dr.in; }      // враг в доме: выйти
   const dr = W.map.buildings[W.inside].door; return near(e, dr.out) ? dr.in : dr.out;               // герой в доме: войти

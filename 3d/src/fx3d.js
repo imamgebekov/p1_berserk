@@ -2,7 +2,7 @@
 // Частицы и пятна — InstancedMesh: сотни штук без лишних вызовов отрисовки (важно для iPhone).
 import * as THREE from 'three';
 
-export function createFx(scene, camera, n = { parts: 240, decals: 64, flashes: 8 }) {
+export function createFx(scene, camera, n = { parts: 240, decals: 64, flashes: 8 }, groundY = () => 0) {
   const dummy = new THREE.Object3D(), col = new THREE.Color(), HIDE = new THREE.Matrix4().makeScale(0, 0, 0);
 
   // ---- частицы: позиция, скорость, жизнь, гравитация, размер ----
@@ -34,14 +34,14 @@ export function createFx(scene, camera, n = { parts: 240, decals: 64, flashes: 8
   }
 
   // ---- пятна на земле: плоские квадраты, со временем уменьшаются и исчезают ----
-  const ND = n.decals, D = { x: new Float32Array(ND), z: new Float32Array(ND), r: new Float32Array(ND), sx: new Float32Array(ND), sz: new Float32Array(ND), life: new Float32Array(ND) };
+  const ND = n.decals, D = { x: new Float32Array(ND), z: new Float32Array(ND), r: new Float32Array(ND), sx: new Float32Array(ND), sz: new Float32Array(ND), life: new Float32Array(ND), y: new Float32Array(ND) };
   const decals = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#fff', polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false }), ND);
   decals.frustumCulled = false; for (let i = 0; i < ND; i++) { decals.setMatrixAt(i, HIDE); decals.setColorAt(i, col.set('#000')); }
   decals.renderOrder = 1; scene.add(decals);
   let di = 0; const DLIFE = 9;
   function decal(x, z, size, color, dx = 0, dz = 0) {
     const i = di = (di + 1) % ND, stretch = dx || dz ? 1.6 : 1;
-    D.x[i] = x; D.z[i] = z; D.r[i] = dx || dz ? Math.atan2(dx, dz) : Math.random() * 6.283; D.sx[i] = size * (.8 + Math.random() * .3); D.sz[i] = size * stretch; D.life[i] = DLIFE;
+    D.x[i] = x; D.z[i] = z; D.y[i] = groundY(x, z) + .025; D.r[i] = dx || dz ? Math.atan2(dx, dz) : Math.random() * 6.283; D.sx[i] = size * (.8 + Math.random() * .3); D.sz[i] = size * stretch; D.life[i] = DLIFE;
     decals.setColorAt(i, col.set(color)); decals.instanceColor.needsUpdate = true;
   }
 
@@ -67,7 +67,7 @@ export function createFx(scene, camera, n = { parts: 240, decals: 64, flashes: 8
       D.life[i] -= dt;
       if (D.life[i] <= 0) { decals.setMatrixAt(i, HIDE); continue; }
       const k = Math.min(1, D.life[i] / 2);                                // последние 2 с — ужимается
-      dummy.position.set(D.x[i], .025, D.z[i]); dummy.rotation.set(0, D.r[i], 0); dummy.scale.set(D.sx[i] * k, 1, D.sz[i] * k); dummy.updateMatrix(); decals.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(D.x[i], D.y[i], D.z[i]); dummy.rotation.set(0, D.r[i], 0); dummy.scale.set(D.sx[i] * k, 1, D.sz[i] * k); dummy.updateMatrix(); decals.setMatrixAt(i, dummy.matrix);
     }
     decals.instanceMatrix.needsUpdate = true;
     for (const m of flashes) if (m.visible) {

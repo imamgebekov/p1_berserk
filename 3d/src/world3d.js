@@ -2,6 +2,7 @@
 // Результат: decor — список предметов для рендера, solids — круги, о которые спотыкаются, spots — дополнительные контейнеры.
 
 import { campOf, campGates, insideCamp } from './map.js';
+import { riverOf, waterDist } from './terrain3d.js';
 const TAU = Math.PI * 2;
 export function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
@@ -11,12 +12,13 @@ export function genWorld(cfg, buildings) {
   const inBuilding = (x, z, pad) => buildings.some(b => x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad);
   const inSolid = (x, z, r) => solids.some(s => Math.hypot(s.x - x, s.z - z) < s.r + r);
   const nearRoad = (x, z, w) => roads.some(([a, b]) => distSeg(x, z, a, b) < w);
-  const free = (x, z, pad) => Math.hypot(x, z) < R - 4 && !inBuilding(x, z, pad) && !inSolid(x, z, pad);
+  const river = riverOf(cfg), wet = (x, z, pad) => !!river && waterDist(river, x, z) < pad;     // река (C2): декор не в воде
+  const free = (x, z, pad) => Math.hypot(x, z) < R - 4 && !inBuilding(x, z, pad) && !inSolid(x, z, pad) && !wet(x, z, pad);
   const doors = buildings.map(b => b.door);
   const blocksDoor = (x, z, r) => doors.some(d => Math.hypot(d.out.x - x, d.out.z - z) < r + 2.4 || Math.hypot(d.x - x, d.z - z) < r + 2.4);
-  const put = (t, x, z, extra = {}) => { decor.push({ t, x, z, ...extra }); };
+  const put = (t, x, z, extra = {}) => { if (!wet(x, z, .3)) decor.push({ t, x, z, ...extra }); };
   // твёрдый предмет: рисуем и ставим круг-препятствие, но не у двери (дверь всегда должна быть доступна)
-  const solid = (t, x, z, r, extra = {}) => { if (blocksDoor(x, z, r)) return false; put(t, x, z, extra); solids.push({ x, z, r }); return true; };
+  const solid = (t, x, z, r, extra = {}) => { if (blocksDoor(x, z, r) || wet(x, z, r)) return false; put(t, x, z, extra); solids.push({ x, z, r }); return true; };
   const ring = (x, z, r, n, f) => { for (let i = 0; i < n; i++) { const a = rnd() * TAU, d = Math.sqrt(rnd()) * r; f(x + Math.cos(a) * d, z + Math.sin(a) * d, i); } };
 
   // дороги: от костра к двери каждого здания; к домам за частоколом лагеря — через ближайшие ворота

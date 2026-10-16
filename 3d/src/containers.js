@@ -35,11 +35,11 @@ function chestBody(g, base, band, trim) {
   const l = new THREE.Group(); l.position.set(0, .48, -.33); B(l, .98, .18, .7, base, 0, .09, .33); B(l, .1, .2, .72, band, -.3, .1, .33); B(l, .1, .2, .72, band, .3, .1, .33); B(l, .12, .1, .04, trim, 0, .0, .7); g.add(l); return l;
 }
 
-export function buildContainers(map) {
+export function buildContainers(map, Y = () => 0) {
   const group = new THREE.Group(), items = [];
   const gemGeo = new THREE.OctahedronGeometry(.16);
   for (const c of map.containers) {
-    const g = new THREE.Group(); g.position.set(c.x, 0, c.z);
+    const g = new THREE.Group(); g.position.set(c.x, Y(c.x, c.z), c.z);
     // повернуть лицом к центру деревни (костру), чтобы замок и крышка смотрели на игрока
     g.rotation.y = Math.atan2(-c.x, -c.z) + (c.b >= 0 ? 0 : 0);
     const lid = (SHAPES[c.kind] || SHAPES.crate)(g) || null;
@@ -71,11 +71,11 @@ export function buildContainers(map) {
       const m = dropPool[i], q = dr[i], beam = m.userData.beam;
       if (!q) { m.visible = beam.visible = false; continue; }
       const rar = BY_ID[q.id].rar, hop = q.t < .45 ? Math.sin(q.t / .45 * Math.PI) * 1.3 : 0;
-      m.visible = true; m.position.set(q.x, .45 + hop + Math.sin(t * 4 + i) * .08, q.z); m.rotation.y = t * 2.5;
+      const gy = Y(q.x, q.z); m.visible = true; m.position.set(q.x, gy + .45 + hop + Math.sin(t * 4 + i) * .08, q.z); m.rotation.y = t * 2.5;
       const col = RARITY[rar].color; if (m.userData.col !== col) { m.userData.col = col; m.material.color.set(col); beam.material.color.set(col); }
       const blink = q.t > W.cfg.gear.dropLife - 8 ? .6 + .4 * Math.abs(Math.sin(t * 12)) : 1;
       m.scale.setScalar((1 + rar * .18) * blink);
-      beam.visible = rar >= 2; if (beam.visible) { const h = 1.6 + rar * 1.1; beam.scale.set(1 + rar * .4, h, 1 + rar * .4); beam.position.set(q.x, h / 2, q.z); beam.material.opacity = (.25 + .1 * rar) * (.75 + .25 * Math.sin(t * 5 + i)) * blink; }
+      beam.visible = rar >= 2; if (beam.visible) { const h = 1.6 + rar * 1.1; beam.scale.set(1 + rar * .4, h, 1 + rar * .4); beam.position.set(q.x, gy + h / 2, q.z); beam.material.opacity = (.25 + .1 * rar) * (.75 + .25 * Math.sin(t * 5 + i)) * blink; }
     }
   }
   return { group, update, items };

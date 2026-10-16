@@ -27,6 +27,14 @@ export function drawMap(ctx, W, v) {
   // дороги
   ctx.strokeStyle = '#4a3a2c'; ctx.lineWidth = Math.max(1, sc * 1.4); ctx.lineCap = 'round';
   for (const [a, b] of M.roads) { ctx.beginPath(); ctx.moveTo(X(a.x), Y(a.z)); ctx.lineTo(X(b.x), Y(b.z)); ctx.stroke(); }
+  // река и мосты
+  if (!under && M.river) {
+    const RV = M.river; ctx.strokeStyle = '#2a4a5c'; ctx.lineWidth = Math.max(2, RV.w * sc); ctx.lineJoin = 'round'; ctx.beginPath();
+    RV.pts.forEach((q, i) => (i ? ctx.lineTo(X(q.x), Y(q.z)) : ctx.moveTo(X(q.x), Y(q.z)))); ctx.stroke();
+    ctx.strokeStyle = '#8a6a44'; ctx.lineCap = 'butt';
+    for (const br of RV.bridges) { const s2 = Math.sin(br.ang) * br.len / 2, c2 = Math.cos(br.ang) * br.len / 2; ctx.lineWidth = Math.max(2, br.w * sc); ctx.beginPath(); ctx.moveTo(X(br.x - s2), Y(br.z - c2)); ctx.lineTo(X(br.x + s2), Y(br.z + c2)); ctx.stroke(); }
+    ctx.lineCap = 'round';
+  }
   // здания
   for (const b of M.buildings) { ctx.fillStyle = KIND[b.kind] || KIND.house; ctx.fillRect(X(b.x0), Y(b.z0), Math.max(2, b.w * sc), Math.max(2, b.d * sc)); }
   // частокол лагеря: кольцо с проёмами ворот

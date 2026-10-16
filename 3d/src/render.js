@@ -3,6 +3,7 @@ import { makeMap, propsBlocked, campGates } from './map.js';
 import { buildDecor } from './decor.js';
 import { buildTown } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
+import { buildHeights, heightAt } from './terrain3d.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
@@ -65,10 +66,48 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const dome = skyDome(); scene.add(dome);
   let lastLight = -1;
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshLambertMaterial({ map: groundTexture() }));
-  ground.rotation.x = -Math.PI / 2; scene.add(ground);
+  const gtex = groundTexture();
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshLambertMaterial({ map: gtex }));
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -1.2; scene.add(ground);     // ниже дна реки: внутри мира землю рисуют холмы
 
   const map = makeMap(cfg);
+  // рельеф (C2): поле высот только для вида; Y — высота земли под точкой (в подземельях 0)
+  const hf = buildHeights(cfg, map); let groundOn = true;
+  const Y = (x, z) => (groundOn ? heightAt(hf, x, z) : 0);
+  if (hooks.onText) { const f = hooks.onText; hooks.onText = (x, y, z, ...a) => f(x, y + Y(x, z), z, ...a); }
+  // земля с холмами: сетка высот под всем миром, светлее на буграх и темнее в низинах, у воды — песок
+  const hills = (() => {
+    const S = hf.R * 2, seg = hf.n - 1, g = new THREE.PlaneGeometry(S, S, seg, seg); g.rotateX(-Math.PI / 2);
+    const pos = g.attributes.position, uv = g.attributes.uv, col = new Float32Array(pos.count * 3), sand = new THREE.Color('#8a7656'), c = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), z = pos.getZ(i), h = heightAt(hf, x, z); pos.setY(i, h);
+      uv.setXY(i, (x + 250) / 500, 1 - (z + 250) / 500);                // та же текстура и масштаб, что у плоской земли
+      const k = 1 + h * .12; c.setRGB(k, k, k);
+      if (map.river && h < -.15) c.lerp(sand, Math.min(1, -h / .8) * .7);
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true })); scene.add(m); return m;
+  })();
+  // вода: лента вдоль русла чуть ниже берега; мосты: настил, доски, перила, столбы
+  const river = map.river, waterMat = new THREE.MeshLambertMaterial({ color: '#28485a', transparent: true, opacity: .88, emissive: '#0a1a24', side: THREE.DoubleSide }), riverGroup = new THREE.Group();
+  if (river) {
+    const P = river.pts, v = [], idx = [], hw = river.w / 2 + .5;
+    P.forEach((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
+      v.push(p.x + nx * hw, cfg.terrain.water, p.z + nz * hw, p.x - nx * hw, cfg.terrain.water, p.z - nz * hw); if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); } });
+    const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); wg.setIndex(idx); wg.computeVertexNormals();
+    riverGroup.add(new THREE.Mesh(wg, waterMat));
+    const wood = new THREE.MeshLambertMaterial({ color: '#5a3e26' }), dark = new THREE.MeshLambertMaterial({ color: '#3a2818' }), dk = cfg.terrain.bridge.deck;
+    for (const b of river.bridges) {
+      const g = new THREE.Group(); g.position.set(b.x, 0, b.z); g.rotation.y = b.ang;
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(b.w, .16, b.len), wood); deck.position.y = dk - .08; g.add(deck);
+      for (let k = -b.len / 2 + .4; k < b.len / 2; k += .55) { const pl = new THREE.Mesh(new THREE.BoxGeometry(b.w + .1, .04, .08), dark); pl.position.set(0, dk + .01, k); g.add(pl); }
+      for (const s of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(.1, .1, b.len), dark); rail.position.set(s * (b.w / 2 - .05), dk + .7, 0); g.add(rail);
+        for (let k = -b.len / 2; k <= b.len / 2 + .01; k += b.len / 3) { const post = new THREE.Mesh(new THREE.BoxGeometry(.14, 1.5, .14), dark); post.position.set(s * (b.w / 2 - .05), dk + .1, k); g.add(post); } }
+      riverGroup.add(g);
+    }
+    scene.add(riverGroup);
+  }
   const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
   const decor = buildDecor(map, mulberry32(cfg.world.seed + 2)); scene.add(decor.group);
   const npcs = [];
@@ -80,7 +119,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const a = rnd() * Math.PI * 2, d = 7 + Math.sqrt(rnd()) * (cfg.world.radius - 8), x = Math.cos(a) * d, z = Math.sin(a) * d;
     const tree = rnd() < .65;
     if (propsBlocked(map, x, z)) continue;                             // не растим деревья в домах, на дорогах и в областях
-    (tree ? addTree : addRock)(parts, rnd, x, z);
+    const k0 = parts.length; (tree ? addTree : addRock)(parts, rnd, x, z); const gy = Y(x, z); for (let k = k0; k < parts.length; k++) parts[k].translate(0, gy, 0);     // на холме
   }
   // граница мира: частокол из мёртвых стволов
   for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2, R = cfg.world.radius + 1.5; addTree(parts, rnd, Math.cos(a) * R, Math.sin(a) * R); }
@@ -134,11 +173,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   puffs.count = calm ? 0 : puffN; puffs.frustumCulled = false; life.add(puffs);
   const puffM = new THREE.Matrix4(), puffQ = new THREE.Quaternion(), puffS = new THREE.Vector3(), puffP = new THREE.Vector3();
   scene.add(life);
-  const surfaceObjs = [life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
+  const surfaceObjs = [hills, riverGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   function showLevel(W) {
     const id = W.lvl, L = W.levels[id];
-    if (!views.has(id)) { const v = L.def ? buildLevelView(L, cfg) : buildSurfaceView(L); scene.add(v.group); views.set(id, v); }
+    if (!views.has(id)) { const v = L.def ? buildLevelView(L, cfg) : buildSurfaceView(L, Y); scene.add(v.group); views.set(id, v); }
     for (const [k, v] of views) v.group.visible = k === id;
     const up = !L.def; for (const o of surfaceObjs) o.visible = up;
     sun.visible = up; lantern.visible = !up;
@@ -154,7 +193,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function updateCharge(p, t) {
     const on = p.state === 'charge'; chargeRing.visible = on; if (!on) return;
     const H = cfg.player.heavy, k = Math.min(1, p.chargeT / H.full), full = k >= 1;
-    chargeRing.position.set(p.x, .06, p.z); chargeRing.scale.setScalar(.6 + 1.4 * k + (full ? Math.sin(t * 18) * .08 : 0));
+    chargeRing.position.set(p.x, .06 + Y(p.x, p.z), p.z); chargeRing.scale.setScalar(.6 + 1.4 * k + (full ? Math.sin(t * 18) * .08 : 0));
     chargeRing.material.color.set(full ? '#ff8a30' : '#ffd9c0'); chargeRing.material.opacity = .35 + .45 * k;
   }
   // след клинка: лента между началом и концом рабочей части оружия за последние кадры (светится и гаснет)
@@ -196,7 +235,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
 
   // эффекты боя: частицы, пятна на земле, вспышки (fx3d.js)
-  const fx = createFx(scene, camera), burst = fx.burst, BLOOD = '#4a080c', HURT_T = .22;
+  const fx = createFx(scene, camera, undefined, Y), BLOOD = '#4a080c', HURT_T = .22;
+  for (const k of ['burst', 'flash', 'spray', 'ash']) { const f = fx[k]; fx[k] = (x, y, z, ...a) => f(x, y + Y(x, z), z, ...a); }     // эффекты — над землёй
+  const burst = fx.burst;
   const DECAL_FX = { burn: '#1a1410', venom: '#2e4a1a', bleed: BLOOD };      // холод и гроза пятен не оставляют
   // попадание: брызги прочь от героя, искры, вспышка, пятно; урон от статусов и молний — только мелкие брызги своего цвета
   function hitFx(v, p) {
@@ -256,7 +297,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
     camera.aspect = cssW / cssH; camera.updateProjectionMatrix();
   }
-  const cam = { x: 0, z: 8, init: false };
+  const cam = { x: 0, z: 8, y: 0, init: false };
   const screen = new THREE.Vector3();
 
   function project(x, y, z) {
@@ -268,11 +309,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const fxPool = []; let tomb = null;
   function zap(x1, z1, x2, z2) {
     const len = Math.hypot(x2 - x1, z2 - z1), m = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, len), new THREE.MeshBasicMaterial({ color: '#ffe27a' }));
-    m.position.set((x1 + x2) / 2, 1.2, (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); scene.add(m); fxPool.push({ m, t: .18, kind: 'zap' });
+    m.position.set((x1 + x2) / 2, 1.2 + Y((x1 + x2) / 2, (z1 + z2) / 2), (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); scene.add(m); fxPool.push({ m, t: .18, kind: 'zap' });
   }
   function ringFx(x, z, r, color) {
     const m = new THREE.Mesh(new THREE.RingGeometry(.85, 1, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide }));
-    m.rotation.x = -Math.PI / 2; m.position.set(x, .1, z); scene.add(m); fxPool.push({ m, t: .35, kind: 'ring', r });
+    m.rotation.x = -Math.PI / 2; m.position.set(x, .1 + Y(x, z), z); scene.add(m); fxPool.push({ m, t: .35, kind: 'ring', r });
   }
   // предупреждение босса: круг, кольцо или линия рывка, пока идёт замах
   const teleRing = new THREE.Mesh(new THREE.RingGeometry(.97, 1, 48), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
@@ -293,14 +334,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ring.position.y = .1; disc.position.y = .08; hazMeshes.push({ ring, disc });
   }
   function updateFoes(W, t) {
-    trapMeshes.forEach((g, i) => { const tp = W.traps[i]; g.visible = !!tp; if (tp) g.position.set(tp.x, 0, tp.z); });
-    zoneMeshes.forEach((m, i) => { const zn = W.zones[i]; m.visible = !!zn; if (zn) { m.position.set(zn.x, .06, zn.z); m.scale.setScalar(zn.r); if (Math.random() < .5) burst(zn.x + (Math.random() - .5) * zn.r * 1.6, 3.5, zn.z + (Math.random() - .5) * zn.r * 1.6, 1, '#eef4ff', 1); } });
-    projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { const k = q.friendly ? q.kind : 'foe'; if (m.userData.k !== k) { m.userData.k = k; m.material.color.set(k === 'foe' ? '#ffd27a' : k === 'bolt' ? '#b8c4d8' : k === 'venom' ? '#7ad060' : '#eef4ff'); m.scale.set(k === 'bolt' ? 1.4 : 1, k === 'bolt' ? 1.4 : 1, k === 'bolt' ? .8 : 1); } m.position.set(q.x, 1.1, q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });     // свои стрелы светлые, болт толще
+    trapMeshes.forEach((g, i) => { const tp = W.traps[i]; g.visible = !!tp; if (tp) g.position.set(tp.x, Y(tp.x, tp.z), tp.z); });
+    zoneMeshes.forEach((m, i) => { const zn = W.zones[i]; m.visible = !!zn; if (zn) { m.position.set(zn.x, .06 + Y(zn.x, zn.z), zn.z); m.scale.setScalar(zn.r); if (Math.random() < .5) burst(zn.x + (Math.random() - .5) * zn.r * 1.6, 3.5, zn.z + (Math.random() - .5) * zn.r * 1.6, 1, '#eef4ff', 1); } });
+    projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { const k = q.friendly ? q.kind : 'foe'; if (m.userData.k !== k) { m.userData.k = k; m.material.color.set(k === 'foe' ? '#ffd27a' : k === 'bolt' ? '#b8c4d8' : k === 'venom' ? '#7ad060' : '#eef4ff'); m.scale.set(k === 'bolt' ? 1.4 : 1, k === 'bolt' ? 1.4 : 1, k === 'bolt' ? .8 : 1); } m.position.set(q.x, 1.1 + Y(q.x, q.z), q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });     // свои стрелы светлые, болт толще
     hazMeshes.forEach((h, i) => {
       const z = W.haz[i]; h.ring.visible = h.disc.visible = !!z; if (!z) return;
       const k = Math.min(1, z.t / z.delay), pulse = .3 + .25 * Math.sin(t * 28) + .25 * k, fire = z.by === 'elite' || z.bomber, col = fire ? '#ff7a20' : '#d060ff';      // взрыв (элита, тлеющий) — оранжевый, колдовство — фиолетовое
       h.ring.material.color.set(col); h.disc.material.color.set(fire ? '#c04a10' : '#8a30c0');
-      h.ring.position.x = h.disc.position.x = z.x; h.ring.position.z = h.disc.position.z = z.z; h.ring.scale.setScalar(z.r); h.disc.scale.setScalar(z.r * k);
+      h.ring.position.set(z.x, .1 + Y(z.x, z.z), z.z); h.disc.position.set(z.x, .08 + Y(z.x, z.z), z.z); h.ring.scale.setScalar(z.r); h.disc.scale.setScalar(z.r * k);
       h.ring.material.opacity = .9; h.disc.material.opacity = pulse * .6;
     });
   }
@@ -313,7 +354,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (i >= lineTele.length) break;
       if (e.dead || e.state !== 'aim' || !e.tele) continue;
       const m = lineTele[i++], k = Math.min(1, e.t / e.tele.aim);
-      m.visible = true; m.position.set(e.x, .07, e.z); m.rotation.y = e.face; m.scale.set(e.tele.w, 1, e.tele.len * (.3 + .7 * k)); m.material.opacity = .25 + .35 * k + .1 * Math.sin(t * 30);
+      m.visible = true; m.position.set(e.x, .07 + Y(e.x, e.z), e.z); m.rotation.y = e.face; m.scale.set(e.tele.w, 1, e.tele.len * (.3 + .7 * k)); m.material.opacity = .25 + .35 * k + .1 * Math.sin(t * 30);
     }
     for (; i < lineTele.length; i++) lineTele[i].visible = false;
   }
@@ -323,12 +364,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (!e.boss || e.dead || !e.b || e.b.state !== 'wind') continue;
       const a = e.b.atk, k = Math.min(1, a.t / a.wind), pulse = .25 + .25 * Math.sin(t * 30) + .2 * k;
       if (a.kind === 'charge') {
-        teleLine.visible = true; teleLine.scale.set(a.width, a.len, 1); teleLine.position.set(a.x + a.dx * a.len / 2, .09, a.z + a.dz * a.len / 2);
+        teleLine.visible = true; teleLine.scale.set(a.width, a.len, 1); teleLine.position.set(a.x + a.dx * a.len / 2, .09 + Y(a.x, a.z), a.z + a.dz * a.len / 2);
         teleLine.rotation.set(-Math.PI / 2, 0, -Math.atan2(a.dx, a.dz)); teleLine.rotation.order = 'YXZ'; teleLine.rotation.set(-Math.PI / 2, Math.atan2(a.dx, a.dz), 0); teleLine.material.opacity = pulse;
       } else {
-        teleRing.visible = true; teleRing.position.set(a.x, .09, a.z); teleRing.scale.setScalar(a.r); teleRing.material.opacity = .9;
-        teleDisc.visible = true; teleDisc.position.set(a.x, .08, a.z); teleDisc.scale.setScalar(a.r * (a.kind === 'nova' ? 1 : k)); teleDisc.material.opacity = pulse * .6;
-        if (a.kind === 'nova') { teleInner.visible = true; teleInner.position.set(a.x, .1, a.z); teleInner.scale.setScalar(a.inner); teleInner.material.opacity = .9; }
+        teleRing.visible = true; teleRing.position.set(a.x, .09 + Y(a.x, a.z), a.z); teleRing.scale.setScalar(a.r); teleRing.material.opacity = .9;
+        teleDisc.visible = true; teleDisc.position.set(a.x, .08 + Y(a.x, a.z), a.z); teleDisc.scale.setScalar(a.r * (a.kind === 'nova' ? 1 : k)); teleDisc.material.opacity = pulse * .6;
+        if (a.kind === 'nova') { teleInner.visible = true; teleInner.position.set(a.x, .1 + Y(a.x, a.z), a.z); teleInner.scale.setScalar(a.inner); teleInner.material.opacity = .9; }
       }
     }
   }
@@ -343,15 +384,16 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function render(W, dt) {
     const t = W.t, p = W.player;
     // камера: плавно следует за героем под заданным углом
-    if (!cam.init) { cam.x = p.x; cam.z = p.z; cam.init = true; }
+    groundOn = W.lvl === 'surface';
+    if (!cam.init) { cam.x = p.x; cam.z = p.z; cam.y = Y(p.x, p.z); cam.init = true; }
     const k = 1 - Math.exp(-cfg.view.camFollow * dt);
-    cam.x += (p.x - cam.x) * k; cam.z += (p.z - cam.z) * k;
+    cam.x += (p.x - cam.x) * k; cam.z += (p.z - cam.z) * k; cam.y += (Y(p.x, p.z) - cam.y) * k;
     const pitch = cfg.view.camPitch * Math.PI / 180, dist = cfg.view.camDist;
     const sh = W.shake * .35;
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
     const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
-    camera.position.set(cam.x + Math.sin(yaw) * hd + (Math.random() - .5) * sh, Math.sin(pitch) * dist + cfg.view.camLookUp + (Math.random() - .5) * sh, cam.z + Math.cos(yaw) * hd);
-    camera.lookAt(cam.x, cfg.view.camLookUp, cam.z);
+    camera.position.set(cam.x + Math.sin(yaw) * hd + (Math.random() - .5) * sh, Math.sin(pitch) * dist + cfg.view.camLookUp + cam.y + (Math.random() - .5) * sh, cam.z + Math.cos(yaw) * hd);
+    camera.lookAt(cam.x, cfg.view.camLookUp + cam.y, cam.z);
     if (W.lvl !== shownLvl) showLevel(W);
     const under = W.lvl !== 'surface';
     if (W.hero !== heroLook) { heroLook = W.hero; hero.setLook(heroOf(W.hero).look); }
@@ -369,7 +411,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const n of npcs) { const dx = p.x - n.pos.x, dz = p.z - n.pos.z; if (Math.hypot(dx, dz) < 9) n.group.rotation.y += angDiffTo(Math.atan2(dx, dz), n.group.rotation.y) * Math.min(1, dt * 6); n.root.position.y = Math.sin(t * 2) * .02; { const mk = questMark(W, n.kind || n.pos.kind); n.mark.visible = !!mk; if (mk) { n.mark.material.color.set(mk === 'ready' ? '#7ad06a' : '#e8c04a'); n.mark.position.y = 2.6 + Math.sin(t * 3) * .08; n.mark.rotation.y = t * 2; } } n.armL.rotation.x = Math.sin(t * 1.6) * .08; n.armR.rotation.x = -Math.sin(t * 1.6) * .08; }
     { const w = W.wanderer; cart.group.visible = !under && !!w;
       if (w && !under) {
-        cart.group.position.set(w.x, 0, w.z); cart.group.rotation.y = w.face;
+        cart.group.position.set(w.x, Y(w.x, w.z), w.z); cart.group.rotation.y = w.face;
         const nx = w.x + Math.cos(w.face) * 1.6 + Math.sin(w.face) * .6, nz = w.z - Math.sin(w.face) * 1.6 + Math.cos(w.face) * .6;
         cart.npc.group.rotation.y = Math.atan2(p.x - nx, p.z - nz) - w.face;
         cart.lamp.material.color.setHSL(.78, .9, .72 + (calm ? 0 : .12 * Math.sin(t * 4)));
@@ -377,15 +419,16 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       } }
     // оживление: жители ходят, вороны взлетают, дым из труб
     if (!under) {
-      for (const { v, m } of villagers) { stepVillager(v, dt, vStops, AMB, Math.random); m.group.position.set(v.x, 0, v.z); m.group.rotation.y = v.face; m.root.position.y = v.moving && !calm ? Math.abs(Math.sin(t * 8 + v.id)) * .07 : 0; m.armL.rotation.x = v.moving && !calm ? Math.sin(t * 8 + v.id) * .5 : 0; m.armR.rotation.x = -m.armL.rotation.x; }
+      for (const { v, m } of villagers) { stepVillager(v, dt, vStops, AMB, Math.random); m.group.position.set(v.x, Y(v.x, v.z), v.z); m.group.rotation.y = v.face; m.root.position.y = v.moving && !calm ? Math.abs(Math.sin(t * 8 + v.id)) * .07 : 0; m.armL.rotation.x = v.moving && !calm ? Math.sin(t * 8 + v.id) * .5 : 0; m.armR.rotation.x = -m.armL.rotation.x; }
       updateBirds(crows.map(c => c.b), p.x, p.z, dt, AMB);
-      for (const { b, m } of crows) { m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; m.group.position.set(b.x, b.y, b.z); m.group.rotation.y = b.face; const fl = b.state === 'fly' ? Math.sin(t * 22) * .9 : (b.peck < .3 ? .2 : 0); m.wl.rotation.z = fl; m.wr.rotation.z = -fl; }
+      for (const { b, m } of crows) { m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; m.group.position.set(b.x, b.y + Y(b.x, b.z), b.z); m.group.rotation.y = b.face; const fl = b.state === 'fly' ? Math.sin(t * 22) * .9 : (b.peck < .3 ? .2 : 0); m.wl.rotation.z = fl; m.wr.rotation.z = -fl; }
       for (let i = 0; i < puffs.count; i++) {
         const c = pipes[(i / AMB.smoke) | 0], k = ((t / 4 + (i % AMB.smoke) / AMB.smoke + c.x * .013) % 1), s = .35 + k * 1.1 * (1 - k * .6);
         puffP.set(c.x + k * 1.6 + Math.sin(t + i) * .15, c.y + .3 + k * 3.2, c.z + k * .4); puffS.set(s, s, s); puffM.compose(puffP, puffQ, puffS); puffs.setMatrixAt(i, puffM);
       }
       if (puffs.count) puffs.instanceMatrix.needsUpdate = true;
     }
+    if (!under && river && !calm) waterMat.emissive.setRGB(.04 + .015 * Math.sin(t * 1.3), .1 + .02 * Math.sin(t * 1.7 + 1), .14 + .02 * Math.sin(t * 1.1));
     // костёр: мерцание света и пламени
     const fl = .8 + .2 * Math.sin(t * 17) + .1 * Math.sin(t * 29.3);
     fire.light.intensity = 26 * fl; fire.flames.forEach((f, i) => { f.scale.y = .8 + .35 * Math.sin(t * (9 + i * 4) + i); f.rotation.y = t * (2 + i); });
@@ -395,37 +438,37 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ap.needsUpdate = true; ash.position.set(cam.x, 0, cam.z);
 
     // герой
-    hero.group.position.set(p.x, 0, p.z); hero.group.rotation.y = p.face;
+    const py = Y(p.x, p.z); hero.group.position.set(p.x, py, p.z); hero.group.rotation.y = p.face;
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); }
     { const o = W.inv.eq.offhand && BY_ID[W.inv.eq.offhand]; hero.setOff(o ? o.id : '', o && o.kind, o && o.mat, o && o.form); }
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
     animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
     updateCharge(p, t);
     updateTrail(W, p, dt);
-    heroShadow.position.set(p.x, .03, p.z);
+    heroShadow.position.set(p.x, .03 + py, p.z);
     // дуга удара
     arcGeometry(Math.min(360, (W.wp.trait.arc || cfg.player.attackArc) + (W.gear.arc || 0)));       // ширина и дальность дуги — как у надетого оружия
     if (swingFx > 0) swingFx = Math.max(0, swingFx - dt * 5);
-    arc.position.set(p.x, .08, p.z); arc.rotation.z = p.face; arc.scale.setScalar(cfg.player.attackRange + (W.gear.reach || 0)); arcMat.opacity = swingFx * .5;
+    arc.position.set(p.x, .08 + py, p.z); arc.rotation.z = p.face; arc.scale.setScalar(cfg.player.attackRange + (W.gear.reach || 0)); arcMat.opacity = swingFx * .5;
 
     // враги
     const alive = new Set();
     for (const e of W.enemies) {
       alive.add(e.id);
       const en = entity(e);
-      en.m.group.position.set(e.x, 0, e.z); en.m.group.rotation.y = e.face;
+      const ey = Y(e.x, e.z); en.m.group.position.set(e.x, ey, e.z); en.m.group.rotation.y = e.face;
       { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
       animateMonster(en.m, e, t, cfg);
       if (e.elite) {
         if (!en.elite) { en.elite = new THREE.Mesh(new THREE.RingGeometry(.95, 1.25, 28), new THREE.MeshBasicMaterial({ color: e.affColor, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide })); en.elite.rotation.x = -Math.PI / 2; scene.add(en.elite); }
-        en.elite.position.set(e.x, .07, e.z); en.elite.visible = !e.dead; en.elite.scale.setScalar(cfg.enemies[e.type].scale * (e.scaleMul || 1) * (1 + .06 * Math.sin(t * 5)));
+        en.elite.position.set(e.x, .07 + ey, e.z); en.elite.visible = !e.dead; en.elite.scale.setScalar(cfg.enemies[e.type].scale * (e.scaleMul || 1) * (1 + .06 * Math.sin(t * 5)));
       }
-      en.sh.position.set(e.x, .03, e.z);
+      en.sh.position.set(e.x, .03 + ey, e.z);
       const wind = e.state === 'wind' && !e.dead;
-      en.ring.position.set(e.x, .06, e.z); en.ring.scale.setScalar(cfg.enemies[e.type].range + .5);
+      en.ring.position.set(e.x, .06 + ey, e.z); en.ring.scale.setScalar(cfg.enemies[e.type].range + .5);
       en.ring.material.opacity = wind && !cfg.enemies[e.type].ranged ? .35 + .3 * Math.sin(t * 40) : 0;
       const b = bar(e, e.elite ? e.affColor : undefined), dmg = (e.hp < e.maxhp || e.elite) && !e.dead;
-      b.g.visible = dmg; if (dmg) { b.g.position.set(e.x, 2.5 * cfg.enemies[e.type].scale + .3, e.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, e.hp / e.maxhp); }
+      b.g.visible = dmg; if (dmg) { b.g.position.set(e.x, 2.5 * cfg.enemies[e.type].scale + .3 + ey, e.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, e.hp / e.maxhp); }
     }
     // отряд
     const aliveA = new Set();
@@ -433,11 +476,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       aliveA.add(a.id);
       let en = allyEnts.get(a.id);
       if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
-      en.m.group.position.set(a.x, 0, a.z); en.m.group.rotation.y = a.face;
+      const ay = Y(a.x, a.z); en.m.group.position.set(a.x, ay, a.z); en.m.group.rotation.y = a.face;
       if (!a.guest) animateSoldier(en.m, a, t);
-      else { en.m.group.visible = !a.dead; if (en.m.root) en.m.root.position.y = calm ? 0 : Math.abs(Math.sin(t * (a.moving ? 9 : 2))) * (a.moving ? .08 : .02); } en.sh.position.set(a.x, .03, a.z); en.sh.visible = !a.dead;
+      else { en.m.group.visible = !a.dead; if (en.m.root) en.m.root.position.y = calm ? 0 : Math.abs(Math.sin(t * (a.moving ? 9 : 2))) * (a.moving ? .08 : .02); } en.sh.position.set(a.x, .03 + ay, a.z); en.sh.visible = !a.dead;
       const b = bar({ id: 'a' + a.id }, a.guest ? '#d8b040' : '#3a8a4a'), show = (a.guest || a.hp < a.maxhp) && !a.dead;
-      b.g.visible = show; if (show) { b.g.position.set(a.x, a.cart ? 3.4 : 2.7, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }
+      b.g.visible = show; if (show) { b.g.position.set(a.x, (a.cart ? 3.4 : 2.7) + ay, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }
     }
     for (const [id, en] of allyEnts) if (!aliveA.has(id)) { scene.remove(en.m.group, en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); bars.delete('a' + id); } }
     for (const [id, en] of ents) if (!alive.has(id)) { scene.remove(en.m.group, en.sh, en.ring); if (en.elite) scene.remove(en.elite); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); bars.delete(id); } }
@@ -497,7 +540,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     fx.update(dt);
 
     stepFx(dt); updateTele(W, t); updateLines(W, t); updateFoes(W, t);
-    if (W.tomb && (W.tomb.lvl || 'surface') === W.lvl) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, 0, W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
+    if (W.tomb && (W.tomb.lvl || 'surface') === W.lvl) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, Y(W.tomb.x, W.tomb.z), W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
     for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
     gl.render(scene, camera);
   }

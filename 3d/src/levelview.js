@@ -70,8 +70,8 @@ export function buildLevelView(L, cfg) {
 }
 
 // поверхность: контейнеры по карте мира и люки
-export function buildSurfaceView(L) {
-  const group = new THREE.Group(), conts = buildContainers(L.map); group.add(conts.group);
+export function buildSurfaceView(L, Y) {
+  const group = new THREE.Group(), conts = buildContainers(L.map, Y); group.add(conts.group);
   for (const q of L.map.portals) group.add(makeHatch(q));
   return { group, conts, flame: null };
 }
