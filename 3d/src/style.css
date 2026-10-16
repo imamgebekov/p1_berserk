@@ -61,6 +61,7 @@ button{font:inherit;color:var(--ink)}
 .slot.sel,.item.sel{border-color:var(--red2)}
 .slot .sl{font-size:10px;opacity:.55;text-transform:uppercase}
 .slot .nm{font-size:11.5px;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.nm.empty{opacity:.35}
+#bagCard .acts{margin:6px 0 8px}
 #bagCard{margin:8px 0 0;padding:10px;background:#211716;border:2px solid var(--line);border-radius:10px;font-size:13.5px}
 #bagCard .ch{display:flex;justify-content:space-between;gap:8px;align-items:baseline}#bagCard .nm{font-weight:700;font-size:15px}.rr{font-size:11.5px;opacity:.6;text-align:right}
 .cs{margin-top:4px;color:#d9c9a8}.cmp{margin-top:4px;font-size:12.5px;opacity:.85}.cmp.up{color:#8fd07a}.cmp.down{color:#e07a6a}.ct{margin-top:6px;opacity:.8;font-style:italic}.cv{margin-top:4px;font-size:12px;opacity:.55}
@@ -200,7 +201,7 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 [data-desk] #bag .bhead{grid-column:1/-1}
 [data-desk] #bagStats{grid-column:1;grid-row:2;align-self:center}[data-desk] #bagTabs{grid-column:2;grid-row:2;margin:0 0 6px}
 [data-desk] #bagEq{grid-column:1;grid-row:3;grid-template-columns:1fr 1fr}[data-desk] #bagList{grid-column:2;grid-row:3/6;max-height:var(--blh,64vh);grid-template-columns:repeat(auto-fill,minmax(64px,1fr))}
-[data-desk] #bagCard{grid-column:1;grid-row:4;align-self:start}[data-desk] #bagFlash{grid-column:1;grid-row:5}
+[data-desk] #bagCard{grid-column:1;grid-row:4;align-self:start;max-height:calc(var(--pbhv,80vh) / var(--dz,1) - 360px);min-height:120px;overflow-y:auto}[data-desk] #bagFlash{grid-column:1;grid-row:5}
 [data-desk] #bagReset{grid-column:2;grid-row:6}
 .slot.sel{outline:3px solid #fff;outline-offset:-1px}
 /* телефон: надетое — один ряд значков (названия — в карточке), чтобы сумке хватало места */

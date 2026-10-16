@@ -188,6 +188,11 @@ try {
   await page.keyboard.press('KeyI'); await page.waitForTimeout(250);
   const fitBag = await ev(() => { const r = document.querySelector('#bag .pbox').getBoundingClientRect(); return r.bottom <= innerHeight + 1 && r.top >= 0; });
   if (!fitBag) bad('сумка выходит за экран');
+  { await ev(async () => { const { CATALOG } = await import('/3d/src/data/items.js'); const it = CATALOG.filter(i => i.slot && i.perks && i.perks.length).sort((a, b) => b.perks.length - a.perks.length)[0]; window.__b3d.W.inv.bag.unshift({ id: it.id, n: 1 }); window.__b3d.bag.render(); });
+    await page.locator('#bagList button').first().click(); await page.waitForTimeout(200);
+    const cb = await ev(() => { const a = document.querySelector('#bagCard .acts button'), c = document.getElementById('bagCard'); return a && { btn: a.getBoundingClientRect().bottom, card: c.getBoundingClientRect().bottom, H: innerHeight }; });
+    if (!cb || cb.btn > cb.H - 4 || cb.card > cb.H + 1) bad('у длинной карточки предмета кнопки или низ за экраном: ' + JSON.stringify(cb));
+    await ev(() => { window.__b3d.W.inv.bag.shift(); window.__b3d.bag.render(); }); }
   await page.keyboard.press('Escape'); await page.waitForTimeout(150);
   // атмосфера звука (D1): после нажатия звук работает; у реки слышно воду и ставятся бульки, в лагере воды не слышно
   { await page.keyboard.press('KeyW');

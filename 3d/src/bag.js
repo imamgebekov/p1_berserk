@@ -87,7 +87,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       if (n > 1) btn(`Продать 1 · ${sellPrice(it, cfg, up, W.gear.trade)}`, () => { if (sellItem(W, sel.i, 1) === 'far') flash('Продавать можно только у торговца'); });
       btn('Выбросить', () => { dropItem(W, sel.i, n); sel = null; });
     }
-    cardEl.appendChild(row);
+    cardEl.insertBefore(row, cardEl.children[1] || null);      // кнопки — сразу под названием: у длинной карточки их видно без прокрутки
   }
   let flashT = 0; function flash(t) { const f = $('bagFlash'); f.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { f.textContent = ''; }, 1800); }
 
