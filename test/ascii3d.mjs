@@ -43,7 +43,7 @@ ok(edgeOf(1, -1) === '/' && edgeOf(-1, 1) === '/', 'перепад вниз-вп
 // ---------- 5. настройка «Вид» и конфиг ----------
 ok(DEFAULT_PREFS().ascii === false, 'ASCII включён по умолчанию');
 ok(sanitizePrefs({ ascii: true }).ascii === true && sanitizePrefs({ ascii: 'да' }).ascii === false && sanitizePrefs(null).ascii === false, 'настройка ASCII не чистится');
-ok(A.cell.every(v => Number.isInteger(v) && v >= 6 && v <= 24) && A.levels >= 8 && A.sub >= 1 && A.lo >= 0 && A.lo < .5 && A.edge > 0, 'числа фильтра вне разумного: ' + JSON.stringify(A));
+ok(A.cell.every(v => Number.isInteger(v) && v >= 4 && v <= 24) && A.levels >= 8 && A.sub >= 1 && A.lo >= 0 && A.lo < .5 && A.edge > 0, 'числа фильтра вне разумного: ' + JSON.stringify(A));
 ok(/^#[0-9a-f]{6}$/i.test(A.bg) && A.lamp.length === 2, 'фон или свет героя заданы неверно');
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }

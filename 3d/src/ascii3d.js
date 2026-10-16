@@ -69,7 +69,7 @@ void main() {
 
 export function createAscii(gl, cfg, calm, dpr = 1) {
   const A = cfg.view.ascii, atlas = buildAtlas(A, dpr), cell = A.cell.map(v => Math.round(v * dpr));
-  const rt = new THREE.WebGLRenderTarget(8, 8, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true });
+  const rt = new THREE.WebGLRenderTarget(8, 8, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true });     // резкая выборка: без размытия клеток
   const U = {
     tScene: { value: rt.texture }, tAtlas: { value: atlas.tex }, res: { value: new THREE.Vector2(1, 1) }, cell: { value: new THREE.Vector2(...cell) },
     L: { value: A.levels }, gain: { value: A.gain[0] }, gamma: { value: A.gamma }, dith: { value: A.dither }, glow: { value: A.glow }, tm: { value: 0 },
