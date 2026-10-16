@@ -503,6 +503,8 @@ function updateEnemies(W, dt) {
     const C = E[e.type];
     if (e.flash > 0) e.flash -= dt;
     if (e.dead) { e.deadT += dt; continue; }
+    if (!e.boss && W.lvl === SURFACE && len(p.x - e.x, p.z - e.z) > E.sleep.r) { e.sleep = true; continue; }     // далеко от героя — спит (C1)
+    e.sleep = false;
     tickEnemy(W, e, dt); if (e.dead) continue;
     const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1);
     slide(W.map, e, e.vx * dt, e.vz * dt, C.radius);
@@ -586,7 +588,9 @@ function updateEnemies(W, dt) {
   W.enemies = W.enemies.filter(e => !(e.dead && e.deadT > .6));
   // держим нужное число врагов (кольцом вокруг героя — только на поверхности; в подземельях свои правила)
   if (!onSurface(W)) return;
-  const alive = W.enemies.filter(e => !e.dead && !e.boss).length;
+  // бродячие, ушедшие дальше drop, забываются (место освобождается); живыми вокруг считаются только не спящие
+  if (W.enemies.some(e => !e.boss && !e.evId && !e.mode && len(e.x - p.x, e.z - p.z) > E.sleep.drop)) W.enemies = W.enemies.filter(e => e.boss || e.evId || e.mode || len(e.x - p.x, e.z - p.z) <= E.sleep.drop);
+  const alive = W.enemies.filter(e => !e.dead && !e.boss && len(e.x - p.x, e.z - p.z) <= E.sleep.r).length;
   const bonus = W.place && W.place.danger ? Math.round(W.place.danger * E.dangerCount) : 0;
   if (alive < (E.count === 0 ? 0 : Math.max(1, E.count + bonus + W.dif.count + (W.night ? W.cfg.daynight.night.count : 0))) && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = spawnRing(W) === false ? .1 : E.respawn; } }
   else W.spawnT = Math.max(W.spawnT, .6);

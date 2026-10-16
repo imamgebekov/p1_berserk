@@ -6,7 +6,7 @@ import { CFG3 } from './config3d.js';
 import { serializeQuests, sanitizeQuests } from './quests3d.js';
 import { HEROES, DEFAULT_HERO } from './data/heroes3d.js';
 import { ABILITIES, abilityPointsAt, ranksOpenAt } from './data/abilities3d.js';
-const KEY = 'berserk3d.save', VERSION = 4;
+const KEY = 'berserk3d.save', VERSION = 5;
 export const SAVE_VERSION = VERSION;
 const abPoints = lv => abilityPointsAt(lv, CFG3);
 
@@ -14,11 +14,46 @@ export const packSeen = a => { let s = ''; for (let i = 0; i < a.length; i += 6)
 export const unpackSeen = (s, a) => { if (typeof s !== 'string') return; for (let i = 0; i < s.length; i++) { const v = B64.indexOf(s[i]); if (v < 0) continue; for (let k = 0; k < 6; k++) if (i * 6 + k < a.length) a[i * 6 + k] = (v >> k) & 1; } };
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
+// туман поверхности по участкам (C1): участок SEEN_CH×SEEN_CH клеток; не открытый — не пишется, открытый целиком — '*',
+// частично — 43 знака base64. Размер сохранения растёт с открытой частью карты, а не с размером мира
+export const SEEN_CH = 16;
+export const seenSize = cfg => Math.ceil(2 * cfg.world.radius / cfg.map.cell) + 2;
+export function packSeenChunks(a, n) {
+  const C = SEEN_CH, m = Math.ceil(n / C), c = {}, bits = new Uint8Array(C * C);
+  for (let cj = 0; cj < m; cj++) for (let ci = 0; ci < m; ci++) {
+    let any = false, all = true;
+    for (let j = 0; j < C; j++) for (let i = 0; i < C; i++) { const x = ci * C + i, z = cj * C + j, inside = x < n && z < n, v = inside && a[z * n + x] ? 1 : 0; bits[j * C + i] = v; if (v) any = true; else if (inside) all = false; }
+    if (any) c[ci + ',' + cj] = all ? '*' : packSeen(bits);
+  }
+  return { n, c };
+}
+export function unpackSeenChunks(o, a, n) {
+  if (!o || typeof o !== 'object' || o.n !== n || !o.c || typeof o.c !== 'object') return false;
+  const C = SEEN_CH, bits = new Uint8Array(C * C);
+  for (const [k, s] of Object.entries(o.c)) {
+    const m = /^(\d+),(\d+)$/.exec(k); if (!m || typeof s !== 'string') continue;
+    const ci = +m[1], cj = +m[2]; bits.fill(s === '*' ? 1 : 0); if (s !== '*') unpackSeen(s, bits);
+    for (let j = 0; j < C; j++) for (let i = 0; i < C; i++) { const x = ci * C + i, z = cj * C + j; if (x < n && z < n && bits[j * C + i]) a[z * n + x] = 1; }
+  }
+  return true;
+}
+// проверка при загрузке: только ключи «x,z» в пределах сетки и строки нужной длины
+function sanitizeSeenChunks(o, n) {
+  if (!o || typeof o !== 'object' || o.n !== n || !o.c || typeof o.c !== 'object') return null;
+  const m = Math.ceil(n / SEEN_CH), c = {};
+  for (const [k, s] of Object.entries(o.c)) { const r = /^(\d+),(\d+)$/.exec(k); if (r && +r[1] < m && +r[2] < m && typeof s === 'string' && (s === '*' || (s.length <= 43 && /^[A-Za-z0-9+/]+$/.test(s)))) c[k] = s; }
+  return { n, c };
+}
+
 // миграции старых версий: MIGRATIONS[n] переводит сохранение из версии n в n+1. Пока версия одна; сюда добавляются шаги.
 const MIGRATIONS = {
   1: d => { d.keys = []; d.unlocked = {}; },         // 1 → 2: связка ключей подземелий и отпертые двери
   2: d => { d.hero = DEFAULT_HERO; },                 // 2 → 3: герой; все прежние сохранения — Торн
-  3: d => { const pr = d.prog || (d.prog = {}); pr.ab = {}; pr.ap = abPoints(Number.isFinite(pr.lv) ? Math.floor(pr.lv) : 1); }     // 3 → 4: очки умений по уровню
+  3: d => { const pr = d.prog || (d.prog = {}); pr.ab = {}; pr.ap = abPoints(Number.isFinite(pr.lv) ? Math.floor(pr.lv) : 1); },    // 3 → 4: очки умений по уровню
+  4: d => {                                                                                // 4 → 5: туман по участкам, позиция, номер мира
+    const n = seenSize(CFG3), a = new Uint8Array(n * n); if (typeof d.seen === 'string') unpackSeen(d.seen, a);
+    d.seen = packSeenChunks(a, n); d.pos = null; d.gen = CFG3.world.gen;
+  }
 };
 export function migrate(d) { while (Number.isInteger(d.v) && d.v < VERSION && MIGRATIONS[d.v]) { MIGRATIONS[d.v](d); d.v++; } return d; }
 
@@ -55,6 +90,8 @@ export function applyDungeonState(W, saved) {
   for (const [id, ids] of Object.entries(saved.unlocked || {})) { const L = W.levels && W.levels[id]; if (L) for (const n of ids) { const d = L.map.doors[n]; if (d && d.lock) d.locked = false; } }
 }
 
+// позиция героя на поверхности: числа в пределах мира
+const sanePos = p => (p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.hypot(p.x, p.z) < CFG3.world.radius ? { x: p.x, z: p.z } : null);
 export function loadSave(slots, storage = globalThis.localStorage) {
   try {
     const raw = storage.getItem(KEY); if (!raw) return null;
@@ -72,12 +109,13 @@ export function loadSave(slots, storage = globalThis.localStorage) {
       ids.forEach((id, i) => { const r = src[id]; if (Number.isInteger(r) && r > 0) { const m = Math.min(r, ranksOpenAt(prog.lv, CFG3, i)); if (m > 0) ab[id] = m; } });
       const ap = Math.max(0, abPoints(prog.lv) - Object.values(ab).reduce((a, b) => a + b, 0));
       prog.ab = ab; prog.ap = ap; }
-    return { hero, inv: deserialize(d.inv, slots, hero), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: typeof d.seen === 'string' && d.seen.length < 4000 ? d.seen : '', bosses: d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [] };
+    const sameWorld = d.gen === CFG3.world.gen;        // другой мир (номер world.gen) — туман, позиция и таймеры боссов не переносятся
+    return { hero, inv: deserialize(d.inv, slots, hero), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(d.seen, seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [] };
   } catch (e) { return null; }
 }
 export function createSaver(W, storage = globalThis.localStorage) {
   let last = '';
-  const snap = () => JSON.stringify({ v: VERSION, hero: W.hero, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab }, seen: packSeen(W.levels ? W.levels.surface.seen : W.seen), dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest).map(a => ({ type: a.type, hp: Math.round(a.hp) })) });
+  const snap = () => JSON.stringify({ v: VERSION, hero: W.hero, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab }, seen: W.levels ? packSeenChunks(W.levels.surface.seen, W.levels.surface.seenN) : packSeenChunks(W.seen, W.seenN), pos: W.lvl === 'surface' && !W.player.dead ? { x: Math.round(W.player.x * 100) / 100, z: Math.round(W.player.z * 100) / 100 } : null, gen: W.cfg.world.gen, dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest).map(a => ({ type: a.type, hp: Math.round(a.hp) })) });
   return {
     write(force) { if (W.ironDead) return false; const s = snap(); if (!force && s === last) return false; try { storage.setItem(KEY, s); last = s; return true; } catch (e) { return false; } },
     reset() { try { storage.removeItem(KEY); } catch (e) { /* ок */ } last = ''; }

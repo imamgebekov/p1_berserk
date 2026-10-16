@@ -49,7 +49,7 @@ const guard = (W, dist, faceToHero, type = 'brute', mode = 'guard') => { const p
 }
 // ---------- 5. патрульный обходит маршрут ----------
 {
-  const W = mk(7); W.player.x = -60; W.player.z = -60;
+  const W = mk(7); W.player.x = -10; W.player.z = 40;     // в 50 м: дальше обзора сторожа, но ближе границы сна врагов
   const e = spawnEnemy(W, 'imp', 40, 40, 'patrol'); e.cd = 99;
   ok(e.route && e.route.length === P.patrolPts, 'у патрульного нет маршрута');
   const visited = new Set(); for (let i = 0; i < 60 * 40; i++) { step(W, 1 / 60, {}); visited.add(e.ri); }

@@ -3,7 +3,7 @@ import { BY_ID as BY } from '../3d/src/data/items.js';
 import { CFG3 } from '../3d/src/config3d.js';
 import { placeAt } from '../3d/src/map.js';
 import { createWorld, step, mulberry32, spawnEnemy, reveal, isSeen, gainXp } from '../3d/src/sim.js';
-import { packSeen, unpackSeen, loadSave, createSaver } from '../3d/src/save3d.js';
+import { packSeen, unpackSeen, unpackSeenChunks, loadSave, createSaver } from '../3d/src/save3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const mk = (seed = 1, f) => { const cfg = JSON.parse(JSON.stringify(CFG3)); if (f) f(cfg); return createWorld(cfg, mulberry32(seed)); };
 const W0 = mk(); const places = W0.cfg.map.places;
@@ -43,7 +43,7 @@ function require3(id) { return BY[id].rar; }
 // сохранение карты
 { const W = mk(10); reveal(W, -30, 20, 20); reveal(W, 50, -40, 12); const s = packSeen(W.seen); ok(s.length === Math.ceil(W.seen.length / 6), 'длина записи карты'); const b = new Uint8Array(W.seen.length); unpackSeen(s, b); ok(b.every((v, i) => v === W.seen[i]), 'карта не восстановилась');
   const c = new Uint8Array(W.seen.length); unpackSeen('!!!', c); unpackSeen(null, c); unpackSeen('A'.repeat(99999), c); ok(c.every(v => v === 0), 'мусор в записи карты');
-  const mem = {}, st = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; }, removeItem: k => { delete mem[k]; } }; createSaver(W, st).write(true); const l = loadSave(30, st); const d = new Uint8Array(W.seen.length); unpackSeen(l.seen, d); ok(d.every((v, i) => v === W.seen[i]), 'карта не пережила сохранение'); }
+  const mem = {}, st = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; }, removeItem: k => { delete mem[k]; } }; createSaver(W, st).write(true); const l = loadSave(30, st); const d = new Uint8Array(W.seen.length); unpackSeenChunks(l.seen, d, W.seenN); ok(d.every((v, i) => v === W.seen[i]), 'карта не пережила сохранение'); }
 // вход в место даёт событие
 { const W = mk(11, c => { c.enemies.count = 0; }); W.player.x = -80; W.player.z = 0; step(W, 1 / 60, {}); W.ev.length = 0; W.player.x = 56; W.player.z = -44; step(W, 1 / 60, {}); const ev = W.ev.find(v => v.k === 'place'); ok(ev && ev.place.id === 'lager', 'нет события входа в место'); W.ev.length = 0; W.player.x = -80; W.player.z = 0; step(W, 1 / 60, {}); ok(W.ev.some(v => v.k === 'place' && v.place === null), 'нет события выхода'); }
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }

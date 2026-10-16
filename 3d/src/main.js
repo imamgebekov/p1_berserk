@@ -18,9 +18,9 @@ import { abilityView } from './abilities3d.js';
 import { KIND_NAME } from './data/items.js';
 import { drawMap } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
-import { loadSave, createSaver, unpackSeen, applyDseen, applyDungeonState, exportSave, importSave } from './save3d.js';
+import { loadSave, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave } from './save3d.js';
 import { createRenderer } from './render.js';
-import { rotateInput } from './map.js';
+import { rotateInput, resolve } from './map.js';
 import { createInput } from './input.js';
 import { loadTweaks, createTweakPanel } from './tweak.js';
 
@@ -49,7 +49,7 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(bagCap(cfg));
-if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeen(saved.seen, W.seen); applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
+if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
 const saver = createSaver(W);
 
 // выбор героя: при новой игре (сохранения нет) — три карточки; игра стоит, пока герой не выбран. ?hero=id — выбрать сразу (тесты)

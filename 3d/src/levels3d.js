@@ -35,10 +35,22 @@ export function withLevel(W, id, fn) {
   try { return fn(); } finally { stash(W); load(W, cur); W.inside = inside; }
 }
 
-// «глубина» точки 0–1: на поверхности — расстояние от костра, в подземелье — число из конфига
+// «глубина» точки 0–1: на поверхности — кривая по расстоянию от костра (world.depth), в подземелье — число из конфига
 export function depthAt(W, x, z) {
   const L = W.levels && W.levels[W.lvl];
-  return L && L.def ? L.def.depth : clamp(len(x, z) / W.cfg.world.radius, 0, 1);
+  return L && L.def ? L.def.depth : depthCurve(W.cfg, len(x, z));
+}
+export function depthCurve(cfg, d) {
+  const P = cfg.world.depth || [[0, 0], [cfg.world.radius, 1]];
+  if (d <= P[0][0]) return clamp(P[0][1], 0, 1);
+  for (let i = 1; i < P.length; i++) if (d <= P[i][0]) { const [a, da] = P[i - 1], [b, db] = P[i]; return clamp((d - a) / (b - a) * (db - da) + da, 0, 1); }
+  return clamp(P[P.length - 1][1], 0, 1);
+}
+// обратная кривая: точка на поверхности с заданной глубиной (для тестов баланса), под углом ang от костра
+export function pointAtDepth(cfg, depth, ang = 0) {
+  const P = cfg.world.depth || [[0, 0], [cfg.world.radius, 1]]; let d = P[P.length - 1][0];
+  for (let i = 1; i < P.length; i++) if (depth <= P[i][1]) { const [a, da] = P[i - 1], [b, db] = P[i]; d = db === da ? a : a + (depth - da) / (db - da) * (b - a); break; }
+  return { x: Math.sin(ang) * d, z: Math.cos(ang) * d };
 }
 
 // люк или лестница рядом с героем (для кнопки «Спуститься» / «Подняться»)

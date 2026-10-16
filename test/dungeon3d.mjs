@@ -148,7 +148,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   st.setItem('berserk3d.save', JSON.stringify({ ...d, dseen: { [D.id]: '////' } }));
   ok(!Object.keys(loadSave(CFG3.bag.slots, st).dseen).length, 'туман погреба из H1 (без размера сетки) отброшен');
   const surfSeen = W.levels.surface.seen.reduce((a, b) => a + b, 0);
-  ok(surfSeen > 0 && d.seen.length > 0, 'туман поверхности сохраняется, даже если герой внизу');
+  ok(surfSeen > 0 && d.seen && Object.keys(d.seen.c).length > 0, 'туман поверхности сохраняется, даже если герой внизу');
   // старое сохранение без уровня и с мусором
   st.setItem('berserk3d.save', JSON.stringify({ ...d, tomb: { x: 1, z: 2, ash: 3 }, dseen: { [D.id]: 5, nope: 'AAAA' } }));
   const o = loadSave(CFG3.bag.slots, st);

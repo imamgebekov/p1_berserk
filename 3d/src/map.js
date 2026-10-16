@@ -72,10 +72,46 @@ export function nearBuilding(map, x, z, pad) {
 }
 
 // вытолкнуть круг (x, z, r) из стен; возвращает true, если сдвинули
+// ---- сетка участков (C1): столкновения и проверка линии смотрят только соседние клетки ----
+// строится лениво; пересобирается, если поменялось число домов, стен, дверей или препятствий. Кандидаты идут в исходном порядке,
+// поэтому результат совпадает с полным перебором до бита
+const GCS = 8, GK = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
+function gridOf(map) {
+  const nb = map.buildings.length, nk = (map.blocks || []).length, nd = (map.doors || []).length, ns = (map.solids || []).length, G0 = map.grid;
+  if (G0 && G0.nb === nb && G0.nk === nk && G0.nd === nd && G0.ns === ns) return G0;
+  const cells = new Map();
+  const box = (kind, i, x0, z0, x1, z1) => {
+    for (let cx = Math.floor(x0 / GCS), cx1 = Math.floor(x1 / GCS); cx <= cx1; cx++) for (let cz = Math.floor(z0 / GCS), cz1 = Math.floor(z1 / GCS); cz <= cz1; cz++) {
+      const k = GK(cx, cz); let c = cells.get(k); if (!c) cells.set(k, c = { b: [], k: [], d: [], s: [] }); c[kind].push(i);
+    }
+  };
+  map.buildings.forEach((b, i) => box('b', i, b.x0, b.z0, b.x1, b.z1));
+  (map.blocks || []).forEach((w, i) => box('k', i, w.x0, w.z0, w.x1, w.z1));
+  (map.doors || []).forEach((d, i) => box('d', i, d.rect.x0, d.rect.z0, d.rect.x1, d.rect.z1));
+  (map.solids || []).forEach((q, i) => box('s', i, q.x - q.r, q.z - q.r, q.x + q.r, q.z + q.r));
+  const mark = { b: new Uint32Array(nb), k: new Uint32Array(nk), d: new Uint32Array(nd), s: new Uint32Array(ns) };
+  return (map.grid = { cells, nb, nk, nd, ns, mark, stamp: 0 });
+}
+const byNum = (a, b) => a - b;
+// индексы домов, стен, дверей и препятствий, чьи рамки задевают прямоугольник (в исходном порядке)
+export function nearby(map, x0, z0, x1, z1) {
+  const G = gridOf(map), out = { b: [], k: [], d: [], s: [] }, st = ++G.stamp;
+  for (let cx = Math.floor(x0 / GCS), cx1 = Math.floor(x1 / GCS); cx <= cx1; cx++) for (let cz = Math.floor(z0 / GCS), cz1 = Math.floor(z1 / GCS); cz <= cz1; cz++) {
+    const c = G.cells.get(GK(cx, cz)); if (!c) continue;
+    for (const kind of ['b', 'k', 'd', 's']) { const m = G.mark[kind], o = out[kind]; for (const i of c[kind]) if (m[i] !== st) { m[i] = st; o.push(i); } }
+  }
+  for (const kind of ['b', 'k', 'd', 's']) if (out[kind].length > 1) out[kind].sort(byNum);
+  return out;
+}
+const RESOLVE_PAD = 4;    // запас поиска: выталкивания за один вызов не уводят дальше
+
+// вытолкнуть круг (x, z, r) из стен; возвращает true, если сдвинули
 export function resolve(map, o, r) {
   let hit = false;
+  const N = nearby(map, o.x - r - RESOLVE_PAD, o.z - r - RESOLVE_PAD, o.x + r + RESOLVE_PAD, o.z + r + RESOLVE_PAD);
   for (let it = 0; it < 2; it++) {
-    for (const b of map.buildings) {
+    for (const bi of N.b) {
+      const b = map.buildings[bi];
       if (o.x < b.x0 - r || o.x > b.x1 + r || o.z < b.z0 - r || o.z > b.z1 + r) continue;
       const list = b.door.open < .6 ? b.walls.concat(b.door.rect) : b.walls;
       for (const w of list) {
@@ -90,10 +126,10 @@ export function resolve(map, o, r) {
       }
     }
   }
-  for (const w of map.blocks || []) if (pushOut(o, r, w)) hit = true;                 // стены подземелий
-  for (const d of map.doors || []) if (d.open < .6 && pushOut(o, r, d.rect)) hit = true;   // закрытые двери подземелий
-  for (const q of map.solids) {
-    const dx = o.x - q.x, dz = o.z - q.z, d = Math.hypot(dx, dz), m = q.r + r;
+  for (const i of N.k) if (pushOut(o, r, map.blocks[i])) hit = true;                 // стены подземелий и частокол
+  for (const i of N.d) { const d = map.doors[i]; if (d.open < .6 && pushOut(o, r, d.rect)) hit = true; }   // закрытые двери подземелий
+  for (const i of N.s) {
+    const q = map.solids[i], dx = o.x - q.x, dz = o.z - q.z, d = Math.hypot(dx, dz), m = q.r + r;
     if (d < m) { hit = true; if (d > 1e-9) { o.x = q.x + dx / d * m; o.z = q.z + dz / d * m; } else o.x += m; }
   }
   return hit;
@@ -145,10 +181,12 @@ export function lineBlocked(map, x0, z0, x1, z1) {
   const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / .25)), inR = (w, x, z) => x > w.x0 && x < w.x1 && z > w.z0 && z < w.z1;
   // дома на поверхности: только те, чью рамку задевает отрезок; стены и закрытая дверь
   const bx0 = Math.min(x0, x1), bx1 = Math.max(x0, x1), bz0 = Math.min(z0, z1), bz1 = Math.max(z0, z1);
-  const houses = (map.buildings || []).filter(b => b.x1 > bx0 && b.x0 < bx1 && b.z1 > bz0 && b.z0 < bz1);
+  const N = nearby(map, bx0 - .1, bz0 - .1, bx1 + .1, bz1 + .1);     // только стены и дома рядом с отрезком (сетка участков)
+  const houses = N.b.map(i => map.buildings[i]).filter(b => b.x1 > bx0 && b.x0 < bx1 && b.z1 > bz0 && b.z0 < bz1);
+  const blocks = N.k.map(i => map.blocks[i]), doors = N.d.map(i => map.doors[i]);
   for (let i = 1; i < n; i++) {
     const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n;
-    if ((map.blocks || []).some(w => inR(w, x, z)) || (map.doors || []).some(d => d.open < .6 && inR(d.rect, x, z))) return true;
+    if (blocks.some(w => inR(w, x, z)) || doors.some(d => d.open < .6 && inR(d.rect, x, z))) return true;
     for (const b of houses) if (b.walls.some(w => inR(w, x, z)) || (b.door.open < .6 && inR(b.door.rect, x, z))) return true;
   }
   return false;
