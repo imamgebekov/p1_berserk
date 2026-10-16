@@ -8,9 +8,10 @@ import { createAscii, OVERLAY } from './ascii3d.js';
 import { makeField, pickShafts } from './sunlight3d.js';
 import { windAt, grassSpots } from './wind3d.js';
 import { makeWeather, weatherAt, effectsOf } from './weather3d.js';
+import { overheadOf } from './overhead3d.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
+import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addCanopyTree, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
 import { heroOf } from './data/heroes3d.js';
 import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul } from './ambient3d.js';
 import { mulberry32 } from './sim.js';
@@ -124,10 +125,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const wood = new THREE.MeshLambertMaterial({ color: '#5a3e26' }), dark = new THREE.MeshLambertMaterial({ color: '#3a2818' }), dk = cfg.terrain.bridge.deck;
     for (const b of river.bridges) {
       const g = new THREE.Group(); g.position.set(b.x, 0, b.z); g.rotation.y = b.ang;
-      const deck = new THREE.Mesh(new THREE.BoxGeometry(b.w, .16, b.len), wood); deck.position.y = dk - .08; g.add(deck);
-      for (let k = -b.len / 2 + .4; k < b.len / 2; k += .55) { const pl = new THREE.Mesh(new THREE.BoxGeometry(b.w + .1, .04, .08), dark); pl.position.set(0, dk + .01, k); g.add(pl); }
-      for (const s of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(.1, .1, b.len), dark); rail.position.set(s * (b.w / 2 - .05), dk + .7, 0); g.add(rail);
-        for (let k = -b.len / 2; k <= b.len / 2 + .01; k += b.len / 3) { const post = new THREE.Mesh(new THREE.BoxGeometry(.14, 1.5, .14), dark); post.position.set(s * (b.w / 2 - .05), dk + .1, k); g.add(post); } }
+      // дуга (F4): настил и перила — отрезками по профилю, к середине выше на arch
+      const ar = cfg.terrain.bridge.arch || 0, yk = k => dk + ar * Math.max(0, 1 - Math.pow(2 * k / b.len, 2)), n = 12, sl = b.len / n;
+      for (let i = 0; i < n; i++) { const k0 = -b.len / 2 + i * sl, k1 = k0 + sl, y0 = yk(k0), y1 = yk(k1), ang = -Math.atan2(y1 - y0, sl);
+        const d = new THREE.Mesh(new THREE.BoxGeometry(b.w, .16, Math.hypot(sl, y1 - y0) + .03), wood); d.position.set(0, (y0 + y1) / 2 - .08, (k0 + k1) / 2); d.rotation.x = ang; g.add(d);
+        for (const s of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(.1, .1, Math.hypot(sl, y1 - y0) + .03), dark); rail.position.set(s * (b.w / 2 - .05), (y0 + y1) / 2 + .7, (k0 + k1) / 2); rail.rotation.x = ang; g.add(rail); } }
+      for (let k = -b.len / 2 + .4; k < b.len / 2; k += .55) { const pl = new THREE.Mesh(new THREE.BoxGeometry(b.w + .1, .04, .08), dark); pl.position.set(0, yk(k) + .01, k); pl.rotation.x = Math.atan(8 * ar * k / (b.len * b.len)); g.add(pl); }
+      for (const s of [-1, 1]) for (let k = -b.len / 2; k <= b.len / 2 + .01; k += b.len / 4) { const post = new THREE.Mesh(new THREE.BoxGeometry(.14, 1.5, .14), dark); post.position.set(s * (b.w / 2 - .05), yk(k) + .1, k); g.add(post); }
       riverGroup.add(g);
     }
     scene.add(riverGroup);
@@ -173,6 +177,21 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   // граница мира: частокол из мёртвых стволов
   for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2, R = cfg.world.radius + 1.5; addTree(parts, rnd, Math.cos(a) * R, Math.sin(a) * R, cfg.look); }
+  // объём слоями (F4): деревья с кроной над тропой — в общий меш (качаются); арки и перекладины ворот — отдельной группой
+  const OH = overheadOf(map, cfg), crnd = mulberry32(cfg.world.seed + 31);
+  for (const c of OH.canopy) { const k0 = parts.length; addCanopyTree(parts, crnd, c, cfg.look); const gy = Y(c.x, c.z); for (let k = k0; k < parts.length; k++) parts[k].translate(0, gy, 0); treeXZ.push(c.x + c.toX * c.reach, c.z + c.toZ * c.reach); }
+  const ohGroup = new THREE.Group();
+  { const stone = new THREE.MeshLambertMaterial({ color: '#8a857a' }), stoneD = new THREE.MeshLambertMaterial({ color: '#6e6a60' }), wood = new THREE.MeshLambertMaterial({ color: '#5a3e26' }), vine = new THREE.MeshLambertMaterial({ color: cfg.look.leaf[1] });
+    const box = (g, w, h, d, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); return b; };
+    for (const a of OH.arches) {
+      const g = new THREE.Group(); g.position.set(a.x, Y(a.x, a.z), a.z); g.rotation.y = a.ang; const hs = a.span / 2;
+      if (a.kind === 'stone') { for (const s of [-1, 1]) { box(g, .6, a.h, .6, s * hs, a.h / 2, 0, stone); box(g, .8, .3, .8, s * hs, .15, 0, stoneD); } box(g, a.span + .9, .5, .75, 0, a.h + .1, 0, stone); box(g, .65, .75, .8, 0, a.h + .35, 0, stoneD); }
+      else { for (const s of [-1, 1]) for (const z of [-.9, .9]) box(g, .22, a.h, .22, s * hs, a.h / 2, z, wood);
+        for (const z of [-1.1, -.37, .37, 1.1]) box(g, a.span + .6, .14, .14, 0, a.h, z, wood);
+        for (let i = 0; i < 9; i++) { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(.35 + (i % 3) * .1, 0), vine); m.position.set(-hs + (i / 8) * a.span, a.h + .15, ((i * 7) % 5 - 2) * .45); g.add(m); } }
+      ohGroup.add(g);
+    }
+    scene.add(ohGroup); }
   for (const g of parts) if (!g.attributes.sway) g.setAttribute('sway', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count), 1));     // камни не качаются
   const props = new THREE.Mesh(mergeGeometries(parts, false), WC && WC.on ? windy(new THREE.MeshLambertMaterial({ vertexColors: true }), 'tree') : new THREE.MeshLambertMaterial({ vertexColors: true }));
   // трава (F2): пучки из трёх травинок по всему миру, качаются по ветру
@@ -252,7 +271,21 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   puffs.count = calm ? 0 : puffN; puffs.frustumCulled = false; life.add(puffs);
   const puffM = new THREE.Matrix4(), puffQ = new THREE.Quaternion(), puffS = new THREE.Vector3(), puffP = new THREE.Vector3();
   scene.add(life);
-  const surfaceObjs = [hills, riverGroup, sunGroup, grass, rainGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
+  // сквозное окно (F4): у героя всё, что ближе к камере (кроны, крыши, частокол, мосты, арки), прорежено узором — герой виден
+  const XR = cfg.overhead && cfg.overhead.xray, XU = { uHero: { value: new THREE.Vector3(0, 0, 2) }, uXrR: { value: XR ? XR.r : 0 }, uAsp: { value: 1 }, uXrCut: { value: XR ? XR.cut : 0 } };
+  const xray = mat => {
+    if (!XR || !XR.on || !mat || mat.userData.xray || mat === waterMat) return; mat.userData.xray = true;
+    const prev = mat.onBeforeCompile, key = mat.customProgramCacheKey ? mat.customProgramCacheKey() : '';
+    mat.onBeforeCompile = (sh, r) => {
+      if (prev) prev(sh, r); Object.assign(sh.uniforms, XU);
+      sh.vertexShader = 'varying vec3 vXr;\n' + sh.vertexShader.replace(/}\s*$/, '  vXr = gl_Position.xyz / gl_Position.w;\n}');
+      sh.fragmentShader = 'uniform vec3 uHero; uniform float uXrR, uAsp, uXrCut; varying vec3 vXr;\nfloat xb2(vec2 a) { a = floor(a); return fract(dot(a, vec2(.5, a.y * .75))); }\n' +
+        sh.fragmentShader.replace('void main() {', 'void main() {\n  { vec2 d = vec2((vXr.x - uHero.x) * uAsp, vXr.y - uHero.y); float k = 1. - smoothstep(uXrR * .55, uXrR, length(d)); if (k > 0. && vXr.z < uHero.z && xb2(.5 * gl_FragCoord.xy) * .25 + xb2(gl_FragCoord.xy) < k * uXrCut) discard; }');
+    };
+    mat.customProgramCacheKey = () => key + '-xray'; mat.needsUpdate = true;
+  };
+  for (const o of [props, town.group, decor.group, palisade, riverGroup, ohGroup]) if (o) o.traverse(m => { if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(xray); });
+  const surfaceObjs = [hills, riverGroup, sunGroup, grass, rainGroup, ohGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   function showLevel(W) {
     const id = W.lvl, L = W.levels[id];
@@ -656,6 +689,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     stepFx(dt); updateTele(W, t); updateLines(W, t); updateFoes(W, t);
     if (W.tomb && (W.tomb.lvl || 'surface') === W.lvl) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, Y(W.tomb.x, W.tomb.z), W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
     for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
+    if (XR && XR.on) { XU.uHero.value.set(p.x, py + 1.1, p.z).project(camera); XU.uAsp.value = camera.aspect; }     // окно — вокруг груди героя
     if (asciiOn) ascii.render(scene, camera, t, under ? .3 : W.light); else gl.render(scene, camera);
   }
   function setAscii(on) {                                           // атлас строится в resize под плотность экрана
@@ -664,5 +698,5 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
 
   const treesNear = (x, z) => { if (!WC) return 0; let n = 0; const r2 = WC.rustle.r * WC.rustle.r; for (let i = 0; i < treeXZ.length; i += 2) { const dx = treeXZ[i] - x, dz = treeXZ[i + 1] - z; if (dx * dx + dz * dz < r2) n++; } return Math.min(1, n / WC.rustle.full); };
-  return { render, resize, project, setAscii, wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  return { render, resize, project, setAscii, xray: () => XU, wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }

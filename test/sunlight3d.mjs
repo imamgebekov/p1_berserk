@@ -48,7 +48,7 @@ ok(F.data.every(v => v >= 0 && v <= 1), 'поле вне 0..1');
 
 // ---------- 5. земля под мостом ----------
 { const map = makeMap(CFG3), hf = buildHeights(CFG3, map);
-  for (const b of map.river.bridges) ok(heightAt(hf, b.x, b.z) === hf.deck && heightAt(hf, b.x, b.z, false) < hf.deck - .2, 'сетка холмов на мосту поднята до настила'); }
+  for (const b of map.river.bridges) ok(heightAt(hf, b.x, b.z) >= hf.deck && heightAt(hf, b.x, b.z, false) < hf.deck - .2, 'сетка холмов на мосту поднята до настила'); }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Свет сквозь облака и палитра 3D: OK');

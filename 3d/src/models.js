@@ -217,6 +217,14 @@ export function addTree(list, rnd, x, z, look = null) {
   }
   if (look) for (let k = k0; k < list.length; k++) { const p = list[k].attributes.position, sw = new Float32Array(p.count); for (let i = 0; i < p.count; i++) sw[i] = Math.max(0, Math.min(1, p.getY(i) / (h + 1))); list[k].setAttribute('sway', new THREE.BufferAttribute(sw, 1)); }     // F2: доля качания по высоте
 }
+// дерево у тропы (F4): ствол наклонён к тропе, крона из 4–6 округлых кусков висит над дорогой; качается как обычное
+export function addCanopyTree(list, rnd, c, look) {
+  const k0 = list.length, h = c.h, lean = Math.atan2(c.reach * .55, h), yaw = Math.atan2(c.toX, c.toZ);
+  pushBox(list, .38, h + .3, .38, c.x + c.toX * c.reach * .28, (h + .3) / 2, c.z + c.toZ * c.reach * .28, lean * Math.cos(yaw), 0, -lean * Math.sin(yaw), look.trunk[1]);
+  const cx = c.x + c.toX * c.reach, cz = c.z + c.toZ * c.reach, m = 4 + (rnd() * 3 | 0);
+  for (let i = 0; i < m; i++) { const s = (1.2 + rnd() * .9) * .7, a = rnd() * Math.PI * 2, r = i ? .6 + rnd() * .9 : 0; pushBlob(list, 'ico', s, s * .8, s, cx + Math.cos(a) * r, h + .4 + (i ? -.2 - rnd() * .5 : .3), cz + Math.sin(a) * r, rnd() * .3, rnd() * 3, rnd() * .3, look.leaf[(rnd() * look.leaf.length) | 0]); }
+  for (let k = k0; k < list.length; k++) { const p = list[k].attributes.position, sw = new Float32Array(p.count); for (let i = 0; i < p.count; i++) sw[i] = Math.max(0, Math.min(1, p.getY(i) / (h + 1))); list[k].setAttribute('sway', new THREE.BufferAttribute(sw, 1)); }
+}
 export function addRock(list, rnd, x, z, look = null) {
   const s = .5 + rnd() * 1.1, col = (look ? look.rock : ['#2a2420', '#332b26'])[rnd() < .5 ? 0 : 1];
   if (look) {                                              // F1: глыба из додекаэдров вместо кубов

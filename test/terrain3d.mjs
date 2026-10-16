@@ -34,7 +34,9 @@ flat(0, 0, 'костёр'); if (map.camp) flat(map.camp.x + map.camp.r * .7, map
 for (const b of map.buildings) flat((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2, 'дом ' + b.kind);
 for (const [a, b] of pathSegs(map)) if (waterDist(rv, (a.x + b.x) / 2, (a.z + b.z) / 2) > CFG3.terrain.bank + 1) flat((a.x + b.x) / 2, (a.z + b.z) / 2, 'дорога');
 for (const c of map.containers) flat(c.x, c.z, 'сундук');
-for (const b of rv.bridges) ok(Math.abs(heightAt(hf, b.x, b.z) - CFG3.terrain.bridge.deck) < 1e-6, 'мост не на высоте настила');
+for (const b of rv.bridges) { const B = CFG3.terrain.bridge, s = Math.sin(b.ang), c = Math.cos(b.ang), e = b.len / 2 - .01;
+  ok(Math.abs(heightAt(hf, b.x, b.z) - B.deck - B.arch) < 1e-6 && Math.abs(heightAt(hf, b.x + s * e, b.z + c * e) - B.deck) < .01, 'мост не дугой: середина выше концов на arch');
+  let up = true; for (let k = -e; k < 0; k += .5) up = up && heightAt(hf, b.x + s * (k + .5), b.z + c * (k + .5)) >= heightAt(hf, b.x + s * k, b.z + c * k) - 1e-9; ok(up, 'дуга моста не растёт к середине'); }
 ok(heightAt(hf, rv.pts[rv.pts.length >> 1].x, rv.pts[rv.pts.length >> 1].z) < CFG3.terrain.water, 'дно реки не ниже воды');
 { const c = clone(); c.terrain.on = false; const h0 = buildHeights(c, makeMap(c)); ok(h0.data.every(v => v === 0), 'выключенный рельеф не плоский'); }
 

@@ -71,7 +71,7 @@ const smooth = t => t * t * (3 - 2 * t);
 function vnoise(x, z, s) { const i = Math.floor(x), j = Math.floor(z), fx = smooth(x - i), fz = smooth(z - j); const a = hash(i, j, s), b = hash(i + 1, j, s), c = hash(i, j + 1, s), d = hash(i + 1, j + 1, s); return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fz; }
 export function buildHeights(cfg, map) {
   const T = cfg.terrain, HL = T && T.hills, R = cfg.world.radius + 24, cell = HL ? HL.cell : 2, n = Math.ceil(2 * R / cell) + 1, data = new Float32Array(n * n);
-  const hf = { R, cell, n, data, river: map.river, deck: T && T.bridge ? T.bridge.deck : .3 };
+  const hf = { R, cell, n, data, river: map.river, deck: T && T.bridge ? T.bridge.deck : .3, arch: T && T.bridge ? T.bridge.arch || 0 : 0 };
   if (!T || !T.on || !HL) return hf;
   const segD = (x, z, a, b) => segDist(x, z, a, b).d;
   const keep = [];                              // [функция расстояния до «ровного» места]
@@ -97,10 +97,12 @@ export function buildHeights(cfg, map) {
   }
   return hf;
 }
+// высота настила моста в точке: дуга — у концов deck, к середине выше на arch (F4)
+export function deckAt(b, x, z, deck, arch) { const a = (x - b.x) * Math.sin(b.ang) + (z - b.z) * Math.cos(b.ang), k = Math.max(0, 1 - Math.pow(2 * a / b.len, 2)); return deck + arch * k; }
 // высота земли в точке (плавная выборка); на мосту — высота настила (deck = false — сама земля под мостом, для сетки холмов)
 export function heightAt(hf, x, z, deck = true) {
   if (!hf) return 0;
-  if (deck && hf.river && onBridge(hf.river, x, z)) return hf.deck;
+  if (deck && hf.river) { const b = onBridge(hf.river, x, z); if (b) return deckAt(b, x, z, hf.deck, hf.arch || 0); }
   const fx = (x + hf.R) / hf.cell, fz = (z + hf.R) / hf.cell, i = Math.floor(fx), j = Math.floor(fz), n = hf.n;
   if (i < 0 || j < 0 || i >= n - 1 || j >= n - 1) return 0;
   const tx = fx - i, tz = fz - j, D = hf.data, a = D[j * n + i], b = D[j * n + i + 1], c = D[(j + 1) * n + i], d = D[(j + 1) * n + i + 1];

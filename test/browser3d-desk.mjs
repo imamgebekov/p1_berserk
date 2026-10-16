@@ -213,6 +213,21 @@ try {
     if (!(windy > still + .004)) bad(`ветер не двигает траву и кроны: ${windy.toFixed(4)} против ${still.toFixed(4)} в тишь`);
     console.log('  ветер: ' + JSON.stringify({ still: still.toFixed(4), windy: windy.toFixed(4), rustle: (await ev(() => window.__b3d.renderer.treesNear(20, 40))).toFixed(2) }));
     await ev(c => { Object.assign(window.__b3d.cfg.wind, c.w); window.__b3d.cfg.sunlight.wind = c.s; }, { w: { calm: .06, breeze: .55, gust: .45 }, s: [.6, .25] }); }
+  // объём слоями (F4): под кроной у тропы окно у героя меняет кадр (прорезает листву), в открытом поле — нет
+  { const at = async q => { await ev(q => { const W = window.__b3d.W; W.enemies.length = 0; W.player.x = q.x; W.player.z = q.z; }, q); await page.waitForTimeout(2200); };
+    const diff = () => ev(async () => { const b = window.__b3d, c = document.getElementById('gl'), U = b.renderer.xray(), cut = U.uXrCut.value;
+      const grab = () => { const g = document.createElement('canvas'); g.width = c.width; g.height = c.height; const x = g.getContext('2d'); x.drawImage(c, 0, 0); const cx = (U.uHero.value.x * .5 + .5) * c.width, cy = (.5 - U.uHero.value.y * .5) * c.height, r = Math.round(c.height * .08); return Array.from(x.getImageData(Math.round(cx - r), Math.round(cy - r), 2 * r, 2 * r).data); };
+      const wait = () => new Promise(r => setTimeout(r, 250));
+      const d = (A, B) => { let n = 0; for (let i = 0; i < A.length; i += 4) if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > 40) n++; return n / (A.length / 4); };
+      U.uXrCut.value = 0; await wait(); const off = grab(); await wait(); const off2 = grab(); U.uXrCut.value = cut; await wait(); const on = grab();
+      return d(on, off2) - d(off2, off); });     // за вычетом того, что меняется само (дыхание, пепел)
+    const spots = await ev(async () => { const { overheadOf } = await import('/3d/src/overhead3d.js'); const b = window.__b3d, O = overheadOf(b.W.map, b.cfg), c = O.canopy[0]; return { can: { x: c.x + c.toX * c.reach, z: c.z + c.toZ * c.reach } }; });
+    await ev(() => { const c = window.__b3d.cfg; c.wind.calm = c.wind.breeze = c.wind.gust = 0; c.sunlight.wind = [0, 0]; });     // без качания и дрейфа света
+    await at(spots.can); const under = await diff(); await page.screenshot({ path: join(out, '3d-desk-canopy.png') });
+    await at({ x: 60, z: 10 }); const open = await diff();
+    if (!(under > .03 && open < under / 3)) bad(`окно у героя не работает: под кроной ${under.toFixed(3)}, в поле ${open.toFixed(3)}`);
+    console.log('  окно: ' + JSON.stringify({ under: under.toFixed(3), open: open.toFixed(3) }));
+    await ev(() => { Object.assign(window.__b3d.cfg.wind, { calm: .06, breeze: .55, gust: .45 }); window.__b3d.cfg.sunlight.wind = [.6, .25]; }); }
   // погода (F3): в дождь — капли, туман гуще, птицы молчат, слышен дождь; в ясную — капель нет
   { const wx = async f => { await ev(f => { window.__b3d.cfg.weather.force = f; }, f); await page.waitForTimeout(1600); return ev(() => ({ w: window.__b3d.renderer.weather(), a: window.__b3d.audioStats() })); };
     const dry = await wx('clear'), wet = await wx('rain');
