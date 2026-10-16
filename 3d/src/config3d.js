@@ -279,12 +279,17 @@ export const CFG3 = {
   // самыми яркими пятнами в r м от героя (n штук, высота h, ширина w, наклон tilt к солнцу, прозрачность op); motes — пылинок в секунду на столб
   sunlight: { on: true, size: 70, wind: [.6, .25], day: '#c8e68c', night: '#a8d0b8', dayK: .2, nightK: .12,
     shafts: { n: 4, r: 28, step: 4, min: .75, gap: 9, h: 14, w: 5, tilt: .35, op: .16 }, motes: 3 },
+  // ветер (F2): сила от calm (тишь) до breeze (ветерок) меняется за period с, порывы (+gust) — в доле gustShare времени,
+  // направление dirDeg ± dirWander/2; качание крон (tree), дрожь листвы (leaf), травы (grass); трава — пучки с шагом step м,
+  // заполнено fill, высота h; шелест — деревья в r м, full деревьев — полная громкость
+  wind: { on: true, calm: .06, breeze: .55, gust: .45, gustShare: .3, period: 40, gustPeriod: 5, dirDeg: 235, dirWander: 40,
+    sway: { tree: .35, leaf: .06, grass: .3 }, grass: { on: true, step: 1.6, fill: .7, h: .7 }, rustle: { r: 14, full: 8 } },
   // звук: громкость всего, музыки и природы; атмосфера (D1) — журчание у реки, птицы и сова, своя музыка «лесная сказка»
   audio: {
     volume: .7, musicVol: .55, natureVol: .8, voices: 24, look: 1.2,          // предел одновременных голосов; ноты ставятся вперёд на look с
     water: { near: 2, far: 25, vol: .09, plips: 6 },                     // полная громкость у берега, тишина дальше far м; бульков в секунду
     birds: { vol: .05, gap: [2, 7], day: [.45, .75], owlGap: [9, 20], owlVol: .05 },   // пауза между трелями, рассвет→день (свет)
-    combat: { r: 16, n: 2, fade: 1.5 },                                   // встревоженных врагов в r м: n — полный бой; музыка и птицы стихают
+    combat: { r: 16, n: 2, fade: 1.5 }, rustle: { vol: .06 },             // шелест листвы (F2)                                   // встревоженных врагов в r м: n — полный бой; музыка и птицы стихают
     music: { vol: .12, rest: [30, 60], dayBpm: 84, nightBpm: 70, nightVol: .6, phrase: 8, form: 'AABA' }
   },
   difficulty: {

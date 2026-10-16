@@ -204,6 +204,15 @@ try {
     } }
   // свет сквозь облака (E2): на поверхности пятна света есть и не нулевые
   { const s = await ev(() => window.__b3d.renderer.sun()); if (!s || !s.on || !(s.op > 0)) bad('нет света сквозь облака: ' + JSON.stringify(s)); else console.log('  свет: ' + JSON.stringify(s)); }
+  // ветер (F2): при сильном ветре трава и кроны двигаются — между кадрами меняется заметно больше точек, чем в тишь
+  { const grab = () => ev(() => { const c = document.getElementById('gl'), g = document.createElement('canvas'); g.width = c.width; g.height = c.height; const x = g.getContext('2d'); x.drawImage(c, 0, 0); return Array.from(x.getImageData(0, 0, g.width, g.height).data.filter((_, i) => i % 4 === 1)); });
+    await ev(() => { const b = window.__b3d, W = b.W; b.cfg.sunlight.wind = [0, 0]; W.enemies.length = 0; W.player.x = 20; W.player.z = 40; }); await page.waitForTimeout(2500);     // камера доехала
+    const moved = async (s) => { await ev(s => { const C = window.__b3d.cfg.wind; C.calm = C.breeze = s; C.gust = 0; window.__b3d.W.enemies.length = 0; }, s);
+      await page.waitForTimeout(600); const a = await grab(); await page.waitForTimeout(450); const b2 = await grab(); let n = 0; for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b2[i]) > 6) n++; return n / a.length; };
+    const still = await moved(0), windy = await moved(1);
+    if (!(windy > still + .004)) bad(`ветер не двигает траву и кроны: ${windy.toFixed(4)} против ${still.toFixed(4)} в тишь`);
+    console.log('  ветер: ' + JSON.stringify({ still: still.toFixed(4), windy: windy.toFixed(4), rustle: (await ev(() => window.__b3d.renderer.treesNear(20, 40))).toFixed(2) }));
+    await ev(c => { Object.assign(window.__b3d.cfg.wind, c.w); window.__b3d.cfg.sunlight.wind = c.s; }, { w: { calm: .06, breeze: .55, gust: .45 }, s: [.6, .25] }); }
   // фильтр ASCII (E1): включается в меню, холст в полный размер, кадр из символов на тёмном фоне, полоса здоровья чёткая; выключается
   { const toggle = async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(200); await page.locator('#asciiBtn').click(); await page.waitForTimeout(150); const t = await ev(() => document.getElementById('asciiBtn').textContent); await page.keyboard.press('Escape'); await page.waitForTimeout(400); return t; };
     const t1 = await toggle();

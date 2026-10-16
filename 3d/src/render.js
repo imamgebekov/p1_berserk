@@ -6,6 +6,7 @@ import { buildLevelView, buildSurfaceView } from './levelview.js';
 import { buildHeights, heightAt } from './terrain3d.js';
 import { createAscii, OVERLAY } from './ascii3d.js';
 import { makeField, pickShafts } from './sunlight3d.js';
+import { windAt, grassSpots } from './wind3d.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
@@ -135,17 +136,63 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const npcs = [];
   for (const b of map.buildings) if (b.npc) { const n = makeNpc(b.npc.kind); n.group.position.set(b.npc.x, 0, b.npc.z); n.pos = b.npc; n.mark = new THREE.Mesh(new THREE.OctahedronGeometry(.22), new THREE.MeshBasicMaterial({ color: '#e8c04a' })); n.mark.position.set(0, 2.6, 0); n.mark.visible = false; n.group.add(n.mark); scene.add(n.group); npcs.push(n); }
 
+  // ветер (F2): общие uniform для шейдеров крон и травы; смещение — после всех преобразований, по миру (одно направление)
+  const WC = cfg.wind, WU = { uTime: { value: 0 }, uWind: { value: 0 }, uDir: { value: new THREE.Vector2(0, 1) } };
+  const TREE_PV = `vec4 mvPosition = vec4( transformed, 1.0 );
+  { float k = sway; vec2 wp = mvPosition.xz;
+    float sw = uWind * uAmp * k * k * ( 0.55 + 0.45 * sin( uTime * ( 1.1 + uWind * 1.6 ) + wp.x * .21 + wp.y * .17 ) );
+    float fl = uWind * uLeaf * step( .7, k ) * sin( uTime * 9. + wp.x * 3.1 + wp.y * 2.3 + mvPosition.y * 4. );
+    mvPosition.xz += uDir * sw + vec2( fl, -fl * .6 ); }
+  mvPosition = modelViewMatrix * mvPosition;
+  gl_Position = projectionMatrix * mvPosition;`;
+  const GRASS_PV = `vec4 mvPosition = vec4( transformed, 1.0 );
+  #ifdef USE_INSTANCING
+    mvPosition = instanceMatrix * mvPosition;
+  #endif
+  { float k = clamp( position.y / uH, 0., 1. ); vec2 wp = mvPosition.xz;
+    float sw = uWind * uAmp * k * k * ( 0.5 + 0.5 * sin( uTime * ( 1.6 + uWind * 2.4 ) + wp.x * .35 + wp.y * .27 ) );
+    mvPosition.xz += uDir * sw; }
+  mvPosition = modelViewMatrix * mvPosition;
+  gl_Position = projectionMatrix * mvPosition;`;
+  const windy = (mat, kind) => {
+    mat.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, WU, { uAmp: { value: kind === 'tree' ? WC.sway.tree : WC.sway.grass }, uLeaf: { value: WC.sway.leaf }, uH: { value: WC.grass.h } });
+      sh.vertexShader = (kind === 'tree' ? 'attribute float sway;\n' : '') + 'uniform float uTime, uWind, uAmp, uLeaf, uH; uniform vec2 uDir;\n' + sh.vertexShader.replace('#include <project_vertex>', kind === 'tree' ? TREE_PV : GRASS_PV);
+    };
+    mat.customProgramCacheKey = () => 'wind-' + kind; return mat;
+  };
   // деревья и камни одним мешем (один вызов отрисовки)
-  const rnd = mulberry32(cfg.world.seed), parts = [];
+  const rnd = mulberry32(cfg.world.seed), parts = [], treeXZ = [];
   for (let i = 0; i < cfg.world.props; i++) {
     const a = rnd() * Math.PI * 2, d = 7 + Math.sqrt(rnd()) * (cfg.world.radius - 8), x = Math.cos(a) * d, z = Math.sin(a) * d;
     const tree = rnd() < .65;
     if (propsBlocked(map, x, z)) continue;                             // не растим деревья в домах, на дорогах и в областях
+    if (tree) treeXZ.push(x, z);
     const k0 = parts.length; (tree ? addTree : addRock)(parts, rnd, x, z, cfg.look); const gy = Y(x, z); for (let k = k0; k < parts.length; k++) parts[k].translate(0, gy, 0);     // на холме
   }
   // граница мира: частокол из мёртвых стволов
   for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2, R = cfg.world.radius + 1.5; addTree(parts, rnd, Math.cos(a) * R, Math.sin(a) * R, cfg.look); }
-  const props = new THREE.Mesh(mergeGeometries(parts, false), new THREE.MeshLambertMaterial({ vertexColors: true }));
+  for (const g of parts) if (!g.attributes.sway) g.setAttribute('sway', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count), 1));     // камни не качаются
+  const props = new THREE.Mesh(mergeGeometries(parts, false), WC && WC.on ? windy(new THREE.MeshLambertMaterial({ vertexColors: true }), 'tree') : new THREE.MeshLambertMaterial({ vertexColors: true }));
+  // трава (F2): пучки из трёх травинок по всему миру, качаются по ветру
+  const grass = (() => {
+    if (!WC || !WC.on || !WC.grass.on) return new THREE.Group();
+    const spots = grassSpots(map, cfg, cfg.world.seed), H = WC.grass.h, v = [], col = [], dark = new THREE.Color(cfg.look.leaf[1]), tip = new THREE.Color(cfg.look.leaf[2]).multiplyScalar(1.6);
+    for (let b = 0; b < 3; b++) { const a = b * Math.PI / 3, c = Math.cos(a), s = Math.sin(a), lean = (b - 1) * .08;
+      v.push(-.11 * c, 0, -.11 * s, .11 * c, 0, .11 * s, lean * s, H * (.8 + b * .12), lean * c); col.push(dark.r, dark.g, dark.b, dark.r, dark.g, dark.b, tip.r, tip.g, tip.b); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.computeVertexNormals();
+    // участки 16×16 м — отдельные меши: что вне кадра, отсекается и не рисуется
+    const mat = windy(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'grass'), cells = new Map(), group = new THREE.Group();
+    spots.forEach((g, i) => { const k = Math.floor(g.x / 16) + ',' + Math.floor(g.z / 16); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(i); });
+    const M4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), P3 = new THREE.Vector3(), S3 = new THREE.Vector3(), c = new THREE.Color();
+    for (const ids of cells.values()) {
+      const m = new THREE.InstancedMesh(geo, mat, ids.length);
+      ids.forEach((i, j) => { const g = spots[i]; e.set(0, g.rot, 0); q.setFromEuler(e); P3.set(g.x, Y(g.x, g.z), g.z); S3.set(g.s, g.s, g.s); M4.compose(P3, q, S3); m.setMatrixAt(j, M4); c.setHSL(.27 + (i % 7) * .012, .45, .38 + (i % 5) * .04); m.setColorAt(j, c); });
+      m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.computeBoundingSphere(); m.boundingSphere.radius += 1; group.add(m);
+    }
+    group.userData.count = spots.length; scene.add(group); return group;
+  })();
+  let windNow = { s: 0, dir: [0, 1] };
   scene.add(props);
 
   const fire = makeCampfire(); scene.add(fire.group);
@@ -196,7 +243,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   puffs.count = calm ? 0 : puffN; puffs.frustumCulled = false; life.add(puffs);
   const puffM = new THREE.Matrix4(), puffQ = new THREE.Quaternion(), puffS = new THREE.Vector3(), puffP = new THREE.Vector3();
   scene.add(life);
-  const surfaceObjs = [hills, riverGroup, sunGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
+  const surfaceObjs = [hills, riverGroup, sunGroup, grass, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   function showLevel(W) {
     const id = W.lvl, L = W.levels[id];
@@ -450,7 +497,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       for (const { b, m } of crows) { m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; m.group.position.set(b.x, b.y + Y(b.x, b.z), b.z); m.group.rotation.y = b.face; const fl = b.state === 'fly' ? Math.sin(t * 22) * .9 : (b.peck < .3 ? .2 : 0); m.wl.rotation.z = fl; m.wr.rotation.z = -fl; }
       for (let i = 0; i < puffs.count; i++) {
         const c = pipes[(i / AMB.smoke) | 0], k = ((t / 4 + (i % AMB.smoke) / AMB.smoke + c.x * .013) % 1), s = .35 + k * 1.1 * (1 - k * .6);
-        puffP.set(c.x + k * 1.6 + Math.sin(t + i) * .15, c.y + .3 + k * 3.2, c.z + k * .4); puffS.set(s, s, s); puffM.compose(puffP, puffQ, puffS); puffs.setMatrixAt(i, puffM);
+        const dr = .4 + 2.6 * windNow.s; puffP.set(c.x + k * dr * windNow.dir[0] + Math.sin(t + i) * .15, c.y + .3 + k * 3.2 * (1 - .4 * windNow.s), c.z + k * dr * windNow.dir[1]);     // дым сносит ветром puffS.set(s, s, s); puffM.compose(puffP, puffQ, puffS); puffs.setMatrixAt(i, puffM);
       }
       if (puffs.count) puffs.instanceMatrix.needsUpdate = true;
     }
@@ -564,6 +611,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     W.ev.length = 0;
     // частицы
+    if (WC && WC.on) { windNow = windAt(t, WC, cfg.world.seed); WU.uTime.value = t; WU.uWind.value = calm ? 0 : windNow.s; WU.uDir.value.set(windNow.dir[0], windNow.dir[1]); }     // ветер: «Уменьшить движение» — всё стоит
     if (field && !under) {                                           // свет сквозь облака: плывёт по ветру, днём тёплый, ночью лунный
       const tt = calm ? 0 : t, L = W.light, rep = 500 / SL.size;
       lightMat.map.offset.set((SL.wind[0] * tt - 250) / SL.size, rep + (SL.wind[1] * tt - 250) / SL.size);
@@ -590,5 +638,6 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     resize();
   }
 
-  return { render, resize, project, setAscii, ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  const treesNear = (x, z) => { if (!WC) return 0; let n = 0; const r2 = WC.rustle.r * WC.rustle.r; for (let i = 0; i < treeXZ.length; i += 2) { const dx = treeXZ[i] - x, dz = treeXZ[i + 1] - z; if (dx * dx + dz * dz < r2) n++; } return Math.min(1, n / WC.rustle.full); };
+  return { render, resize, project, setAscii, wind: () => windNow, treesNear, ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }

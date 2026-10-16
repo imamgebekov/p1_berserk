@@ -9,7 +9,7 @@ import { mulberry32 } from './sim.js';
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const smooth = (a, b, v) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t); };
 
-export function mixOf(W, A) {
+export function mixOf(W, A, env) {
   const p = W.player, under = W.lvl !== 'surface';
   let n = 0; for (const e of W.enemies) if (!e.dead && e.alert && Math.hypot(e.x - p.x, e.z - p.z) < A.combat.r) n++;
   const combat = p.dead ? 0 : clamp01(n / A.combat.n), danger = clamp01(W.place && W.place.danger ? W.place.danger / 3 : 0);
@@ -18,7 +18,8 @@ export function mixOf(W, A) {
   const day = under ? 0 : smooth(A.birds.day[0], A.birds.day[1], W.light);
   const birds = day * (1 - danger * .8) * (1 - combat), owl = under ? 0 : (1 - day) * (W.night ? 1 : 0) * (1 - combat);
   const music = under || p.dead ? 0 : (1 - combat) * (W.night ? A.music.nightVol : 1);
-  return { water, birds, owl, music, combat, night: !!W.night, under };
+  const rustle = under || !env ? 0 : Math.pow(clamp01(env.wind), 1.5) * clamp01(env.trees);     // шелест: ветер и деревья рядом
+  return { water, birds, owl, music, combat, night: !!W.night, under, rustle };
 }
 
 // ---- музыка ----

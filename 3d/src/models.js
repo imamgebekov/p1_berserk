@@ -204,7 +204,7 @@ export function pushBlob(list, kind, sx, sy, sz, x, y, z, rx, ry, rz, color) {
   list.push(geo);
 }
 export function addTree(list, rnd, x, z, look = null) {
-  const h = 2.6 + rnd() * 2.2, col = look ? look.trunk[rnd() < .5 ? 0 : 1] : rnd() < .5 ? '#1a1210' : '#221813';
+  const k0 = list.length, h = 2.6 + rnd() * 2.2, col = look ? look.trunk[rnd() < .5 ? 0 : 1] : rnd() < .5 ? '#1a1210' : '#221813';
   pushBox(list, .36, h, .36, x, h / 2, z, 0, 0, (rnd() - .5) * .15, col);
   const n = 2 + (rnd() * 3 | 0);
   for (let i = 0; i < n; i++) {
@@ -215,12 +215,15 @@ export function addTree(list, rnd, x, z, look = null) {
     const m = 3 + (rnd() * 3 | 0);
     for (let i = 0; i < m; i++) { const s = (1.1 + rnd() * 1.1) * .62, a = rnd() * Math.PI * 2, r = i ? .5 + rnd() * .7 : 0; pushBlob(list, 'ico', s, s * .85, s, x + Math.cos(a) * r, h + (i ? -.3 - rnd() * .6 : .2), z + Math.sin(a) * r, rnd() * .3, rnd() * 3, rnd() * .3, look.leaf[(rnd() * look.leaf.length) | 0]); }     // округлая крона
   }
+  if (look) for (let k = k0; k < list.length; k++) { const p = list[k].attributes.position, sw = new Float32Array(p.count); for (let i = 0; i < p.count; i++) sw[i] = Math.max(0, Math.min(1, p.getY(i) / (h + 1))); list[k].setAttribute('sway', new THREE.BufferAttribute(sw, 1)); }     // F2: доля качания по высоте
 }
 export function addRock(list, rnd, x, z, look = null) {
   const s = .5 + rnd() * 1.1, col = (look ? look.rock : ['#2a2420', '#332b26'])[rnd() < .5 ? 0 : 1];
   if (look) {                                              // F1: глыба из додекаэдров вместо кубов
+    const k0 = list.length;
     pushBlob(list, 'dodeca', s * .75, s * .55, s * .6, x, s * .3, z, 0, rnd() * 3, 0, col);
     if (rnd() < .6) pushBlob(list, 'dodeca', s * .5, s * .45, s * .5, x + s * .5, s * .45, z + s * .2, .2, rnd() * 3, .3, col);
+    for (let k = k0; k < list.length; k++) list[k].setAttribute('sway', new THREE.BufferAttribute(new Float32Array(list[k].attributes.position.count), 1));     // камень не качается (F2)
     return;
   }
   pushBox(list, s * 1.4, s, s * 1.1, x, s * .4, z, 0, rnd() * 3, 0, col);
