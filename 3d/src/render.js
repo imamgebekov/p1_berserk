@@ -4,6 +4,7 @@ import { buildDecor } from './decor.js';
 import { buildTown } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
 import { buildHeights, heightAt } from './terrain3d.js';
+import { createAscii, OVERLAY } from './ascii3d.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
@@ -59,6 +60,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   scene.background = new THREE.Color(FOG);
   scene.fog = new THREE.FogExp2(FOG, cfg.view.fogDensity);
   const camera = new THREE.PerspectiveCamera(cfg.view.fov, 1, .5, 700);
+  camera.layers.enable(OVERLAY);
+  const ovl = o => { o.traverse(c => c.layers.set(OVERLAY)); return o; };     // чёткие метки боя: в фильтре ASCII рисуются поверх символов
+  let ascii = null, asciiOn = false;
 
   // свет: тусклое «багровое» небо, холодный свет затмения и тёплый костёр
   const hemi = new THREE.HemisphereLight('#a8847a', '#2a1a16', 2.4); scene.add(hemi);
@@ -129,6 +133,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const fire = makeCampfire(); scene.add(fire.group);
   // фонарь героя: светит только в подземельях (там нет неба и солнца)
   const lantern = new THREE.PointLight('#ffb070', 22, 16, 1.4); lantern.visible = false; scene.add(lantern);   // спрятанный свет не считается в шейдерах поверхности
+  const asciiLamp = new THREE.PointLight('#ffe8d0', cfg.view.ascii.lamp[0], cfg.view.ascii.lamp[1], 1.5); asciiLamp.visible = false; scene.add(asciiLamp);   // ASCII: пятно света вокруг героя, чтобы он читался
 
   // пепел в воздухе
   const ashN = 140, ashPos = new Float32Array(ashN * 3);
@@ -189,7 +194,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const decoyModel = () => { const h = makeHero(); h.setLook({ cloth: '#1a1824', cape: '#2a1838', hair: '#0a0810', legs: '#14121c', shoulder: false, hood: false, quiver: false, capeLen: .7 }); h.setWeapon('rapier', 'black'); h.root.rotation.x = .12; return h; };
   // кольцо заряда тяжёлого удара под героем: растёт с зарядом, при полном — оранжевое и пульсирует
   const chargeRing = new THREE.Mesh(new THREE.RingGeometry(.82, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffd9c0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-  chargeRing.visible = false; scene.add(chargeRing);
+  chargeRing.visible = false; scene.add(ovl(chargeRing));
   function updateCharge(p, t) {
     const on = p.state === 'charge'; chargeRing.visible = on; if (!on) return;
     const H = cfg.player.heavy, k = Math.min(1, p.chargeT / H.full), full = k >= 1;
@@ -226,7 +231,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const ents = new Map(), allyEnts = new Map();
   const bars = new Map();
   const arcMat = new THREE.MeshBasicMaterial({ color: '#ffd9c0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-  const arc = new THREE.Mesh(new THREE.CircleGeometry(1, 24), arcMat); arc.rotation.x = -Math.PI / 2; arc.position.y = .08; scene.add(arc);
+  const arc = new THREE.Mesh(new THREE.CircleGeometry(1, 24), arcMat); arc.rotation.x = -Math.PI / 2; arc.position.y = .08; scene.add(ovl(arc));
   let arcFor = -1, swingFx = 0;
   function arcGeometry(deg) {
     if (arcFor === deg) return;
@@ -271,7 +276,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       const m = makeMonster(e.type, cfg), sh = shadow(.55 * cfg.enemies[e.type].scale);
       const ring = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 28), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
       ring.rotation.x = -Math.PI / 2; ring.position.y = .06;
-      scene.add(m.group, sh, ring);
+      scene.add(m.group, sh, ovl(ring));
       en = { m, sh, ring }; ents.set(e.id, en);
     }
     return en;
@@ -283,7 +288,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .16), new THREE.MeshBasicMaterial({ color: '#120d0c', depthTest: false }));
       const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, .1), new THREE.MeshBasicMaterial({ color, depthTest: false }));
       fill.geometry.translate(.5, 0, 0); fill.position.set(-.5, 0, .01); bg.renderOrder = 10; fill.renderOrder = 11;
-      g.add(bg, fill); scene.add(g); b = { g, fill }; bars.set(e.id, b);
+      g.add(bg, fill); scene.add(ovl(g)); b = { g, fill }; bars.set(e.id, b);
     }
     return b;
   }
@@ -292,8 +297,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let cssW = 1, cssH = 1;
   function resize(w, h) {
     cssW = w || cssW; cssH = h || cssH;
-    const ps = Math.max(1, Math.round(cfg.view.pixelScale));
+    const ps = asciiOn ? 1 : Math.max(1, Math.round(cfg.view.pixelScale));     // ASCII: холст в полный размер, сцена — в клетки
     gl.setSize(Math.max(8, Math.floor(cssW / ps)), Math.max(8, Math.floor(cssH / ps)), false);
+    if (asciiOn) ascii.resize(Math.max(8, Math.floor(cssW)), Math.max(8, Math.floor(cssH)));
     canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
     camera.aspect = cssW / cssH; camera.updateProjectionMatrix();
   }
@@ -320,17 +326,17 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const teleDisc = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
   const teleInner = new THREE.Mesh(new THREE.RingGeometry(.97, 1, 32), new THREE.MeshBasicMaterial({ color: '#8affc0', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
   const teleLine = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
-  for (const m of [teleRing, teleDisc, teleInner, teleLine]) { m.rotation.x = -Math.PI / 2; m.position.y = .09; m.visible = false; scene.add(m); }
+  for (const m of [teleRing, teleDisc, teleInner, teleLine]) { m.rotation.x = -Math.PI / 2; m.position.y = .09; m.visible = false; scene.add(ovl(m)); }
   // стрелы и пятна колдовства: небольшие пулы мешей
   const projMeshes = [], hazMeshes = [];
   // капканы и круги града стрел (умения Сойки)
   const trapMeshes = [0, 1, 2, 3].map(() => { const g = new THREE.Group(), mt = new THREE.MeshLambertMaterial({ color: '#6a6458' }); for (const s of [-1, 1]) { const j = new THREE.Mesh(new THREE.BoxGeometry(.9, .12, .12), mt); j.position.set(0, .08, s * .22); g.add(j); for (let k = -2; k <= 2; k++) { const t = new THREE.Mesh(new THREE.BoxGeometry(.06, .14, .06), mt); t.position.set(k * .18, .16, s * .16); g.add(t); } } g.add(new THREE.Mesh(new THREE.BoxGeometry(.3, .05, .3), new THREE.MeshLambertMaterial({ color: '#3a2a1a' }))); g.visible = false; scene.add(g); return g; });
-  const zoneMeshes = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(.92, 1, 40), new THREE.MeshBasicMaterial({ color: '#eef4ff', transparent: true, opacity: .55, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(m); return m; });
+  const zoneMeshes = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(.92, 1, 40), new THREE.MeshBasicMaterial({ color: '#eef4ff', transparent: true, opacity: .55, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(ovl(m)); return m; });
   for (let i = 0; i < 24; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.14, .14, .9), new THREE.MeshBasicMaterial({ color: '#ffd27a' })); m.visible = false; m.userData.k = 'foe'; scene.add(m); projMeshes.push(m); }
   for (let i = 0; i < 6; i++) {
     const ring = new THREE.Mesh(new THREE.RingGeometry(.94, 1, 40), new THREE.MeshBasicMaterial({ color: '#d060ff', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
     const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 36), new THREE.MeshBasicMaterial({ color: '#8a30c0', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
-    for (const m of [ring, disc]) { m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(m); }
+    for (const m of [ring, disc]) { m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(ovl(m)); }
     ring.position.y = .1; disc.position.y = .08; hazMeshes.push({ ring, disc });
   }
   function updateFoes(W, t) {
@@ -347,7 +353,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   // полоса прицела копейщика: прямоугольник на земле перед ним, наливается к рывку
   const lineTele = [];
-  for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, .5), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false })); m.visible = false; scene.add(m); lineTele.push(m); }
+  for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, .5), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false })); m.visible = false; scene.add(ovl(m)); lineTele.push(m); }
   function updateLines(W, t) {
     let i = 0;
     for (const e of W.enemies) {
@@ -438,7 +444,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ap.needsUpdate = true; ash.position.set(cam.x, 0, cam.z);
 
     // герой
-    const py = Y(p.x, p.z); hero.group.position.set(p.x, py, p.z); hero.group.rotation.y = p.face;
+    const py = Y(p.x, p.z); hero.group.position.set(p.x, py, p.z);
+    asciiLamp.visible = asciiOn && !under; if (asciiLamp.visible) asciiLamp.position.set(p.x, py + 2.6, p.z); hero.group.rotation.y = p.face;
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); }
     { const o = W.inv.eq.offhand && BY_ID[W.inv.eq.offhand]; hero.setOff(o ? o.id : '', o && o.kind, o && o.mat, o && o.form); }
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
@@ -460,7 +467,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
       animateMonster(en.m, e, t, cfg);
       if (e.elite) {
-        if (!en.elite) { en.elite = new THREE.Mesh(new THREE.RingGeometry(.95, 1.25, 28), new THREE.MeshBasicMaterial({ color: e.affColor, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide })); en.elite.rotation.x = -Math.PI / 2; scene.add(en.elite); }
+        if (!en.elite) { en.elite = new THREE.Mesh(new THREE.RingGeometry(.95, 1.25, 28), new THREE.MeshBasicMaterial({ color: e.affColor, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide })); en.elite.rotation.x = -Math.PI / 2; scene.add(ovl(en.elite)); }
         en.elite.position.set(e.x, .07 + ey, e.z); en.elite.visible = !e.dead; en.elite.scale.setScalar(cfg.enemies[e.type].scale * (e.scaleMul || 1) * (1 + .06 * Math.sin(t * 5)));
       }
       en.sh.position.set(e.x, .03 + ey, e.z);
@@ -542,8 +549,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     stepFx(dt); updateTele(W, t); updateLines(W, t); updateFoes(W, t);
     if (W.tomb && (W.tomb.lvl || 'surface') === W.lvl) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, Y(W.tomb.x, W.tomb.z), W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
     for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
-    gl.render(scene, camera);
+    if (asciiOn) ascii.render(scene, camera, t); else gl.render(scene, camera);
   }
+  function setAscii(on) { asciiOn = !!on; if (asciiOn && !ascii) ascii = createAscii(gl, cfg, calm); resize(); }
 
-  return { render, resize, project, gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  return { render, resize, project, setAscii, ascii: () => (asciiOn ? ascii : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }

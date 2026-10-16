@@ -294,6 +294,7 @@ const shows = [
   prefBtn('leftyBtn', () => P.lefty, v => v ? '✋ Режим левши: кнопки слева' : '✋ Режим левши выключен', () => { P.lefty = !P.lefty; }),
   prefBtn('vibBtn', () => P.vibrate, v => v ? '📳 Вибрация включена (на iPhone не работает)' : '📳 Вибрация выключена', () => { P.vibrate = !P.vibrate; }),
   prefBtn('fpsBtn', () => P.fps, v => v ? '⏱ Счётчик кадров включён' : '⏱ Счётчик кадров выключен', () => { P.fps = !P.fps; }),
+  prefBtn('asciiBtn', () => P.ascii, v => v ? '🔤 Вид: ASCII (символы)' : '🔤 Вид: обычный', () => { P.ascii = !P.ascii; }),
   prefBtn('hintBtn', () => P.hints, v => v ? '💡 Подсказки включены (нажмите: показать заново)' : '💡 Подсказки выключены', () => { P.hints = !P.hints; if (P.hints) P.seen = {}; })
 ];
 function applyPrefs() {
@@ -301,7 +302,10 @@ function applyPrefs() {
   r.style.setProperty('--ui', P.ui); $('fps').hidden = !P.fps;
   for (const b of uiTabs.children) b.classList.toggle('on', Number(b.dataset.v) === P.ui);
   shows.forEach(f => f());
+  if (renderer && P.ascii !== asciiNow) { asciiNow = P.ascii; renderer.setAscii(P.ascii); }
 }
+let asciiNow = false;
+if (new URLSearchParams(location.search).has('ascii')) P.ascii = true;      // для тестов и ссылок: сразу вид ASCII
 applyPrefs();
 // перенос сохранения
 const codeEl = $('saveCode'), saveFlash = $('saveFlash');
@@ -359,7 +363,7 @@ function loop(now) {
   { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); questBtn.textContent = mk === 'ready' ? '📜 Сдать задание' : mk ? '📜 Есть задания ❗' : '📜 Задания'; } }
   drawAbil();
   { const tl = eventLine(W) || trackerLine(W); if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
-  if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) $('fps').textContent = f + ' кадр/с'; if (f < 32 && !panelOpen && !landscape) lowT += .5; else lowT = Math.max(0, lowT - .5); if (lowT >= 6 && !lowShown && cfg.view.pixelScale < 5) { lowShown = true; toast('Мало кадров: в ⚙ увеличьте «Размер пикселя»', 'bad'); } }
+  if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) $('fps').textContent = f + ' кадр/с'; if (f < 32 && !panelOpen && !landscape) lowT += .5; else lowT = Math.max(0, lowT - .5); if (lowT >= 6 && !lowShown && (P.ascii || cfg.view.pixelScale < 5)) { lowShown = true; toast(P.ascii ? 'Мало кадров: в ⚙ выключите вид ASCII' : 'Мало кадров: в ⚙ увеличьте «Размер пикселя»', 'bad'); } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast('💡 ' + ((desk && h.desk) || h.text), 'hint'); } }
   if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0); }
   if ((atmoT += real) > .2) { atmoT = 0; setScene(mixOf(W, cfg.audio), cfg.audio); tickAudio(); }     // атмосфера: река, птицы, музыка

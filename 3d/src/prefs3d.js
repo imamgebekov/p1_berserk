@@ -1,7 +1,7 @@
 // Личные настройки игрока (телефон): левша, размер кнопок, вибрация, счётчик кадров, показанные подсказки. Отдельно от сохранения игры.
 const KEY = 'berserk3d.prefs';
 export const UI_SCALES = [['S', .85], ['M', 1], ['L', 1.2]];
-export const DEFAULT_PREFS = () => ({ lefty: false, ui: 1, vibrate: true, fps: false, hints: true, seen: {} });
+export const DEFAULT_PREFS = () => ({ lefty: false, ui: 1, vibrate: true, fps: false, hints: true, ascii: false, seen: {} });
 
 export function sanitizePrefs(d) {
   const o = DEFAULT_PREFS(); if (!d || typeof d !== 'object') return o;
@@ -10,6 +10,7 @@ export function sanitizePrefs(d) {
   if (typeof d.vibrate === 'boolean') o.vibrate = d.vibrate;
   if (typeof d.fps === 'boolean') o.fps = d.fps;
   if (typeof d.hints === 'boolean') o.hints = d.hints;
+  if (typeof d.ascii === 'boolean') o.ascii = d.ascii;
   if (d.seen && typeof d.seen === 'object') for (const k of Object.keys(d.seen).slice(0, 40)) if (/^[a-z_]{1,20}$/.test(k) && d.seen[k] === true) o.seen[k] = true;
   return o;
 }

@@ -202,6 +202,29 @@ try {
       if (a2.mix.water > .01) bad('у костра слышно реку: ' + JSON.stringify(a2.mix));
       console.log('  звук: ' + JSON.stringify({ water: a1.mix.water.toFixed(2), birds: a1.mix.birds.toFixed(2), notes: a2.notes, plips: a2.plips, voices: a2.maxVoices }));
     } }
+  // фильтр ASCII (E1): включается в меню, холст в полный размер, кадр из символов на тёмном фоне, полоса здоровья чёткая; выключается
+  { const toggle = async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(200); await page.locator('#asciiBtn').click(); await page.waitForTimeout(150); const t = await ev(() => document.getElementById('asciiBtn').textContent); await page.keyboard.press('Escape'); await page.waitForTimeout(400); return t; };
+    const t1 = await toggle();
+    const st = await ev(() => { const r = window.__b3d.renderer, a = r.ascii(), c = document.getElementById('gl'); return { on: !!a, w: c.width, h: c.height, iw: innerWidth, ih: innerHeight, rows: a && a.atlas.rows.length }; });
+    if (!/ASCII/.test(t1) || !st.on || Math.abs(st.w - st.iw) > 1 || Math.abs(st.h - st.ih) > 1 || st.rows !== 4) bad('ASCII не включился или холст не в полный размер: ' + JSON.stringify({ t1, ...st }));
+    const bar = await ev(() => { const b = window.__b3d, W = b.W, C = W.map.camp, p = W.player; W.enemies.length = 0; p.x = C.x; p.z = C.z + 2; p.inv = 1e9;
+      const e = b.spawn('brute', p.x + 3, p.z); e.elite = false; e.affColor = undefined; e.hp = e.maxhp * .5; e.cd = 99; e.alert = false; e.st = null; return e.id; });
+    await page.waitForTimeout(700);
+    const px = await ev(() => { const b = window.__b3d, W = b.W, e = W.enemies.find(q => !q.dead), c = document.getElementById('gl'), g = document.createElement('canvas'); g.width = c.width; g.height = c.height;
+      const x = g.getContext('2d'); x.drawImage(c, 0, 0); const d = x.getImageData(0, 0, g.width, g.height).data; let dark = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4 * 7) { n++; if (d[i] + d[i + 1] + d[i + 2] < 45) dark++; }
+      const s = c.width / innerWidth, q = b.renderer.project(e.x, 2.5 * b.cfg.enemies[e.type].scale + .3, e.z); let red = 0;
+      // полоса здоровья — сплошной красный отрезок ≥ 20 px (символы так не умеют: между ними зазоры)
+      for (let yy = Math.round((q.y - 30) * s); yy < (q.y + 30) * s; yy++) { let run = 0; for (let xx = Math.round((q.x - 60) * s); xx < (q.x + 60) * s; xx++) { if (xx < 0 || yy < 0 || xx >= g.width || yy >= g.height) { run = 0; continue; } const k = (yy * g.width + xx) * 4; if (d[k] > 60 && d[k] > 2.5 * d[k + 1] && d[k] > 2 * d[k + 2]) { if (++run >= 20) red = Math.max(red, run); } else run = 0; } }
+      return { dark: dark / n, red }; });
+    if (px.dark < .35) bad('в ASCII мало тёмного фона: ' + px.dark.toFixed(2));
+    if (px.red < 20) bad('в ASCII не видно полосы здоровья врага: ' + px.red);
+    await page.screenshot({ path: join(out, '3d-desk-ascii.png') });
+    const t2 = await toggle();
+    const st2 = await ev(() => ({ on: !!window.__b3d.renderer.ascii(), w: document.getElementById('gl').width, iw: innerWidth, ps: window.__b3d.cfg.view.pixelScale }));
+    if (/ASCII/.test(t2) || st2.on || Math.abs(st2.w - Math.floor(st2.iw / Math.round(st2.ps))) > 1) bad('ASCII не выключился: ' + JSON.stringify({ t2, ...st2 }));
+    console.log('  ASCII: ' + JSON.stringify({ dark: px.dark.toFixed(2), bar: px.red, cols: Math.ceil(st.w / 8) }));
+    await ev(() => { window.__b3d.W.enemies.length = 0; }); }
   await ctx.close();
   // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
   { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);
