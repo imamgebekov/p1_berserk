@@ -5,6 +5,7 @@ import { propsBlocked } from './map.js';
 import { waterDist, CHUNK } from './terrain3d.js';
 import { pathSegs, distSeg } from './world3d.js';
 import { biomeAt } from './worldgen3d.js';
+import { inCliff } from './cliffs3d.js';
 
 export { CHUNK };
 const seedOf = (seed, ci, cj, salt) => (Math.imul(seed * 73856093 ^ ci * 19349663 ^ cj * 83492791, 2654435761) ^ salt) >>> 0;
@@ -38,6 +39,7 @@ export function grassIn(map, cfg, ci, cj, segs = pathSegs(map)) {
     const px = x + r() * G.step, pz = z + r() * G.step, s = .7 + r() * .6, rot = r() * Math.PI;
     if (Math.hypot(px, pz) > R || r() > G.fill * gk(px, pz) || Math.hypot(px, pz) < 3) continue;
     if (map.river && waterDist(map.river, px, pz) < 1.2) continue;
+    if (inCliff(map.plateaus, px, pz, .4)) continue;
     if (map.buildings.some(b => px > b.x0 - .5 && px < b.x1 + .5 && pz > b.z0 - .5 && pz < b.z1 + .5)) continue;
     if (map.solids.some(q => Math.hypot(q.x - px, q.z - pz) < q.r + .3)) continue;
     if (near.some(([a, b]) => distSeg(px, pz, a, b) < 1.4)) continue;

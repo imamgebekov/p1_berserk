@@ -29,7 +29,7 @@ for (const b of rv.bridges) ok(Math.hypot(b.x, b.z) < R - 4 && waterDist(rv, b.x
 const hf = buildHeights(CFG3, map);
 const grid = H => { const out = []; for (let x = -R - 20; x <= R + 20; x += 1.7) for (let z = -R - 20; z <= R + 20; z += 1.9) out.push(heightAt(H, x, z, false)); return out; };
 let maxH = 0; for (const v of grid(hf)) maxH = Math.max(maxH, Math.abs(v));
-ok(maxH > .5 && maxH <= CFG3.terrain.hills.amp + 1e-6 + Math.abs(CFG3.terrain.bed), `холмов нет или они выше нормы: ${maxH.toFixed(2)}`);
+ok(maxH > .5 && maxH <= CFG3.terrain.hills.amp + 1e-6 + Math.abs(CFG3.terrain.bed) + CFG3.worldgen.plateaus.h, `холмов нет или они выше нормы: ${maxH.toFixed(2)}`);
 const flat = (x, z, m) => ok(Math.abs(heightAt(hf, x, z)) < 1e-6, `${m}: земля не ровная (${heightAt(hf, x, z).toFixed(3)})`);
 flat(0, 0, 'костёр'); if (map.camp) flat(map.camp.x + map.camp.r * .7, map.camp.z, 'лагерь');
 for (const b of map.buildings) flat((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2, 'дом ' + b.kind);

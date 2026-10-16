@@ -49,6 +49,8 @@ function extendRiver(r, from, prev, R, step) {
   }
   return out;
 }
+// расстояние от точки до отрезка ab
+const segD = (x, z, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2)); return Math.hypot(x - a.x - dx * t, z - a.z - dz * t); };
 // пересечение отрезков ab и cd: доля по ab или -1
 function cross(a, b, c, d) {
   const rx = b.x - a.x, rz = b.z - a.z, sx = d.x - c.x, sz = d.z - c.z, den = rx * sz - rz * sx; if (Math.abs(den) < 1e-9) return -1;
@@ -110,6 +112,14 @@ export function expandWorld(base) {
   for (const v of order) {
     const to = nodes.reduce((a, q) => (Math.hypot(q.x - v.x, q.z - v.z) < Math.hypot(a.x - v.x, a.z - v.z) ? q : a));
     cfg.map.links.push([{ x: to.x, z: to.z }, { x: v.x, z: v.z }]); nodes.push({ x: v.x, z: v.z });
+  }
+  // плато с обрывами (C3c): в горах, вдали от мест, ориентиров и реки; 1–2 пологих въезда
+  cfg.map.plateaus = [];
+  for (let i = 0, tries = 0; i < G.plateaus.n && tries < 600; tries++) {
+    const r0 = G.plateaus.r[0] + r() * (G.plateaus.r[1] - G.plateaus.r[0]), s = freeSpot(G.coreR + 60, R - r0 - 15, r0 + 18, r0 + 12); if (!s) break;
+    if (cfg.map.links.some(([a, b]) => segD(s.x, s.z, a, b) < r0 + 10) || biomeAt(cfg, s.x, s.z) !== 'mountains' || [0, 1.57, 3.14, 4.71].some(a => biomeAt(cfg, s.x + Math.sin(a) * r0, s.z + Math.cos(a) * r0) !== 'mountains')) continue;
+    const a0 = r() * TAU, ramps = r() < .5 ? [a0] : [a0, a0 + Math.PI * (.7 + r() * .6)];
+    cfg.map.plateaus.push({ x: s.x, z: s.z, r: r0, h: G.plateaus.h, ramps, rw: G.plateaus.rw, len: G.plateaus.len }); taken.push({ x: s.x, z: s.z, r: r0 + G.plateaus.len + 4 }); i++;
   }
   if (rv) {
     const extra = [], B = T.bridge;

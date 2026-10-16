@@ -12,6 +12,7 @@ import { overheadOf } from './overhead3d.js';
 import { propsIn, grassIn, chunksAround, CHUNK } from './chunks3d.js';
 import { pathSegs } from './world3d.js';
 import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
+import { inCliff } from './cliffs3d.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addCanopyTree, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
@@ -87,7 +88,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const Y = (x, z) => (groundOn ? heightAt(hf, x, z) : 0);
   if (hooks.onText) { const f = hooks.onText; hooks.onText = (x, y, z, ...a) => f(x, y + Y(x, z), z, ...a); }
   // земля с холмами (C3a): участками CHUNK м вокруг героя; светлее на буграх и темнее в низинах, у воды — песок
-  const hillsMat = new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true }), sandC = new THREE.Color(cfg.look.sand);     // цвет материала — мокрость (F3)
+  const hillsMat = new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true }), sandC = new THREE.Color(cfg.look.sand), rockC = (() => { const t = new THREE.Color('#6e6a60'), g = new THREE.Color(cfg.look.ground[1]); return new THREE.Color(t.r / g.r, t.g / g.g, t.b / g.b); })();     // скала: текстура травы × множитель ≈ серый камень (линейный цвет)     // цвет материала — мокрость (F3)
   const hillsGeo = (ci, cj) => {
     const g = new THREE.PlaneGeometry(CHUNK, CHUNK, CHUNK, CHUNK); g.rotateX(-Math.PI / 2); g.translate((ci + .5) * CHUNK, 0, (cj + .5) * CHUNK);
     const pos = g.attributes.position, uv = g.attributes.uv, col = new Float32Array(pos.count * 3), c = new THREE.Color();
@@ -96,6 +97,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       uv.setXY(i, (x + 250) / 500, 1 - (z + 250) / 500);                // та же текстура и масштаб, что у плоской земли
       const k = 1 + h * .12, tn = biomeTint(cfg, x, z); c.setRGB(k * tn[0], k * tn[1], k * tn[2]);     // оттенок биома (C3b)
       if (map.river && h < -.15) c.lerp(sandC, Math.min(1, -h / .8) * .7);
+      if (map.plateaus.length && inCliff(map.plateaus, x, z, .9)) c.copy(rockC).multiplyScalar(k);     // отвесный край — камень (C3c)
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g;

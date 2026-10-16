@@ -3,6 +3,8 @@
 // логова и входы в подземелья). Вода непроходима для героя, врагов и бойцов; мосты — проходимые полосы поперёк русла.
 // Высоты нужны только рендеру: бой остаётся плоским.
 
+import { plateauH } from './cliffs3d.js';
+
 // ---- река ----
 const segDist = (x, z, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2)); return { d: Math.hypot(x - a.x - dx * t, z - a.z - dz * t), t, px: a.x + dx * t, pz: a.z + dz * t }; };
 
@@ -110,7 +112,7 @@ export function buildHeights(cfg, map) {
   for (const q of map.portals || []) circle(q.x, q.z, 4);
   for (const c of map.containers) circle(c.x, c.z, 2.5);
   for (const q of map.solids) circle(q.x, q.z, q.r + 1.5);
-  hf.keep = keep; hf.seed = cfg.world.seed * 131 + 17; hf.T = T; hf.HL = HL;
+  hf.keep = keep; hf.seed = cfg.world.seed * 131 + 17; hf.T = T; hf.HL = HL; hf.plates = map.plateaus || [];
   return hf;
 }
 // узлы участка (ci, cj): (CH/cell + 1)² высот, с краями (соседние участки делят край)
@@ -119,7 +121,8 @@ function chunkOf(hf, ci, cj) {
   const { cell, R, T, HL } = hf, m = Math.round(CH / cell) + 1, data = new Float32Array(m * m), x0 = ci * CH, z0 = cj * CH;
   const ks = hf.keep.filter(k => k.x1 >= x0 && k.x0 <= x0 + CH && k.z1 >= z0 && k.z0 <= z0 + CH);
   const rv = hf.river && riverNearBox(hf.river, x0 - T.bank, z0 - T.bank, x0 + CH + T.bank, z0 + CH + T.bank) ? hf.river : null;     // река далеко — не считаем
-  for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) data[j * m + i] = nodeH(hf, x0 + i * cell, z0 + j * cell, ks, rv, true);
+  const pl = hf.plates.filter(P => P.x + P.r + P.len > x0 && P.x - P.r - P.len < x0 + CH && P.z + P.r + P.len > z0 && P.z - P.r - P.len < z0 + CH);
+  for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) { const x = x0 + i * cell, z = z0 + j * cell; data[j * m + i] = nodeH(hf, x, z, ks, rv, true) + (pl.length ? plateauH(pl, x, z) : 0); }     // плато (C3c)
   c = { m, data }; hf.chunks.set(key, c); hf.built++; return c;
 }
 // высота узла решётки: ks — ровные места, rv — река (null — далеко); box — пропускать места, чья рамка не задевает точку
@@ -134,7 +137,7 @@ function nodeH(hf, x, z, ks, rv, box) {
   return h;
 }
 // эталон для тестов: высота узла по всем ровным местам и всей реке, без участков и рамок
-export const nodeHeightRef = (hf, x, z) => (hf.flat ? 0 : nodeH(hf, x, z, hf.keep, hf.river, false));
+export const nodeHeightRef = (hf, x, z) => (hf.flat ? 0 : nodeH(hf, x, z, hf.keep, hf.river, false) + plateauH(hf.plates, x, z));
 export const CHUNK = CH;
 // высота настила моста в точке: дуга — у концов deck, к середине выше на arch (F4)
 export function deckAt(b, x, z, deck, arch) { const a = (x - b.x) * Math.sin(b.ang) + (z - b.z) * Math.cos(b.ang), k = Math.max(0, 1 - Math.pow(2 * a / b.len, 2)); return deck + arch * k; }

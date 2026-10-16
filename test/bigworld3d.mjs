@@ -2,6 +2,7 @@
 // (поверхность и все подземелья); дальние враги спят и не считаются, бродячие за drop забываются; кривая глубины совпадает
 // со старой формулой и обращается; туман по участкам переживает сохранение; версия 5 хранит позицию и номер мира,
 // старое сохранение (версия 4) переводится без потерь, другой номер мира сбрасывает туман, позицию и таймеры боссов.
+import { pushCliff } from '../3d/src/cliffs3d.js';
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, spawnEnemy } from '../3d/src/sim.js';
 import { makeMap, makeLevelMap, resolve, lineBlocked } from '../3d/src/map.js';
@@ -40,6 +41,7 @@ function resolveRef(map, o, r) {
   for (const d of map.doors || []) if (d.open < .6 && pushOutRef(o, r, d.rect)) hit = true;
   for (const q of map.solids) { const dx = o.x - q.x, dz = o.z - q.z, d = Math.hypot(dx, dz), m = q.r + r; if (d < m) { hit = true; if (d > 1e-9) { o.x = q.x + dx / d * m; o.z = q.z + dz / d * m; } else o.x += m; } }
   if (map.river && pushWater(map.river, o, r)) hit = true;      // река — полным перебором участков русла
+  if (map.plateaus && map.plateaus.length && pushCliff(map.plateaus, o, r)) hit = true;     // обрывы (C3c)
   return hit;
 }
 function lineRef(map, x0, z0, x1, z1) {

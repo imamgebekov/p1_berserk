@@ -229,7 +229,10 @@ try {
     const spots = await ev(async () => { const { overheadOf } = await import('/3d/src/overhead3d.js'); const b = window.__b3d, O = overheadOf(b.W.map, b.cfg), c = O.canopy[0]; return { can: { x: c.x + c.toX * c.reach, z: c.z + c.toZ * c.reach } }; });
     await ev(() => { const c = window.__b3d.cfg; c.wind.calm = c.wind.breeze = c.wind.gust = 0; c.sunlight.wind = [0, 0]; });     // без качания и дрейфа света
     await at(spots.can); const under = await diff(); await page.screenshot({ path: join(out, '3d-desk-canopy.png') });
-    await at({ x: 60, z: 10 }); const open = await diff();
+    const field = await ev(async () => { const { propsIn } = await import('/3d/src/chunks3d.js'); const { overheadOf } = await import('/3d/src/overhead3d.js'); const b = window.__b3d, M = b.W.map, C = b.cfg, O = overheadOf(M, C);     // открытое место: ни деревьев, ни домов, ни крон рядом
+      for (let x = 30; x < 80; x += 3) for (let z = -60; z < 60; z += 3) { if (Math.hypot(x, z) > 80) continue; const P = propsIn(M, C, Math.floor(x / 64), Math.floor(z / 64));
+        if (P.every(q => Math.hypot(q.x - x, q.z - z) > 9) && M.buildings.every(q => Math.hypot(q.x - x, q.z - z) > 14) && O.canopy.every(q => Math.hypot(q.x - x, q.z - z) > 10) && O.arches.every(q => Math.hypot(q.x - x, q.z - z) > 10) && M.solids.every(q => Math.hypot(q.x - x, q.z - z) > 6)) return { x, z }; } return { x: 60, z: 10 }; });
+    await at(field); let open = 1; for (let k = 0; k < 3; k++) { await ev(() => { window.__b3d.W.enemies.length = 0; }); open = Math.min(open, Math.abs(await diff())); }     // меньшее из трёх: мимо может пройти враг или ворона
     if (!(under > .03 && open < under / 3)) bad(`окно у героя не работает: под кроной ${under.toFixed(3)}, в поле ${open.toFixed(3)}`);
     console.log('  окно: ' + JSON.stringify({ under: under.toFixed(3), open: open.toFixed(3) }));
     await ev(() => { Object.assign(window.__b3d.cfg.wind, { calm: .06, breeze: .55, gust: .45 }); window.__b3d.cfg.sunlight.wind = [.6, .25]; }); }

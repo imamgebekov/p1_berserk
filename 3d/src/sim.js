@@ -15,7 +15,9 @@ import { addXp, gainXp } from './progress3d.js';
 import { restock } from './economy3d.js';
 import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
 import { useAbility, dashStep, tickAbilities } from './abilities3d.js';
-import { waterDist, bridgeGoal } from './terrain3d.js';
+import { waterDist } from './terrain3d.js';
+import { pathGoal } from './path3d.js';
+import { inCliff } from './cliffs3d.js';
 import { BY_ID } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
@@ -142,6 +144,7 @@ function spawnRing(W) {
   if (W.map.camp && insideCamp(W.map.camp, x, z, -W.map.camp.spawnPad)) return false;   // и в лагере, и у самого частокола
   { const pl = placeAt(W.map, x, z); if (pl && pl.safe) return false; }   // и в безопасных местах
   if (W.map.river && waterDist(W.map.river, x, z) < 1) return false;      // и в реке
+  if (inCliff(W.map.plateaus, x, z, 1)) return false;                     // и в стене обрыва
   const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)] || (W.cfg.enemies.biomes || {})[biomeAt(W.cfg, x, z)], posts = W.cfg.enemies.posts.modes;     // вне областей — по биому большого мира
   const pick = reg ? pickEntry(reg.filter(a => (a[2] !== 'night' || W.night) && (!a[3] || posts)), W.rng) : null;      // 'night' — только ночью; сторожа и патрули — если включены
   const type = pick ? pick[0] : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';
@@ -548,7 +551,7 @@ function updateEnemies(W, dt) {
         const gx = dx / d * spd * H.drift * dt, gz = dz / d * spd * H.drift * dt; slide(W.map, e, gx, gz, C.radius);
       }
       if (!p.dead && e.alert) {
-        const g = goalOf(W, e);                                   // к герою напрямик или к двери дома
+        const g = goalOf(W, e, dt);                                   // к герою напрямик или к двери дома
         if (g !== p) { const gx = g.x - e.x, gz = g.z - e.z, gd = len(gx, gz) || 1e-6; e.face = Math.atan2(gx, gz); slide(W.map, e, gx / gd * spd * dt, gz / gd * spd * dt, C.radius); }
         else if (C.ranged) rangedMove(W, e, C, d, dx, dz, spd, dt);
         else if (d > C.range * .85) { slide(W.map, e, dx / d * spd * dt, dz / d * spd * dt, C.radius); }
@@ -697,11 +700,11 @@ export function dropItem(W, idx, n = 1) {
 }
 
 // Куда идти врагу: если герой в доме, а враг снаружи (или наоборот) — через дверь; иначе прямо к герою
-function goalOf(W, e) {
+function goalOf(W, e, dt = 1 / 60) {
   const p = W.player;
   if (W.map.adj) return pathStep(W.map, e.x, e.z, p.x, p.z) || p;     // подземелье: через проходы по графу комнат
   const be = insideOf(W.map, e.x, e.z);
-  if (be === W.inside) return bridgeGoal(W.map.river, e.x, e.z, p.x, p.z) || p;     // за рекой — к мосту
+  if (be === W.inside) return pathGoal(W.map, e, p.x, p.z, dt) || p;     // за рекой или обрывом — по пути (A*)
   const near = (a, b) => len(a.x - b.x, a.z - b.z) < 2.4;
   if (be >= 0) { const dr = W.map.buildings[be].door; return near(e, dr.in) ? dr.out : dr.in; }      // враг в доме: выйти
   const dr = W.map.buildings[W.inside].door; return near(e, dr.out) ? dr.in : dr.out;               // герой в доме: войти

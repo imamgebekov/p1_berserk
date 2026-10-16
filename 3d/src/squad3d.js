@@ -1,6 +1,6 @@
 // Отряд: найм, бой, следование и лечение союзников.
 import { len, clamp, rr } from './util3d.js';
-import { bridgeGoal } from './terrain3d.js';
+import { pathGoal } from './path3d.js';
 import { questEvent } from './quests3d.js';
 import { insideOf, resolve, slide, pathStep, roomHops, insideCamp, campGates } from './map.js';
 import { killEnemy } from './sim.js';
@@ -103,7 +103,7 @@ export function updateAllies(W, dt) {
       const n = live.length, ang = p.face + Math.PI + (idx - (n - 1) / 2) * .95, r = S.follow + (idx % 2) * .8;
       const sx = p.x + Math.sin(ang) * r, sz = p.z + Math.cos(ang) * r, dx = sx - a.x, dz = sz - a.z, d = len(dx, dz);
       const inHouse = insideOf(W.map, a.x, a.z) >= 0;
-      const wp = pathStep(W.map, a.x, a.z, p.x, p.z) || (inHouse && doorGoal(W, a, p)) || campGoal(W, a, p) || doorGoal(W, a, p) || bridgeGoal(W.map.river, a.x, a.z, p.x, p.z);     // за рекой — через мост     // подземелье — проходы; наверху — выйти из дома, ворота лагеря, дверь дома героя
+      const wp = pathStep(W.map, a.x, a.z, p.x, p.z) || (inHouse && doorGoal(W, a, p)) || campGoal(W, a, p) || doorGoal(W, a, p) || (!W.map.adj && pathGoal(W.map, a, p.x, p.z, dt));     // за рекой — через мост     // подземелье — проходы; наверху — выйти из дома, ворота лагеря, дверь дома героя
       if (len(p.x - a.x, p.z - a.z) > S.leash) { a.x = sx; a.z = sz; resolve(W.map, a, .45); }
       else if (wp) { const wx = wp.x - a.x, wz = wp.z - a.z, wd = len(wx, wz) || 1e-6; a.face = Math.atan2(wx, wz); steer(W, a, wx / wd, wz / wd, T.speed * 1.5 * dt); }
       else if (d > .9) { const sp = T.speed * (d > 6 ? 1.5 : 1); a.face = Math.atan2(dx, dz); steer(W, a, dx / d, dz / d, sp * dt); }
