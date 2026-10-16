@@ -67,13 +67,18 @@ function leave(W) { const L = W.levels[W.lvl]; L.leftT = W.t; if (L.def) for (co
 // наверху боссы за это время вернулись в логово и подлечились
 function arrive(W) {
   const L = W.levels[W.lvl], away = L.leftT === undefined ? Infinity : W.t - L.leftT;
-  if (!L.def) { for (const e of W.enemies) if (e.boss) bossAway(W, e, away); return; }
-  if (away >= W.cfg.dungeons.respawnAway) { W.enemies = L.enemies = []; spawnFoes(W, L); }
+  for (const e of W.enemies) if (e.boss) bossAway(W, e, away);
+  if (!L.def) return;
+  if (away >= W.cfg.dungeons.respawnAway) { const keep = W.enemies.filter(e => e.boss); W.enemies = L.enemies = keep; spawnFoes(W, L); }     // босс замка не пропадает при наполнении этажа
 }
 // враги по комнатам: spawns [{ room, n, type? }], тип без указания — по весам foes; не у входа и не у стен
 export function spawnFoes(W, L) {
   const D = W.cfg.dungeons, def = L.def, M = L.map, rng = W.rng;
   const pick = () => { const t = def.foes.reduce((a, f) => a + f[1], 0); let r = rng() * t; for (const f of def.foes) if ((r -= f[1]) <= 0) return f[0]; return def.foes[0][0]; };
+  if (def.guard) {                                                                // страж замка: крепкий, элитный, с ключом трона
+    const G = def.guard, C = W.cfg.enemies[G.type], e = spawnEnemy(W, G.type, G.x, G.z);
+    e.hp = e.maxhp = Math.round(e.maxhp * G.hp); e.dmgMul *= G.dmg; e.scaleMul = 1.35; e.elite = true; e.affName = 'Страж'; e.affColor = '#ffd27a'; e.guard = G.key;
+  }
   for (const s of def.spawns || []) {
     const room = M.rooms.find(r => r.id === s.room); if (!room) continue;
     for (let k = 0; k < s.n; k++) {

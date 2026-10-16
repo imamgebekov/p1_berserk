@@ -29,7 +29,9 @@ export const SHOP_STAPLES = [['p_heal1', 3], ['h_rag_bandage', 5], ['f_rye', 6],
 export const BOSS_DROPS = {
   devourer: { trophy: 'm_devourer_heart', n: [2, .5], tomes: ['set_pogost', 'blades_pogost'] },
   lord: { trophy: 'm_eclipse_cloak', n: [2, .5], tomes: ['set_eclipse', 'blades_eclipse'] },
-  chief: { trophy: 'm_chief_fang', n: [2, .5], tomes: ['set_rust', 'blades_rust'] }
+  chief: { trophy: 'm_chief_fang', n: [2, .5], tomes: ['set_rust', 'blades_rust'] },
+  castellan: { trophy: 'm_castellan_seal', n: [2, .6], tomes: [] },     // замки (C4)
+  queen: { trophy: 'm_queen_veil', n: [2, .6], tomes: [] }
 };
 // добыча боссов (кроме гарантированного уникального клинка)
 export const BOSS_LOOT = { name: 'Добыча босса', q: 3, slots: [3, 3], pools: [['weapon', 1], ['body', 1], ['head', 1], ['boots', 1], ['ring', 2], ['amulet', 2], ['potion', 2], ['key', 1]] };

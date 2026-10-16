@@ -21,6 +21,7 @@ for (let seed = 1; seed <= 300; seed++) {
     ok(!over, `зерно ${seed}, ${d.id}: залы налезают`);
     let map; try { map = makeLevelMap(CFG3, d); } catch (e) { ok(false, `зерно ${seed}, ${d.id}: ${e.message}`); continue; }
     const s = solveLocks(map, d.entry.x, d.entry.z, have); have = s.keys;
+    if (d.guard) { const gi = map.rooms.findIndex(r => r.id === d.guard.room); ok(gi >= 0 && s.seen[gi], `зерно ${seed}, ${d.id}: до стража не дойти`); have.push(d.guard.key); }     // ключ трона — у стража
     ok(s.all && !s.stuck.length, `зерно ${seed}, ${d.id}: не пройти (залов ${s.rooms}/${map.rooms.length}, заперто ${s.stuck.length})`);
     ok(roomAt(map, d.exit.x, d.exit.z) >= 0 && roomAt(map, d.entry.x, d.entry.z) >= 0, `зерно ${seed}, ${d.id}: вход или выход вне зала`);
     if (d.down) ok(roomAt(map, d.down.x, d.down.z) >= 0, `зерно ${seed}, ${d.id}: лестница вниз вне зала`);

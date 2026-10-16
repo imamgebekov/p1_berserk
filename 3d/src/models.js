@@ -109,6 +109,8 @@ const LOOKS = {
   witch: { shape: 'imp', body: '#3a2450', dark: '#140a1e', eye: '#e070ff', crown: '#9a48d0' },
   devourer: { shape: 'ghoul', body: '#3c4e44', dark: '#1a2a22', eye: '#e8ff60', crown: '#c8d8a0' },
   lord: { shape: 'imp', body: '#2a2028', dark: '#0e0a10', eye: '#ff7a20', crown: '#ff9a40' },
+  castellan: { shape: 'brute', body: '#4a4440', dark: '#1e1a18', eye: '#ff6a20', crown: '#c8a060', prop: 'shield' },     // замки (C4)
+  queen: { shape: 'imp', body: '#3a3428', dark: '#14100a', eye: '#a8ff60', crown: '#e8d890', ghost: true },
   chief: { shape: 'brute', body: '#5a2c24', dark: '#2a1210', eye: '#ffc030', crown: '#d8c8a8' },
   shield: { shape: 'brute', body: '#5a4a3a', dark: '#2a2018', eye: '#ffb030', prop: 'shield' },
   bomber: { shape: 'imp', body: '#4a2a1a', dark: '#1e1008', eye: '#ffd040', prop: 'ember' },

@@ -75,9 +75,9 @@ export function castleFloors(T, seed) {
       spawns.push({ room: room.id, n: 1 + (r() < .5 ? 1 : 0) + (d > 2 ? 1 : 0) });
       if (r() < .45) chests.push({ kind: pick(r, T.chests), x: room.x + (r() - .5) * (room.w - 3), z: room.z + (r() - .5) * (room.d - 3) });
     }
-    if (f === n - 1) { const F = P.farRoom; chests.push({ kind: 'ironchest', x: F.x - F.w / 2 + 1.5, z: F.z + F.d / 2 - 1.5, key: `${T.id}_throne` }); }     // ключ трона — на предпоследнем этаже (C4b: у стража)
+    const guard = f === n - 1 && T.guard ? { ...T.guard, x: P.farRoom.x - 2, z: P.farRoom.z, key: `${T.id}_throne`, room: P.farRoom.id } : null;     // страж с ключом трона — в дальнем зале предпоследнего этажа
     const S = P.rooms[P.cell(...start)], entry = { x: S.x - S.w / 2 + 1.6, z: S.z }, exit = { x: S.x - S.w / 2 + .9, z: S.z + 2.2 };
-    const def = { id, name: f === 1 ? T.name : `${T.name} · этаж ${f}`, castle: T.id, floor: f, depth: T.depth[f - 1], danger: T.danger[f - 1], rooms, doors, foes: T.foes, spawns, entry, exit, chests,
+    const def = { guard, id, name: f === 1 ? T.name : `${T.name} · этаж ${f}`, castle: T.id, floor: f, depth: T.depth[f - 1], danger: T.danger[f - 1], rooms, doors, foes: T.foes, spawns, entry, exit, chests,
       at: f === 1 ? T.at : null, back: f === 1 ? T.back : null, sub: f > 1, upTo: f === 1 ? 'surface' : `${T.id}_${f - 1}` };
     if (!last) { const F = P.farRoom; def.down = { x: F.x + F.w / 2 - 1.2, z: F.z, to: `${T.id}_${f + 1}` }; }
     if (P.throneRoom) def.throne = { x: P.throneRoom.x, z: P.throneRoom.z, w: P.throneRoom.w, d: P.throneRoom.d };

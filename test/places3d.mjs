@@ -25,7 +25,8 @@ ok(placeAt(W0.map, 0, 4).id === 'brod', 'костёр не в Пепельном
 { const count = (x, z, sec) => { const W = mk(4, c => { c.enemies.count = 3; c.enemies.respawn = .5; c.enemies.ring = [4, 9]; }); W.player.inv = 1e9; W.player.x = x; W.player.z = z; let mx = 0; for (let i = 0; i < 60 * sec; i++) { step(W, 1 / 60, {}); mx = Math.max(mx, W.enemies.filter(e => !e.dead).length); } return mx; };
   const a = count(-80, 0, 20), d = count(56, -44, 20); ok(d >= a + 2, `в опасной зоне не больше врагов: ${d} vs ${a}`); }
 // усиление врагов, опыт и добыча зависят от опасности
-{ const W = mk(5); const calm = spawnEnemy(W, 'imp', 0, 70), hot = spawnEnemy(W, 'imp', 56, -44); const depthHot = Math.hypot(56, -44) / 85, depthCalm = 70 / 85;
+// без элиты: меряем только опасность
+{ const W = mk(5, c => { Object.assign(c.elite, { chance: 0, depthK: 0, dangerK: 0, nightK: 0 }); }); const calm = spawnEnemy(W, 'imp', 0, 70), hot = spawnEnemy(W, 'imp', 56, -44); const depthHot = Math.hypot(56, -44) / 85, depthCalm = 70 / 85;
   ok(hot.danger === 3 && !calm.danger, 'danger не записан'); ok(Math.abs(hot.maxhp - Math.round(W.cfg.enemies.imp.hp * (1 + W.cfg.enemies.depthHp * depthHot) * (1 + W.cfg.enemies.dangerHp * 3))) <= 1, 'здоровье в опасной зоне: ' + hot.maxhp);
   const base = spawnEnemy(W, 'imp', 56, -44); base.danger = 0; ok(hot.dmgMul > 1 + W.cfg.enemies.depthDmg * depthHot, 'урон не усилен опасностью'); }
 { const xp = danger => { const W = mk(6); const e = spawnEnemy(W, 'brute', 3, 3); e.danger = danger; e.hp = 1; W.player.x = 4; W.player.z = 3; W.player.face = -Math.PI / 2; W.player.inv = 1e9; for (let i = 0; i < 60; i++) step(W, 1 / 60, { attack: true }); return W.xp + (W.lv - 1) * 1e4; };

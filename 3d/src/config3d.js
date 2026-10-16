@@ -38,8 +38,12 @@ const BASE = {
     plateaus: { n: 7, r: [14, 26], h: 3.5, rw: .2, len: 9 },
     // замки (C4): вход в кольце r м от костра, этажей floors; foes — кто живёт в залах; depth и danger — по этажам
     castles: [
-      { id: 'castle_ash', name: 'Пепельная Твердыня', keyName: 'Ключ Твердыни', r: [260, 380], floors: 3, foes: [['brute', 4], ['shield', 2], ['archer', 2], ['imp', 2]], chests: ['crate', 'chest', 'rack', 'armorstand'], depth: [1.3, 1.45, 1.6], danger: [2, 3, 3] },
-      { id: 'castle_waste', name: 'Чертог Пустоши', keyName: 'Ключ Чертога', r: [400, 520], floors: 3, foes: [['ghoul', 4], ['witch', 2], ['shade', 2], ['lunger', 2]], chests: ['crate', 'coffer', 'shelf', 'medchest'], depth: [1.55, 1.7, 1.85], danger: [2, 3, 3] }
+      { id: 'castle_ash', name: 'Пепельная Твердыня', keyName: 'Ключ Твердыни', r: [260, 380], floors: 3, guard: { type: 'shield', hp: 7, dmg: 1.4 },
+        boss: { type: 'castellan', attacks: [{ kind: 'slam', wind: .9, r: 4.6, mul: 1.1, cd: 3, range: 5 }, { kind: 'charge', wind: 1.1, len: 13, width: 2.8, mul: 1.1, cd: 7, range: 14 }, { kind: 'slam', wind: 1.5, r: 7.5, mul: 1.3, cd: 12, range: 99 }],
+          phases: [{ at: .7, summon: { type: 'shield', n: 1 } }, { at: .4, summon: { type: 'imp', n: 3 } }, { at: .3, enrage: true }] }, foes: [['brute', 4], ['shield', 2], ['archer', 2], ['imp', 2]], chests: ['crate', 'chest', 'rack', 'armorstand'], depth: [1.3, 1.45, 1.6], danger: [2, 3, 3] },
+      { id: 'castle_waste', name: 'Чертог Пустоши', keyName: 'Ключ Чертога', r: [400, 520], floors: 3, guard: { type: 'lunger', hp: 8, dmg: 1.4 },
+        boss: { type: 'queen', attacks: [{ kind: 'nova', wind: 1.1, r: 8.5, inner: 2.8, mul: 1, cd: 7, range: 99 }, { kind: 'charge', wind: .8, len: 15, width: 2.6, mul: 1.1, cd: 5, range: 17 }, { kind: 'slam', wind: .6, r: 3.4, mul: .9, cd: 2.5, range: 3.8 }],
+          phases: [{ at: .7, summon: { type: 'shade', n: 2 } }, { at: .45, summon: { type: 'witch', n: 2 } }, { at: .3, enrage: true }] }, foes: [['ghoul', 4], ['witch', 2], ['shade', 2], ['lunger', 2]], chests: ['crate', 'coffer', 'shelf', 'medchest'], depth: [1.55, 1.7, 1.85], danger: [2, 3, 3] }
     ],     // плато с обрывами в горах (C3c): радиус, высота, ширина въезда (рад), длина спуска
     dangerTypes: { forest: ['camp', 'ruins'], swamp: ['graveyard', 'graveyard', 'ruins'], mountains: ['ruins', 'camp'], waste: ['ruins', 'graveyard', 'farm'], coast: ['camp', 'farm'] },
     landmarkTypes: { forest: ['tower', 'mill'], swamp: ['tower', 'fort'], mountains: ['fort', 'tower'], waste: ['fort', 'mill'], coast: ['tower', 'mill'] },
@@ -411,6 +415,8 @@ const BASE = {
     // боссы: свои типы врагов (в bosses лежат логово, атаки, фазы). heavy: не сбиваются ударом, отбрасываются слабо
     devourer: { boss: true, name: 'Пожиратель Погоста', xp: 700,  hp: 6500, speed: 2.7, damage: 44, range: 3.2, wind: .6, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun'], on: ['poison', .8, 3, 6] },
     lord:     { boss: true, name: 'Слуга Затмения',     xp: 1000, hp: 8500, speed: 4.4, damage: 52, range: 2.8, wind: .6, recover: .8, radius: 1.2, scale: 2.1, heavy: true, immune: ['stun', 'freeze'], on: ['burn', .6, 4, 4] },
+    castellan: { boss: true, name: 'Кастелян Пепла',   xp: 2200, hp: 7000, speed: 3.3, damage: 46, range: 3.4, wind: .7, recover: .9, radius: 1.6, scale: 2.6, heavy: true, immune: ['stun', 'fear'], on: ['burn', .55, 3, 4] },     // замки (C4)
+    queen:     { boss: true, name: 'Королева Пустоши', g: 'f', xp: 2800, hp: 7500, speed: 4.4, damage: 44, range: 2.9, wind: .6, recover: .8, radius: 1.3, scale: 2.3, heavy: true, immune: ['stun', 'freeze', 'poison'], on: ['poison', .7, 4, 5] },
     chief:    { boss: true, name: 'Вожак Ржавых',       xp: 1400, hp: 11500, speed: 3.2, damage: 62, range: 3.4, wind: .7, recover: .9, radius: 1.7, scale: 2.7, heavy: true, immune: ['stun'], on: ['bleed', .8, 4, 5] },
     // слух: чем громче герой, тем дальше его слышат. Услышавший идёт к герою, пока тот не уйдёт дальше `lose`
     hear: { idle: 10, run: 17, fight: 25, house: .55, lose: 32, drift: .3 },

@@ -166,7 +166,7 @@ function onEvent(v) {
   else if (v.k === 'questready') toast('Можно сдать: ' + v.name, '', '#a8e0a0');
   else if (v.k === 'questdone') { toast('Задание выполнено: ' + v.name, '', '#e8c04a'); saver.write(); }
   else if (v.k === 'elite') toast('Элита: ' + v.name, 'bad');
-  else if (v.k === 'bossaggro') toast(`${v.name} проснулся`, 'bad');
+  else if (v.k === 'bossaggro') { const e = W.enemies.find(x => x.id === v.id), f = e && cfg.enemies[e.type].g === 'f'; toast(`${v.name} ${f ? 'проснулась' : 'проснулся'}`, 'bad'); }     // род по врагу
   else if (v.k === 'bossphase') toast(`${v.name}: ${v.what}`, 'bad');
   else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
   else if (v.k === 'allydead') toast(`${v.name} пал`, 'bad');

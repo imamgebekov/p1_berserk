@@ -10,7 +10,7 @@ const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
 const clone = () => JSON.parse(JSON.stringify(CFG3));
 const D = CFG3.dungeons, CEL = D.list.find(d => d.id === 'cellar_cooper');
-const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; for (const d of c.dungeons.list) d.spawns = []; if (tweak) tweak(c); return createWorld(c, mulberry32(seed)); };
+const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; for (const d of c.dungeons.list) { d.spawns = []; d.guard = null; } c.bosses.list = c.bosses.list.filter(b => !b.level); if (tweak) tweak(c); return createWorld(c, mulberry32(seed)); };
 const run = (W, sec, input = {}) => { for (let i = 0; i < Math.round(sec * 60); i++) step(W, 1 / 60, typeof input === 'function' ? input(i) : input); };
 const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; }, o }; };
 
@@ -23,6 +23,7 @@ for (const def of D.list) {
     ok(M.containers.some(c => c.key === d.lock) || prev.includes(d.lock), `${def.id}: ключа ${d.lock} нет ни в одном сундуке`);
   }
   const s = solveLocks(M, def.entry.x, def.entry.z, prev); if (def.castle) have[def.castle] = s.keys;
+  if (def.guard) { const gi = M.rooms.findIndex(r => r.id === def.guard.room); ok(gi >= 0 && s.seen[gi], `${def.id}: до стража не дойти`); if (gi >= 0 && s.seen[gi]) have[def.castle].push(def.guard.key); }     // ключ трона — у стража
   ok(s.all && !s.stuck.length, `${def.id}: тупик — достижимо ${s.rooms} из ${M.rooms.length}, не открылись двери ${s.stuck}`);
 }
 // проверка ловит тупик: ключ за своей же дверью

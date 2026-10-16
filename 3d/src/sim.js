@@ -42,7 +42,7 @@ export function createWorld(cfg, rng = Math.random) {
   initLevels(W);
   for (const id of Object.keys(W.levels)) withLevel(W, id, () => { for (const c of W.map.containers) if (c.far) c.t = cfg.map.containerRespawn; else refill(W, c); });     // дальние — когда герой подойдёт
   restock(W);
-  for (const def of cfg.bosses.list) spawnBoss(W, def);
+  for (const def of cfg.bosses.list) if (!def.level || W.levels[def.level]) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def));     // босс замка — в своём тронном зале (C4); нет уровня — нет босса
   return W;
 }
 // контекст оружия: умение типа и объединённые параметры свойств
@@ -184,8 +184,8 @@ function bossDefeated(W, e) {
 export function restoreBosses(W, dead) {
   if (!dead || typeof dead !== 'object') return;
   for (const def of W.cfg.bosses.list) {
-    const t = dead[def.type]; if (!(Number.isFinite(t) && t > 0)) continue;
-    const e = W.enemies.find(x => x.boss && x.type === def.type); if (e) { e.dead = true; e.deadT = 9; }
+    const t = dead[def.type]; if (!(Number.isFinite(t) && t > 0) || (def.level && !W.levels[def.level])) continue;
+    withLevel(W, def.level || SURFACE, () => { const e = W.enemies.find(x => x.boss && x.type === def.type); if (e) { e.dead = true; e.deadT = 9; } });
     W.bossDead[def.type] = Math.min(W.cfg.bosses.respawn, t);
   }
 }
@@ -240,6 +240,7 @@ export function killEnemy(W, e, share) {
   if (e.dead) return;
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
+  if (e.guard && !W.keys[e.guard]) { W.keys[e.guard] = true; W.ev.push({ k: 'key', key: e.guard, x: e.x, z: e.z }); }     // страж замка отдаёт ключ трона (C4)
   if (share >= 1) {                                                   // свойства оружия за убийство
     const pm = W.wp.pm;
     const kh = (pm.killHeal || 0) + (W.setFx.killHeal || 0); if (kh) W.player.hp = Math.min(W.player.maxhp, W.player.hp + kh);
@@ -763,7 +764,7 @@ export function step(W, dt, input = {}) {
   updateArrows(W, dt);
   updateFoes(W, dt);
   updateHouses(W, dt);
-  for (const def of W.cfg.bosses.list) { const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, SURFACE, () => spawnBoss(W, def)); }     // боссы живут наверху, даже если герой в подземелье
+  for (const def of W.cfg.bosses.list) { if (def.level && !W.levels[def.level]) continue; const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def)); }     // боссы живут на своём уровне, даже если герой на другом
   { let hb = null; for (const e of W.enemies) if (e.boss && !e.dead && e.alert && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!e.b.enraged, id: e.id }; break; } W.hudBoss = hb; }
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
   if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200);     // события забирает рендер; потолок защищает, если никто не забирает

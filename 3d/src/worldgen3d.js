@@ -122,6 +122,7 @@ export function expandWorld(base) {
     cfg.dungeons.list.push(...C.floors); Object.assign(cfg.dungeons.keys, C.keys);
     cfg.map.places.push({ id: T.id, name: T.name, type: 'danger', x: s.x, z: s.z, r: 16, danger: 3, gen: 1, castle: true });
     cfg.map.castles.push({ id: T.id, x: s.x, z: s.z, name: T.name }); taken.push({ x: s.x, z: s.z, r: 34 });
+    const top = C.floors[C.floors.length - 1]; if (T.boss && top.throne) cfg.bosses.list.push({ ...T.boss, x: top.throne.x + top.throne.w * .25, z: top.throne.z, level: top.id, castle: T.id });     // босс — в тронном зале
   }
   // плато с обрывами (C3c): в горах, вдали от мест, ориентиров и реки; 1–2 пологих въезда
   cfg.map.plateaus = [];
