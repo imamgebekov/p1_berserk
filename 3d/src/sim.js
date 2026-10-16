@@ -104,6 +104,7 @@ function spotted(W, e, d, dx, dz, H) {
   const P = W.cfg.enemies.posts, p = W.player;
   const fight = p.state === 'atk' || p.state === 'roll' || p.state === 'charge';
   if (fight && d < H.fight * P.fightHear * W.dif.hear) return true;
+  if (e.pack && !p.dead && d < W.cfg.enemies.roam.hear * (p.state === 'run' ? 1 : .55) * W.dif.hear * (1 - clamp(W.gear.stealth || 0, 0, 60) / 100)) return true;     // стайка слышит вблизи (G1)
   return d < P.range && Math.abs(angDiff(Math.atan2(dx, dz), e.face)) < P.angle * DEG / 2 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z);
 }
 // заметил — кричит: встают все рядом (и сторожа, и бродячие)
@@ -137,8 +138,9 @@ function postEnemy(W, e, mode) {
   }
 }
 
+const roamOn = W => { const R = W.cfg.enemies.roam; return !!(R && R.on && W.cfg.enemies.posts.modes && W.lvl === 'surface'); };     // стайкам нужны патрули
 function spawnRing(W) {
-  const [lo, hi] = W.cfg.enemies.ring, p = W.player;
+  const RM = roamOn(W) ? W.cfg.enemies.roam : null, [lo, hi] = RM ? RM.ring : W.cfg.enemies.ring, p = W.player;
   const a = rr(W, 0, TAU), d = rr(W, lo, hi), R = W.cfg.world.radius - 2;
   let x = p.x + Math.sin(a) * d, z = p.z + Math.cos(a) * d;
   const l = len(x, z); if (l > R) { x *= R / l; z *= R / l; }
@@ -150,7 +152,14 @@ function spawnRing(W) {
   const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)] || (W.cfg.enemies.biomes || {})[biomeAt(W.cfg, x, z)], posts = W.cfg.enemies.posts.modes;     // вне областей — по биому большого мира
   const pick = reg ? pickEntry(reg.filter(a => (a[2] !== 'night' || W.night) && (!a[3] || posts)), W.rng) : null;      // 'night' — только ночью; сторожа и патрули — если включены
   const type = pick ? pick[0] : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';
-  spawnEnemy(W, type, x, z, pick && pick[3] || null);
+  if (!RM || (pick && pick[3])) { spawnEnemy(W, type, x, z, pick && pick[3] || null); return; }
+  // стайка (G1): 2–4 врага вида места рядом друг с другом; бродят по маршруту около места появления
+  const n = Math.round(rr(W, RM.pack[0], RM.pack[1] + .49));
+  for (let i = 0; i < n; i++) {
+    const t = i === 0 ? type : (reg ? pickEntry(reg.filter(a => (a[2] !== 'night' || W.night) && !a[3]), W.rng)[0] : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp');
+    const o = { x: x + rr(W, -2.5, 2.5), z: z + rr(W, -2.5, 2.5) }; resolve(W.map, o, 1);
+    const e = spawnEnemy(W, t, o.x, o.z, 'patrol'); e.pack = true;
+  }
 }
 function pickEntry(table, rng) { let t = 0; for (const a of table) t += a[1]; let r = rng() * t; for (const a of table) { r -= a[1]; if (r <= 0) return a; } return table[0]; }
 
@@ -598,10 +607,12 @@ function updateEnemies(W, dt) {
   // держим нужное число врагов (кольцом вокруг героя — только на поверхности; в подземельях свои правила)
   if (!onSurface(W)) return;
   // бродячие, ушедшие дальше drop, забываются (место освобождается); живыми вокруг считаются только не спящие
-  if (W.enemies.some(e => !e.boss && !e.evId && !e.mode && len(e.x - p.x, e.z - p.z) > E.sleep.drop)) W.enemies = W.enemies.filter(e => e.boss || e.evId || e.mode || len(e.x - p.x, e.z - p.z) <= E.sleep.drop);
+  const keepFar = e => e.boss || e.evId || (e.mode && !e.pack);                       // стайки забываются, как бродячие
+  if (W.enemies.some(e => !keepFar(e) && len(e.x - p.x, e.z - p.z) > E.sleep.drop)) W.enemies = W.enemies.filter(e => keepFar(e) || len(e.x - p.x, e.z - p.z) <= E.sleep.drop);
   const alive = W.enemies.filter(e => !e.dead && !e.boss && len(e.x - p.x, e.z - p.z) <= E.sleep.r).length;
   const bonus = W.place && W.place.danger ? Math.round(W.place.danger * E.dangerCount) : 0;
-  if (alive < (E.count === 0 ? 0 : Math.max(1, E.count + bonus + W.dif.count + (W.night ? W.cfg.daynight.night.count : 0))) && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = spawnRing(W) === false ? .1 : E.respawn; } }
+  const RM = roamOn(W) ? E.roam : null, want = E.count === 0 ? 0 : RM ? Math.max(1, (W.night ? RM.night : RM.day) + bonus + W.dif.count) : Math.max(1, E.count + bonus + W.dif.count + (W.night ? W.cfg.daynight.night.count : 0));     // спокойный мир: днём меньше, ночью больше
+  if (alive < want && !p.dead) { W.spawnT -= dt; if (W.spawnT <= 0) { W.spawnT = spawnRing(W) === false ? .1 : RM ? RM.respawn : E.respawn; } }
   else W.spawnT = Math.max(W.spawnT, .6);
 }
 const P_RADIUS = W => W.cfg.player.radius;

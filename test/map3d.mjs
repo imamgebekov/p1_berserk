@@ -110,7 +110,7 @@ for (const yaw of [0, 38, 90]) {
 }
 // враги не рождаются в домах
 {
-  const c = clone(); c.enemies.count = 30; c.enemies.ring = [3, 40]; const W = createWorld(c, mulberry32(5)); W.player.inv = 1e9; W.player.x = 5; W.player.z = 0;
+  const c = clone(); c.enemies.count = 30; c.enemies.ring = [3, 40]; c.enemies.roam.on = false; const W = createWorld(c, mulberry32(5)); W.player.inv = 1e9; W.player.x = 5; W.player.z = 0;
   const seen = new Set(); let spawned = 0;
   for (let i = 0; i < 60 * 40; i++) { step(W, 1 / 60, {}); for (const e of W.enemies) if (!seen.has(e.id)) { seen.add(e.id); spawned++; ok(insideOf(W.map, e.x, e.z) === -1, 'враг родился в доме'); } }
   ok(spawned > 10, 'враги почти не появлялись: ' + spawned);

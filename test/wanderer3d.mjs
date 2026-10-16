@@ -92,9 +92,9 @@ for (let s = 1; s <= 4; s++) {
   W.player.maxhp = 200; W.player.hp = 10; addItem(W.inv, 'p_fairy_elixir', 1, 30);
   ok(useItem(W, W.inv.bag.findIndex(s => s.id === 'p_fairy_elixir')) && W.player.hp === 200 && W.buffs.some(b => b.stat === 'regen'), 'эликсир феи не лечит полностью');
 }
-// ---------- 8. поток боя не сдвигается ----------
+// ---------- 8. поток боя не сдвигается (события выключены: у них с торговцем общий генератор, а в спокойном мире они стартуют) ----------
 {
-  const run = on => { const W = mk(21, c => { c.enemies.count = 8; c.wanderer.on = on; }); W.player.x = 40; W.player.z = 40; for (let i = 0; i < 60 * 700; i++) { step(W, 1 / 60, { attack: i % 30 === 0 }); W.ev.length = 0; } return JSON.stringify([W.kills, W.enemies.map(e => [e.type, e.x.toFixed(3), e.z.toFixed(3), e.hp]), W.rng()]); };
+  const run = on => { const W = mk(21, c => { c.enemies.count = 8; c.wanderer.on = on; c.events.on = false; }); W.player.x = 40; W.player.z = 40; for (let i = 0; i < 60 * 700; i++) { step(W, 1 / 60, { attack: i % 30 === 0 }); W.ev.length = 0; } return JSON.stringify([W.kills, W.enemies.map(e => [e.type, e.x.toFixed(3), e.z.toFixed(3), e.hp]), W.rng()]); };
   ok(run(true) === run(false), 'торговец сдвинул поток боя');
 }
 

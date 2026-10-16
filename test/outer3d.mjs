@@ -1,6 +1,6 @@
 // Тест большого мира 3D (шаг C3b): бот баланса (как в balance3d) на глубинах пояса за ядром — под разными углами, то есть
 // в разных биомах. Глубже — опаснее; в лучшем снаряжении у ядра почти не гибнут; у края мира риск есть, но пройти можно;
-// голый герой за ядром гибнет. Генератор: места и дома не в воде и не друг в друге, у каждого посёлка путь к лагерю.
+// голый герой за ядром гибнет. Генератор: места и дома не в воде и не друг в друге, у каждого посёлка путь к лагерю. Напор — прежний (кольцо и погоня, без стаек G1): меряем силу врагов по глубине.
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, aliveEnemies, refreshGear } from '../3d/src/sim.js';
 import { pointAtDepth, depthCurve } from '../3d/src/levels3d.js';
@@ -15,7 +15,7 @@ const TIERS = {
 };
 const SEEDS = Number(process.env.OUT_SEEDS || 8), SECONDS = 75;
 function run(tier, depth, seed, lv) {
-  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.map.places = []; cfg.bosses.list = []; cfg.terrain.on = false;
+  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.enemies.roam.on = false; cfg.map.places = []; cfg.bosses.list = []; cfg.terrain.on = false;
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3)), pt = pointAtDepth(cfg, depth, seed * 1.37 + .4);
   Object.assign(W.inv.eq, TIERS[tier]); W.lv = lv; refreshGear(W); W.player.hp = W.player.maxhp; W.player.x = pt.x; W.player.z = pt.z;     // уровень, с которым сюда приходят
   let taken = 0; const dodge = mulberry32(seed + 99);

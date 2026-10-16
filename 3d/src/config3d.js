@@ -371,6 +371,9 @@ const BASE = {
     count: 6,             // сколько врагов держим на поле
     respawn: 1.6,         // пауза до появления нового
     ring: [14, 19],       // на каком расстоянии от героя появляются
+    // спокойный мир (G1): наверху враги появляются стайками вне экрана (ring м), бродят около места (patrolR), замечают взглядом
+    // (posts) или шумом ближе hear м (бег, бой); днём держим day врагов вокруг героя, ночью — night; off — как раньше (кольцо и погоня)
+    roam: { on: true, ring: [32, 46], pack: [2, 4], hear: 10, day: 7, night: 10, respawn: 5 },
     sleep: { r: 80, drop: 110 },   // дальше r от героя враг «спит» (не обновляется и не считается в числе живых вокруг), дальше drop бродячий — забывается
     brutePart: .3,        // доля рогачей среди врагов
     imp:   { name: 'Бес', xp: 14, hp: 126, speed: 3.4, damage: 11,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
@@ -435,7 +438,7 @@ const BASE = {
 // мир = ручное ядро + пояс по зерну (C3b): генератор дописывает места, области, дома, ориентиры, связи и продолжение реки
 export const CFG3 = expandWorld(BASE);
 // только ручное ядро (радиус coreR, без пояса): для тестов баланса, которые меряют ядро и сверяются со старыми цифрами
-export const CORE3 = (() => { const c = JSON.parse(JSON.stringify(BASE)); c.world.radius = c.worldgen.coreR; c.worldgen.on = false; return c; })();
+export const CORE3 = (() => { const c = JSON.parse(JSON.stringify(BASE)); c.world.radius = c.worldgen.coreR; c.worldgen.on = false; c.enemies.roam.on = false; return c; })();
 
 // Что можно крутить на телефоне: путь в CFG3, подпись, диапазон
 export const TWEAKS = [

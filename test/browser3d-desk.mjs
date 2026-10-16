@@ -249,7 +249,8 @@ try {
     if (!btn || list.length < 2 || !list.every(b => b.h >= 44) || !list.some(b => b.id === f.id && b.dis) || at.d > 4 || at.open) bad('костры не работают: ' + JSON.stringify({ btn, list, at }));
     console.log('  костры: ' + JSON.stringify({ list: list.length, d: at.d.toFixed(1) })); }
   // объём слоями (F4): под кроной у тропы окно у героя меняет кадр (прорезает листву), в открытом поле — нет
-  { const at = async q => { await ev(q => { const W = window.__b3d.W; W.enemies.length = 0; W.player.x = q.x; W.player.z = q.z; }, q); await page.waitForTimeout(2200); };
+  { const cnt = await ev(() => { const E = window.__b3d.cfg.enemies, n = E.count; E.count = 0; return n; });     // без врагов: стайки и их стрелы не меняют кадр у героя
+    const at = async q => { await ev(q => { const W = window.__b3d.W; W.enemies.length = 0; if (W.proj) W.proj.length = 0; W.player.x = q.x; W.player.z = q.z; }, q); await page.waitForTimeout(2200); };
     const diff = () => ev(async () => { const b = window.__b3d, c = document.getElementById('gl'), U = b.renderer.xray(), cut = U.uXrCut.value;
       const grab = () => { const g = document.createElement('canvas'); g.width = c.width; g.height = c.height; const x = g.getContext('2d'); x.drawImage(c, 0, 0); const cx = (U.uHero.value.x * .5 + .5) * c.width, cy = (.5 - U.uHero.value.y * .5) * c.height, r = Math.round(c.height * .08); return Array.from(x.getImageData(Math.round(cx - r), Math.round(cy - r), 2 * r, 2 * r).data); };
       const wait = () => new Promise(r => setTimeout(r, 250));
@@ -264,6 +265,7 @@ try {
         if (P.every(q => Math.hypot(q.x - x, q.z - z) > 9) && M.buildings.every(q => Math.hypot(q.x - x, q.z - z) > 14) && O.canopy.every(q => Math.hypot(q.x - x, q.z - z) > 10) && O.arches.every(q => Math.hypot(q.x - x, q.z - z) > 10) && M.solids.every(q => Math.hypot(q.x - x, q.z - z) > 6)) return { x, z }; } return { x: 60, z: 10 }; });
     await at(field); let open = 1; for (let k = 0; k < 3; k++) { await ev(() => { window.__b3d.W.enemies.length = 0; }); open = Math.min(open, Math.abs(await diff())); }     // меньшее из трёх: мимо может пройти враг или ворона
     if (!(under > .03 && open < under / 3)) bad(`окно у героя не работает: под кроной ${under.toFixed(3)}, в поле ${open.toFixed(3)}`);
+    await ev(n => { window.__b3d.cfg.enemies.count = n; }, cnt);
     console.log('  окно: ' + JSON.stringify({ under: under.toFixed(3), open: open.toFixed(3) }));
     await ev(() => { Object.assign(window.__b3d.cfg.wind, { calm: .06, breeze: .55, gust: .45 }); window.__b3d.cfg.sunlight.wind = [.6, .25]; }); }
   // погода (F3): в дождь — капли, туман гуще, птицы молчат, слышен дождь; в ясную — капель нет

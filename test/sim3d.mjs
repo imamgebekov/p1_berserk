@@ -4,7 +4,7 @@ import { createWorld, step, spawnEnemy, respawnPlayer, mulberry32, aliveEnemies,
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
-const clone = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.map.places = []; c.bosses.list = []; return c; };      // без безопасных зон: враги рождаются где угодно
+const clone = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.map.places = []; c.bosses.list = []; c.enemies.roam.on = false; return c; };     // механика кольца — в прежнем режиме (спокойный мир — в roam3d)      // без безопасных зон: враги рождаются где угодно
 const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; if (tweak) tweak(c); const W = createWorld(c, mulberry32(seed)); W.player.x = 0; W.player.z = 0; return W; };
 const run = (W, sec, input, dt = 1 / 60) => { for (let i = 0; i < Math.round(sec / dt); i++) step(W, dt, typeof input === 'function' ? input(i) : input); };
 const P = CFG3.player;
