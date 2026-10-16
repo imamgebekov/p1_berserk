@@ -3,6 +3,7 @@
 // продолжение реки и мосты на нём. Дальше их строит нынешний код (дома, кладбища, руины, сундуки, тропы, таблицы врагов).
 // biomeAt / biomeTint — какой биом в точке (пять секторов с волнистыми границами) и его оттенок земли с плавными стыками.
 import { riverOf, waterDist } from './terrain3d.js';
+import { castleFloors } from './castle3d.js';
 
 const TAU = Math.PI * 2;
 const mul = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -113,11 +114,20 @@ export function expandWorld(base) {
     const to = nodes.reduce((a, q) => (Math.hypot(q.x - v.x, q.z - v.z) < Math.hypot(a.x - v.x, a.z - v.z) ? q : a));
     cfg.map.links.push([{ x: to.x, z: to.z }, { x: v.x, z: v.z }]); nodes.push({ x: v.x, z: v.z });
   }
+  // замки (C4): вход — ворота в дальнем поясе; этажи — подземелья по зерну
+  cfg.map.castles = [];
+  for (const [k, T0] of (G.castles || []).entries()) {
+    const s = freeSpot(T0.r[0], T0.r[1], 70, 30); if (!s) continue;
+    const T = { ...T0, at: { x: s.x, z: s.z }, back: { x: s.x, z: s.z + 3 } }, C = castleFloors(T, cfg.world.seed * 7 + k * 101);
+    cfg.dungeons.list.push(...C.floors); Object.assign(cfg.dungeons.keys, C.keys);
+    cfg.map.places.push({ id: T.id, name: T.name, type: 'danger', x: s.x, z: s.z, r: 16, danger: 3, gen: 1, castle: true });
+    cfg.map.castles.push({ id: T.id, x: s.x, z: s.z, name: T.name }); taken.push({ x: s.x, z: s.z, r: 34 });
+  }
   // плато с обрывами (C3c): в горах, вдали от мест, ориентиров и реки; 1–2 пологих въезда
   cfg.map.plateaus = [];
   for (let i = 0, tries = 0; i < G.plateaus.n && tries < 600; tries++) {
     const r0 = G.plateaus.r[0] + r() * (G.plateaus.r[1] - G.plateaus.r[0]), s = freeSpot(G.coreR + 60, R - r0 - 15, r0 + 18, r0 + 12); if (!s) break;
-    if (cfg.map.links.some(([a, b]) => segD(s.x, s.z, a, b) < r0 + 10) || biomeAt(cfg, s.x, s.z) !== 'mountains' || [0, 1.57, 3.14, 4.71].some(a => biomeAt(cfg, s.x + Math.sin(a) * r0, s.z + Math.cos(a) * r0) !== 'mountains')) continue;
+    if (cfg.map.links.some(([a, b]) => segD(s.x, s.z, a, b) < r0 + G.plateaus.len + 26) || biomeAt(cfg, s.x, s.z) !== 'mountains' || [0, 1.57, 3.14, 4.71].some(a => biomeAt(cfg, s.x + Math.sin(a) * r0, s.z + Math.cos(a) * r0) !== 'mountains')) continue;
     const a0 = r() * TAU, ramps = r() < .5 ? [a0] : [a0, a0 + Math.PI * (.7 + r() * .6)];
     cfg.map.plateaus.push({ x: s.x, z: s.z, r: r0, h: G.plateaus.h, ramps, rw: G.plateaus.rw, len: G.plateaus.len }); taken.push({ x: s.x, z: s.z, r: r0 + G.plateaus.len + 4 }); i++;
   }

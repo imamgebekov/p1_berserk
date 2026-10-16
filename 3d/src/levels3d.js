@@ -59,7 +59,7 @@ export function portalNear(W) {
   const r = W.cfg.dungeons.reach;
   return W.map.portals.find(q => len(q.x - p.x, q.z - p.z) < r) || null;
 }
-export function portalName(W, q) { return q.up ? 'Подняться' : 'Спуститься: ' + W.levels[q.to].def.name; }
+export function portalName(W, q) { return q.up ? (q.to === SURFACE ? 'Подняться' : 'Подняться: ' + W.levels[q.to].def.name) : 'Спуститься: ' + W.levels[q.to].def.name; }
 
 // уход с уровня: запомнить время; враги подземелья теряют героя
 function leave(W) { const L = W.levels[W.lvl]; L.leftT = W.t; if (L.def) for (const e of W.enemies) e.alert = false; }

@@ -15,13 +15,14 @@ const run = (W, sec, input = {}) => { for (let i = 0; i < Math.round(sec * 60); 
 const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; }, o }; };
 
 // ---------- 1. данные и «нет тупика» ----------
+const have = {};                                                                // ключи с прошлых этажей замка (C4)
 for (const def of D.list) {
-  const M = makeLevelMap(CFG3, def);
+  const M = makeLevelMap(CFG3, def), prev = def.castle ? have[def.castle] || [] : [];
   for (const d of M.doors.filter(x => x.lock)) {
     ok(D.keys[d.lock], `${def.id}: у ключа ${d.lock} нет названия`);
-    ok(M.containers.some(c => c.key === d.lock), `${def.id}: ключа ${d.lock} нет ни в одном сундуке`);
+    ok(M.containers.some(c => c.key === d.lock) || prev.includes(d.lock), `${def.id}: ключа ${d.lock} нет ни в одном сундуке`);
   }
-  const s = solveLocks(M, def.entry.x, def.entry.z);
+  const s = solveLocks(M, def.entry.x, def.entry.z, prev); if (def.castle) have[def.castle] = s.keys;
   ok(s.all && !s.stuck.length, `${def.id}: тупик — достижимо ${s.rooms} из ${M.rooms.length}, не открылись двери ${s.stuck}`);
 }
 // проверка ловит тупик: ключ за своей же дверью

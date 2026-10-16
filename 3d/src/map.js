@@ -59,7 +59,7 @@ export function makeMap(cfg) {
   for (const sp of gen.spots) if (!containers.some(c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1);
   { const coreR = cfg.worldgen && cfg.worldgen.on && cfg.world.radius > cfg.worldgen.coreR ? cfg.worldgen.coreR : Infinity; for (const c of containers) c.far = Math.hypot(c.x, c.z) > coreR; }     // сундуки пояса большого мира наполняются, когда герой рядом (C3b)
   const camp = campOf(cfg), { blocks, foeBlocks } = camp ? campWalls(camp) : { blocks: [], foeBlocks: [] };
-  const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
+  const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden && !d.sub).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
   return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, paths: gen.paths, camp, blocks, foeBlocks, river: riverOf(cfg), plateaus: M.plateaus || [] };
 }
 export function addFires(map, cfg, firesOf) { map.fires = firesOf(map, cfg); for (const f of map.fires) if (!f.home) map.decor.push({ t: 'campfire', x: f.x, z: f.z, fire: true }); return map;     // костры быстрого перемещения (C3d): вид, не препятствия
@@ -258,7 +258,8 @@ export function makeLevelMap(cfg, def) {
   for (const c of def.chests || []) containers.push({ id: containers.length, kind: c.kind, x: c.x, z: c.z, b: -1, ready: false, t: 0, items: [], locked: false, keyTier: 0, key: c.key || null });
   const cx = (bounds.x0 + bounds.x1) / 2, cz = (bounds.z0 + bounds.z1) / 2;
   const place = { id: def.id, name: def.name, type: 'dungeon', x: cx, z: cz, r: Math.hypot(bounds.x1 - bounds.x0, bounds.z1 - bounds.z0) + 4, danger: def.danger || 0 };
-  const portals = [{ x: def.exit.x, z: def.exit.z, to: 'surface', tx: def.back.x, tz: def.back.z, up: true }];
+  const portals = [{ x: def.exit.x, z: def.exit.z, to: def.upTo || 'surface', tx: def.back.x, tz: def.back.z, up: true }];
+  if (def.down) portals.push({ x: def.down.x, z: def.down.z, to: def.down.to, tx: def.down.tx, tz: def.down.tz, up: false });     // лестница на этаж ниже (C4)
   return { level: def.id, path: D.path, buildings: [], walls: blocks, blocks, rooms, links, adj, hops, doors, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids: [], decor: [], roads: [] };
 }
 
@@ -306,8 +307,8 @@ export function placeAt(map, x, z) {
 
 // «нет тупика»: открываем подземелье как игрок — ходим по незапертому, собираем ключи из сундуков, отпираем двери, пока можно.
 // Возвращает { rooms — сколько комнат достижимо, all — все ли, order — порядок ключей, stuck — двери, которые так и не открылись }
-export function solveLocks(map, startX, startZ) {
-  const R = map.rooms.length, seen = new Array(R).fill(false), keys = new Set(), open = new Set(), order = [];
+export function solveLocks(map, startX, startZ, have = []) {     // have — ключи, найденные раньше (на других этажах)
+  const R = map.rooms.length, seen = new Array(R).fill(false), keys = new Set(have), open = new Set(), order = [];
   const st = roomAt(map, startX, startZ); if (st < 0) return { rooms: 0, all: false, order, stuck: map.doors.filter(d => d.lock).map(d => d.id) };
   let grew = true; seen[st] = true;
   while (grew) {
@@ -320,7 +321,7 @@ export function solveLocks(map, startX, startZ) {
     for (const c of map.containers) if (c.key && !keys.has(c.key)) { const cr = roomAt(map, c.x, c.z); if (cr >= 0 && seen[cr]) { keys.add(c.key); order.push(c.key); grew = true; } }
   }
   const rooms = seen.filter(Boolean).length;
-  return { rooms, all: rooms === R, order, stuck: map.doors.filter(d => d.lock && !open.has(d.id)).map(d => d.id) };
+  return { rooms, all: rooms === R, order, keys: [...keys], seen, stuck: map.doors.filter(d => d.lock && !open.has(d.id)).map(d => d.id) };
 }
 
 // ---- закрытый лагерь ----

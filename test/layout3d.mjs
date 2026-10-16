@@ -113,7 +113,7 @@ for (const def of D.list) {
 // ---------- 6. скрытые подземелья не видны наверху ----------
 {
   const map = makeMap(clone());
-  for (const def of D.list) ok(map.portals.some(q => q.to === def.id) === !def.hidden, `${def.id}: люк наверху ${def.hidden ? 'есть, хотя скрыто' : 'пропал'}`);
+  for (const def of D.list) ok(map.portals.some(q => q.to === def.id) === (!def.hidden && !def.sub), `${def.id}: люк наверху ${def.hidden ? 'есть, хотя скрыто' : 'пропал'}`);
 }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }

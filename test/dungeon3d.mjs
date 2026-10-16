@@ -17,7 +17,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 {
   const W = mk();
   ok(W.lvl === 'surface' && W.levels[D.id], 'есть поверхность и погреб');
-  ok(W.map.portals.length === CFG3.dungeons.list.filter(d => !d.hidden).length, 'на поверхности по люку на каждое открытое подземелье');
+  ok(W.map.portals.length === CFG3.dungeons.list.filter(d => !d.hidden && !d.sub).length, 'на поверхности по люку на каждое открытое подземелье');
   ok(CFG3.dungeons.list.filter(d => d.hidden).every(d => !W.map.portals.some(q => q.to === d.id)), 'у скрытых подземелий люка наверху нет');
   ok(!portalNear(W), 'у костра люка нет');
   toHatch(W);
@@ -51,7 +51,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   const map = makeMap(clone());
   const rectHit = (x, z, r, w) => { const cx = Math.max(w.x0, Math.min(w.x1, x)), cz = Math.max(w.z0, Math.min(w.z1, z)); return Math.hypot(x - cx, z - cz) < r; };
   const blocked = (x, z, r = .5) => map.walls.some(w => rectHit(x, z, r, w)) || map.solids.some(s => Math.hypot(s.x - x, s.z - z) < s.r + r);
-  for (const d of CFG3.dungeons.list.filter(d => !d.hidden)) {
+  for (const d of CFG3.dungeons.list.filter(d => !d.hidden && !d.sub)) {
     ok(!blocked(d.at.x, d.at.z, .9) && insideOf(map, d.at.x, d.at.z, 1) === -1, `люк ${d.id} не в стене и не в доме`);
     ok(!blocked(d.back.x, d.back.z, .6), `место возврата ${d.id} свободно`);
     ok(Math.hypot(d.back.x - d.at.x, d.back.z - d.at.z) > CFG3.dungeons.reach, `место возврата ${d.id} дальше кнопки`);

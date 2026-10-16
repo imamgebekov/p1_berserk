@@ -35,7 +35,12 @@ const BASE = {
   // (landmarks), река продлевается шагом riverStep м; depthMax — глубина у края; ground — цвет земли биома; trees — плотность
   // деревьев и камней (×), доля деревьев, доля сухих деревьев
   worldgen: { on: true, coreR: 85, belt: 30, turn: .07, wobble: .035, villages: 10, villageGap: 85, dangers: 16, dangerGap: 55, landmarks: 22, riverStep: 6, depthMax: 2,
-    plateaus: { n: 7, r: [14, 26], h: 3.5, rw: .2, len: 9 },     // плато с обрывами в горах (C3c): радиус, высота, ширина въезда (рад), длина спуска
+    plateaus: { n: 7, r: [14, 26], h: 3.5, rw: .2, len: 9 },
+    // замки (C4): вход в кольце r м от костра, этажей floors; foes — кто живёт в залах; depth и danger — по этажам
+    castles: [
+      { id: 'castle_ash', name: 'Пепельная Твердыня', keyName: 'Ключ Твердыни', r: [260, 380], floors: 3, foes: [['brute', 4], ['shield', 2], ['archer', 2], ['imp', 2]], chests: ['crate', 'chest', 'rack', 'armorstand'], depth: [1.3, 1.45, 1.6], danger: [2, 3, 3] },
+      { id: 'castle_waste', name: 'Чертог Пустоши', keyName: 'Ключ Чертога', r: [400, 520], floors: 3, foes: [['ghoul', 4], ['witch', 2], ['shade', 2], ['lunger', 2]], chests: ['crate', 'coffer', 'shelf', 'medchest'], depth: [1.55, 1.7, 1.85], danger: [2, 3, 3] }
+    ],     // плато с обрывами в горах (C3c): радиус, высота, ширина въезда (рад), длина спуска
     dangerTypes: { forest: ['camp', 'ruins'], swamp: ['graveyard', 'graveyard', 'ruins'], mountains: ['ruins', 'camp'], waste: ['ruins', 'graveyard', 'farm'], coast: ['camp', 'farm'] },
     landmarkTypes: { forest: ['tower', 'mill'], swamp: ['tower', 'fort'], mountains: ['fort', 'tower'], waste: ['fort', 'mill'], coast: ['tower', 'mill'] },
     ground: { forest: '#2c4a20', swamp: '#38422a', mountains: '#5e5e54', waste: '#7a6640', coast: '#b8a46c' },     // цвет земли биома (sRGB)
