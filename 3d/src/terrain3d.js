@@ -97,10 +97,10 @@ export function buildHeights(cfg, map) {
   }
   return hf;
 }
-// высота земли в точке (плавная выборка); на мосту — высота настила
-export function heightAt(hf, x, z) {
+// высота земли в точке (плавная выборка); на мосту — высота настила (deck = false — сама земля под мостом, для сетки холмов)
+export function heightAt(hf, x, z, deck = true) {
   if (!hf) return 0;
-  if (hf.river && onBridge(hf.river, x, z)) return hf.deck;
+  if (deck && hf.river && onBridge(hf.river, x, z)) return hf.deck;
   const fx = (x + hf.R) / hf.cell, fz = (z + hf.R) / hf.cell, i = Math.floor(fx), j = Math.floor(fz), n = hf.n;
   if (i < 0 || j < 0 || i >= n - 1 || j >= n - 1) return 0;
   const tx = fx - i, tz = fz - j, D = hf.data, a = D[j * n + i], b = D[j * n + i + 1], c = D[(j + 1) * n + i], d = D[(j + 1) * n + i + 1];

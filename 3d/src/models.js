@@ -193,17 +193,21 @@ export function pushBox(list, w, h, d, x, y, z, rx, ry, rz, color) {
   list.push(geo);
 }
 
-export function addTree(list, rnd, x, z) {
-  const h = 2.6 + rnd() * 2.2, col = rnd() < .5 ? '#1a1210' : '#221813';
+export function addTree(list, rnd, x, z, look = null) {
+  const h = 2.6 + rnd() * 2.2, col = look ? look.trunk[rnd() < .5 ? 0 : 1] : rnd() < .5 ? '#1a1210' : '#221813';
   pushBox(list, .36, h, .36, x, h / 2, z, 0, 0, (rnd() - .5) * .15, col);
   const n = 2 + (rnd() * 3 | 0);
   for (let i = 0; i < n; i++) {
     const a = rnd() * Math.PI * 2, y = h * (.45 + rnd() * .5), l = 1 + rnd() * 1.4;
     pushBox(list, .16, l, .16, x + Math.cos(a) * l * .35, y + l * .2, z + Math.sin(a) * l * .35, Math.sin(a) * .9, 0, -Math.cos(a) * .9, col);
   }
+  if (look && rnd() >= look.bare) {                        // крона: 3–5 зелёных кубов у макушки
+    const m = 3 + (rnd() * 3 | 0);
+    for (let i = 0; i < m; i++) { const s = 1.1 + rnd() * 1.1, a = rnd() * Math.PI * 2, r = i ? .5 + rnd() * .7 : 0; pushBox(list, s, s * .8, s, x + Math.cos(a) * r, h + (i ? -.3 - rnd() * .6 : .2), z + Math.sin(a) * r, rnd() * .3, rnd() * 3, rnd() * .3, look.leaf[(rnd() * look.leaf.length) | 0]); }
+  }
 }
-export function addRock(list, rnd, x, z) {
-  const s = .5 + rnd() * 1.1, col = rnd() < .5 ? '#2a2420' : '#332b26';
+export function addRock(list, rnd, x, z, look = null) {
+  const s = .5 + rnd() * 1.1, col = (look ? look.rock : ['#2a2420', '#332b26'])[rnd() < .5 ? 0 : 1];
   pushBox(list, s * 1.4, s, s * 1.1, x, s * .4, z, 0, rnd() * 3, 0, col);
   if (rnd() < .6) pushBox(list, s, s * .8, s * .9, x + s * .5, s * .7, z + s * .2, .2, rnd() * 3, .3, col);
 }

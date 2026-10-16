@@ -35,8 +35,8 @@ ok(edgeOf(1, -1) === '/' && edgeOf(-1, 1) === '/', 'перепад вниз-вп
 
 // ---------- 4. JS и шейдер считают одинаково ----------
 { const src = readFileSync(new URL('../3d/src/ascii3d.js', import.meta.url), 'utf8');
-  ok(src.includes('(c.g > c.r * kG && c.g > c.b && c.g > .06) ? 1. : (c.b > c.r * kW && c.b >= c.g * .9 && c.b > .06) ? 2. : 0.'), 'набор по цвету в шейдере не как setOf');
-  ok(src.includes('if (g > r * A.grass && g > b && g > .06) return 1;') && src.includes('if (b > r * A.water && b >= g * .9 && b > .06) return 2;'), 'setOf изменён без шейдера');
+  ok(src.includes('(c.g > c.r * kG && c.g > c.b && c.g > .06) ? 1. : (c.b > c.r * kW && c.b >= c.g * 1.05 && c.b > .06) ? 2. : 0.'), 'набор по цвету в шейдере не как setOf');
+  ok(src.includes('if (g > r * A.grass && g > b && g > .06) return 1;') && src.includes('if (b > r * A.water && b >= g * 1.05 && b > .06) return 2;'), 'setOf изменён без шейдера');
   ok(src.includes('mod(floor(a / 3.14159265 * 4. + .5), 4.)') && src.includes('Math.floor(Math.atan2(gy, gx) / Math.PI * 4 + .5)'), 'формула штриха в шейдере и JS разошлась');
   ok(src.includes('(3. - s + lc.y) / 4.') && src.includes('c.height = ch * (SETS.length + 1)'), 'строки атласа и выборка в шейдере не совпадают'); }
 

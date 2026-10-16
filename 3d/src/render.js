@@ -5,6 +5,7 @@ import { buildTown } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
 import { buildHeights, heightAt } from './terrain3d.js';
 import { createAscii, OVERLAY } from './ascii3d.js';
+import { makeField, pickShafts } from './sunlight3d.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
@@ -19,12 +20,11 @@ import { createFx } from './fx3d.js';
 
 const FOG = '#150c0b';
 
-function groundTexture() {
+function groundTexture(look) {
   const c = document.createElement('canvas'); c.width = c.height = 32;
   const g = c.getContext('2d'), r = mulberry32(5);
   for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-    const v = r(), base = v < .08 ? [46, 36, 30] : v < .3 ? [30, 23, 19] : [23, 17, 15];
-    g.fillStyle = `rgb(${base[0]},${base[1]},${base[2]})`; g.fillRect(x, y, 1, 1);
+    const v = r(); g.fillStyle = v < .08 ? look.ground[2] : v < .3 ? look.ground[1] : look.ground[0]; g.fillRect(x, y, 1, 1);     // трава: пятнышки светлее
   }
   const t = new THREE.CanvasTexture(c);
   t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(70, 70);
@@ -32,9 +32,9 @@ function groundTexture() {
   return t;
 }
 
-function skyDome() {
+function skyDome(look) {
   const geo = new THREE.SphereGeometry(500, 24, 16), col = [], pos = geo.attributes.position;
-  const top = new THREE.Color('#2a1a1c'), hor = new THREE.Color('#9a5a3a'), tmp = new THREE.Color();
+  const top = new THREE.Color(look.skyTop), hor = new THREE.Color(look.skyHor), tmp = new THREE.Color();
   for (let i = 0; i < pos.count; i++) { const k = Math.pow(Math.max(0, pos.getY(i) / 500), .6); tmp.copy(hor).lerp(top, k); col.push(tmp.r, tmp.g, tmp.b); }
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
@@ -67,10 +67,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // свет: тусклое «багровое» небо, холодный свет затмения и тёплый костёр
   const hemi = new THREE.HemisphereLight('#a8847a', '#2a1a16', 2.4); scene.add(hemi);
   const sun = new THREE.DirectionalLight('#ffa080', 1.7); sun.position.set(-30, 50, -40); scene.add(sun);
-  const dome = skyDome(); scene.add(dome);
+  const dome = skyDome(cfg.look); scene.add(dome);
   let lastLight = -1;
 
-  const gtex = groundTexture();
+  const gtex = groundTexture(cfg.look);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshLambertMaterial({ map: gtex }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -1.2; scene.add(ground);     // ниже дна реки: внутри мира землю рисуют холмы
 
@@ -82,9 +82,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // земля с холмами: сетка высот под всем миром, светлее на буграх и темнее в низинах, у воды — песок
   const hills = (() => {
     const S = hf.R * 2, seg = hf.n - 1, g = new THREE.PlaneGeometry(S, S, seg, seg); g.rotateX(-Math.PI / 2);
-    const pos = g.attributes.position, uv = g.attributes.uv, col = new Float32Array(pos.count * 3), sand = new THREE.Color('#8a7656'), c = new THREE.Color();
+    const pos = g.attributes.position, uv = g.attributes.uv, col = new Float32Array(pos.count * 3), sand = new THREE.Color(cfg.look.sand), c = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i), z = pos.getZ(i), h = heightAt(hf, x, z); pos.setY(i, h);
+      const x = pos.getX(i), z = pos.getZ(i), h = heightAt(hf, x, z, false); pos.setY(i, h);     // под мостом — русло, не настил
       uv.setXY(i, (x + 250) / 500, 1 - (z + 250) / 500);                // та же текстура и масштаб, что у плоской земли
       const k = 1 + h * .12; c.setRGB(k, k, k);
       if (map.river && h < -.15) c.lerp(sand, Math.min(1, -h / .8) * .7);
@@ -93,6 +93,24 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
     const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true })); scene.add(m); return m;
   })();
+  // свет сквозь облака (E2): пятна света на холмах (та же сетка, текстура поля плывёт по ветру) и столбы света над яркими
+  const SL = cfg.sunlight, field = SL && SL.on ? makeField(cfg.world.seed) : null, sunGroup = new THREE.Group();
+  let lightMat = null; const shafts = [];
+  if (field) {
+    const n = field.n, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'), im = g.createImageData(n, n);
+    field.data.forEach((v, i) => { im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = Math.round(v * 255); im.data[i * 4 + 3] = 255; }); g.putImageData(im, 0, 0);
+    const lt = new THREE.CanvasTexture(c); lt.wrapS = lt.wrapT = THREE.RepeatWrapping; lt.flipY = false; lt.repeat.set(500 / SL.size, -500 / SL.size);
+    lightMat = new THREE.MeshBasicMaterial({ map: lt, color: SL.day, transparent: true, opacity: SL.dayK, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    const lm = new THREE.Mesh(hills.geometry, lightMat); lm.renderOrder = 1; sunGroup.add(lm);
+    // столб: вертикальный градиент (ярко у земли, к верху тает), мягкие края
+    const sc = document.createElement('canvas'); sc.width = 32; sc.height = 64; const sg = sc.getContext('2d'), si = sg.createImageData(32, 64);
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 32; x++) { const a = Math.pow(1 - y / 63, 1.4) * Math.pow(Math.sin(Math.PI * (x + .5) / 32), 2), k = (y * 32 + x) * 4; si.data[k] = si.data[k + 1] = si.data[k + 2] = Math.round(a * 255); si.data[k + 3] = 255; }
+    sg.putImageData(si, 0, 0); const st = new THREE.CanvasTexture(sc); st.flipY = false;
+    const S = SL.shafts, sgeo = new THREE.PlaneGeometry(S.w, S.h).translate(0, S.h / 2, 0), yaw = cfg.view.camYaw * Math.PI / 180;
+    for (let i = 0; i < S.n; i++) { const m = new THREE.Mesh(sgeo, new THREE.MeshBasicMaterial({ map: st, color: SL.day, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.rotation.set(0, yaw, S.tilt); m.visible = false; sunGroup.add(m); shafts.push({ m, a: 0, x: 0, z: 0, want: null }); }
+    scene.add(sunGroup);
+  }
+  let shaftT = 0, picks = []; const sunCol = new THREE.Color();
   // вода: лента вдоль русла чуть ниже берега; мосты: настил, доски, перила, столбы
   const river = map.river, waterMat = new THREE.MeshLambertMaterial({ color: '#28485a', transparent: true, opacity: .88, emissive: '#0a1a24', side: THREE.DoubleSide }), riverGroup = new THREE.Group();
   if (river) {
@@ -123,10 +141,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const a = rnd() * Math.PI * 2, d = 7 + Math.sqrt(rnd()) * (cfg.world.radius - 8), x = Math.cos(a) * d, z = Math.sin(a) * d;
     const tree = rnd() < .65;
     if (propsBlocked(map, x, z)) continue;                             // не растим деревья в домах, на дорогах и в областях
-    const k0 = parts.length; (tree ? addTree : addRock)(parts, rnd, x, z); const gy = Y(x, z); for (let k = k0; k < parts.length; k++) parts[k].translate(0, gy, 0);     // на холме
+    const k0 = parts.length; (tree ? addTree : addRock)(parts, rnd, x, z, cfg.look); const gy = Y(x, z); for (let k = k0; k < parts.length; k++) parts[k].translate(0, gy, 0);     // на холме
   }
   // граница мира: частокол из мёртвых стволов
-  for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2, R = cfg.world.radius + 1.5; addTree(parts, rnd, Math.cos(a) * R, Math.sin(a) * R); }
+  for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2, R = cfg.world.radius + 1.5; addTree(parts, rnd, Math.cos(a) * R, Math.sin(a) * R, cfg.look); }
   const props = new THREE.Mesh(mergeGeometries(parts, false), new THREE.MeshLambertMaterial({ vertexColors: true }));
   scene.add(props);
 
@@ -178,7 +196,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   puffs.count = calm ? 0 : puffN; puffs.frustumCulled = false; life.add(puffs);
   const puffM = new THREE.Matrix4(), puffQ = new THREE.Quaternion(), puffS = new THREE.Vector3(), puffP = new THREE.Vector3();
   scene.add(life);
-  const surfaceObjs = [hills, riverGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
+  const surfaceObjs = [hills, riverGroup, sunGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   function showLevel(W) {
     const id = W.lvl, L = W.levels[id];
@@ -285,8 +303,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     let b = bars.get(e.id);
     if (!b) {
       const g = new THREE.Group();
-      const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .16), new THREE.MeshBasicMaterial({ color: '#120d0c', depthTest: false }));
-      const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, .1), new THREE.MeshBasicMaterial({ color, depthTest: false }));
+      const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .16), new THREE.MeshBasicMaterial({ color: '#120d0c', depthTest: false, fog: false }));     // полоса — интерфейс: без тумана
+      const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, .1), new THREE.MeshBasicMaterial({ color, depthTest: false, fog: false }));
       fill.geometry.translate(.5, 0, 0); fill.position.set(-.5, 0, .01); bg.renderOrder = 10; fill.renderOrder = 11;
       g.add(bg, fill); scene.add(ovl(g)); b = { g, fill }; bars.set(e.id, b);
     }
@@ -297,9 +315,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let cssW = 1, cssH = 1;
   function resize(w, h) {
     cssW = w || cssW; cssH = h || cssH;
-    const ps = asciiOn ? 1 : Math.max(1, Math.round(cfg.view.pixelScale));     // ASCII: холст в полный размер, сцена — в клетки
-    gl.setSize(Math.max(8, Math.floor(cssW / ps)), Math.max(8, Math.floor(cssH / ps)), false);
-    if (asciiOn) ascii.resize(Math.max(8, Math.floor(cssW)), Math.max(8, Math.floor(cssH)));
+    if (asciiOn) {                                                    // ASCII: холст в родной плотности экрана (до view.ascii.dpr), сцена — в клетки
+      const dpr = Math.min(cfg.view.ascii.dpr, (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1);
+      if (!ascii || ascii.dpr !== dpr) { if (ascii) ascii.dispose(); ascii = createAscii(gl, cfg, calm, dpr); }
+      const w = Math.max(8, Math.floor(cssW * dpr)), h = Math.max(8, Math.floor(cssH * dpr)); gl.setSize(w, h, false); ascii.resize(w, h);
+    } else { const ps = Math.max(1, Math.round(cfg.view.pixelScale)); gl.setSize(Math.max(8, Math.floor(cssW / ps)), Math.max(8, Math.floor(cssH / ps)), false); }
     canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
     camera.aspect = cssW / cssH; camera.updateProjectionMatrix();
   }
@@ -544,14 +564,31 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     W.ev.length = 0;
     // частицы
+    if (field && !under) {                                           // свет сквозь облака: плывёт по ветру, днём тёплый, ночью лунный
+      const tt = calm ? 0 : t, L = W.light, rep = 500 / SL.size;
+      lightMat.map.offset.set((SL.wind[0] * tt - 250) / SL.size, rep + (SL.wind[1] * tt - 250) / SL.size);
+      lightMat.color.set(SL.night).lerp(sunCol.set(SL.day), L); lightMat.opacity = SL.nightK + (SL.dayK - SL.nightK) * L;
+      if ((shaftT -= dt) <= 0) { shaftT = .5; picks = pickShafts(field, p.x, p.z, tt, SL); }
+      shafts.forEach((s, i) => {
+        const w = picks[i], far = !w || Math.hypot(w.x - s.x, w.z - s.z) > 1;
+        if (far && s.a > .01) s.a = Math.max(0, s.a - dt * 1.5);                // старое место гаснет
+        else { if (w && far) { s.x = w.x; s.z = w.z; } s.a = Math.min(w ? w.k : 0, s.a + dt * 1.5); }
+        s.m.visible = s.a > .01; if (!s.m.visible) return;
+        s.m.position.set(s.x, Y(s.x, s.z), s.z); s.m.material.opacity = s.a * SL.shafts.op * (.4 + .6 * L); s.m.material.color.copy(lightMat.color);
+        if (!calm && Math.random() < dt * SL.motes * s.a) burst(s.x + (Math.random() - .5) * SL.shafts.w * .6, 1 + Math.random() * 4, s.z + (Math.random() - .5) * 2, 1, '#fffbe0', .3);
+      });
+    }
     fx.update(dt);
 
     stepFx(dt); updateTele(W, t); updateLines(W, t); updateFoes(W, t);
     if (W.tomb && (W.tomb.lvl || 'surface') === W.lvl) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, Y(W.tomb.x, W.tomb.z), W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
     for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
-    if (asciiOn) ascii.render(scene, camera, t); else gl.render(scene, camera);
+    if (asciiOn) ascii.render(scene, camera, t, under ? .3 : W.light); else gl.render(scene, camera);
   }
-  function setAscii(on) { asciiOn = !!on; if (asciiOn && !ascii) ascii = createAscii(gl, cfg, calm); resize(); }
+  function setAscii(on) {                                           // атлас строится в resize под плотность экрана
+    asciiOn = !!on; gtex.minFilter = asciiOn ? THREE.LinearMipmapLinearFilter : THREE.NearestFilter; gtex.needsUpdate = true;     // в клетках мелкая трава без сглаживания даёт муар
+    resize();
+  }
 
-  return { render, resize, project, setAscii, ascii: () => (asciiOn ? ascii : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  return { render, resize, project, setAscii, ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }
