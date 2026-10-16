@@ -140,13 +140,17 @@ function buildAtmo() {
   { const src = ac.createBufferSource(), hp = ac.createBiquadFilter(), bp = ac.createBiquadFilter(), o = ac.createOscillator(), og = ac.createGain();
     src.buffer = noiseBuf; src.loop = true; src.playbackRate.value = .87; hp.type = 'highpass'; hp.frequency.value = 1800; bp.type = 'bandpass'; bp.frequency.value = 4200; bp.Q.value = .5;
     o.frequency.value = .53; og.gain.value = 1300; o.connect(og).connect(bp.frequency); src.connect(hp).connect(bp).connect(rustleG); src.start(); o.start(); }
-  atmo = { nature, music, waterG, rustleG, mix: { water: 0, birds: 0, owl: 0, music: 0, combat: 0 }, piece: null, pieceT: 0, idx: 0, restUntil: 0, nextBird: 0, nextOwl: 0, nextPlip: 0, seed: 1 };
+  // шум дождя (F3): глухой шорох и светлое шипение капель; громкость — rainG
+  const rainG = ac.createGain(); rainG.gain.value = 0; rainG.connect(nature);
+  for (const [type, fc, q, v] of [['lowpass', 1400, .7, .7], ['highpass', 5200, .5, .35]]) { const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); src.buffer = noiseBuf; src.loop = true; src.playbackRate.value = type === 'lowpass' ? .79 : 1.13; f.type = type; f.frequency.value = fc; f.Q.value = q; g.gain.value = v; src.connect(f).connect(g).connect(rainG); src.start(); }
+  atmo = { nature, music, waterG, rustleG, rainG, mix: { water: 0, birds: 0, owl: 0, music: 0, combat: 0 }, piece: null, pieceT: 0, idx: 0, restUntil: 0, nextBird: 0, nextOwl: 0, nextPlip: 0, seed: 1 };
 }
 function applyMix() {
   const t = ac.currentTime, m = atmo.mix, tau = A ? A.combat.fade / 3 : .5;
   atmo.nature.gain.setTargetAtTime(vol.nature, t, .3);
   atmo.music.gain.setTargetAtTime(vol.music * (A ? A.music.vol : .07) * m.music, t, tau);
   atmo.waterG.gain.setTargetAtTime((A ? A.water.vol : .09) * m.water, t, .6);
+  atmo.rainG.gain.setTargetAtTime((A && A.rain ? A.rain.vol : .08) * (m.rain || 0), t, 1.2);
   atmo.rustleG.gain.setTargetAtTime((A && A.rustle ? A.rustle.vol : .06) * (m.rustle || 0), t, .4);
 }
 // mix — из mixOf (soundscape3d.js), cfg — cfg.audio

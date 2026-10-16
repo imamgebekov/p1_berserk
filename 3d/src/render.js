@@ -3,10 +3,11 @@ import { makeMap, propsBlocked, campGates } from './map.js';
 import { buildDecor } from './decor.js';
 import { buildTown } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
-import { buildHeights, heightAt } from './terrain3d.js';
+import { buildHeights, heightAt, waterDist } from './terrain3d.js';
 import { createAscii, OVERLAY } from './ascii3d.js';
 import { makeField, pickShafts } from './sunlight3d.js';
 import { windAt, grassSpots } from './wind3d.js';
+import { makeWeather, weatherAt, effectsOf } from './weather3d.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
@@ -92,7 +93,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true })); scene.add(m); return m;
+    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true })); scene.add(m); return m;     // цвет материала — мокрость (F3)
   })();
   // свет сквозь облака (E2): пятна света на холмах (та же сетка, текстура поля плывёт по ветру) и столбы света над яркими
   const SL = cfg.sunlight, field = SL && SL.on ? makeField(cfg.world.seed) : null, sunGroup = new THREE.Group();
@@ -193,6 +194,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     group.userData.count = spots.length; scene.add(group); return group;
   })();
   let windNow = { s: 0, dir: [0, 1] };
+  // погода (F3): расписание по зерну, капли (отрезки у камеры), круги на воде; всплески — частицами
+  const WE = cfg.weather, wsched = WE && WE.on ? makeWeather(cfg.world.seed, WE) : null; let wNow = { kind: 'clear', cloud: 0, rain: 0 }, eff = effectsOf(null, WE || { drops: 0, fog: 0, wet: 1 }), sunBase = 1;
+  const rainGroup = new THREE.Group(), dropN = WE ? WE.drops : 0, dropPos = new Float32Array(dropN * 6), dropSeed = mulberry32(cfg.world.seed + 77);
+  const drops = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#b8c8d8', transparent: true, opacity: .45, depthWrite: false }));
+  drops.geometry.setAttribute('position', new THREE.BufferAttribute(dropPos, 3)); drops.frustumCulled = false; ovl(drops); rainGroup.add(drops);     // капли — на слое меток: в ASCII чёткие струйки поверх символов
+  for (let i = 0; i < dropN; i++) dropPos[i * 6 + 1] = -99;                     // все капли «внизу» — родятся сверху при старте дождя
+  const ripples = Array.from({ length: WE ? WE.ripples : 0 }, () => { const m = new THREE.Mesh(new THREE.RingGeometry(.8, 1, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#c8dce8', transparent: true, opacity: 0, depthWrite: false })); m.visible = false; rainGroup.add(m); return { m, t: 9 }; });
+  scene.add(rainGroup);
   scene.add(props);
 
   const fire = makeCampfire(); scene.add(fire.group);
@@ -243,7 +252,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   puffs.count = calm ? 0 : puffN; puffs.frustumCulled = false; life.add(puffs);
   const puffM = new THREE.Matrix4(), puffQ = new THREE.Quaternion(), puffS = new THREE.Vector3(), puffP = new THREE.Vector3();
   scene.add(life);
-  const surfaceObjs = [hills, riverGroup, sunGroup, grass, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
+  const surfaceObjs = [hills, riverGroup, sunGroup, grass, rainGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   function showLevel(W) {
     const id = W.lvl, L = W.levels[id];
@@ -470,14 +479,30 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (W.lvl !== shownLvl) showLevel(W);
     const under = W.lvl !== 'surface';
     if (W.hero !== heroLook) { heroLook = W.hero; hero.setLook(heroOf(W.hero).look); }
-    scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1);     // на рассвете туман гуще
+    if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : 1, rain: WE.force === 'rain' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
+    scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog;     // в дождь туман гуще     // на рассвете туман гуще
     if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
     else if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток
       lastLight = W.light; const k = skyAt(W.light, cfg.daynight.sky);
       scene.fog.color.set(k.fog); scene.background.set(k.fog);
       hemi.color.set(k.hemiSky); hemi.groundColor.set(k.hemiGround); hemi.intensity = k.hemiI;
-      sun.color.set(k.sun); sun.intensity = k.sunI; dome.material.color.set(k.dome);
+      sun.color.set(k.sun); sun.intensity = k.sunI; sunBase = k.sunI; dome.material.color.set(k.dome);
     }
+    if (!under) { sun.intensity = sunBase * (1 - .45 * wNow.cloud); hills.material.color.setScalar(eff.wet); ground.material.color.setScalar(eff.wet); }     // облака тусклее, мокрая земля темнее
+    // дождь: капли падают косо по ветру вокруг камеры; всплески на земле, круги на реке («Уменьшить движение» — без капель)
+    { const n = under || calm ? 0 : eff.drops, B = WE ? WE.box : [1, 1], sx = windNow.dir[0] * windNow.s * 5, sz = windNow.dir[1] * windNow.s * 5, L = .55;
+      for (let i = 0; i < n; i++) {
+        const k = i * 6; let x = dropPos[k], y = dropPos[k + 1], z = dropPos[k + 2];
+        y -= WE.fall * dt; x += sx * dt; z += sz * dt;
+        if (y < cam.y - .2 || Math.abs(x - cam.x) > B[0] / 2 || Math.abs(z - cam.z) > B[0] / 2) { x = cam.x + (dropSeed() - .5) * B[0]; z = cam.z + (dropSeed() - .5) * B[0]; y = cam.y + dropSeed() * B[1]; }
+        dropPos[k] = x; dropPos[k + 1] = y; dropPos[k + 2] = z; dropPos[k + 3] = x - sx / WE.fall * L; dropPos[k + 4] = y + L; dropPos[k + 5] = z - sz / WE.fall * L;
+      }
+      drops.geometry.setDrawRange(0, n * 2); drops.geometry.attributes.position.needsUpdate = n > 0; drops.visible = n > 0; drops.material.opacity = .25 + .25 * eff.rain;
+      if (n && Math.random() < dt * WE.splash * eff.rain) { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 12, x = p.x + Math.sin(a) * r, z = p.z + Math.cos(a) * r; if (!river || waterDist(river, x, z) > .2) burst(x, .05, z, 2, '#c8d8e8', .8); }
+      for (const q of ripples) {
+        if (q.m.visible) { q.t += dt; const k = q.t / .9; q.m.scale.setScalar(.1 + .7 * k); q.m.material.opacity = .5 * (1 - k); if (k >= 1) q.m.visible = false; }
+        else if (n && river && Math.random() < dt * 1.5 * eff.rain) { const P = river.pts[(Math.random() * river.pts.length) | 0], a = Math.random() * Math.PI * 2, r = Math.random() * (river.w / 2 - .4); if (Math.hypot(P.x - p.x, P.z - p.z) < 26) { q.t = 0; q.m.visible = true; q.m.position.set(P.x + Math.sin(a) * r, cfg.terrain.water + .03, P.z + Math.cos(a) * r); } }
+      } }
 
     if (!under) town.update(W.inside, dt, W.map);
     conts.update(W, t);
@@ -615,14 +640,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (field && !under) {                                           // свет сквозь облака: плывёт по ветру, днём тёплый, ночью лунный
       const tt = calm ? 0 : t, L = W.light, rep = 500 / SL.size;
       lightMat.map.offset.set((SL.wind[0] * tt - 250) / SL.size, rep + (SL.wind[1] * tt - 250) / SL.size);
-      lightMat.color.set(SL.night).lerp(sunCol.set(SL.day), L); lightMat.opacity = SL.nightK + (SL.dayK - SL.nightK) * L;
+      lightMat.color.set(SL.night).lerp(sunCol.set(SL.day), L); lightMat.opacity = (SL.nightK + (SL.dayK - SL.nightK) * L) * eff.light;     // за тучами просветов меньше
       if ((shaftT -= dt) <= 0) { shaftT = .5; picks = pickShafts(field, p.x, p.z, tt, SL); }
       shafts.forEach((s, i) => {
         const w = picks[i], far = !w || Math.hypot(w.x - s.x, w.z - s.z) > 1;
         if (far && s.a > .01) s.a = Math.max(0, s.a - dt * 1.5);                // старое место гаснет
         else { if (w && far) { s.x = w.x; s.z = w.z; } s.a = Math.min(w ? w.k : 0, s.a + dt * 1.5); }
         s.m.visible = s.a > .01; if (!s.m.visible) return;
-        s.m.position.set(s.x, Y(s.x, s.z), s.z); s.m.material.opacity = s.a * SL.shafts.op * (.4 + .6 * L); s.m.material.color.copy(lightMat.color);
+        s.m.position.set(s.x, Y(s.x, s.z), s.z); s.m.material.opacity = s.a * SL.shafts.op * (.4 + .6 * L) * eff.light; s.m.material.color.copy(lightMat.color);
         if (!calm && Math.random() < dt * SL.motes * s.a) burst(s.x + (Math.random() - .5) * SL.shafts.w * .6, 1 + Math.random() * 4, s.z + (Math.random() - .5) * 2, 1, '#fffbe0', .3);
       });
     }
@@ -639,5 +664,5 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
 
   const treesNear = (x, z) => { if (!WC) return 0; let n = 0; const r2 = WC.rustle.r * WC.rustle.r; for (let i = 0; i < treeXZ.length; i += 2) { const dx = treeXZ[i] - x, dz = treeXZ[i + 1] - z; if (dx * dx + dz * dz < r2) n++; } return Math.min(1, n / WC.rustle.full); };
-  return { render, resize, project, setAscii, wind: () => windNow, treesNear, ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  return { render, resize, project, setAscii, wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }

@@ -16,10 +16,11 @@ export function mixOf(W, A, env) {
   const rv = !under && W.map.river, d = rv ? Math.max(0, waterDist(rv, p.x, p.z)) : 1e9;
   const water = rv ? 1 - smooth(A.water.near, A.water.far, d) : 0;
   const day = under ? 0 : smooth(A.birds.day[0], A.birds.day[1], W.light);
-  const birds = day * (1 - danger * .8) * (1 - combat), owl = under ? 0 : (1 - day) * (W.night ? 1 : 0) * (1 - combat);
+  const wetK = env && env.rain ? clamp01(env.rain) : 0;
+  const birds = day * (1 - danger * .8) * (1 - combat) * (1 - wetK), owl = under ? 0 : (1 - day) * (W.night ? 1 : 0) * (1 - combat);
   const music = under || p.dead ? 0 : (1 - combat) * (W.night ? A.music.nightVol : 1);
   const rustle = under || !env ? 0 : Math.pow(clamp01(env.wind), 1.5) * clamp01(env.trees);     // шелест: ветер и деревья рядом
-  return { water, birds, owl, music, combat, night: !!W.night, under, rustle };
+  return { water, birds, owl, music, combat, night: !!W.night, under, rustle, rain: under ? 0 : wetK };
 }
 
 // ---- музыка ----

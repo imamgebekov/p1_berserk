@@ -284,12 +284,17 @@ export const CFG3 = {
   // заполнено fill, высота h; шелест — деревья в r м, full деревьев — полная громкость
   wind: { on: true, calm: .06, breeze: .55, gust: .45, gustShare: .3, period: 40, gustPeriod: 5, dirDeg: 235, dirWander: 40,
     sway: { tree: .35, leaf: .06, grass: .3 }, grass: { on: true, step: 1.6, fill: .7, h: .7 }, rustle: { r: 14, full: 8 } },
+  // погода (F3): виды [вес, мин. длина с, макс. длина с], переход ramp с; в дождь туман гуще (+fog), земля темнее (×wet),
+  // капель drops (косо по ветру, падают со скоростью fall м/с в коробке box [ширина, высота] у камеры), всплесков splash в
+  // секунду, кругов на воде ripples; force — для тестов ('clear' | 'cloudy' | 'rain'). На бой погода не влияет.
+  weather: { on: true, kinds: { clear: [.55, 150, 360], cloudy: [.25, 80, 200], rain: [.2, 70, 160] }, ramp: 14, fog: .6, wet: .7,
+    drops: 900, fall: 16, box: [34, 18], splash: 26, ripples: 24, force: null },
   // звук: громкость всего, музыки и природы; атмосфера (D1) — журчание у реки, птицы и сова, своя музыка «лесная сказка»
   audio: {
     volume: .7, musicVol: .55, natureVol: .8, voices: 24, look: 1.2,          // предел одновременных голосов; ноты ставятся вперёд на look с
     water: { near: 2, far: 25, vol: .09, plips: 6 },                     // полная громкость у берега, тишина дальше far м; бульков в секунду
     birds: { vol: .05, gap: [2, 7], day: [.45, .75], owlGap: [9, 20], owlVol: .05 },   // пауза между трелями, рассвет→день (свет)
-    combat: { r: 16, n: 2, fade: 1.5 }, rustle: { vol: .06 },             // шелест листвы (F2)                                   // встревоженных врагов в r м: n — полный бой; музыка и птицы стихают
+    combat: { r: 16, n: 2, fade: 1.5 }, rustle: { vol: .06 }, rain: { vol: .08 },     // шелест листвы (F2), шум дождя (F3)             // шелест листвы (F2)                                   // встревоженных врагов в r м: n — полный бой; музыка и птицы стихают
     music: { vol: .12, rest: [30, 60], dayBpm: 84, nightBpm: 70, nightVol: .6, phrase: 8, form: 'AABA' }
   },
   difficulty: {

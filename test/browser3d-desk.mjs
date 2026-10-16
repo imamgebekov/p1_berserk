@@ -213,6 +213,14 @@ try {
     if (!(windy > still + .004)) bad(`ветер не двигает траву и кроны: ${windy.toFixed(4)} против ${still.toFixed(4)} в тишь`);
     console.log('  ветер: ' + JSON.stringify({ still: still.toFixed(4), windy: windy.toFixed(4), rustle: (await ev(() => window.__b3d.renderer.treesNear(20, 40))).toFixed(2) }));
     await ev(c => { Object.assign(window.__b3d.cfg.wind, c.w); window.__b3d.cfg.sunlight.wind = c.s; }, { w: { calm: .06, breeze: .55, gust: .45 }, s: [.6, .25] }); }
+  // погода (F3): в дождь — капли, туман гуще, птицы молчат, слышен дождь; в ясную — капель нет
+  { const wx = async f => { await ev(f => { window.__b3d.cfg.weather.force = f; }, f); await page.waitForTimeout(1600); return ev(() => ({ w: window.__b3d.renderer.weather(), a: window.__b3d.audioStats() })); };
+    const dry = await wx('clear'), wet = await wx('rain');
+    if (dry.w.drops !== 0 || !(wet.w.drops > 100) || !(wet.w.fog > dry.w.fog * 1.3)) bad('дождь не идёт или туман не гуще: ' + JSON.stringify({ dry: dry.w, wet: wet.w }));
+    if (wet.a.state === 'running' && !(wet.a.mix && wet.a.mix.rain > .9 && wet.a.mix.birds === 0)) bad('в дождь поют птицы или не слышно дождя: ' + JSON.stringify(wet.a.mix));
+    await page.screenshot({ path: join(out, '3d-desk-rain.png') });
+    console.log('  погода: ' + JSON.stringify({ drops: wet.w.drops, fog: [dry.w.fog.toFixed(4), wet.w.fog.toFixed(4)], rain: wet.a.mix && wet.a.mix.rain }));
+    await ev(() => { window.__b3d.cfg.weather.force = 'clear'; }); }
   // фильтр ASCII (E1): включается в меню, холст в полный размер, кадр из символов на тёмном фоне, полоса здоровья чёткая; выключается
   { const toggle = async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(200); await page.locator('#asciiBtn').click(); await page.waitForTimeout(150); const t = await ev(() => document.getElementById('asciiBtn').textContent); await page.keyboard.press('Escape'); await page.waitForTimeout(400); return t; };
     const t1 = await toggle();
