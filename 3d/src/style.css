@@ -239,3 +239,12 @@ html[data-lefty] #abil .ab[data-i="4"]{left:calc(182px + env(safe-area-inset-lef
 [data-desk] #abil .ab .k{display:block}
 .hcard.cur{border-color:#e8c04a}
 #heroCancel{min-height:44px;min-width:160px}
+
+/* меню: колонки на компьютере, разработческие ползунки свёрнуты, телефонные настройки на компьютере скрыты */
+#panel .bhead{margin-bottom:6px}
+#tweakBox{margin:12px 0 6px;border-top:2px solid var(--line);padding-top:8px}
+#tweakBox summary{min-height:44px;display:flex;align-items:center;cursor:pointer;opacity:.75;font-size:14px}
+[data-desk] #panel .pbox{max-width:1040px}
+[data-desk] .pcols{display:grid;grid-template-columns:1fr 1fr;column-gap:24px;align-items:start}
+[data-desk] #leftyBtn,[data-desk] #uiTabs,[data-desk] #vibBtn{display:none}
+#tweakBox summary::before{content:'▸';margin-right:8px}#tweakBox[open] summary::before{content:'▾'}#tweakBox summary::-webkit-details-marker{display:none}

@@ -334,8 +334,10 @@ try {
   if (await page.evaluate(() => window.__b3d.W.lvl) !== 'surface') bad('по кнопке не поднялись наверх');
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; });
 
-  // ползунки
+  // ползунки: свёрнуты, раскрываются по «Настройка прототипа»
   await page.tap('#gear'); await page.waitForTimeout(200);
+  if (await page.evaluate(() => document.getElementById('tweakBox').open)) bad('ползунки прототипа не свёрнуты');
+  await page.tap('#tweakBox summary'); await page.waitForTimeout(150);
   const rows = await page.$$eval('#tweaks input', a => a.length);
   if (rows < 10) bad('ползунков мало: ' + rows);
   const before = await page.evaluate(() => window.__b3d.cfg.view.camPitch);
@@ -348,7 +350,7 @@ try {
   await page.reload(); await page.waitForTimeout(800);
   const persisted = await page.evaluate(() => window.__b3d.cfg.view.camPitch);
   if (persisted !== after) bad(`настройка не пережила перезагрузку ${persisted} ≠ ${after}`);
-  await page.tap('#gear'); await page.tap('#tweakReset');
+  await page.tap('#gear'); await page.waitForTimeout(150); if (!(await page.evaluate(() => document.getElementById('tweakBox').open))) await page.tap('#tweakBox summary'); await page.tap('#tweakReset');
   if (await page.evaluate(() => window.__b3d.cfg.view.camPitch) !== before) bad('«Сбросить» не вернул значение');
   await page.tap('#tweakClose');
 

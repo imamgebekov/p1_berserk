@@ -121,38 +121,46 @@
 
 <section id="panel" hidden>
   <div class="pbox">
+    <div class="bhead"><h2>Меню</h2><button id="tweakClose" type="button" class="main">Играть</button></div>
     <p id="keysHelp" class="note" hidden>⌨ WASD или стрелки — ходить · пробел или левая кнопка мыши — удар (держать — тяжёлый удар) · Shift или правая кнопка — перекат · E — люк, торговец · M — карта · I — сумка · N — навыки · Q — задания · 1–5 — умения · Esc — меню и закрыть окно</p>
-    <h2>Герой</h2>
-    <p id="heroNow" class="note"></p>
-    <button id="heroSwitch" type="button" class="reset">Сменить героя</button>
-    <h2>Сложность</h2>
-    <div id="difTabs" class="tabs"></div>
-    <p id="difText" class="note"></p>
-    <button id="ironBtn" type="button" class="reset" hidden></button>
-    <button id="muteBtn" type="button" class="reset"></button>
-    <h2>Управление</h2>
-    <div class="prefs">
-      <button id="leftyBtn" type="button" class="reset"></button>
-      <div id="uiTabs" class="tabs"></div>
-      <button id="vibBtn" type="button" class="reset"></button>
-      <button id="fpsBtn" type="button" class="reset"></button>
-      <button id="hintBtn" type="button" class="reset"></button>
+    <div class="pcols">
+      <div class="pcol">
+        <h2>Герой</h2>
+        <p id="heroNow" class="note"></p>
+        <button id="heroSwitch" type="button" class="reset">Сменить героя</button>
+        <h2>Сложность</h2>
+        <div id="difTabs" class="tabs"></div>
+        <p id="difText" class="note"></p>
+        <button id="ironBtn" type="button" class="reset" hidden></button>
+        <button id="muteBtn" type="button" class="reset"></button>
+      </div>
+      <div class="pcol">
+        <h2>Управление</h2>
+        <div class="prefs">
+          <button id="leftyBtn" type="button" class="reset"></button>
+          <div id="uiTabs" class="tabs"></div>
+          <button id="vibBtn" type="button" class="reset"></button>
+          <button id="fpsBtn" type="button" class="reset"></button>
+          <button id="hintBtn" type="button" class="reset"></button>
+        </div>
+        <h2>Сохранение</h2>
+        <p class="note">Перенос на другое устройство: скопируйте код, там вставьте его и нажмите «Загрузить».</p>
+        <div class="prow"><button id="expBtn" type="button">Скопировать код</button><button id="impBtn" type="button">Загрузить</button></div>
+        <textarea id="saveCode" rows="2" spellcheck="false" placeholder="Код сохранения B3D1:…"></textarea>
+        <div id="saveFlash"></div>
+      </div>
     </div>
-    <h2>Сохранение</h2>
-    <p class="note">Перенос на другое устройство: скопируйте код, там вставьте его и нажмите «Загрузить».</p>
-    <div class="prow"><button id="expBtn" type="button">Скопировать код</button><button id="impBtn" type="button">Загрузить</button></div>
-    <textarea id="saveCode" rows="3" spellcheck="false" placeholder="Код сохранения B3D1:…"></textarea>
-    <div id="saveFlash"></div>
-    <h2>Настройка прототипа</h2>
-    <p class="note">Двигайте ползунки: игра меняется сразу. «Скопировать» отдаёт изменённые значения: пришлите их мне в чат.</p>
-    <div id="tweaks"></div>
-    <div id="tweakStatus"></div>
+    <details id="tweakBox">
+      <summary>Настройка прототипа (для разработки)</summary>
+      <p class="note">Двигайте ползунки: игра меняется сразу. «Скопировать» отдаёт изменённые значения: пришлите их мне в чат.</p>
+      <div id="tweaks"></div>
+      <div id="tweakStatus"></div>
+      <div class="prow">
+        <button id="tweakReset" type="button">Сбросить</button>
+        <button id="tweakCopy" type="button">Скопировать</button>
+      </div>
+    </details>
     <a id="back" href="../">← Вернуться в 2D-игру</a>
-    <div class="prow">
-      <button id="tweakReset" type="button">Сбросить</button>
-      <button id="tweakCopy" type="button">Скопировать</button>
-      <button id="tweakClose" type="button" class="main">Играть</button>
-    </div>
   </div>
 </section>
 
