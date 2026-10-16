@@ -78,7 +78,7 @@ export function buildHeights(cfg, map) {
   if (map.camp) keep.push((x, z) => Math.hypot(x - map.camp.x, z - map.camp.z) - map.camp.r - 6);
   keep.push((x, z) => Math.hypot(x, z) - 8);
   for (const b of map.buildings) keep.push((x, z) => Math.max(b.x0 - 4 - x, x - b.x1 - 4, b.z0 - 4 - z, z - b.z1 - 4));
-  for (const [a, b] of map.roads || []) keep.push((x, z) => segD(x, z, a, b) - 3);
+  for (const P of map.paths || (map.roads || []).map(pts => ({ pts }))) for (let i = 1; i < P.pts.length; i++) { const a = P.pts[i - 1], b = P.pts[i]; keep.push((x, z) => segD(x, z, a, b) - 3); }     // ровно вдоль троп
   for (const p of map.cfg.places || []) if (p.safe) keep.push((x, z) => Math.hypot(x - p.x, z - p.z) - p.r);
   for (const zn of map.cfg.zones || []) keep.push(zn.w ? (x, z) => Math.max(Math.abs(x - zn.x) - zn.w / 2 - 2, Math.abs(z - zn.z) - zn.d / 2 - 2) : (x, z) => Math.hypot(x - zn.x, z - zn.z) - zn.r - 2);
   for (const b of cfg.bosses.list) keep.push((x, z) => Math.hypot(x - b.x, z - b.z) - 12);

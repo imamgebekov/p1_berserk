@@ -58,7 +58,7 @@ export function makeMap(cfg) {
   for (const sp of gen.spots) if (!containers.some(c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1);
   const camp = campOf(cfg), { blocks, foeBlocks } = camp ? campWalls(camp) : { blocks: [], foeBlocks: [] };
   const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
-  return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, camp, blocks, foeBlocks, river: riverOf(cfg) };
+  return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, paths: gen.paths, camp, blocks, foeBlocks, river: riverOf(cfg) };
 }
 
 // какой дом содержит точку (внутри стен), иначе −1
@@ -273,13 +273,13 @@ export function rotateInput(mx, mz, yawDeg) {
 export function propsBlocked(map, x, z) {
   if (nearBuilding(map, x, z, 3)) return true;
   for (const q of map.solids) if (Math.hypot(q.x - x, q.z - z) < q.r + 1.5) return true;
-  for (const [a, b] of map.roads) if (distSegPt(x, z, a, b) < 2.4) return true;
+  for (const [a, b] of pathSegs(map)) if (distSegPt(x, z, a, b) < 2.4) return true;
   for (const zn of map.cfg.zones || []) { const hw = zn.w ? zn.w / 2 + 2 : zn.r + 3, hd = zn.d ? zn.d / 2 + 2 : zn.r + 3; if (Math.abs(x - zn.x) < hw && Math.abs(z - zn.z) < hd) return true; }
   for (const c of map.containers) if (Math.hypot(c.x - x, c.z - z) < 2) return true;
   if (map.river && waterDist(map.river, x, z) < 1.5) return true;          // не в воде и не у самой кромки
   return Math.hypot(x, z) < 6;
 }
-import { distSeg as distSegPt } from './world3d.js';
+import { distSeg as distSegPt, pathSegs } from './world3d.js';
 
 // область, в которой стоит точка (graveyard, farm, ruins, camp…), либо null
 export function regionOf(map, x, z) {

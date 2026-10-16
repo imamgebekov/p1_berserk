@@ -4,6 +4,7 @@
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, spawnEnemy } from '../3d/src/sim.js';
 import { makeMap } from '../3d/src/map.js';
+import { pathSegs } from '../3d/src/world3d.js';
 import { riverOf, onBridge, waterDist, buildHeights, heightAt } from '../3d/src/terrain3d.js';
 
 const fails = [];
@@ -31,7 +32,7 @@ ok(maxH > .5 && maxH <= CFG3.terrain.hills.amp + 1e-6 + Math.abs(CFG3.terrain.be
 const flat = (x, z, m) => ok(Math.abs(heightAt(hf, x, z)) < 1e-6, `${m}: земля не ровная (${heightAt(hf, x, z).toFixed(3)})`);
 flat(0, 0, 'костёр'); if (map.camp) flat(map.camp.x + map.camp.r * .7, map.camp.z, 'лагерь');
 for (const b of map.buildings) flat((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2, 'дом ' + b.kind);
-for (const [a, b] of map.roads) if (waterDist(rv, (a.x + b.x) / 2, (a.z + b.z) / 2) > CFG3.terrain.bank + 1) flat((a.x + b.x) / 2, (a.z + b.z) / 2, 'дорога');
+for (const [a, b] of pathSegs(map)) if (waterDist(rv, (a.x + b.x) / 2, (a.z + b.z) / 2) > CFG3.terrain.bank + 1) flat((a.x + b.x) / 2, (a.z + b.z) / 2, 'дорога');
 for (const c of map.containers) flat(c.x, c.z, 'сундук');
 for (const b of rv.bridges) ok(Math.abs(heightAt(hf, b.x, b.z) - CFG3.terrain.bridge.deck) < 1e-6, 'мост не на высоте настила');
 ok(heightAt(hf, rv.pts[rv.pts.length >> 1].x, rv.pts[rv.pts.length >> 1].z) < CFG3.terrain.water, 'дно реки не ниже воды');

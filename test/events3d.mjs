@@ -87,7 +87,7 @@ const roadMid = W => { for (const [a, b] of W.map.roads) for (let t = .2; t <= .
 {
   const W = mk('caravan', 7); const st = until(W, 'evStart', 7), g = guest(W), ev = W.event;
   ok(st && g && g.cart && ev.place, 'обоз не появился');
-  const q = ev.path[1]; ok(!insideCamp(W.map.camp, g.x, g.z) && placeAt(W.map, q.x, q.z).safe, 'обоз не за воротами или едет не в поселение');
+  const q = ev.path[ev.path.length - 1]; ok(!insideCamp(W.map.camp, g.x, g.z) && placeAt(W.map, q.x, q.z).safe, 'обоз не за воротами или едет не в поселение');
   const x0 = g.x; run(W, 3); ok(g.x === x0 && ev.stage === 'wait', 'обоз тронулся без героя');
   const near = () => { W.player.x = g.x - Math.sin(g.face) * 3; W.player.z = g.z - Math.cos(g.face) * 3; };
   near(); run(W, .2); ok(ev.stage === 'move', 'обоз не тронулся при герое');

@@ -26,7 +26,7 @@ export function drawMap(ctx, W, v) {
   }
   // дороги
   ctx.strokeStyle = '#4a3a2c'; ctx.lineWidth = Math.max(1, sc * 1.4); ctx.lineCap = 'round';
-  for (const [a, b] of M.roads) { ctx.beginPath(); ctx.moveTo(X(a.x), Y(a.z)); ctx.lineTo(X(b.x), Y(b.z)); ctx.stroke(); }
+  for (const P of M.paths || M.roads.map(pts => ({ pts }))) { ctx.beginPath(); P.pts.forEach((q, i) => (i ? ctx.lineTo(X(q.x), Y(q.z)) : ctx.moveTo(X(q.x), Y(q.z)))); ctx.stroke(); }     // тропы — кривыми
   // река и мосты
   if (!under && M.river) {
     const RV = M.river; ctx.strokeStyle = '#2a4a5c'; ctx.lineWidth = Math.max(2, RV.w * sc); ctx.lineJoin = 'round'; ctx.beginPath();

@@ -6,7 +6,7 @@ import { mulberry32, spawnEnemy, killEnemy } from './sim.js';
 import { onSurface, depthAt } from './levels3d.js';
 import { CONTAINERS, rollLoot } from './data/loot.js';
 import { insideCamp, insideOf, placeAt, resolve, slide } from './map.js';
-import { distSeg } from './world3d.js';
+import { distSeg, pathSegs } from './world3d.js';
 
 const between = (rng, [a, b]) => a + rng() * (b - a);
 const pickN = (rng, list, n) => { const a = list.slice(), out = []; while (out.length < n && a.length) out.push(a.splice(rng() * a.length | 0, 1)[0]); return out; };
@@ -27,7 +27,7 @@ export function wandererStock(W) {
 // место у дороги: вне лагеря и опасных мест (strict — вне любых мест), в границах мира, не в доме и не в дереве, на нужном расстоянии от героя
 export const wandererSpot = W => spotNear(W, W.cfg.wanderer, false);
 function spotNear(W, C, strict) {
-  const rng = erng(W), M = W.map, p = W.player, roads = M.roads || [], R = W.cfg.world.radius;
+  const rng = erng(W), M = W.map, p = W.player, roads = pathSegs(M), R = W.cfg.world.radius;     // места у видимых троп
   for (let k = 0; k < 60; k++) {
     let x, z;
     if (roads.length && k < 40) {
@@ -124,7 +124,7 @@ const START = {
     const E = W.cfg.events, A = E.ambush, p = W.player, M = W.map;
     if (M.camp && insideCamp(M.camp, p.x, p.z, -A.campPad)) return null;
     const pl = placeAt(M, p.x, p.z); if (pl && pl.safe) return null;
-    if (!(M.roads || []).some(([a, b]) => distSeg(p.x, p.z, a, b) < A.road)) return null;
+    if (!pathSegs(M).some(([a, b]) => distSeg(p.x, p.z, a, b) < A.road)) return null;
     const ev = { id, kind: 'ambush', x: p.x, z: p.z, stage: 'fight', t: A.time, foes: [] };
     const ang = Math.atan2(Math.sin(p.face), Math.cos(p.face));
     spawnFoes(W, ev, 'ambush', p.x, p.z, A.r[0], A.r[1], ang, Math.PI * 1.4);    // впереди и с боков
@@ -134,11 +134,18 @@ const START = {
     const E = W.cfg.events, K = E.caravan, M = W.map, camp = M.camp, rng = erng(W); if (!camp) return null;
     // дорога из ворот к двери дома в посёлке: [точка за воротами, дверь]
     const outs = M.buildings.map(b => b.door.out).filter(o => { const pl = placeAt(M, o.x, o.z); return pl && pl.safe && !insideCamp(camp, o.x, o.z); });
-    const clear = (a, b) => { const L = len(b.x - a.x, b.z - a.z); for (let s = 0; s <= L - K.arrive; s += 1) { const x = a.x + (b.x - a.x) * s / L, z = a.z + (b.z - a.z) * s / L; if (insideOf(M, x, z, K.r) >= 0 || resolve(M, { x, z }, K.r)) return false; } return true; };
-    const legs = (M.roads || []).filter(([a, b]) => outs.some(o => o.x === b.x && o.z === b.z) && !(a.x === 0 && a.z === 0) && len(b.x - a.x, b.z - a.z) > K.minLen && clear(a, b));
+    const pathOf = (a, b) => { const P = (M.paths || []).find(q => q.leg[0] === a && q.leg[1] === b); return P ? P.pts : [a, b]; };
+    // тропа свободна для обоза: идём по ней с шагом 1 м до последних K.arrive м
+    const clear = pts => { let total = 0; for (let i = 1; i < pts.length; i++) total += len(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z); let s0 = 0;
+      for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], L = len(b.x - a.x, b.z - a.z) || 1e-9;
+        for (let s = 0; s < L; s += 1) { if (s0 + s > total - K.arrive) return true; const x = a.x + (b.x - a.x) * s / L, z = a.z + (b.z - a.z) * s / L; if (insideOf(M, x, z, K.r) >= 0 || resolve(M, { x, z }, K.r)) return false; }
+        s0 += L; } return true; };
+    const legs = (M.roads || []).filter(([a, b]) => outs.some(o => o.x === b.x && o.z === b.z) && !(a.x === 0 && a.z === 0) && len(b.x - a.x, b.z - a.z) > K.minLen && clear(pathOf(a, b)));
     if (!legs.length) return null;
     const [a, b] = legs[rng() * legs.length | 0], pl = placeAt(M, b.x, b.z);
-    const ev = { id, kind: 'caravan', x: a.x, z: a.z, stage: 'wait', t: K.wait, foes: [], path: [{ x: a.x, z: a.z }, { x: b.x, z: b.z }], total: len(b.x - a.x, b.z - a.z), went: 0, wave: 0, place: pl.name };
+    const pts = pathOf(a, b).map(q => ({ x: q.x, z: q.z }));     // обоз едет по извилистой тропе
+    let total = 0; for (let i = 1; i < pts.length; i++) total += len(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z);
+    const ev = { id, kind: 'caravan', x: a.x, z: a.z, stage: 'wait', t: K.wait, foes: [], path: pts, pi: 1, total, went: 0, wave: 0, place: pl.name };
     ev.guest = addGuest(W, { x: a.x, z: a.z, hp: K.hp, taken: K.taken, name: K.name, cart: true, face: Math.atan2(b.x - a.x, b.z - a.z) }).id;
     return ev;
   }
@@ -155,8 +162,11 @@ function guestFight(W, g, dt) {
 }
 // обоз едет по дороге, только пока герой рядом; на отметках пути — налёты
 function moveCart(W, ev, g, dt) {
-  const K = W.cfg.events.caravan, p = W.player, q = ev.path[ev.path.length - 1];
+  const K = W.cfg.events.caravan, p = W.player;
   if (len(p.x - g.x, p.z - g.z) > K.follow) { g.moving = false; return; }
+  let pi = Math.min(ev.pi || ev.path.length - 1, ev.path.length - 1);
+  while (pi < ev.path.length - 1 && len(ev.path[pi].x - g.x, ev.path[pi].z - g.z) < .8) pi++;      // точка тропы пройдена — к следующей
+  ev.pi = pi; const q = ev.path[pi];
   const dx = q.x - g.x, dz = q.z - g.z, d = len(dx, dz) || 1e-6, st = Math.min(d, K.speed * dt), px = g.x, pz = g.z;
   g.face = Math.atan2(dx, dz); slide(W.map, g, dx / d * st, dz / d * st, K.r);
   ev.went += len(g.x - px, g.z - pz); g.moving = true;

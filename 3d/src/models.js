@@ -193,6 +193,16 @@ export function pushBox(list, w, h, d, x, y, z, rx, ry, rz, color) {
   list.push(geo);
 }
 
+// округлый «камешек» из многогранника (F1: меньше квадратного): икосаэдр или додекаэдр, растянутый по осям, цвет в вершинах
+export function pushBlob(list, kind, sx, sy, sz, x, y, z, rx, ry, rz, color) {
+  const geo = kind === 'dodeca' ? new THREE.DodecahedronGeometry(1, 0) : new THREE.IcosahedronGeometry(1, 0);
+  tmpE.set(rx, ry, rz); tmpQ.setFromEuler(tmpE); tmpP.set(x, y, z); tmpS.set(sx, sy, sz);
+  tmpM.compose(tmpP, tmpQ, tmpS); geo.applyMatrix4(tmpM);
+  const c = new THREE.Color(color), n = geo.attributes.position.count, col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex([...Array(n).keys()]);     // с индексом — сливается с кубиками
+  list.push(geo);
+}
 export function addTree(list, rnd, x, z, look = null) {
   const h = 2.6 + rnd() * 2.2, col = look ? look.trunk[rnd() < .5 ? 0 : 1] : rnd() < .5 ? '#1a1210' : '#221813';
   pushBox(list, .36, h, .36, x, h / 2, z, 0, 0, (rnd() - .5) * .15, col);
@@ -203,11 +213,16 @@ export function addTree(list, rnd, x, z, look = null) {
   }
   if (look && rnd() >= look.bare) {                        // крона: 3–5 зелёных кубов у макушки
     const m = 3 + (rnd() * 3 | 0);
-    for (let i = 0; i < m; i++) { const s = 1.1 + rnd() * 1.1, a = rnd() * Math.PI * 2, r = i ? .5 + rnd() * .7 : 0; pushBox(list, s, s * .8, s, x + Math.cos(a) * r, h + (i ? -.3 - rnd() * .6 : .2), z + Math.sin(a) * r, rnd() * .3, rnd() * 3, rnd() * .3, look.leaf[(rnd() * look.leaf.length) | 0]); }
+    for (let i = 0; i < m; i++) { const s = (1.1 + rnd() * 1.1) * .62, a = rnd() * Math.PI * 2, r = i ? .5 + rnd() * .7 : 0; pushBlob(list, 'ico', s, s * .85, s, x + Math.cos(a) * r, h + (i ? -.3 - rnd() * .6 : .2), z + Math.sin(a) * r, rnd() * .3, rnd() * 3, rnd() * .3, look.leaf[(rnd() * look.leaf.length) | 0]); }     // округлая крона
   }
 }
 export function addRock(list, rnd, x, z, look = null) {
   const s = .5 + rnd() * 1.1, col = (look ? look.rock : ['#2a2420', '#332b26'])[rnd() < .5 ? 0 : 1];
+  if (look) {                                              // F1: глыба из додекаэдров вместо кубов
+    pushBlob(list, 'dodeca', s * .75, s * .55, s * .6, x, s * .3, z, 0, rnd() * 3, 0, col);
+    if (rnd() < .6) pushBlob(list, 'dodeca', s * .5, s * .45, s * .5, x + s * .5, s * .45, z + s * .2, .2, rnd() * 3, .3, col);
+    return;
+  }
   pushBox(list, s * 1.4, s, s * 1.1, x, s * .4, z, 0, rnd() * 3, 0, col);
   if (rnd() < .6) pushBox(list, s, s * .8, s * .9, x + s * .5, s * .7, z + s * .2, .2, rnd() * 3, .3, col);
 }

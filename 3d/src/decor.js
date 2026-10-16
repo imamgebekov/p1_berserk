@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { pushBox, addTree } from './models.js';
-import { distSeg } from './world3d.js';
+import { distSeg, pathSegs } from './world3d.js';
 
 export function buildDecor(map, rnd) {
   const L = [], G = [];
@@ -10,8 +10,8 @@ export function buildDecor(map, rnd) {
   const mk = (x, z, rot) => { const c = Math.cos(rot), s = Math.sin(rot); return (lx, ly, lz, w, h, d, color, glow) => pushBox(glow ? G : L, w, h, d, x + lx * c + lz * s, ly + h / 2, z - lx * s + lz * c, 0, rot, 0, color); };
   const inB = (x, z, pad) => map.buildings.some(b => x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad);
 
-  // дороги: плоские плиты вдоль линий от костра к дверям
-  for (const [a, b] of map.roads) {
+  // дороги: плоские плиты вдоль троп от костра к дверям (за лагерем тропы извилистые)
+  for (const [a, b] of pathSegs(map)) {
     const len = Math.hypot(b.x - a.x, b.z - a.z), n = Math.ceil(len / 1.8), yaw = Math.atan2(b.x - a.x, b.z - a.z);
     for (let i = 0; i < n; i++) {
       const k = (i + .5) / n, x = a.x + (b.x - a.x) * k, z = a.z + (b.z - a.z) * k;

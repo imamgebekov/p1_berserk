@@ -32,8 +32,11 @@ export function genWorld(cfg, buildings) {
     roads.push([{ x: gx, z: gz }, { x: o.x, z: o.z }]);
   }
   const nearWall = (x, z) => camp && Math.abs(Math.hypot(x - camp.x, z - camp.z) - camp.r) < 2;
+  // тропы (F1): за лагерем дорога — плавная кривая, внутри — прямая; свой генератор, чтобы не сдвинуть остальной мир
+  const paths = roads.map(leg => ({ leg, pts: curvePath(leg, cfg, mulberry(cfg.world.seed * 53 + 11 + Math.round(leg[1].x * 7 + leg[1].z * 13)), (x, z) => !inBuilding(x, z, 1.2) && !wet(x, z, 2.5) && Math.hypot(x, z) < R - 4 && (!camp || !insideCamp(camp, x, z, -2))) }));
+  const segs = paths.flatMap(p => p.pts.slice(1).map((q, i) => [p.pts[i], q]));
   // фонари вдоль дорог через каждые ~11 м (только вблизи центра), не на домах
-  for (const [a, b] of roads) {
+  for (const [a, b] of segs) {
     const L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.floor(L / 11);
     for (let i = 1; i <= n; i++) {
       const k = i * 11 / L, nx = -(b.z - a.z) / L, nz = (b.x - a.x) / L, x = a.x + (b.x - a.x) * k + nx * 1.8, z = a.z + (b.z - a.z) * k + nz * 1.8;
@@ -89,8 +92,26 @@ export function genWorld(cfg, buildings) {
   }
   // колодец и бочки у костра, остатки частокола у границы
   solid('well', 6.5, -3.5, 1.1);
-  return { decor, solids, spots, roads };
+  return { decor, solids, spots, roads, paths };
 }
+
+// кривая вдоль отрезка дороги: изгиб A·sin(πt) + малая волна; точки каждые step м; ok(x, z) — точка годится. Не годится — изгиб
+// вдвое меньше (до 3 раз), иначе прямая. Отрезки внутри лагеря и короткие — прямые.
+function curvePath([a, b], cfg, r, ok) {
+  const P = cfg.paths, L = Math.hypot(b.x - a.x, b.z - a.z), camp = campOf(cfg);
+  if (!P || !P.on || L < P.minLen || (camp && (insideCamp(camp, a.x, a.z, 1) || insideCamp(camp, b.x, b.z, 1)))) return [a, b];
+  const nx = -(b.z - a.z) / L, nz = (b.x - a.x) / L, n = Math.max(2, Math.ceil(L / P.step));
+  let A = (P.bend[0] + r() * (P.bend[1] - P.bend[0])) * (r() < .5 ? -1 : 1), w = (r() - .5) * P.wave, ph = r() * TAU;
+  for (let tries = 0; tries < 8; tries++) {
+    const sg = tries % 2 ? -1 : 1, k2 = Math.pow(.5, tries >> 1), pts = [];        // в одну сторону, в другую, потом изгиб вдвое меньше
+    for (let i = 0; i <= n; i++) { const t = i / n, k = Math.sin(Math.PI * t), s = (A * k + w * k * Math.sin(3 * Math.PI * t + ph)) * sg * k2; pts.push({ x: a.x + (b.x - a.x) * t + nx * s, z: a.z + (b.z - a.z) * t + nz * s }); }
+    pts[0] = a; pts[n] = b;
+    if (pts.every((q, i) => i === 0 || i === n || Math.min(i, n - i) * L / n < 3 || ok(q.x, q.z))) return pts;     // у концов (дверь, ворота) не проверяем
+  }
+  return [a, b];
+}
+// все отрезки видимых троп (для рисования, фонарей, «ровно у дороги», засад)
+export const pathSegs = map => (map.paths || (map.roads || []).map(leg => ({ pts: leg }))).flatMap(p => p.pts.slice(1).map((q, i) => [p.pts[i], q]));
 
 function distSeg(x, z, a, b) {
   const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2));
