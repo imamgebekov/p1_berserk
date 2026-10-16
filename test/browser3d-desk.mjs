@@ -213,6 +213,11 @@ try {
     if (!(windy > still + .004)) bad(`ветер не двигает траву и кроны: ${windy.toFixed(4)} против ${still.toFixed(4)} в тишь`);
     console.log('  ветер: ' + JSON.stringify({ still: still.toFixed(4), windy: windy.toFixed(4), rustle: (await ev(() => window.__b3d.renderer.treesNear(20, 40))).toFixed(2) }));
     await ev(c => { Object.assign(window.__b3d.cfg.wind, c.w); window.__b3d.cfg.sunlight.wind = c.s; }, { w: { calm: .06, breeze: .55, gust: .45 }, s: [.6, .25] }); }
+  // участки земли (C3a): вокруг героя подгружаются, дальние выгружаются; после переноса участок героя есть сразу
+  { const go = async (x, z) => { await ev(q => { const W = window.__b3d.W; W.enemies.length = 0; W.player.x = q.x; W.player.z = q.z; }, { x, z }); await page.waitForTimeout(1500); return ev(() => window.__b3d.renderer.land()); };
+    const a = await go(-60, -50), b = await go(60, 50), key = `${Math.floor(60 / 64)},${Math.floor(50 / 64)}`;
+    if (!b.keys.includes(key) || b.live > 30 || !a.keys.includes('-2,-2') || b.keys.includes('-2,-2')) bad('участки земли не подгружаются: ' + JSON.stringify({ a: a.live, b }));
+    console.log('  участки: ' + JSON.stringify({ live: [a.live, b.live], built: b.built })); }
   // объём слоями (F4): под кроной у тропы окно у героя меняет кадр (прорезает листву), в открытом поле — нет
   { const at = async q => { await ev(q => { const W = window.__b3d.W; W.enemies.length = 0; W.player.x = q.x; W.player.z = q.z; }, q); await page.waitForTimeout(2200); };
     const diff = () => ev(async () => { const b = window.__b3d, c = document.getElementById('gl'), U = b.renderer.xray(), cut = U.uXrCut.value;

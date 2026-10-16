@@ -27,7 +27,8 @@ for (const b of rv.bridges) ok(Math.hypot(b.x, b.z) < R - 4 && waterDist(rv, b.x
 
 // ---------- 2. высоты ----------
 const hf = buildHeights(CFG3, map);
-let maxH = 0; for (const v of hf.data) maxH = Math.max(maxH, Math.abs(v));
+const grid = H => { const out = []; for (let x = -R - 20; x <= R + 20; x += 1.7) for (let z = -R - 20; z <= R + 20; z += 1.9) out.push(heightAt(H, x, z, false)); return out; };
+let maxH = 0; for (const v of grid(hf)) maxH = Math.max(maxH, Math.abs(v));
 ok(maxH > .5 && maxH <= CFG3.terrain.hills.amp + 1e-6 + Math.abs(CFG3.terrain.bed), `холмов нет или они выше нормы: ${maxH.toFixed(2)}`);
 const flat = (x, z, m) => ok(Math.abs(heightAt(hf, x, z)) < 1e-6, `${m}: земля не ровная (${heightAt(hf, x, z).toFixed(3)})`);
 flat(0, 0, 'костёр'); if (map.camp) flat(map.camp.x + map.camp.r * .7, map.camp.z, 'лагерь');
@@ -38,7 +39,7 @@ for (const b of rv.bridges) { const B = CFG3.terrain.bridge, s = Math.sin(b.ang)
   ok(Math.abs(heightAt(hf, b.x, b.z) - B.deck - B.arch) < 1e-6 && Math.abs(heightAt(hf, b.x + s * e, b.z + c * e) - B.deck) < .01, 'мост не дугой: середина выше концов на arch');
   let up = true; for (let k = -e; k < 0; k += .5) up = up && heightAt(hf, b.x + s * (k + .5), b.z + c * (k + .5)) >= heightAt(hf, b.x + s * k, b.z + c * k) - 1e-9; ok(up, 'дуга моста не растёт к середине'); }
 ok(heightAt(hf, rv.pts[rv.pts.length >> 1].x, rv.pts[rv.pts.length >> 1].z) < CFG3.terrain.water, 'дно реки не ниже воды');
-{ const c = clone(); c.terrain.on = false; const h0 = buildHeights(c, makeMap(c)); ok(h0.data.every(v => v === 0), 'выключенный рельеф не плоский'); }
+{ const c = clone(); c.terrain.on = false; const h0 = buildHeights(c, makeMap(c)); ok(grid(h0).every(v => v === 0), 'выключенный рельеф не плоский'); }
 
 // ---------- 3. проходимость от лагеря ----------
 {

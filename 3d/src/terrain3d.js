@@ -69,42 +69,62 @@ export function bridgeGoal(rv, x, z, tx, tz) {
 const hash = (i, j, s) => { let h = (i * 374761393 + j * 668265263 + s * 2147483647) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
 const smooth = t => t * t * (3 - 2 * t);
 function vnoise(x, z, s) { const i = Math.floor(x), j = Math.floor(z), fx = smooth(x - i), fz = smooth(z - j); const a = hash(i, j, s), b = hash(i + 1, j, s), c = hash(i, j + 1, s), d = hash(i + 1, j + 1, s); return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fz; }
+// поле высот лениво, участками CH×CH м (C3a): участок считается, когда в нём впервые спросили высоту. У каждого участка — только
+// те «ровные места», что могут его задеть (их расстояние меньше blend внутри рамки), поэтому большой мир считается быстро.
+// Значения совпадают с прежним сплошным полем: та же решётка (узлы через cell от нуля), та же формула.
+const CH = 64;
 export function buildHeights(cfg, map) {
-  const T = cfg.terrain, HL = T && T.hills, R = cfg.world.radius + 24, cell = HL ? HL.cell : 2, n = Math.ceil(2 * R / cell) + 1, data = new Float32Array(n * n);
-  const hf = { R, cell, n, data, river: map.river, deck: T && T.bridge ? T.bridge.deck : .3, arch: T && T.bridge ? T.bridge.arch || 0 : 0 };
-  if (!T || !T.on || !HL) return hf;
-  const segD = (x, z, a, b) => segDist(x, z, a, b).d;
-  const keep = [];                              // [функция расстояния до «ровного» места]
-  if (map.camp) keep.push((x, z) => Math.hypot(x - map.camp.x, z - map.camp.z) - map.camp.r - 6);
-  keep.push((x, z) => Math.hypot(x, z) - 8);
-  for (const b of map.buildings) keep.push((x, z) => Math.max(b.x0 - 4 - x, x - b.x1 - 4, b.z0 - 4 - z, z - b.z1 - 4));
-  for (const P of map.paths || (map.roads || []).map(pts => ({ pts }))) for (let i = 1; i < P.pts.length; i++) { const a = P.pts[i - 1], b = P.pts[i]; keep.push((x, z) => segD(x, z, a, b) - 3); }     // ровно вдоль троп
-  for (const p of map.cfg.places || []) if (p.safe) keep.push((x, z) => Math.hypot(x - p.x, z - p.z) - p.r);
-  for (const zn of map.cfg.zones || []) keep.push(zn.w ? (x, z) => Math.max(Math.abs(x - zn.x) - zn.w / 2 - 2, Math.abs(z - zn.z) - zn.d / 2 - 2) : (x, z) => Math.hypot(x - zn.x, z - zn.z) - zn.r - 2);
-  for (const b of cfg.bosses.list) keep.push((x, z) => Math.hypot(x - b.x, z - b.z) - 12);
-  for (const q of map.portals || []) keep.push((x, z) => Math.hypot(x - q.x, z - q.z) - 4);
-  for (const c of map.containers) keep.push((x, z) => Math.hypot(x - c.x, z - c.z) - 2.5);
-  for (const q of map.solids) keep.push((x, z) => Math.hypot(x - q.x, z - q.z) - q.r - 1.5);
-  const seed = cfg.world.seed * 131 + 17;
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const x = -R + i * cell, z = -R + j * cell;
-    let d = 1e9; for (const f of keep) { const v = f(x, z); if (v < d) d = v; if (d <= 0) break; }
-    const k = d <= 0 ? 0 : d >= HL.blend ? 1 : smooth(d / HL.blend);
-    let h = 0; if (k > 0) { let amp = 1, fr = 1 / HL.scale, sum = 0, norm = 0; for (let o = 0; o < HL.oct; o++) { sum += (vnoise(x * fr, z * fr, seed + o) - .5) * 2 * amp; norm += amp; amp *= .5; fr *= 2; } h = sum / norm * HL.amp * k; }
-    if (map.river) { const w = waterDist(map.river, x, z); if (w < T.bank) { const t = Math.max(0, Math.min(1, w < 0 ? 0 : w / T.bank)); h = h * smooth(t) + T.bed * (1 - smooth(t)); } }
-    const e = R - Math.max(Math.abs(x), Math.abs(z)); if (e < 10) h *= Math.max(0, e / 10);     // к краю сетки — ровно
-    data[j * n + i] = h;
-  }
+  const T = cfg.terrain, HL = T && T.hills, R = cfg.world.radius + 24, cell = HL ? HL.cell : 2;
+  const hf = { R, cell, CH, chunks: new Map(), river: map.river, deck: T && T.bridge ? T.bridge.deck : .3, arch: T && T.bridge ? T.bridge.arch || 0 : 0, flat: !T || !T.on || !HL, built: 0 };
+  if (hf.flat) return hf;
+  const segD = (x, z, a, b) => segDist(x, z, a, b).d, B = HL.blend, keep = [];        // { f — расстояние до ровного места, рамка влияния }
+  const add = (f, x0, x1, z0, z1, pad) => keep.push({ f, x0: x0 - pad - B, x1: x1 + pad + B, z0: z0 - pad - B, z1: z1 + pad + B });
+  const circle = (x, z, r) => add((px, pz) => Math.hypot(px - x, pz - z) - r, x, x, z, z, Math.max(0, r));
+  if (map.camp) circle(map.camp.x, map.camp.z, map.camp.r + 6);
+  circle(0, 0, 8);
+  for (const b of map.buildings) add((x, z) => Math.max(b.x0 - 4 - x, x - b.x1 - 4, b.z0 - 4 - z, z - b.z1 - 4), b.x0, b.x1, b.z0, b.z1, 4);
+  for (const P of map.paths || (map.roads || []).map(pts => ({ pts }))) for (let i = 1; i < P.pts.length; i++) { const a = P.pts[i - 1], b = P.pts[i]; add((x, z) => segD(x, z, a, b) - 3, Math.min(a.x, b.x), Math.max(a.x, b.x), Math.min(a.z, b.z), Math.max(a.z, b.z), 3); }     // ровно вдоль троп
+  for (const p of map.cfg.places || []) if (p.safe) circle(p.x, p.z, p.r);
+  for (const zn of map.cfg.zones || []) { if (zn.w) add((x, z) => Math.max(Math.abs(x - zn.x) - zn.w / 2 - 2, Math.abs(z - zn.z) - zn.d / 2 - 2), zn.x - zn.w / 2, zn.x + zn.w / 2, zn.z - zn.d / 2, zn.z + zn.d / 2, 2); else circle(zn.x, zn.z, zn.r + 2); }
+  for (const b of cfg.bosses.list) circle(b.x, b.z, 12);
+  for (const q of map.portals || []) circle(q.x, q.z, 4);
+  for (const c of map.containers) circle(c.x, c.z, 2.5);
+  for (const q of map.solids) circle(q.x, q.z, q.r + 1.5);
+  hf.keep = keep; hf.seed = cfg.world.seed * 131 + 17; hf.T = T; hf.HL = HL;
   return hf;
 }
+// узлы участка (ci, cj): (CH/cell + 1)² высот, с краями (соседние участки делят край)
+function chunkOf(hf, ci, cj) {
+  const key = ci * 100003 + cj; let c = hf.chunks.get(key); if (c) return c;
+  const { cell, R, T, HL } = hf, m = Math.round(CH / cell) + 1, data = new Float32Array(m * m), x0 = ci * CH, z0 = cj * CH;
+  const ks = hf.keep.filter(k => k.x1 >= x0 && k.x0 <= x0 + CH && k.z1 >= z0 && k.z0 <= z0 + CH);
+  const rv = hf.river && waterDist(hf.river, x0 + CH / 2, z0 + CH / 2) < CH * .75 + T.bank ? hf.river : null;     // река далеко — не считаем
+  for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) data[j * m + i] = nodeH(hf, x0 + i * cell, z0 + j * cell, ks, rv, true);
+  c = { m, data }; hf.chunks.set(key, c); hf.built++; return c;
+}
+// высота узла решётки: ks — ровные места, rv — река (null — далеко); box — пропускать места, чья рамка не задевает точку
+function nodeH(hf, x, z, ks, rv, box) {
+  const { R, T, HL } = hf;
+  if (Math.abs(x) > R || Math.abs(z) > R) return 0;
+  let d = 1e9; for (const k of ks) { if (box && (x < k.x0 || x > k.x1 || z < k.z0 || z > k.z1)) continue; const v = k.f(x, z); if (v < d) d = v; if (d <= 0) break; }
+  const kk = d <= 0 ? 0 : d >= HL.blend ? 1 : smooth(d / HL.blend);
+  let h = 0; if (kk > 0) { let amp = 1, fr = 1 / HL.scale, sum = 0, norm = 0; for (let o = 0; o < HL.oct; o++) { sum += (vnoise(x * fr, z * fr, hf.seed + o) - .5) * 2 * amp; norm += amp; amp *= .5; fr *= 2; } h = sum / norm * HL.amp * kk; }
+  if (rv) { const w = waterDist(rv, x, z); if (w < T.bank) { const t = Math.max(0, Math.min(1, w < 0 ? 0 : w / T.bank)); h = h * smooth(t) + T.bed * (1 - smooth(t)); } }
+  const e = R - Math.max(Math.abs(x), Math.abs(z)); if (e < 10) h *= Math.max(0, e / 10);     // к краю мира — ровно
+  return h;
+}
+// эталон для тестов: высота узла по всем ровным местам и всей реке, без участков и рамок
+export const nodeHeightRef = (hf, x, z) => (hf.flat ? 0 : nodeH(hf, x, z, hf.keep, hf.river, false));
+export const CHUNK = CH;
 // высота настила моста в точке: дуга — у концов deck, к середине выше на arch (F4)
 export function deckAt(b, x, z, deck, arch) { const a = (x - b.x) * Math.sin(b.ang) + (z - b.z) * Math.cos(b.ang), k = Math.max(0, 1 - Math.pow(2 * a / b.len, 2)); return deck + arch * k; }
 // высота земли в точке (плавная выборка); на мосту — высота настила (deck = false — сама земля под мостом, для сетки холмов)
 export function heightAt(hf, x, z, deck = true) {
   if (!hf) return 0;
   if (deck && hf.river) { const b = onBridge(hf.river, x, z); if (b) return deckAt(b, x, z, hf.deck, hf.arch || 0); }
-  const fx = (x + hf.R) / hf.cell, fz = (z + hf.R) / hf.cell, i = Math.floor(fx), j = Math.floor(fz), n = hf.n;
-  if (i < 0 || j < 0 || i >= n - 1 || j >= n - 1) return 0;
-  const tx = fx - i, tz = fz - j, D = hf.data, a = D[j * n + i], b = D[j * n + i + 1], c = D[(j + 1) * n + i], d = D[(j + 1) * n + i + 1];
+  if (hf.flat || x < -hf.R || z < -hf.R || x >= hf.R - hf.cell || z >= hf.R - hf.cell) return 0;
+  const ci = Math.floor(x / CH), cj = Math.floor(z / CH), C = chunkOf(hf, ci, cj), m = C.m;
+  const fx = (x - ci * CH) / hf.cell, fz = (z - cj * CH) / hf.cell, i = Math.min(m - 2, Math.floor(fx)), j = Math.min(m - 2, Math.floor(fz));
+  const tx = fx - i, tz = fz - j, D = C.data, a = D[j * m + i], b = D[j * m + i + 1], c = D[(j + 1) * m + i], d = D[(j + 1) * m + i + 1];
   return (a + (b - a) * tx) * (1 - tz) + (c + (d - c) * tx) * tz;
 }
