@@ -349,8 +349,22 @@ const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.s
 const miniCtx = $('mini').getContext('2d'), mapCv = $('mapCv'), mapCtx = mapCv.getContext('2d'), mapEl = $('map');
 let miniT = 0;
 function drawMini() { drawMap(miniCtx, W, { w: 92, h: 92, scale: 2.1, cx: W.player.x, cz: W.player.z, full: false }); }
-function drawFull() { const B = W.map.bounds, cx = B ? (B.x0 + B.x1) / 2 : 0, cz = B ? (B.z0 + B.z1) / 2 : 0, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : cfg.world.radius * 2 + 6; drawMap(mapCtx, W, { w: 640, h: 640, scale: 640 / span, cx, cz, full: true }); const pl = W.place; $('mapLegend').textContent = B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}. Светлый квадрат: лестница наверх. Жёлтые точки: нетронутые контейнеры. Закрытое туманом ещё не исследовано.` : (pl ? `Вы здесь: ${pl.name}. ` : 'Вы в глуши. ') + 'Коричневые квадраты: люки в погреба и подземелья. Зелёные круги безопасны, красные опасны (чем краснее, тем хуже). Жёлтые точки: нетронутые контейнеры. Торговец золотой, кузнец рыжий. Закрытое туманом ещё не исследовано.'; }
-const mapOpen = () => { drawFull(); mapEl.hidden = false; panelOpen = true; input.release(); };
+// большая карта (C3e): масштаб и прокрутка — вид mv { cx, cz, span (м на ширину) }; в подземелье — весь уровень
+const MAP_MIN = 60, mapMax = () => cfg.world.radius * 2 + 6, mv = { cx: 0, cz: 0, span: 220 };
+const mapClamp = () => { mv.span = Math.max(MAP_MIN, Math.min(mapMax(), mv.span)); const R = cfg.world.radius, m = Math.max(0, R - mv.span / 2 + 20); mv.cx = Math.max(-m, Math.min(m, mv.cx)); mv.cz = Math.max(-m, Math.min(m, mv.cz)); };
+let mapRaf = 0; const mapRedraw = () => { if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; drawFull(); }); };
+const mapZoom = (k, px = 320, py = 320) => { const s0 = mv.span, wx = mv.cx + (px / 640 - .5) * s0, wz = mv.cz + (py / 640 - .5) * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px / 640 - .5) * mv.span; mv.cz = wz - (py / 640 - .5) * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте
+function drawFull() { const B = W.map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; drawMap(mapCtx, W, { w: 640, h: 640, scale: 640 / span, cx, cz, full: true }); const pl = W.place; $('mapLegend').textContent = B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}. Светлый квадрат: лестница наверх. Жёлтые точки: нетронутые контейнеры. Закрытое туманом ещё не исследовано.` : (pl ? `Вы здесь: ${pl.name}. ` : 'Вы в глуши. ') + 'Коричневые квадраты: люки в погреба и подземелья. Зелёные круги безопасны, красные опасны (чем краснее, тем хуже). Жёлтые точки: нетронутые контейнеры. Торговец золотой, кузнец рыжий. Закрытое туманом ещё не исследовано.'; }
+const mapOpen = () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); drawFull(); mapEl.hidden = false; panelOpen = true; input.release(); };
+{ const pts = new Map(), loc = e => { const r = mapCv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * 640, y: (e.clientY - r.top) / r.height * 640 }; }; let pinch = 0;
+  mapCv.addEventListener('wheel', e => { e.preventDefault(); const q = loc(e); mapZoom(Math.exp(e.deltaY * .0015), q.x, q.y); }, { passive: false });
+  mapCv.addEventListener('pointerdown', e => { mapCv.setPointerCapture(e.pointerId); pts.set(e.pointerId, loc(e)); if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); } });
+  mapCv.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; const q = loc(e), o = pts.get(e.pointerId); pts.set(e.pointerId, q);
+    if (pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch > 0 && d > 0) mapZoom(pinch / d, (a.x + b.x) / 2, (a.y + b.y) / 2); pinch = d; }       // щипок
+    else { mv.cx -= (q.x - o.x) / 640 * mv.span; mv.cz -= (q.y - o.y) / 640 * mv.span; mapClamp(); mapRedraw(); } });       // перетаскивание
+  const up = e => { pts.delete(e.pointerId); pinch = 0; }; mapCv.addEventListener('pointerup', up); mapCv.addEventListener('pointercancel', up);
+  $('mapIn').addEventListener('click', () => mapZoom(1 / 1.5)); $('mapOut').addEventListener('click', () => mapZoom(1.5));
+  $('mapMe').addEventListener('click', () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); mapRedraw(); }); $('mapAll').addEventListener('click', () => { mv.span = mapMax(); mv.cx = mv.cz = 0; mapClamp(); mapRedraw(); }); }
 const mapClose = () => { mapEl.hidden = true; panelOpen = false; };
 $('miniBtn').addEventListener('click', () => (mapEl.hidden ? mapOpen() : mapClose()));
 $('mapClose').addEventListener('click', mapClose);
@@ -399,4 +413,4 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
+window.__b3d = { openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };

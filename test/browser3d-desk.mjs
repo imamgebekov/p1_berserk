@@ -218,6 +218,20 @@ try {
     const a = await go(-60, -50), b = await go(60, 50), key = `${Math.floor(60 / 64)},${Math.floor(50 / 64)}`;
     if (!b.keys.includes(key) || b.live > 30 || !a.keys.includes('-2,-2') || b.keys.includes('-2,-2')) bad('участки земли не подгружаются: ' + JSON.stringify({ a: a.live, b }));
     console.log('  участки: ' + JSON.stringify({ live: [a.live, b.live], built: b.built })); }
+  // большая карта (C3e): открывается у героя, колесо приближает, перетаскивание двигает, «Весь мир» — весь мир, окно в экране
+  { await ev(() => { const W = window.__b3d.W; W.enemies.length = 0; W.player.x = 40; W.player.z = -20; }); await page.waitForTimeout(200);
+    await page.keyboard.press('KeyM'); await page.waitForTimeout(300);
+    const v0 = await ev(() => window.__b3d.mapView()), box = await page.locator('#mapCv').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, -400); await page.waitForTimeout(200);
+    const v1 = await ev(() => window.__b3d.mapView());
+    await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2, { steps: 5 }); await page.mouse.up(); await page.waitForTimeout(200);
+    const v2 = await ev(() => window.__b3d.mapView());
+    await page.locator('#mapAll').click(); await page.waitForTimeout(200); const v3 = await ev(() => window.__b3d.mapView());
+    const fit = await ev(() => { const r = document.querySelector('#map .pbox').getBoundingClientRect(), c = document.getElementById('mapCv').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight + 1 && c.bottom <= r.bottom + 1 && c.height > 300; });     // и холст целиком в окне
+    await page.screenshot({ path: join(out, '3d-desk-bigmap.png') });
+    if (Math.abs(v0.cx - 40) > 1 || !(v1.span < v0.span) || !(v2.cx < v1.cx - 5) || v3.span < 1000 || !fit) bad('большая карта: масштаб или прокрутка не работают: ' + JSON.stringify({ v0, v1, v2, v3, fit }));
+    console.log('  карта: ' + JSON.stringify({ span: [v0.span, Math.round(v1.span), v3.span], drag: Math.round(v1.cx - v2.cx) }));
+    await page.keyboard.press('KeyM'); await page.waitForTimeout(200); }
   // костры (C3d): у костра кнопка, E открывает список, перенос к лагерю
   { const f = await ev(() => { const W = window.__b3d.W, f = W.map.fires.find(q => !q.home && !q.danger); W.enemies.length = 0; W.player.x = f.x + 5; W.player.z = f.z; return { x: f.x, z: f.z, id: f.id }; });
     await page.waitForTimeout(300); await ev(f => { const W = window.__b3d.W; W.player.x = f.x + 2; W.player.z = f.z; }, f); await page.waitForTimeout(400);

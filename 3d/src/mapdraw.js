@@ -73,7 +73,8 @@ export function drawMap(ctx, W, v) {
   // подписи мест (только найденных)
   if (full) {
     ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000';
-    if (!under) for (const pl of W.cfg.map.places || []) if (isSeen(W, pl.x, pl.z)) { const y = Y(pl.z) - pl.r * sc * .35; ctx.strokeText(pl.name, X(pl.x), y); ctx.fillStyle = pl.safe ? '#a8e0a0' : '#ff9a8a'; ctx.fillText(pl.name, X(pl.x), y); }
+    // наползающие подписи пропускаем
+    const put = []; if (!under) for (const pl of W.cfg.map.places || []) if (isSeen(W, pl.x, pl.z)) { const y = Y(pl.z) - pl.r * sc * .35; if (put.some(q => Math.abs(q[0] - X(pl.x)) < 90 && Math.abs(q[1] - y) < 14)) continue; put.push([X(pl.x), y]); ctx.strokeText(pl.name, X(pl.x), y); ctx.fillStyle = pl.safe ? '#a8e0a0' : '#ff9a8a'; ctx.fillText(pl.name, X(pl.x), y); }
   }
   // враги рядом (на большой карте не показываем: туман — это неизвестность)
   if (!full) { ctx.fillStyle = '#ff3a30'; for (const e of W.enemies) if (!e.dead) { const x = X(e.x), y = Y(e.z); if (x > 0 && x < w && y > 0 && y < h) { ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 6.2832); ctx.fill(); } } }
