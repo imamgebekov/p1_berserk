@@ -123,7 +123,7 @@ function lineRef(map, x0, z0, x1, z1) {
 {
   const c = clone(); c.enemies.count = 0; const W = createWorld(c, mulberry32(9)); reveal(W, 20, 30, 15); W.player.x = 31.5; W.player.z = -12.25;
   const st = mem(); createSaver(W, st).write(true); const d = JSON.parse(st.o['berserk3d.save']);
-  ok(d.v === SAVE_VERSION && SAVE_VERSION === 5 && d.gen === CFG3.world.gen && d.pos.x === 31.5 && d.pos.z === -12.25, 'версия 5 не пишет позицию или номер мира');
+  ok(d.v === SAVE_VERSION && SAVE_VERSION >= 5 && d.gen === CFG3.world.gen && d.pos.x === 31.5 && d.pos.z === -12.25, 'версия 5 не пишет позицию или номер мира');
   const s = loadSave(30, st), a = new Uint8Array(W.seen.length); unpackSeenChunks(s.seen, a, W.seenN);
   ok(s.pos && s.pos.x === 31.5 && a.every((v, i) => v === W.seen[i]), 'позиция или туман не загрузились');
   // старое сохранение версии 4: туман строкой → участки без потерь, позиции нет

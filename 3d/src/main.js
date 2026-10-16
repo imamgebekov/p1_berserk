@@ -13,6 +13,7 @@ import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLine, questMark } from './quests3d.js';
 import { eventLine } from './events3d.js';
+import { fireNear, knownFires, fastTravel, travelBlock, sanitizeFires } from './fires3d.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView } from './abilities3d.js';
@@ -50,7 +51,7 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(bagCap(cfg));
-if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
+if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; }
 const saver = createSaver(W);
 
 // выбор героя: при новой игре (сохранения нет) — три карточки; игра стоит, пока герой не выбран. ?hero=id — выбрать сразу (тесты)
@@ -131,7 +132,8 @@ const P = loadPrefs();
 function onEvent(v) {
   if (v.k === 'hurt') buzz(P, 35); else if (v.k === 'level' || v.k === 'questdone') buzz(P, [40, 40, 70]); else if (v.k === 'bossaggro' || v.k === 'bossblast') buzz(P, 90);
   if (v.x === undefined || Math.hypot(v.x - W.player.x, v.z - W.player.z) < 22) sfx(v.k);
-  if (v.k === 'dusk') toast('Наступает ночь: торговец спит, враги злее', 'bad');
+  if (v.k === 'fireFound') { toast('🔥 Открыт костёр: ' + v.name, '', '#ffb060'); sfx('evDone'); }
+  else if (v.k === 'dusk') toast('Наступает ночь: торговец спит, враги злее', 'bad');
   else if (v.k === 'dawn') toast('Светает: торговец снова торгует', 'sys');
   if (v.k === 'pickup') { const it = BY_ID[v.id]; toast('+ ' + it.name + (v.n > 1 ? ' ×' + v.n : ''), '', RARITY[it.rar].color); }
   else if (v.k === 'open') toast(CONTAINERS[v.kind].name, 'sys');
@@ -270,7 +272,7 @@ if (desk) {
     if (c === 'KeyI') { if (vis('bag')) $('bagClose').click(); else if (!panelOpen) $('bagBtn').click(); return; }
     if (c === 'KeyN') { if (vis('skills')) $('skillClose').click(); else if (!panelOpen) $('skillBtn').click(); return; }
     if (c === 'KeyQ') { if (vis('quests')) $('questClose').click(); else if (!panelOpen) { if (vis('questBtn')) $('questBtn').click(); else quests.open('mine'); } return; }
-    if (c === 'KeyE' && !panelOpen) { if (vis('portalBtn')) portalBtn.click(); else if (vis('talk')) talk.click(); }
+    if (c === 'KeyE' && !panelOpen) { if (vis('portalBtn')) portalBtn.click(); else if (vis('fireBtn')) fireBtn.click(); else if (vis('talk')) talk.click(); }
   });
 }
 $('again').addEventListener('click', () => { if (W.ironDead) { location.reload(); return; } respawnPlayer(W); $('dead').hidden = true; });
@@ -324,6 +326,24 @@ const questBtn = $('questBtn'), trackerEl = $('tracker'); questBtn.addEventListe
 let lastTrack = '', lastMark = '';
 const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
 talk.addEventListener('click', e => { e.stopImmediatePropagation(); (W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : shop).open(); }, true);
+// костры (C3d): у костра — список открытых, перенос к выбранному
+const fireBtn = $('fireBtn'), firesSec = $('fires');
+function openFires() {
+  const here = fireNear(W), list = $('firesList'), block = travelBlock(W); list.textContent = '';
+  $('firesNote').textContent = block && block !== 'Подойдите к костру' ? block + ' — перенос невозможен.' : 'Перенос к открытому костру. Новые костры открываются, когда к ним подходишь.';
+  const p = W.player;
+  for (const f of knownFires(W).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))) {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.id = f.id; const d = Math.round(Math.hypot(f.x - p.x, f.z - p.z));
+    b.textContent = '🔥 ' + f.name; const sm = document.createElement('small'); sm.textContent = here && here.id === f.id ? 'вы здесь' : d + ' м' + (f.danger ? ' · опасность ' + '▮'.repeat(f.danger) : ''); b.appendChild(sm);
+    b.disabled = !!block || (here && here.id === f.id);
+    b.addEventListener('click', () => { if (fastTravel(W, f.id)) { closeFires(); sfx('travel'); } });
+    list.appendChild(b);
+  }
+  firesSec.hidden = false; panelOpen = true; input.release();
+}
+function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write(); }
+fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
+$('firesClose').addEventListener('click', closeFires);
 const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); usePortal(W); }, true);
 // карта: миникарта в углу, большая карта по касанию
 const miniCtx = $('mini').getContext('2d'), mapCv = $('mapCv'), mapCtx = mapCv.getContext('2d'), mapEl = $('map');
@@ -352,6 +372,7 @@ function loop(now) {
   { const n = W.inv.bag.length, m = bagSlots(W), s = n + '/' + m, cls = n >= m ? 'full' : n >= m * .8 ? 'warn' : ''; if (bagFill.textContent !== s) bagFill.textContent = s; if (bagFill.className !== cls) bagFill.className = cls; }     // заполненность сумки на кнопке
   if (renderer) renderer.render(W, panelOpen || landscape ? 0 : dt);
   { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
+  { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) { const l = '🔥 Костёр' + (desk ? ' · E' : ''); if (fireBtn.textContent !== l) fireBtn.textContent = l; } }
   { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; } }
   { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); } } }
   { const n = W.combo.n; if (n !== lastCombo) { comboEl.hidden = n < 2; if (n >= 2) { comboEl.innerHTML = `×${n}<small>+${Math.round(Math.min(.3, n * .02) * 100)}%</small>`; comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); } lastCombo = n; } }
@@ -378,4 +399,4 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
+window.__b3d = { openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };

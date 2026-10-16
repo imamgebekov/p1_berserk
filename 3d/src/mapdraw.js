@@ -35,6 +35,9 @@ export function drawMap(ctx, W, v) {
     for (const br of RV.bridges) { const s2 = Math.sin(br.ang) * br.len / 2, c2 = Math.cos(br.ang) * br.len / 2; ctx.lineWidth = Math.max(2, br.w * sc); ctx.beginPath(); ctx.moveTo(X(br.x - s2), Y(br.z - c2)); ctx.lineTo(X(br.x + s2), Y(br.z + c2)); ctx.stroke(); }
     ctx.lineCap = 'round';
   }
+  // костры (C3d): открытые — оранжевые, увиденные, но не открытые — серые
+  if (!under) for (const f of M.fires || []) { const known = W.fires && W.fires[f.id]; if (!known && !isSeen(W, f.x, f.z)) continue; const x = X(f.x), y = Y(f.z), s = Math.max(3, Math.min(6, sc * 2));
+    ctx.fillStyle = known ? '#ff9a30' : '#7a6a5a'; ctx.beginPath(); ctx.moveTo(x, y - s * 1.3); ctx.lineTo(x + s, y + s * .7); ctx.lineTo(x - s, y + s * .7); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); }
   // здания
   for (const b of M.buildings) { ctx.fillStyle = KIND[b.kind] || KIND.house; ctx.fillRect(X(b.x0), Y(b.z0), Math.max(2, b.w * sc), Math.max(2, b.d * sc)); }
   // частокол лагеря: кольцо с проёмами ворот

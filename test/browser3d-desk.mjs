@@ -218,6 +218,17 @@ try {
     const a = await go(-60, -50), b = await go(60, 50), key = `${Math.floor(60 / 64)},${Math.floor(50 / 64)}`;
     if (!b.keys.includes(key) || b.live > 30 || !a.keys.includes('-2,-2') || b.keys.includes('-2,-2')) bad('участки земли не подгружаются: ' + JSON.stringify({ a: a.live, b }));
     console.log('  участки: ' + JSON.stringify({ live: [a.live, b.live], built: b.built })); }
+  // костры (C3d): у костра кнопка, E открывает список, перенос к лагерю
+  { const f = await ev(() => { const W = window.__b3d.W, f = W.map.fires.find(q => !q.home && !q.danger); W.enemies.length = 0; W.player.x = f.x + 5; W.player.z = f.z; return { x: f.x, z: f.z, id: f.id }; });
+    await page.waitForTimeout(300); await ev(f => { const W = window.__b3d.W; W.player.x = f.x + 2; W.player.z = f.z; }, f); await page.waitForTimeout(400);
+    const btn = await ev(() => !document.getElementById('fireBtn').hidden);
+    await page.keyboard.press('KeyE'); await page.waitForTimeout(300);
+    const list = await ev(() => [...document.querySelectorAll('#firesList button')].map(b => ({ id: b.dataset.id, dis: b.disabled, h: b.getBoundingClientRect().height })));
+    await page.screenshot({ path: join(out, '3d-desk-fires.png') });
+    await page.locator('#firesList button[data-id="camp"]').click(); await page.waitForTimeout(600);
+    const at = await ev(() => ({ d: Math.hypot(window.__b3d.W.player.x, window.__b3d.W.player.z), open: !document.getElementById('fires').hidden }));
+    if (!btn || list.length < 2 || !list.every(b => b.h >= 44) || !list.some(b => b.id === f.id && b.dis) || at.d > 4 || at.open) bad('костры не работают: ' + JSON.stringify({ btn, list, at }));
+    console.log('  костры: ' + JSON.stringify({ list: list.length, d: at.d.toFixed(1) })); }
   // объём слоями (F4): под кроной у тропы окно у героя меняет кадр (прорезает листву), в открытом поле — нет
   { const at = async q => { await ev(q => { const W = window.__b3d.W; W.enemies.length = 0; W.player.x = q.x; W.player.z = q.z; }, q); await page.waitForTimeout(2200); };
     const diff = () => ev(async () => { const b = window.__b3d, c = document.getElementById('gl'), U = b.renderer.xray(), cut = U.uXrCut.value;

@@ -6,7 +6,7 @@ import { CFG3 } from './config3d.js';
 import { serializeQuests, sanitizeQuests } from './quests3d.js';
 import { HEROES, DEFAULT_HERO } from './data/heroes3d.js';
 import { ABILITIES, abilityPointsAt, ranksOpenAt } from './data/abilities3d.js';
-const KEY = 'berserk3d.save', VERSION = 5;
+const KEY = 'berserk3d.save', VERSION = 6;
 export const SAVE_VERSION = VERSION;
 const abPoints = lv => abilityPointsAt(lv, CFG3);
 
@@ -53,7 +53,8 @@ const MIGRATIONS = {
   4: d => {                                                                                // 4 → 5: туман по участкам, позиция, номер мира
     const n = seenSize(CFG3), a = new Uint8Array(n * n); if (typeof d.seen === 'string') unpackSeen(d.seen, a);
     d.seen = packSeenChunks(a, n); d.pos = null; d.gen = CFG3.world.gen;
-  }
+  },
+  5: d => { d.fires = []; }                                                               // 5 → 6: открытые костры (C3d)
 };
 export function migrate(d) { while (Number.isInteger(d.v) && d.v < VERSION && MIGRATIONS[d.v]) { MIGRATIONS[d.v](d); d.v++; } return d; }
 
@@ -110,12 +111,12 @@ export function loadSave(slots, storage = globalThis.localStorage) {
       const ap = Math.max(0, abPoints(prog.lv) - Object.values(ab).reduce((a, b) => a + b, 0));
       prog.ab = ab; prog.ap = ap; }
     const sameWorld = d.gen === CFG3.world.gen;        // другой мир (номер world.gen) — туман, позиция и таймеры боссов не переносятся
-    return { hero, inv: deserialize(d.inv, slots, hero), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(d.seen, seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [] };
+    return { hero, inv: deserialize(d.inv, slots, hero), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(d.seen, seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [], fires: sameWorld && Array.isArray(d.fires) ? d.fires.filter(x => typeof x === 'string').slice(0, 200) : [] };
   } catch (e) { return null; }
 }
 export function createSaver(W, storage = globalThis.localStorage) {
   let last = '';
-  const snap = () => JSON.stringify({ v: VERSION, hero: W.hero, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab }, seen: W.levels ? packSeenChunks(W.levels.surface.seen, W.levels.surface.seenN) : packSeenChunks(W.seen, W.seenN), pos: W.lvl === 'surface' && !W.player.dead ? { x: Math.round(W.player.x * 100) / 100, z: Math.round(W.player.z * 100) / 100 } : null, gen: W.cfg.world.gen, dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest).map(a => ({ type: a.type, hp: Math.round(a.hp) })) });
+  const snap = () => JSON.stringify({ v: VERSION, hero: W.hero, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab }, seen: W.levels ? packSeenChunks(W.levels.surface.seen, W.levels.surface.seenN) : packSeenChunks(W.seen, W.seenN), pos: W.lvl === 'surface' && !W.player.dead ? { x: Math.round(W.player.x * 100) / 100, z: Math.round(W.player.z * 100) / 100 } : null, gen: W.cfg.world.gen, dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest).map(a => ({ type: a.type, hp: Math.round(a.hp) })), fires: Object.keys(W.fires || {}) });
   return {
     write(force) { if (W.ironDead) return false; const s = snap(); if (!force && s === last) return false; try { storage.setItem(KEY, s); last = s; return true; } catch (e) { return false; } },
     reset() { try { storage.removeItem(KEY); } catch (e) { /* ок */ } last = ''; }

@@ -62,6 +62,8 @@ export function makeMap(cfg) {
   const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
   return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, paths: gen.paths, camp, blocks, foeBlocks, river: riverOf(cfg), plateaus: M.plateaus || [] };
 }
+export function addFires(map, cfg, firesOf) { map.fires = firesOf(map, cfg); for (const f of map.fires) if (!f.home) map.decor.push({ t: 'campfire', x: f.x, z: f.z, fire: true }); return map;     // костры быстрого перемещения (C3d): вид, не препятствия
+}
 
 // какой дом содержит точку (внутри стен), иначе −1
 export function insideOf(map, x, z, pad = 0) {

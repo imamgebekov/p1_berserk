@@ -49,9 +49,9 @@ button{font:inherit;color:var(--ink)}
 .toast{font-size:14px;font-weight:600;text-shadow:0 1px 0 #000,0 0 4px #000;animation:toast 3.4s ease-out forwards}
 .toast.sys{color:#e8d9c0;opacity:.8}.toast.bad{color:#ff7a6a}
 @keyframes toast{0%{opacity:0;transform:translateX(-8px)}8%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
-#bag,#shop,#smith,#skills,#map,#captain,#journal,#quests{position:fixed;inset:0;z-index:15;background:rgba(8,4,5,.45);display:flex;align-items:flex-end;touch-action:pan-y}
-#bag[hidden],#shop[hidden],#smith[hidden],#skills[hidden],#map[hidden],#captain[hidden],#journal[hidden],#quests[hidden]{display:none}
-#bag .pbox,#shop .pbox,#smith .pbox,#skills .pbox,#map .pbox,#captain .pbox,#journal .pbox,#quests .pbox{max-height:88%;display:flex;flex-direction:column;overflow:hidden}
+#bag,#shop,#smith,#skills,#map,#captain,#journal,#quests,#fires{position:fixed;inset:0;z-index:15;background:rgba(8,4,5,.45);display:flex;align-items:flex-end;touch-action:pan-y}
+#bag[hidden],#shop[hidden],#smith[hidden],#skills[hidden],#map[hidden],#captain[hidden],#journal[hidden],#quests[hidden],#fires[hidden]{display:none}
+#bag .pbox,#shop .pbox,#smith .pbox,#skills .pbox,#map .pbox,#captain .pbox,#journal .pbox,#quests .pbox,#fires .pbox{max-height:88%;display:flex;flex-direction:column;overflow:hidden}
 .bhead{display:flex;justify-content:space-between;align-items:center;gap:10px}.bhead h2{margin:0;font-size:17px}
 .bhead button{min-height:44px;padding:0 18px;border:2px solid #000;border-radius:10px;background:var(--red);color:#fff;font-weight:700}
 .bstats{font-size:12.5px;opacity:.8;margin:4px 0 8px}
@@ -77,6 +77,12 @@ button{font:inherit;color:var(--ink)}
 #talk[hidden]{display:none}
 #portalBtn{position:fixed;left:50%;bottom:calc(206px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:48px;max-width:calc(100vw - 32px);padding:0 18px;background:#3a2c20;color:#ffe2b0;font-weight:700;border:3px solid #000;border-radius:12px;z-index:6;touch-action:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #portalBtn[hidden]{display:none}
+#fireBtn{position:fixed;left:50%;bottom:calc(262px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:48px;max-width:calc(100vw - 32px);padding:0 18px;background:#4a2a14;color:#ffd9a0;font-weight:700;border:3px solid #000;border-radius:12px;z-index:6;touch-action:none;white-space:nowrap}
+#fireBtn[hidden]{display:none}
+#firesList{overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
+#firesList button{min-height:48px;text-align:left;padding:8px 14px;border:2px solid #000;border-radius:10px;background:#3a2c20;color:#ffe2b0;font-weight:700}
+#firesList button small{display:block;font-weight:400;color:#c8b090}
+#firesList button:disabled{opacity:.5}
 #fade{position:fixed;inset:0;pointer-events:none;background:#000;opacity:0;transition:opacity var(--fade,.4s) ease-out;z-index:5}
 #fade.on{opacity:1;transition:none}
 .srow{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#1b1211;border:2px solid var(--line);border-radius:8px;flex:none;min-height:56px}
@@ -160,10 +166,10 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 
 /* компьютер (мышь, без касаний): без джойстика и кнопок для пальца, интерфейс крупнее, окна по центру */
 [data-desk] #zone,[data-desk] #stick,[data-desk] #bAtk,[data-desk] #bRoll{display:none}
-[data-desk] #hud,[data-desk] #miniBtn,[data-desk] #place,[data-desk] #toasts,[data-desk] #statusRow,[data-desk] #boss,[data-desk] #tracker,[data-desk] #talk,[data-desk] #questBtn,[data-desk] #portalBtn,[data-desk] #combo,[data-desk] #fps{zoom:var(--dz,1)}
+[data-desk] #hud,[data-desk] #miniBtn,[data-desk] #place,[data-desk] #toasts,[data-desk] #statusRow,[data-desk] #boss,[data-desk] #tracker,[data-desk] #talk,[data-desk] #questBtn,[data-desk] #portalBtn,[data-desk] #fireBtn,[data-desk] #combo,[data-desk] #fps{zoom:var(--dz,1)}
 [data-desk] #boss{width:calc((100vw - 96px * var(--dz,1)) / var(--dz,1) - 3 * var(--pad))}
 [data-desk] .pbox{max-width:760px;margin:0 auto;max-height:var(--pbh,84%);border:2px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;zoom:var(--pz,1)}
-[data-desk] #bag .pbox,[data-desk] #shop .pbox,[data-desk] #smith .pbox,[data-desk] #skills .pbox,[data-desk] #map .pbox,[data-desk] #captain .pbox,[data-desk] #journal .pbox,[data-desk] #quests .pbox{max-height:var(--pbh,84%)}
+[data-desk] #bag .pbox,[data-desk] #shop .pbox,[data-desk] #smith .pbox,[data-desk] #skills .pbox,[data-desk] #map .pbox,[data-desk] #captain .pbox,[data-desk] #journal .pbox,[data-desk] #quests .pbox,[data-desk] #fires .pbox{max-height:var(--pbh,84%)}
 [data-desk] #gl{cursor:crosshair}
 
 /* сумка: значки и плитки с рамкой редкости */

@@ -18,6 +18,8 @@ import { useAbility, dashStep, tickAbilities } from './abilities3d.js';
 import { waterDist } from './terrain3d.js';
 import { pathGoal } from './path3d.js';
 import { inCliff } from './cliffs3d.js';
+import { firesOf, discoverFires } from './fires3d.js';
+import { addFires } from './map.js';
 import { BY_ID } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
@@ -81,7 +83,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: makeMap(cfg), hero: DEFAULT_HERO, ap: 0, ab: {}, acd: {}, abuf: {}, traps: [], zones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), fires: {}, hero: DEFAULT_HERO, ap: 0, ab: {}, acd: {}, abuf: {}, traps: [], zones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
@@ -755,6 +757,7 @@ export function step(W, dt, input = {}) {
   tickAbilities(W, dt);
   for (let i = W.echoQ.length - 1; i >= 0; i--) { const q = W.echoQ[i]; if ((q.t -= dt) <= 0) { W.echoQ.splice(i, 1); if (!W.player.dead) { if (W.wp.trait.ranged) shoot(W, q.mult, true); else attackHit(W, q.mult, true); } } }
   trackPlace(W, dt);
+  discoverFires(W);
   updateEnemies(W, dt);
   updateAllies(W, dt);
   updateArrows(W, dt);
