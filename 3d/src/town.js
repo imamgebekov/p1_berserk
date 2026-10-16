@@ -60,13 +60,14 @@ export function buildTown(map, cfg, rnd) {
     walls.add(hinge);
     const doorDir = { n: -1, s: 1, e: -1, w: 1 }[d.side];
     group.add(walls, floor, roof);
-    if (glowL.length) group.add(new THREE.Mesh(merged(glowL), new THREE.MeshBasicMaterial({ vertexColors: true })));
-    items.push({ b, walls, roof, a: 1, cut: 1, hinge, doorDir, vert });
+    const glowM = glowL.length ? new THREE.Mesh(merged(glowL), new THREE.MeshBasicMaterial({ vertexColors: true })) : null; if (glowM) group.add(glowM);
+    items.push({ b, walls, roof, floor, glow: glowM, a: 1, cut: 1, hinge, doorDir, vert, far: false });
   }
 
   function update(inside, dt, wmap = map) {
     const k = Math.min(1, dt * 9);
     for (const it of items) {
+      if (it.far) continue;                                          // дальний дом (C3b) — скрыт, не обновляем
       const on = it.b.id === inside;
       it.a += ((on ? 0 : 1) - it.a) * k;
       it.cut += ((on ? M.cutH : 1) - it.cut) * k;

@@ -11,6 +11,7 @@ import { makeWeather, weatherAt, effectsOf } from './weather3d.js';
 import { overheadOf } from './overhead3d.js';
 import { propsIn, grassIn, chunksAround, CHUNK } from './chunks3d.js';
 import { pathSegs } from './world3d.js';
+import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addCanopyTree, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
@@ -76,7 +77,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let lastLight = -1;
 
   const gtex = groundTexture(cfg.look);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshLambertMaterial({ map: gtex }));
+  const GW = (cfg.world.radius + 200) * 2, gtex2 = gtex.clone(); gtex2.repeat.set(70 * GW / 500, 70 * GW / 500); gtex2.needsUpdate = true;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(GW, GW), new THREE.MeshLambertMaterial({ map: gtex2 }));     // под всем миром, тот же масштаб травы
   ground.rotation.x = -Math.PI / 2; ground.position.y = -1.2; scene.add(ground);     // ниже дна реки: внутри мира землю рисуют холмы
 
   const map = makeMap(cfg);
@@ -92,7 +94,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), z = pos.getZ(i), h = heightAt(hf, x, z, false); pos.setY(i, h);     // под мостом — русло, не настил
       uv.setXY(i, (x + 250) / 500, 1 - (z + 250) / 500);                // та же текстура и масштаб, что у плоской земли
-      const k = 1 + h * .12; c.setRGB(k, k, k);
+      const k = 1 + h * .12, tn = biomeTint(cfg, x, z); c.setRGB(k * tn[0], k * tn[1], k * tn[2]);     // оттенок биома (C3b)
       if (map.river && h < -.15) c.lerp(sandC, Math.min(1, -h / .8) * .7);
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
@@ -203,7 +205,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     g.add(new THREE.Mesh(geo, hillsMat));
     if (lightMat) { const lm = new THREE.Mesh(geo, lightMat); lm.renderOrder = 1; g.add(lm); }
     const P = propsIn(map, cfg, ci, cj), pp = [];
-    for (const q of P) { const k0 = pp.length; (q.tree ? addTree : addRock)(pp, mulberry32(q.seed), q.x, q.z, cfg.look); const gy = Y(q.x, q.z); for (let k = k0; k < pp.length; k++) pp[k].translate(0, gy, 0); if (q.tree) trees.push(q.x, q.z); }
+    for (const q of P) { const k0 = pp.length; (q.tree ? addTree : addRock)(pp, mulberry32(q.seed), q.x, q.z, q.bare !== undefined ? { ...cfg.look, bare: q.bare } : cfg.look); const gy = Y(q.x, q.z); for (let k = k0; k < pp.length; k++) pp[k].translate(0, gy, 0); if (q.tree) trees.push(q.x, q.z); }
     if (pp.length) { for (const q of pp) if (!q.attributes.sway) q.setAttribute('sway', new THREE.BufferAttribute(new Float32Array(q.attributes.position.count), 1)); g.add(new THREE.Mesh(mergeGeometries(pp, false), propsMat)); pp.forEach(q => q.dispose()); }
     if (grassOn) {
       const spots = grassIn(map, cfg, ci, cj, allSegs), cells = new Map();
@@ -297,7 +299,23 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     mat.customProgramCacheKey = () => key + '-xray'; mat.needsUpdate = true;
   };
   for (const o of [props, town.group, decor.group, palisade, riverGroup, ohGroup]) if (o) o.traverse(m => { if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(xray); });
-  const surfaceObjs = [land, riverGroup, sunGroup, rainGroup, ohGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
+  // море (C3b): за краем мира в секторе побережья — вода до горизонта (берег — край мира)
+  const sea = (() => {
+    const G = cfg.worldgen; if (!G || !G.on || cfg.world.radius <= G.coreR || !waterMat) return new THREE.Group();
+    const R0 = cfg.world.radius - 3, R1 = cfg.world.radius + 260, i = BIOMES.indexOf('coast'), n = BIOMES.length, v = [], idx = [], y = cfg.terrain.water;
+    const t0 = i / n - G.turn - .02, t1 = (i + 1) / n - G.turn + .02, K = 48;
+    for (let k = 0; k <= K; k++) { const a = (t0 + (t1 - t0) * k / K) * Math.PI * 2; v.push(Math.sin(a) * R0, y, Math.cos(a) * R0, Math.sin(a) * R1, y, Math.cos(a) * R1); if (k) { const q = k * 2; idx.push(q - 2, q - 1, q, q - 1, q + 1, q); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, waterMat); scene.add(m); return m;
+  })();
+  // отсечение по расстоянию (C3b): дальние дома, сундуки и клетки декора не рисуются и не обновляются (раз в 0,3 с)
+  let cullT = 0;
+  function cullFar(x, z) {
+    for (const it of town.items) { const far = Math.hypot(it.b.x - x, it.b.z - z) > 120; if (far === it.far) continue; it.far = far; it.walls.visible = it.floor.visible = !far; if (it.glow) it.glow.visible = !far; if (far) it.roof.visible = false; }
+    for (const g of decor.group.children) g.visible = Math.hypot(g.userData.cx - x, g.userData.cz - z) < 150;
+    if (curView && curView.conts && curView.conts.items) for (const it of curView.conts.items) it.g.visible = Math.hypot(it.c.x - x, it.c.z - z) < 95;
+  }
+  const surfaceObjs = [land, sea, riverGroup, sunGroup, rainGroup, ohGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   function showLevel(W) {
     const id = W.lvl, L = W.levels[id];
@@ -523,7 +541,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     camera.lookAt(cam.x, cfg.view.camLookUp + cam.y, cam.z);
     if (W.lvl !== shownLvl) showLevel(W);
     const under = W.lvl !== 'surface';
-    if (!under) streamLand(cam.x, cam.z);                            // участки земли вокруг камеры (C3a)
+    if (!under) { streamLand(cam.x, cam.z); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
+    dome.position.set(cam.x, 0, cam.z);                              // небо — вокруг камеры (мир шире купола)
     if (W.hero !== heroLook) { heroLook = W.hero; hero.setLook(heroOf(W.hero).look); }
     if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : 1, rain: WE.force === 'rain' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
     scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog;     // в дождь туман гуще     // на рассвете туман гуще

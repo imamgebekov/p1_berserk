@@ -5,7 +5,7 @@
 // страховка HB_CELL (30 п. п.); среднее число убийств — в пределах ±25% от среднего; победы над боссом и смерти в склепе —
 // в пределах HB_TOL плюс один прогон. Торн — якорь: его база = прежний герой.
 // Полный прогон: npm run balance:heroes (HB_SEEDS=30); в npm test — 12 сидов. HB_NOAB=1 — боты без умений (для сравнения).
-import { CFG3 } from '../3d/src/config3d.js';
+import { CORE3 as CFG3 } from '../3d/src/config3d.js';     // ручное ядро: баланс меряется на нём (большой мир — отдельно)
 CFG3.terrain.on = false;      // эталон боя — плоское поле без реки (C2): цифры сравнимы с прошлыми версиями
 import { createWorld, step, mulberry32, aliveEnemies, travel, refreshGear } from '../3d/src/sim.js';
 import { pathStep, lineBlocked, resolve, insideOf } from '../3d/src/map.js';

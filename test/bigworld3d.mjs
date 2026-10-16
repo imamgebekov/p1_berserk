@@ -97,8 +97,11 @@ function lineRef(map, x0, z0, x1, z1) {
 }
 // ---------- 3. кривая глубины ----------
 {
-  let bad = 0; for (let d = 0; d < 200; d += .37) if (depthCurve(CFG3, d) !== clamp(d / CFG3.world.radius, 0, 1)) bad++;
-  ok(!bad, 'кривая глубины не совпадает со старой формулой: ' + bad);
+  const core = CFG3.worldgen.coreR, R = CFG3.world.radius, M = CFG3.world.depthMax;
+  let bad = 0; for (let d = 0; d <= core; d += .37) if (Math.abs(depthCurve(CFG3, d) - clamp(d / core, 0, 1)) > 1e-12) bad++;
+  ok(!bad, 'в ядре кривая глубины не совпадает со старой формулой: ' + bad);
+  let up = true; for (let d = core; d < R + 50; d += 3) up = up && depthCurve(CFG3, d + 3) >= depthCurve(CFG3, d);
+  ok(up && Math.abs(depthCurve(CFG3, R) - M) < 1e-9 && depthCurve(CFG3, R + 100) === M, 'за ядром глубина не растёт до depthMax');
   const big = { world: { radius: 600, depth: [[0, 0], [85, .75], [600, 1]] } };
   ok(Math.abs(depthCurve(big, 42.5) - .375) < 1e-9 && Math.abs(depthCurve(big, 342.5) - .875) < 1e-9 && depthCurve(big, 900) === 1, 'кусочная кривая считает не так');
   for (const t of [0, .2, .5, .75, .9, 1]) { const p = pointAtDepth(big, t, 1.3); ok(Math.abs(depthCurve(big, Math.hypot(p.x, p.z)) - t) < 1e-9, `pointAtDepth(${t}) не обращает кривую`); }
@@ -111,7 +114,7 @@ function lineRef(map, x0, z0, x1, z1) {
   const pk = packSeenChunks(W.seen, n), a = new Uint8Array(W.seen.length); unpackSeenChunks(pk, a, n);
   ok(a.every((v, i) => v === W.seen[i]), 'туман не восстановился из участков');
   ok(!unpackSeenChunks(pk, new Uint8Array(a.length), n + 1), 'туман чужого размера прочитан');
-  W.seen.fill(1); const full = packSeenChunks(W.seen, n); ok(Object.values(full.c).every(s => s === '*') && JSON.stringify(full).length < 2000, 'открытая карта пишется не звёздочками');
+  W.seen.fill(1); const full = packSeenChunks(W.seen, n); ok(Object.values(full.c).every(s => s === '*') && JSON.stringify(full).length < 14 * Object.keys(full.c).length + 60, 'открытая карта пишется не звёздочками');
   ok(seenSize(CFG3) === n, 'размер сетки тумана считается по-разному');
 }
 // ---------- 5. сохранение версии 5 ----------

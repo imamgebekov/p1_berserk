@@ -18,19 +18,23 @@ export function genWorld(cfg, buildings) {
   const blocksDoor = (x, z, r) => doors.some(d => Math.hypot(d.out.x - x, d.out.z - z) < r + 2.4 || Math.hypot(d.x - x, d.z - z) < r + 2.4);
   const put = (t, x, z, extra = {}) => { if (!wet(x, z, .3)) decor.push({ t, x, z, ...extra }); };
   // твёрдый предмет: рисуем и ставим круг-препятствие, но не у двери (дверь всегда должна быть доступна)
-  const solid = (t, x, z, r, extra = {}) => { if (blocksDoor(x, z, r) || wet(x, z, r)) return false; put(t, x, z, extra); solids.push({ x, z, r }); return true; };
+  const reserved = [];                                                       // места сундуков областей: твёрдое на них не встаёт
+  const solid = (t, x, z, r, extra = {}) => { if (blocksDoor(x, z, r) || wet(x, z, r) || reserved.some(q => Math.hypot(q.x - x, q.z - z) < r + .4)) return false; put(t, x, z, extra); solids.push({ x, z, r }); return true; };
   const ring = (x, z, r, n, f) => { for (let i = 0; i < n; i++) { const a = rnd() * TAU, d = Math.sqrt(rnd()) * r; f(x + Math.cos(a) * d, z + Math.sin(a) * d, i); } };
 
   // дороги: от костра к двери каждого здания; к домам за частоколом лагеря — через ближайшие ворота
   const camp = campOf(cfg), gates = camp ? campGates(camp) : [], used = new Set();
+  const vil = id => (M.places || []).find(p => p.id === id);
   for (const b of buildings) {
     const o = b.door.out;
+    if (b.vil) { const v = vil(b.vil); if (v) roads.push([{ x: v.x, z: v.z }, { x: o.x, z: o.z }]); continue; }     // дом посёлка большого мира — к центру посёлка
     if (!camp || insideCamp(camp, o.x, o.z)) { roads.push([{ x: 0, z: 0 }, { x: o.x, z: o.z }]); continue; }
     const g = gates.reduce((a, q) => (Math.hypot(q.x - o.x, q.z - o.z) < Math.hypot(a.x - o.x, a.z - o.z) ? q : a));
     const r = g.a * Math.PI / 180, gx = camp.x + Math.sin(r) * (camp.r + camp.roadOut), gz = camp.z + Math.cos(r) * (camp.r + camp.roadOut);     // из ворот — прямо наружу, потом к дому: дорога не срезает частокол
     if (!used.has(g.a)) { used.add(g.a); roads.push([{ x: 0, z: 0 }, { x: g.x, z: g.z }], [{ x: g.x, z: g.z }, { x: gx, z: gz }]); }
     roads.push([{ x: gx, z: gz }, { x: o.x, z: o.z }]);
   }
+  for (const [a, b] of M.links || []) roads.push([{ x: a.x, z: a.z }, { x: b.x, z: b.z }]);     // связи посёлков большого мира (C3b)
   const nearWall = (x, z) => camp && Math.abs(Math.hypot(x - camp.x, z - camp.z) - camp.r) < 2;
   // тропы (F1): за лагерем дорога — плавная кривая, внутри — прямая; свой генератор, чтобы не сдвинуть остальной мир
   const paths = roads.map(leg => ({ leg, pts: curvePath(leg, cfg, mulberry(cfg.world.seed * 53 + 11 + Math.round(leg[1].x * 7 + leg[1].z * 13)), (x, z) => !inBuilding(x, z, 1.2) && !wet(x, z, 2.5) && Math.hypot(x, z) < R - 4 && (!camp || !insideCamp(camp, x, z, -2))) }));
@@ -40,11 +44,14 @@ export function genWorld(cfg, buildings) {
     const L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.floor(L / 11);
     for (let i = 1; i <= n; i++) {
       const k = i * 11 / L, nx = -(b.z - a.z) / L, nz = (b.x - a.x) / L, x = a.x + (b.x - a.x) * k + nx * 1.8, z = a.z + (b.z - a.z) * k + nz * 1.8;
-      if (L > 14 && !inBuilding(x, z, 1.5) && !nearWall(x, z) && !decor.some(d => d.t === 'lamp' && Math.hypot(d.x - x, d.z - z) < 7)) put('lamp', x, z);
+      if (L > 14 && Math.hypot(x, z) < (cfg.worldgen ? cfg.worldgen.coreR : R) && !inBuilding(x, z, 1.5) && !nearWall(x, z) && !decor.some(d => d.t === 'lamp' && Math.hypot(d.x - x, d.z - z) < 7)) put('lamp', x, z);
     }
   }
 
   for (const zn of M.zones || []) {
+    reserved.length = 0;
+    if (zn.gen) { const x0 = zn.x - (zn.w || 0) / 2, x1 = zn.x + (zn.w || 0) / 2, z0 = zn.z - (zn.d || 0) / 2, z1 = zn.z + (zn.d || 0) / 2;
+      reserved.push(...({ graveyard: [[zn.x, z0 + 6.4]], farm: [[x0 + 3, z1 - 3], [x1 - 4, z0 + 3]], ruins: [[zn.x + 1, zn.z - 2], [zn.x - 3, zn.z + 2], [zn.x + 4, zn.z + 3]], camp: [[zn.x + 2.2, zn.z - 1.6], [zn.x - 2.4, zn.z + 1.4], [zn.x, zn.z - 6.2]] }[zn.type] || []).map(([x, z]) => ({ x, z }))); }
     if (zn.type === 'graveyard') {
       const x0 = zn.x - zn.w / 2, x1 = zn.x + zn.w / 2, z0 = zn.z - zn.d / 2, z1 = zn.z + zn.d / 2;
       // ограда с воротами на юге (к часовне)
@@ -55,7 +62,7 @@ export function genWorld(cfg, buildings) {
       let g = 0;
       for (let x = x0 + 3; x < x1 - 2; x += 3.2) for (let z = z0 + 3; z < z1 - 3; z += 3.4) {
         const jx = x + (rnd() - .5) * .8, jz = z + (rnd() - .5) * .8;
-        if (inBuilding(jx, jz, 1) || (Math.abs(jx - zn.x) < 1.6 && jz > z1 - 5)) continue;
+        if (inBuilding(jx, jz, 1) || (Math.abs(jx - zn.x) < 1.6 && jz > z1 - 5) || (zn.gen && Math.hypot(jx - zn.x, jz - (z0 + 3.2)) < 3.4)) continue;     // в сгенерированных (меньше) — не у склепа
         if (rnd() < .22) { spots.push({ kind: 'grave', x: jx, z: jz + .6 }); put('mound', jx, jz + .6, {}); put('tomb', jx, jz, { rot: (rnd() - .5) * .3, s: .9 + rnd() * .4 }); }
         else if (rnd() < .75) put(rnd() < .35 ? 'cross' : 'tomb', jx, jz, { rot: (rnd() - .5) * .5, s: .8 + rnd() * .5 });
         g++;
@@ -69,7 +76,8 @@ export function genWorld(cfg, buildings) {
       for (let z = z0 + 2; z < z1 - 1; z += 1.6) if (!inBuilding((x0 + x1) / 2, z, 2)) put('furrow', (x0 + x1) / 2, z, { w: zn.w - 6, rot: 0 });
       for (let x = x0; x < x1; x += 2) { put('fence', x + 1, z0, { rot: 0, w: 2 }); put('fence', x + 1, z1, { rot: 0, w: 2 }); }
       for (let z = z0; z < z1; z += 2) { put('fence', x0, z + 1, { rot: 1, w: 2 }); put('fence', x1, z + 1, { rot: 1, w: 2 }); }
-      for (let i = 0; i < 6; i++) { const x = x0 + 3 + rnd() * (zn.w - 6), z = z0 + 3 + rnd() * (zn.d - 6); if (!inBuilding(x, z, 3) && !inSolid(x, z, 2)) solid('haystack', x, z, 1.3, { s: .9 + rnd() * .5 }); }
+      const keepFree = (x, z) => !zn.gen || Math.hypot(x - (x0 + 3), z - (z1 - 3)) > 2.6 && Math.hypot(x - (x1 - 4), z - (z0 + 3)) > 2.6;     // в сгенерированных — места мешка и телеги
+      for (let i = 0; i < 6; i++) { const x = x0 + 3 + rnd() * (zn.w - 6), z = z0 + 3 + rnd() * (zn.d - 6); if (!inBuilding(x, z, 3) && !inSolid(x, z, 2) && keepFree(x, z)) solid('haystack', x, z, 1.3, { s: .9 + rnd() * .5 }); }
       solid('scarecrow', zn.x, zn.z, .5);
       spots.push({ kind: 'sack', x: x0 + 3, z: z1 - 3 }, { kind: 'wagon', x: x1 - 4, z: z0 + 3 });
     }
@@ -92,6 +100,7 @@ export function genWorld(cfg, buildings) {
   }
   // колодец и бочки у костра, остатки частокола у границы
   solid('well', 6.5, -3.5, 1.1);
+  for (const l of M.landmarks || []) solid(l.t, l.x, l.z, l.r, { rot: l.rot });     // ориентиры большого мира: башни, мельницы, крепости (C3b)
   return { decor, solids, spots, roads, paths };
 }
 
@@ -101,7 +110,8 @@ function curvePath([a, b], cfg, r, ok) {
   const P = cfg.paths, L = Math.hypot(b.x - a.x, b.z - a.z), camp = campOf(cfg);
   if (!P || !P.on || L < P.minLen || (camp && (insideCamp(camp, a.x, a.z, 1) || insideCamp(camp, b.x, b.z, 1)))) return [a, b];
   const nx = -(b.z - a.z) / L, nz = (b.x - a.x) / L, n = Math.max(2, Math.ceil(L / P.step));
-  let A = (P.bend[0] + r() * (P.bend[1] - P.bend[0])) * (r() < .5 ? -1 : 1), w = (r() - .5) * P.wave, ph = r() * TAU;
+  const big = Math.min(4, 1 + Math.max(0, L - 30) / 40);                    // длинные тропы большого мира гнутся сильнее
+  let A = (P.bend[0] + r() * (P.bend[1] - P.bend[0])) * (r() < .5 ? -1 : 1) * big, w = (r() - .5) * P.wave * big, ph = r() * TAU;
   for (let tries = 0; tries < 8; tries++) {
     const sg = tries % 2 ? -1 : 1, k2 = Math.pow(.5, tries >> 1), pts = [];        // в одну сторону, в другую, потом изгиб вдвое меньше
     for (let i = 0; i <= n; i++) { const t = i / n, k = Math.sin(Math.PI * t), s = (A * k + w * k * Math.sin(3 * Math.PI * t + ph)) * sg * k2; pts.push({ x: a.x + (b.x - a.x) * t + nx * s, z: a.z + (b.z - a.z) * t + nz * s }); }

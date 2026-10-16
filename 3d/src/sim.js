@@ -8,6 +8,7 @@ export function mulberry32(a) {
 }
 
 import { TAU, DEG, clamp, len, rr } from './util3d.js';
+import { biomeAt } from './worldgen3d.js';
 import { pickAlly, hurtAlly, updateAllies } from './squad3d.js';
 import { trackPlace, reveal } from './places3d.js';
 import { addXp, gainXp } from './progress3d.js';
@@ -35,7 +36,7 @@ export function createWorld(cfg, rng = Math.random) {
   const W = makeWorld(cfg, rng); attachFx(W);
   const cell = cfg.map.cell, n = Math.ceil(2 * cfg.world.radius / cell) + 2; W.seenN = n; W.seen = new Uint8Array(n * n);
   initLevels(W);
-  for (const id of Object.keys(W.levels)) withLevel(W, id, () => { for (const c of W.map.containers) refill(W, c); });
+  for (const id of Object.keys(W.levels)) withLevel(W, id, () => { for (const c of W.map.containers) if (c.far) c.t = cfg.map.containerRespawn; else refill(W, c); });     // дальние — когда герой подойдёт
   restock(W);
   for (const def of cfg.bosses.list) spawnBoss(W, def);
   return W;
@@ -86,7 +87,7 @@ function makeWorld(cfg, rng) {
 
 
 export function spawnEnemy(W, type, x, z, mode = null) {
-  const C = W.cfg.enemies[type], E = W.cfg.enemies, depth = depthAt(W, x, z), pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * (1 + E.dangerHp * danger) * W.dif.hp);
+  const C = W.cfg.enemies[type], E = W.cfg.enemies, d0 = depthAt(W, x, z), depth = Math.min(1, d0) + Math.max(0, d0 - 1) * (E.outerK || 1), pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * (1 + E.dangerHp * danger) * W.dif.hp);     // глубина за ядром растёт мягче (×outerK, C3b)
   const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * W.dif.dmg * (W.night ? W.cfg.daynight.night.dmg : 1), danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
   rollElite(W, e, depth, danger);
   if (mode === 'guard' || mode === 'patrol') postEnemy(W, e, mode);
@@ -141,7 +142,7 @@ function spawnRing(W) {
   if (W.map.camp && insideCamp(W.map.camp, x, z, -W.map.camp.spawnPad)) return false;   // и в лагере, и у самого частокола
   { const pl = placeAt(W.map, x, z); if (pl && pl.safe) return false; }   // и в безопасных местах
   if (W.map.river && waterDist(W.map.river, x, z) < 1) return false;      // и в реке
-  const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)], posts = W.cfg.enemies.posts.modes;
+  const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)] || (W.cfg.enemies.biomes || {})[biomeAt(W.cfg, x, z)], posts = W.cfg.enemies.posts.modes;     // вне областей — по биому большого мира
   const pick = reg ? pickEntry(reg.filter(a => (a[2] !== 'night' || W.night) && (!a[3] || posts)), W.rng) : null;      // 'night' — только ночью; сторожа и патрули — если включены
   const type = pick ? pick[0] : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';
   spawnEnemy(W, type, x, z, pick && pick[3] || null);
@@ -601,7 +602,7 @@ const P_RADIUS = W => W.cfg.player.radius;
 
 // наполнить контейнер заново: глубина (расстояние от костра или глубина подземелья) и удача героя улучшают добычу
 function refill(W, c) {
-  const def = CONTAINERS[c.kind], depth = depthAt(W, c.x, c.z);
+  const def = CONTAINERS[c.kind], depth = Math.min(1, depthAt(W, c.x, c.z));     // добыча — не выше глубины 1 и в большом мире
   const pl = placeAt(W.map, c.x, c.z);
   c.items = rollLoot(def, W.rng, depth, W.gear.luck, pl && pl.danger ? pl.danger * W.cfg.enemies.dangerLoot : 0);
   c.ready = c.items.length > 0; c.t = 0;
@@ -644,11 +645,11 @@ function updateHouses(W, dt) {
   if (W.tomb && (W.tomb.lvl || SURFACE) === W.lvl && !p.dead && len(p.x - W.tomb.x, p.z - W.tomb.z) < 1.6) { W.inv.ash += W.tomb.ash; W.ev.push({ k: 'tomb', ash: W.tomb.ash, x: W.tomb.x, z: W.tomb.z }); W.tomb = null; }
   W.nearPortal = portalNear(W);
   // контейнеры других уровней тоже наполняются со временем
-  for (const L of Object.values(W.levels)) if (L.id !== W.lvl) for (const c of L.map.containers) if (!c.ready && (c.t += dt) >= M.containerRespawn) withLevel(W, L.id, () => refill(W, c));
+  for (const L of Object.values(W.levels)) if (L.id !== W.lvl) for (const c of L.map.containers) if (!c.ready && !c.far && (c.t += dt) >= M.containerRespawn) withLevel(W, L.id, () => refill(W, c));
   for (const c of W.map.containers) {
     const def = CONTAINERS[c.kind];
     if (c.cd > 0) c.cd -= dt;
-    if (!c.ready) { c.t += dt; if (c.t >= M.containerRespawn) refill(W, c); continue; }
+    if (!c.ready) { if (c.far && len(p.x - c.x, p.z - c.z) > 70) continue; c.t += dt; if (c.t >= M.containerRespawn) refill(W, c); continue; }     // дальний сундук ждёт героя
     if (p.dead || len(p.x - c.x, p.z - c.z) >= (def.reach || 1.3)) continue;
     if (c.locked) {
       // ключ подходит, если уровень не ниже замка; тратим самый слабый из подходящих

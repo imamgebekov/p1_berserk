@@ -1,5 +1,5 @@
 // Тест сложности 3D: данные, множители, штраф за смерть и «могила», железный режим, сохранение, лестница выживаемости.
-import { CFG3 } from '../3d/src/config3d.js';
+import { CORE3 as CFG3 } from '../3d/src/config3d.js';     // ручное ядро: баланс меряется на нём (большой мир — отдельно)
 CFG3.terrain.on = false;      // эталон боя — плоское поле без реки (C2): цифры сравнимы с прошлыми версиями
 import { createWorld, step, mulberry32, spawnEnemy, setDifficulty, buyPrice, gainXp, aliveEnemies, xpNeed } from '../3d/src/sim.js';
 import { BY_ID } from '../3d/src/data/items.js';

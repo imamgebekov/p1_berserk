@@ -97,7 +97,7 @@ const dropGuest = (W, ev) => { const i = W.allies.findIndex(a => a.id === ev.gue
 
 // награда — один раз: пепел, вещи на землю, у спасённого путника — «благодарность» (удача)
 function reward(W, ev, x, z) {
-  const E = W.cfg.events, R = E.reward[ev.kind], rng = erng(W), depth = depthAt(W, x, z);
+  const E = W.cfg.events, R = E.reward[ev.kind], rng = erng(W), depth = Math.min(1, depthAt(W, x, z));
   const ash = Math.round(between(rng, R.ash) * (1 + depth)); W.inv.ash += ash;
   for (const it of rollLoot(CONTAINERS[R.box], rng, depth, W.gear.luck)) { const a = rng() * TAU; W.drops.push({ id: it.id, n: it.n, x: x + Math.sin(a) * 1.4, z: z + Math.cos(a) * 1.4, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x, z, id: it.id }); }
   if (R.buff) W.buffs.push({ ...R.buff, src: 'event' });

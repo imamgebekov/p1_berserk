@@ -33,7 +33,8 @@ for (const p of curved) {
     }
   });
   ok(dev >= .9, `тропа почти прямая: отклонение ${dev.toFixed(2)} м`);
-  ok(dev <= P.bend[1] + P.wave + .01, `тропа изогнута сильнее нормы: ${dev.toFixed(2)} м`);
+  const big = Math.min(4, 1 + Math.max(0, L - 30) / 40);     // длинные тропы большого мира гнутся сильнее
+  ok(dev <= (P.bend[1] + P.wave) * big + .01, `тропа изогнута сильнее нормы: ${dev.toFixed(2)} м`);
   ok(turn < .6, `тропа ломается под углом ${(turn * 180 / Math.PI).toFixed(0)}°`);
 }
 ok(JSON.stringify(makeMap(CFG3).paths.map(p => p.pts)) === JSON.stringify(map.paths.map(p => p.pts)), 'тропы не повторяются по зерну');

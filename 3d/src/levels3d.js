@@ -41,10 +41,10 @@ export function depthAt(W, x, z) {
   return L && L.def ? L.def.depth : depthCurve(W.cfg, len(x, z));
 }
 export function depthCurve(cfg, d) {
-  const P = cfg.world.depth || [[0, 0], [cfg.world.radius, 1]];
-  if (d <= P[0][0]) return clamp(P[0][1], 0, 1);
-  for (let i = 1; i < P.length; i++) if (d <= P[i][0]) { const [a, da] = P[i - 1], [b, db] = P[i]; return clamp((d - a) / (b - a) * (db - da) + da, 0, 1); }
-  return clamp(P[P.length - 1][1], 0, 1);
+  const P = cfg.world.depth || [[0, 0], [cfg.world.radius, 1]], M = cfg.world.depthMax || 1;     // за ядром большого мира глубина растёт до depthMax (C3b)
+  if (d <= P[0][0]) return clamp(P[0][1], 0, M);
+  for (let i = 1; i < P.length; i++) if (d <= P[i][0]) { const [a, da] = P[i - 1], [b, db] = P[i]; return clamp((d - a) / (b - a) * (db - da) + da, 0, M); }
+  return clamp(P[P.length - 1][1], 0, M);
 }
 // обратная кривая: точка на поверхности с заданной глубиной (для тестов баланса), под углом ang от костра
 export function pointAtDepth(cfg, depth, ang = 0) {

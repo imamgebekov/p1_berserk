@@ -62,7 +62,7 @@ const guard = (W, dist, faceToHero, type = 'brute', mode = 'guard') => { const p
   W.ev.length = 0; let lost = false;
   for (let i = 0; i < 60 * 25 && !lost; i++) { step(W, 1 / 60, { mz: -1 }); if (W.ev.some(v => v.k === 'lost' && v.id === e.id)) lost = true; W.ev.length = 0; }
   ok(lost && !e.alert, 'сторож не бросил погоню за поводком');
-  W.player.x += 200; run(W, 20);
+  W.player.x = e.home.x + 70; W.player.z = e.home.z; run(W, 20);     // далеко, но ближе границы сна врагов (мир теперь шире)
   ok(Math.hypot(e.x - e.home.x, e.z - e.home.z) < 1, 'сторож не вернулся на пост: ' + Math.hypot(e.x - e.home.x, e.z - e.home.z).toFixed(1));
 }
 // ---------- 7. в областях появляются сторожа и патрули; modes: false — нет ----------

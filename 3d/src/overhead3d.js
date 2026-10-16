@@ -30,7 +30,7 @@ export function overheadOf(map, cfg) {
     if (P.pts.length < 3) continue;
     const c = along(P.pts, .5), ux = Math.cos(c.ang), uz = -Math.sin(c.ang), h = O.arch.span / 2;
     const l = { x: c.x - ux * h, z: c.z - uz * h }, rr = { x: c.x + ux * h, z: c.z + uz * h };
-    if (ok(l.x, l.z) && ok(rr.x, rr.z)) out.arches.push({ x: c.x, z: c.z, ang: c.ang, span: O.arch.span, h: O.arch.h, kind: out.arches.length % 2 ? 'pergola' : 'stone' });
+    if (ok(l.x, l.z) && ok(rr.x, rr.z) && !nearPath(l.x, l.z, 1.25) && !nearPath(rr.x, rr.z, 1.25)) out.arches.push({ x: c.x, z: c.z, ang: c.ang, span: O.arch.span, h: O.arch.h, kind: out.arches.length % 2 ? 'pergola' : 'stone' });
   }
   // кроны над тропой: деревья у края изогнутых троп, ствол в стороне, крона — над дорогой
   for (const P of map.paths || []) {

@@ -8,7 +8,8 @@ const segDist = (x, z, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, l2 = dx 
 
 export function riverOf(cfg) {
   const T = cfg.terrain; if (!T || !T.on || !T.river) return null;
-  const RV = T.river, R = cfg.world.radius + RV.out, a1 = RV.a1 * Math.PI / 180, a2 = (RV.a1 + RV.da) * Math.PI / 180;
+  const RV = T.river, R = RV.rad || cfg.world.radius + RV.out,     // rad — радиус ядра для большого мира (C3b)
+    a1 = RV.a1 * Math.PI / 180, a2 = (RV.a1 + RV.da) * Math.PI / 180;
   const A = { x: Math.sin(a1) * R, z: Math.cos(a1) * R }, B = { x: Math.sin(a2) * R, z: Math.cos(a2) * R }, nx = -(B.z - A.z), nz = B.x - A.x, L = Math.hypot(nx, nz);
   const pts = [];
   for (let i = 0; i <= RV.n; i++) { const t = i / RV.n, s = Math.sin(Math.PI * t) * RV.bend + Math.sin(3 * Math.PI * t) * RV.bend * .15; pts.push({ x: A.x + (B.x - A.x) * t + nx / L * s, z: A.z + (B.z - A.z) * t + nz / L * s }); }
@@ -16,7 +17,21 @@ export function riverOf(cfg) {
   const acc = [0]; for (let i = 1; i < pts.length; i++) acc.push(acc[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z));
   const at = f => { const s = f * acc[acc.length - 1]; let i = 1; while (i < acc.length - 1 && acc[i] < s) i++; const a = pts[i - 1], b = pts[i], k = (s - acc[i - 1]) / (acc[i] - acc[i - 1] || 1); return { x: a.x + (b.x - a.x) * k, z: a.z + (b.z - a.z) * k, ang: Math.atan2(b.x - a.x, b.z - a.z) }; };
   const bridges = T.bridges.map(f => { const p = at(f), ang = p.ang + Math.PI / 2; return { x: p.x, z: p.z, ang, len: RV.w + T.bridge.over * 2, w: T.bridge.w }; });   // мост поперёк русла
-  return { pts, w: RV.w, bridges };
+  bridges.push(...(RV.extraBridges || []).map(b => ({ ...b })));                 // мосты на продолжении (C3b)
+  const all = [...(RV.head || []), ...pts, ...(RV.tail || [])];
+  // указатель для waterDist: клетки RCELL м → отрезки ближе RPAD м (дальше — «далеко»)
+  const cells = new Map();
+  for (let i = 1; i < all.length; i++) { const a = all[i - 1], b = all[i];
+    for (let cx = Math.floor((Math.min(a.x, b.x) - RPAD) / RCELL); cx <= Math.floor((Math.max(a.x, b.x) + RPAD) / RCELL); cx++)
+      for (let cz = Math.floor((Math.min(a.z, b.z) - RPAD) / RCELL); cz <= Math.floor((Math.max(a.z, b.z) + RPAD) / RCELL); cz++) { const k = cx * 100003 + cz; if (!cells.has(k)) cells.set(k, []); cells.get(k).push(i); } }
+  return { pts: all, w: RV.w, bridges, cells, core: pts.length };
+}
+const RCELL = 32, RPAD = 34;
+// есть ли река ближе RPAD м к прямоугольнику
+export function riverNearBox(rv, x0, z0, x1, z1) {
+  if (!rv) return false; if (!rv.cells) return true;
+  for (let cx = Math.floor(x0 / RCELL); cx <= Math.floor(x1 / RCELL); cx++) for (let cz = Math.floor(z0 / RCELL); cz <= Math.floor(z1 / RCELL); cz++) if (rv.cells.has(cx * 100003 + cz)) return true;
+  return false;
 }
 // точка на мосту (в прямоугольнике моста, ось ang — вдоль моста)
 export function onBridge(rv, x, z, pad = 0) {
@@ -24,7 +39,12 @@ export function onBridge(rv, x, z, pad = 0) {
   return null;
 }
 // расстояние от точки до воды (отрицательное — в воде)
-export function waterDist(rv, x, z) { let d = 1e9; for (let i = 1; i < rv.pts.length; i++) d = Math.min(d, segDist(x, z, rv.pts[i - 1], rv.pts[i]).d); return d - rv.w / 2; }
+export function waterDist(rv, x, z) {
+  let d = 1e9; const L = rv.cells ? rv.cells.get(Math.floor(x / RCELL) * 100003 + Math.floor(z / RCELL)) : null;
+  if (rv.cells) { if (!L) return 1e3; for (const i of L) d = Math.min(d, segDist(x, z, rv.pts[i - 1], rv.pts[i]).d); }     // точно до RPAD м от воды
+  else for (let i = 1; i < rv.pts.length; i++) d = Math.min(d, segDist(x, z, rv.pts[i - 1], rv.pts[i]).d);
+  return d - rv.w / 2;
+}
 export const inWater = (rv, x, z, pad = 0) => !!rv && waterDist(rv, x, z) < pad && !onBridge(rv, x, z);
 // вытолкнуть круг из воды на ближайший берег (на мосту — не трогать); segs — индексы участков русла рядом (из сетки), иначе все
 export function pushWater(rv, o, r, segs) {
@@ -98,7 +118,7 @@ function chunkOf(hf, ci, cj) {
   const key = ci * 100003 + cj; let c = hf.chunks.get(key); if (c) return c;
   const { cell, R, T, HL } = hf, m = Math.round(CH / cell) + 1, data = new Float32Array(m * m), x0 = ci * CH, z0 = cj * CH;
   const ks = hf.keep.filter(k => k.x1 >= x0 && k.x0 <= x0 + CH && k.z1 >= z0 && k.z0 <= z0 + CH);
-  const rv = hf.river && waterDist(hf.river, x0 + CH / 2, z0 + CH / 2) < CH * .75 + T.bank ? hf.river : null;     // река далеко — не считаем
+  const rv = hf.river && riverNearBox(hf.river, x0 - T.bank, z0 - T.bank, x0 + CH + T.bank, z0 + CH + T.bank) ? hf.river : null;     // река далеко — не считаем
   for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) data[j * m + i] = nodeH(hf, x0 + i * cell, z0 + j * cell, ks, rv, true);
   c = { m, data }; hf.chunks.set(key, c); hf.built++; return c;
 }

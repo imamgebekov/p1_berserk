@@ -34,7 +34,8 @@ const map = makeMap(CFG3), R = CFG3.world.radius;
     ok(q.x >= ci * CHUNK && q.x < (ci + 1) * CHUNK && q.z >= cj * CHUNK && q.z < (cj + 1) * CHUNK, 'дерево вне своего участка');
     ok(!propsBlocked(map, q.x, q.z) && Math.hypot(q.x, q.z) <= R - 1 && Math.hypot(q.x, q.z) >= 7, 'дерево на тропе, в доме или за краем');
   }
-  ok(total > CFG3.world.props * .5 && total < CFG3.world.props * 1.6 && trees / total > .5, `деревьев и камней ${total} при прежних ${CFG3.world.props}`);
+  const want = CFG3.world.props * (16 * CHUNK * CHUNK) / (Math.PI * ((R - 1) ** 2 - 49));     // плотность мира на 16 участков
+  ok(total > want * .4 && total < want * 1.3 && trees / total > .4, `деревьев и камней ${total} при ожидаемых ~${want.toFixed(0)}`);
   const g = grassIn(map, CFG3, 0, 0); ok(g.length > 200 && g.every(q => q.x >= 0 && q.x < CHUNK + CFG3.wind.grass.step && waterDist(map.river, q.x, q.z) >= 1.2), 'трава участка не там'); }
 
 // ---------- 3. какие участки нужны ----------
