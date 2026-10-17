@@ -7,6 +7,9 @@ import { serializeQuests, sanitizeQuests } from './quests3d.js';
 import { HEROES, DEFAULT_HERO } from './data/heroes3d.js';
 import { ABILITIES, abilityPointsAt, ranksOpenAt } from './data/abilities3d.js';
 const KEY = 'berserk3d.save', VERSION = 6;
+// шаг 11 аудита: две резервные копии (раз в cfg.save.bakEvery с прошлое сохранение уходит в bak1, прежняя bak1 — в bak2);
+// испорченное основное откладывается в BROKEN для разбора
+export const BAK = [KEY + '.bak1', KEY + '.bak2'], BROKEN = KEY + '.broken';
 export const SAVE_VERSION = VERSION;
 const abPoints = lv => abilityPointsAt(lv, CFG3);
 
@@ -114,11 +117,32 @@ export function loadSave(slots, storage = globalThis.localStorage) {
     return { hero, inv: deserialize(d.inv, slots, hero), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(d.seen, seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [], fires: sameWorld && Array.isArray(d.fires) ? d.fires.filter(x => typeof x === 'string').slice(0, 200) : [], shrines: sameWorld && d.shrines && typeof d.shrines === 'object' ? Object.fromEntries(Object.entries(d.shrines).filter(([k, v]) => /^p\d+$/.test(k) && Number.isFinite(v)).slice(0, 300)) : {} };
   } catch (e) { return null; }
 }
-export function createSaver(W, storage = globalThis.localStorage) {
-  let last = '';
+// загрузка с откатом на резервные копии: { save, from: 'main' | 'bak1' | 'bak2' } или null; из копии — она же становится основной
+export function loadSaveAny(slots, storage = globalThis.localStorage) {
+  let main = null; try { main = storage.getItem(KEY); } catch (e) { return null; }
+  const s = loadSave(slots, storage); if (s || !main) return s ? { save: s, from: 'main' } : null;
+  for (let i = 0; i < BAK.length; i++) {
+    let raw = null; try { raw = storage.getItem(BAK[i]); } catch (e) { /* нет копии */ }
+    const b = raw && loadSave(slots, { getItem: () => raw }); if (!b) continue;
+    try { storage.setItem(BROKEN, main); storage.setItem(KEY, raw); } catch (e) { /* хотя бы загрузимся */ }
+    return { save: b, from: 'bak' + (i + 1) };
+  }
+  return null;
+}
+// имя файла сохранения: berserk3d-save-ГГГГ-ММ-ДД.txt
+export const saveFileName = (d = new Date()) => `berserk3d-save-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.txt`;
+// onFail(err) — запись не удалась (кончилось место и т. п.); now — часы в мс (для тестов)
+export function createSaver(W, storage = globalThis.localStorage, { onFail = null, now = () => Date.now(), bakEvery = (CFG3.save ? CFG3.save.bakEvery : 300) * 1000 } = {}) {
+  let last = '', lastBak = now();
   const snap = () => JSON.stringify({ v: VERSION, hero: W.hero, inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab }, seen: W.levels ? packSeenChunks(W.levels.surface.seen, W.levels.surface.seenN) : packSeenChunks(W.seen, W.seenN), pos: W.lvl === 'surface' && !W.player.dead ? { x: Math.round(W.player.x * 100) / 100, z: Math.round(W.player.z * 100) / 100 } : null, gen: W.cfg.world.gen, dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest).map(a => ({ type: a.type, hp: Math.round(a.hp) })), fires: Object.keys(W.fires || {}), shrines: Object.fromEntries(Object.entries(W.shrines || {}).filter(([, v]) => v > W.t).map(([k, v]) => [k, Math.round(v)])) });
   return {
-    write(force) { if (W.ironDead) return false; const s = snap(); if (!force && s === last) return false; try { storage.setItem(KEY, s); last = s; return true; } catch (e) { return false; } },
-    reset() { try { storage.removeItem(KEY); } catch (e) { /* ок */ } last = ''; }
+    write(force) {
+      if (W.ironDead) return false; const s = snap(); if (!force && s === last) return false;
+      try {
+        if (now() - lastBak >= bakEvery) { const prev = storage.getItem(KEY); if (prev && prev !== s) { const b1 = storage.getItem(BAK[0]); if (b1) storage.setItem(BAK[1], b1); storage.setItem(BAK[0], prev); } lastBak = now(); }
+        storage.setItem(KEY, s); last = s; return true;
+      } catch (e) { if (onFail) onFail(e); return false; }
+    },
+    reset() { try { storage.removeItem(KEY); for (const k of BAK) storage.removeItem(k); } catch (e) { /* ок */ } last = ''; }
   };
 }

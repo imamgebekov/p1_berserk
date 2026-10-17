@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b0709">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icon-180.png">
 <title>Берсерк 3D — прототип</title>
 <link rel="stylesheet" href="./src/style.css">
 </head>
@@ -172,6 +175,7 @@
         <h2>Сохранение</h2>
         <p class="note">Перенос на другое устройство: скопируйте код, там вставьте его и нажмите «Загрузить».</p>
         <div class="prow"><button id="expBtn" type="button">Скопировать код</button><button id="impBtn" type="button">Загрузить</button></div>
+        <div class="prow"><button id="fileSave" type="button">Сохранить в файл</button><button id="fileLoad" type="button">Загрузить файл</button></div><input id="fileInput" type="file" accept=".txt,text/plain" hidden>
         <textarea id="saveCode" rows="2" spellcheck="false" placeholder="Код сохранения B3D1:…"></textarea>
         <div id="saveFlash"></div>
         <button id="saveReset" type="button" class="reset hold"><span class="fill"></span><span class="lbl">Сбросить прогресс — удерживайте</span></button>

@@ -3,7 +3,7 @@
 // Узкое по высоте окно не просит «повернуть телефон». Скриншоты в test/out (3d-desk-*.png).
 import { createServer } from 'vite';
 import { execSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -417,6 +417,26 @@ try {
     const mn = await ps.evaluate(() => ({ tweak: !document.getElementById('tweakBox').hidden, back: !document.getElementById('back').hidden, bagReset: !!document.getElementById('bagReset'), saveReset: !!document.getElementById('saveReset') }));     // шаг 4 «Минус»
     if (mn.tweak || mn.back || mn.bagReset || !mn.saveReset) bad('меню: служебное видно без ?dev или сброс прогресса не в «Сохранении» ' + JSON.stringify(mn));
     await cs.close(); }
+  // защита от сбоев (шаг 11): ошибка в кадре не останавливает игру; «Сохранить в файл» отдаёт код; потеря WebGL — плашка
+  // и сохранение; испорченное сохранение поднимается из резервной копии с сообщением
+  { const cx = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true }), pz = await cx.newPage(); pz.setDefaultTimeout(8000);
+    pz.on('pageerror', e => logs.push('pageerror (сбои): ' + e.message));
+    await pz.goto(url + '?shot&hero=thorn&retro'); await pz.waitForTimeout(1500);
+    const t0 = await pz.evaluate(() => { const r = window.__b3d.renderer, orig = r.render; let n = 0; r.render = (...a) => { if (n++ < 3) throw new Error('проверка сбоя'); return orig.apply(r, a); }; return window.__b3d.W.t; });
+    await pz.waitForTimeout(900);
+    const c1 = await pz.evaluate(() => ({ t: window.__b3d.W.t, toast: [...document.querySelectorAll('.toast')].some(e => /Сбой в игре/.test(e.textContent)), err: localStorage.getItem('berserk3d.lastError') || '' }));
+    if (!(c1.t > t0) || !c1.toast || !/проверка сбоя/.test(c1.err)) bad('сбой в кадре остановил игру или не сообщён: ' + JSON.stringify({ t0, t: c1.t, toast: c1.toast, err: c1.err.slice(0, 40) }));
+    const [dl] = await Promise.all([pz.waitForEvent('download'), pz.evaluate(() => document.getElementById('fileSave').click())]);
+    const txt = readFileSync(await dl.path(), 'utf8');
+    if (!/^berserk3d-save-\d{4}-\d\d-\d\d\.txt$/.test(dl.suggestedFilename()) || !txt.startsWith('B3D1:')) bad('файл сохранения: ' + dl.suggestedFilename() + ' ' + txt.slice(0, 12));
+    await pz.evaluate(() => { const gl = window.__b3d.renderer.gl.getContext(), x = gl.getExtension('WEBGL_lose_context'); x.loseContext(); });
+    await pz.waitForTimeout(400);
+    if (!(await pz.evaluate(() => !!document.getElementById('glLost') && !!localStorage.getItem('berserk3d.save')))) bad('потеря WebGL: нет плашки или сохранения');
+    await pz.evaluate(() => { window.__b3d.W.ironDead = true; const k = 'berserk3d.save'; localStorage.setItem(k + '.bak1', localStorage.getItem(k)); localStorage.setItem(k, '{"v":6,'); });
+    await pz.reload(); await pz.waitForTimeout(2600);
+    const c2 = await pz.evaluate(() => { let ok = false; try { ok = !!JSON.parse(localStorage.getItem('berserk3d.save')).v; } catch (e) { /* испорчено */ } return { ok, toast: [...document.querySelectorAll('.toast')].some(e => /резервная копия/.test(e.textContent)) }; });
+    if (!c2.ok || !c2.toast) bad('испорченное сохранение не поднялось из копии: ' + JSON.stringify(c2));
+    await cx.close(); }
   for (const l of logs) bad(l);
 } finally { await browser.close(); await dev.close(); }
 

@@ -22,7 +22,7 @@ import { abilityView } from './abilities3d.js';
 import { KIND_NAME } from './data/items.js';
 import { drawMap, tickRelief } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
-import { loadSave, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave } from './save3d.js';
+import { loadSaveAny, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave, saveFileName } from './save3d.js';
 import { createRenderer } from './render.js';
 import { runBench } from './bench3d.js';
 import { rotateInput, resolve } from './map.js';
@@ -59,9 +59,12 @@ try {
 const W = createWorld(cfg);
 const BENCH = new URLSearchParams(location.search).has('bench');      // ?bench: замер на устройстве — новая игра, сохранение не трогаем
 const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; } }; })();
-const saved = BENCH ? null : loadSave(bagCap(cfg));
+const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)
+if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
+if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
 if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
-const saver = BENCH ? createSaver(W, memStore) : createSaver(W);
+let saveFailT = -1e9;     // ошибка записи (кончилось место): сообщаем не чаще раза в минуту
+const saver = BENCH ? createSaver(W, memStore) : createSaver(W, globalThis.localStorage, { onFail: () => { const t = performance.now(); if (t - saveFailT > 60000) { saveFailT = t; toast('Не удалось сохранить: в браузере мало места. Меню → Сохранение → «Сохранить в файл»', 'bad', '#ff8a6a', 'warn'); } } });
 
 // выбор героя: при новой игре (сохранения нет) — три карточки; игра стоит, пока герой не выбран. ?hero=id — выбрать сразу (тесты)
 function drawPortrait(cv, L) {
@@ -344,6 +347,18 @@ $('expBtn').addEventListener('click', async () => {
   let ok = false; try { await navigator.clipboard.writeText(code); ok = true; } catch (e) { try { ok = document.execCommand('copy'); } catch (e2) { ok = false; } }
   sflash(ok ? 'Код скопирован. Вставьте его на другом устройстве' : 'Скопируйте код из поля вручную');
 });
+// сохранение в файл и из файла (шаг 11): файл — тот же код B3D1:…
+$('fileSave').addEventListener('click', () => {
+  saver.write(true); const code = exportSave(); if (!code) { sflash('Сохранять пока нечего', true); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([code], { type: 'text/plain' })); a.download = saveFileName(); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  sflash('Файл сохранён: ' + a.download);
+});
+$('fileLoad').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+  const text = (await f.text()).trim(); if (importSave(text, bagCap(cfg)) !== 'ok') { sflash('В файле нет кода сохранения B3D1:', true); return; }
+  sflash('Сохранение загружено, перезапуск…'); W.ironDead = true; setTimeout(() => location.reload(), 600);
+});
 $('impBtn').addEventListener('click', () => {
   if (importSave(codeEl.value, bagCap(cfg)) !== 'ok') { sflash('Код не подходит: нужна строка, начинающаяся с B3D1:', true); return; }
   sflash('Сохранение загружено, перезапуск…'); W.ironDead = true; setTimeout(() => location.reload(), 600);    // ironDead блокирует перезапись старым состоянием при выходе
@@ -426,7 +441,27 @@ const CALM_UI = matchMedia('(prefers-reduced-motion: reduce)').matches;
 // замер кадра (C5): время процессора на симуляцию и подготовку отрисовки, вызовы и треугольники; окно последних 600 кадров
 const perf = { sim: [], draw: [], calls: 0, tris: 0, max: 0, n: 0 }, PERF_N = 600;
 const perfPush = (a, v) => { a.push(v); if (a.length > PERF_N) a.shift(); };
-function loop(now) {
+// защита от сбоев (шаг 11): ошибка в кадре не останавливает игру — прогресс сохраняется, следующий кадр всё равно будет;
+// ошибки подряд — плашка с перезагрузкой
+let crashN = 0, crashShown = false;
+function crashed(e) {
+  crashN++; try { console.error(e); localStorage.setItem('berserk3d.lastError', String(e && (e.stack || e.message) || e).slice(0, 600)); } catch (e2) { /* без записи */ }
+  if (crashN === 1) { try { saver.write(true); } catch (e3) { /* уже сохранено раньше */ } toast('Сбой в игре — прогресс сохранён', 'bad', '#ff8a6a', 'warn'); }
+  if (crashN >= 30 && !crashShown) { crashShown = true; showBlocker('Игра столкнулась с ошибкой. Прогресс сохранён.', 'Перезагрузить', () => location.reload()); }
+}
+function showBlocker(text, btn, act) {
+  const v = document.createElement('div'); v.className = 'veil blocker'; v.setAttribute('role', 'alertdialog');
+  const p = document.createElement('p'); p.textContent = text; v.append(p);
+  if (btn) { const b = document.createElement('button'); b.type = 'button'; b.className = 'main'; b.textContent = btn; b.addEventListener('click', act); v.append(b); }
+  document.body.append(v); return v;
+}
+addEventListener('error', () => { try { saver.write(); } catch (e) { /* без записи */ } });
+addEventListener('unhandledrejection', () => { try { saver.write(); } catch (e) { /* без записи */ } });
+// потеря WebGL (сон, перегрев, сброс драйвера): сохранить, предупредить; вернулся — перезапустить страницу
+$('gl').addEventListener('webglcontextlost', e => { e.preventDefault(); try { saver.write(true); } catch (e2) { /* без записи */ } if (!$('glLost')) showBlocker('Графика перезапускается…').id = 'glLost'; });
+$('gl').addEventListener('webglcontextrestored', () => location.reload());
+function loop(now) { try { frame(now); if (crashN && !crashShown) crashN = Math.max(0, crashN - .02); } catch (e) { crashed(e); } finally { requestAnimationFrame(loop); } }
+function frame(now) {
   const t0 = performance.now(), real = (now - last) / 1000, dt = Math.max(0, Math.min(.05, real)); last = now;
   // под меню (шаг 5): бой останавливается плавно за UI.stopT с (при «уменьшить движение» — сразу), а картинка живёт — вода, ветер, частицы
   const paused = panelOpen || landscape; simK = paused ? (CALM_UI ? 0 : Math.max(0, simK - real / cfg.ui.stopT)) : 1;
@@ -466,7 +501,6 @@ function loop(now) {
   if (hp !== lastHp) { lastHp = hp; const k = `scaleX(${Math.max(0, W.player.hp / W.player.maxhp)})`; hpFill.style.transform = k; hpGhost.style.transform = k; hpTxt.textContent = Math.ceil(W.player.hp); }     // след потерянного здоровья догоняет с задержкой (шаг 5)
   { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; hudLv.textContent = `Ур. ${W.lv}`; setIconText(hudAsh, 'ash', String(W.inv.ash)); hudAsh.title = 'Пепел'; setIconText(hudTime, W.night ? 'moon' : 'sun', clockText(W.t, cfg.daynight)); xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
-  requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
