@@ -1,7 +1,7 @@
 // Модели из кубиков (никаких внешних файлов): герой, бес, рогач, дерево, камень, костёр.
 import * as THREE from 'three';
 import { makeWeapon } from './weaponview.js';
-import { familyOf, stepOf, swingPose, chargePose, REST, gait, bank, strikeBody, rollLand, hitLean, heroDeath, foeDeath } from './anim3d.js';
+import { familyOf, stepOf, swingPose, chargePose, REST, gait, bank, strikeBody, rollLand, hitLean, heroDeath, foeDeath, dampK, smoothPose, poseLambda } from './anim3d.js';
 
 const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
 const basic = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, ...extra });
@@ -77,7 +77,7 @@ export function animateHero(h, p, time, dt, cfg, swingMul = 1) {
   const roll = p.state === 'roll', atk = p.state === 'atk', dead = p.dead;
   h.legL.rotation.x = G.leg; h.legR.rotation.x = -G.leg; h.armL.rotation.x = G.arm + G.breath * .06;
   // крен в поворот (G5): скорость поворота лица, сглаженная
-  { let d = p.face - (h.lastFace ?? p.face); while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; h.lastFace = p.face; h.turn = (h.turn || 0) * .85 + (dt > 0 ? d / dt : 0) * .15; }
+  { let d = p.face - (h.lastFace ?? p.face); while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; h.lastFace = p.face; const tk = dampK(cfg.view.blend ? cfg.view.blend.turn : 10, dt); h.turn = (h.turn || 0) * (1 - tk) + (dt > 0 ? d / dt : 0) * tk; }
   h.root.position.y = G.bob; h.root.position.z = 0; h.root.rotation.x = G.lean; h.root.rotation.z = roll || atk ? 0 : bank(h.turn, run); h.root.scale.set(1, 1 + G.breath * .015, 1);
   h.head.rotation.x = -G.breath * .04;
   h.cloak.rotation.x = .12 + run * .55 + Math.sin(time * (3 + run * 6)) * (.05 + run * .06);
@@ -95,6 +95,16 @@ export function animateHero(h, p, time, dt, cfg, swingMul = 1) {
   }
   if (dead) { const D = heroDeath(p.deadT); h.root.rotation.x = D.rx; h.root.rotation.z = 0; h.root.position.y = D.y; h.root.scale.set(1, 1, 1); }     // на колени, потом навзничь
   else if (!roll && h.hurtT > 0) { const k = h.hurtT / .22; h.root.rotation.x -= .4 * k; h.root.position.y += .06 * k; }     // ранен: вздрагивает назад
+  // сглаживание (шаг 3 аудита): кости плавно догоняют позу; в окне удара — быстро; перекат ставится напрямую
+  const BL = cfg.view.blend;
+  if (BL) {
+    const ch = h.chans || (h.chans = [[h.legL, 'rotation', 'x'], [h.legR, 'rotation', 'x'], [h.armL, 'rotation', 'x'], [h.head, 'rotation', 'x'], [h.cloak, 'rotation', 'x'],
+      [h.swing, 'rotation', 'y'], [h.sword, 'rotation', 'x'], [h.sword, 'rotation', 'z'], [h.sword, 'position', 'z'],
+      [h.root, 'position', 'y'], [h.root, 'position', 'z'], [h.root, 'rotation', 'x'], [h.root, 'rotation', 'y'], [h.root, 'rotation', 'z'], [h.root, 'scale', 'x'], [h.root, 'scale', 'y'], [h.root, 'scale', 'z']]);
+    if (!h.rollSkip) h.rollSkip = new Set(ch.slice(9));
+    smoothPose(h, ch, poseLambda(atk, p.atkT / (cfg.player.attackTime * swingMul), hit, BL), dt, roll ? h.rollSkip : null);
+    if (roll) { const rx = h.sm.get(ch[11]); h.sm.set(ch[11], rx - Math.round(rx / (Math.PI * 2)) * Math.PI * 2); }     // после кувырка — без раскрутки назад
+  }
   // вспышка при уроне: мигаем во время неуязвимости
   h.flash(p.inv > 0 && !roll && p.state !== 'dash' && Math.floor(time * 20) % 2 ? .7 : 0);
 }
@@ -152,7 +162,7 @@ export function animateMonster(m, e, time, cfg, hx, hz) {
   if (hx !== undefined && e.flash > 0 && !m.hitSet) { m.hitA = Math.atan2(hx - e.x, hz - e.z) - e.face; m.hitSet = true; } else if (!(e.flash > 0)) m.hitSet = false;     // откуда ударили (G5)
   const C = cfg.enemies[e.type];
   // походка по настоящей скорости (G5): патрульный бредёт, стоящий дышит, а не машет ногами на месте
-  { const dtm = time - (m.lt ?? time); if (dtm > 0) { const v = Math.hypot(e.x - m.lx, e.z - m.lz) / dtm; m.sp = (m.sp || 0) * .8 + Math.min(v, C.speed * 2) * .2; } m.lt = time; m.lx = e.x; m.lz = e.z; }
+  { const dtm = time - (m.lt ?? time); if (dtm > 0) { const v = Math.hypot(e.x - m.lx, e.z - m.lz) / dtm, sk = dampK(cfg.view.blend ? cfg.view.blend.speed : 13, dtm); m.sp = (m.sp || 0) * (1 - sk) + Math.min(v, C.speed * 2) * sk; } m.dt = Math.min(.1, Math.max(0, dtm)); m.lt = time; m.lx = e.x; m.lz = e.z; }
   const G = gait(e.dead ? 0 : m.sp || 0, C.speed, time * (1 + C.speed * .08), e.id);
   m.legL.rotation.x = G.leg * .9; m.legR.rotation.x = -G.leg * .9;
   m.armL.rotation.x = G.arm * .85 - G.breath * .08; m.armR.rotation.x = -G.arm * .85 - G.breath * .08;
@@ -182,6 +192,11 @@ export function animateMonster(m, e, time, cfg, hx, hz) {
   }
   if (m.ember) m.ember.color.setHSL(.07, 1, .45 + .15 * Math.sin(time * 9 + e.id) + (e.state === 'fuse' ? .2 : 0));
   if (m.ghost) { const o = e.dead ? .3 : .4 + .2 * Math.sin(time * 7 + e.id); for (const mm of m.mats) mm.opacity = o; }
+  if (cfg.view.blend) {                                                       // сглаживание позы врага (шаг 3 аудита); удар по нему и рывок — резко
+    const ch = m.chans || (m.chans = [[m.legL, 'rotation', 'x'], [m.legR, 'rotation', 'x'], [m.armL, 'rotation', 'x'], [m.armR, 'rotation', 'x'],
+      [m.root, 'position', 'x'], [m.root, 'position', 'y'], [m.root, 'position', 'z'], [m.root, 'rotation', 'x'], [m.root, 'rotation', 'z'], [m.root, 'scale', 'x'], [m.root, 'scale', 'y'], [m.root, 'scale', 'z']]);
+    smoothPose(m, ch, e.flash > 0 || e.state === 'dash' || e.state === 'fuse' ? cfg.view.blend.hit : cfg.view.blend.pose, m.dt || 0);
+  }
   m.flash(Math.max(red, e.flash > 0 ? .9 : 0), tint);
 }
 

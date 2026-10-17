@@ -123,3 +123,24 @@ export function foeDeath(t, id) {
   const v = id % 4, k = clamp01(t / .3), b = k < 1 ? 1 + Math.sin(k * Math.PI) * .12 : 1, f = clamp01((t - .3) / .3), a = 1.4 * k * b;
   return { rx: v === 0 ? -a : v === 1 ? a : 0, rz: v === 2 ? a : v === 3 ? -a : 0, y: -.5 * k - .4 * f, scale: 1 - .75 * f };
 }
+
+// ---- сглаживание (шаг 3 аудита): затухание, не зависящее от частоты кадров ----
+// доля пути к цели за dt при скорости lambda (1/с): за 1/lambda с проходится ~63% пути
+export const dampK = (lambda, dt) => 1 - Math.exp(-lambda * Math.max(0, dt));
+export const damp = (v, target, lambda, dt) => v + (target - v) * dampK(lambda, dt);
+// угол в (−π, π]
+export const wrapPi = a => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
+// угол к цели коротким путём
+export const dampAngle = (v, target, lambda, dt) => v + wrapPi(target - v) * dampK(lambda, dt);
+// скорость сглаживания позы: в окне удара (от половины замаха до попадания + 0,1) — быстрая, чтобы удар остался резким
+export const poseLambda = (atk, t, hit, B) => (atk && t >= hit * .5 && t <= hit + .1 ? B.hit : B.pose);
+// слой сглаживания: каждый канал [объект, свойство, ось] подводится от прошлого значения к только что поставленной цели.
+// store — где хранить прошлое (у модели); skip — каналы, которые ставятся напрямую (перекат): их прошлое = цель
+export function smoothPose(store, channels, lambda, dt, skip = null) {
+  const k = dampK(lambda, dt), S = store.sm || (store.sm = new Map());
+  for (const ch of channels) {
+    const [o, prop, ax] = ch, key = ch, cur = o[prop][ax], prev = S.get(key);
+    if (prev === undefined || (skip && skip.has(ch))) { S.set(key, cur); continue; }
+    const v = prev + (cur - prev) * k; o[prop][ax] = v; S.set(key, v);
+  }
+}

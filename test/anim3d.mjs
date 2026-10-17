@@ -2,7 +2,7 @@
 // начинаются и кончаются в стойке, прямой и обратный замахи идут в разные стороны, завершающий отличается, полный оборот не раскручивается назад.
 import { CFG3 } from '../3d/src/config3d.js';
 import { TRAITS } from '../3d/src/data/weapons3d.js';
-import { FAMILY, KEYS, REST, familyOf, stepOf, swingPose, chargePose, trailOn, gait, bank, strikeBody, rollLand, hitLean, heroDeath, foeDeath } from '../3d/src/anim3d.js';
+import { FAMILY, KEYS, REST, familyOf, stepOf, swingPose, chargePose, trailOn, gait, bank, strikeBody, rollLand, hitLean, heroDeath, foeDeath, damp, dampAngle, wrapPi, poseLambda, smoothPose } from '../3d/src/anim3d.js';
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
@@ -72,6 +72,19 @@ ok(!trailOn(.02, hit) && trailOn(hit, hit) && !trailOn(.99, hit), 'след ви
   const k = heroDeath(.25), d = heroDeath(1); ok(k.y < -.3 && k.rx > .2 && Math.abs(d.rx + 1.5) < 1e-6 && Math.abs(d.y - .3) < 1e-6, 'герой не встаёт на колени перед падением');
   const ends = [0, 1, 2, 3].map(id => foeDeath(1, id)); ok(new Set(ends.map(e => e.rx.toFixed(2) + '/' + e.rz.toFixed(2))).size === 4 && ends.every(e => Math.abs(e.scale - .25) < 1e-6 && e.y < -.85), 'враги падают одинаково или не тают');
   let prev = 0, mono = true; for (let t = 0; t <= .6; t += .02) { const y = foeDeath(t, 1).y; if (y > prev + 1e-9) mono = false; prev = y; } ok(mono, 'тело врага подпрыгивает при смерти'); }
+
+// сглаживание (шаг 3 аудита): не зависит от частоты кадров, не перелетает цель, угол — коротким путём; в окне удара — резко
+{ const run = (fps, sec) => { let v = 0; for (let i = 0; i < Math.round(fps * sec); i++) v = damp(v, 1, 18, 1 / fps); return v; };
+  const a = run(30, .2), b = run(60, .2), c = run(120, .2);
+  ok(Math.abs(a - b) < 1e-9 && Math.abs(b - c) < 1e-9 && b < 1 && b > .9, `сглаживание зависит от частоты кадров: ${a} / ${b} / ${c}`);
+  ok(damp(0, 1, 18, 5) <= 1 && damp(0, 1, 18, 0) === 0, 'сглаживание перелетает цель или двигает без времени');
+  const v = dampAngle(3, -3, 20, 1 / 60); ok(wrapPi(v - 3) > 0 && Math.abs(wrapPi(-3 - v)) < Math.abs(wrapPi(-3 - 3)), 'поворот идёт длинным путём через ноль');
+  ok(Math.abs(wrapPi(7) - (7 - Math.PI * 2)) < 1e-9 && Math.abs(Math.abs(wrapPi(-Math.PI)) - Math.PI) < 1e-9 && Math.abs(wrapPi(.5) - .5) < 1e-12, 'приведение угла неверное');
+  const B = { pose: 18, hit: 60 }, h = .45; ok(poseLambda(true, h, h, B) === 60 && poseLambda(true, .05, h, B) === 18 && poseLambda(false, h, h, B) === 18 && poseLambda(true, .9, h, B) === 18, 'окно резкого удара неверное');
+  const o = { rotation: { x: 0 } }, ch = [o, 'rotation', 'x'], st = {};
+  smoothPose(st, [ch], 18, 1 / 60); o.rotation.x = 1; smoothPose(st, [ch], 18, 1 / 60);
+  ok(o.rotation.x > 0 && o.rotation.x < .5, 'поза не догоняет плавно: ' + o.rotation.x);
+  o.rotation.x = 2; smoothPose(st, [ch], 18, 1 / 60, new Set([ch])); ok(o.rotation.x === 2 && st.sm.get(ch) === 2, 'канал напрямую (перекат) сглаживается'); }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Позы ударов 3D: OK (семейств ' + Object.keys(KEYS).length + ', типов оружия ' + Object.keys(FAMILY).length + ')');

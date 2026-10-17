@@ -22,7 +22,7 @@ import { mulberry32 } from './sim.js';
 import { questMark } from './quests3d.js';
 import { skyAt } from './daynight.js';
 import { BY_ID, RARITY } from './data/items.js';
-import { trailOn } from './anim3d.js';
+import { trailOn, dampAngle } from './anim3d.js';
 import { createFx } from './fx3d.js';
 import { RATE, statusPart, emitCount, lightning, stunStar } from './vfx3d.js';
 
@@ -656,7 +656,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     groundOn = W.lvl === 'surface';
     if (!cam.init) { cam.x = p.x; cam.z = p.z; cam.y = Y(p.x, p.z); cam.init = true; }
     const k = 1 - Math.exp(-cfg.view.camFollow * dt);
-    cam.x += (p.x - cam.x) * k; cam.z += (p.z - cam.z) * k; cam.y += (Y(p.x, p.z) - cam.y) * k;
+    cam.x += (p.x - cam.x) * k; cam.z += (p.z - cam.z) * k; cam.y += (Y(p.x, p.z) - cam.y) * (cfg.view.blend ? 1 - Math.exp(-cfg.view.blend.camY * dt) : k);     // высота над холмами — медленнее (шаг 3)
     const pitch = cfg.view.camPitch * Math.PI / 180, dist = cfg.view.camDist;
     const sh = W.shake * .35;
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
@@ -730,7 +730,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
     // герой
     const py = Y(p.x, p.z); hero.group.position.set(p.x, py, p.z);
-    asciiLamp.visible = asciiOn && !under; if (asciiLamp.visible) asciiLamp.position.set(p.x, py + 2.6, p.z); hero.group.rotation.y = p.face;
+    asciiLamp.visible = asciiOn && !under; if (asciiLamp.visible) asciiLamp.position.set(p.x, py + 2.6, p.z); { const BL = cfg.view.blend, early = p.state === 'atk' && p.atkT < cfg.player.attackHitAt * .6; hero.group.rotation.y = BL && hero.yawInit ? dampAngle(hero.group.rotation.y, p.face, early ? BL.yawWind : BL.yawHero, dt) : p.face; hero.yawInit = true; }     // поворот модели — плавно (шаг 3)
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); if (hero.wkey !== rimKey) { rimKey = hero.wkey; rimify(hero.group, RS && RS.hero); } }
     if (RS) RimU.uRim.value = RS.night + (RS.day - RS.night) * Math.min(1, Math.max(0, ((W.light ?? 1) - .15) / .6));
     { const o = W.inv.eq.offhand && BY_ID[W.inv.eq.offhand]; hero.setOff(o ? o.id : '', o && o.kind, o && o.mat, o && o.form); }
@@ -750,7 +750,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const e of W.enemies) {
       alive.add(e.id);
       const en = entity(e);
-      const ey = Y(e.x, e.z); en.m.group.position.set(e.x, ey, e.z); en.m.group.rotation.y = e.face;
+      const ey = Y(e.x, e.z); en.m.group.position.set(e.x, ey, e.z); if (!en.yawInit || !cfg.view.blend) en.m.group.rotation.y = e.face; else if (!e.dead) en.m.group.rotation.y = dampAngle(en.m.group.rotation.y, e.face, e.state === 'dash' ? cfg.view.blend.hit : cfg.view.blend.yawFoe, dt); en.yawInit = true;     // поворот — плавно (шаг 3), мёртвый не крутится
       { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
       animateMonster(en.m, e, t, cfg, p.x, p.z);
       { const sc = cfg.enemies[e.type].scale * (e.scaleMul || 1), st = !e.dead && e.st; statusFx(en, st, e.x, ey, e.z, 1.7 * sc, sc, dt); statusMarks(en, st, e.x, ey, e.z, sc, dt, t); }
