@@ -137,7 +137,7 @@ function toast(txt, cls = '', color) {
 const P = loadPrefs();
 function onEvent(v) {
   if (v.k === 'hurt') buzz(P, 35); else if (v.k === 'level' || v.k === 'questdone') buzz(P, [40, 40, 70]); else if (v.k === 'bossaggro' || v.k === 'bossblast') buzz(P, 90);
-  if (v.x === undefined || Math.hypot(v.x - W.player.x, v.z - W.player.z) < 22) sfx(v.k);
+  sfx(v.k, v.x === undefined ? null : { x: v.x, z: v.z, px: W.player.x, pz: W.player.z, yaw: cfg.view.camYaw });     // звук мира: тише вдали, панорама по экрану (шаг 8)
   if (v.k === 'fireFound') { toast('🔥 Открыт костёр: ' + v.name, '', '#ffb060'); sfx('evDone'); }
   else if (v.k === 'dusk') toast('Наступает ночь: торговец спит, враги злее', 'bad');
   else if (v.k === 'dawn') toast('Светает: торговец снова торгует', 'sys');
