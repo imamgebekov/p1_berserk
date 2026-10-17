@@ -1,5 +1,23 @@
 // Рисование карты на 2D-холсте: миникарта (окно вокруг героя) и большая карта (весь мир) с «туманом войны».
 import { isSeen } from './sim.js';
+import { makeRelief } from './maprelief.js';
+
+// подложка с рельефом и мягкая дымка (шаг 10б): одна подложка на мир; дымка — маленькая картинка из клеток тумана, растянутая со сглаживанием
+const RELIEF = new WeakMap(), FOG = new WeakMap();
+const reliefOf = (doc, W) => { if (W.map.bounds || !doc) return null; let r = RELIEF.get(W.cfg); if (!r) { r = makeRelief(doc, W.cfg, W.map); RELIEF.set(W.cfg, r); } return r; };
+// вызывать каждый кадр: достраивает подложку по нескольку рядов (быстро, без рывка)
+export function tickRelief(doc, W) { const r = reliefOf(doc, W); if (r && !r.done) r.step(); return r ? r.done : false; }
+function fogOf(doc, W, full) {
+  const n = W.seenN, V = W.cfg.mapView; let f = FOG.get(W.seen);
+  if (!f) { const cv = doc.createElement('canvas'); cv.width = cv.height = n; f = { cv, ctx: cv.getContext('2d'), t: -1e9, a: -1 }; FOG.set(W.seen, f); }
+  const a = full ? V.hazeFull : V.hazeMini, now = performance.now();
+  if (now - f.t > (full ? 0 : 400) || f.a !== a) {
+    f.t = now; f.a = a; const img = f.ctx.createImageData(n, n), d = img.data, A = Math.round(a * 255);
+    for (let i = 0; i < n * n; i++) if (!W.seen[i]) { d[i * 4] = V.haze[0]; d[i * 4 + 1] = V.haze[1]; d[i * 4 + 2] = V.haze[2]; d[i * 4 + 3] = A; }
+    f.ctx.putImageData(img, 0, 0);
+  }
+  return f.cv;
+}
 
 const KIND = { house: '#8a6a52', shop: '#d8b04a', smithy: '#e0722c', tavern: '#c88a3a', chapel: '#9a94b8', barracks: '#6a8aa8', warehouse: '#8a7a52', hut: '#6a5a48' };
 const NPC = { merchant: '#ffd45a', smith: '#ff8a3a', captain: '#6ab0ff' };
@@ -8,28 +26,31 @@ export function drawMap(ctx, W, v) {
   const { w, h, scale: sc, cx, cz, full } = v, R = W.seenR || W.cfg.world.radius, p = W.player, M = W.map, under = !!M.bounds;
   const X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc;
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#0c0807'; ctx.fillRect(0, 0, w, h);
+  const V = W.cfg.mapView, doc = ctx.canvas && ctx.canvas.ownerDocument, RL = !under && V ? reliefOf(doc, W) : null;
+  ctx.fillStyle = under || !V ? '#0c0807' : V.bg; ctx.fillRect(0, 0, w, h);
   if (under) {
     // подземелье: пол комнат, стены, лестница
     ctx.fillStyle = '#2a221d'; for (const r of M.rooms) ctx.fillRect(X(r.x0), Y(r.z0), (r.x1 - r.x0) * sc, (r.z1 - r.z0) * sc);
     for (const d of M.doors) if (d.open < .6) { ctx.fillStyle = d.locked ? '#d03a2a' : '#7a5030'; ctx.fillRect(X(d.rect.x0), Y(d.rect.z0), Math.max(2, (d.rect.x1 - d.rect.x0) * sc), Math.max(2, (d.rect.z1 - d.rect.z0) * sc)); }      // запертая — красная
     ctx.fillStyle = '#6a5a4c'; for (const b of M.blocks) ctx.fillRect(X(b.x0), Y(b.z0), Math.max(1, (b.x1 - b.x0) * sc), Math.max(1, (b.z1 - b.z0) * sc));
   } else {
-    // мир
-    ctx.fillStyle = '#2a1e17'; ctx.beginPath(); ctx.arc(X(0), Y(0), R * sc, 0, 6.2832); ctx.fill();
-    ctx.strokeStyle = '#6a2a24'; ctx.lineWidth = 2; ctx.stroke();
+    // мир: подложка с рельефом (пока строится — ровная земля), край мира
+    if (RL) { ctx.imageSmoothingEnabled = true; ctx.fillStyle = '#7a8a5a'; ctx.beginPath(); ctx.arc(X(0), Y(0), R * sc, 0, 6.2832); ctx.fill(); ctx.drawImage(RL.canvas, X(-RL.R), Y(-RL.R), 2 * RL.R * sc, 2 * RL.R * sc); }
+    else { ctx.fillStyle = '#2a1e17'; ctx.beginPath(); ctx.arc(X(0), Y(0), R * sc, 0, 6.2832); ctx.fill(); }
+    ctx.strokeStyle = RL ? 'rgba(70,52,34,.7)' : '#6a2a24'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(0), Y(0), R * sc, 0, 6.2832); ctx.stroke();
     // места
     for (const pl of W.cfg.map.places || []) {
+      if (RL && !isSeen(W, pl.x, pl.z)) continue;     // под дымкой круги мест не выдают их положение (шаг 10б)
       ctx.beginPath(); ctx.arc(X(pl.x), Y(pl.z), pl.r * sc, 0, 6.2832);
-      ctx.fillStyle = pl.safe ? 'rgba(110,170,100,.13)' : `rgba(200,40,30,${.07 + .05 * (pl.danger || 0)})`; ctx.fill();
-      ctx.strokeStyle = pl.safe ? 'rgba(130,200,120,.55)' : 'rgba(220,70,50,.6)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = pl.safe ? 'rgba(120,190,110,.14)' : `rgba(190,40,30,${.06 + .04 * (pl.danger || 0)})`; ctx.fill();
+      ctx.strokeStyle = pl.safe ? 'rgba(60,120,50,.7)' : 'rgba(170,40,30,.7)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
   }
   // дороги
-  ctx.strokeStyle = '#4a3a2c'; ctx.lineWidth = Math.max(1, sc * 1.4); ctx.lineCap = 'round';
+  ctx.strokeStyle = !under && V ? V.road : '#4a3a2c'; ctx.lineWidth = Math.max(1, sc * 1.4); ctx.lineCap = 'round';
   for (const P of M.paths || M.roads.map(pts => ({ pts }))) { ctx.beginPath(); P.pts.forEach((q, i) => (i ? ctx.lineTo(X(q.x), Y(q.z)) : ctx.moveTo(X(q.x), Y(q.z)))); ctx.stroke(); }     // тропы — кривыми
   // река и мосты
   if (!under && M.river) {
-    const RV = M.river; ctx.strokeStyle = '#2a4a5c'; ctx.lineWidth = Math.max(2, RV.w * sc); ctx.lineJoin = 'round'; ctx.beginPath();
+    const RV = M.river; ctx.strokeStyle = V ? V.water : '#2a4a5c'; ctx.lineWidth = Math.max(2, RV.w * sc); ctx.lineJoin = 'round'; ctx.beginPath();
     RV.pts.forEach((q, i) => (i ? ctx.lineTo(X(q.x), Y(q.z)) : ctx.moveTo(X(q.x), Y(q.z)))); ctx.stroke();
     ctx.strokeStyle = '#8a6a44'; ctx.lineCap = 'butt';
     for (const br of RV.bridges) { const s2 = Math.sin(br.ang) * br.len / 2, c2 = Math.cos(br.ang) * br.len / 2; ctx.lineWidth = Math.max(2, br.w * sc); ctx.beginPath(); ctx.moveTo(X(br.x - s2), Y(br.z - c2)); ctx.lineTo(X(br.x + s2), Y(br.z + c2)); ctx.stroke(); }
@@ -70,17 +91,25 @@ export function drawMap(ctx, W, v) {
   if (!under) for (const d of W.cfg.bosses.list) { if (!isSeen(W, d.x, d.z)) continue; const dead = W.bossDead[d.type] !== undefined; ctx.save(); ctx.translate(X(d.x), Y(d.z)); ctx.rotate(Math.PI / 4); ctx.fillStyle = dead ? '#6a6a6a' : '#ff3a2a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; const r = Math.max(3.5, sc * 1.6); ctx.fillRect(-r, -r, r * 2, r * 2); ctx.strokeRect(-r, -r, r * 2, r * 2); ctx.restore(); }
   // могила с потерянным пеплом
   if (W.tomb && (W.tomb.lvl || 'surface') === (W.lvl || 'surface')) { ctx.strokeStyle = '#000'; ctx.fillStyle = '#ffd45a'; ctx.lineWidth = 1.5; const tx = X(W.tomb.x), ty = Y(W.tomb.z); ctx.fillRect(tx - 1.5, ty - 5, 3, 10); ctx.fillRect(tx - 4, ty - 2, 8, 3); ctx.strokeRect(tx - 1.5, ty - 5, 3, 10); }
-  // туман войны
+  // туман войны: на земле — светлая дымка с мягким краем (сквозь неё виден рельеф); в подземелье — тёмный
   const cell = W.seenC || W.cfg.map.cell, n = W.seenN;
-  ctx.fillStyle = full ? 'rgba(6,4,3,.94)' : 'rgba(6,4,3,.9)';
-  const i0 = Math.max(0, Math.floor((cx - w / 2 / sc + R) / cell)), i1 = Math.min(n - 1, Math.floor((cx + w / 2 / sc + R) / cell));
-  const j0 = Math.max(0, Math.floor((cz - h / 2 / sc + R) / cell)), j1 = Math.min(n - 1, Math.floor((cz + h / 2 / sc + R) / cell));
-  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (!W.seen[j * n + i]) ctx.fillRect(X(i * cell - R) - .5, Y(j * cell - R) - .5, cell * sc + 1, cell * sc + 1);
+  if (!under && V && doc) { ctx.imageSmoothingEnabled = true; ctx.drawImage(fogOf(doc, W, full), X(-R), Y(-R), n * cell * sc, n * cell * sc); }
+  else {
+    ctx.fillStyle = full ? 'rgba(6,4,3,.94)' : 'rgba(6,4,3,.9)';
+    const i0 = Math.max(0, Math.floor((cx - w / 2 / sc + R) / cell)), i1 = Math.min(n - 1, Math.floor((cx + w / 2 / sc + R) / cell));
+    const j0 = Math.max(0, Math.floor((cz - h / 2 / sc + R) / cell)), j1 = Math.min(n - 1, Math.floor((cz + h / 2 / sc + R) / cell));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (!W.seen[j * n + i]) ctx.fillRect(X(i * cell - R) - .5, Y(j * cell - R) - .5, cell * sc + 1, cell * sc + 1);
+  }
   // подписи мест (только найденных)
   if (full) {
-    ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000';
-    // наползающие подписи пропускаем
-    const put = []; if (!under) for (const pl of W.cfg.map.places || []) if (isSeen(W, pl.x, pl.z)) { const y = Y(pl.z) - pl.r * sc * .35; if (put.some(q => Math.abs(q[0] - X(pl.x)) < 90 && Math.abs(q[1] - y) < 14)) continue; put.push([X(pl.x), y]); ctx.strokeText(pl.name, X(pl.x), y); ctx.fillStyle = pl.safe ? '#a8e0a0' : '#ff9a8a'; ctx.fillText(pl.name, X(pl.x), y); }
+    const SERIF = '"Iowan Old Style", Palatino, Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // области (шаг 10б): крупно, разрядкой, видны и под дымкой
+    if (!under && RL) { ctx.font = `600 ${Math.round(Math.max(14, Math.min(26, 60 * sc)))}px ${SERIF}`; ctx.fillStyle = 'rgba(52,38,24,.55)'; ctx.strokeStyle = 'rgba(240,230,205,.5)'; ctx.lineWidth = 3;
+      for (const L of RL.labels) { const t = L.name.toUpperCase().split('').join('\u2009'); ctx.strokeText(t, X(L.x), Y(L.z)); ctx.fillText(t, X(L.x), Y(L.z)); } }
+    // места: тёмные подписи со светлой обводкой; наползающие пропускаем
+    ctx.font = `600 12px ${SERIF}`; ctx.lineWidth = 3.5; ctx.strokeStyle = under ? '#000' : 'rgba(244,236,214,.92)';
+    const put = []; if (!under) for (const pl of W.cfg.map.places || []) if (isSeen(W, pl.x, pl.z)) { const y = Y(pl.z) - pl.r * sc * .35; if (put.some(q => Math.abs(q[0] - X(pl.x)) < 90 && Math.abs(q[1] - y) < 14)) continue; put.push([X(pl.x), y]); ctx.strokeText(pl.name, X(pl.x), y); ctx.fillStyle = pl.safe ? '#2e5a26' : '#8a2418'; ctx.fillText(pl.name, X(pl.x), y); }
+    ctx.textBaseline = 'alphabetic';
   }
   // враги рядом (на большой карте не показываем: туман — это неизвестность)
   if (!full) { ctx.fillStyle = '#ff3a30'; for (const e of W.enemies) if (!e.dead) { const x = X(e.x), y = Y(e.z); if (x > 0 && x < w && y > 0 && y < h) { ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 6.2832); ctx.fill(); } } }

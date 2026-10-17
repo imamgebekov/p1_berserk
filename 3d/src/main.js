@@ -20,7 +20,7 @@ import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal,
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView } from './abilities3d.js';
 import { KIND_NAME } from './data/items.js';
-import { drawMap } from './mapdraw.js';
+import { drawMap, tickRelief } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSave, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave } from './save3d.js';
 import { createRenderer } from './render.js';
@@ -301,7 +301,7 @@ const showMute = () => { setIconText(muteBtn, isMuted() ? 'mute' : 'sound', isMu
 muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); });
 showMute();
 const bagFill = $('bagFill');
-let ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0;
+let reliefDone = false, ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0;
 // личные настройки: левша, размер кнопок, вибрация, счётчик кадров, подсказки
 const prefBtn = (id, get, label, flip, ic) => { const b = $(id); const show = () => { setIconText(b, ic, label(get())); }; b.addEventListener('click', () => { flip(); savePrefs(P); applyPrefs(); }); return show; };
 const uiTabs = $('uiTabs');
@@ -460,6 +460,7 @@ function loop(now) {
   if ((atmoT += real) > .2) { atmoT = 0; setScene(mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null), cfg.audio); tickAudio(); }     // атмосфера: река, птицы, музыка
   if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; sfx('step'); }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
+  if (!reliefDone) reliefDone = tickRelief(document, W);     // подложка карты с рельефом — по 2 мс за кадр, пока не готова (шаг 10б)
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; const k = `scaleX(${Math.max(0, W.player.hp / W.player.maxhp)})`; hpFill.style.transform = k; hpGhost.style.transform = k; hpTxt.textContent = Math.ceil(W.player.hp); }     // след потерянного здоровья догоняет с задержкой (шаг 5)

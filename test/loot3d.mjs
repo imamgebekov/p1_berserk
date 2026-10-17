@@ -22,15 +22,16 @@ const fillers = Object.keys(BY_ID).filter(id => BY_ID[id].slot);   // снаря
   const W = mk(); ok(bagSlots(W) === CFG3.bag.slots, 'без навыка сумка не базовая');
   W.skills = { step: 3, pockets: 3 }; refreshGear(W);
   ok(bagSlots(W) === CFG3.bag.slots + 9 && bagCap(CFG3) === CFG3.bag.slots + 9, `с тремя рангами сумка ${bagSlots(W)}, предел ${bagCap(CFG3)}`);
-  let left = 0; for (const id of fillers.slice(0, 45)) left += addItem(W.inv, id, 1, bagSlots(W));
-  ok(W.inv.bag.length === bagSlots(W) && left === 45 - bagSlots(W), `сумка вмещает не ровно ${bagSlots(W)}: ${W.inv.bag.length}`);
+  const put = bagSlots(W) + 6;     // на 6 вещей больше, чем мест (вместимость — из конфига)
+  let left = 0; for (const id of fillers.slice(0, put)) left += addItem(W.inv, id, 1, bagSlots(W));
+  ok(fillers.length >= put + 1 && W.inv.bag.length === bagSlots(W) && left === put - bagSlots(W), `сумка вмещает не ровно ${bagSlots(W)}: ${W.inv.bag.length}`);
   // сохранение большой сумки загружается целиком
   const st = mem(); createSaver(W, st).write(true);
   const s = loadSave(bagCap(CFG3), st); ok(s && s.inv.bag.length === bagSlots(W), 'большая сумка обрезалась при загрузке: ' + (s && s.inv.bag.length));
   // сброс навыков: вещи остаются, новые не берутся
   W.inv.ash = 1e6; W.lv = 10; respec(W); refreshGear(W);
   ok(W.inv.bag.length === CFG3.bag.slots + 9 && bagSlots(W) === CFG3.bag.slots, 'после сброса навыков вещи пропали');
-  const before = W.inv.bag.length; ok(addItem(W.inv, fillers[50], 1, bagSlots(W)) === 1 && W.inv.bag.length === before, 'переполненная сумка взяла вещь');
+  const before = W.inv.bag.length; ok(addItem(W.inv, fillers[put], 1, bagSlots(W)) === 1 && W.inv.bag.length === before, 'переполненная сумка взяла вещь');
 }
 // ---------- 2. добыча с врага ----------
 {
