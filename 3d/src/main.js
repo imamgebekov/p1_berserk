@@ -18,7 +18,7 @@ import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
 import { isNight } from './daynight.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
-import { abilityView } from './abilities3d.js';
+import { abilityView, resView } from './abilities3d.js';
 import { KIND_NAME } from './data/items.js';
 import { drawMap, tickRelief } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
@@ -120,11 +120,23 @@ const abilBtns = [0, 1, 2, 3, 4].map(i => {
   $('abil').append(b); return b;
 });
 let abilKey = '';
+// ресурс героя (ярость, концентрация, ритм): полоса над панелью умений на компьютере, под здоровьем на телефоне
+const resBar = $('resBar'); let resKey = '';
+function drawRes() {
+  const r = resView(W), show = !!r && !panelOpen && !landscape && !W.player.dead && W.ab && Object.keys(W.ab).length > 0, key = show ? r.name + Math.round(r.now) : '';
+  if (resBar.hidden === show) resBar.hidden = !show; if (!show || key === resKey) return; resKey = key;
+  resBar.style.setProperty('--rc', r.color); resBar.firstChild.style.width = (100 * r.now / r.max).toFixed(1) + '%'; resBar.lastChild.textContent = desk ? `${r.name} ${Math.round(r.now)}/${r.max}` : String(Math.round(r.now)); resBar.title = r.name;     // на телефоне — только число (мало места)
+}
 function drawAbil() {
-  const v = abilityView(W), key = v.map(a => a.id + a.rank + Math.ceil(a.cd * 10)).join() + panelOpen + landscape;
+  drawRes();
+  const v = abilityView(W), key = v.map(a => a.id + a.rank + Math.ceil(a.cd * 10) + (a.enough ? 1 : 0)).join() + panelOpen + landscape + W.lv;
   if (key === abilKey) return; abilKey = key;
-  abilBtns.forEach((b, i) => { const a = v[i], show = !!a && a.rank > 0 && !panelOpen && !landscape && !W.player.dead; if (b.hidden === show) b.hidden = !show; if (!show) return;
-    if (b.dataset.id !== a.id) { b.dataset.id = a.id; b.textContent = a.icon; const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k); b.setAttribute('aria-label', `${a.name} (${i + 1})`); b.title = `${a.name} · клавиша ${i + 1}`; }
+  // на компьютере — панель из 5 ячеек, как в Minecraft (пустые ячейки видны); на телефоне — только вкачанные умения у кнопки удара
+  abilBtns.forEach((b, i) => { const a = v[i], show = !!a && (a.rank > 0 || desk) && !panelOpen && !landscape && !W.player.dead; if (b.hidden === show) b.hidden = !show; if (!show) return;
+    if (b.dataset.id !== a.id + a.rank) { b.dataset.id = a.id + a.rank; b.textContent = a.rank ? a.icon : ''; const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k);
+      if (a.rank) { const c = document.createElement('span'); c.className = 'c'; c.textContent = a.cost; b.append(c); } else { const l = document.createElement('span'); l.className = 'lv'; l.textContent = 'ур. ' + a.lv; b.append(l); }
+      b.setAttribute('aria-label', a.rank ? `${a.name} (${i + 1}), цена ${a.cost}` : `Пусто: умение откроется на уровне ${a.lv}`); b.title = a.rank ? `${a.name} · клавиша ${i + 1} · цена ${a.cost}` : `Умение откроется на уровне ${a.lv}`; }
+    b.classList.toggle('empty', !a.rank); b.classList.toggle('poor', !!a.rank && !a.enough);
     b.style.setProperty('--cd', a.cd > 0 ? (a.cd / a.cdMax).toFixed(3) : 0); });
 }
 { const q = new URLSearchParams(location.search).get('hero') || (BENCH ? 'thorn' : null); if (!saved) { openHeroPick(); if (q) pickHero(q); } }

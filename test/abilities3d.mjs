@@ -14,6 +14,7 @@ const clone = () => JSON.parse(JSON.stringify(CFG3));
 const A = CFG3.abilities, T = A.thorn;
 const mk = (lv = 30, seed = 1) => {
   const c = clone(); c.enemies.count = 0; c.bosses.list = []; c.map.places = []; c.events.on = false; c.wanderer.on = false; c.ambient.on = false;
+  for (const R of Object.values(c.abilities.res)) Object.assign(R, { max: 1e9, start: 1e9, decay: 0 });     // здесь проверяем действия умений; ресурс — в test/resource3d.mjs
   const W = createWorld(c, mulberry32(seed)); W.hero = 'thorn'; W.lv = lv; W.ap = abilityPoints(lv, c); W.inv.eq.weapon = 'w_sword_iron'; refreshGear(W);
   Object.assign(W.player, { x: 40, z: 40, face: 0, inv: 0 }); W.player.hp = W.player.maxhp; return W;
 };

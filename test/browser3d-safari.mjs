@@ -45,7 +45,7 @@ try {
     const sw = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash }));
     if (sw.hero !== 'thorn' || sw.lv !== 12 || sw.ash !== 555) bad('Мак: смена героя потеряла прогресс: ' + JSON.stringify(sw));
     // умение по клавише 1
-    await pg.evaluate(() => { const W = window.__b3d.W; W.ap = 3; W.ab = { charge: 1 }; W.acd = {}; });
+    await pg.evaluate(() => { const W = window.__b3d.W; W.ap = 3; W.ab = { charge: 1 }; W.acd = {}; W.resHero = W.hero; W.res = 100; });
     await pg.keyboard.press('Digit1');
     await pg.waitForFunction(() => window.__b3d.W.acd.charge > 0, null, { timeout: 4000 }).catch(() => bad('Мак: клавиша 1 не запустила рывок'));
     await pg.screenshot({ path: join(out, '3d-safari-desk.png') });

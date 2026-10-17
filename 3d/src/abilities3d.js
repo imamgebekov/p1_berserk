@@ -5,6 +5,7 @@ import { abilityHit, abilityArrow } from './sim.js';
 import { lineBlocked, insideOf, resolve } from './map.js';
 import { applyStatus } from './status3d.js';
 import { len } from './util3d.js';
+import { resTick, resNow, resSpend, resOf } from './resource3d.js';
 
 export const heroAbilities = W => ABILITIES[W.hero] || [];
 const cfgOf = (W, id) => (W.cfg.abilities[W.hero] || {})[id];
@@ -29,15 +30,16 @@ export function respecAbilities(W) {
   W.inv.ash -= cost; W.ap += spent; W.ab = {}; W.acd = {}; return 'ok';
 }
 
-// применить умение слота i (0–4): 'ok' | 'none' | 'rank' (не вкачано) | 'cd' | 'busy' | 'target' (некого бить — перезарядка не тратится)
+// применить умение слота i (0–4): 'ok' | 'none' | 'rank' (не вкачано) | 'cd' | 'res' (мало ресурса) | 'busy' | 'target' (некого бить — ни ресурс, ни перезарядка не тратятся)
 export function useAbility(W, i) {
   const def = heroAbilities(W)[i], p = W.player; if (!def) return 'none';
   const rank = W.ab[def.id] || 0; if (!rank) return 'rank';
   if ((W.acd[def.id] || 0) > 0) return 'cd';
   if (p.dead || p.state === 'roll' || p.state === 'dash') return 'busy';
-  const A = cfgOf(W, def.id), r = rankIdx(W.cfg, i, rank);
+  const A = cfgOf(W, def.id), r = rankIdx(W.cfg, i, rank), cost = A.cost || 0;
+  if (resNow(W) < cost) return 'res';
   if (ACT[def.id](W, A, r) === false) return 'target';
-  W.acd[def.id] = A.cd[r];
+  resSpend(W, cost); W.acd[def.id] = A.cd[r];
   W.ev.push({ k: 'ability', id: def.id, x: p.x, z: p.z, face: p.face });
   return 'ok';
 }
@@ -118,6 +120,7 @@ export function dashStep(W) {
 }
 // перезарядки и действие баффов умений
 export function tickAbilities(W, dt) {
+  resTick(W, dt);     // ресурс героя: восстановление и угасание
   for (const k of Object.keys(W.acd)) if ((W.acd[k] -= dt) <= 0) delete W.acd[k];
   const b = W.abuf, p = W.player;
   // капканы: первый враг, наступивший в круг, получает удар и корни; капкан пропадает (живут на своём уровне)
@@ -144,6 +147,8 @@ export function tickAbilities(W, dt) {
 export function abilityView(W) {
   return heroAbilities(W).map((a, i) => {
     const A = cfgOf(W, a.id), L = rankLvs(W.cfg, i), rank = W.ab[a.id] || 0, r = rankIdx(W.cfg, i, Math.max(1, rank));
-    return { ...a, slot: i, lv: L[0], max: L.length, nextLv: rank < L.length ? L[rank] : 0, rank, open: W.lv >= L[0], cd: W.acd[a.id] || 0, cdMax: A.cd[r], now: rank ? a.text(A, r) : '', next: rank < L.length ? a.text(A, rankIdx(W.cfg, i, rank + 1)) : '' };
+    return { ...a, slot: i, lv: L[0], max: L.length, nextLv: rank < L.length ? L[rank] : 0, rank, open: W.lv >= L[0], cd: W.acd[a.id] || 0, cdMax: A.cd[r], cost: A.cost || 0, enough: resNow(W) >= (A.cost || 0), now: rank ? a.text(A, r) : '', next: rank < L.length ? a.text(A, rankIdx(W.cfg, i, rank + 1)) : '' };
   });
 }
+// ресурс героя для интерфейса: { name, color, now, max }
+export function resView(W) { const R = resOf(W); return R ? { name: R.name, color: R.color, now: resNow(W), max: R.max } : null; }

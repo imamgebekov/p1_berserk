@@ -10,6 +10,7 @@ CFG3.terrain.on = false;      // эталон боя — плоское поле
 import { createWorld, step, mulberry32, aliveEnemies, travel, refreshGear } from '../3d/src/sim.js';
 import { pathStep, lineBlocked, resolve, insideOf } from '../3d/src/map.js';
 import { abilityPoints, upgradeAbility, useAbility, heroAbilities } from '../3d/src/abilities3d.js';
+import { resNow } from '../3d/src/resource3d.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const SEEDS = Number(process.env.HB_SEEDS || 12), SECONDS = 90, TOL = Number(process.env.HB_TOL || .15), CELL = Number(process.env.HB_CELL || .3), QUIET = !!process.env.HB_QUIET;
@@ -37,7 +38,7 @@ const baseCfg = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.events.on 
 
 // ---- боты: один уровень ума, разный стиль ----
 const near = (W, r) => aliveEnemies(W).filter(e => Math.hypot(e.x - W.player.x, e.z - W.player.z) < r).length;
-const ready = (W, i) => { const a = heroAbilities(W)[i]; return a && (W.ab[a.id] || 0) > 0 && !(W.acd[a.id] > 0); };
+const ready = (W, i) => { const a = heroAbilities(W)[i]; return a && (W.ab[a.id] || 0) > 0 && !(W.acd[a.id] > 0) && resNow(W) >= (W.cfg.abilities[W.hero][a.id].cost || 0); };     // и ресурса хватает
 function abilities(W, hero, tgt, bd) {
   if (process.env.HB_NOAB) return;
   const p = W.player, low = p.hp < p.maxhp * .5, use = i => ready(W, i) && useAbility(W, i) === 'ok';

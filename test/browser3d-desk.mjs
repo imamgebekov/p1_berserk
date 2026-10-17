@@ -163,7 +163,7 @@ try {
   if (!(blk > 0)) bad('щит не дал блока');
   await page.waitForTimeout(400); await page.screenshot({ path: join(out, '3d-desk-shield.png') });
   // умения Торна: вкладка «Умения» — 5 строк, «+» вкладывает очко; клавиша 1 — рывок, на кнопке перезарядка
-  await ev(() => { const W = window.__b3d.W; W.lv = 30; W.ap = 28; W.ab = {}; W.acd = {}; W.player.x = 0; W.player.z = 4; W.player.face = 0; });
+  await ev(() => { const W = window.__b3d.W; W.lv = 30; W.ap = 28; W.ab = {}; W.acd = {}; W.player.x = 0; W.player.z = 4; W.player.face = 0; W.resHero = W.hero; W.res = 100; });
   await page.keyboard.press('KeyN'); await page.waitForTimeout(250);
   await page.locator('#skillTabs .tab', { hasText: 'Умения' }).click(); await page.waitForTimeout(150);
   const rows = await ev(() => document.querySelectorAll('#skillList .skrow').length);
@@ -174,6 +174,14 @@ try {
   await page.keyboard.press('Escape'); await page.waitForTimeout(250);
   const vis = await ev(() => [...document.querySelectorAll('#abil .ab')].filter(b => !b.hidden).length);
   if (vis !== 5) bad('на панели не 5 кнопок умений: ' + vis);
+  // ресурс (2026-10-18): без ярости умение не срабатывает и кнопка тусклая; полоса «Ярость» над панелью; с яростью — срабатывает
+  await ev(() => { const W = window.__b3d.W; W.resHero = W.hero; W.res = 0; W.resIdle = 99; });
+  await page.keyboard.press('Digit1'); await page.waitForTimeout(300);
+  { const r = await ev(() => ({ cd: window.__b3d.W.acd.charge || 0, poor: document.querySelectorAll('#abil .ab.poor').length, bar: !document.getElementById('resBar').hidden && /Ярость 0\/100/.test(document.getElementById('resBar').textContent) }));
+    if (r.cd > 0 || r.poor !== 5 || !r.bar) bad('без ярости: умение сработало, кнопки не тусклые или нет полосы: ' + JSON.stringify(r)); }
+  { const L = await ev(() => { const a = document.getElementById('abil').getBoundingClientRect(), b = document.getElementById('resBar').getBoundingClientRect(); return { ab: a.bottom, bt: b.bottom, at: a.top, cx: Math.abs((a.left + a.right) / 2 - innerWidth / 2), bx: Math.abs((b.left + b.right) / 2 - innerWidth / 2), H: innerHeight }; });
+    if (L.ab < L.H - 60 || L.bt > L.at + 1 || L.cx > 4 || L.bx > 4) bad('панель умений не внизу по центру или полоса не над ней: ' + JSON.stringify(L)); }
+  await ev(() => { window.__b3d.W.res = 100; });
   await page.keyboard.press('Digit1');
   await page.waitForFunction(() => window.__b3d.W.acd.charge > 0, null, { timeout: 4000 }).catch(() => bad('клавиша 1 не запустила рывок'));
   await page.keyboard.press('Digit3'); await page.waitForTimeout(400); await page.screenshot({ path: join(out, '3d-desk-ability-bar.png') });
@@ -349,7 +357,7 @@ try {
     if (!hands.includes(1)) bad('Вейл не бьёт левым клинком: ' + JSON.stringify(hands));
     await pg.screenshot({ path: join(out, '3d-desk-vale-dual.png') });
     // выпад-телепорт (клавиша 1) за спину врага и тень-двойник (клавиша 4)
-    await pg.evaluate(() => { const b = window.__b3d, W = b.W; W.lv = 30; W.ab = { blink: 1, shadow: 1 }; W.acd = {}; W.player.face = 0; const e = b.spawn('brute', W.player.x, W.player.z + 6); e.hp = e.maxhp = 5000; e.cd = 99; });
+    await pg.evaluate(() => { const b = window.__b3d, W = b.W; W.lv = 30; W.ab = { blink: 1, shadow: 1 }; W.acd = {}; W.resHero = W.hero; W.res = 100; W.player.face = 0; const e = b.spawn('brute', W.player.x, W.player.z + 6); e.hp = e.maxhp = 5000; e.cd = 99; });
     // сначала герой доигрывает удар из проверки клинков (под нагрузкой — дольше): во время удара умение не начинается
     const idle = () => pg.waitForFunction(() => { const p = window.__b3d.W.player; p.atkBuf = 0; return p.state === 'idle' || p.state === 'run'; }, null, { timeout: 3000 }).catch(() => {});
     await idle(); await pg.keyboard.press('Digit1');
@@ -377,7 +385,7 @@ try {
     const hit = await pg.evaluate(() => window.__b3d.W.enemies.some(e => !e.dead && e.maxhp === 5000 && e.hp < 5000));
     if (!fly || !hit) bad(`стрела Сойки не вылетела (${fly}) или не попала (${hit})`);
     // град стрел (клавиша 5) встаёт над врагом
-    await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { rain: 1, trap: 1 }; W.acd = {}; });
+    await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { rain: 1, trap: 1 }; W.acd = {}; W.resHero = W.hero; W.res = 100; });
     await pg.keyboard.press('Digit5');
     await pg.waitForFunction(() => window.__b3d.W.zones.length > 0, null, { timeout: 4000 }).catch(() => bad('клавиша 5 не вызвала град стрел'));
     await pg.keyboard.press('Digit3'); await pg.waitForTimeout(500); await pg.screenshot({ path: join(out, '3d-desk-jay-rain.png') });
@@ -386,13 +394,15 @@ try {
   { const c5 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c5.newPage(); pg.setDefaultTimeout(8000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
     await pg.goto(url + '?shot&hero=thorn'); await pg.waitForTimeout(1200);
-    await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { charge: 1, cry: 1, whirl: 1, iron: 1, rage: 1 }; });
+    await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { charge: 1, cry: 1, whirl: 1, iron: 1, rage: 1 }; W.resHero = W.hero; W.res = 100; });
     await pg.waitForTimeout(400);
     const r = await pg.evaluate(() => { const box = el => el.getBoundingClientRect(), list = [...document.querySelectorAll('#abil .ab')].filter(b => !b.hidden).map(box), atk = box(document.getElementById('bAtk')), roll = box(document.getElementById('bRoll'));
       const over = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; let bad = 0;
       list.forEach((a, i) => { if (over(a, atk) || over(a, roll) || a.left < 0 || a.right > innerWidth) bad++; list.forEach((b, j) => { if (j > i && over(a, b)) bad++; }); });
       return { n: list.length, bad, min: Math.min(...list.map(a => Math.min(a.width, a.height))) }; });
     if (r.n !== 5 || r.bad || r.min < 44) bad('кнопки умений на телефоне: ' + JSON.stringify(r));
+    { const rb = await pg.evaluate(() => { const b = document.getElementById('resBar'), r = b.getBoundingClientRect(), h = document.getElementById('hpWrap').getBoundingClientRect(); return { shown: !b.hidden, top: r.top, hpB: h.bottom, left: r.left }; });
+      if (!rb.shown || rb.top < rb.hpB - 2 || rb.left < 0) bad('полоса ресурса на телефоне не под здоровьем: ' + JSON.stringify(rb)); }
     await pg.screenshot({ path: join(out, '3d-phone-abilities.png') });
     await pg.locator('#abil .ab[data-i="2"]').tap();
     await pg.waitForFunction(() => window.__b3d.W.acd.whirl > 0, null, { timeout: 4000 }).catch(() => bad('касание кнопки не запустило вихрь'));

@@ -405,3 +405,21 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 #qualTabs{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}#qualTabs .tab{flex:1 1 40%}
 /* шаг 14: пустое сообщение о сохранении не занимает места (меню помещается на Маке) */
 #saveFlash:empty{display:none}
+
+/* ---- ресурс и панель умений (2026-10-18) ---- */
+#resBar{position:fixed;left:var(--pad);top:calc(env(safe-area-inset-top) + 62px);width:96px;height:12px;border-radius:999px;background:rgba(20,13,10,.8);border:1px solid rgba(0,0,0,.6);overflow:hidden;pointer-events:none;z-index:5}
+#resBar[hidden]{display:none}
+#resBar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(var(--rc,#d8402a),color-mix(in srgb,var(--rc,#d8402a) 60%,#000));transition:width .12s linear}
+#resBar span{position:absolute;inset:0;font-size:9px;line-height:12px;text-align:center;color:#fff;text-shadow:0 1px 1px #000;font-weight:700}
+@media (prefers-reduced-motion:reduce){#resBar i{transition:none}}
+#abil .ab .c{position:absolute;left:4px;bottom:1px;font-size:10px;font-weight:700;color:#ffd890;text-shadow:0 1px 0 #000}
+#abil .ab.poor{filter:grayscale(.7) brightness(.7)}#abil .ab.poor .c{color:#ff8a6a}
+/* компьютер: панель из 5 квадратных ячеек внизу по центру (как в Minecraft), полоса ресурса над ней */
+[data-desk] #abil{gap:4px;padding:4px;background:rgba(18,12,9,.72);border:2px solid #3a2a1c;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+[data-desk] #abil .ab{border-radius:6px;border:2px solid #5a4630;background:linear-gradient(#3a2a1e,#241812);width:56px;height:56px;font-size:24px}
+[data-desk] #abil .ab::after{border-radius:4px;background:conic-gradient(rgba(0,0,0,.7) calc(var(--cd,0) * 360deg),transparent 0)}
+[data-desk] #abil .ab.empty{background:rgba(30,20,14,.5);border-style:dashed;color:transparent}
+[data-desk] #abil .ab .lv{position:absolute;inset:auto 0 3px 0;font-size:9px;color:#9a8a70;text-align:center}
+[data-desk] #abil .ab .k{left:4px;right:auto;top:2px;bottom:auto;color:#d8c8a0}[data-desk] #abil .ab .c{left:auto;right:4px}
+[data-desk] #resBar{left:50%;transform:translateX(-50%);top:auto;bottom:calc(92px * var(--dz,1));width:calc(300px * var(--dz,1));height:calc(12px * var(--dz,1))}
+[data-desk] #resBar span{font-size:calc(9px * var(--dz,1));line-height:calc(12px * var(--dz,1))}

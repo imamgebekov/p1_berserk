@@ -1,7 +1,7 @@
 // Окно навыков: три ветки, ранги, очки, сброс за пепел; вкладка «Умения» — активные умения героя со своими очками (B3).
 import { BRANCHES, TIER_STEP, spentIn, canRank } from './data/skills3d.js';
 import { spendSkill, respec, respecCost, xpNeed } from './sim.js';
-import { abilityView, upgradeAbility, canUpgrade, respecAbilities, respecAbilityCost, spentAbility } from './abilities3d.js';
+import { abilityView, upgradeAbility, canUpgrade, respecAbilities, respecAbilityCost, spentAbility, resView } from './abilities3d.js';
 
 // разница рангов (шаг 10): у описаний одинаковый текст, меняются числа — показываем только их: «×1,4 → ×1,6 · 9 с → 8,5 с»;
 // если текст рангов разный — null (тогда показываем следующий ранг целиком)
@@ -20,7 +20,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2200); };
   for (const b of [...BRANCHES, { id: 'abil', name: 'Умения' }]) { const t = el('button', 'tab', b.name); t.type = 'button'; t.dataset.tab = b.id; t.addEventListener('click', () => { branch = b.id; armed = false; render(); }); tabsEl.appendChild(t); }
   function renderAbil() {
-    const AC = '#e8c04a', list = abilityView(W);
+    const AC = '#e8c04a', list = abilityView(W), rv = resView(W), resName = rv ? rv.name : '';
     if (!list.length) listEl.appendChild(el('div', 'emptyl', 'У этого героя умений пока нет.'));
     for (const a of list) {
       const row = el('div', 'skrow' + (a.open ? '' : ' lock')), info = el('div', 'sinfo');
@@ -29,7 +29,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       const when = a.nextLv > W.lv ? ' — с уровня ' + a.nextLv : '';
       if (!a.open) info.append(nm, pips, el('div', 'sub', `Откроется на уровне ${a.lv}. ${a.next}`));
       else if (!a.rank) info.append(nm, pips, el('div', 'sub', `Клавиша ${a.slot + 1}. Открыть${when}: ${a.next}`));
-      else info.append(nm, pips, el('div', 'sub', `Сейчас: ${a.now}`), el('div', 'sub nx', a.next ? `Ранг ${a.rank + 1}${when}: ${rankDiff(a.now, a.next) || a.next}` : 'Максимум.'));     // только разница (шаг 10)
+      else info.append(nm, pips, el('div', 'sub', `Сейчас: ${a.now}${a.cost && resName ? ` Цена: ${a.cost} (${resName.toLowerCase()}).` : ''}`), el('div', 'sub nx', a.next ? `Ранг ${a.rank + 1}${when}: ${rankDiff(a.now, a.next) || a.next}` : 'Максимум.'));     // только разница (шаг 10)
       const st = canUpgrade(W, a.id), b = el('button', 'plus', '+'); b.type = 'button'; b.disabled = st !== 'ok'; b.setAttribute('aria-label', 'Улучшить: ' + a.name);
       b.addEventListener('click', () => { upgradeAbility(W, a.id); render(); onChange && onChange(); });
       row.append(info, b); listEl.appendChild(row);

@@ -36,6 +36,7 @@ import { createInv, addItem, removeAt, gearStats, setBonus, equipAt } from './in
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
 import { initLevels, withLevel, depthAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
+import { resGain } from './resource3d.js';
 
 export function createWorld(cfg, rng = Math.random) {
   const W = makeWorld(cfg, rng); attachFx(W);
@@ -268,7 +269,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   p.hp -= dmg; p.inv = W.cfg.player.hurtInvuln; W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
   const d = len(p.x - fromX, p.z - fromZ) || 1;
   p.vx += (p.x - fromX) / d * knock; p.vz += (p.z - fromZ) / d * knock;
-  W.ev.push({ k: 'hurt', x: p.x, z: p.z, dmg });
+  W.ev.push({ k: 'hurt', x: p.x, z: p.z, dmg }); resGain(W, 'hurt', dmg);     // ярость копится от урона
   if (on && W.rng() < on[1]) applyPlayer(W, on[0], on[2], on[3]);
   const fx = W.setFx;
   if (att && !att.dead) {
@@ -342,6 +343,7 @@ function strike(W, e, dmg, o) {
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
   if (e.state === 'wind' && !heavy && gm >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах (щит — нет)
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: o.crit, fin: !!o.fin, id: e.id, fx: o.fx || null });
+  if (!o.ab) resGain(W, 'hit');     // ресурс героя: удар оружием
   e.alert = true;
   if (e.hp <= 0) killEnemy(W, e, 1);
 }
@@ -438,7 +440,7 @@ export function abilityHit(W, e, mult, o = {}) {
   const p = W.player, P = W.cfg.player, tr = W.wp.trait, dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz) || 1;
   let dmg = Math.round((P.attackDamage + W.gear.dmg + offDmg(W)) * mult * rageMul(W) * rr(W, .9, 1.15));
   const crit = W.rng() < .12 + W.gear.crit / 100; if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
-  strike(W, e, dmg, { crit, dx, dz, d, knock: o.knock || 1, fx: o.fx || null, fin: true, heavy: !!o.heavy });
+  strike(W, e, dmg, { crit, dx, dz, d, knock: o.knock || 1, fx: o.fx || null, fin: true, heavy: !!o.heavy, ab: true });     // ab — удар умения: ресурса не даёт
   if (!e.dead && o.stun) applyStatus(W, e, 'stun', 0, o.stun);
   W.combo.n = Math.min(99, W.combo.n + 1); W.combo.t = 2.2;
   return dmg;
@@ -513,7 +515,7 @@ function updatePlayer(W, dt, input) {
   if (input.roll && p.state !== 'roll' && p.state !== 'dash' && p.rollCd <= 0) {
     const dl = moving ? ml : 0;
     p.rollDirX = moving ? mx / dl : Math.sin(p.face); p.rollDirZ = moving ? mz / dl : Math.cos(p.face);
-    p.state = 'roll'; p.rollT = 0; p.rollCd = Math.max(.25, P.rollCooldown - W.gear.rollcd); p.inv = Math.max(p.inv, P.rollInvuln);
+    resGain(W, 'roll'); p.state = 'roll'; p.rollT = 0; p.rollCd = Math.max(.25, P.rollCooldown - W.gear.rollcd); p.inv = Math.max(p.inv, P.rollInvuln);
     p.face = Math.atan2(p.rollDirX, p.rollDirZ);
     W.ev.push({ k: 'roll', x: p.x, z: p.z });
     if (W.setFx.rollBlast) { W.ev.push({ k: 'boom', x: p.x, z: p.z, r: 3 }); for (const o of W.enemies) if (!o.dead && len(o.x - p.x, o.z - p.z) < 3) dealDamage(W, o, W.setFx.rollBlast, 'storm'); }
