@@ -1,6 +1,8 @@
 // Кузнец (улучшение вещей) и торговля: цены, ассортимент, покупка и продажа.
 import { BY_ID } from './data/items.js';
-import { SHOP, SHOP_STAPLES, rollLoot } from './data/loot.js';
+import { SHOP, SHOP_STAPLES, rollLoot, pickItem } from './data/loot.js';
+import { canWield } from './data/heroes3d.js';
+import { mulberry32 } from './sim.js';
 import { addItem, removeAt } from './inv.js';
 
 // ---- кузнец: улучшение вещей за пепел ----
@@ -22,18 +24,40 @@ export function upgradeItem(W, where) {
 // ---- торговля ----
 export const sellPrice = (it, cfg, up = 0, trade = 0) => Math.max(1, Math.round(it.value * cfg.shop.sellMul * (1 + up * .25) * (1 + trade / 100)));
 export const buyPrice = (it, cfg, mul = 1) => Math.max(2, Math.round(it.value * cfg.shop.buyMul * mul));
+// полка редкостей (G3): при каждом обновлении витрины — свой бросок по уровням (редкое, очень редкое, супер редкое);
+// только то, что герой может носить; свой генератор — бой не сдвигается. tier — номер уровня (1–3), fresh — «новинка»
+const srng = W => W.srng || (W.srng = W.rng === Math.random ? Math.random : mulberry32((W.cfg.world.seed || 1) * 7907 + 3));
+export function rareShelf(W) {
+  const R = W.cfg.shop.rare, out = []; if (!R) return out; const rng = srng(W);
+  R.tiers.forEach((T, k) => {
+    if (rng() >= T.chance) return;
+    const n = T.n[0] + ((rng() * (T.n[1] - T.n[0] + 1)) | 0);
+    for (let j = 0; j < n; j++) for (let a = 0; a < 16; a++) {
+      const it = pickItem(R.pools[(rng() * R.pools.length) | 0], T.rar, rng);
+      if (it && it.rar === T.rar && canWield(W.hero, it) && !out.some(o => o.id === it.id)) { out.push({ id: it.id, n: 1, tier: k + 1, fresh: true }); break; }
+    }
+  });
+  return out;
+}
 export function restock(W) {
   const out = SHOP_STAPLES.map(([id, n]) => ({ id, n }));
   for (const it of rollLoot(SHOP, W.rng, .12, W.gear.luck)) { const ex = out.find(o => o.id === it.id); if (ex) ex.n += it.n; else out.push({ ...it }); }
-  W.shop.stock = out; W.shop.t = 0;
+  const rare = rareShelf(W);
+  W.shop.stock = [...rare, ...out.filter(o => !rare.some(r => r.id === o.id))]; W.shop.t = 0;
+  const top = rare.reduce((a, r) => (r.tier > a.tier ? r : a), { tier: 0 });
+  if (W.t > 1 && top.tier >= 2) W.ev.push({ k: 'shopRare', id: top.id, tier: top.tier });
 }
+// полку редкостей — заново под выбранного героя (при старте и загрузке), без сообщения
+export function rerollRare(W) { W.shop.stock = [...rareShelf(W), ...W.shop.stock.filter(s => !s.tier)]; }
+// цена товара на витрине: наценка сказочного торговца, сложность и уровень редкости полки
+export const stockPrice = (W, s) => buyPrice(BY_ID[s.id], W.cfg, W.dif.buy * priceMulOf(W) * (s.tier ? W.cfg.shop.rare.tiers[s.tier - 1].mul : 1));
 // у повозки сказочного торговца — его витрина, наценка и торговля ночью
 export const shopOf = W => (W.nearNpc === 'wanderer' && W.wanderer) || W.shop;
 export const priceMulOf = W => W.nearNpc === 'wanderer' ? W.cfg.wanderer.priceMul : 1;
 const closed = W => W.night && W.nearNpc !== 'wanderer';
 export function buyItem(W, i) {
   const sh = shopOf(W), s = sh.stock[i]; if (!s || !W.nearMerchant) return 'far'; if (closed(W)) return 'closed';
-  const it = BY_ID[s.id], price = buyPrice(it, W.cfg, W.dif.buy * priceMulOf(W));
+  const price = stockPrice(W, s);
   if (W.inv.ash < price) return 'ash';
   if (addItem(W.inv, s.id, 1, W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0)) > 0) return 'full';
   W.inv.ash -= price; s.n -= 1; if (s.n <= 0) sh.stock.splice(i, 1);

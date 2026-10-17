@@ -1,5 +1,5 @@
 import { CFG3 } from './config3d.js';
-import { createWorld, step, respawnPlayer, spawnEnemy, spawnBoss } from './sim.js';
+import { createWorld, step, respawnPlayer, spawnEnemy, spawnBoss, rerollRare } from './sim.js';
 import { BY_ID, RARITY, STAT_NAME } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
@@ -51,7 +51,7 @@ try {
 
 const W = createWorld(cfg);
 const saved = loadSave(bagCap(cfg));
-if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; }
+if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
 const saver = createSaver(W);
 
 // выбор героя: при новой игре (сохранения нет) — три карточки; игра стоит, пока герой не выбран. ?hero=id — выбрать сразу (тесты)
@@ -70,7 +70,7 @@ function pickHero(id) {
   input.release();
   if (heroSwitching) { if (!switchHero(W, id)) return; toast(`Теперь вы — ${H.name}. Очки умений вернулись`, '', '#e8c04a'); }
   else { W.hero = id; if (H.start && !W.inv.eq.weapon) W.inv.eq.weapon = H.start; refreshGear(W); W.player.hp = W.player.maxhp; toast(`${H.name} выходит из пепла`, '', '#e8c04a'); }
-  closeHeroPick(); saver.write(true);
+  rerollRare(W); closeHeroPick(); saver.write(true);     // полка редкостей — под выбранного героя
 }
 function closeHeroPick() { $('heroPick').hidden = true; panelOpen = false; heroSwitching = false; }
 function openHeroPick(switching = false) {
@@ -156,6 +156,7 @@ function onEvent(v) {
   else if (v.k === 'evRaid') { toast('Налёт на обоз!', 'bad'); sfx('ambush'); }
   else if (v.k === 'evDone') { toast(v.kind === 'rescue' ? `Путник спасён: +${v.ash} пепла и его благодарность` : v.kind === 'ambush' ? `Засада отбита: +${v.ash} пепла` : `Обоз дошёл: +${v.ash} пепла`, '', '#e8c04a'); sfx('evDone'); saver.write(); }
   else if (v.k === 'evFail') { const t = { dead: v.kind === 'caravan' ? 'Обоз разбит' : 'Путник погиб', late: v.kind === 'caravan' ? 'Обоз уехал без вас' : 'Путник не дождался помощи', fled: 'Вы ушли от засады', gone: '' }[v.why]; if (t) toast(t, 'bad'); }
+  else if (v.k === 'shopRare') { const it = BY_ID[v.id]; toast(`🛒 У торговца в лагере: ${cfg.shop.rare.tiers[v.tier - 1].name.toLowerCase()} — ${it.name}`, '', RARITY[it.rar].color); sfx(v.tier >= 3 ? 'brand' : 'rare'); }
   else if (v.k === 'shrine') { toast(`✨ ${v.name}: ${v.stat === 'regen' ? `+${v.amt} здоровья в секунду` : `+${v.amt} ${STAT_NAME[v.stat]}`} на ${Math.round(v.t / 60)} мин`, '', '#9ad8ff'); sfx('buff'); }
   else if (v.k === 'wanderer') { toast('🔔 У дороги остановилась повозка сказочного торговца', '', '#c8a0ff'); sfx('wanderer'); }
   else if (v.k === 'wanderLeave') toast('Сказочный торговец уехал', 'sys');
@@ -391,7 +392,7 @@ function loop(now) {
   const t1 = performance.now();
   if (renderer) renderer.render(W, panelOpen || landscape ? 0 : dt);
   { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
-  { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
+  { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка ✦' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
   { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) { const l = '🔥 Костёр' + (desk ? ' · E' : ''); if (fireBtn.textContent !== l) fireBtn.textContent = l; } }
   { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; } }
   { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); } } }

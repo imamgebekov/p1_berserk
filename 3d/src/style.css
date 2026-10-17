@@ -88,6 +88,10 @@ button{font:inherit;color:var(--ink)}
 #fade.on{opacity:1;transition:none}
 .srow{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#1b1211;border:2px solid var(--line);border-radius:8px;flex:none;min-height:56px}
 .srow .sinfo{flex:1;min-width:0}.srow .nm{font-size:14px;font-weight:600}.srow .up{color:#8fd07a;margin-left:6px}.srow .sub{font-size:11.5px;opacity:.6;line-height:1.25}
+.srow .tier{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:1px}.srow .fresh{margin-left:8px;padding:1px 6px;border-radius:6px;background:#e8c04a;color:#1b1211;font-size:10px;text-transform:none;letter-spacing:0}
+.srow.tier1,.srow.tier2,.srow.tier3{background:#1d1418;box-shadow:inset 3px 0 0 var(--tc)}.srow.tier3{box-shadow:inset 3px 0 0 var(--tc),0 0 12px -2px var(--tc);animation:tierGlow 2.4s ease-in-out infinite}
+@keyframes tierGlow{50%{box-shadow:inset 3px 0 0 var(--tc),0 0 18px 0 var(--tc)}}
+@media (prefers-reduced-motion:reduce){.srow.tier3{animation:none}}
 .srow .buy{flex:none;min-height:44px;min-width:92px;padding:0 10px;background:#2a1b1a;border:2px solid var(--line);border-radius:10px;font-size:13px;font-weight:600}.srow .buy.no{opacity:.4}
 .junk{min-height:44px;margin:0 0 6px;background:#2a1b1a;border:2px solid var(--line);border-radius:10px;font-size:12.5px;padding:0 10px}
 #shopFlash{min-height:0;font-size:12.5px;color:#ff9a8a;margin-bottom:4px}
