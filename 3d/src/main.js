@@ -24,6 +24,7 @@ import { drawMap } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSave, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave } from './save3d.js';
 import { createRenderer } from './render.js';
+import { runBench } from './bench3d.js';
 import { rotateInput, resolve } from './map.js';
 import { createInput } from './input.js';
 import { loadTweaks, createTweakPanel } from './tweak.js';
@@ -47,14 +48,17 @@ const canvas = $('gl');
 let renderer;
 try {
   renderer = createRenderer(canvas, cfg, { onText, onHurt, onEvent, preserve: new URLSearchParams(location.search).has('shot') });
+  if (cfg.view.smooth) renderer.setDprMax(desk ? cfg.view.smooth.dprMax.desk : cfg.view.smooth.dprMax.phone);
 } catch (e) {
   $('nogl').hidden = false; console.warn('WebGL недоступен', e);
 }
 
 const W = createWorld(cfg);
-const saved = loadSave(bagCap(cfg));
+const BENCH = new URLSearchParams(location.search).has('bench');      // ?bench: замер на устройстве — новая игра, сохранение не трогаем
+const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; } }; })();
+const saved = BENCH ? null : loadSave(bagCap(cfg));
 if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
-const saver = createSaver(W);
+const saver = BENCH ? createSaver(W, memStore) : createSaver(W);
 
 // выбор героя: при новой игре (сохранения нет) — три карточки; игра стоит, пока герой не выбран. ?hero=id — выбрать сразу (тесты)
 function drawPortrait(cv, L) {
@@ -112,7 +116,7 @@ function drawAbil() {
     if (b.dataset.id !== a.id) { b.dataset.id = a.id; b.textContent = a.icon; const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k); b.setAttribute('aria-label', `${a.name} (${i + 1})`); b.title = `${a.name} · клавиша ${i + 1}`; }
     b.style.setProperty('--cd', a.cd > 0 ? (a.cd / a.cdMax).toFixed(3) : 0); });
 }
-{ const q = new URLSearchParams(location.search).get('hero'); if (!saved) { openHeroPick(); if (q) pickHero(q); } }
+{ const q = new URLSearchParams(location.search).get('hero') || (BENCH ? 'thorn' : null); if (!saved) { openHeroPick(); if (q) pickHero(q); } }
 
 function onText(x, y, z, txt, cls) {
   if (!renderer) return;
@@ -304,6 +308,7 @@ const shows = [
   prefBtn('vibBtn', () => P.vibrate, v => v ? '📳 Вибрация включена (на iPhone не работает)' : '📳 Вибрация выключена', () => { P.vibrate = !P.vibrate; }),
   prefBtn('fpsBtn', () => P.fps, v => v ? '⏱ Счётчик кадров включён' : '⏱ Счётчик кадров выключен', () => { P.fps = !P.fps; }),
   prefBtn('asciiBtn', () => P.ascii, v => v ? '🔤 Вид: ASCII (символы)' : '🔤 Вид: обычный', () => { P.ascii = !P.ascii; }),
+  prefBtn('retroBtn', () => P.retro, v => v ? '🟫 Ретро-пиксели включены' : '🟫 Ретро-пиксели выключены', () => { P.retro = !P.retro; }),
   prefBtn('hintBtn', () => P.hints, v => v ? '💡 Подсказки включены (нажмите: показать заново)' : '💡 Подсказки выключены', () => { P.hints = !P.hints; if (P.hints) P.seen = {}; })
 ];
 function applyPrefs() {
@@ -312,9 +317,11 @@ function applyPrefs() {
   for (const b of uiTabs.children) b.classList.toggle('on', Number(b.dataset.v) === P.ui);
   shows.forEach(f => f());
   if (renderer && P.ascii !== asciiNow) { asciiNow = P.ascii; renderer.setAscii(P.ascii); }
+  if (renderer && P.retro !== retroNow) { retroNow = P.retro; renderer.setRetro(P.retro); }
 }
-let asciiNow = false;
+let asciiNow = false, retroNow = false;
 if (new URLSearchParams(location.search).has('ascii')) P.ascii = true;      // для тестов и ссылок: сразу вид ASCII
+if (new URLSearchParams(location.search).has('retro')) P.retro = true;      // для тестов и ссылок: сразу вид «Ретро»
 applyPrefs();
 // перенос сохранения
 const codeEl = $('saveCode'), saveFlash = $('saveFlash');
@@ -439,3 +446,4 @@ function loop(now) {
 requestAnimationFrame(loop);
 
 window.__b3d = { perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
+if (BENCH) setTimeout(() => runBench(W, cfg, input, renderer), 1500);

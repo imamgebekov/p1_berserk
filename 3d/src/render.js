@@ -62,7 +62,7 @@ const angDiffTo = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) 
 const FXCOL = { fire: '#ff8a30', frost: '#9fdcff', venom: '#7ad060', storm: '#ffe27a', bleed: '#d03030' };
 
 export function createRenderer(canvas, cfg, hooks = {}) {
-  const gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: !!hooks.preserve });
+  const gl = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: !!hooks.preserve });     // сглаживание краёв (шаг 2)
   gl.setPixelRatio(1);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(FOG);
@@ -530,15 +530,23 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     return b;
   }
 
-  // ---- размеры: рисуем в маленьком разрешении, растягиваем CSS-ом без сглаживания ----
-  let cssW = 1, cssH = 1;
+  // ---- размеры: гладкий вид — полное разрешение до dprMax; «Ретро» — маленькое разрешение, растянутое без сглаживания ----
+  let cssW = 1, cssH = 1, retro = false, dprMax = cfg.view.smooth ? cfg.view.smooth.dprMax.desk : 1;
+  function applyLook() {                                              // тональная кривая и фильтр земли по виду
+    const smooth = !retro && !asciiOn;
+    gl.toneMapping = smooth ? THREE.AgXToneMapping : THREE.NoToneMapping; gl.toneMappingExposure = smooth && cfg.view.smooth ? cfg.view.smooth.exposure : 1;
+    gtex.minFilter = smooth || asciiOn ? THREE.LinearMipmapLinearFilter : THREE.NearestFilter; gtex.magFilter = smooth ? THREE.LinearFilter : THREE.NearestFilter; gtex.needsUpdate = true;
+    canvas.classList.toggle('retro', retro && !asciiOn);
+  }
+  applyLook();
   function resize(w, h) {
     cssW = w || cssW; cssH = h || cssH;
     if (asciiOn) {                                                    // ASCII: холст в родной плотности экрана (до view.ascii.dpr), сцена — в клетки
       const dpr = Math.min(cfg.view.ascii.dpr, (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1);
       if (!ascii || ascii.dpr !== dpr) { if (ascii) ascii.dispose(); ascii = createAscii(gl, cfg, calm, dpr); }
       const w = Math.max(8, Math.floor(cssW * dpr)), h = Math.max(8, Math.floor(cssH * dpr)); gl.setSize(w, h, false); ascii.resize(w, h);
-    } else { const ps = Math.max(1, Math.round(cfg.view.pixelScale)); gl.setSize(Math.max(8, Math.floor(cssW / ps)), Math.max(8, Math.floor(cssH / ps)), false); }
+    } else if (retro) { const ps = Math.max(1, Math.round(cfg.view.pixelScale)); gl.setSize(Math.max(8, Math.floor(cssW / ps)), Math.max(8, Math.floor(cssH / ps)), false); }
+    else { const dpr = Math.min(dprMax, (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1); gl.setSize(Math.max(8, Math.floor(cssW * dpr)), Math.max(8, Math.floor(cssH * dpr)), false); }     // гладкий вид
     canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
     camera.aspect = cssW / cssH; camera.updateProjectionMatrix();
   }
@@ -852,10 +860,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (asciiOn) ascii.render(scene, camera, t, under ? .3 : W.light); else gl.render(scene, camera);
   }
   function setAscii(on) {                                           // атлас строится в resize под плотность экрана
-    asciiOn = !!on; gtex.minFilter = asciiOn ? THREE.LinearMipmapLinearFilter : THREE.NearestFilter; gtex.needsUpdate = true;     // в клетках мелкая трава без сглаживания даёт муар
+    asciiOn = !!on; applyLook();                                      // в клетках мелкая трава без сглаживания даёт муар
     resize();
   }
+  function setRetro(on) { retro = !!on; applyLook(); resize(); }     // «Ретро»: крупные пиксели, как раньше
+  function setDprMax(v) { dprMax = v; resize(); }
 
   const treesNear = (x, z) => { if (!WC) return 0; let n = 0; const r2 = WC.rustle.r * WC.rustle.r, count = A => { for (let i = 0; i < A.length; i += 2) { const dx = A[i] - x, dz = A[i + 1] - z; if (dx * dx + dz * dz < r2) n++; } }; count(treeXZ); for (const L of liveLand.values()) count(L.trees); return Math.min(1, n / WC.rustle.full); };
-  return { render, resize, project, setAscii, vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  return { render, resize, project, setAscii, setRetro, setDprMax, look: () => ({ retro, ascii: asciiOn, w: canvas.width, h: canvas.height, tone: gl.toneMapping }), vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }

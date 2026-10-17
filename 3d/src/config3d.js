@@ -6,7 +6,10 @@ import { expandWorld } from './worldgen3d.js';
 const BASE = {
   view: {
     desk: { baseH: 760, zoomMax: 1.6 },   // компьютер: интерфейс крупнее на высоком окне (масштаб = высота / baseH, но не больше zoomMax)
-    pixelScale: 3,        // размер «пикселя» в экранных пикселях: больше — грубее и быстрее
+    pixelScale: 3,        // вид «Ретро»: размер «пикселя» в экранных пикселях — больше грубее и быстрее
+    // гладкий вид (шаг 2 аудита, по умолчанию): полное разрешение со сглаживанием, плотность холста не выше dprMax (компьютер / телефон),
+    // мягкая тональная кривая AgX с экспозицией exposure. Ретро и ASCII — без тональной кривой, как раньше
+    smooth: { dprMax: { desk: 1.5, phone: 2 }, exposure: 1.1 },
     // фильтр «ASCII» (E1): клетка символа в экранных точках, шрифт, сцена в sub×sub текселей на клетку, ступеней плотности;
     // dpr — предел плотности холста (Retina ×2), gain [ночь, день]/gamma — яркость → плотность, dither — узор Байера между ступенями (0 — нет, 1 — полный), glow — свечение ярких, flicker — доля мерцающих клеток;
     // lo — темнее этого пусто (чёрный фон), edge — перепад яркости для штриха контура, lamp — свет над героем [сила, радиус м];
@@ -482,7 +485,7 @@ export const TWEAKS = [
   { path: 'view.camYaw', label: 'Поворот камеры', min: 0, max: 90, step: 1, unit: '°' },
   { path: 'view.camDist', label: 'Расстояние камеры', min: 6, max: 30, step: .5 },
   { path: 'view.fov', label: 'Угол обзора', min: 25, max: 80, step: 1, unit: '°' },
-  { path: 'view.pixelScale', label: 'Размер «пикселя»', min: 1, max: 6, step: 1, reload: true },
+  { path: 'view.pixelScale', label: 'Размер «пикселя» (Ретро)', min: 1, max: 6, step: 1, reload: true },
   { path: 'view.fogDensity', label: 'Туман', min: 0, max: .08, step: .002 },
   { path: 'player.speed', label: 'Скорость героя', min: 2, max: 10, step: .1 },
   { path: 'player.attackRange', label: 'Дальность удара', min: 1, max: 5, step: .1 },

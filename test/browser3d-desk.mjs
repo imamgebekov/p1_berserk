@@ -26,7 +26,9 @@ try {
   const page = await ctx.newPage(); page.setDefaultTimeout(8000);
   page.on('console', m => { if (['error', 'warning'].includes(m.type()) && !/GPU stall due to ReadPixels/.test(m.text())) logs.push(m.type() + ': ' + m.text()); });   // ReadPixels — от скриншотов большого окна
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
-  await page.goto(url + '?shot&hero=thorn'); await page.waitForTimeout(1500);
+  // «Ретро»: Chromium без видеокарты на полном разрешении Мака рисует медленно, а проверки меряют время и делают снимки;
+  // гладкий вид (шаг 2 аудита) проверяется ниже размером холста, тональной кривой и в тестах Safari и прогулки
+  await page.goto(url + '?shot&hero=thorn&retro'); await page.waitForTimeout(1500);
   const ev = (f, arg) => page.evaluate(f, arg);
   const shown = id => ev(id => { const el = document.getElementById(id); return !!el && !el.hidden && getComputedStyle(el).display !== 'none'; }, id);
   const safe = () => ev(() => { const W = window.__b3d.W; W.player.maxhp = W.player.hp = 1e6; W.player.inv = 99; W.enemies.forEach(e => { if (!e.boss) e.dead = true; }); });
@@ -59,8 +61,9 @@ try {
   const hp1 = await ev(() => window.__b3d.W.enemies.filter(e => !e.boss).reduce((a, e) => a + Math.max(0, e.hp), 0));
   if (!(hp1 < hp0)) bad(`левая кнопка мыши не бьёт: ${hp0} → ${hp1}`);
   await ev(() => { window.__b3d.W.player.rollCd = 0; });
-  await page.mouse.click(720, 450, { button: 'right' }); await page.waitForTimeout(80);
-  if ((await ev(() => window.__b3d.W.player.state)) !== 'roll') bad('правая кнопка мыши не катит');
+  await page.mouse.click(720, 450, { button: 'right' });
+  { let rolled = false; for (let i = 0; i < 12 && !rolled; i++) { await page.waitForTimeout(50); rolled = (await ev(() => window.__b3d.W.player.state)) === 'roll'; }     // перекат может встать в очередь за ударом
+    if (!rolled) bad('правая кнопка мыши не катит'); }
   await page.waitForTimeout(600); await safe();
 
   // E у люка: спуск и подъём; на кнопке подписана клавиша
@@ -317,7 +320,7 @@ try {
   // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
   { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await pg.goto(url + '?shot'); await pg.waitForTimeout(1200);
+    await pg.goto(url + '?shot&retro'); await pg.waitForTimeout(1200);
     const info = await pg.evaluate(() => ({ shown: !document.getElementById('heroPick').hidden, cards: [...document.querySelectorAll('.hcard')].map(c => ({ id: c.dataset.hero, shut: c.classList.contains('shut'), h: c.querySelector('button').getBoundingClientRect().height, dis: c.querySelector('button').disabled })), panel: window.__b3d.ui().panelOpen }));
     if (!info.shown || info.cards.length !== 3 || !info.panel) bad('нет экрана выбора героя или игра не на паузе: ' + JSON.stringify(info));
     if (!info.cards.every(c => c.h >= 44)) bad('кнопки выбора героя меньше 44 px');
@@ -357,7 +360,7 @@ try {
   // Сойка: 3 — выбрать, в руке ржавый лук; выстрел по врагу — своя стрела летит и попадает
   { const c4 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c4.newPage(); pg.setDefaultTimeout(8000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await pg.goto(url + '?shot'); await pg.waitForTimeout(1200);
+    await pg.goto(url + '?shot&retro'); await pg.waitForTimeout(1200);
     await pg.keyboard.press('Digit3'); await pg.waitForTimeout(300);
     const j = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, w: window.__b3d.W.inv.eq.weapon }));
     if (j.hero !== 'jay' || j.w !== 'w_bow_rust') bad('Сойка не выбрана или без лука: ' + JSON.stringify(j));
@@ -392,13 +395,20 @@ try {
   // на телефоне карточки идут столбиком и прокручиваются; кнопка Вейла достижима и выбирает его
   { const c3 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c3.newPage(); pg.setDefaultTimeout(8000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await pg.goto(url + '?shot'); await pg.waitForTimeout(1200);
+    await pg.goto(url + '?shot&retro'); await pg.waitForTimeout(1200);
     const wide = await pg.evaluate(() => [...document.querySelectorAll('.hcard')].every(c => { const r = c.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }));
     if (!wide) bad('карточки героев шире экрана телефона');
     await pg.screenshot({ path: join(out, '3d-phone-heroes.png') });
     await pg.locator('.hcard[data-hero="vale"] button').tap();
     if ((await pg.evaluate(() => window.__b3d.W.hero)) !== 'vale') bad('на телефоне Вейл не выбирается касанием');
     await c3.close(); }
+  // гладкий вид (шаг 2 аудита) — в конце: переключение тональной кривой перекомпилирует все шейдеры, в Chromium без видеокарты это секунды
+  { const cs = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }), ps = await cs.newPage();     // вид по умолчанию — гладкий
+    ps.on('pageerror', e => logs.push('pageerror: ' + e.message));
+    await ps.goto(url + '?shot&hero=thorn'); await ps.waitForTimeout(1500);
+    const sm = await ps.evaluate(() => { const r = window.__b3d.renderer, c = document.getElementById('gl'); return { w: c.width, cw: c.clientWidth, ir: getComputedStyle(c).imageRendering, ...r.look() }; });
+    if (sm.retro || sm.w !== Math.floor(sm.cw * 1.5) || /pixelated|crisp/.test(sm.ir) || !sm.tone) bad('гладкий вид на Маке по умолчанию: холст не в плотность 1,5, пиксели или без тональной кривой ' + JSON.stringify(sm));
+    console.log('  гладкий вид: ' + JSON.stringify({ w: sm.w, h: sm.h, tone: sm.tone })); await cs.close(); }
   for (const l of logs) bad(l);
 } finally { await browser.close(); await dev.close(); }
 

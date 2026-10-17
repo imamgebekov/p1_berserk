@@ -25,13 +25,15 @@ try {
   const page = await ctx.newPage(); page.setDefaultTimeout(8000);
   page.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push(m.type() + ': ' + m.text()); });
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
-  await page.goto(url + '?shot&hero=thorn'); await page.waitForTimeout(1500);
+  // «Ретро» (крупные пиксели): Chromium без видеокарты на полном разрешении даёт ~8 кадр/с, а проверки управления меряют время;
+  // гладкий вид (шаг 2 аудита) проверяется ниже размером холста и в тестах Мака и Safari
+  await page.goto(url + '?shot&hero=thorn&retro'); await page.waitForTimeout(1500);
 
   const st = () => page.evaluate(() => { const W = window.__b3d.W, p = W.player; return { x: p.x, z: p.z, hp: p.hp, kills: W.kills, en: W.enemies.filter(e => !e.dead).length, t: W.t, state: p.state }; });
   if (await page.evaluate(() => !document.getElementById('nogl').hidden)) bad('WebGL не поднялся');
   const cv = await page.evaluate(() => { const c = document.getElementById('gl'); return { w: c.width, h: c.height, cw: c.clientWidth, ch: c.clientHeight, ir: getComputedStyle(c).imageRendering }; });
   if (cv.cw !== 390 || cv.ch !== 664) bad('канвас не на весь экран ' + JSON.stringify(cv));
-  if (cv.w > 390 || cv.w < 30) bad('внутреннее разрешение неожиданное ' + cv.w);
+  if (cv.w > 390 || cv.w < 30 || !/pixelated|crisp/.test(cv.ir)) bad('внутреннее разрешение «Ретро» неожиданное ' + JSON.stringify(cv));
   console.log('канвас', JSON.stringify(cv));
   await page.screenshot({ path: join(out, '3d-start.png') });
 
@@ -369,6 +371,9 @@ try {
   await page.waitForTimeout(500);
   const fps = await page.evaluate(() => new Promise(r => { let n = 0; const t0 = performance.now(); const f = () => { n++; performance.now() - t0 < 1500 ? requestAnimationFrame(f) : r(n / 1.5); }; f(); }));
   console.log('кадров/с (программный GL, для справки)', fps.toFixed(0));
+  // гладкий вид (шаг 2 аудита) — в конце: переключение тональной кривой перекомпилирует все шейдеры, в Chromium без видеокарты это секунды
+  { const sm = await page.evaluate(() => { const r = window.__b3d.renderer; r.setRetro(false); const c = document.getElementById('gl'), o = { w: c.width, ir: getComputedStyle(c).imageRendering, tone: r.look().tone }; r.setRetro(true); return o; });
+    if (sm.w !== Math.round(390 * Math.min(2, 2)) || /pixelated|crisp/.test(sm.ir) || !sm.tone) bad('гладкий вид на телефоне: холст не в полную плотность (до 2) или без тональной кривой ' + JSON.stringify(sm)); }
 } catch (e) { bad('исключение: ' + e.message); }
 await browser.close(); await dev.close();
 const fatal = logs.filter(l => !/GPU stall|swiftshader|GL Driver Message|ReadPixels/i.test(l));

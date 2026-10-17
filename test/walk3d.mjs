@@ -14,19 +14,20 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..'), out = join(roo
 const LIM = { p95: { Chromium: 5, WebKit: 8 }, max: Number(process.env.WALK_MAX || 30), calls: 220, tris: 400000 }, WALK = 6;
 let pw; try { pw = await import('playwright'); } catch { console.log('Playwright не найден — прогулка пропущена'); process.exit(0); }
 const dev = await createServer({ root, server: { port: 5219, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' }); await dev.listen();
-const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html?shot`, problems = [], bad = m => problems.push(m);
+const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html?shot&hero=thorn`,     // герой — сразу из адреса: нажатие «1» может прийти раньше, чем откроется выбор
+  problems = [], bad = m => problems.push(m);
 
 async function walk(engine, soft) {
   const b = await engine.launch(), pg = await b.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }), errs = [];
   pg.on('pageerror', e => errs.push(e.message));
-  await pg.goto(url); await pg.waitForTimeout(1500); await pg.keyboard.press('Digit1'); await pg.waitForTimeout(500);
+  await pg.goto(url + (soft ? '&retro' : '')); await pg.waitForTimeout(1500);     // Chromium без видеокарты — в «Ретро» (меряем процессор); WebKit — гладкий вид, как на Маке await pg.keyboard.press('Digit1'); await pg.waitForTimeout(500);
   // маршрут: [имя, откуда, куда, уровень]
   const route = await pg.evaluate(async () => {
     const { biomeAt } = await import('/3d/src/worldgen3d.js'); const b = window.__b3d, C = b.cfg, W = b.W, br = W.map.river.bridges[0];
     const at = (bio, r) => { for (let a = 0; a < 6.28; a += .03) { const x = Math.sin(a) * r, z = Math.cos(a) * r; if (biomeAt(C, x, z) === bio) return { x, z }; } return { x: r, z: 0 }; };
     const P = W.map.plateaus[0], Cs = C.map.castles[0], f1 = C.dungeons.list.find(d => d.castle), coast = at('coast', 540), forest = at('forest', 260);
     const g = { s: [0, 1], n: [0, -1], e: [1, 0], w: [-1, 0] }[Cs.gate || 's'];
-    return [['лагерь', { x: 0, z: 8 }, { x: 0, z: -25 }], ['мост', { x: br.x - 12, z: br.z - 6 }, { x: br.x + 12, z: br.z + 6 }], ['лес', forest, { x: forest.x * 1.15, z: forest.z * 1.15 }],
+    return [['лагерь', { x: 0, z: 8 }, { x: 0, z: -25 }], ['мост', { x: br.x - Math.sin(br.ang) * (br.len / 2 + 9), z: br.z - Math.cos(br.ang) * (br.len / 2 + 9) }, { x: br.x + Math.sin(br.ang) * (br.len / 2 + 9), z: br.z + Math.cos(br.ang) * (br.len / 2 + 9) }], ['лес', forest, { x: forest.x * 1.15, z: forest.z * 1.15 }],
       ['горы', { x: P.x + Math.sin(P.ramps[0]) * (P.r + 20), z: P.z + Math.cos(P.ramps[0]) * (P.r + 20) }, { x: P.x, z: P.z }], ['замок', { x: Cs.x + g[0] * 40, z: Cs.z + g[1] * 40 }, { x: Cs.x, z: Cs.z }],
       ['берег', { x: coast.x * .9, z: coast.z * .9 }, { x: coast.x, z: coast.z }], ['этаж замка', { x: f1.entry.x, z: f1.entry.z }, { x: f1.entry.x + 6, z: f1.entry.z }, f1.id], ['лес ASCII', forest, { x: forest.x * 1.15, z: forest.z * 1.15 }, null, true]];
   });
