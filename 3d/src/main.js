@@ -29,6 +29,7 @@ import { rotateInput, resolve } from './map.js';
 import { createInput } from './input.js';
 import { loadTweaks, createTweakPanel } from './tweak.js';
 import { setIconText, applyIcons } from './uiicons.js';
+import { QUALITY_IDS, QUALITY_NAMES, makeAutoRes } from './quality3d.js';
 import { sparkFresh, sparkEvent, sparkTick, goalOf, sanitizeSpark } from './spark3d.js';
 import { PATH, pathFresh, sanitizePath, pathEvent, pathTick, pathGoal, pathIndex, unlocks, lockedHint } from './ashpath3d.js';
 
@@ -315,6 +316,8 @@ let reliefDone = false, goalT = 0, ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fp
 const prefBtn = (id, get, label, flip, ic) => { const b = $(id); const show = () => { setIconText(b, ic, label(get())); }; b.addEventListener('click', () => { flip(); savePrefs(P); applyPrefs(); }); return show; };
 const uiTabs = $('uiTabs');
 for (const [name, v] of UI_SCALES) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.v = v; b.textContent = 'Кнопки ' + name; b.addEventListener('click', () => { P.ui = v; savePrefs(P); applyPrefs(); }); uiTabs.appendChild(b); }
+const qualTabs = $('qualTabs');     // пресеты качества (шаг 14)
+for (const q of QUALITY_IDS) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.q = q; b.textContent = QUALITY_NAMES[q]; b.addEventListener('click', () => { P.quality = q; savePrefs(P); applyPrefs(); }); qualTabs.appendChild(b); }
 const shows = [
   prefBtn('leftyBtn', () => P.lefty, v => v ? 'Режим левши: кнопки слева' : 'Режим левши выключен', () => { P.lefty = !P.lefty; }, 'swap'),
   prefBtn('vibBtn', () => P.vibrate, v => v ? 'Вибрация включена (на iPhone не работает)' : 'Вибрация выключена', () => { P.vibrate = !P.vibrate; }, 'phone'),
@@ -327,11 +330,14 @@ function applyPrefs() {
   const r = document.documentElement; if (P.lefty) r.setAttribute('data-lefty', ''); else r.removeAttribute('data-lefty');
   r.style.setProperty('--ui', P.ui); $('fps').hidden = !P.fps;
   for (const b of uiTabs.children) b.classList.toggle('on', Number(b.dataset.v) === P.ui);
+  for (const b of qualTabs.children) b.classList.toggle('on', b.dataset.q === P.quality);
+  $('qualNote').textContent = { auto: 'Разрешение подстраивается под кадры.', low: 'Меньше разрешение, реже трава, без столбов света.', mid: 'Полное разрешение без теней.', high: desk ? 'Мягкие тени от солнца — нужна хорошая видеокарта.' : 'На телефоне — как «Среднее»: тени только на компьютере.' }[P.quality];
+  if (renderer && P.quality !== qualNow) { qualNow = P.quality; renderer.setQuality(P.quality, desk); autoRes = P.quality === 'auto' ? makeAutoRes(cfg.view.quality.auto) : null; }
   shows.forEach(f => f());
   if (renderer && P.ascii !== asciiNow) { asciiNow = P.ascii; renderer.setAscii(P.ascii); }
   if (renderer && P.retro !== retroNow) { retroNow = P.retro; renderer.setRetro(P.retro); }
 }
-let asciiNow = false, retroNow = false;
+let asciiNow = false, retroNow = false, qualNow = null, autoRes = null;     // качество (шаг 14): пресет и «Авто»
 if (new URLSearchParams(location.search).has('ascii')) P.ascii = true;      // для тестов и ссылок: сразу вид ASCII
 if (new URLSearchParams(location.search).has('retro')) P.retro = true;      // для тестов и ссылок: сразу вид «Ретро»
 applyPrefs();
@@ -522,7 +528,8 @@ function frame(now) {
   if ((atmoT += real) > .2) { atmoT = 0; setScene(mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null), cfg.audio); tickAudio(); }     // атмосфера: река, птицы, музыка
   if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; sfx('step'); }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
-  if (!reliefDone) reliefDone = tickRelief(document, W);     // подложка карты с рельефом — по 2 мс за кадр, пока не готова (шаг 10б)
+  if (!reliefDone) reliefDone = tickRelief(document, W);
+  if (autoRes && renderer && !panelOpen && !document.hidden && !P.retro && !P.ascii) { const cur = renderer.quality().resScale, nx = autoRes.frame(real, cur); if (nx !== cur) renderer.setResScale(nx); }     // «Авто»: разрешение по кадрам     // подложка карты с рельефом — по 2 мс за кадр, пока не готова (шаг 10б)
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; const k = `scaleX(${Math.max(0, W.player.hp / W.player.maxhp)})`; hpFill.style.transform = k; hpGhost.style.transform = k; hpTxt.textContent = Math.ceil(W.player.hp); }     // след потерянного здоровья догоняет с задержкой (шаг 5)

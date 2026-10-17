@@ -10,6 +10,14 @@ const BASE = {
     // гладкий вид (шаг 2 аудита, по умолчанию): полное разрешение со сглаживанием, плотность холста не выше dprMax (компьютер / телефон),
     // мягкая тональная кривая AgX с экспозицией exposure. Ретро и ASCII — без тональной кривой, как раньше
     smooth: { dprMax: { desk: 1.5, phone: 2 }, exposure: 1.1 },
+    // пресеты качества (шаг 14 аудита): scale — доля разрешения гладкого вида, grass — доля пучков травы, shafts — столбы света,
+    // shadows — тени от солнца (только на компьютере); auto — разрешение от lo до hi шагом step по p95 кадра (выше down мс — ниже,
+    // ниже up мс — выше) раз в every с, после warm с от старта, кадры дольше stall мс не считаются; shadow — карта теней:
+    // size точек (на телефоне phone), охват ±span м вокруг героя, радиус размытия radius, смещения bias / normalBias
+    quality: {
+      low: { scale: .75, grass: .5, shafts: false, shadows: false }, mid: { scale: 1, grass: 1, shafts: true, shadows: false }, high: { scale: 1, grass: 1, shafts: true, shadows: true },
+      auto: { lo: .6, hi: 1, step: .1, up: 12, down: 18, every: 2, warm: 5, stall: 100 },
+      shadow: { size: 2048, span: 25, radius: 3, bias: -.0006, normalBias: .03, dist: 80 } },
     // сглаживание движения (шаг 3 аудита), скорость затухания 1/с: pose — позы героя и врагов, hit — в окне удара (резко),
     // yawHero/yawWind/yawFoe — поворот модели к направлению (yawWind — в начале замаха), turn — крен в поворот, speed — оценка
     // скорости врага, camY — высота камеры над холмами (медленно)

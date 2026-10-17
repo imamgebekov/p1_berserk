@@ -402,3 +402,6 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 /* шаг 11: плашка сбоя или потери графики — поверх всего */
 .veil.blocker{z-index:1000;background:rgba(14,9,7,.92)}.veil.blocker p{margin:0;font-size:17px;max-width:420px}.veil.blocker button{min-height:48px;padding:0 28px;border-radius:12px;border:2px solid #3a2a16;background:linear-gradient(var(--gold),var(--gold-d));color:#1c130e;font-weight:700}
 .veil.ending h1{margin:0;font-family:var(--serif);font-size:40px;color:var(--gold);letter-spacing:.04em}
+#qualTabs{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}#qualTabs .tab{flex:1 1 40%}
+/* шаг 14: пустое сообщение о сохранении не занимает места (меню помещается на Маке) */
+#saveFlash:empty{display:none}

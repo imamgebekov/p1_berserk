@@ -49,6 +49,19 @@ try {
     await pg.keyboard.press('Digit1');
     await pg.waitForFunction(() => window.__b3d.W.acd.charge > 0, null, { timeout: 4000 }).catch(() => bad('Мак: клавиша 1 не запустила рывок'));
     await pg.screenshot({ path: join(out, '3d-safari-desk.png') });
+    // качество (шаг 14): по умолчанию «Авто» без теней; «Высокое» — тени (земля принимает, деревья и герой отбрасывают);
+    // «Низкое» — холст меньше и без теней
+    { const q0 = await pg.evaluate(() => window.__b3d.renderer.quality()); if (!q0.auto || q0.shadowsOn) bad('Мак: по умолчанию не «Авто» или с тенями: ' + JSON.stringify(q0));
+      const pick = async q => { await pg.keyboard.press('Escape'); await pg.waitForTimeout(200); if (await pg.evaluate(() => document.getElementById('panel').hidden)) { await pg.keyboard.press('Escape'); await pg.waitForTimeout(200); } await pg.locator(`#qualTabs .tab[data-q="${q}"]`).click(); await pg.keyboard.press('Escape'); await pg.waitForTimeout(1500); };
+      await pick('high');
+      const h = await pg.evaluate(() => { const r = window.__b3d.renderer, q = r.quality(); let recv = 0, cast = 0; r.scene.traverse(o => { if (o.isMesh && o.receiveShadow) recv++; if (o.isMesh && o.castShadow) cast++; }); window.__b3d.perfReset(); return { on: q.shadowsOn, recv, cast }; });
+      await pg.waitForTimeout(3000); const pf = await pg.evaluate(() => window.__b3d.perf());
+      if (!h.on || h.recv < 4 || h.cast < 20) bad('Мак: «Высокое» без теней: ' + JSON.stringify(h));
+      console.log('  тени (WebKit): ' + JSON.stringify({ ...h, p95: +pf.p95.toFixed(1), calls: pf.calls }));
+      await pg.screenshot({ path: join(out, '3d-safari-shadows.png') });
+      await pick('low');
+      const l = await pg.evaluate(() => { const c = document.getElementById('gl'), q = window.__b3d.renderer.quality(); return { on: q.shadowsOn, w: c.width, cw: c.clientWidth }; });
+      if (l.on || Math.abs(l.w - Math.floor(l.cw * 1.5 * .75)) > 2) bad('Мак: «Низкое» с тенями или холст не ×0,75: ' + JSON.stringify(l)); }
     await ctx.close(); }
   // ---- iPhone (Safari) ----
   { const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), pg = await ctx.newPage(); watch(pg);

@@ -15,6 +15,7 @@ import { groundMix, grassHSL, flowersIn, bushesIn } from './flora3d.js';
 import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
 import { inCliff } from './cliffs3d.js';
 import * as THREE from 'three';
+import { qualityOf } from './quality3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
 import { heroOf } from './data/heroes3d.js';
@@ -80,7 +81,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
   // свет: тусклое «багровое» небо, холодный свет затмения и тёплый костёр
   const hemi = new THREE.HemisphereLight('#a8847a', '#2a1a16', 2.4); scene.add(hemi);
-  const sun = new THREE.DirectionalLight('#ffa080', 1.7); sun.position.set(...cfg.daynight.sunPos); scene.add(sun);
+  const sun = new THREE.DirectionalLight('#ffa080', 1.7); sun.position.set(...cfg.daynight.sunPos); scene.add(sun, sun.target);
+  // тени (шаг 14): карта теней вокруг героя, включается пресетом «Высокое» на компьютере; PCF с размытием (PCFSoft в three 0.186 удалён)
+  const SHD = cfg.view.quality && cfg.view.quality.shadow, sunDir = new THREE.Vector3(...cfg.daynight.sunPos).normalize();
+  gl.shadowMap.type = THREE.PCFShadowMap;
+  const shR = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), sunDir).normalize(), shU = new THREE.Vector3().crossVectors(sunDir, shR), shT = new THREE.Vector3();     // базис света: сдвиг карты теней с шагом в тексель
+  if (SHD) { sun.shadow.mapSize.set(SHD.size, SHD.size); const c = sun.shadow.camera; c.left = c.bottom = -SHD.span; c.right = c.top = SHD.span; c.near = .5; c.far = SHD.dist * 2.2; c.updateProjectionMatrix(); sun.shadow.radius = SHD.radius; sun.shadow.bias = SHD.bias; sun.shadow.normalBias = SHD.normalBias; }
   const dome = skyDome(cfg.look); scene.add(dome);
   let lastLight = -1;
 
@@ -261,7 +267,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function* landJob(ci, cj) {
     if (cfg.shapes && cfg.shapes.contact) for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) if (!propsMemo.has((ci + a) + ',' + (cj + b))) { propsAt(ci + a, cj + b); yield; }     // деревья соседей для тени у стволов — по участку за кадр (шаг 7)
     const g = new THREE.Group(), geo = hillsGeo(ci, cj), trees = [];
-    g.add(new THREE.Mesh(geo, hillsMat));
+    { const hm = new THREE.Mesh(geo, hillsMat); hm.receiveShadow = shadowsOn; g.add(hm); }     // земля принимает тени (шаг 14)
     if (lightMat) { const lm = new THREE.Mesh(geo, lightMat); lm.renderOrder = 1; g.add(lm); }
     land.add(g); liveLand.set(ci + ',' + cj, { g, geo, trees }); yield;
     const spots = grassOn || FL ? grassIn(map, cfg, ci, cj, allSegs) : [], cseed = salt => (Math.imul(cfg.world.seed + 1013, 2654435761) ^ Math.imul(ci, 73856093) ^ Math.imul(cj, 19349663) ^ salt) >>> 0; yield;     // места травы — и для цветов и кустов
@@ -276,14 +282,15 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       const x0 = ci * CHUNK, z0 = cj * CHUNK, segs = segsNear(allSegs, x0, x0 + CHUNK, z0, z0 + CHUNK, 4), blds = map.buildings.filter(b => b.x1 > x0 - 4 && b.x0 < x0 + CHUNK + 4 && b.z1 > z0 - 4 && b.z0 < z0 + CHUNK + 4);
       const far = (x, z, c) => !segs.some(([a, b]) => distSeg(x, z, a, b) < c) && !blds.some(b => x > b.x0 - c && x < b.x1 + c && z > b.z0 - c && z < b.z1 + c);
       const pp = []; for (const q of bushesIn(cfg, spots, cseed(41), far)) { const k0 = pp.length; addBush(pp, mulberry32(q.seed), q.x, q.z, q.s, cfg.look); const gy = Y(q.x, q.z); for (let k = k0; k < pp.length; k++) pp[k].translate(0, gy, 0); }
-      if (pp.length) { g.add(new THREE.Mesh(mergeGeometries(pp, false), propsMat)); pp.forEach(q => q.dispose()); }
+      if (pp.length) { const pm = new THREE.Mesh(mergeGeometries(pp, false), propsMat); pm.castShadow = shadowsOn; g.add(pm); pp.forEach(q => q.dispose()); }
     }
     yield;
     if (grassOn) {
       const cells = new Map();
       spots.forEach((q, i) => { const k = Math.floor(q.x / 16) + ',' + Math.floor(q.z / 16); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(i); });
       let done = 0;
-      for (const ids of cells.values()) {
+      for (const all of cells.values()) {
+        const ids = Q.grass < 1 ? all.filter(i => (i * .6180339) % 1 < Q.grass) : all; if (!ids.length) continue;     // реже трава на «Низком» (шаг 14)
         const m = new THREE.InstancedMesh(grassGeo, grassMat, ids.length);
         ids.forEach((i, j) => { const q = spots[i]; E4.set(0, q.rot, 0); Q4.setFromEuler(E4); P4.set(q.x, Y(q.x, q.z), q.z); S4.set(q.s, q.s, q.s); M4.compose(P4, Q4, S4); m.setMatrixAt(j, M4); if (FL) { const [hh, ss, ll] = grassHSL(q.x, q.z, FL, i); C4.setHSL(hh, ss, ll); } else C4.setHSL(.27 + (i % 7) * .012, .45, .38 + (i % 5) * .04); m.setColorAt(j, C4); });
         m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.computeBoundingSphere(); m.boundingSphere.radius += 1; g.add(m);
@@ -543,7 +550,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function entity(e) {
     let en = ents.get(e.id);
     if (!en) {
-      const m = makeMonster(e.type, cfg), sh = shadow(.55 * cfg.enemies[e.type].scale); rimify(m.group, RS && RS.foe);
+      const m = makeMonster(e.type, cfg), sh = shadow(.55 * cfg.enemies[e.type].scale); rimify(m.group, RS && RS.foe); if (shadowsOn) { m.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); sh.visible = false; }
       const ring = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 28), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
       ring.rotation.x = -Math.PI / 2; ring.position.y = .06;
       scene.add(m.group, sh, ovl(ring));
@@ -565,6 +572,24 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
   // ---- размеры: гладкий вид — полное разрешение до dprMax; «Ретро» — маленькое разрешение, растянутое без сглаживания ----
   let cssW = 1, cssH = 1, retro = false, dprMax = cfg.view.smooth ? cfg.view.smooth.dprMax.desk : 1;
+  // качество (шаг 14): пресет и доля разрешения («Авто» меняет её по кадрам); тени — только в гладком виде
+  let Q = { scale: 1, grass: 1, shafts: true, shadows: false }, resScale = 1, shadowsOn = false;
+  function applyShadows() {
+    const on = shadowsOn && !retro && !asciiOn; if (gl.shadowMap.enabled === on && sun.castShadow === on) return;
+    gl.shadowMap.enabled = on; sun.castShadow = on;
+    const cast = o => { if (o.isMesh && !o.isInstancedMesh) o.castShadow = on; };
+    for (const g of [town.group, decor.group, props, palisade, hero.group]) if (g) g.traverse(cast);
+    for (const n of npcs) n.group.traverse(cast);
+    for (const en of ents.values()) { en.m.group.traverse(cast); en.sh.visible = !on; }
+    land.traverse(o => { if (!o.isMesh) return; if (o.material === hillsMat) o.receiveShadow = on; else if (o.material === propsMat) o.castShadow = on; });
+    heroShadow.visible = !on;
+    scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });     // шейдеры с тенями и без — разные
+  }
+  function setQuality(id, desk) {
+    const nq = qualityOf(cfg, id, desk), regrow = nq.grass !== Q.grass; Q = nq; resScale = nq.scale; shadowsOn = nq.shadows;
+    if (regrow) for (const k of [...liveLand.keys()]) dropLand(k);     // густота травы — при постройке участка: перестроить
+    applyShadows(); resize();
+  }
   function applyLook() {                                              // тональная кривая и фильтр земли по виду
     const smooth = !retro && !asciiOn;
     gl.toneMapping = smooth ? THREE.AgXToneMapping : THREE.NoToneMapping; gl.toneMappingExposure = smooth && cfg.view.smooth ? cfg.view.smooth.exposure : 1;
@@ -579,7 +604,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (!ascii || ascii.dpr !== dpr) { if (ascii) ascii.dispose(); ascii = createAscii(gl, cfg, calm, dpr); }
       const w = Math.max(8, Math.floor(cssW * dpr)), h = Math.max(8, Math.floor(cssH * dpr)); gl.setSize(w, h, false); ascii.resize(w, h);
     } else if (retro) { const ps = Math.max(1, Math.round(cfg.view.pixelScale)); gl.setSize(Math.max(8, Math.floor(cssW / ps)), Math.max(8, Math.floor(cssH / ps)), false); }
-    else { const dpr = Math.min(dprMax, (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1); gl.setSize(Math.max(8, Math.floor(cssW * dpr)), Math.max(8, Math.floor(cssH * dpr)), false); }     // гладкий вид
+    else { const dpr = Math.min(dprMax, (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1) * resScale; gl.setSize(Math.max(8, Math.floor(cssW * dpr)), Math.max(8, Math.floor(cssH * dpr)), false); }     // гладкий вид
     canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
     camera.aspect = cssW / cssH; camera.updateProjectionMatrix();
   }
@@ -696,6 +721,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
     camera.position.set(cam.x + Math.sin(yaw) * hd + sh * (Math.sin(wt * FV.f[0] * 6.283) + .5 * Math.sin(wt * FV.f[1] * 6.283 + 1.3)) / 3, Math.sin(pitch) * dist + cfg.view.camLookUp + cam.y + sh * (Math.sin(wt * FV.f[1] * 6.283 + .7) + .5 * Math.sin(wt * FV.f[0] * 6.283 + 2.1)) / 3, cam.z + Math.cos(yaw) * hd);
     camera.lookAt(cam.x, cfg.view.camLookUp + cam.y, cam.z);
+    if (sun.castShadow && SHD) {                                      // карта теней — за героем, шаг в тексель (тень не дрожит)
+      const tx = 2 * SHD.span / SHD.size; shT.set(cam.x, cam.y, cam.z);
+      const a = Math.round(shT.dot(shR) / tx) * tx, b = Math.round(shT.dot(shU) / tx) * tx, c = shT.dot(sunDir);
+      shT.copy(shR).multiplyScalar(a).addScaledVector(shU, b).addScaledVector(sunDir, c);
+      sun.target.position.copy(shT); sun.position.copy(shT).addScaledVector(sunDir, SHD.dist); sun.target.updateMatrixWorld();
+    }
     if (W.lvl !== shownLvl) showLevel(W);
     const under = W.lvl !== 'surface';
     if (!under) { streamLand(cam.x, cam.z); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
@@ -875,7 +906,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       lightMat.map.offset.set((SL.wind[0] * tt - 250) / SL.size, rep + (SL.wind[1] * tt - 250) / SL.size);
       lightMat.color.set(SL.night).lerp(sunCol.set(SL.day), L); lightMat.opacity = (SL.nightK + (SL.dayK - SL.nightK) * L) * eff.light;     // за тучами просветов меньше
       if ((shaftT -= dt) <= 0) { shaftT = .5; picks = pickShafts(field, p.x, p.z, tt, SL); }
-      shafts.forEach((s, i) => {
+      if (!Q.shafts) shafts.forEach(s => { s.m.visible = false; });     // столбы света выключены пресетом (шаг 14)
+      else shafts.forEach((s, i) => {
         const w = picks[i], far = !w || Math.hypot(w.x - s.x, w.z - s.z) > 1;
         if (far && s.a > .01) s.a = Math.max(0, s.a - dt * 1.5);                // старое место гаснет
         else { if (w && far) { s.x = w.x; s.z = w.z; } s.a = Math.min(w ? w.k : 0, s.a + dt * 1.5); }
@@ -893,12 +925,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (asciiOn) ascii.render(scene, camera, t, under ? .3 : W.light); else gl.render(scene, camera);
   }
   function setAscii(on) {                                           // атлас строится в resize под плотность экрана
-    asciiOn = !!on; applyLook();                                      // в клетках мелкая трава без сглаживания даёт муар
+    asciiOn = !!on; applyLook(); applyShadows();                                      // в клетках мелкая трава без сглаживания даёт муар
     resize();
   }
-  function setRetro(on) { retro = !!on; applyLook(); resize(); }     // «Ретро»: крупные пиксели, как раньше
+  function setRetro(on) { retro = !!on; applyLook(); applyShadows(); resize(); }     // «Ретро»: крупные пиксели, как раньше
   function setDprMax(v) { dprMax = v; resize(); }
 
   const treesNear = (x, z) => { if (!WC) return 0; let n = 0; const r2 = WC.rustle.r * WC.rustle.r, count = A => { for (let i = 0; i < A.length; i += 2) { const dx = A[i] - x, dz = A[i + 1] - z; if (dx * dx + dz * dz < r2) n++; } }; count(treeXZ); for (const L of liveLand.values()) count(L.trees); return Math.min(1, n / WC.rustle.full); };
-  return { render, resize, project, setAscii, setRetro, setDprMax, look: () => ({ retro, ascii: asciiOn, w: canvas.width, h: canvas.height, tone: gl.toneMapping }), vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  return { render, resize, project, setAscii, setRetro, setDprMax, setQuality, setResScale: v => { resScale = v; resize(); }, quality: () => ({ ...Q, shadowsOn: gl.shadowMap.enabled, resScale }), look: () => ({ retro, ascii: asciiOn, w: canvas.width, h: canvas.height, tone: gl.toneMapping }), vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }

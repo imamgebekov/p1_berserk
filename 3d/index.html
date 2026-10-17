@@ -153,14 +153,17 @@
         <p id="difText" class="note"></p>
         <button id="ironBtn" type="button" class="reset" hidden></button>
       </div>
-      <div class="pstack">
       <div class="pcol">
         <h2>Вид и звук</h2>
         <button id="muteBtn" type="button" class="reset"></button>
         <button id="retroBtn" type="button" class="reset"></button>
         <button id="asciiBtn" type="button" class="reset"></button>
         <button id="fpsBtn" type="button" class="reset"></button>
+        <h3>Качество</h3>
+        <div id="qualTabs" class="tabs"></div>
+        <p id="qualNote" class="note"></p>
       </div>
+      <div class="pstack">
       <div class="pcol">
         <h2>Управление</h2>
         <div class="prefs">
@@ -170,7 +173,6 @@
           <button id="hintBtn" type="button" class="reset"></button>
         </div>
       </div>
-      </div>
       <div class="pcol">
         <h2>Сохранение</h2>
         <p class="note">Перенос на другое устройство: скопируйте код, там вставьте его и нажмите «Загрузить».</p>
@@ -179,6 +181,7 @@
         <textarea id="saveCode" rows="2" spellcheck="false" placeholder="Код сохранения B3D1:…"></textarea>
         <div id="saveFlash"></div>
         <button id="saveReset" type="button" class="reset hold"><span class="fill"></span><span class="lbl">Сбросить прогресс — удерживайте</span></button>
+      </div>
       </div>
     </div>
     <details id="tweakBox">
