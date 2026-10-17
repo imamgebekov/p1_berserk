@@ -45,20 +45,22 @@ try {
 
   // WASD: вверх = вперёд (−z); на русской раскладке та же физическая клавиша
   const z0 = await ev(() => window.__b3d.W.player.z);
-  await page.keyboard.down('KeyW'); await page.waitForTimeout(600); await page.keyboard.up('KeyW');
-  const z1 = await ev(() => window.__b3d.W.player.z);
+  // держим W, пока герой не пройдёт метр, но не дольше 2 с: в начале страницы Chromium без видеокарты ещё собирает шейдеры, кадры редкие
+  await page.keyboard.down('KeyW'); let z1 = z0;
+  for (let t = 0; t < 2000 && !(z1 < z0 - 1); t += 100) { await page.waitForTimeout(100); z1 = await ev(() => window.__b3d.W.player.z); }
+  await page.keyboard.up('KeyW');
   if (!(z1 < z0 - 1)) bad(`W не ведёт героя вперёд: ${z0.toFixed(2)} → ${z1.toFixed(2)}`);
   await ev(() => dispatchEvent(new KeyboardEvent('keydown', { key: 'ф', code: 'KeyA' })));
-  const x0 = await ev(() => window.__b3d.W.player.x); await page.waitForTimeout(500);
+  const x0 = await ev(() => window.__b3d.W.player.x); let x1 = x0;
+  for (let t = 0; t < 2000 && !(x1 < x0 - .8); t += 100) { await page.waitForTimeout(100); x1 = await ev(() => window.__b3d.W.player.x); }
   await ev(() => dispatchEvent(new KeyboardEvent('keyup', { key: 'ф', code: 'KeyA' })));
-  const x1 = await ev(() => window.__b3d.W.player.x);
   if (!(x1 < x0 - .8)) bad(`на русской раскладке A («ф») не ведёт влево: ${x0.toFixed(2)} → ${x1.toFixed(2)}`);
 
   // мышь: левая — удар по врагу перед героем, правая — перекат
-  await ev(() => { const b = window.__b3d, p = b.W.player; p.face = Math.PI; b.spawn('imp', p.x, p.z - 1.6); });
-  const hp0 = await ev(() => window.__b3d.W.enemies.filter(e => !e.dead && !e.boss).reduce((a, e) => a + e.hp, 0));
+  // смотрим только на этого беса: за 0,9 с рядом могут появиться стайки (G1), и сумма здоровья всех врагов вырастет
+  const hp0 = await ev(() => { const b = window.__b3d, p = b.W.player; p.face = Math.PI; window.__imp = b.spawn('imp', p.x, p.z - 1.6); return window.__imp.hp; });
   await page.mouse.move(720, 450); await page.mouse.down(); await page.waitForTimeout(900); await page.mouse.up();
-  const hp1 = await ev(() => window.__b3d.W.enemies.filter(e => !e.boss).reduce((a, e) => a + Math.max(0, e.hp), 0));
+  const hp1 = await ev(() => Math.max(0, window.__imp.hp));
   if (!(hp1 < hp0)) bad(`левая кнопка мыши не бьёт: ${hp0} → ${hp1}`);
   await ev(() => { window.__b3d.W.player.rollCd = 0; });
   await page.mouse.click(720, 450, { button: 'right' });

@@ -202,7 +202,7 @@ const fit = () => {
     const st = document.documentElement.style, dz = Math.min(cfg.view.desk.zoomMax, Math.max(1, innerHeight / cfg.view.desk.baseH)), pz = Math.min(dz, 1.25);
     st.setProperty('--dz', dz.toFixed(3)); st.setProperty('--pz', pz.toFixed(3));
     // высоты окон — в пикселях, делённых на zoom: Safari и Chromium по-разному увеличивают проценты под zoom, а пиксели — одинаково
-    st.setProperty('--pbh', Math.floor(innerHeight * .84 / pz) + 'px'); st.setProperty('--blh', Math.floor(innerHeight * .64 / pz) + 'px');
+    st.setProperty('--pbh', Math.floor(innerHeight * .84 / pz) + 'px'); st.setProperty('--blh', Math.floor(innerHeight * .64 / pz) + 'px'); st.setProperty('--pbw', Math.floor(innerWidth * .86 / pz) + 'px');
   }
   $('rotate').hidden = !landscape;
   renderer && renderer.resize(innerWidth, innerHeight);

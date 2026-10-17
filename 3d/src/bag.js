@@ -11,6 +11,7 @@ const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Брон
 const tabOf = it => it.slot === 'weapon' ? 'weapon' : it.slot ? 'armor' : it.cat === 'consumable' ? 'use' : 'other';
 
 export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJournal, onQuests } = {}) {
+  const desk = doc.documentElement.hasAttribute('data-desk');
   const $ = id => doc.getElementById(id);
   const root = $('bag'), eqEl = $('bagEq'), listEl = $('bagList'), cardEl = $('bagCard'), tabsEl = $('bagTabs'), statsEl = $('bagStats'), headEl = $('bagHead');
   let tab = 'all', sel = null;       // sel: {from:'bag', i} | {from:'eq', slot}
@@ -23,29 +24,54 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
 
   for (const [id, label] of TABS) { const b = el('button', 'tab', label); b.type = 'button'; b.dataset.tab = id; b.addEventListener('click', () => { tab = id; sel = null; render(); }); tabsEl.appendChild(b); }
 
+  // сводка героя: пары «название — значение» (шаг «сумка как в MMO»)
   function stats() {
-    const g = W.gear, P = cfg.player, p = W.player;
-    const parts = [`Урон ${Math.round(P.attackDamage + g.dmg)}`, `Броня ${g.armor}`, `Здоровье ${Math.ceil(p.hp)}/${p.maxhp}`];
-    if (g.spd) parts.push(`Скорость ${g.spd > 0 ? '+' : ''}${g.spd}%`);
-    parts.push(`Крит ${Math.round(12 + g.crit)}%`);
-    for (const c of setCounts(W.inv)) if (c.n >= 2) parts.push(`«${c.set.name}» ${c.n}/4`);
-    parts.splice(1, 0, `Ур. ${W.lv}`);
-    if (g.leech) parts.push(`Вампиризм ${g.leech}%`);
-    if (g.luck) parts.push(`Удача ${g.luck}`);
-    if (g.reach) parts.push(`Дальность ${g.reach > 0 ? '+' : ''}${g.reach.toFixed(1)}`);
+    const g = W.gear, P = cfg.player, p = W.player, rows = [['Уровень', W.lv], ['Урон', Math.round(P.attackDamage + g.dmg)], ['Броня', g.armor], ['Здоровье', `${Math.ceil(p.hp)}/${p.maxhp}`], ['Крит', Math.round(12 + g.crit) + '%']];
+    if (g.spd) rows.push(['Скорость', (g.spd > 0 ? '+' : '') + g.spd + '%']);
+    if (g.leech) rows.push(['Вампиризм', g.leech + '%']);
+    if (g.luck) rows.push(['Удача', g.luck]);
+    if (g.reach) rows.push(['Дальность', (g.reach > 0 ? '+' : '') + g.reach.toFixed(1)]);
+    for (const c of setCounts(W.inv)) if (c.n >= 2) rows.push([`Сет «${c.set.name}»`, c.n + '/4']);
     const ks = Object.keys(W.keys || {}).filter(k => W.keys[k]).map(k => (cfg.dungeons.keys || {})[k] || k);
-    if (ks.length) parts.push('🗝 ' + ks.join(', '));                     // связка ключей подземелий
-    return parts.join(' · ');
+    statsEl.textContent = '';
+    for (const [k, v] of rows) { const r = el('div', 'bs'); r.append(el('span', 'bk', k), el('span', 'bv', String(v))); statsEl.appendChild(r); }
+    if (ks.length) statsEl.appendChild(el('div', 'bkeys', 'Ключи: ' + ks.join(', ')));       // связка ключей подземелий
   }
-
+  // силуэт героя между слотами «куклы»
+  const FIG = '<svg viewBox="0 0 60 120" aria-hidden="true"><g fill="currentColor"><circle cx="30" cy="16" r="10"/><path d="M16 30h28l5 36h-9l-2 50h-8l-1-34h-2l-1 34h-8l-2-50h-9z"/><path d="M14 31l-8 32 6 2 9-26zM46 31l8 32-6 2-9-26z"/></g></svg>';
+  // подсказка при наведении (компьютер): название, редкость, статы со сравнением с надетым
+  const tipEl = $('bagTip');
+  function tip(e, it, up, worn) {
+    tipEl.textContent = ''; tipEl.className = 'r' + it.rar;
+    tipEl.append(nm(it, 1, up), el('div', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : '')));
+    if (it.stats) for (const r of statDiff(it, worn, up, worn ? W.inv.up[it.slot] || 0 : 0, cfg.smith.bonus)) {
+      if (!worn && !(r.k in it.stats)) continue;
+      const row = el('div', 'str' + (r.d > 0 ? ' up' : r.d < 0 ? ' down' : '')); row.append(el('span', 'sk', r.name), el('span', 'sv', worn ? `${fmt(r.k, r.a)} → ${fmt(r.k, r.b)}` : fmt(r.k, r.b)), el('span', 'sd', r.d > 0 ? '▲' : r.d < 0 ? '▼' : '')); tipEl.appendChild(row);
+    } else if (it.text) tipEl.appendChild(el('div', 'ct', it.text));
+    if (!canWield(W.hero, it)) tipEl.appendChild(el('div', 'cmp down', NOT_FOR[W.hero]));
+    tipEl.appendChild(el('div', 'hint', it.slot && canWield(W.hero, it) ? 'Двойной щелчок — надеть' : it.use ? 'Двойной щелчок — использовать' : 'Щелчок — подробно'));
+    tipEl.hidden = false; moveTip(e);
+  }
+  function moveTip(e) { const r = tipEl.getBoundingClientRect(), x = Math.min(innerWidth - r.width - 8, e.clientX + 16), y = Math.min(innerHeight - r.height - 8, e.clientY + 12); tipEl.style.left = Math.max(8, x) + 'px'; tipEl.style.top = Math.max(8, y) + 'px'; }
+  const hideTip = () => { tipEl.hidden = true; };
+  // надеть или использовать сразу (двойной щелчок, долгое касание)
+  function quick(i) { const s = W.inv.bag[i], it = s && BY_ID[s.id]; if (!it) return; if (it.slot && canWield(W.hero, it)) { if (equipAt(W.inv, i, W.hero)) sel = null; } else if (it.use) { if (!useItem(W, i)) flash('Сейчас не нужно'); } hideTip(); render(); onChange && onChange(); }
+  function hoverable(b, get) {
+    b.addEventListener('mouseenter', e => { const g = get(); if (g) tip(e, g.it, g.up, g.worn); });
+    b.addEventListener('mousemove', e => { if (!tipEl.hidden) moveTip(e); });
+    b.addEventListener('mouseleave', hideTip);
+  }
   function card() {
-    cardEl.textContent = ''; cardEl.hidden = !sel; if (!sel) return;
+    cardEl.textContent = ''; cardEl.hidden = !sel && !desk;
+    if (!sel) { if (desk) { cardEl.className = 'idle'; cardEl.append(el('div', 'cph', 'Наведите на вещь — подсказка со сравнением. Щелчок — подробно и действия. Двойной щелчок — надеть или использовать.')); } return; }
     const id = sel.from === 'eq' ? W.inv.eq[sel.slot] : (W.inv.bag[sel.i] || {}).id, it = id && BY_ID[id];
     if (!it) { sel = null; cardEl.hidden = true; return; }
     const n = sel.from === 'bag' ? W.inv.bag[sel.i].n : 1, up = sel.from === 'eq' ? W.inv.up[sel.slot] || 0 : W.inv.bag[sel.i].up || 0;
     cardEl.className = 'r' + it.rar;
     const h = el('div', 'ch'), t = el('div', 'cht'); h.append(icon(it, 'ic big'));
-    t.append(nm(it, n, up), el('div', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : ''))); h.append(t); cardEl.appendChild(h);
+    t.append(nm(it, n, up), el('div', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : ''))); h.append(t);
+    { const x = el('button', 'cclose', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть'); x.addEventListener('click', () => { sel = null; render(); }); h.append(x); }
+    cardEl.appendChild(h);
     // характеристики: у вещи из сумки — рядом с надетым (было → стало), стрелка — лучше или хуже
     const worn = it.slot && sel.from === 'bag' && W.inv.eq[it.slot] ? BY_ID[W.inv.eq[it.slot]] : null;
     if (it.stats) {
@@ -92,26 +118,31 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
   let flashT = 0; function flash(t) { const f = $('bagFlash'); f.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { f.textContent = ''; }, 1800); }
 
   function render() {
-    refreshGear(W);
-    headEl.textContent = `Сумка ${W.inv.bag.length}/${bagSlots(W)} · пепел ${W.inv.ash}`;
-    statsEl.textContent = stats();
+    refreshGear(W); hideTip();
+    const cap = bagSlots(W), n = W.inv.bag.length;
+    headEl.textContent = 'Сумка';
+    stats();
+    $('bagAsh').textContent = `Пепел: ${W.inv.ash}`;
+    { const c = $('bagCap'); c.dataset.t = `Место: ${n}/${cap}`; c.className = n >= cap ? 'full' : n >= cap * .8 ? 'warn' : ''; c.firstChild.style.width = Math.min(100, n / cap * 100) + '%'; }
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
-    // надетое
+    // «кукла»: слоты вокруг силуэта героя
     eqEl.textContent = '';
+    { const fig = el('div', 'fig'); fig.innerHTML = FIG; fig.append(el('div', 'fign', `${heroOf(W.hero).name} · ур. ${W.lv}`)); eqEl.appendChild(fig); }
     for (const slot of SLOTS) {
-      const id = W.inv.eq[slot], it = id && BY_ID[id];
-      const b = el('button', 'slot' + (it ? ' r' + it.rar : ' none') + (sel && sel.from === 'eq' && sel.slot === slot ? ' sel' : '')); b.type = 'button';
+      const id = W.inv.eq[slot], it = id && BY_ID[id], up = W.inv.up[slot] || 0;
+      const b = el('button', 'slot' + (it ? ' r' + it.rar : ' none') + (sel && sel.from === 'eq' && sel.slot === slot ? ' sel' : '')); b.type = 'button'; b.style.gridArea = slot;
       if (it) b.append(icon(it)); else { const i = el('img', 'ic ghost'); i.alt = ''; i.src = slotIconURL(doc, slot); b.append(i); }
-      const tx = el('span', 'stx'); tx.append(el('span', 'sl', SLOT_NAME[slot]));
-      if (it) tx.append(nm(it, 1, W.inv.up[slot] || 0)); else tx.append(el('span', 'nm empty', 'пусто'));
-      b.append(tx); b.title = it ? nameOf(it.id, W.inv.up[slot] || 0) : SLOT_NAME[slot] + ': пусто';
+      if (it && up) b.append(el('span', 'upg', '+' + up));
+      b.append(el('span', 'sl', SLOT_NAME[slot]));
+      b.setAttribute('aria-label', it ? SLOT_NAME[slot] + ': ' + nameOf(it.id, up) : SLOT_NAME[slot] + ': пусто');
+      if (it) hoverable(b, () => ({ it, up, worn: null }));
       b.addEventListener('click', () => { if (it) { sel = { from: 'eq', slot }; render(); } });
       eqEl.appendChild(b);
     }
-    // вещи: по редкости (лучшие сверху), внутри — по названию
+    // сетка сумки: вещи (лучшие сверху), во вкладке «Всё» — ещё пустые ячейки до вместимости
     listEl.textContent = '';
     const rows = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).filter(r => tab === 'all' || tabOf(r.it) === tab).sort((a, b) => b.it.rar - a.it.rar || a.it.name.localeCompare(b.it.name, 'ru'));
-    if (!rows.length) listEl.appendChild(el('div', 'emptyl', W.inv.bag.length ? 'В этой вкладке пусто.' : 'Сумка пуста. Ищите сундуки, бочки и могилы, обшаривайте дома.'));
+    if (!rows.length && tab !== 'all') listEl.appendChild(el('div', 'emptyl', 'В этой вкладке пусто.'));
     for (const r of rows) {
       const b = el('button', 'tile r' + r.it.rar + (sel && sel.from === 'bag' && sel.i === r.i ? ' sel' : '')); b.type = 'button';
       b.append(icon(r.it));
@@ -121,13 +152,18 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       if (!mine) { b.classList.add('nw'); b.append(el('span', 'bt no', '✕')); } else if (betterThanWorn(W.inv, r.it)) b.append(el('span', 'bt', '▲'));
       b.title = nameOf(r.it.id, r.s.up || 0) + (r.s.n > 1 ? ' ×' + r.s.n : '') + (r.it.stats ? ' — ' + statLine(r.it) : '') + (mine ? '' : ' — ' + NOT_FOR[W.hero]);
       b.setAttribute('aria-label', b.title);
+      if (desk) { b.removeAttribute('title'); hoverable(b, () => ({ it: r.it, up: r.s.up || 0, worn: r.it.slot && W.inv.eq[r.it.slot] ? BY_ID[W.inv.eq[r.it.slot]] : null })); }
       b.addEventListener('click', () => { sel = { from: 'bag', i: r.i }; render(); });
+      b.addEventListener('dblclick', () => quick(r.i));
+      { let lp = 0; b.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; lp = setTimeout(() => { lp = 0; quick(r.i); }, 450); });     // долгое касание — надеть или использовать
+        for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { if (lp) clearTimeout(lp); lp = 0; }); }
       listEl.appendChild(b);
     }
+    if (tab === 'all') for (let k = n; k < cap; k++) listEl.appendChild(el('div', 'tile empty'));
     card();
   }
   const open = () => { sel = null; render(); root.hidden = false; onOpen && onOpen(); };
-  const close = () => { root.hidden = true; onClose && onClose(); };
+  const close = () => { root.hidden = true; hideTip(); onClose && onClose(); };
   $('bagBtn').addEventListener('click', () => (root.hidden ? open() : close()));
   $('bagClose').addEventListener('click', close);
   $('bagQuests').addEventListener('click', () => { close(); onQuests && onQuests(); });

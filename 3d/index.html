@@ -121,12 +121,18 @@
 <section id="bag" hidden>
   <div class="pbox">
     <div class="bhead"><h2 id="bagHead">Сумка</h2><button id="bagQuests" type="button" class="jbtn" aria-label="Задания">📜</button><button id="bagJournal" type="button" class="jbtn" aria-label="Журнал знаний">📖</button><button id="bagClose" type="button" class="main">Играть</button></div>
-    <div id="bagStats" class="bstats"></div>
-    <div id="bagEq"></div>
+    <div class="bhero">
+      <div id="bagEq" class="doll"></div>
+      <div id="bagStats" class="bstats"></div>
+    </div>
+    <div class="bitems">
+      <div id="bagTabs"></div>
+      <div id="bagList"></div>
+      <div class="bfoot"><span id="bagAsh"></span><span id="bagCap"><i></i></span></div>
+    </div>
     <div id="bagCard" hidden></div>
     <div id="bagFlash"></div>
-    <div id="bagTabs"></div>
-    <div id="bagList"></div>
+    <div id="bagTip" hidden></div>
   </div>
 </section>
 
@@ -136,16 +142,21 @@
     <p id="keysHelp" class="note" hidden>⌨ WASD или стрелки — ходить · пробел или левая кнопка мыши — удар (держать — тяжёлый удар) · Shift или правая кнопка — перекат · E — люк, торговец · M — карта · I — сумка · N — навыки · Q — задания · 1–5 — умения · Esc — меню и закрыть окно</p>
     <div class="pcols">
       <div class="pcol">
-        <h2>Герой</h2>
+        <h2>Игра</h2>
         <p id="heroNow" class="note"></p>
         <button id="heroSwitch" type="button" class="reset">Сменить героя</button>
-        <h2>Сложность</h2>
+        <h3>Сложность</h3>
         <div id="difTabs" class="tabs"></div>
         <p id="difText" class="note"></p>
         <button id="ironBtn" type="button" class="reset" hidden></button>
+      </div>
+      <div class="pstack">
+      <div class="pcol">
+        <h2>Вид и звук</h2>
         <button id="muteBtn" type="button" class="reset"></button>
-        <button id="asciiBtn" type="button" class="reset"></button>
         <button id="retroBtn" type="button" class="reset"></button>
+        <button id="asciiBtn" type="button" class="reset"></button>
+        <button id="fpsBtn" type="button" class="reset"></button>
       </div>
       <div class="pcol">
         <h2>Управление</h2>
@@ -153,9 +164,11 @@
           <button id="leftyBtn" type="button" class="reset"></button>
           <div id="uiTabs" class="tabs"></div>
           <button id="vibBtn" type="button" class="reset"></button>
-          <button id="fpsBtn" type="button" class="reset"></button>
           <button id="hintBtn" type="button" class="reset"></button>
         </div>
+      </div>
+      </div>
+      <div class="pcol">
         <h2>Сохранение</h2>
         <p class="note">Перенос на другое устройство: скопируйте код, там вставьте его и нажмите «Загрузить».</p>
         <div class="prow"><button id="expBtn" type="button">Скопировать код</button><button id="impBtn" type="button">Загрузить</button></div>

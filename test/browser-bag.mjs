@@ -34,11 +34,11 @@ async function fill(page) {
   }, ITEMS);
 }
 const bagInfo = page => page.evaluate(() => {
-  const L = document.getElementById('bagList'), tiles = [...L.querySelectorAll('.tile')];
+  const L = document.getElementById('bagList'), tiles = [...L.querySelectorAll('.tile:not(.empty)')], empty = L.querySelectorAll('.tile.empty').length;     // сетка как в MMO: пустые ячейки до вместимости
   return { n: tiles.length, minW: Math.min(...tiles.map(t => t.getBoundingClientRect().width)), over: L.scrollWidth - L.clientWidth,
     icons: tiles.every(t => { const i = t.querySelector('img.ic'); return i && i.naturalWidth === 16; }), rar: tiles.filter(t => /\br[34]\b/.test(t.className)).length,
     eqIcons: [...document.querySelectorAll('#bagEq .slot img.ic')].length, cnt: tiles.filter(t => t.querySelector('.cnt')).length, upg: tiles.filter(t => t.querySelector('.upg')).length, bt: tiles.filter(t => t.querySelector('.bt')).length,
-    bagN: window.__b3d.W.inv.bag.length };
+    bagN: window.__b3d.W.inv.bag.length, empty, minEmpty: Math.min(...[...L.querySelectorAll('.tile')].map(t => t.getBoundingClientRect().width)) };
 });
 
 try {
@@ -87,11 +87,19 @@ try {
     await fill(page);
     await page.keyboard.press('KeyI'); await page.waitForTimeout(300);
     await page.locator('#bagList .tile').first().click(); await page.waitForTimeout(200);
-    const L = await page.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); const e = r('bagEq'), l = r('bagList'), c = r('bagCard'); return { eqR: e.right, listL: l.left, cardR: c.right, listTop: l.top, eqTop: e.top }; });
-    if (!(L.listL >= L.eqR && L.listL >= L.cardR)) bad('на компьютере не две колонки: ' + JSON.stringify(L));
-    if (L.listTop > L.eqTop + 4) bad('на компьютере сетка начинается ниже надетого (дыра под вкладками): ' + JSON.stringify(L));
+    const L = await page.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); const e = r('bagEq'), l = r('bagList'), c = r('bagCard'), t = r('bagTabs'); return { eqR: e.right, listL: l.left, listR: l.right, cardL: c.left, listTop: l.top, eqTop: e.top, tabsB: t.bottom }; });
+    if (!(L.listL >= L.eqR && L.cardL >= L.listR)) bad('на компьютере не три колонки «кукла | сетка | карточка»: ' + JSON.stringify(L));
+    if (L.listTop > L.tabsB + 12 || L.listTop > L.eqTop + 80) bad('на компьютере сетка начинается не сразу под вкладками: ' + JSON.stringify(L));
     const r = await bagInfo(page);
-    if (r.n !== r.bagN || !r.icons || r.over > 0) bad('сумка на компьютере: ' + JSON.stringify(r));
+    if (r.n !== r.bagN || !r.icons || r.over > 0 || r.n + r.empty !== 30) bad('сумка на компьютере: ' + JSON.stringify(r));
+    // как в MMO: подсказка при наведении, двойной щелчок надевает
+    { const tiles = page.locator('#bagList .tile:not(.empty)'), k = await page.evaluate(() => [...document.querySelectorAll('#bagList .tile:not(.empty)')].findIndex(t => /▲/.test(t.textContent))), t = tiles.nth(Math.max(0, k)), bb = await t.boundingBox();
+      await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.waitForTimeout(150);
+      const tip = await page.evaluate(() => { const e = document.getElementById('bagTip'); return { shown: !e.hidden, rows: e.querySelectorAll('.str').length, name: (e.querySelector('.nm') || {}).textContent }; });
+      if (!tip.shown || !tip.name) bad('нет подсказки при наведении: ' + JSON.stringify(tip));
+      const before = await page.evaluate(() => JSON.stringify(window.__b3d.W.inv.eq));
+      await t.dblclick(); await page.waitForTimeout(200);
+      if ((await page.evaluate(() => JSON.stringify(window.__b3d.W.inv.eq))) === before) bad('двойной щелчок не надел вещь'); }
     await page.screenshot({ path: join(out, '3d-bag-desk.png') });
     await ctx.close();
   }
