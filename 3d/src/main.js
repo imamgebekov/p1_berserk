@@ -14,6 +14,8 @@ import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLine, questMark } from './quests3d.js';
 import { eventLine } from './events3d.js';
 import { fireNear, knownFires, fastTravel, travelBlock, sanitizeFires } from './fires3d.js';
+import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
+import { isNight } from './daynight.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView } from './abilities3d.js';
@@ -274,6 +276,7 @@ if (desk) {
     if (c === 'KeyI') { if (vis('bag')) $('bagClose').click(); else if (!panelOpen) $('bagBtn').click(); return; }
     if (c === 'KeyN') { if (vis('skills')) $('skillClose').click(); else if (!panelOpen) $('skillBtn').click(); return; }
     if (c === 'KeyQ') { if (vis('quests')) $('questClose').click(); else if (!panelOpen) { if (vis('questBtn')) $('questBtn').click(); else quests.open('mine'); } return; }
+    if (c === 'KeyB' && !panelOpen && vis('sleepBtn')) sleepBtn.click();
     if (c === 'KeyE' && !panelOpen) { if (vis('portalBtn')) portalBtn.click(); else if (vis('fireBtn')) fireBtn.click(); else if (vis('talk')) talk.click(); }
   });
 }
@@ -345,6 +348,18 @@ function openFires() {
 }
 function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write(); }
 fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
+// сон (G4): затемнение, ночь проживается разом, утром — полное здоровье (или «разбудили»)
+const sleepBtn = $('sleepBtn'), sleepFade = $('sleepFade'); let sleepingUI = false;
+sleepBtn.addEventListener('click', e => {
+  e.stopImmediatePropagation(); input.release();
+  const why = sleepBlock(W); if (why) { toast(why, '', '#c8d4ff'); return; }
+  sleepingUI = true; panelOpen = true; sleepFade.hidden = false; requestAnimationFrame(() => sleepFade.classList.add('on'));
+  setTimeout(() => {
+    const r = sleep(W); saver.write(true);
+    toast(r === 'ok' ? '☀ Утро. Вы выспались — здоровье полное' : r === 'woken' ? '⚠ Вас разбудили! Враги рядом' : r, '', r === 'ok' ? '#ffe08a' : '#ff8a6a');
+    sleepFade.classList.remove('on'); setTimeout(() => { sleepFade.hidden = true; sleepingUI = false; panelOpen = false; }, 500);
+  }, 650);
+}, true);
 $('firesClose').addEventListener('click', closeFires);
 const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); usePortal(W); }, true);
 // карта: миникарта в углу, большая карта по касанию
@@ -394,6 +409,7 @@ function loop(now) {
   { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
   { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка ✦' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
   { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) { const l = '🔥 Костёр' + (desk ? ' · E' : ''); if (fireBtn.textContent !== l) fireBtn.textContent = l; } }
+  { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) { const l = '😴 Спать до утра' + (desk ? ' · B' : ''); if (sleepBtn.textContent !== l) sleepBtn.textContent = l; } }
   { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; } }
   { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); } } }
   { const n = W.combo.n; if (n !== lastCombo) { comboEl.hidden = n < 2; if (n >= 2) { comboEl.innerHTML = `×${n}<small>+${Math.round(Math.min(.3, n * .02) * 100)}%</small>`; comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); } lastCombo = n; } }

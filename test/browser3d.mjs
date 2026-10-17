@@ -95,7 +95,7 @@ try {
     if (await page.evaluate(() => document.getElementById('shop').hidden)) bad('окно торговли не открылось');
     await page.screenshot({ path: join(out, '3d-shop.png') });
     const n0 = await page.evaluate(() => window.__b3d.W.inv.bag.length);
-    await page.tap('#shopList .srow:first-child .buy'); await page.waitForTimeout(150);
+    await page.tap('#shopList .buy:not(.no)');     // первая по карману: сверху полка редкостей (G3), она бывает дороже await page.waitForTimeout(150);
     if (!(await page.evaluate(() => window.__b3d.W.inv.ash < 500))) bad('покупка не списала пепел');
     await page.tap('#shopTabs .tab[data-tab="sell"]'); await page.tap('#shopJunk'); await page.waitForTimeout(150);
     if (await page.evaluate(() => window.__b3d.W.inv.bag.some(s => s.id === 'k_goblet'))) bad('«Продать хлам» не продал кубок');

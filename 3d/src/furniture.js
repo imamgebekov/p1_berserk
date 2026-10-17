@@ -35,6 +35,7 @@ export function furnish(b, floorL, glowL, rnd) {
     F(0, .7, along - 3.6, 1.0, .7, wood); F(0, .7, along - 3.4, .08, .9, '#5a4028', 1.0);
     for (let i = 0; i < 3; i++) { barrel(-along / 2 + 2.0 + i * .95, .55); }
     for (const [u, v] of [[-1.6, 3.4], [1.8, 3.4], [-1.6, 5.6], [1.8, 5.6]]) { table(u, v, 1.5, .9); bench(u, v - .75, 1.5); bench(u, v + .75, 1.5); candle(u, v, .74); }
+    bed(along / 2 - 1.3, depth - 1.1); bed(-along / 2 + 1.3, depth - 1.1);                // кровати для сна (G4)
   } else if (kind === 'chapel') {
     F(0, .5, 2.4, .9, .8, '#4a4640'); F(0, .5, 2.6, .12, 1.0, '#5a564e', .9); F(0, .35, 1.4, .06, .5, cloth, .96); F(0, .15, .14, 1.2, .1, '#c8a24a', 1.1);
     candle(-1.0, .5, 1.02); candle(1.0, .5, 1.02);
