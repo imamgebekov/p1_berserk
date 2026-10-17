@@ -10,12 +10,13 @@ import { windAt, grassSpots } from './wind3d.js';
 import { makeWeather, weatherAt, effectsOf } from './weather3d.js';
 import { overheadOf } from './overhead3d.js';
 import { propsIn, grassIn, chunksAround, CHUNK } from './chunks3d.js';
-import { pathSegs } from './world3d.js';
+import { pathSegs, distSeg } from './world3d.js';
+import { groundMix, grassHSL, flowersIn, bushesIn } from './flora3d.js';
 import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
 import { inCliff } from './cliffs3d.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addCanopyTree, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
+import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
 import { heroOf } from './data/heroes3d.js';
 import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul, makeBeasts, updateBeasts } from './ambient3d.js';
 import { mulberry32 } from './sim.js';
@@ -97,6 +98,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const hillsMat = new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true }), sandC = new THREE.Color(cfg.look.sand), rel = h => { const t = new THREE.Color(h), g = gtex.mean; return new THREE.Color(t.r / g.r, t.g / g.g, t.b / g.b); }, rockC = rel('#6e6a60'), PATH = cfg.look.path, pathC = PATH ? rel(PATH.color) : null, roadSegs = pathSegs(map);     // скала и тропа: текстура травы × множитель ≈ нужный цвет (линейный)     // цвет материала — мокрость (F3)
   // деревья и камни участка: один раз на участок, нужны и земле (тень у стволов), и самим деревьям; старые забываются
   const propsMemo = new Map(), propsAt = (ci, cj) => { const k = ci + ',' + cj; let P = propsMemo.get(k); if (!P) { P = propsIn(map, cfg, ci, cj); propsMemo.set(k, P); if (propsMemo.size > 160) propsMemo.delete(propsMemo.keys().next().value); } return P; };
+  const FL = cfg.flora && cfg.flora.on ? cfg.flora : null;
   const hillsGeo = (ci, cj) => {
     const g = new THREE.PlaneGeometry(CHUNK, CHUNK, CHUNK, CHUNK); g.rotateX(-Math.PI / 2); g.translate((ci + .5) * CHUNK, 0, (cj + .5) * CHUNK);
     const pos = g.attributes.position, uv = g.attributes.uv, col = new Float32Array(pos.count * 3), c = new THREE.Color();
@@ -109,6 +111,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       const x = pos.getX(i), z = pos.getZ(i), h = heightAt(hf, x, z, false); pos.setY(i, h);     // под мостом — русло, не настил
       uv.setXY(i, (x + 250) / 500, 1 - (z + 250) / 500);                // та же текстура и масштаб, что у плоской земли
       const k = 1 + h * .12, tn = biomeTint(cfg, x, z); c.setRGB(k * tn[0], k * tn[1], k * tn[2]);     // оттенок биома (C3b)
+      if (FL) { const gm = groundMix(x, z, FL); c.setRGB(c.r * gm[0], c.g * gm[1], c.b * gm[2]); }     // пятна сочной и сухой травы, проплешины (зелень)
       if (map.river && h < -.15) c.lerp(sandC, Math.min(1, -h / .8) * .7);
       else if (near.length) { const pk = pathMix(near, x, z, PATH); if (pk > 0) c.lerp(pathC, pk); }     // тропа — цвет земли с мягким краем (шаг 6)
       if (map.plateaus.length && inCliff(map.plateaus, x, z, .9)) c.copy(rockC).multiplyScalar(k);     // отвесный край — камень (C3c)
@@ -245,6 +248,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const propsMat = WC && WC.on ? windy(new THREE.MeshLambertMaterial({ vertexColors: true }), 'tree') : new THREE.MeshLambertMaterial({ vertexColors: true });
   const props = new THREE.Mesh(mergeGeometries(parts, false), propsMat);     // край мира и деревья над тропой; остальные деревья — по участкам
   // трава (F2): пучок из трёх травинок; строится по участкам вокруг героя, качается по ветру
+  const flowerMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const grassOn = !!(WC && WC.on && WC.grass.on), grassMat = grassOn ? windy(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'grass') : null;
   const grassGeo = (() => { const H = WC ? WC.grass.h : .7, v = [], col = [], dark = new THREE.Color(cfg.look.leaf[1]), tip = new THREE.Color(cfg.look.leaf[2]).multiplyScalar(1.6);
     for (let b = 0; b < 3; b++) { const a = b * Math.PI / 3, c = Math.cos(a), s = Math.sin(a), lean = (b - 1) * .08;
@@ -260,6 +264,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     g.add(new THREE.Mesh(geo, hillsMat));
     if (lightMat) { const lm = new THREE.Mesh(geo, lightMat); lm.renderOrder = 1; g.add(lm); }
     land.add(g); liveLand.set(ci + ',' + cj, { g, geo, trees }); yield;
+    const spots = grassOn || FL ? grassIn(map, cfg, ci, cj, allSegs) : [], cseed = salt => (Math.imul(cfg.world.seed + 1013, 2654435761) ^ Math.imul(ci, 73856093) ^ Math.imul(cj, 19349663) ^ salt) >>> 0; yield;     // места травы — и для цветов и кустов
     const P = propsAt(ci, cj);
     for (let i0 = 0; i0 < P.length; i0 += 24) {                              // в роще деревьев много (G2): по 24 за кадр
       const pp = [];
@@ -267,17 +272,30 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (pp.length) { for (const q of pp) if (!q.attributes.sway) q.setAttribute('sway', new THREE.BufferAttribute(new Float32Array(q.attributes.position.count), 1)); g.add(new THREE.Mesh(mergeGeometries(pp, false), propsMat)); pp.forEach(q => q.dispose()); }
       if (i0 + 24 < P.length) yield;
     }
+    if (FL) {                                                                  // кусты: только вид, без столкновений; качаются как кроны
+      const x0 = ci * CHUNK, z0 = cj * CHUNK, segs = segsNear(allSegs, x0, x0 + CHUNK, z0, z0 + CHUNK, 4), blds = map.buildings.filter(b => b.x1 > x0 - 4 && b.x0 < x0 + CHUNK + 4 && b.z1 > z0 - 4 && b.z0 < z0 + CHUNK + 4);
+      const far = (x, z, c) => !segs.some(([a, b]) => distSeg(x, z, a, b) < c) && !blds.some(b => x > b.x0 - c && x < b.x1 + c && z > b.z0 - c && z < b.z1 + c);
+      const pp = []; for (const q of bushesIn(cfg, spots, cseed(41), far)) { const k0 = pp.length; addBush(pp, mulberry32(q.seed), q.x, q.z, q.s, cfg.look); const gy = Y(q.x, q.z); for (let k = k0; k < pp.length; k++) pp[k].translate(0, gy, 0); }
+      if (pp.length) { g.add(new THREE.Mesh(mergeGeometries(pp, false), propsMat)); pp.forEach(q => q.dispose()); }
+    }
     yield;
     if (grassOn) {
-      const spots = grassIn(map, cfg, ci, cj, allSegs), cells = new Map(); yield;
+      const cells = new Map();
       spots.forEach((q, i) => { const k = Math.floor(q.x / 16) + ',' + Math.floor(q.z / 16); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(i); });
       let done = 0;
       for (const ids of cells.values()) {
         const m = new THREE.InstancedMesh(grassGeo, grassMat, ids.length);
-        ids.forEach((i, j) => { const q = spots[i]; E4.set(0, q.rot, 0); Q4.setFromEuler(E4); P4.set(q.x, Y(q.x, q.z), q.z); S4.set(q.s, q.s, q.s); M4.compose(P4, Q4, S4); m.setMatrixAt(j, M4); C4.setHSL(.27 + (i % 7) * .012, .45, .38 + (i % 5) * .04); m.setColorAt(j, C4); });
+        ids.forEach((i, j) => { const q = spots[i]; E4.set(0, q.rot, 0); Q4.setFromEuler(E4); P4.set(q.x, Y(q.x, q.z), q.z); S4.set(q.s, q.s, q.s); M4.compose(P4, Q4, S4); m.setMatrixAt(j, M4); if (FL) { const [hh, ss, ll] = grassHSL(q.x, q.z, FL, i); C4.setHSL(hh, ss, ll); } else C4.setHSL(.27 + (i % 7) * .012, .45, .38 + (i % 5) * .04); m.setColorAt(j, C4); });
         m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.computeBoundingSphere(); m.boundingSphere.radius += 1; g.add(m);
         if (++done % 4 === 0) yield;
       }
+    }
+    if (FL) {                                                                  // цветы: поляны одного-двух цветов, головка — шестиугольник
+      const fl = flowersIn(cfg, spots, cseed(43)), r = FL.flowers.r, v = new Float32Array(fl.length * 18 * 3), col = new Float32Array(fl.length * 18 * 3), nor = new Float32Array(fl.length * 18 * 3);
+      fl.forEach((f, n) => { C4.set(f.c); const y = Y(f.x, f.z) + f.h; for (let t = 0; t < 6; t++) { const a0 = t * Math.PI / 3, a1 = a0 + Math.PI / 3, o = (n * 18 + t * 3) * 3;
+        v.set([f.x, y, f.z, f.x + Math.cos(a1) * r, y, f.z + Math.sin(a1) * r, f.x + Math.cos(a0) * r, y, f.z + Math.sin(a0) * r], o);
+        for (let q = 0; q < 3; q++) { col.set([C4.r, C4.g, C4.b], o + q * 3); nor.set([0, 1, 0], o + q * 3); } } });
+      if (fl.length) { const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(v, 3)); fg.setAttribute('color', new THREE.BufferAttribute(col, 3)); fg.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.add(new THREE.Mesh(fg, flowerMat)); }
     }
   }
   const jobs = new Map();

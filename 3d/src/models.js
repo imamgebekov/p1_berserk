@@ -253,6 +253,12 @@ export function addTree(list, rnd, x, z, look = null) {
   }
   if (look) for (let k = k0; k < list.length; k++) { const p = list[k].attributes.position, sw = new Float32Array(p.count); for (let i = 0; i < p.count; i++) sw[i] = Math.max(0, Math.min(1, p.getY(i) / (h + 1))); list[k].setAttribute('sway', new THREE.BufferAttribute(sw, 1)); }     // F2: доля качания по высоте
 }
+// куст (зелень, 2026-10-17): 2–3 округлых куска листвы у земли размером около s м; качается слабее кроны
+export function addBush(list, rnd, x, z, s, look) {
+  const k0 = list.length, n = 2 + (rnd() * 2 | 0);
+  for (let i = 0; i < n; i++) { const q = s * (.55 + rnd() * .45), a = rnd() * Math.PI * 2, r = i ? s * (.35 + rnd() * .3) : 0; pushBlob(list, 'ico', q, q * .8, q, x + Math.cos(a) * r, q * .62, z + Math.sin(a) * r, rnd() * .3, rnd() * 3, rnd() * .3, look.leaf[(rnd() * look.leaf.length) | 0]); }
+  for (let k = k0; k < list.length; k++) { const p = list[k].attributes.position, sw = new Float32Array(p.count); for (let i = 0; i < p.count; i++) sw[i] = Math.max(0, Math.min(.45, p.getY(i) / (s * 3))); list[k].setAttribute('sway', new THREE.BufferAttribute(sw, 1)); }
+}
 // дерево у тропы (F4): ствол наклонён к тропе, крона из 4–6 округлых кусков висит над дорогой; качается как обычное
 export function addCanopyTree(list, rnd, c, look) {
   const k0 = list.length, h = c.h, lean = Math.atan2(c.reach * .55, h), yaw = Math.atan2(c.toX, c.toZ);
