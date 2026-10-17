@@ -27,7 +27,7 @@ try {
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
   // «Ретро» (крупные пиксели): Chromium без видеокарты на полном разрешении даёт ~8 кадр/с, а проверки управления меряют время;
   // гладкий вид (шаг 2 аудита) проверяется ниже размером холста и в тестах Мака и Safari
-  await page.goto(url + '?shot&hero=thorn&retro'); await page.waitForTimeout(1500);
+  await page.goto(url + '?shot&hero=thorn&retro&dev'); await page.waitForTimeout(1500);     // ?dev: панель настройки и ссылка на 2D видны только так
 
   const st = () => page.evaluate(() => { const W = window.__b3d.W, p = W.player; return { x: p.x, z: p.z, hp: p.hp, kills: W.kills, en: W.enemies.filter(e => !e.dead).length, t: W.t, state: p.state }; });
   if (await page.evaluate(() => !document.getElementById('nogl').hidden)) bad('WebGL не поднялся');

@@ -267,3 +267,17 @@ html[data-lefty] #abil .ab[data-i="4"]{left:calc(182px + env(safe-area-inset-lef
 [data-desk] .pcols{display:grid;grid-template-columns:1fr 1fr;column-gap:24px;align-items:start}
 [data-desk] #leftyBtn,[data-desk] #uiTabs,[data-desk] #vibBtn{display:none}
 #tweakBox summary::before{content:'▸';margin-right:8px}#tweakBox[open] summary::before{content:'▾'}#tweakBox summary::-webkit-details-marker{display:none}
+
+/* сброс прогресса с удержанием (шаг 4): полоса заполняется, пока держишь */
+.hold{position:relative;overflow:hidden}.hold .fill{position:absolute;inset:0;transform-origin:left;transform:scaleX(var(--k,0));background:rgba(196,22,28,.45);pointer-events:none}.hold .lbl{position:relative}
+#tweakBox[hidden],#back[hidden]{display:none}
+/* шаг 5: окна появляются мягко — фон проявляется, блок окна поднимается; при «уменьшить движение» — только проявление */
+#shop:not([hidden]),#map:not([hidden]),#fires:not([hidden]),#skills:not([hidden]),#captain:not([hidden]),#quests:not([hidden]),#journal:not([hidden]),#smith:not([hidden]),#bag:not([hidden]),#panel:not([hidden]),.veil:not([hidden]){animation:sheetFade .18s ease-out both}
+section:not([hidden])>.pbox{animation:sheetIn .22s cubic-bezier(.2,.8,.2,1) both}
+@keyframes sheetIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@keyframes sheetFade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){section:not([hidden])>.pbox{animation:sheetFade .15s ease-out both}}
+/* шаг 5: след потерянного здоровья — бледная полоса догоняет основную с задержкой */
+#hpGhost{position:absolute;left:0;top:0;bottom:0;width:100%;background:#e8c0a0;opacity:.55;transform-origin:left;transition:transform .45s ease-out .25s}
+#hpFill{position:relative}
+@media (prefers-reduced-motion:reduce){#hpGhost{transition:none}}

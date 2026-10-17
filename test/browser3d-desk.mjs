@@ -408,7 +408,10 @@ try {
     await ps.goto(url + '?shot&hero=thorn'); await ps.waitForTimeout(1500);
     const sm = await ps.evaluate(() => { const r = window.__b3d.renderer, c = document.getElementById('gl'); return { w: c.width, cw: c.clientWidth, ir: getComputedStyle(c).imageRendering, ...r.look() }; });
     if (sm.retro || sm.w !== Math.floor(sm.cw * 1.5) || /pixelated|crisp/.test(sm.ir) || !sm.tone) bad('гладкий вид на Маке по умолчанию: холст не в плотность 1,5, пиксели или без тональной кривой ' + JSON.stringify(sm));
-    console.log('  гладкий вид: ' + JSON.stringify({ w: sm.w, h: sm.h, tone: sm.tone })); await cs.close(); }
+    console.log('  гладкий вид: ' + JSON.stringify({ w: sm.w, h: sm.h, tone: sm.tone }));
+    const mn = await ps.evaluate(() => ({ tweak: !document.getElementById('tweakBox').hidden, back: !document.getElementById('back').hidden, bagReset: !!document.getElementById('bagReset'), saveReset: !!document.getElementById('saveReset') }));     // шаг 4 «Минус»
+    if (mn.tweak || mn.back || mn.bagReset || !mn.saveReset) bad('меню: служебное видно без ?dev или сброс прогресса не в «Сохранении» ' + JSON.stringify(mn));
+    await cs.close(); }
   for (const l of logs) bad(l);
 } finally { await browser.close(); await dev.close(); }
 

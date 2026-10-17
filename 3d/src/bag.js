@@ -13,7 +13,7 @@ const tabOf = it => it.slot === 'weapon' ? 'weapon' : it.slot ? 'armor' : it.cat
 export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJournal, onQuests } = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('bag'), eqEl = $('bagEq'), listEl = $('bagList'), cardEl = $('bagCard'), tabsEl = $('bagTabs'), statsEl = $('bagStats'), headEl = $('bagHead');
-  let tab = 'all', sel = null, resetArmed = false;       // sel: {from:'bag', i} | {from:'eq', slot}
+  let tab = 'all', sel = null;       // sel: {from:'bag', i} | {from:'eq', slot}
 
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const nm = (it, n, up = 0) => { const s = el('span', 'nm', nameOf(it.id, up) + (n > 1 ? ' ×' + n : '')); s.style.color = RARITY[it.rar].color; return s; };
@@ -125,9 +125,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       listEl.appendChild(b);
     }
     card();
-    const rs = $('bagReset'); rs.textContent = resetArmed ? 'Точно? Всё сотрётся' : 'Сбросить прогресс'; rs.classList.toggle('warn', resetArmed);
   }
-  $('bagReset').addEventListener('click', () => { if (!resetArmed) { resetArmed = true; render(); setTimeout(() => { resetArmed = false; render(); }, 3000); return; } resetArmed = false; onReset && onReset(); });
   const open = () => { sel = null; render(); root.hidden = false; onOpen && onOpen(); };
   const close = () => { root.hidden = true; onClose && onClose(); };
   $('bagBtn').addEventListener('click', () => (root.hidden ? open() : close()));

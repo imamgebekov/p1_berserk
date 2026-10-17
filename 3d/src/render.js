@@ -572,7 +572,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   function zap(x1, z1, x2, z2) {
     const a = { x: x1, y: 1.2 + Y(x1, z1), z: z1 }, b = { x: x2, y: 1.2 + Y(x2, z2), z: z2 }, L = lightning(a, b, Math.random);
-    const core = new THREE.Mesh(boltGeo(L, .09), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+    const core = new THREE.Mesh(boltGeo(L, .09), new THREE.MeshBasicMaterial({ color: '#fff2a0', transparent: true, opacity: .85, depthWrite: false, blending: THREE.AdditiveBlending }));     // без белой сердцевины (шаг 4)
     const halo = new THREE.Mesh(boltGeo(L, .34), new THREE.MeshBasicMaterial({ color: '#fff2a0', transparent: true, opacity: .8, depthWrite: false, blending: THREE.AdditiveBlending }));
     const outer = new THREE.Mesh(boltGeo(L, .8), new THREE.MeshBasicMaterial({ color: '#ffc840', transparent: true, opacity: .3, depthWrite: false, blending: THREE.AdditiveBlending }));
     scene.add(core, halo, outer); fxPool.push({ m: core, t: .25, kind: 'bolt' }, { m: halo, t: .25, kind: 'bolt' }, { m: outer, t: .25, kind: 'bolt' });
@@ -658,10 +658,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const k = 1 - Math.exp(-cfg.view.camFollow * dt);
     cam.x += (p.x - cam.x) * k; cam.z += (p.z - cam.z) * k; cam.y += (Y(p.x, p.z) - cam.y) * (cfg.view.blend ? 1 - Math.exp(-cfg.view.blend.camY * dt) : k);     // высота над холмами — медленнее (шаг 3)
     const pitch = cfg.view.camPitch * Math.PI / 180, dist = cfg.view.camDist;
-    const sh = W.shake * .35;
+    const FV = cfg.fx.view, sh = calm || !FV ? 0 : W.shake * FV.amp, wt = performance.now() / 1000;     // тряска — плавная (шаг 4), при «уменьшить движение» — нет
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
     const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
-    camera.position.set(cam.x + Math.sin(yaw) * hd + (Math.random() - .5) * sh, Math.sin(pitch) * dist + cfg.view.camLookUp + cam.y + (Math.random() - .5) * sh, cam.z + Math.cos(yaw) * hd);
+    camera.position.set(cam.x + Math.sin(yaw) * hd + sh * (Math.sin(wt * FV.f[0] * 6.283) + .5 * Math.sin(wt * FV.f[1] * 6.283 + 1.3)) / 3, Math.sin(pitch) * dist + cfg.view.camLookUp + cam.y + sh * (Math.sin(wt * FV.f[1] * 6.283 + .7) + .5 * Math.sin(wt * FV.f[0] * 6.283 + 2.1)) / 3, cam.z + Math.cos(yaw) * hd);
     camera.lookAt(cam.x, cfg.view.camLookUp + cam.y, cam.z);
     if (W.lvl !== shownLvl) showLevel(W);
     const under = W.lvl !== 'surface';

@@ -15,7 +15,7 @@
 <div id="fade" aria-hidden="true"></div>
 
 <header id="hud">
-  <div id="hpWrap"><div id="hpBar"><i id="hpFill"></i><i id="xpFill"></i></div><span id="hpTxt">100</span></div>
+  <div id="hpWrap"><div id="hpBar"><i id="hpGhost"></i><i id="hpFill"></i><i id="xpFill"></i></div><span id="hpTxt">100</span></div>
   <div id="kills">Ур. 1</div>
   <button id="skillBtn" type="button" aria-label="Навыки">✦</button>
   <button id="bagBtn" type="button" aria-label="Сумка">🎒<span id="bagFill"></span></button>
@@ -127,7 +127,6 @@
     <div id="bagFlash"></div>
     <div id="bagTabs"></div>
     <div id="bagList"></div>
-    <button id="bagReset" type="button" class="reset">Сбросить прогресс</button>
   </div>
 </section>
 
@@ -162,6 +161,7 @@
         <div class="prow"><button id="expBtn" type="button">Скопировать код</button><button id="impBtn" type="button">Загрузить</button></div>
         <textarea id="saveCode" rows="2" spellcheck="false" placeholder="Код сохранения B3D1:…"></textarea>
         <div id="saveFlash"></div>
+        <button id="saveReset" type="button" class="reset hold"><span class="fill"></span><span class="lbl">Сбросить прогресс — удерживайте</span></button>
       </div>
     </div>
     <details id="tweakBox">

@@ -106,8 +106,11 @@ export function animateHero(h, p, time, dt, cfg, swingMul = 1) {
     if (roll) { const rx = h.sm.get(ch[11]); h.sm.set(ch[11], rx - Math.round(rx / (Math.PI * 2)) * Math.PI * 2); }     // после кувырка — без раскрутки назад
   }
   // вспышка при уроне: мигаем во время неуязвимости
-  h.flash(p.inv > 0 && !roll && p.state !== 'dash' && Math.floor(time * 20) % 2 ? .7 : 0);
+  { const IV = cfg.fx.invuln, on = p.inv > 0 && p.inv < 5 && !roll && p.state !== 'dash';     // неуязвимость: мягкая пульсация вместо строба (шаг 4); долгая (тесты, сон) не светится
+    h.flash(!on || !IV ? 0 : CALM ? IV.base : IV.base + IV.pulse * Math.sin(time * IV.pulseHz * 6.283)); }
 }
+
+const CALM = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---------- враги ----------
 // облик по виду: цвета и особенности

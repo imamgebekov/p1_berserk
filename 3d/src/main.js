@@ -226,7 +226,7 @@ const bag = createBag(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); },
   onClose: () => { panelOpen = false; saver.write(); },
   onChange: () => saver.write(),
-  onReset: () => { saver.reset(); location.reload(); }
+  onReset: () => { saver.reset(); location.reload(); }     // сброс — из меню «Сохранение» с удержанием (шаг 4)
 });
 const shop = createShop(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); },
@@ -298,7 +298,7 @@ const showMute = () => { muteBtn.textContent = isMuted() ? '🔇 Звук вык
 muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); });
 showMute();
 const bagFill = $('bagFill');
-let ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0, lowT = 0, lowShown = false;
+let ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0;
 // личные настройки: левша, размер кнопок, вибрация, счётчик кадров, подсказки
 const prefBtn = (id, get, label, flip) => { const b = $(id); const show = () => { b.textContent = label(get()); }; b.addEventListener('click', () => { flip(); savePrefs(P); applyPrefs(); }); return show; };
 const uiTabs = $('uiTabs');
@@ -323,6 +323,15 @@ let asciiNow = false, retroNow = false;
 if (new URLSearchParams(location.search).has('ascii')) P.ascii = true;      // для тестов и ссылок: сразу вид ASCII
 if (new URLSearchParams(location.search).has('retro')) P.retro = true;      // для тестов и ссылок: сразу вид «Ретро»
 applyPrefs();
+// панель настройки прототипа и ссылка на 2D — только для разработки (?dev, шаг 4 «Минус»)
+if (!new URLSearchParams(location.search).has('dev')) { $('tweakBox').hidden = true; $('back').hidden = true; }
+// сброс прогресса: удерживать 1,5 с (шаг 4): случайное касание ничего не сотрёт
+{ const btn = $('saveReset'), HOLD = 1500; let t0 = 0, raf = 0;
+  const stop = () => { cancelAnimationFrame(raf); t0 = 0; btn.style.setProperty('--k', 0); btn.classList.remove('on'); };
+  const tick = () => { if (!t0) return; const k = Math.min(1, (performance.now() - t0) / HOLD); btn.style.setProperty('--k', k); if (k >= 1) { stop(); saver.reset(); location.reload(); return; } raf = requestAnimationFrame(tick); };
+  const go = e => { if (e && e.preventDefault) e.preventDefault(); if (t0) return; t0 = performance.now(); btn.classList.add('on'); raf = requestAnimationFrame(tick); };
+  btn.addEventListener('pointerdown', go); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, stop);
+  btn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') go(e); }); btn.addEventListener('keyup', stop); btn.addEventListener('blur', stop); }
 // перенос сохранения
 const codeEl = $('saveCode'), saveFlash = $('saveFlash');
 const sflash = (t, bad) => { saveFlash.textContent = t; saveFlash.className = bad ? 'bad' : ''; };
@@ -399,22 +408,25 @@ let lastBoss = '';
 const comboEl = $('combo'), statusRow = $('statusRow');
 let lastCombo = 0, lastSt = '';
 $('smithJournal').addEventListener('click', () => { smith.close(); journal.open(); });
-const hpFill = $('hpFill'), hpTxt = $('hpTxt'), killsEl = $('kills');
-let saveT = 0, lastHp = -1, lastKey = '', last = performance.now();
+const hpFill = $('hpFill'), hpGhost = $('hpGhost'), hpTxt = $('hpTxt'), killsEl = $('kills');
+let saveT = 0, lastHp = -1, lastKey = '', last = performance.now(), simK = 1;
+const CALM_UI = matchMedia('(prefers-reduced-motion: reduce)').matches;
 // замер кадра (C5): время процессора на симуляцию и подготовку отрисовки, вызовы и треугольники; окно последних 600 кадров
 const perf = { sim: [], draw: [], calls: 0, tris: 0, max: 0, n: 0 }, PERF_N = 600;
 const perfPush = (a, v) => { a.push(v); if (a.length > PERF_N) a.shift(); };
 function loop(now) {
   const t0 = performance.now(), real = (now - last) / 1000, dt = Math.max(0, Math.min(.05, real)); last = now;
-  if (!panelOpen && !landscape) {
-    const inp = input.read();
-    Object.assign(inp, rotateInput(inp.mx, inp.mz, cfg.view.camYaw));        // «вверх» на джойстике = вверх на экране при любом повороте камеры
+  // под меню (шаг 5): бой останавливается плавно за UI.stopT с (при «уменьшить движение» — сразу), а картинка живёт — вода, ветер, частицы
+  const paused = panelOpen || landscape; simK = paused ? (CALM_UI ? 0 : Math.max(0, simK - real / cfg.ui.stopT)) : 1;
+  if (simK > 0) {
+    const inp = paused ? {} : input.read();
+    Object.assign(inp, rotateInput(inp.mx || 0, inp.mz || 0, cfg.view.camYaw));        // «вверх» на джойстике = вверх на экране при любом повороте камеры
     if (W.player.dead) inp.attack = inp.roll = false;
-    step(W, dt, inp);
+    step(W, dt * simK, inp);
   }
   { const n = W.inv.bag.length, m = bagSlots(W), s = n + '/' + m, cls = n >= m ? 'full' : n >= m * .8 ? 'warn' : ''; if (bagFill.textContent !== s) bagFill.textContent = s; if (bagFill.className !== cls) bagFill.className = cls; }     // заполненность сумки на кнопке
   const t1 = performance.now();
-  if (renderer) renderer.render(W, panelOpen || landscape ? 0 : dt);
+  if (renderer) renderer.render(W, dt);
   { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
   { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка ✦' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
   { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) { const l = '🔥 Костёр' + (desk ? ' · E' : ''); if (fireBtn.textContent !== l) fireBtn.textContent = l; } }
@@ -430,7 +442,7 @@ function loop(now) {
   { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); questBtn.textContent = mk === 'ready' ? '📜 Сдать задание' : mk ? '📜 Есть задания ❗' : '📜 Задания'; } }
   drawAbil();
   { const tl = eventLine(W) || trackerLine(W); if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
-  if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } if (f < 32 && !panelOpen && !landscape) lowT += .5; else lowT = Math.max(0, lowT - .5); if (lowT >= 6 && !lowShown && (P.ascii || cfg.view.pixelScale < 5)) { lowShown = true; toast(P.ascii ? 'Мало кадров: в ⚙ выключите вид ASCII' : 'Мало кадров: в ⚙ увеличьте «Размер пикселя»', 'bad'); } }
+  if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast('💡 ' + ((desk && h.desk) || h.text), 'hint'); } }
   if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0); }
   if ((atmoT += real) > .2) { atmoT = 0; setScene(mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null), cfg.audio); tickAudio(); }     // атмосфера: река, птицы, музыка
@@ -438,7 +450,7 @@ function loop(now) {
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
-  if (hp !== lastHp) { lastHp = hp; hpFill.style.transform = `scaleX(${W.player.hp / W.player.maxhp})`; hpTxt.textContent = Math.ceil(W.player.hp); }
+  if (hp !== lastHp) { lastHp = hp; const k = `scaleX(${Math.max(0, W.player.hp / W.player.maxhp)})`; hpFill.style.transform = k; hpGhost.style.transform = k; hpTxt.textContent = Math.ceil(W.player.hp); }     // след потерянного здоровья догоняет с задержкой (шаг 5)
   { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; killsEl.textContent = `Ур. ${W.lv} · пепел ${W.inv.ash} · ${W.night ? '🌙' : '☀'} ${clockText(W.t, cfg.daynight)}`; xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
   requestAnimationFrame(loop);

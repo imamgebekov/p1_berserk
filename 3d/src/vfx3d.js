@@ -5,7 +5,7 @@
 
 const pick = (rng, a) => a[(rng() * a.length) | 0];
 // частиц в секунду у статуса (на единицу размера цели)
-export const RATE = { burn: 30, freeze: 7, poison: 9, bleed: 6, shock: 10 };
+export const RATE = { burn: 15, freeze: 4, poison: 5, bleed: 3, shock: 5 };     // вдвое тише (шаг 4 «Минус»)
 // одна частица статуса kind; h — высота цели, м
 export function statusPart(kind, rng, h = 1.6) {
   const a = rng() * Math.PI * 2, r = .25 + rng() * .3, ox = Math.cos(a) * r, oz = Math.sin(a) * r;
