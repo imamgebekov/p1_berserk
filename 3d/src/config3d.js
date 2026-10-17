@@ -311,15 +311,22 @@ const BASE = {
     len: 480, start: .22, contrast: .75, nightBelow: .22,
     night: { count: 2, dmg: 1.15, xp: 1.25, luck: 8 },         // врагов больше и злее, опыта и удачи больше; торговец спит
     sky: {
-      day:   { fog: '#6c7a66', hemiSky: '#e6eedc', hemiGround: '#3e4e2c', hemiI: 3.0, sun: '#fff0d0', sunI: 2.3, dome: '#ffffff' },     // E2: светлее и зеленее
-      night: { fog: '#0b1016', hemiSky: '#6a7aa8', hemiGround: '#141a16', hemiI: 1.5, sun: '#8a9ad8', sunI: .6, dome: '#3a4258' }
-    }
+      // шаг 6 аудита: днём солнце сильнее неба (есть объём), свет тёплый, туман светлый и тёплый; ночь синяя, а не чёрная
+      day:   { fog: '#a8ab92', hemiSky: '#dfe8e0', hemiGround: '#4a5034', hemiI: 1.4, sun: '#ffe2b8', sunI: 3.2, dome: '#ffffff' },
+      night: { fog: '#1c2433', hemiSky: '#7a8ab8', hemiGround: '#2a2a30', hemiI: 1.8, sun: '#8a9ad8', sunI: .7, dome: '#3a4258' }
+    },
+    sunPos: [-30, 42, -40]     // откуда светит солнце (м): около 40° над горизонтом
+
   },
   // палитра поверхности (E2): трава вместо пепла, деревья с кронами (bare — доля сухих), камни, небо (верх и горизонт)
   look: {
     ground: ['#2c4222', '#35502a', '#4c6c34'], sand: '#a08e5e',
     trunk: ['#3a2a1c', '#4a3524'], leaf: ['#2e5a28', '#3a6a2e', '#4a7a36'], bare: .2,
-    rock: ['#5e5c54', '#6c6a60'], skyTop: '#2e4a6a', skyHor: '#c8c098'
+    rock: ['#5e5c54', '#6c6a60'], skyTop: '#2e4a6a', skyHor: '#c8c098',
+    // шаг 6 аудита: трава — плавный тихий шум (n×n, крупные пятна cells[0] и мелкие cells[1] на плитку, доля второго цвета hue,
+    // яркость ±amp); тропы — цвет земли: середина до w[0] м, край до w[1] м, неровность edge м, сила k
+    groundNoise: { n: 128, cells: [4, 16], hue: [.1, .5], amp: .06 },
+    path: { color: '#4e3c2a', w: [.45, 1.2], edge: .3, k: .75 }
   },
   // свет сквозь облака (E2): пятна света размером size м плывут по ветру (м/с); k — сила днём и ночью; столбы света над
   // самыми яркими пятнами в r м от героя (n штук, высота h, ширина w, наклон tilt к солнцу, прозрачность op); motes — пылинок в секунду на столб
@@ -350,7 +357,7 @@ const BASE = {
   shaders: { water: { on: true, ripple: 1, glint: .9, shallow: '#3f7c78', shoreW: 1.8, foam: '#d6e6dc', foamW: .6, flow: .7 },
     leaf: { on: true, vary: 1, lit: .22 }, metal: { on: true, shine: 60, spec: '#8c8c8c' }, grime: { on: false, k: .18 },     // потёртости выключены (шаг 4 «Минус»: мелкая деталь против «мягко»)
     // ободок силуэта (V2c): край фигуры светлее — днём day, ночью night; ореолы ночью у фонарей и костров: размер, м, и цвет; max — сколько сразу
-    rim: { on: true, day: .08, night: .26, pow: 5, hero: '#ffd8a8', foe: '#ff9078' }, halo: { on: true, lamp: [2.6, '#ffb35a'], fire: [4.4, '#ff8a3a'], near: 70, max: 96 } },
+    rim: { on: true, day: .08, night: .45, pow: 5, hero: '#ffd8a8', foe: '#ff9078' }, halo: { on: true, lamp: [2.6, '#ffb35a'], fire: [4.4, '#ff8a3a'], near: 70, max: 96 } },
   weather: { on: true, kinds: { clear: [.55, 150, 360], cloudy: [.25, 80, 200], rain: [.2, 70, 160] }, ramp: 14, fog: .6, wet: .7,
     drops: 900, fall: 16, box: [34, 18], splash: 26, ripples: 24, force: null,
     // дождь в бою (шаг R): при полном дожде враги слышат ×hear и видят ×sight, огонь (шанс и длительность поджога) ×fire,

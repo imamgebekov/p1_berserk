@@ -2,26 +2,14 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { pushBox, addTree } from './models.js';
-import { distSeg, pathSegs } from './world3d.js';
 
 export function buildDecor(map, rnd, grime = null) {
   // клетки 64 м (C3b): каждая — свои меши, поэтому дальний и невидимый декор отсекается
   let L = [], G = []; const cells = new Map(), use = (x, z) => { const k = Math.floor(x / 64) + ',' + Math.floor(z / 64); if (!cells.has(k)) cells.set(k, { L: [], G: [] }); ({ L, G } = cells.get(k)); };
   // коробка в локальных координатах предмета (поворот по оси y вокруг его центра)
   const mk = (x, z, rot) => { const c = Math.cos(rot), s = Math.sin(rot); return (lx, ly, lz, w, h, d, color, glow) => pushBox(glow ? G : L, w, h, d, x + lx * c + lz * s, ly + h / 2, z - lx * s + lz * c, 0, rot, 0, color); };
-  const inB = (x, z, pad) => map.buildings.some(b => x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad);
 
-  // дороги: плоские плиты вдоль троп от костра к дверям (за лагерем тропы извилистые)
-  for (const [a, b] of pathSegs(map)) {
-    use((a.x + b.x) / 2, (a.z + b.z) / 2);
-    const len = Math.hypot(b.x - a.x, b.z - a.z), n = Math.ceil(len / 1.8), yaw = Math.atan2(b.x - a.x, b.z - a.z);
-    for (let i = 0; i < n; i++) {
-      const k = (i + .5) / n, x = a.x + (b.x - a.x) * k, z = a.z + (b.z - a.z) * k;
-      if (inB(x, z, .2) || Math.hypot(x, z) < 1.5) continue;
-      const c = ['#3a2c20', '#3e3023', '#34271c'][(rnd() * 3) | 0];
-      pushBox(L, 1.9 + rnd() * .5, .05, len / n + .15, x + (rnd() - .5) * .3, .025, z, 0, yaw, 0, c);
-    }
-  }
+  // дороги нарисованы цветом земли (шаг 6 аудита, render.js → hillsGeo), плит больше нет
   for (const d of map.decor) {
     use(d.x, d.z);
     const f = mk(d.x, d.z, d.rot || 0), s = d.s || 1;

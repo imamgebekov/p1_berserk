@@ -16,7 +16,7 @@ ok(Math.abs(lightOf(10, D) - lightOf(10 + D.len, D)) < 1e-9, 'сутки пер�
 ok(/^\d\d:\d\d$/.test(clockText(123, D)) && clockText(0, { ...D, start: 0 }) === '06:00', 'часы: ' + clockText(0, { ...D, start: 0 }));
 ok(mix('#000000', '#ffffff', .5) === '#808080' && mix('#102030', '#102030', .3) === '#102030', 'смешение цветов');
 for (const L of [0, .3, 1]) { const k = skyAt(L, D.sky); ok(/^#[0-9a-f]{6}$/.test(k.fog) && /^#[0-9a-f]{6}$/.test(k.sun) && k.hemiI > 0 && k.sunI > 0, 'небо при ' + L); }
-ok(skyAt(0, D.sky).hemiI < skyAt(1, D.sky).hemiI && skyAt(0, D.sky).fog === D.sky.night.fog && skyAt(1, D.sky).fog === D.sky.day.fog, 'ночь темнее дня');
+ok(skyAt(0, D.sky).hemiI + skyAt(0, D.sky).sunI < skyAt(1, D.sky).hemiI + skyAt(1, D.sky).sunI && skyAt(0, D.sky).fog === D.sky.night.fog && skyAt(1, D.sky).fog === D.sky.day.fog, 'ночь темнее дня');
 
 // ---- симуляция ----
 const mk = (seed = 1, t = 0) => { const cfg = JSON.parse(JSON.stringify(CFG3)); const W = createWorld(cfg, mulberry32(seed)); W.t = t; return W; };

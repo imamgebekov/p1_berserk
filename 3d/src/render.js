@@ -25,18 +25,23 @@ import { BY_ID, RARITY } from './data/items.js';
 import { trailOn, dampAngle } from './anim3d.js';
 import { createFx } from './fx3d.js';
 import { RATE, statusPart, emitCount, lightning, stunStar } from './vfx3d.js';
+import { groundNoise, pathMix, segsNear } from './ground3d.js';
 
 const FOG = '#150c0b';
 
-function groundTexture(look) {
-  const c = document.createElement('canvas'); c.width = c.height = 32;
-  const g = c.getContext('2d'), r = mulberry32(5);
-  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-    const v = r(); g.fillStyle = v < .08 ? look.ground[2] : v < .3 ? look.ground[1] : look.ground[0]; g.fillRect(x, y, 1, 1);     // трава: пятнышки светлее
+function groundTexture(look) {                                      // шаг 6: плавный тихий шум вместо зерна; mean — средний цвет (линейный)
+  const G = look.groundNoise, n = G.n, c = document.createElement('canvas'); c.width = c.height = n;
+  const g = c.getContext('2d'), im = g.createImageData(n, n), { hue, lum } = groundNoise(n, 5, G);
+  const a = new THREE.Color(look.ground[0]).convertLinearToSRGB(), b = new THREE.Color(look.ground[1]).convertLinearToSRGB(), sum = [0, 0, 0];
+  for (let i = 0; i < n * n; i++) {
+    const rgb = [a.r + (b.r - a.r) * hue[i], a.g + (b.g - a.g) * hue[i], a.b + (b.b - a.b) * hue[i]].map(v => Math.min(1, v * lum[i]));
+    rgb.forEach((v, k) => { im.data[i * 4 + k] = Math.round(v * 255); sum[k] += v; }); im.data[i * 4 + 3] = 255;
   }
+  g.putImageData(im, 0, 0);
   const t = new THREE.CanvasTexture(c);
-  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(70, 70);
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(70, 70);
   t.colorSpace = THREE.SRGBColorSpace;
+  t.mean = new THREE.Color().setRGB(sum[0] / n / n, sum[1] / n / n, sum[2] / n / n, THREE.SRGBColorSpace);
   return t;
 }
 
@@ -74,7 +79,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
   // свет: тусклое «багровое» небо, холодный свет затмения и тёплый костёр
   const hemi = new THREE.HemisphereLight('#a8847a', '#2a1a16', 2.4); scene.add(hemi);
-  const sun = new THREE.DirectionalLight('#ffa080', 1.7); sun.position.set(-30, 50, -40); scene.add(sun);
+  const sun = new THREE.DirectionalLight('#ffa080', 1.7); sun.position.set(...cfg.daynight.sunPos); scene.add(sun);
   const dome = skyDome(cfg.look); scene.add(dome);
   let lastLight = -1;
 
@@ -89,15 +94,17 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const Y = (x, z) => (groundOn ? heightAt(hf, x, z) : 0);
   if (hooks.onText) { const f = hooks.onText; hooks.onText = (x, y, z, ...a) => f(x, y + Y(x, z), z, ...a); }
   // земля с холмами (C3a): участками CHUNK м вокруг героя; светлее на буграх и темнее в низинах, у воды — песок
-  const hillsMat = new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true }), sandC = new THREE.Color(cfg.look.sand), rockC = (() => { const t = new THREE.Color('#6e6a60'), g = new THREE.Color(cfg.look.ground[1]); return new THREE.Color(t.r / g.r, t.g / g.g, t.b / g.b); })();     // скала: текстура травы × множитель ≈ серый камень (линейный цвет)     // цвет материала — мокрость (F3)
+  const hillsMat = new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true }), sandC = new THREE.Color(cfg.look.sand), rel = h => { const t = new THREE.Color(h), g = gtex.mean; return new THREE.Color(t.r / g.r, t.g / g.g, t.b / g.b); }, rockC = rel('#6e6a60'), PATH = cfg.look.path, pathC = PATH ? rel(PATH.color) : null, roadSegs = pathSegs(map);     // скала и тропа: текстура травы × множитель ≈ нужный цвет (линейный)     // цвет материала — мокрость (F3)
   const hillsGeo = (ci, cj) => {
     const g = new THREE.PlaneGeometry(CHUNK, CHUNK, CHUNK, CHUNK); g.rotateX(-Math.PI / 2); g.translate((ci + .5) * CHUNK, 0, (cj + .5) * CHUNK);
     const pos = g.attributes.position, uv = g.attributes.uv, col = new Float32Array(pos.count * 3), c = new THREE.Color();
+    const near = pathC ? segsNear(roadSegs, ci * CHUNK, (ci + 1) * CHUNK, cj * CHUNK, (cj + 1) * CHUNK, PATH.w[1] + PATH.edge + 1) : [];     // тропы рядом с участком
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), z = pos.getZ(i), h = heightAt(hf, x, z, false); pos.setY(i, h);     // под мостом — русло, не настил
       uv.setXY(i, (x + 250) / 500, 1 - (z + 250) / 500);                // та же текстура и масштаб, что у плоской земли
       const k = 1 + h * .12, tn = biomeTint(cfg, x, z); c.setRGB(k * tn[0], k * tn[1], k * tn[2]);     // оттенок биома (C3b)
       if (map.river && h < -.15) c.lerp(sandC, Math.min(1, -h / .8) * .7);
+      else if (near.length) { const pk = pathMix(near, x, z, PATH); if (pk > 0) c.lerp(pathC, pk); }     // тропа — цвет земли с мягким краем (шаг 6)
       if (map.plateaus.length && inCliff(map.plateaus, x, z, .9)) c.copy(rockC).multiplyScalar(k);     // отвесный край — камень (C3c)
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
@@ -535,7 +542,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function applyLook() {                                              // тональная кривая и фильтр земли по виду
     const smooth = !retro && !asciiOn;
     gl.toneMapping = smooth ? THREE.AgXToneMapping : THREE.NoToneMapping; gl.toneMappingExposure = smooth && cfg.view.smooth ? cfg.view.smooth.exposure : 1;
-    gtex.minFilter = smooth || asciiOn ? THREE.LinearMipmapLinearFilter : THREE.NearestFilter; gtex.magFilter = smooth ? THREE.LinearFilter : THREE.NearestFilter; gtex.needsUpdate = true;
+    for (const t of [gtex, gtex2]) { t.minFilter = smooth || asciiOn ? THREE.LinearMipmapLinearFilter : THREE.NearestFilter; t.magFilter = smooth ? THREE.LinearFilter : THREE.NearestFilter; t.needsUpdate = true; }
     canvas.classList.toggle('retro', retro && !asciiOn);
   }
   applyLook();

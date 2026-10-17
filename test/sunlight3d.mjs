@@ -41,8 +41,10 @@ ok(F.data.every(v => v >= 0 && v <= 1), 'поле вне 0..1');
   ok([...L.ground, ...L.leaf].every(h => { const c = rgb(h); return c[1] > c[0] * 1.1 && c[1] > c[2]; }), 'трава или листва не зелёные');
   ok(L.bare > 0 && L.bare < .5, 'сухих деревьев слишком много или нет вовсе');
   for (const k of ['fog', 'hemiSky', 'hemiGround']) { const c = rgb(D[k]); ok(c[0] <= c[1] * 1.05, `днём ${k} красный: ${D[k]}`); }
-  ok(lum(rgb(D.fog)) > .3 && D.hemiI >= 2.8 && D.sunI >= 2, 'день тёмный');
-  ok(lum(rgb(N.fog)) < lum(rgb(D.fog)) && N.hemiI < D.hemiI, 'ночь не темнее дня');
+  // шаг 6 аудита: свет считаем вместе (небо + солнце), солнце сильнее неба — иначе нет объёма
+  ok(lum(rgb(D.fog)) > .3 && D.hemiI + D.sunI >= 4.4, 'день тёмный');
+  ok(D.sunI > D.hemiI, 'днём небо светит сильнее солнца: свет плоский');
+  ok(lum(rgb(N.fog)) < lum(rgb(D.fog)) && N.hemiI + N.sunI < D.hemiI + D.sunI, 'ночь не темнее дня');
   { const c = rgb(SL.night); ok(c[1] >= c[2], 'лунный свет синее зелёного — трава станет водой в ASCII'); }
   { const c = rgb(SL.day); ok(c[1] > c[0] && c[1] > c[2], 'дневной свет не зелёно-тёплый'); } }
 
