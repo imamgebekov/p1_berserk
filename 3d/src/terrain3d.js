@@ -73,8 +73,10 @@ export function crossesWater(rv, x0, z0, x1, z1) {
 const ends = (b, k) => { const s = Math.sin(b.ang), c = Math.cos(b.ang); return [{ x: b.x - s * k, z: b.z - c * k }, { x: b.x + s * k, z: b.z + c * k }]; };
 const dist = (a, x, z) => Math.hypot(a.x - x, a.z - z);
 export function bridgeGoal(rv, x, z, tx, tz) {
-  if (!rv || !rv.bridges.length || !crossesWater(rv, x, z, tx, tz)) return null;
+  if (!rv || !rv.bridges.length) return null;
   const on = onBridge(rv, x, z);
+  if (on && on !== onBridge(rv, tx, tz)) { const [e1, e2] = ends(on, on.len / 2 + .6), e = dist(e1, tx, tz) < dist(e2, tx, tz) ? e1 : e2; return e; }     // с моста — по оси к концу у цели: по углам опоры (F5)
+  if (!crossesWater(rv, x, z, tx, tz)) return null;
   if (on) { const [e1, e2] = ends(on, on.len / 2 + .6); return dist(e1, tx, tz) < dist(e2, tx, tz) ? e1 : e2; }       // на мосту — к концу у цели
   let best = null, bc = 1e9;
   for (const b of rv.bridges) {

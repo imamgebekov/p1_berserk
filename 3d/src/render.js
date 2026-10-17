@@ -24,6 +24,7 @@ import { skyAt } from './daynight.js';
 import { BY_ID, RARITY } from './data/items.js';
 import { trailOn } from './anim3d.js';
 import { createFx } from './fx3d.js';
+import { RATE, statusPart, emitCount, lightning, stunStar } from './vfx3d.js';
 
 const FOG = '#150c0b';
 
@@ -426,6 +427,25 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     m.rotation.x = -Math.PI / 2; m.position.y = .03; return m;
   }
 
+  // статусы (V1): частицы горения, инея, яда, крови; звёзды оглушения; ледяные шипы у ног замороженного
+  const SKINDS = ['burn', 'freeze', 'poison', 'bleed'];
+  function statusFx(holder, st, x, y, z, h, sc, dt) {
+    holder.acc = holder.acc || {};
+    for (const k of SKINDS) {
+      if (!st || !st[k]) { holder.acc[k] = 0; continue; }
+      const r = emitCount(holder.acc[k] || 0, RATE[k] * sc * (calm ? .5 : 1), dt); holder.acc[k] = r.acc;
+      for (let i = 0; i < r.n; i++) { const q = statusPart(k, Math.random, h); fx.emit(x + q.dx * sc, y + q.dy, z + q.dz * sc, q.vx, q.vy, q.vz, q.color, q.life, q.g, q.s * Math.max(1, sc * .8), q.add); if (k === 'bleed' && Math.random() < .12) fx.decal(x + q.dx, z + q.dz, .25, BLOOD); }
+    }
+  }
+  const starGeo = new THREE.BoxGeometry(.22, .22, .06), starMat = new THREE.MeshBasicMaterial({ color: '#ffe27a' });
+  const iceGeo = new THREE.ConeGeometry(.17, 1.0, 4), iceMat = new THREE.MeshLambertMaterial({ color: '#cfefff', emissive: '#3a6a8a', transparent: true, opacity: .8 });
+  function statusMarks(en, st, x, y, z, sc, dt, t) {
+    const stun = st && st.stun, fr = st && st.freeze;
+    if (stun && !en.stars) { en.stars = new THREE.Group(); for (let i = 0; i < 3; i++) en.stars.add(new THREE.Mesh(starGeo, starMat)); scene.add(en.stars); }
+    if (en.stars) { en.stars.visible = !!stun; if (stun) { en.stars.position.set(x, y + 2.15 * sc, z); en.stars.children.forEach((m, i) => { const q = stunStar(i, 3, calm ? 0 : t, .42 * sc); m.position.set(q.x, q.y, q.z); m.rotation.set(0, 0, t * 6 + i); m.quaternion.premultiply(camera.quaternion); }); } }
+    if (fr && !en.ice) { en.ice = new THREE.Group(); for (let i = 0; i < 7; i++) { const c = new THREE.Mesh(iceGeo, iceMat), a = i / 7 * Math.PI * 2 + i, r = .35 + (i % 3) * .12; c.position.set(Math.cos(a) * r, .25, Math.sin(a) * r); c.rotation.set(Math.sin(a) * .5, 0, -Math.cos(a) * .5); c.scale.setScalar(.7 + (i % 4) * .2); en.ice.add(c); } en.iceK = 0; scene.add(en.ice); }
+    if (en.ice) { en.iceK = Math.max(0, Math.min(1, en.iceK + (fr ? dt * 6 : -dt * 3))); en.ice.visible = en.iceK > 0; if (en.ice.visible) { en.ice.position.set(x, y, z); en.ice.scale.setScalar(sc * en.iceK); } }
+  }
   function entity(e) {
     let en = ents.get(e.id);
     if (!en) {
@@ -470,10 +490,25 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
 
   // молния между врагами и расходящееся кольцо: короткие эффекты из пула
-  const fxPool = []; let tomb = null;
+  const fxPool = []; let tomb = null; const heroFx = {};
+  // молния (V1): ломаная с ветками — тонкая белая сердцевина и широкое жёлтое свечение, вспышка и искры у цели
+  const boltO = new THREE.Object3D();
+  function boltGeo(L, w) {
+    const parts = [];
+    for (const pts of [L.main, ...L.branches]) for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i], len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) || .01, g = new THREE.BoxGeometry(w, w, len + w);
+      boltO.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2); boltO.lookAt(b.x, b.y, b.z); boltO.updateMatrix(); g.applyMatrix4(boltO.matrix); parts.push(g);
+    }
+    const m = mergeGeometries(parts, false); parts.forEach(g => g.dispose()); return m;
+  }
   function zap(x1, z1, x2, z2) {
-    const len = Math.hypot(x2 - x1, z2 - z1), m = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, len), new THREE.MeshBasicMaterial({ color: '#ffe27a' }));
-    m.position.set((x1 + x2) / 2, 1.2 + Y((x1 + x2) / 2, (z1 + z2) / 2), (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); scene.add(m); fxPool.push({ m, t: .18, kind: 'zap' });
+    const a = { x: x1, y: 1.2 + Y(x1, z1), z: z1 }, b = { x: x2, y: 1.2 + Y(x2, z2), z: z2 }, L = lightning(a, b, Math.random);
+    const core = new THREE.Mesh(boltGeo(L, .09), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+    const halo = new THREE.Mesh(boltGeo(L, .34), new THREE.MeshBasicMaterial({ color: '#fff2a0', transparent: true, opacity: .8, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const outer = new THREE.Mesh(boltGeo(L, .8), new THREE.MeshBasicMaterial({ color: '#ffc840', transparent: true, opacity: .3, depthWrite: false, blending: THREE.AdditiveBlending }));
+    scene.add(core, halo, outer); fxPool.push({ m: core, t: .25, kind: 'bolt' }, { m: halo, t: .25, kind: 'bolt' }, { m: outer, t: .25, kind: 'bolt' });
+    fx.flash(b.x, b.y, b.z, 1.8, '#fff6c0');
+    for (let i = 0; i < 12; i++) { const q = statusPart('shock', Math.random, 1); fx.emit(b.x, b.y - .4 + q.dy * .5, b.z, q.vx * 1.4, q.vy + 1, q.vz * 1.4, q.color, q.life * 2, 9, .07, true); }
   }
   function ringFx(x, z, r, color) {
     const m = new THREE.Mesh(new THREE.RingGeometry(.85, 1, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide }));
@@ -541,6 +576,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (let i = fxPool.length - 1; i >= 0; i--) {
       const f = fxPool[i]; f.t -= dt;
       if (f.kind === 'ring') { const k = 1 - f.t / .35; f.m.scale.setScalar(.4 + k * f.r); f.m.material.opacity = .8 * (1 - k); }
+      if (f.kind === 'bolt' && f.m.material.transparent) f.m.material.opacity = (f.m.material.color.g > .9 ? .8 : .3) * (calm ? 1 : .55 + .45 * Math.random());     // молния мерцает (без мерцания при «уменьшить движение»)
       if (f.t <= 0) { scene.remove(f.m); f.m.geometry.dispose(); f.m.material.dispose(); fxPool.splice(i, 1); }
     }
   }
@@ -628,6 +664,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     { const o = W.inv.eq.offhand && BY_ID[W.inv.eq.offhand]; hero.setOff(o ? o.id : '', o && o.kind, o && o.mat, o && o.form); }
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
     animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
+    statusFx(heroFx, p.dead ? null : W.pst, p.x, Y(p.x, p.z), p.z, 1.7, 1, dt);
     updateCharge(p, t);
     updateTrail(W, p, dt);
     heroShadow.position.set(p.x, .03 + py, p.z);
@@ -644,6 +681,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       const ey = Y(e.x, e.z); en.m.group.position.set(e.x, ey, e.z); en.m.group.rotation.y = e.face;
       { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
       animateMonster(en.m, e, t, cfg, p.x, p.z);
+      { const sc = cfg.enemies[e.type].scale * (e.scaleMul || 1), st = !e.dead && e.st; statusFx(en, st, e.x, ey, e.z, 1.7 * sc, sc, dt); statusMarks(en, st, e.x, ey, e.z, sc, dt, t); }
       if (e.elite) {
         if (!en.elite) { en.elite = new THREE.Mesh(new THREE.RingGeometry(.95, 1.25, 28), new THREE.MeshBasicMaterial({ color: e.affColor, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide })); en.elite.rotation.x = -Math.PI / 2; scene.add(ovl(en.elite)); }
         en.elite.position.set(e.x, .07 + ey, e.z); en.elite.visible = !e.dead; en.elite.scale.setScalar(cfg.enemies[e.type].scale * (e.scaleMul || 1) * (1 + .06 * Math.sin(t * 5)));
@@ -668,7 +706,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       b.g.visible = show; if (show) { b.g.position.set(a.x, (a.cart ? 3.4 : 2.7) + ay, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }
     }
     for (const [id, en] of allyEnts) if (!aliveA.has(id)) { scene.remove(en.m.group, en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); bars.delete('a' + id); } }
-    for (const [id, en] of ents) if (!alive.has(id)) { scene.remove(en.m.group, en.sh, en.ring); if (en.elite) scene.remove(en.elite); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); bars.delete(id); } }
+    for (const [id, en] of ents) if (!alive.has(id)) { scene.remove(en.m.group, en.sh, en.ring); if (en.elite) scene.remove(en.elite); if (en.stars) scene.remove(en.stars); if (en.ice) scene.remove(en.ice); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); bars.delete(id); } }
 
     // события боя → эффекты и подписи (подписи отдаёт hooks.onText)
     for (const v of W.ev) {
@@ -681,6 +719,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'ash') hooks.onText && hooks.onText(v.x, 2.4, v.z, '+' + v.n + ' пепла', 'loot')
       else if (v.k === 'buff') burst(v.x, 1.2, v.z, 10, '#9fd0ff', 2)
       else if (v.k === 'dot') { hooks.onText && hooks.onText(v.x, 2.2, v.z, String(v.dmg), 'dot-' + v.fx); }
+      else if (v.k === 'react' && v.name === 'Раскол') { fx.flash(v.x, 1.2, v.z, 2.4, '#e8f8ff'); for (let i = 0; i < 26; i++) { const a = Math.random() * 6.283, sp = 3 + Math.random() * 4; fx.emit(v.x, 1 + Math.random() * .6, v.z, Math.cos(a) * sp, 2 + Math.random() * 3, Math.sin(a) * sp, ['#e8f8ff', '#bfe8ff', '#9fdcff'][i % 3], .6 + Math.random() * .4, 14, .1 + Math.random() * .12, false); } hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .35); }
+      else if (v.k === 'react' && v.name === 'Токсичный взрыв') { ringFx(v.x, v.z, 3.4, '#7ad060'); for (let i = 0; i < 34; i++) { const a = Math.random() * 6.283, sp = .8 + Math.random() * 2.2; fx.emit(v.x, .4 + Math.random() * .8, v.z, Math.cos(a) * sp, .3 + Math.random() * .6, Math.sin(a) * sp, ['#7ad060', '#4a9a3a', '#a8f070'][i % 3], 1 + Math.random() * .6, -.3, .2 + Math.random() * .18, false); } hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }
       else if (v.k === 'react') { burst(v.x, 1.2, v.z, 16, '#bfe8ff', 5); hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
@@ -753,5 +793,5 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
 
   const treesNear = (x, z) => { if (!WC) return 0; let n = 0; const r2 = WC.rustle.r * WC.rustle.r, count = A => { for (let i = 0; i < A.length; i += 2) { const dx = A[i] - x, dz = A[i + 1] - z; if (dx * dx + dz * dz < r2) n++; } }; count(treeXZ); for (const L of liveLand.values()) count(L.trees); return Math.min(1, n / WC.rustle.full); };
-  return { render, resize, project, setAscii, xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  return { render, resize, project, setAscii, vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }

@@ -270,6 +270,12 @@ try {
     await ev(n => { window.__b3d.cfg.enemies.count = n; window.__b3d.input.read = window.__readKeep; }, cnt);
     console.log('  окно: ' + JSON.stringify({ under: under.toFixed(3), open: open.toFixed(3) }));
     await ev(() => { Object.assign(window.__b3d.cfg.wind, { calm: .06, breeze: .55, gust: .45 }); window.__b3d.cfg.sunlight.wind = [.6, .25]; }); }
+  // эффекты стихий (V1): молния рисуется, горящий враг выпускает частицы
+  { const r = await ev(async () => { const { applyStatus } = await import('/3d/src/status3d.js'); const b = window.__b3d, W = b.W, p = W.player; W.enemies.length = 0;
+      const e = b.spawn('brute', p.x + 2, p.z + 2); e.hp = e.maxhp = 1e6; e.cd = 99; e.mode = 'guard'; e.home = { x: e.x, z: e.z }; applyStatus(W, e, 'burn', 1, 5);
+      const p0 = b.renderer.vfx().parts; W.ev.push({ k: 'chain', x: p.x - 2, z: p.z + 1, x2: p.x + 2, z2: p.z + 2 }); await new Promise(q => setTimeout(q, 150)); const v = b.renderer.vfx(); W.enemies.length = 0; return { p0, ...v }; });
+    if (!(r.bolts >= 3 && r.parts > r.p0 + 5)) bad('эффекты стихий не рисуются: ' + JSON.stringify(r));
+    console.log('  эффекты: ' + JSON.stringify(r)); }
   // погода (F3): в дождь — капли, туман гуще, птицы молчат, слышен дождь; в ясную — капель нет
   { const wx = async f => { await ev(f => { window.__b3d.cfg.weather.force = f; }, f); await page.waitForTimeout(1600); return ev(() => ({ w: window.__b3d.renderer.weather(), a: window.__b3d.audioStats() })); };
     const dry = await wx('clear'), wet = await wx('rain');

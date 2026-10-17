@@ -101,6 +101,9 @@ export function genWorld(cfg, buildings) {
   // колодец и бочки у костра, остатки частокола у границы
   solid('well', 6.5, -3.5, 1.1);
   for (const l of M.landmarks || []) solid(l.t, l.x, l.z, l.r, { rot: l.rot });     // ориентиры большого мира: башни, мельницы, крепости (C3b)
+  // опоры мостов (F5, вариант А): каменные столбы по углам на берегу — по берегу под мостом не пройти, только по мосту
+  if (river) for (const b of river.bridges) { const s = Math.sin(b.ang), c = Math.cos(b.ang), PR = cfg.terrain.bridge.pier || .6;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const lx = sx * (b.w / 2 + PR), lz = sz * (b.len / 2 - PR - .4), x = b.x + lx * c + lz * s, z = b.z - lx * s + lz * c; solids.push({ x, z, r: PR }); decor.push({ t: 'pier', x, z, rot: b.ang }); } }
   // точки интереса (G2): свой генератор — декор ядра не сдвигается; места сундуков — заранее, твёрдое на них не встаёт
   { const rq = mulberry(cfg.world.seed * 97 + 41);
     for (const q of M.pois || []) {

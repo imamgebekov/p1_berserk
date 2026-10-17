@@ -91,5 +91,15 @@ for (const b of rv.bridges) for (const [lp, le] of [[12, 12], [-10, 6], [4, -8],
 }
 ok(runs >= 4, 'мало проверок врага у мостов: ' + runs);
 
+// опоры мостов (F5, вариант А): по берегу под мостом не пройти, по мосту — можно; у каждого моста 4 опоры
+{ const walk = (pier, across) => { const c = JSON.parse(JSON.stringify(CFG3)); c.terrain.bridge.pier = pier; c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.bosses.list = [];
+    const W = createWorld(c, mulberry32(1)), p = W.player, b = W.map.river.bridges[0], s = Math.sin(b.ang), co = Math.cos(b.ang), at = (lx, lz) => ({ x: b.x + lx * co + lz * s, z: b.z - lx * s + lz * co });
+    const [A, B] = across ? [at(0, -b.len / 2 - 3), at(0, b.len / 2 + 3)] : [at(-5, b.len / 2 - 1), at(5, b.len / 2 - 1)]; p.x = A.x; p.z = A.z;
+    for (let i = 0; i < 60 * 6; i++) { p.inv = 1e9; const d = Math.hypot(B.x - p.x, B.z - p.z); if (d < .5) break; step(W, 1 / 60, { mx: (B.x - p.x) / d, mz: (B.z - p.z) / d }); }
+    return Math.hypot(B.x - p.x, B.z - p.z) < 1; };
+  const M = makeMap(CFG3); ok(M.decor.filter(d => d.t === 'pier').length === 4 * M.river.bridges.length, 'у мостов не по 4 опоры');
+  ok(!walk(CFG3.terrain.bridge.pier, false) && walk(.001, false), 'по берегу под мостом можно пройти (или проверка не ловит проход без опор)');
+  ok(walk(CFG3.terrain.bridge.pier, true), 'опоры мешают перейти по мосту'); }
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Рельеф 3D: OK');
