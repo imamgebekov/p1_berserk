@@ -4,11 +4,14 @@ export const STATUS_COLOR = { burn: '#ff8a30', poison: '#7ad060', bleed: '#d0303
 export const DOT = ['burn', 'poison', 'bleed'];
 
 // наложить статус на врага. dps/dur: для burn, poison, bleed — урон в секунду и длительность; для freeze, stun — длительность в dur
+// дождь (шаг R): множитель свойства k при текущей силе дождя W.rain (1 — без дождя)
+export const rainK = (W, k) => { const C = W.cfg.weather && W.cfg.weather.combat; return C && W.rain ? 1 + (C[k] - 1) * W.rain : 1; };
 export function applyStatus(W, e, kind, dps, dur) {
   const C = W.cfg.enemies[e.type];
   if (e.dead || (C.immune && C.immune.includes(kind)) || (e.imm && e.imm.includes(kind))) return false;
   const st = e.st || (e.st = {});
   if (kind === 'burn') {
+    dur *= rainK(W, 'fire');                                                   // в дождь огонь гаснет быстрее
     if (st.freeze) { delete st.freeze; if (!Object.keys(st).length) delete e.st; W.fx.react(e, 'Раскол', W.fx.hp(e, .07, 36)); return true; }                          // огонь по замёрзшему
     if (st.poison) { const n = st.poison.n; delete st.poison; if (!Object.keys(st).length) delete e.st; W.fx.react(e, 'Токсичный взрыв', 0, { r: 3.2, d: 12 * n }); return true; }   // огонь по отравленному
     st.burn = { t: dur, dps };
@@ -40,6 +43,7 @@ export function tickEnemy(W, e, dt) {
 // ---- статусы героя ----
 export function applyPlayer(W, kind, dps, dur) {
   if (W.player.dead || !DOT.includes(kind)) return;
+  if (kind === 'burn') dur *= rainK(W, 'fire');
   const st = W.pst, ex = st[kind];
   if (kind === 'poison') st.poison = { t: dur, dps, n: Math.min(5, (ex ? ex.n : 0) + 1) };
   else st[kind] = { t: Math.max(dur, ex ? ex.t : 0), dps };

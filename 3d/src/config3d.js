@@ -337,7 +337,10 @@ const BASE = {
   // капель drops (косо по ветру, падают со скоростью fall м/с в коробке box [ширина, высота] у камеры), всплесков splash в
   // секунду, кругов на воде ripples; force — для тестов ('clear' | 'cloudy' | 'rain'). На бой погода не влияет.
   weather: { on: true, kinds: { clear: [.55, 150, 360], cloudy: [.25, 80, 200], rain: [.2, 70, 160] }, ramp: 14, fog: .6, wet: .7,
-    drops: 900, fall: 16, box: [34, 18], splash: 26, ripples: 24, force: null },
+    drops: 900, fall: 16, box: [34, 18], splash: 26, ripples: 24, force: null,
+    // дождь в бою (шаг R): при полном дожде враги слышат ×hear и видят ×sight, огонь (шанс и длительность поджога) ×fire,
+    // молния («Гроза») срабатывает ×storm; между ясно и дождём — плавно по силе дождя
+    combat: { hear: .7, sight: .73, fire: .6, storm: 1.5 } },
   // звук: громкость всего, музыки и природы; атмосфера (D1) — журчание у реки, птицы и сова, своя музыка «лесная сказка»
   audio: {
     volume: .7, musicVol: .55, natureVol: .8, voices: 24, look: 1.2,          // предел одновременных голосов; ноты ставятся вперёд на look с
@@ -463,7 +466,7 @@ const BASE = {
 // мир = ручное ядро + пояс по зерну (C3b): генератор дописывает места, области, дома, ориентиры, связи и продолжение реки
 export const CFG3 = expandWorld(BASE);
 // только ручное ядро (радиус coreR, без пояса): для тестов баланса, которые меряют ядро и сверяются со старыми цифрами
-export const CORE3 = (() => { const c = JSON.parse(JSON.stringify(BASE)); c.world.radius = c.worldgen.coreR; c.worldgen.on = false; c.enemies.roam.on = false; return c; })();
+export const CORE3 = (() => { const c = JSON.parse(JSON.stringify(BASE)); c.world.radius = c.worldgen.coreR; c.worldgen.on = false; c.enemies.roam.on = false; c.weather.combat = null; return c; })();
 
 // Что можно крутить на телефоне: путь в CFG3, подпись, диапазон
 export const TWEAKS = [

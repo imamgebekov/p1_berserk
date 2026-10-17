@@ -29,7 +29,8 @@ import { newKnown } from './craft3d.js';
 import { questEvent } from './quests3d.js';
 import { lightOf, isNight } from './daynight.js';
 import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
-import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned } from './status3d.js';
+import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned, rainK } from './status3d.js';
+import { makeWeather, weatherAt } from './weather3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus, equipAt } from './inv.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
@@ -103,9 +104,10 @@ export function spawnEnemy(W, type, x, z, mode = null) {
 function spotted(W, e, d, dx, dz, H) {
   const P = W.cfg.enemies.posts, p = W.player;
   const fight = p.state === 'atk' || p.state === 'roll' || p.state === 'charge';
-  if (fight && d < H.fight * P.fightHear * W.dif.hear) return true;
-  if (e.pack && !p.dead && d < W.cfg.enemies.roam.hear * (p.state === 'run' ? 1 : .55) * W.dif.hear * (1 - clamp(W.gear.stealth || 0, 0, 60) / 100)) return true;     // стайка слышит вблизи (G1)
-  return d < P.range && Math.abs(angDiff(Math.atan2(dx, dz), e.face)) < P.angle * DEG / 2 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z);
+  const hear = W.dif.hear * rainK(W, 'hear');                                  // в дождь хуже слышат и видят
+  if (fight && d < H.fight * P.fightHear * hear) return true;
+  if (e.pack && !p.dead && d < W.cfg.enemies.roam.hear * (p.state === 'run' ? 1 : .55) * hear * (1 - clamp(W.gear.stealth || 0, 0, 60) / 100)) return true;     // стайка слышит вблизи (G1)
+  return d < P.range * rainK(W, 'sight') && Math.abs(angDiff(Math.atan2(dx, dz), e.face)) < P.angle * DEG / 2 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z);
 }
 // заметил — кричит: встают все рядом (и сторожа, и бродячие)
 function raiseAlarm(W, e) {
@@ -350,11 +352,11 @@ function weaponStatuses(W, e, dmg, crit, p) {
   if (tr.stun && r() < tr.stun[0]) applyStatus(W, e, 'stun', 0, tr.stun[1]);
   if (tr.bleed && r() < tr.bleed[0]) applyStatus(W, e, 'bleed', tr.bleed[1], tr.bleed[2]);
   if (pm.bleed && r() < pm.bleed[0]) applyStatus(W, e, 'bleed', pm.bleed[1], pm.bleed[2]);
-  if (pm.burn && r() < pm.burn[0]) applyStatus(W, e, 'burn', pm.burn[1], pm.burn[2]);
+  if (pm.burn && r() < pm.burn[0] * rainK(W, 'fire')) applyStatus(W, e, 'burn', pm.burn[1], pm.burn[2]);
   if (pm.freeze && r() < pm.freeze[0]) applyStatus(W, e, 'freeze', 0, pm.freeze[1]);
   if (pm.poison && r() < pm.poison[0]) applyStatus(W, e, 'poison', pm.poison[1], pm.poison[2]);
   if (p.fin) applyStatus(W, e, 'stun', 0, .35);
-  if (pm.shock && !e.dead && r() < pm.shock[0]) {
+  if (pm.shock && !e.dead && r() < pm.shock[0] * rainK(W, 'storm')) {
     let best = null, bd = pm.shock[2];
     for (const o of W.enemies) { if (o.dead || o === e) continue; const d = len(o.x - e.x, o.z - e.z); if (d < bd) { bd = d; best = o; } }
     if (best) { W.ev.push({ k: 'chain', x: e.x, z: e.z, x2: best.x, z2: best.z }); dealDamage(W, best, Math.round(dmg * pm.shock[1]), 'storm'); }
@@ -582,7 +584,7 @@ function updateEnemies(W, dt) {
     if (e.state === 'chase') {
       const posted = e.mode === 'guard' || e.mode === 'patrol';      // сторож или патрульный: пока не заметил — своими делами
       if (!posted || e.alert) turnTo(e, C, Math.atan2(dx, dz), dt);
-      const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' || p.state === 'charge' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100) * (W.place && W.place.safe ? .5 : 1) * W.dif.hear;
+      const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' || p.state === 'charge' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100) * (W.place && W.place.safe ? .5 : 1) * W.dif.hear * rainK(W, 'hear');
       const pe = placeAt(W.map, e.x, e.z), deep = pe && pe.safe && len(e.x - pe.x, e.z - pe.z) < pe.r - 4;    // в глубине безопасного места враги теряют след и не слышат
       if (deep) e.alert = false;
       const sheltered = !!W.map.camp && insideCamp(W.map.camp, p.x, p.z) && !insideCamp(W.map.camp, e.x, e.z);   // герой за частоколом: враг снаружи его теряет
@@ -815,6 +817,10 @@ export function step(W, dt, input = {}) {
   for (let i = W.buffs.length - 1; i >= 0; i--) { W.buffs[i].t -= dt; if (W.buffs[i].t <= 0) W.buffs.splice(i, 1); }
   for (const k of ['reap', 'bul']) { const o = W[k]; if (o.n && (o.t -= dt) <= 0) { o.n = 0; o.t = 0; } }
   if (W.combo.n && (W.combo.t -= dt) <= 0) W.combo.n = 0;
+  { const C = W.cfg.weather; if (C && C.on && C.combat) {                       // дождь (шаг R): сила по расписанию погоды, начало и конец — событием
+    W.wsched = W.wsched || makeWeather(W.cfg.world.seed, C); W.rain = C.force ? (C.force === 'rain' ? 1 : 0) : weatherAt(W.wsched, W.t, C).rain;
+    if (!W.rainOn && W.rain > .5) { W.rainOn = true; W.ev.push({ k: 'rainStart' }); } else if (W.rainOn && W.rain < .3) { W.rainOn = false; W.ev.push({ k: 'rainStop' }); }
+  } else W.rain = 0; }
   refreshGear(W);
   { const g = W.gfx, p = W.player;                                             // золото: щит кирасы заряжается, знак лечит вне боя
     if (g.aegis) { if (!(W.aegis > 0) && (W.aegisT = (W.aegisT ?? 0) - dt) <= 0) { W.aegis = g.aegis[1]; W.ev.push({ k: 'aegisUp', x: p.x, z: p.z }); } } else W.aegis = 0;

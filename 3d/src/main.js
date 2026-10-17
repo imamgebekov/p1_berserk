@@ -158,6 +158,8 @@ function onEvent(v) {
   else if (v.k === 'evRaid') { toast('Налёт на обоз!', 'bad'); sfx('ambush'); }
   else if (v.k === 'evDone') { toast(v.kind === 'rescue' ? `Путник спасён: +${v.ash} пепла и его благодарность` : v.kind === 'ambush' ? `Засада отбита: +${v.ash} пепла` : `Обоз дошёл: +${v.ash} пепла`, '', '#e8c04a'); sfx('evDone'); saver.write(); }
   else if (v.k === 'evFail') { const t = { dead: v.kind === 'caravan' ? 'Обоз разбит' : 'Путник погиб', late: v.kind === 'caravan' ? 'Обоз уехал без вас' : 'Путник не дождался помощи', fled: 'Вы ушли от засады', gone: '' }[v.why]; if (t) toast(t, 'bad'); }
+  else if (v.k === 'rainStart') { const R = cfg.weather.combat; toast(`🌧 Дождь: враги слышат и видят хуже, огонь слабее${R.storm > 1 ? ', гроза сильнее' : ''}`, '', '#9ac0e0'); }
+  else if (v.k === 'rainStop') toast('☀ Дождь кончился', '', '#c8d8e8');
   else if (v.k === 'shopRare') { const it = BY_ID[v.id]; toast(`🛒 У торговца в лагере: ${cfg.shop.rare.tiers[v.tier - 1].name.toLowerCase()} — ${it.name}`, '', RARITY[it.rar].color); sfx(v.tier >= 3 ? 'brand' : 'rare'); }
   else if (v.k === 'shrine') { toast(`✨ ${v.name}: ${v.stat === 'regen' ? `+${v.amt} здоровья в секунду` : `+${v.amt} ${STAT_NAME[v.stat]}`} на ${Math.round(v.t / 60)} мин`, '', '#9ad8ff'); sfx('buff'); }
   else if (v.k === 'wanderer') { toast('🔔 У дороги остановилась повозка сказочного торговца', '', '#c8a0ff'); sfx('wanderer'); }
