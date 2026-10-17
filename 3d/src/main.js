@@ -30,6 +30,7 @@ import { createInput } from './input.js';
 import { loadTweaks, createTweakPanel } from './tweak.js';
 import { setIconText, applyIcons } from './uiicons.js';
 import { sparkFresh, sparkEvent, sparkTick, goalOf, sanitizeSpark } from './spark3d.js';
+import { PATH, pathFresh, sanitizePath, pathEvent, pathTick, pathGoal, pathIndex, unlocks, lockedHint } from './ashpath3d.js';
 
 const $ = id => document.getElementById(id);
 applyIcons(document);     // иконки-силуэты вместо эмодзи в кнопках разметки (шаг 10)
@@ -65,6 +66,7 @@ if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранени
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
 if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
 W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
+W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);     // «Путь пепла» (шаг 13): старому сохранению — по уже сделанному
 let saveFailT = -1e9;     // ошибка записи (кончилось место): сообщаем не чаще раза в минуту
 const saver = BENCH ? createSaver(W, memStore) : createSaver(W, globalThis.localStorage, { onFail: () => { const t = performance.now(); if (t - saveFailT > 60000) { saveFailT = t; toast('Не удалось сохранить: в браузере мало места. Меню → Сохранение → «Сохранить в файл»', 'bad', '#ff8a6a', 'warn'); } } });
 
@@ -145,6 +147,7 @@ function toast(txt, cls = '', color, ic) {     // ic — иконка из uiico
 const P = loadPrefs();
 function onEvent(v) {
   sparkEvent(W, v);     // «Первая искра»: враги за оградой (шаг 12)
+  pathEvent(W, v);      // «Путь пепла»: первая победа над боссом-вехой (шаг 13)
   if (v.k === 'hurt') buzz(P, 35); else if (v.k === 'level' || v.k === 'questdone') buzz(P, [40, 40, 70]); else if (v.k === 'bossaggro' || v.k === 'bossblast') buzz(P, 90);
   sfx(v.k, v.x === undefined ? null : { x: v.x, z: v.z, px: W.player.x, pz: W.player.z, yaw: cfg.view.camYaw });     // звук мира: тише вдали, панорама по экрану (шаг 8)
   if (v.k === 'fireFound') { toast('Открыт костёр: ' + v.name, '', '#ffb060', 'fire'); sfx('evDone'); }
@@ -463,6 +466,19 @@ addEventListener('unhandledrejection', () => { try { saver.write(); } catch (e) 
 // потеря WebGL (сон, перегрев, сброс драйвера): сохранить, предупредить; вернулся — перезапустить страницу
 $('gl').addEventListener('webglcontextlost', e => { e.preventDefault(); try { saver.write(true); } catch (e2) { /* без записи */ } if (!$('glLost')) showBlocker('Графика перезапускается…').id = 'glLost'; });
 $('gl').addEventListener('webglcontextrestored', () => location.reload());
+// открытие систем по вехам (шаг 13): закрытые кнопки не видны; у закрытого жителя — подсказка, когда он откроется
+const npcLocked = npc => { const L = unlocks(W); return (npc === 'smith' && !L.smith) || (npc === 'captain' && !L.squad); };
+let lockedNear = null;
+function applyLocks() {
+  const L = unlocks(W); for (const id of ['bagJournal', 'smithJournal']) { const b = $(id); if (b && b.hidden === L.journal) b.hidden = !L.journal; }
+  const n = W.nearNpc && npcLocked(W.nearNpc) ? W.nearNpc : null; if (n && n !== lockedNear && !panelOpen) toast(lockedHint(W, n), 'sys', '#c8b898', 'hint'); lockedNear = n;
+}
+// финал «Пути пепла»: сводка и «Продолжить» (замки остаются вызовом)
+function showEnd() {
+  if (W.path.shown) return; W.path.shown = true; saver.write(); sfx('evDone');
+  const mins = Math.round((W.t || 0) / 60), v = showBlocker(`Путь пепла пройден. Уровень ${W.lv} · врагов повержено ${W.kills} · в пути ${mins} мин. Дальше — замки: Кастелян Пепла и Королева Пустоши.`, 'Продолжить', () => v.remove());
+  v.classList.add('ending'); const h = document.createElement('h1'); h.textContent = 'Пепел улёгся'; v.prepend(h);
+}
 function loop(now) { try { frame(now); if (crashN && !crashShown) crashN = Math.max(0, crashN - .02); } catch (e) { crashed(e); } finally { requestAnimationFrame(loop); } }
 function frame(now) {
   const t0 = performance.now(), real = (now - last) / 1000, dt = Math.max(0, Math.min(.05, real)); last = now;
@@ -478,7 +494,7 @@ function frame(now) {
   const t1 = performance.now();
   if (renderer) renderer.render(W, dt);
   { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
-  { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
+  { const show = !!W.nearNpc && !npcLocked(W.nearNpc) && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
   { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : '')); }
   { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
   { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; } }
@@ -489,11 +505,15 @@ function frame(now) {
     if (key !== lastSt) { lastSt = key; statusRow.textContent = ''; const chip = (txt, col) => { const c = document.createElement('span'); c.className = 'stch'; c.style.color = col; c.textContent = txt; statusRow.appendChild(c); };
       for (const k of Object.keys(W.pst)) chip(`${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`, STATUS_COLOR[k]);
       for (const b of buffs) chip(`${b[0]} ${Math.ceil(b[1])}с`, b[2]); } }
-  { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); setIconText(questBtn, 'scroll', mk === 'ready' ? 'Сдать задание' : mk ? 'Есть задания!' : 'Задания'); } }
+  { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !npcLocked(near) && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); setIconText(questBtn, 'scroll', mk === 'ready' ? 'Сдать задание' : mk ? 'Есть задания!' : 'Задания'); } }
   drawAbil();
   { const sr = sparkTick(W); if (sr === 'step') sfx('questready'); else if (sr === 'done') { toast(`Первая искра зажжена: +${cfg.spark.ash} пепла`, '', '#e8c04a', 'fire'); sfx('questdone'); saver.write(); } }
   // строка цели не бывает пустой (шаг 12): событие → «Первая искра» → взятое задание → ближайший неоткрытый костёр
-  if ((goalT -= real) <= 0) { goalT = .25; const g = W.lvl === 'surface' ? goalOf(W) : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null }, sp = W.spark && !W.spark.done;
+  if ((goalT -= real) <= 0) { goalT = .25;
+    { const pr = pathTick(W); if (pr && pr.k === 'step') { toast(`Путь пепла ${pr.i + 1}/${PATH.length - 1}: ${pr.text}`, '', '#e8c04a', 'fire'); sfx('questready'); saver.write(); } else if (pr && pr.k === 'end') { saver.write(); showEnd(); } }
+    applyLocks();
+    const sp = W.spark && !W.spark.done, pg = pathGoal(W), crypt = pg && PATH[pathIndex(W)].id === 'crypt';
+    const g = W.lvl === 'surface' ? (sp ? goalOf(W) : pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null };
     const tl = eventLine(W) || (sp ? g.text : trackerLine(W) || g.text); W.goal = !eventLine(W) && (sp || !trackerLine(W)) ? g.at : null;
     if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }

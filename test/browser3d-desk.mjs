@@ -425,6 +425,11 @@ try {
     const s0 = await pf.evaluate(() => ({ w: window.__b3d.W.inv.eq.weapon, ash: window.__b3d.W.inv.ash })), l0 = await line();
     if (s0.w !== 'w_sword_rust') bad('Торн начинает не с ржавым мечом: ' + s0.w);
     if (!l0.shown || !/торговцу/.test(l0.t) || !l0.goal) bad('нет первой цели «к торговцу» или точки на миникарте: ' + JSON.stringify(l0));
+    // «Путь пепла» (шаг 13): кузнец закрыт до первого босса — у него нет кнопки, но есть подсказка
+    await pf.evaluate(() => { const W = window.__b3d.W, b = W.map.buildings.find(q => q.npc && q.npc.kind === 'smith'); W.player.x = b.npc.x + 1; W.player.z = b.npc.z + 1; });
+    await pf.waitForTimeout(700);
+    { const k = await pf.evaluate(() => ({ near: window.__b3d.W.nearNpc, talk: !document.getElementById('talk').hidden, hint: [...document.querySelectorAll('.toast')].some(e => /Пожиратель/.test(e.textContent)), journal: !document.getElementById('bagJournal').hidden }));
+      if (k.near !== 'smith' || k.talk || !k.hint || k.journal) bad('закрытый кузнец: ' + JSON.stringify(k)); }
     const until = async (re, what) => { await pf.waitForFunction(r => new RegExp(r).test(document.getElementById('tracker').textContent), re, { timeout: 4000 }).catch(async () => bad(what + ': ' + (await line()).t)); };
     await pf.evaluate(() => { const W = window.__b3d.W, b = W.map.buildings.find(q => q.npc && q.npc.kind === 'merchant'); W.player.x = b.npc.x + 1; W.player.z = b.npc.z + 1; });
     await until('прогоните', 'торговец не засчитан');
@@ -433,10 +438,15 @@ try {
     await pf.evaluate(() => { const p = window.__b3d.W.player; p.x = 1; p.z = 1; });
     await until('опыт|навыки', 'костёр не засчитан');
     await pf.evaluate(() => { const W = window.__b3d.W; W.skills = { ...W.skills, warcry: 1 }; });
-    await until('костёр «', 'после цепочки цель не следующий костёр');
-    const s1 = await pf.evaluate(() => ({ ash: window.__b3d.W.inv.ash, done: window.__b3d.W.spark.done, toast: [...document.querySelectorAll('.toast')].some(e => /Первая искра зажжена/.test(e.textContent)) }));
+    const toast = await pf.waitForFunction(() => [...document.querySelectorAll('.toast')].some(e => /Первая искра зажжена/.test(e.textContent)), null, { timeout: 3000 }).then(() => true, () => false);
+    await until('Путь пепла 1/5', 'после цепочки цель не первая веха «Пути пепла»');
+    const s1 = await pf.evaluate(() => ({ ash: window.__b3d.W.inv.ash, done: window.__b3d.W.spark.done })); s1.toast = toast;
     if (!s1.done || !s1.toast || s1.ash < s0.ash + 50) bad('цепочка не завершилась наградой: ' + JSON.stringify(s1));
     await pf.screenshot({ path: join(out, '3d-spark.png') });
+    // финал «Пути пепла» (шаг 13): все вехи пройдены — плашка «Пепел улёгся» со сводкой, «Продолжить» её закрывает
+    await pf.evaluate(() => { const W = window.__b3d.W; for (const f of W.map.fires) W.fires[f.id] = 1; Object.assign(W.path.slain, { devourer: true, lord: true, chief: true }); W.path.crypt = true; });
+    if (!(await pf.waitForFunction(() => /Пепел улёгся/.test((document.querySelector('.veil.ending') || {}).textContent || ''), null, { timeout: 3000 }).then(() => true, () => false))) bad('нет финальной плашки «Пути пепла»');
+    else { await pf.waitForTimeout(400); await pf.screenshot({ path: join(out, '3d-path-end.png') }); await pf.locator('.veil.ending button').click(); if (await pf.$('.veil.ending')) bad('«Продолжить» не закрыл финал'); }
     await cf.close(); }
   // защита от сбоев (шаг 11): ошибка в кадре не останавливает игру; «Сохранить в файл» отдаёт код; потеря WebGL — плашка
   // и сохранение; испорченное сохранение поднимается из резервной копии с сообщением

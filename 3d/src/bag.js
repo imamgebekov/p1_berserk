@@ -92,7 +92,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       else cardEl.appendChild(el('div', 'cmp up', 'Слот пуст'));
     }
     const st = SET_OF[it.id];
-    if (st) {
+    if (st && (!W.path || W.path.sets || !(cfg.path && cfg.path.on))) {     // блок сета — после 2 вещей одного сета (шаг 13)
       const n = (setCounts(W.inv).find(c => c.set === st) || { n: 0 }).n;
       const box = el('div', 'setbox'); box.append(el('div', 'setname', `Сет «${st.name}» ${n}/4`));
       for (const [need, b] of [[2, st.b2], [4, st.b4]]) box.append(el('div', 'setline' + (n >= need ? ' on' : ''), `${need} части: ${bonusText(b)}`));

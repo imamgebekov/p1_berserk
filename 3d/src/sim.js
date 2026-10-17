@@ -220,7 +220,7 @@ function bossDefeated(W, e) {
   items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0 }); });
   for (const m of e.b.minions) if (!m.dead) { m.dead = true; m.deadT = 0; }
   W.bossDead[e.type] = Math.round(W.cfg.bosses.respawn * W.dif.boss);
-  W.ev.push({ k: 'bossdead', name: C.name, x: e.x, z: e.z });
+  W.ev.push({ k: 'bossdead', name: C.name, type: e.type, x: e.x, z: e.z });     // type — для «Пути пепла» (шаг 13)
 }
 export function restoreBosses(W, dead) {
   if (!dead || typeof dead !== 'object') return;
