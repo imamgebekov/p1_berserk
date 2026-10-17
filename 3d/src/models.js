@@ -1,13 +1,23 @@
 // Модели из кубиков (никаких внешних файлов): герой, бес, рогач, дерево, камень, костёр.
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { makeWeapon } from './weaponview.js';
+import { CFG3 } from './config3d.js';
 import { familyOf, stepOf, swingPose, chargePose, REST, gait, bank, strikeBody, rollLand, hitLean, heroDeath, foeDeath, dampK, smoothPose, poseLambda } from './anim3d.js';
 
 const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
 const basic = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, ...extra });
 
+// скруглённый кубик для героя, врагов и жителей (шаг 7 аудита): общий на одинаковые размеры, модели геометрию не освобождают
+const roundGeo = new Map();
+function boxGeo(w, h, d) {
+  const R = CFG3.shapes && CFG3.shapes.round; if (!R || !R.on) return new THREE.BoxGeometry(w, h, d);
+  const key = w + ',' + h + ',' + d; let g = roundGeo.get(key);
+  if (!g) { g = new RoundedBoxGeometry(w, h, d, R.seg, Math.min(R.max, Math.min(w, h, d) * R.k)); roundGeo.set(key, g); }
+  return g;
+}
 function box(w, h, d, mat, x = 0, y = 0, z = 0) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  const m = new THREE.Mesh(boxGeo(w, h, d), mat);
   m.position.set(x, y, z);
   return m;
 }
@@ -210,10 +220,15 @@ export function pushBox(list, w, h, d, x, y, z, rx, ry, rz, color) {
   const geo = new THREE.BoxGeometry(w, h, d);
   tmpE.set(rx, ry, rz); tmpQ.setFromEuler(tmpE); tmpP.set(x, y, z); tmpS.set(1, 1, 1);
   tmpM.compose(tmpP, tmpQ, tmpS); geo.applyMatrix4(tmpM);
-  const c = new THREE.Color(color), n = geo.attributes.position.count, col = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  paint(geo, color, list.glow === true);
   list.push(geo);
+}
+// цвет в вершины; снизу вверх градиент shapes.grad (шаг 7: низ темнее, верх светлее — дешёвое затенение); светящимся (glow) — ровный
+export function paint(geo, color, glow = false) {
+  const c = new THREE.Color(color), p = geo.attributes.position, n = p.count, col = new Float32Array(n * 3), G = !glow && CFG3.shapes && CFG3.shapes.grad;
+  let y0 = Infinity, y1 = -Infinity; if (G) for (let i = 0; i < n; i++) { const y = p.getY(i); if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  for (let i = 0; i < n; i++) { const k = G ? G[0] + (G[1] - G[0]) * (y1 > y0 ? (p.getY(i) - y0) / (y1 - y0) : 1) : 1; col[i * 3] = c.r * k; col[i * 3 + 1] = c.g * k; col[i * 3 + 2] = c.b * k; }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
 }
 
 // округлый «камешек» из многогранника (F1: меньше квадратного): икосаэдр или додекаэдр, растянутый по осям, цвет в вершинах
@@ -221,9 +236,7 @@ export function pushBlob(list, kind, sx, sy, sz, x, y, z, rx, ry, rz, color) {
   const geo = kind === 'dodeca' ? new THREE.DodecahedronGeometry(1, 0) : new THREE.IcosahedronGeometry(1, 0);
   tmpE.set(rx, ry, rz); tmpQ.setFromEuler(tmpE); tmpP.set(x, y, z); tmpS.set(sx, sy, sz);
   tmpM.compose(tmpP, tmpQ, tmpS); geo.applyMatrix4(tmpM);
-  const c = new THREE.Color(color), n = geo.attributes.position.count, col = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex([...Array(n).keys()]);     // с индексом — сливается с кубиками
+  const n = geo.attributes.position.count; paint(geo, color); geo.setIndex([...Array(n).keys()]);     // с индексом — сливается с кубиками
   list.push(geo);
 }
 export function addTree(list, rnd, x, z, look = null) {

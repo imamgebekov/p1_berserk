@@ -25,7 +25,7 @@ import { BY_ID, RARITY } from './data/items.js';
 import { trailOn, dampAngle } from './anim3d.js';
 import { createFx } from './fx3d.js';
 import { RATE, statusPart, emitCount, lightning, stunStar } from './vfx3d.js';
-import { groundNoise, pathMix, segsNear } from './ground3d.js';
+import { groundNoise, pathMix, segsNear, contactGrid, contactShade } from './ground3d.js';
 
 const FOG = '#150c0b';
 
@@ -95,10 +95,16 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   if (hooks.onText) { const f = hooks.onText; hooks.onText = (x, y, z, ...a) => f(x, y + Y(x, z), z, ...a); }
   // земля с холмами (C3a): участками CHUNK м вокруг героя; светлее на буграх и темнее в низинах, у воды — песок
   const hillsMat = new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true }), sandC = new THREE.Color(cfg.look.sand), rel = h => { const t = new THREE.Color(h), g = gtex.mean; return new THREE.Color(t.r / g.r, t.g / g.g, t.b / g.b); }, rockC = rel('#6e6a60'), PATH = cfg.look.path, pathC = PATH ? rel(PATH.color) : null, roadSegs = pathSegs(map);     // скала и тропа: текстура травы × множитель ≈ нужный цвет (линейный)     // цвет материала — мокрость (F3)
+  // деревья и камни участка: один раз на участок, нужны и земле (тень у стволов), и самим деревьям; старые забываются
+  const propsMemo = new Map(), propsAt = (ci, cj) => { const k = ci + ',' + cj; let P = propsMemo.get(k); if (!P) { P = propsIn(map, cfg, ci, cj); propsMemo.set(k, P); if (propsMemo.size > 160) propsMemo.delete(propsMemo.keys().next().value); } return P; };
   const hillsGeo = (ci, cj) => {
     const g = new THREE.PlaneGeometry(CHUNK, CHUNK, CHUNK, CHUNK); g.rotateX(-Math.PI / 2); g.translate((ci + .5) * CHUNK, 0, (cj + .5) * CHUNK);
     const pos = g.attributes.position, uv = g.attributes.uv, col = new Float32Array(pos.count * 3), c = new THREE.Color();
     const near = pathC ? segsNear(roadSegs, ci * CHUNK, (ci + 1) * CHUNK, cj * CHUNK, (cj + 1) * CHUNK, PATH.w[1] + PATH.edge + 1) : [];     // тропы рядом с участком
+    const CS = cfg.shapes && cfg.shapes.contact, m = CS ? CS.r + .5 : 0, X0 = ci * CHUNK - m, X1 = (ci + 1) * CHUNK + m, Z0 = cj * CHUNK - m, Z1 = (cj + 1) * CHUNK + m;     // тень у домов и стволов (шаг 7)
+    const blds = CS ? map.buildings.filter(b => b.x1 > X0 && b.x0 < X1 && b.z1 > Z0 && b.z0 < Z1) : [], trunks = [];
+    if (CS) for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const q of propsAt(ci + a, cj + b)) if (q.tree && q.x > X0 && q.x < X1 && q.z > Z0 && q.z < Z1) trunks.push(q.x, q.z);
+    const shade = CS && (blds.length || trunks.length) ? contactGrid(CHUNK, ci * CHUNK, cj * CHUNK, blds, trunks, CS.r) : null;
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), z = pos.getZ(i), h = heightAt(hf, x, z, false); pos.setY(i, h);     // под мостом — русло, не настил
       uv.setXY(i, (x + 250) / 500, 1 - (z + 250) / 500);                // та же текстура и масштаб, что у плоской земли
@@ -106,6 +112,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (map.river && h < -.15) c.lerp(sandC, Math.min(1, -h / .8) * .7);
       else if (near.length) { const pk = pathMix(near, x, z, PATH); if (pk > 0) c.lerp(pathC, pk); }     // тропа — цвет земли с мягким краем (шаг 6)
       if (map.plateaus.length && inCliff(map.plateaus, x, z, .9)) c.copy(rockC).multiplyScalar(k);     // отвесный край — камень (C3c)
+      if (shade) c.multiplyScalar(contactShade(shade[Math.round(z - cj * CHUNK) * (CHUNK + 1) + Math.round(x - ci * CHUNK)], CS));
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
@@ -248,11 +255,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), E4 = new THREE.Euler(), P4 = new THREE.Vector3(), S4 = new THREE.Vector3(), C4 = new THREE.Color();
   // постройка участка по частям (C5b): земля → деревья и камни → трава кусками; между частями — следующий кадр
   function* landJob(ci, cj) {
+    if (cfg.shapes && cfg.shapes.contact) for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) if (!propsMemo.has((ci + a) + ',' + (cj + b))) { propsAt(ci + a, cj + b); yield; }     // деревья соседей для тени у стволов — по участку за кадр (шаг 7)
     const g = new THREE.Group(), geo = hillsGeo(ci, cj), trees = [];
     g.add(new THREE.Mesh(geo, hillsMat));
     if (lightMat) { const lm = new THREE.Mesh(geo, lightMat); lm.renderOrder = 1; g.add(lm); }
     land.add(g); liveLand.set(ci + ',' + cj, { g, geo, trees }); yield;
-    const P = propsIn(map, cfg, ci, cj);
+    const P = propsAt(ci, cj);
     for (let i0 = 0; i0 < P.length; i0 += 24) {                              // в роще деревьев много (G2): по 24 за кадр
       const pp = [];
       for (const q of P.slice(i0, i0 + 24)) { const k0 = pp.length; (q.tree ? addTree : addRock)(pp, mulberry32(q.seed), q.x, q.z, q.bare !== undefined ? { ...cfg.look, bare: q.bare } : cfg.look); const gy = Y(q.x, q.z); for (let k = k0; k < pp.length; k++) pp[k].translate(0, gy, 0); if (q.tree) trees.push(q.x, q.z); }

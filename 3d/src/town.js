@@ -18,7 +18,7 @@ export function buildTown(map, cfg, rnd) {
   const light = new THREE.PointLight('#ffb060', 0, 13, 1.5); light.position.set(0, 2.2, 0); group.add(light);
 
   for (const b of map.buildings) {
-    const wallL = [], winL = [], floorL = [], roofL = [], glowL = [];
+    const wallL = [], winL = Object.assign([], { glow: true }), floorL = [], roofL = [], glowL = Object.assign([], { glow: true });     // окна и свечение — без градиента (шаг 7)
     const pick = a => a[(rnd() * a.length) | 0];
     // стены
     for (const w of b.walls) {
@@ -43,9 +43,10 @@ export function buildTown(map, cfg, rnd) {
     furnish(b, floorL, glowL, rnd);
     // крыша: ступенчатая, чуть шире дома
     const ov = .45;
-    pushBox(roofL, b.w + ov * 2, .3, b.d + ov * 2, b.x, H + .15, b.z, 0, 0, 0, pick(ROOF));
-    pushBox(roofL, b.w * .72, .3, b.d + ov * 1.4, b.x, H + .45, b.z, 0, 0, 0, pick(ROOF));
-    pushBox(roofL, b.w * .4, .3, b.d + ov, b.x, H + .75, b.z, 0, 0, 0, pick(ROOF));
+    const RF = cfg.shapes && cfg.shapes.roof, rc = new THREE.Color(pick(RF ? RF.colors : ROOF)), up = k => rc.clone().multiplyScalar(1 + ((RF ? RF.top : 1) - 1) * k);     // шаг 7: один цвет на дом, верх светлее
+    pushBox(roofL, b.w + ov * 2, .3, b.d + ov * 2, b.x, H + .15, b.z, 0, 0, 0, up(0));
+    pushBox(roofL, b.w * .72, .3, b.d + ov * 1.4, b.x, H + .45, b.z, 0, 0, 0, up(.5));
+    pushBox(roofL, b.w * .4, .3, b.d + ov, b.x, H + .75, b.z, 0, 0, 0, up(1));
 
     const walls = new THREE.Group();
     walls.add(new THREE.Mesh(merged(wallL), lamb(true)));

@@ -5,7 +5,8 @@ import { pushBox, addTree } from './models.js';
 
 export function buildDecor(map, rnd, grime = null) {
   // клетки 64 м (C3b): каждая — свои меши, поэтому дальний и невидимый декор отсекается
-  let L = [], G = []; const cells = new Map(), use = (x, z) => { const k = Math.floor(x / 64) + ',' + Math.floor(z / 64); if (!cells.has(k)) cells.set(k, { L: [], G: [] }); ({ L, G } = cells.get(k)); };
+  const glowList = () => Object.assign([], { glow: true });     // светящееся — без градиента (шаг 7)
+  let L = [], G = glowList(); const cells = new Map(), use = (x, z) => { const k = Math.floor(x / 64) + ',' + Math.floor(z / 64); if (!cells.has(k)) cells.set(k, { L: [], G: glowList() }); ({ L, G } = cells.get(k)); };
   // коробка в локальных координатах предмета (поворот по оси y вокруг его центра)
   const mk = (x, z, rot) => { const c = Math.cos(rot), s = Math.sin(rot); return (lx, ly, lz, w, h, d, color, glow) => pushBox(glow ? G : L, w, h, d, x + lx * c + lz * s, ly + h / 2, z - lx * s + lz * c, 0, rot, 0, color); };
 
