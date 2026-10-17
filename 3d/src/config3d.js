@@ -34,7 +34,15 @@ const BASE = {
   // перехода от ядра), посёлки (villages, не ближе villageGap м), опасные места (dangers, по видам биома), ориентиры
   // (landmarks), река продлевается шагом riverStep м; depthMax — глубина у края; ground — цвет земли биома; trees — плотность
   // деревьев и камней (×), доля деревьев, доля сухих деревьев
-  worldgen: { on: true, coreR: 85, belt: 30, turn: .07, wobble: .035, villages: 10, villageGap: 85, dangers: 16, dangerGap: 55, landmarks: 22, riverStep: 6, depthMax: 2,
+  worldgen: { on: true, coreR: 85, belt: 30, turn: .07, wobble: .035, villages: 18, villageGap: 70, dangers: 30, dangerGap: 45, landmarks: 60, riverStep: 6, depthMax: 2,
+    // точки интереса (G2): n штук не ближе gap м друг к другу и road м от троп; вид — по весам биома. r — занимаемый радиус, м.
+    // bandits — стоянка с сундуком и гарнизоном, shrine — святилище с даром, wagon — брошенная телега, barrow — курган с гарнизоном,
+    // hut — хижина, pond — пруд, stones — стоячие камни
+    pois: { n: 150, gap: 24, road: 14, r: { bandits: 9, shrine: 4, wagon: 4, barrow: 6, hut: 5, pond: 6, stones: 6 },
+      kinds: { forest: [['bandits', 3], ['shrine', 2], ['hut', 3], ['stones', 1], ['pond', 2], ['wagon', 2], ['barrow', 1]], swamp: [['barrow', 3], ['shrine', 2], ['hut', 2], ['pond', 3], ['stones', 1], ['wagon', 1], ['bandits', 1]],
+        mountains: [['stones', 3], ['shrine', 2], ['bandits', 2], ['barrow', 2], ['wagon', 1], ['hut', 1]], waste: [['wagon', 3], ['barrow', 2], ['bandits', 2], ['stones', 2], ['shrine', 1]], coast: [['wagon', 2], ['hut', 2], ['bandits', 2], ['shrine', 1], ['pond', 1], ['stones', 1]] } },
+    // рощи (G2): за ядром деревья растут пятнами — шум с шагом scale м; доля леса в пятне от lo до 1, boost — во сколько раз больше кандидатов
+    groves: { scale: 70, lo: .12, boost: 1.6 },
     plateaus: { n: 7, r: [14, 26], h: 3.5, rw: .2, len: 9 },
     // замки (C4): вход в кольце r м от костра, этажей floors; foes — кто живёт в залах; depth и danger — по этажам
     castles: [
@@ -151,6 +159,10 @@ const BASE = {
   // birds — ворон вне лагеря, scare — с какого расстояния взлетают, flySpeed/flyUp/flyTime — полёт, back — через сколько вернутся;
   // smokeKinds — дома с дымом из трубы (и все дома с жителем), chimneyH — высота трубы над стеной, smoke — клубов на трубу;
   // fogPeak — фаза суток самого густого тумана (рассвет), fogWidth — ширина утра в долях суток, fogAmp — насколько гуще (×(1 + fogAmp))
+  // святилища (G2): касание (ближе reach м) даёт один дар из списка на t с; снова — через again с. Звери (G2, только вид): n вокруг
+  // героя на ring м, пугаются ближе scare м и убегают со скоростью run, уйдя за away м — появляются заново вне экрана
+  shrine: { reach: 2.2, again: 600, gifts: [{ stat: 'dmg', amt: 12, t: 180, name: 'Сила камня' }, { stat: 'regen', amt: 2, t: 180, name: 'Тихий родник' }, { stat: 'luck', amt: 25, t: 300, name: 'Взгляд звёзд' }, { stat: 'armor', amt: 10, t: 180, name: 'Кора дуба' }] },
+  beasts: { on: true, n: 6, ring: [16, 34], scare: 9, run: 7.5, away: 46, walk: .6 },
   ambient: { on: true, villagers: 5, walk: 1.3, pause: [3, 9], fireGap: 3.2, birds: 12, scare: 6, flySpeed: 7, flyUp: 3.5, flyTime: 4, back: 45, smokeKinds: ['house', 'tavern', 'smithy'], chimneyH: 1.4, smoke: 6, fogPeak: .04, fogWidth: .1, fogAmp: 1.4 },
   // стрельба героя (луки и арбалеты): assist — наводка на врага в конусе ±assist° перед героем; заряд (тяжёлый удар) даёт
   // дальность ×(1 + chargeRange × заряд) и скорость стрелы ×(1 + chargeSpeed × заряд); hitR — запас попадания, м; spawn — откуда вылетает
@@ -397,8 +409,13 @@ const BASE = {
       graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1], ['witch', 1], ['lunger', 2], ['shade', 3, 'night'], ['ghoul', 3, null, 'patrol'], ['lunger', 1, null, 'guard']],
       ruins: [['hound', 4], ['brute', 3], ['imp', 2], ['witch', 2], ['bomber', 2], ['brute', 2, null, 'guard'], ['witch', 1, null, 'guard']],
       camp: [['hound', 3], ['brute', 4], ['imp', 2], ['archer', 4], ['shield', 3], ['archer', 3, null, 'guard'], ['shield', 2, null, 'patrol'], ['brute', 2, null, 'patrol']],
-      farm: [['hound', 3], ['imp', 4], ['ghoul', 1], ['archer', 2], ['bomber', 1], ['imp', 2, null, 'patrol']]
+      farm: [['hound', 3], ['imp', 4], ['ghoul', 1], ['archer', 2], ['bomber', 1], ['imp', 2, null, 'patrol']],
+      bandits: [['archer', 3], ['brute', 3], ['hound', 2], ['shield', 1]],                 // стоянки разбойников и курганы большого мира (G2)
+      barrow: [['ghoul', 4], ['shade', 2], ['lunger', 1]]
     },
+    // гарнизоны (G2): опасные места и стоянки большого мира заселяются, когда герой ближе near м (но дальше far — вне экрана);
+    // n — сколько врагов по виду места; после зачистки и ухода место заселяется снова через respawn с
+    garrison: { near: 62, far: 28, respawn: 480, n: { camp: 4, ruins: 4, graveyard: 4, farm: 3, bandits: 3, barrow: 2 } },
     // кто бродит по биому большого мира вне областей (C3b)
     biomes: {
       forest: [['imp', 4], ['brute', 4], ['hound', 2]],                       // как вне областей ядра (бесы и рогачи) + приправа биома;

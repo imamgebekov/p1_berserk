@@ -74,3 +74,27 @@ export function fogMul(t, D, A) {
   let d = phaseOf(t, D) - A.fogPeak; d -= Math.round(d);
   return Math.abs(d) < A.fogWidth ? 1 + A.fogAmp * (Math.cos(Math.PI * d / A.fogWidth) + 1) / 2 : 1;
 }
+
+// звери (G2): олени и зайцы пасутся вокруг героя вне экрана, пугаются ближе scare м и убегают; ушедшие за away м — появляются заново.
+// ok(x, z) — можно ли тут стоять (не вода, не дом, не камень, не лагерь). Только вид.
+export function makeBeasts(n) { return Array.from({ length: n }, (_, i) => ({ id: i, kind: i % 3 === 0 ? 'deer' : 'hare', x: 0, z: 0, face: 0, state: 'gone', t: 0, step: 0, moving: false })); }
+export function updateBeasts(B, px, pz, dt, A, rnd, ok) {
+  for (const b of B) {
+    const dx = b.x - px, dz = b.z - pz, d = Math.hypot(dx, dz);
+    if (b.state === 'gone' || d > A.away) {
+      const a = rnd() * TAU, r = A.ring[0] + rnd() * (A.ring[1] - A.ring[0]), x = px + Math.sin(a) * r, z = pz + Math.cos(a) * r;
+      if (ok(x, z)) Object.assign(b, { x, z, state: 'graze', t: 1 + rnd() * 3, face: rnd() * TAU }); else b.state = 'gone';
+      continue;
+    }
+    if (b.state !== 'flee' && d < A.scare) { b.state = 'flee'; b.face = Math.atan2(dx, dz) + (rnd() - .5) * .6; b.t = 0; }
+    let v = 0;
+    if (b.state === 'graze') { if ((b.t -= dt) <= 0) { b.state = 'walk'; b.t = 1 + rnd() * 2; b.face += (rnd() - .5) * 2; } }
+    else if (b.state === 'walk') { v = A.walk; if ((b.t -= dt) <= 0) { b.state = 'graze'; b.t = 2 + rnd() * 4; } }
+    else { v = A.run * (b.kind === 'deer' ? 1.15 : 1); b.t += dt; if (b.kind === 'hare' && b.t > .45) { b.t = 0; b.face += (rnd() - .5) * 1.4; } }     // заяц петляет
+    if (v) {
+      const nx = b.x + Math.sin(b.face) * v * dt, nz = b.z + Math.cos(b.face) * v * dt;
+      if (ok(nx, nz)) { b.x = nx; b.z = nz; } else b.face += 1.3;
+    }
+    b.moving = v > 0; b.step += dt * v;
+  }
+}

@@ -275,6 +275,22 @@ export function makeCrow() {
   return { group: g, wl, wr };
 }
 
+// звери (G2): олень и заяц из коробок; legs — ноги для шага
+export function makeBeast(kind) {
+  const g = new THREE.Group(), legs = [];
+  if (kind === 'deer') {
+    const fur = lam('#8a5a32'), pale = lam('#d8c8a8'), dark = lam('#3a2616');
+    g.add(box(.5, .5, 1.2, fur, 0, 1.0, 0), box(.3, .55, .3, fur, 0, 1.4, .55), box(.26, .26, .46, fur, 0, 1.68, .72), box(.2, .16, .06, pale, 0, 1.05, -.62));
+    for (const sx of [-1, 1]) g.add(box(.05, .45, .05, dark, sx * .12, 2.0, .62), box(.24, .05, .05, dark, sx * .2, 2.18, .62));
+    for (const [x, z] of [[-.17, -.45], [.17, -.45], [-.17, .45], [.17, .45]]) { const l = new THREE.Group(); l.position.set(x, .78, z); l.add(box(.1, .78, .1, fur, 0, -.39, 0)); g.add(l); legs.push(l); }
+  } else {
+    const fur = lam('#9a8a6a'), pale = lam('#e8e0d0');
+    g.add(box(.28, .26, .46, fur, 0, .3, 0), box(.2, .2, .22, fur, 0, .42, .24), box(.05, .26, .08, fur, -.05, .64, .24), box(.05, .26, .08, fur, .05, .64, .24), box(.12, .12, .1, pale, 0, .34, -.26));
+    for (const [x, z] of [[-.09, -.15], [.09, -.15], [-.09, .18], [.09, .18]]) { const l = new THREE.Group(); l.position.set(x, .2, z); l.add(box(.07, .2, .1, fur, 0, -.1, 0)); g.add(l); legs.push(l); }
+  }
+  return { group: g, legs };
+}
+
 // повозка сказочного торговца: кузов, колёса, полог, светящийся фонарь и сам торговец в остроконечной шляпе
 export function makeCart(wanderer = true) {
   const g = new THREE.Group(), wood = lam('#5a3e26'), dark = lam('#2e2018'), cloth = lam(wanderer ? '#4a2e6e' : '#8a7a5a'), trim = lam(wanderer ? '#c8a04a' : '#5a4a32');

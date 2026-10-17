@@ -36,7 +36,10 @@ const NAMES = {
   camp: [['Стоянка', 'Лагерь', 'Логово'], ['Волчья', 'Ржавых', 'Чёрных', 'Беглых', 'Серых', 'Дымная']],
   ruins: [['Руины', 'Развалины', 'Остов'], ['Сторожки', 'Часовни', 'Мельницы', 'Острога', 'Заставы', 'Усадьбы']],
   graveyard: [['Погост', 'Курганы', 'Кладбище'], ['Вдовий', 'Топкий', 'Старый', 'Безымянный', 'Немой', 'Гнилой']],
-  farm: [['Брошенная ферма', 'Пустой хутор', 'Мёртвые поля'], ['у брода', 'на холме', 'у леса', 'за рекой', 'у топи', 'на отшибе']]
+  farm: [['Брошенная ферма', 'Пустой хутор', 'Мёртвые поля'], ['у брода', 'на холме', 'у леса', 'за рекой', 'у топи', 'на отшибе']],
+  bandits: [['Стоянка', 'Лёжка', 'Засека'], ['разбойников', 'лихих людей', 'беглых', 'Кривого', 'Рыжего', 'Безухого', 'Хромого', 'Чёрной шайки']],
+  barrow: [['Курган', 'Могильник'], ['Старый', 'Безымянный', 'Вождя', 'Трёх воинов', 'Немой', 'Чёрный', 'Высокий', 'Ведьмин']],
+  shrine: [['Святилище', 'Алтарь', 'Капище'], ['Ветра', 'Луны', 'Дуба', 'Родника', 'Звёзд', 'Камня', 'Зари', 'Предков', 'Тумана']]
 };
 const nameOf = (r, kind, used) => { const [a, b] = NAMES[kind]; for (let k = 0; k < 40; k++) { const n = a[(r() * a.length) | 0] + ' ' + (kind === 'village' ? b[(r() * b.length) | 0] : b[(r() * b.length) | 0]); if (!used.has(n)) { used.add(n); return n; } } return a[0] + ' ' + used.size; };
 
@@ -132,6 +135,25 @@ export function expandWorld(base) {
     if (cfg.map.links.some(([a, b]) => segD(s.x, s.z, a, b) < r0 + G.plateaus.len + 26) || biomeAt(cfg, s.x, s.z) !== 'mountains' || [0, 1.57, 3.14, 4.71].some(a => biomeAt(cfg, s.x + Math.sin(a) * r0, s.z + Math.cos(a) * r0) !== 'mountains')) continue;
     const a0 = r() * TAU, ramps = r() < .5 ? [a0] : [a0, a0 + Math.PI * (.7 + r() * .6)];
     cfg.map.plateaus.push({ x: s.x, z: s.z, r: r0, h: G.plateaus.h, ramps, rw: G.plateaus.rw, len: G.plateaus.len }); taken.push({ x: s.x, z: s.z, r: r0 + G.plateaus.len + 4 }); i++;
+  }
+  // точки интереса (G2): свой генератор — места выше не сдвигаются; не у троп, не в воде, не у других мест
+  cfg.map.pois = [];
+  if (G.pois) {
+    const P = G.pois, rp = mul(cfg.world.seed * 2017 + 9);
+    for (let i = 0, tries = 0; i < P.n && tries < P.n * 60; tries++) {
+      const a = rp() * TAU, d = G.coreR + 25 + Math.sqrt(rp()) * (R - G.coreR - 50), x = Math.sin(a) * d, z = Math.cos(a) * d;
+      const bio = biomeAt(cfg, x, z) || 'forest', tbl = P.kinds[bio]; let w = rp() * tbl.reduce((t, k) => t + k[1], 0), t = tbl[0][0];
+      for (const [k, n] of tbl) { w -= n; if (w <= 0) { t = k; break; } }
+      const pr = P.r[t];
+      if (wetAt(x, z, Math.max(pr + 2, 13)) || taken.some(q => Math.hypot(q.x - x, q.z - z) < P.gap * .5 + pr + q.r) || cfg.map.links.some(([A, B]) => segD(x, z, A, B) < P.road + pr)) continue;
+      const id = 'p' + i, k = (d - G.coreR) / (R - G.coreR); let place = null;
+      if (t === 'bandits' || t === 'barrow') {
+        place = { id, name: nameOf(r, t, used), type: 'danger', x, z, r: pr + 5, danger: Math.min(3, 1 + Math.floor(k * 3)), gen: 1, poi: t };
+        cfg.map.zones.push({ type: t, x, z, r: pr - 2, biome: bio, gen: 1, poi: 1 });
+      } else if (t === 'shrine') place = { id, name: nameOf(r, t, used), type: 'shrine', x, z, r: 7, safe: true, gen: 1, poi: t };      // у святилища враги не появляются
+      if (place) cfg.map.places.push(place);
+      cfg.map.pois.push({ id, t, x, z, r: pr, rot: rp() * TAU, bio, place: place && place.id }); taken.push({ x, z, r: pr + P.gap * .5 }); i++;
+    }
   }
   if (rv) {
     const extra = [], B = T.bridge;

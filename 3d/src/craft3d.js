@@ -63,11 +63,11 @@ export function sourcesOf(id) {
 }
 
 // ---- записи бестиария ----
-const ZONE_PLACE = { graveyard: 'pogost', farm: 'polya', ruins: 'ruiny', camp: 'lager' };
+const ZONE_PLACE = { graveyard: 'pogost', farm: 'polya', ruins: 'ruiny', camp: 'lager' }, ZONE_NAME = { bandits: 'стоянки разбойников', barrow: 'курганы' };     // у мест большого мира (G2) — общее имя
 export function bestiaryEntry(type, cfg) {
   const C = cfg.enemies[type]; if (!C) return null;
-  const names = id => cfg.map.places.find(p => p.id === id).name;
-  const where = Object.entries(cfg.enemies.regions || {}).filter(([, t]) => t.some(x => x[0] === type)).map(([z]) => names(ZONE_PLACE[z]));
+  const names = z => { const p = cfg.map.places.find(q => q.id === ZONE_PLACE[z]); return p ? p.name : ZONE_NAME[z] || z; };
+  const where = Object.entries(cfg.enemies.regions || {}).filter(([, t]) => t.some(x => x[0] === type)).map(([z]) => names(z));
   const lair = (cfg.bosses.list.find(b => b.type === type) || null);
   if (lair) { const pl = cfg.map.places.filter(p => Math.hypot(p.x - lair.x, p.z - lair.z) < p.r).sort((a, b) => a.r - b.r)[0]; where.push(pl ? pl.name : 'глушь'); }
   else if (!where.length || ['imp', 'brute'].includes(type)) where.unshift('везде');

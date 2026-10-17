@@ -1,5 +1,5 @@
 // Сцена Three.js: мир, свет, камера, спецэффекты. Рисует в маленьком разрешении и растягивает без сглаживания.
-import { makeMap, propsBlocked, campGates } from './map.js';
+import { makeMap, propsBlocked, campGates, insideOf, insideCamp } from './map.js';
 import { buildDecor } from './decor.js';
 import { buildTown } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
@@ -15,9 +15,9 @@ import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
 import { inCliff } from './cliffs3d.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addCanopyTree, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier } from './models.js';
+import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addCanopyTree, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
 import { heroOf } from './data/heroes3d.js';
-import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul } from './ambient3d.js';
+import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul, makeBeasts, updateBeasts } from './ambient3d.js';
 import { mulberry32 } from './sim.js';
 import { questMark } from './quests3d.js';
 import { skyAt } from './daynight.js';
@@ -208,9 +208,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     g.add(new THREE.Mesh(geo, hillsMat));
     if (lightMat) { const lm = new THREE.Mesh(geo, lightMat); lm.renderOrder = 1; g.add(lm); }
     land.add(g); liveLand.set(ci + ',' + cj, { g, geo, trees }); yield;
-    const P = propsIn(map, cfg, ci, cj), pp = [];
-    for (const q of P) { const k0 = pp.length; (q.tree ? addTree : addRock)(pp, mulberry32(q.seed), q.x, q.z, q.bare !== undefined ? { ...cfg.look, bare: q.bare } : cfg.look); const gy = Y(q.x, q.z); for (let k = k0; k < pp.length; k++) pp[k].translate(0, gy, 0); if (q.tree) trees.push(q.x, q.z); }
-    if (pp.length) { for (const q of pp) if (!q.attributes.sway) q.setAttribute('sway', new THREE.BufferAttribute(new Float32Array(q.attributes.position.count), 1)); g.add(new THREE.Mesh(mergeGeometries(pp, false), propsMat)); pp.forEach(q => q.dispose()); }
+    const P = propsIn(map, cfg, ci, cj);
+    for (let i0 = 0; i0 < P.length; i0 += 24) {                              // в роще деревьев много (G2): по 24 за кадр
+      const pp = [];
+      for (const q of P.slice(i0, i0 + 24)) { const k0 = pp.length; (q.tree ? addTree : addRock)(pp, mulberry32(q.seed), q.x, q.z, q.bare !== undefined ? { ...cfg.look, bare: q.bare } : cfg.look); const gy = Y(q.x, q.z); for (let k = k0; k < pp.length; k++) pp[k].translate(0, gy, 0); if (q.tree) trees.push(q.x, q.z); }
+      if (pp.length) { for (const q of pp) if (!q.attributes.sway) q.setAttribute('sway', new THREE.BufferAttribute(new Float32Array(q.attributes.position.count), 1)); g.add(new THREE.Mesh(mergeGeometries(pp, false), propsMat)); pp.forEach(q => q.dispose()); }
+      if (i0 + 24 < P.length) yield;
+    }
     yield;
     if (grassOn) {
       const spots = grassIn(map, cfg, ci, cj, allSegs), cells = new Map(); yield;
@@ -291,6 +295,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const AMB = cfg.ambient, arnd = mulberry32(cfg.world.seed + 21), life = new THREE.Group();
   const vStops = AMB.on ? villagerStops(map, cfg) : [], villagers = makeVillagers(vStops, AMB.villagers, arnd).map((v, i) => { const m = makeNpc('villager', ['#5a4a3a', '#4a3a4a', '#3a4a3a', '#6a5040', '#4a4436'][i % 5]); life.add(m.group); return { v, m }; });
   const crows = (AMB.on ? makeBirds(map, cfg, arnd) : []).map(b => { const m = makeCrow(); m.group.rotation.y = b.face; life.add(m.group); return { b, m }; });
+  // звери (G2): вокруг героя, где можно стоять — не вода, не дом, не камень, не лагерь, не обрыв
+  const BEA = cfg.beasts, beastOk = (x, z) => Math.hypot(x, z) < cfg.world.radius - 4 && !(map.camp && insideCamp(map.camp, x, z, -3)) && !(river && waterDist(river, x, z) < 1.5) && insideOf(map, x, z, 1) < 0 && !map.solids.some(q => Math.abs(q.x - x) < q.r + .6 && Math.abs(q.z - z) < q.r + .6) && !(map.plateaus.length && inCliff(map.plateaus, x, z, 1));
+  const beasts = (BEA && BEA.on ? makeBeasts(BEA.n) : []).map(b => { const m = makeBeast(b.kind); m.group.visible = false; life.add(m.group); return { b, m }; });
   const pipes = AMB.on ? chimneys(map, cfg) : [];
   if (pipes.length) life.add(new THREE.Mesh(mergeGeometries(pipes.map(c => new THREE.BoxGeometry(.5, AMB.chimneyH + .6, .5).translate(c.x, c.y - AMB.chimneyH / 2 + .3, c.z))), new THREE.MeshLambertMaterial({ color: '#3a302a' })));
   const puffN = pipes.length * AMB.smoke, puffs = new THREE.InstancedMesh(new THREE.BoxGeometry(.5, .5, .5), new THREE.MeshBasicMaterial({ color: '#8a8078', transparent: true, opacity: .32, depthWrite: false }), Math.max(1, puffN));
@@ -596,6 +603,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (!under) {
       for (const { v, m } of villagers) { stepVillager(v, dt, vStops, AMB, Math.random); m.group.position.set(v.x, Y(v.x, v.z), v.z); m.group.rotation.y = v.face; m.root.position.y = v.moving && !calm ? Math.abs(Math.sin(t * 8 + v.id)) * .07 : 0; m.armL.rotation.x = v.moving && !calm ? Math.sin(t * 8 + v.id) * .5 : 0; m.armR.rotation.x = -m.armL.rotation.x; }
       updateBirds(crows.map(c => c.b), p.x, p.z, dt, AMB);
+      if (beasts.length && W.lvl === 'surface') { updateBeasts(beasts.map(c => c.b), p.x, p.z, dt, BEA, Math.random, beastOk);
+        for (const { b, m } of beasts) { m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; const hop = b.kind === 'hare' && b.moving ? Math.abs(Math.sin(b.step * 2.2)) * .25 : 0; m.group.position.set(b.x, Y(b.x, b.z) + hop, b.z); m.group.rotation.y = b.face; m.legs.forEach((l, i) => { l.rotation.x = b.moving ? Math.sin(b.step * (b.kind === 'deer' ? 3.2 : 4) + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * .7 : 0; }); m.group.children[2].rotation.x = b.state === 'graze' && b.kind === 'deer' ? .5 : 0; } }
       for (const { b, m } of crows) { m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; m.group.position.set(b.x, b.y + Y(b.x, b.z), b.z); m.group.rotation.y = b.face; const fl = b.state === 'fly' ? Math.sin(t * 22) * .9 : (b.peck < .3 ? .2 : 0); m.wl.rotation.z = fl; m.wr.rotation.z = -fl; }
       for (let i = 0; i < puffs.count; i++) {
         const c = pipes[(i / AMB.smoke) | 0], k = ((t / 4 + (i % AMB.smoke) / AMB.smoke + c.x * .013) % 1), s = .35 + k * 1.1 * (1 - k * .6);

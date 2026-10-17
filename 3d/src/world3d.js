@@ -101,6 +101,45 @@ export function genWorld(cfg, buildings) {
   // колодец и бочки у костра, остатки частокола у границы
   solid('well', 6.5, -3.5, 1.1);
   for (const l of M.landmarks || []) solid(l.t, l.x, l.z, l.r, { rot: l.rot });     // ориентиры большого мира: башни, мельницы, крепости (C3b)
+  // точки интереса (G2): свой генератор — декор ядра не сдвигается; места сундуков — заранее, твёрдое на них не встаёт
+  { const rq = mulberry(cfg.world.seed * 97 + 41);
+    for (const q of M.pois || []) {
+      const c = Math.cos(q.rot), s = Math.sin(q.rot), at = (lx, lz) => ({ x: q.x + lx * c + lz * s, z: q.z - lx * s + lz * c });
+      const box = (kind, lx, lz) => { const p = at(lx, lz); spots.push({ kind, x: p.x, z: p.z }); reserved.push(p); };
+      reserved.length = 0;
+      if (q.t === 'bandits') {
+        box('ironchest', 2.4, -1.4); box('rack', -1.8, 3);
+        solid('campfire', q.x, q.z, .8);
+        for (let i = 0; i < 3; i++) { const a = q.rot + i * 2.1 + .5, p = { x: q.x + Math.cos(a) * 4.6, z: q.z + Math.sin(a) * 4.6 }; solid('tent', p.x, p.z, 1.6, { rot: a }); }
+        for (let i = 0; i < 9; i++) { const a = q.rot + Math.PI * (.15 + i * .1), p = { x: q.x + Math.cos(a) * 8, z: q.z + Math.sin(a) * 8 }; put('stake', p.x, p.z, { rot: a, s: .8 + rq() * .5 }); }
+        put('bones', q.x - 1.4, q.z + 1.6, { rot: rq() * 3 });
+      } else if (q.t === 'shrine') {
+        solid('shrine', q.x, q.z, 1.1, { rot: q.rot });
+        for (let i = 0; i < 4; i++) { const a = q.rot + i * Math.PI / 2 + .78; put('candle', q.x + Math.cos(a) * 2.1, q.z + Math.sin(a) * 2.1); }
+        for (let i = 0; i < 7; i++) { const a = rq() * TAU, d = 2.6 + rq() * 1.2; put('flowers', q.x + Math.cos(a) * d, q.z + Math.sin(a) * d, { rot: rq() * 3 }); }
+      } else if (q.t === 'wagon') {
+        box('wagon', 0, 0); if (rq() < .5) box('corpse', 2.2, 1.6);
+        { const p = at(-2.2, -1.2); put('wheel', p.x, p.z, { rot: q.rot + 1.2 }); }
+        for (let i = 0; i < 3; i++) { const a = rq() * TAU, d = 2.4 + rq() * 1.3; if (free(q.x + Math.cos(a) * d, q.z + Math.sin(a) * d, .6)) put(i % 2 ? 'crate_d' : 'barrel_d', q.x + Math.cos(a) * d, q.z + Math.sin(a) * d, { rot: rq() * 3 }); }
+      } else if (q.t === 'barrow') {
+        box('grave', 0, 3.6); if (rq() < .5) box('cache', -2.6, 2.8);
+        solid('barrow', q.x, q.z, 2.6, { rot: q.rot });
+        { const p = at(0, -3.4); solid('menhir', p.x, p.z, .6, { rot: q.rot, s: 1.2 }); }
+        for (let i = 0; i < 4; i++) { const p = at((rq() - .5) * 8, (rq() - .5) * 8); if (free(p.x, p.z, .8)) put('cross', p.x, p.z, { rot: rq() * .6, s: .9 }); }
+      } else if (q.t === 'hut') {
+        box(rq() < .5 ? 'sack' : 'barrel', 2.6, 2.2);
+        solid('hut_s', q.x, q.z, 2.2, { rot: q.rot });
+        { const p = at(-2.8, .6); put('woodpile', p.x, p.z, { rot: q.rot }); }
+        { const p = at(1.2, 3.4); solid('stump', p.x, p.z, .5); }
+      } else if (q.t === 'pond') {
+        const pr = 3 + rq() * 1.5; put('pond', q.x, q.z, { s: pr }); solids.push({ x: q.x, z: q.z, r: pr - .5 });
+        for (let i = 0; i < 9; i++) { const a = rq() * TAU, d = pr + .1 + rq() * .5; put('reed', q.x + Math.cos(a) * d, q.z + Math.sin(a) * d, { s: .7 + rq() * .6 }); }
+      } else if (q.t === 'stones') {
+        if (rq() < .5) box('cache', 0, 0);
+        const n = 5 + ((rq() * 3) | 0); for (let i = 0; i < n; i++) { const a = q.rot + i * TAU / n; solid('menhir', q.x + Math.cos(a) * 4.2, q.z + Math.sin(a) * 4.2, .6, { rot: a, s: .8 + rq() * .6 }); }
+      }
+    }
+    reserved.length = 0; }
   // стены замков (C4c): квадрат 2·H м, стена толщиной T, башни по углам, ворота шириной G со стороны лагеря; вход в подземелье — во дворе
   const blocks = [];
   for (const c of M.castles || []) {

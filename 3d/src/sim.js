@@ -161,6 +161,35 @@ function spawnRing(W) {
     const e = spawnEnemy(W, t, o.x, o.z, 'patrol'); e.pack = true;
   }
 }
+// гарнизоны (G2): опасные места большого мира и стоянки заселяются, когда герой ближе near м, но дальше far (вне экрана);
+// после зачистки — снова через respawn с; ушедший далеко гарнизон забывается, и место заселится при следующем подходе
+function garrisons(W, dt) {
+  const G = W.cfg.enemies.garrison; if (!G || (W.garrT = (W.garrT || 0) - dt) > 0) return; W.garrT = .5;
+  const p = W.player, E = W.cfg.enemies; W.garr = W.garr || {};
+  for (const pl of W.map.cfg.places || []) {
+    if (!pl.gen || pl.type !== 'danger' || pl.castle) continue;
+    const d = len(pl.x - p.x, pl.z - p.z); if (d > G.near || d < G.far || (W.garr[pl.id] || 0) > W.t || W.enemies.some(e => e.garr === pl.id && !e.dead)) continue;
+    const type = regionOf(W.map, pl.x, pl.z), tbl = E.regions[type]; if (!tbl) continue;
+    W.garr[pl.id] = W.t + G.respawn;
+    const pool = tbl.filter(a => a[2] !== 'night' || W.night), n = G.n[type] || 3;
+    for (let i = 0; i < n; i++) {
+      const a = rr(W, 0, TAU), r0 = rr(W, 1.5, Math.max(2.5, pl.r * .45)), o = { x: pl.x + Math.sin(a) * r0, z: pl.z + Math.cos(a) * r0 }; resolve(W.map, o, 1);
+      const e = spawnEnemy(W, pickEntry(pool, W.rng)[0], o.x, o.z, i % 2 ? 'patrol' : 'guard'); e.garr = pl.id;
+    }
+  }
+}
+// святилище (G2): касание даёт дар на время; то же святилище — снова через again с
+function touchShrine(W) {
+  const S = W.cfg.shrine, p = W.player; if (!S || !onSurface(W) || p.dead) return;
+  W.shrines = W.shrines || {};
+  for (const q of W.cfg.map.pois || []) {
+    if (q.t !== 'shrine' || len(q.x - p.x, q.z - p.z) > S.reach || (W.shrines[q.id] || -1e9) > W.t) continue;
+    const g = S.gifts[Math.abs(Math.round(q.x * 13 + q.z * 7)) % S.gifts.length];
+    W.shrines[q.id] = W.t + S.again;
+    const ex = W.buffs.find(b => b.src === 'shrine:' + g.stat); if (ex) ex.t = g.t; else W.buffs.push({ stat: g.stat, amt: g.amt, t: g.t, src: 'shrine:' + g.stat });
+    W.ev.push({ k: 'shrine', x: q.x, z: q.z, name: g.name, stat: g.stat, amt: g.amt, t: g.t });
+  }
+}
 function pickEntry(table, rng) { let t = 0; for (const a of table) t += a[1]; let r = rng() * t; for (const a of table) { r -= a[1]; if (r <= 0) return a; } return table[0]; }
 
 export function setDifficulty(W, id) {
@@ -607,8 +636,12 @@ function updateEnemies(W, dt) {
   // держим нужное число врагов (кольцом вокруг героя — только на поверхности; в подземельях свои правила)
   if (!onSurface(W)) return;
   // бродячие, ушедшие дальше drop, забываются (место освобождается); живыми вокруг считаются только не спящие
-  const keepFar = e => e.boss || e.evId || (e.mode && !e.pack);                       // стайки забываются, как бродячие
-  if (W.enemies.some(e => !keepFar(e) && len(e.x - p.x, e.z - p.z) > E.sleep.drop)) W.enemies = W.enemies.filter(e => keepFar(e) || len(e.x - p.x, e.z - p.z) <= E.sleep.drop);
+  const keepFar = e => e.boss || e.evId || (e.mode && !e.pack && !e.garr);              // стайки и гарнизоны забываются, как бродячие
+  if (W.enemies.some(e => !keepFar(e) && len(e.x - p.x, e.z - p.z) > E.sleep.drop)) {
+    for (const e of W.enemies) if (e.garr && !e.dead && len(e.x - p.x, e.z - p.z) > E.sleep.drop) W.garr[e.garr] = 0;     // гарнизон не зачищен — заселится снова
+    W.enemies = W.enemies.filter(e => keepFar(e) || len(e.x - p.x, e.z - p.z) <= E.sleep.drop);
+  }
+  if (roamOn(W)) garrisons(W, dt);
   const alive = W.enemies.filter(e => !e.dead && !e.boss && len(e.x - p.x, e.z - p.z) <= E.sleep.r).length;
   const bonus = W.place && W.place.danger ? Math.round(W.place.danger * E.dangerCount) : 0;
   const RM = roamOn(W) ? E.roam : null, want = E.count === 0 ? 0 : RM ? Math.max(1, (W.night ? RM.night : RM.day) + bonus + W.dif.count) : Math.max(1, E.count + bonus + W.dif.count + (W.night ? W.cfg.daynight.night.count : 0));     // спокойный мир: днём меньше, ночью больше
@@ -769,6 +802,7 @@ export function step(W, dt, input = {}) {
   tickAbilities(W, dt);
   for (let i = W.echoQ.length - 1; i >= 0; i--) { const q = W.echoQ[i]; if ((q.t -= dt) <= 0) { W.echoQ.splice(i, 1); if (!W.player.dead) { if (W.wp.trait.ranged) shoot(W, q.mult, true); else attackHit(W, q.mult, true); } } }
   trackPlace(W, dt);
+  touchShrine(W);
   discoverFires(W);
   updateEnemies(W, dt);
   updateAllies(W, dt);

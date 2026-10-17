@@ -48,13 +48,13 @@ for (let s = 1; s <= 4; s++) {
 // ---------- 3. две минуты бега: стычек мало, ночью врагов больше ----------
 function trip(seed, night, roam) {
   const W = mk(seed, c => { c.enemies.roam.on = roam; }), p = W.player; if (night) W.t = 200;
-  const a0 = seed * 1.7; p.x = Math.sin(a0) * 200; p.z = Math.cos(a0) * 200; let dir = a0 + 2.2, alarm = 0, enc = 0, was = false, alive = 0;
+  const a0 = seed * 1.7; p.x = Math.sin(a0) * 200; p.z = Math.cos(a0) * 200; let dir = a0 + 2.2, alarm = 0, enc = 0, calm = 9, alive = 0;
   for (let i = 0; i < 60 * 120; i++) {
     p.inv = 1e9; p.hp = p.maxhp;
     if (Math.hypot(p.x, p.z) > 520) dir += Math.PI * .8;
     if (i % 600 === 0) dir += (seed % 3 - 1) * .5;
     const near = W.enemies.some(e => !e.dead && e.alert && Math.hypot(e.x - p.x, e.z - p.z) < 20);
-    if (near) alarm += 1 / 60; if (near && !was) enc++; was = near;
+    if (near) alarm += 1 / 60; if (near && calm > 3) enc++; calm = near ? 0 : calm + 1 / 60;     // новая стычка — после 3 с покоя
     if (i === 60 * 60) alive = W.enemies.filter(e => !e.dead && Math.hypot(e.x - p.x, e.z - p.z) < CFG3.enemies.sleep.r).length;
     step(W, 1 / 60, { mx: Math.sin(dir), mz: Math.cos(dir) });
   }
