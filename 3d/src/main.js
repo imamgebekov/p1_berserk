@@ -28,8 +28,11 @@ import { runBench } from './bench3d.js';
 import { rotateInput, resolve } from './map.js';
 import { createInput } from './input.js';
 import { loadTweaks, createTweakPanel } from './tweak.js';
+import { setIconText, applyIcons } from './uiicons.js';
 
 const $ = id => document.getElementById(id);
+applyIcons(document);     // иконки-силуэты вместо эмодзи в кнопках разметки (шаг 10)
+$('keysMore').addEventListener('click', () => { const p = $('keysAll'); p.hidden = !p.hidden; $('keysMore').setAttribute('aria-expanded', String(!p.hidden)); });     // все клавиши по «?»
 const defaults = JSON.parse(JSON.stringify(CFG3));
 const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
@@ -82,7 +85,7 @@ function closeHeroPick() { $('heroPick').hidden = true; panelOpen = false; heroS
 function openHeroPick(switching = false) {
   heroSwitching = switching;
   $('heroCancel').hidden = !switching;
-  $('heroNote').textContent = switching ? 'Уровень, пепел, вещи и навыки останутся. Очки умений вернутся: умения у героев свои. Чужое оружие уйдёт в сумку.' : 'Героя можно сменить потом в меню (⚙): уровень, пепел и вещи останутся.';
+  $('heroNote').textContent = switching ? 'Уровень, пепел, вещи и навыки останутся. Очки умений вернутся: умения у героев свои. Чужое оружие уйдёт в сумку.' : 'Героя можно сменить потом в меню: уровень, пепел и вещи останутся.';
   const box = $('heroCards'); box.textContent = '';
   HERO_IDS.forEach((id, i) => {
     const H = HEROES[id], c = document.createElement('div'), add = (tag, cls, txt) => { const e = document.createElement(tag); e.className = cls; e.textContent = txt; c.append(e); return e; };
@@ -128,9 +131,9 @@ function onText(x, y, z, txt, cls) {
   $('dmg').appendChild(d);
   setTimeout(() => d.remove(), 900);
 }
-function toast(txt, cls = '', color) {
+function toast(txt, cls = '', color, ic) {     // ic — иконка из uiicons.js (шаг 10)
   const box = $('toasts'), d = document.createElement('div');
-  d.className = 'toast ' + cls; d.textContent = txt; if (color) d.style.color = color;
+  d.className = 'toast ' + cls; if (ic) setIconText(d, ic, txt); else d.textContent = txt; if (color) d.style.color = color;
   box.appendChild(d); while (box.children.length > 3) box.firstChild.remove();     // не больше 3 (шаг 9)
   setTimeout(() => d.remove(), 3500);
 }
@@ -138,7 +141,7 @@ const P = loadPrefs();
 function onEvent(v) {
   if (v.k === 'hurt') buzz(P, 35); else if (v.k === 'level' || v.k === 'questdone') buzz(P, [40, 40, 70]); else if (v.k === 'bossaggro' || v.k === 'bossblast') buzz(P, 90);
   sfx(v.k, v.x === undefined ? null : { x: v.x, z: v.z, px: W.player.x, pz: W.player.z, yaw: cfg.view.camYaw });     // звук мира: тише вдали, панорама по экрану (шаг 8)
-  if (v.k === 'fireFound') { toast('🔥 Открыт костёр: ' + v.name, '', '#ffb060'); sfx('evDone'); }
+  if (v.k === 'fireFound') { toast('Открыт костёр: ' + v.name, '', '#ffb060', 'fire'); sfx('evDone'); }
   else if (v.k === 'dusk') toast('Наступает ночь: торговец спит, враги злее', 'bad');
   else if (v.k === 'dawn') toast('Светает: торговец снова торгует', 'sys');
   if (v.k === 'pickup') { const it = BY_ID[v.id]; toast('+ ' + it.name + (v.n > 1 ? ' ×' + v.n : ''), '', RARITY[it.rar].color); }
@@ -148,8 +151,8 @@ function onEvent(v) {
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
   else if (v.k === 'place') showPlace(v.place);
-  else if (v.k === 'drop') { const it = BY_ID[v.id]; if (it && it.rar >= 3) { toast(`✦ Выпало: ${it.name}`, '', RARITY[it.rar].color); sfx(it.rar >= 4 ? 'brand' : 'rare'); } }
-  else if (v.k === 'key') toast(`🗝 Ключ на связке: ${cfg.dungeons.keys[v.key] || 'ключ'}`, '', '#e8c04a');
+  else if (v.k === 'drop') { const it = BY_ID[v.id]; if (it && it.rar >= 3) { toast(`Выпало: ${it.name}`, '', RARITY[it.rar].color, 'gem'); sfx(it.rar >= 4 ? 'brand' : 'rare'); } }
+  else if (v.k === 'key') toast(`Ключ на связке: ${cfg.dungeons.keys[v.key] || 'ключ'}`, '', '#e8c04a', 'key');
   else if (v.k === 'doorLocked') toast(`Заперто: нужен ${cfg.dungeons.keys[v.key] || 'ключ'}`, 'bad');
   else if (v.k === 'travel') { saver.write(); if (!reduce) { const f = $('fade'); f.style.setProperty('--fade', cfg.dungeons.fade + 's'); f.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on'))); } }
   else if (v.k === 'playerDead') {
@@ -157,16 +160,16 @@ function onEvent(v) {
     $('deadTxt').textContent = v.iron ? 'Конец пути. Железный режим: сохранение стёрто.' : (parts.join(' ') || 'Потерь нет.');
     if (v.iron) { W.ironDead = true; saver.reset(); $('again').textContent = 'Начать заново'; }
   }
-  else if (v.k === 'evStart') { toast(v.kind === 'rescue' ? '📣 Крик о помощи: путника окружили враги' : v.kind === 'ambush' ? '⚔ Засада!' : `🐴 Обоз в «${v.place}» ищет охрану у ворот`, v.kind === 'ambush' ? 'bad' : '', '#ffc040'); sfx(v.kind === 'ambush' ? 'ambush' : 'evStart'); }
+  else if (v.k === 'evStart') { toast(v.kind === 'rescue' ? 'Крик о помощи: путника окружили враги' : v.kind === 'ambush' ? 'Засада!' : `Обоз в «${v.place}» ищет охрану у ворот`, v.kind === 'ambush' ? 'bad' : '', '#ffc040', v.kind === 'ambush' ? 'warn' : 'horn'); sfx(v.kind === 'ambush' ? 'ambush' : 'evStart'); }
   else if (v.k === 'evMove') toast(`Обоз тронулся. Держитесь рядом до «${v.place}»`, 'sys');
   else if (v.k === 'evRaid') { toast('Налёт на обоз!', 'bad'); sfx('ambush'); }
   else if (v.k === 'evDone') { toast(v.kind === 'rescue' ? `Путник спасён: +${v.ash} пепла и его благодарность` : v.kind === 'ambush' ? `Засада отбита: +${v.ash} пепла` : `Обоз дошёл: +${v.ash} пепла`, '', '#e8c04a'); sfx('evDone'); saver.write(); }
   else if (v.k === 'evFail') { const t = { dead: v.kind === 'caravan' ? 'Обоз разбит' : 'Путник погиб', late: v.kind === 'caravan' ? 'Обоз уехал без вас' : 'Путник не дождался помощи', fled: 'Вы ушли от засады', gone: '' }[v.why]; if (t) toast(t, 'bad'); }
-  else if (v.k === 'rainStart') { const R = cfg.weather.combat; toast(`🌧 Дождь: враги слышат и видят хуже, огонь слабее${R.storm > 1 ? ', гроза сильнее' : ''}`, '', '#9ac0e0'); }
-  else if (v.k === 'rainStop') toast('☀ Дождь кончился', '', '#c8d8e8');
-  else if (v.k === 'shopRare') { const it = BY_ID[v.id]; toast(`🛒 У торговца в лагере: ${cfg.shop.rare.tiers[v.tier - 1].name.toLowerCase()} — ${it.name}`, '', RARITY[it.rar].color); sfx(v.tier >= 3 ? 'brand' : 'rare'); }
-  else if (v.k === 'shrine') { toast(`✨ ${v.name}: ${v.stat === 'regen' ? `+${v.amt} здоровья в секунду` : `+${v.amt} ${STAT_NAME[v.stat]}`} на ${Math.round(v.t / 60)} мин`, '', '#9ad8ff'); sfx('buff'); }
-  else if (v.k === 'wanderer') { toast('🔔 У дороги остановилась повозка сказочного торговца', '', '#c8a0ff'); sfx('wanderer'); }
+  else if (v.k === 'rainStart') { const R = cfg.weather.combat; toast(`Дождь: враги слышат и видят хуже, огонь слабее${R.storm > 1 ? ', гроза сильнее' : ''}`, '', '#9ac0e0', 'rain'); }
+  else if (v.k === 'rainStop') toast('Дождь кончился', '', '#c8d8e8', 'sun');
+  else if (v.k === 'shopRare') { const it = BY_ID[v.id]; toast(`У торговца в лагере: ${cfg.shop.rare.tiers[v.tier - 1].name.toLowerCase()} — ${it.name}`, '', RARITY[it.rar].color, 'shop'); sfx(v.tier >= 3 ? 'brand' : 'rare'); }
+  else if (v.k === 'shrine') { toast(`${v.name}: ${v.stat === 'regen' ? `+${v.amt} здоровья в секунду` : `+${v.amt} ${STAT_NAME[v.stat]}`} на ${Math.round(v.t / 60)} мин`, '', '#9ad8ff', 'sparkle'); sfx('buff'); }
+  else if (v.k === 'wanderer') { toast('У дороги остановилась повозка сказочного торговца', '', '#c8a0ff', 'bell'); sfx('wanderer'); }
   else if (v.k === 'wanderLeave') toast('Сказочный торговец уехал', 'sys');
   else if (v.k === 'recall') toast('Свиток перенёс вас в лагерь', '', '#c8a0ff');
   else if (v.k === 'tomb') toast(`Вы нашли свой пепел: +${v.ash}`, '', '#e8c04a');
@@ -181,7 +184,7 @@ function onEvent(v) {
   else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
   else if (v.k === 'allydead') toast(`${v.name} пал`, 'bad');
   else if (v.k === 'hire') toast(`${v.name} теперь с вами`, 'sys');
-  else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков ✦` + (cfg.abilities.ranks.flat().includes(v.lv) ? ' и умений' : '') + (cfg.abilities.ranks.some(r => r[0] === v.lv) ? ' · открылось умение' : ''), '', '#e8c04a');
+  else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков` + (cfg.abilities.ranks.flat().includes(v.lv) ? ' и умений' : '') + (cfg.abilities.ranks.some(r => r[0] === v.lv) ? ' · открылось умение' : ''), '', '#e8c04a');
   else if (v.k === 'xp') onText(v.x, 3, v.z, '+' + v.n + ' оп.', 'xp');
 }
 function showPlace(pl) {
@@ -294,22 +297,22 @@ try { setMuted(localStorage.getItem('berserk3d.mute') === '1'); } catch (e) { /*
 setVolume(cfg.audio.volume);
 for (const ev of ['pointerdown', 'touchstart', 'keydown']) addEventListener(ev, ensureAudio, { passive: true });
 const muteBtn = $('muteBtn');
-const showMute = () => { muteBtn.textContent = isMuted() ? '🔇 Звук выключен' : '🔊 Звук включён'; };
+const showMute = () => { setIconText(muteBtn, isMuted() ? 'mute' : 'sound', isMuted() ? 'Звук выключен' : 'Звук включён'); };
 muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); });
 showMute();
 const bagFill = $('bagFill');
 let ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0;
 // личные настройки: левша, размер кнопок, вибрация, счётчик кадров, подсказки
-const prefBtn = (id, get, label, flip) => { const b = $(id); const show = () => { b.textContent = label(get()); }; b.addEventListener('click', () => { flip(); savePrefs(P); applyPrefs(); }); return show; };
+const prefBtn = (id, get, label, flip, ic) => { const b = $(id); const show = () => { setIconText(b, ic, label(get())); }; b.addEventListener('click', () => { flip(); savePrefs(P); applyPrefs(); }); return show; };
 const uiTabs = $('uiTabs');
 for (const [name, v] of UI_SCALES) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.v = v; b.textContent = 'Кнопки ' + name; b.addEventListener('click', () => { P.ui = v; savePrefs(P); applyPrefs(); }); uiTabs.appendChild(b); }
 const shows = [
-  prefBtn('leftyBtn', () => P.lefty, v => v ? '✋ Режим левши: кнопки слева' : '✋ Режим левши выключен', () => { P.lefty = !P.lefty; }),
-  prefBtn('vibBtn', () => P.vibrate, v => v ? '📳 Вибрация включена (на iPhone не работает)' : '📳 Вибрация выключена', () => { P.vibrate = !P.vibrate; }),
-  prefBtn('fpsBtn', () => P.fps, v => v ? '⏱ Счётчик кадров включён' : '⏱ Счётчик кадров выключен', () => { P.fps = !P.fps; }),
-  prefBtn('asciiBtn', () => P.ascii, v => v ? '🔤 Вид: ASCII (символы)' : '🔤 Вид: обычный', () => { P.ascii = !P.ascii; }),
-  prefBtn('retroBtn', () => P.retro, v => v ? '🟫 Ретро-пиксели включены' : '🟫 Ретро-пиксели выключены', () => { P.retro = !P.retro; }),
-  prefBtn('hintBtn', () => P.hints, v => v ? '💡 Подсказки включены (нажмите: показать заново)' : '💡 Подсказки выключены', () => { P.hints = !P.hints; if (P.hints) P.seen = {}; })
+  prefBtn('leftyBtn', () => P.lefty, v => v ? 'Режим левши: кнопки слева' : 'Режим левши выключен', () => { P.lefty = !P.lefty; }, 'swap'),
+  prefBtn('vibBtn', () => P.vibrate, v => v ? 'Вибрация включена (на iPhone не работает)' : 'Вибрация выключена', () => { P.vibrate = !P.vibrate; }, 'phone'),
+  prefBtn('fpsBtn', () => P.fps, v => v ? 'Счётчик кадров включён' : 'Счётчик кадров выключен', () => { P.fps = !P.fps; }, 'timer'),
+  prefBtn('asciiBtn', () => P.ascii, v => v ? 'Вид: ASCII (символы)' : 'Вид: обычный', () => { P.ascii = !P.ascii; }, 'eye'),
+  prefBtn('retroBtn', () => P.retro, v => v ? 'Ретро-пиксели включены' : 'Ретро-пиксели выключены', () => { P.retro = !P.retro; }, 'pixels'),
+  prefBtn('hintBtn', () => P.hints, v => v ? 'Подсказки включены (нажмите: показать заново)' : 'Подсказки выключены', () => { P.hints = !P.hints; if (P.hints) P.seen = {}; }, 'hint')
 ];
 function applyPrefs() {
   const r = document.documentElement; if (P.lefty) r.setAttribute('data-lefty', ''); else r.removeAttribute('data-lefty');
@@ -357,7 +360,7 @@ function openFires() {
   const p = W.player;
   for (const f of knownFires(W).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.id = f.id; const d = Math.round(Math.hypot(f.x - p.x, f.z - p.z));
-    b.textContent = '🔥 ' + f.name; const sm = document.createElement('small'); sm.textContent = here && here.id === f.id ? 'вы здесь' : d + ' м' + (f.danger ? ' · опасность ' + '▮'.repeat(f.danger) : ''); b.appendChild(sm);
+    setIconText(b, 'fire', f.name); const sm = document.createElement('small'); sm.textContent = here && here.id === f.id ? 'вы здесь' : d + ' м' + (f.danger ? ' · опасность ' + '▮'.repeat(f.danger) : ''); b.appendChild(sm);
     b.disabled = !!block || (here && here.id === f.id);
     b.addEventListener('click', () => { if (fastTravel(W, f.id)) { closeFires(); sfx('travel'); } });
     list.appendChild(b);
@@ -374,7 +377,7 @@ sleepBtn.addEventListener('click', e => {
   sleepingUI = true; panelOpen = true; sleepFade.hidden = false; requestAnimationFrame(() => sleepFade.classList.add('on'));
   setTimeout(() => {
     const r = sleep(W); saver.write(true);
-    toast(r === 'ok' ? '☀ Утро. Вы выспались — здоровье полное' : r === 'woken' ? '⚠ Вас разбудили! Враги рядом' : r, '', r === 'ok' ? '#ffe08a' : '#ff8a6a');
+    toast(r === 'ok' ? 'Утро. Вы выспались — здоровье полное' : r === 'woken' ? 'Вас разбудили! Враги рядом' : r, '', r === 'ok' ? '#ffe08a' : '#ff8a6a', r === 'ok' ? 'sun' : 'warn');
     sleepFade.classList.remove('on'); setTimeout(() => { sleepFade.hidden = true; sleepingUI = false; panelOpen = false; }, 500);
   }, 650);
 }, true);
@@ -389,7 +392,16 @@ const MAP_MIN = 60, mapMax = () => cfg.world.radius * 2 + 6, mv = { cx: 0, cz: 0
 const mapClamp = () => { mv.span = Math.max(MAP_MIN, Math.min(mapMax(), mv.span)); const R = cfg.world.radius, m = Math.max(0, R - mv.span / 2 + 20); mv.cx = Math.max(-m, Math.min(m, mv.cx)); mv.cz = Math.max(-m, Math.min(m, mv.cz)); };
 let mapRaf = 0; const mapRedraw = () => { if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; drawFull(); }); };
 const mapZoom = (k, px = 320, py = 320) => { const s0 = mv.span, wx = mv.cx + (px / 640 - .5) * s0, wz = mv.cz + (py / 640 - .5) * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px / 640 - .5) * mv.span; mv.cz = wz - (py / 640 - .5) * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте
-function drawFull() { const B = W.map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; drawMap(mapCtx, W, { w: 640, h: 640, scale: 640 / span, cx, cz, full: true }); const pl = W.place; $('mapLegend').textContent = B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}. Светлый квадрат: лестница наверх. Жёлтые точки: нетронутые контейнеры. Закрытое туманом ещё не исследовано.` : (pl ? `Вы здесь: ${pl.name}. ` : 'Вы в глуши. ') + 'Коричневые квадраты: люки в погреба и подземелья. Зелёные круги безопасны, красные опасны (чем краснее, тем хуже). Жёлтые точки: нетронутые контейнеры. Торговец золотой, кузнец рыжий. Закрытое туманом ещё не исследовано.'; }
+function drawFull() { const B = W.map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; drawMap(mapCtx, W, { w: 640, h: 640, scale: 640 / span, cx, cz, full: true }); const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
+// легенда карты — чипы «значок + слово» вместо абзаца (шаг 10): sq — квадрат, ring — круг-граница, dot — точка, fog — туман
+const LEG_SURF = [['sq', '#8a5a30', 'Люк'], ['ring', '#82c878', 'Безопасно'], ['ring', '#dc4632', 'Опасно'], ['dot', '#ffc860', 'Сундук'], ['dot', '#ffd45a', 'Торговец'], ['dot', '#ff8a3a', 'Кузнец'], ['fog', '#2a1e17', 'Не исследовано']];
+const LEG_UNDER = [['sq', '#e8d0a0', 'Лестница наверх'], ['dot', '#ffc860', 'Сундук'], ['fog', '#2a1e17', 'Не исследовано']];
+function legend(here, items) {
+  const box = $('mapLegend'), key = here + items.length; if (box.dataset.k === key) return; box.dataset.k = key;
+  const h = document.createElement('div'); h.className = 'here'; h.textContent = here; const row = document.createElement('div'); row.className = 'chips';
+  for (const [shape, color, word] of items) { const c = document.createElement('span'), sw = document.createElement('i'); c.className = 'chip'; sw.className = 'sw ' + shape; sw.style.setProperty('--c', color); c.append(sw, word); row.append(c); }
+  box.replaceChildren(h, row);
+}
 const mapOpen = () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); drawFull(); mapEl.hidden = false; panelOpen = true; input.release(); };
 { const pts = new Map(), loc = e => { const r = mapCv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * 640, y: (e.clientY - r.top) / r.height * 640 }; }; let pinch = 0;
   mapCv.addEventListener('wheel', e => { e.preventDefault(); const q = loc(e); mapZoom(Math.exp(e.deltaY * .0015), q.x, q.y); }, { passive: false });
@@ -428,9 +440,9 @@ function loop(now) {
   const t1 = performance.now();
   if (renderer) renderer.render(W, dt);
   { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
-  { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка ✦' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
-  { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) { const l = '🔥 Костёр' + (desk ? ' · E' : ''); if (fireBtn.textContent !== l) fireBtn.textContent = l; } }
-  { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) { const l = '😴 Спать до утра' + (desk ? ' · B' : ''); if (sleepBtn.textContent !== l) sleepBtn.textContent = l; } }
+  { const show = !!W.nearNpc && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
+  { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : '')); }
+  { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
   { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; } }
   { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); } } }
   { const n = W.combo.n; if (n !== lastCombo) { comboEl.hidden = n < 2; if (n >= 2) { comboEl.innerHTML = `×${n}<small>+${Math.round(Math.min(.3, n * .02) * 100)}%</small>`; comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); } lastCombo = n; } }
@@ -439,11 +451,11 @@ function loop(now) {
     if (key !== lastSt) { lastSt = key; statusRow.textContent = ''; const chip = (txt, col) => { const c = document.createElement('span'); c.className = 'stch'; c.style.color = col; c.textContent = txt; statusRow.appendChild(c); };
       for (const k of Object.keys(W.pst)) chip(`${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`, STATUS_COLOR[k]);
       for (const b of buffs) chip(`${b[0]} ${Math.ceil(b[1])}с`, b[2]); } }
-  { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); questBtn.textContent = mk === 'ready' ? '📜 Сдать задание' : mk ? '📜 Есть задания ❗' : '📜 Задания'; } }
+  { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); setIconText(questBtn, 'scroll', mk === 'ready' ? 'Сдать задание' : mk ? 'Есть задания!' : 'Задания'); } }
   drawAbil();
   { const tl = eventLine(W) || trackerLine(W); if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
-  if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast('💡 ' + ((desk && h.desk) || h.text), 'hint'); } }
+  if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }
   if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0); }
   if ((atmoT += real) > .2) { atmoT = 0; setScene(mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null), cfg.audio); tickAudio(); }     // атмосфера: река, птицы, музыка
   if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; sfx('step'); }
@@ -451,7 +463,7 @@ function loop(now) {
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; const k = `scaleX(${Math.max(0, W.player.hp / W.player.maxhp)})`; hpFill.style.transform = k; hpGhost.style.transform = k; hpTxt.textContent = Math.ceil(W.player.hp); }     // след потерянного здоровья догоняет с задержкой (шаг 5)
-  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; hudLv.textContent = `Ур. ${W.lv}`; hudAsh.textContent = `◆ ${W.inv.ash}`; hudAsh.title = 'Пепел'; hudTime.textContent = `${W.night ? '🌙' : '☀'} ${clockText(W.t, cfg.daynight)}`; xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
+  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; hudLv.textContent = `Ур. ${W.lv}`; setIconText(hudAsh, 'ash', String(W.inv.ash)); hudAsh.title = 'Пепел'; setIconText(hudTime, W.night ? 'moon' : 'sun', clockText(W.t, cfg.daynight)); xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
   requestAnimationFrame(loop);
 }

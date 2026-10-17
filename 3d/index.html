@@ -17,9 +17,9 @@
 <header id="hud">
   <div id="hpWrap"><div id="hpBar"><i id="hpGhost"></i><i id="hpFill"></i><i id="xpFill"></i></div><span id="hpTxt">100</span></div>
   <div id="kills"><span id="hudLv">Ур. 1</span><span id="hudAsh">0</span><span id="hudTime"></span></div>
-  <button id="skillBtn" type="button" aria-label="Навыки">✦</button>
-  <button id="bagBtn" type="button" aria-label="Сумка">🎒<span id="bagFill"></span></button>
-  <button id="gear" type="button" aria-label="Настройки прототипа">⚙</button>
+  <button id="skillBtn" type="button" aria-label="Навыки" data-icon="skills"></button>
+  <button id="bagBtn" type="button" aria-label="Сумка" data-icon="bag"><span id="bagFill"></span></button>
+  <button id="gear" type="button" aria-label="Меню" data-icon="gear"></button>
 </header>
 
 <div id="statusRow" aria-live="polite"></div>
@@ -36,10 +36,10 @@
 <div id="combo" hidden></div>
 
 <button id="talk" type="button" hidden>Торговать</button>
-<button id="questBtn" type="button" hidden>📜 Задания</button>
+<button id="questBtn" type="button" hidden data-icon="scroll">Задания</button>
 <button id="portalBtn" type="button" hidden>Спуститься</button>
-<button id="fireBtn" type="button" hidden>🔥 Костёр</button>
-<button id="sleepBtn" type="button" hidden>😴 Спать до утра</button>
+<button id="fireBtn" type="button" hidden data-icon="fire">Костёр</button>
+<button id="sleepBtn" type="button" hidden data-icon="sleep">Спать до утра</button>
 <div id="sleepFade" hidden><span>Сон…</span></div>
 <div id="tracker" hidden></div>
 
@@ -111,16 +111,16 @@
     <div class="bhead"><h2 id="smithHead">Кузнец</h2><button id="smithClose" type="button" class="close" aria-label="Закрыть" title="Закрыть (Esc)">×</button></div>
     <div id="smithTabs" class="tabs"></div>
     <p id="smithNote" class="note"></p>
-    <button id="smithJournal" type="button" class="reset">📖 Журнал знаний</button>
+    <button id="smithJournal" type="button" class="reset" data-icon="book">Журнал знаний</button>
     <div id="smithFlash"></div>
     <div id="smithList"></div>
   </div>
 </section>
 
-<div id="heroPick" class="veil" hidden><h2>Кто выходит из пепла?</h2><div id="heroCards"></div><p id="heroNote" class="note">Героя можно сменить потом в меню (⚙): уровень, пепел и вещи останутся.</p><button id="heroCancel" type="button" class="reset" hidden>Отмена</button></div>
+<div id="heroPick" class="veil" hidden><h2>Кто выходит из пепла?</h2><div id="heroCards"></div><p id="heroNote" class="note">Героя можно сменить потом в меню: уровень, пепел и вещи останутся.</p><button id="heroCancel" type="button" class="reset" hidden>Отмена</button></div>
 <section id="bag" hidden>
   <div class="pbox">
-    <div class="bhead"><h2 id="bagHead">Сумка</h2><button id="bagQuests" type="button" class="jbtn" aria-label="Задания">📜</button><button id="bagJournal" type="button" class="jbtn" aria-label="Журнал знаний">📖</button><button id="bagClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
+    <div class="bhead"><h2 id="bagHead">Сумка</h2><button id="bagQuests" type="button" class="jbtn" aria-label="Задания" data-icon="scroll"></button><button id="bagJournal" type="button" class="jbtn" aria-label="Журнал знаний" data-icon="book"></button><button id="bagClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
     <div class="bhero">
       <div id="bagEq" class="doll"></div>
       <div id="bagStats" class="bstats"></div>
@@ -139,7 +139,7 @@
 <section id="panel" hidden>
   <div class="pbox">
     <div class="bhead"><h2>Меню</h2><button id="tweakClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
-    <p id="keysHelp" class="note" hidden>⌨ WASD или стрелки — ходить · пробел или левая кнопка мыши — удар (держать — тяжёлый удар) · Shift или правая кнопка — перекат · E — люк, торговец · M — карта · I — сумка · N — навыки · Q — задания · 1–5 — умения · Esc — меню и закрыть окно</p>
+    <div id="keysHelp" class="keys" hidden><span><kbd>WASD</kbd>ходить</span><span><kbd>ЛКМ</kbd>удар</span><span><kbd>ПКМ</kbd>перекат</span><span><kbd>I</kbd>сумка</span><span><kbd>Esc</kbd>меню</span><button id="keysMore" type="button" class="kmore" aria-label="Все клавиши" aria-expanded="false" data-icon="question"></button><p id="keysAll" class="note" hidden>WASD или стрелки — ходить · пробел или левая кнопка мыши — удар (держать — тяжёлый удар) · Shift или правая кнопка — перекат · E — люк, торговец · M — карта · I — сумка · N — навыки · Q — задания · 1–5 — умения · Esc — меню и закрыть окно</p></div>
     <div class="pcols">
       <div class="pcol">
         <h2>Игра</h2>

@@ -3,6 +3,15 @@ import { BRANCHES, TIER_STEP, spentIn, canRank } from './data/skills3d.js';
 import { spendSkill, respec, respecCost, xpNeed } from './sim.js';
 import { abilityView, upgradeAbility, canUpgrade, respecAbilities, respecAbilityCost, spentAbility } from './abilities3d.js';
 
+// разница рангов (шаг 10): у описаний одинаковый текст, меняются числа — показываем только их: «×1,4 → ×1,6 · 9 с → 8,5 с»;
+// если текст рангов разный — null (тогда показываем следующий ранг целиком)
+const NUM = /([×+−-]?\d+(?:[.,]\d+)?)(\s?(?:%|(?:с|м|сек)(?![а-яё])))?/gi;
+export function rankDiff(now, next) {
+  const sk = t => t.replace(NUM, '#'), a = [...now.matchAll(NUM)], b = [...next.matchAll(NUM)];
+  if (sk(now) !== sk(next) || a.length !== b.length) return null;
+  const out = []; for (let i = 0; i < a.length; i++) if (a[i][0] !== b[i][0]) out.push(`${a[i][0].trim()} → ${b[i][0].trim()}`);
+  return out.length ? out.join(' · ') : null;
+}
 export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('skills'), listEl = $('skillList'), tabsEl = $('skillTabs'), headEl = $('skillHead'), xpEl = $('skillXp'), flashEl = $('skillFlash'), resetBtn = $('skillReset');
@@ -17,7 +26,10 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       const row = el('div', 'skrow' + (a.open ? '' : ' lock')), info = el('div', 'sinfo');
       const nm = el('span', 'nm', `${a.icon} ${a.name}`); nm.style.color = AC;
       const pips = el('span', 'pips'); pips.style.setProperty('--pc', AC); for (let k = 0; k < a.max; k++) pips.appendChild(el('i', k < a.rank ? 'on' : ''));
-      info.append(nm, pips, el('div', 'sub', !a.open ? `Откроется на уровне ${a.lv}. ${a.next}` : (a.rank ? `Сейчас: ${a.now}` : `Клавиша ${a.slot + 1}.`) + (a.next ? ` ${a.rank ? 'Ранг ' + (a.rank + 1) : 'Открыть'}${a.nextLv > W.lv ? ' — с уровня ' + a.nextLv : ''}: ${a.next}` : ' Максимум.')));
+      const when = a.nextLv > W.lv ? ' — с уровня ' + a.nextLv : '';
+      if (!a.open) info.append(nm, pips, el('div', 'sub', `Откроется на уровне ${a.lv}. ${a.next}`));
+      else if (!a.rank) info.append(nm, pips, el('div', 'sub', `Клавиша ${a.slot + 1}. Открыть${when}: ${a.next}`));
+      else info.append(nm, pips, el('div', 'sub', `Сейчас: ${a.now}`), el('div', 'sub nx', a.next ? `Ранг ${a.rank + 1}${when}: ${rankDiff(a.now, a.next) || a.next}` : 'Максимум.'));     // только разница (шаг 10)
       const st = canUpgrade(W, a.id), b = el('button', 'plus', '+'); b.type = 'button'; b.disabled = st !== 'ok'; b.setAttribute('aria-label', 'Улучшить: ' + a.name);
       b.addEventListener('click', () => { upgradeAbility(W, a.id); render(); onChange && onChange(); });
       row.append(info, b); listEl.appendChild(row);

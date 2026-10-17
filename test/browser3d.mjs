@@ -111,7 +111,7 @@ try {
   await page.evaluate(() => { const w = window.__b3d.W; w.enemies.length = 0; w.proj.length = 0; w.haz.length = 0; w.player.hp = w.player.maxhp; });
   // сутки и звук: часы в шапке, ночь меняет небо и закрывает торговца, кнопка звука
   await page.evaluate(() => { const w = window.__b3d.W; w.t = 188 + 30; }); await page.waitForTimeout(600);
-  { const r = await page.evaluate(() => ({ night: window.__b3d.W.night, kills: document.getElementById('kills').textContent })); if (!r.night || !/🌙 \d\d:\d\d/.test(r.kills)) bad('ночь не наступила или нет часов: ' + JSON.stringify(r)); }
+  { const r = await page.evaluate(() => ({ night: window.__b3d.W.night, time: document.getElementById('hudTime').textContent, moon: !!document.querySelector('#hudTime svg[data-ic="moon"]') })); if (!r.night || !r.moon || !/^\d\d:\d\d$/.test(r.time)) bad('ночь не наступила или нет часов с луной: ' + JSON.stringify(r)); }
   await page.screenshot({ path: join(out, '3d-night.png') });
   await page.evaluate(() => { const w = window.__b3d.W; w.t = 0; }); await page.waitForTimeout(600);
   if (await page.evaluate(() => window.__b3d.W.night)) bad('день не вернулся');

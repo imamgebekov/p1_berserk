@@ -376,3 +376,26 @@ html:not([data-desk]) #bagCard:not([hidden]){position:absolute;left:8px;right:8p
 #hpWrap{min-width:110px}
 [data-desk] #kills{gap:6px;font-size:13px;flex-wrap:nowrap}[data-desk] #kills span{padding:3px 10px}[data-desk] #kills #hudAsh{font-size:16px}
 #hpTxt,.bs b,#bagCap,.price,.cost{font-variant-numeric:tabular-nums}
+
+/* ---- шаг 10 аудита: иконки-силуэты (uiicons.js) ---- */
+.ic{width:1.15em;height:1.15em;flex:none;fill:currentColor;vertical-align:-.2em;display:inline-block}
+button .ic+*,button .ic{pointer-events:none}
+button > .ic,.toast > .ic,#kills .ic{margin-right:.4em}
+#skillBtn .ic,#bagBtn .ic,#gear .ic{width:24px;height:24px;margin:0}
+#bagBtn,#skillBtn,#gear{color:#e8d2a8}
+.jbtn .ic{width:22px;height:22px;margin:0}
+.toast{display:flex;align-items:center}
+.toast > .ic{width:18px;height:18px}
+#kills .ic{width:14px;height:14px}
+#kills #hudAsh .ic{color:#f0b060}
+#mapLegend{opacity:1;font-size:12.5px}#mapLegend .here{font-family:var(--serif);font-size:14px;color:#f0e2c8;margin-bottom:6px}
+#mapLegend .chips{display:flex;flex-wrap:wrap;gap:6px}
+#mapLegend .chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid var(--line);border-radius:999px;background:rgba(0,0,0,.2)}
+#mapLegend .sw{width:11px;height:11px;flex:none;background:var(--c)}#mapLegend .sw.dot{border-radius:50%}#mapLegend .sw.ring{border-radius:50%;background:transparent;border:2px dashed var(--c)}
+#mapLegend .sw.fog{border-radius:3px;background:repeating-linear-gradient(45deg,#2a1e17 0 3px,#4a3a2c 3px 6px)}
+.skrow .sub.nx{color:#9ad08a;opacity:.9;margin-top:2px}
+#keysHelp.keys{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 10px;font-size:13px}#keysHelp.keys[hidden]{display:none}
+#keysHelp span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width:24px;text-align:center;border:1px solid var(--rim);border-bottom-width:2px;border-radius:6px;background:var(--btn);color:#f0e2c8}
+.kmore{width:44px;height:44px;border-radius:50%;background:var(--btn);border:2px solid var(--line);color:var(--ink);display:inline-flex;align-items:center;justify-content:center}.kmore .ic{width:22px;height:22px;margin:0}
+#keysAll{flex-basis:100%;margin:2px 0 0;font-size:12.5px;opacity:.8}
