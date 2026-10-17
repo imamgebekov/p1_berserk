@@ -1,4 +1,7 @@
-:root{--bg:#0b0709;--ink:#e8d9c0;--red:#a1121f;--red2:#c4161c;--panel:#17100f;--line:#3a2a26;--pad:max(16px,env(safe-area-inset-left))}
+:root{--bg:#0b0709;--ink:#e8d9c0;--red:#a1121f;--red2:#c4161c;--panel:#17100f;--line:#4e3a28;--pad:max(16px,env(safe-area-inset-left));
+  /* шаг 9 аудита: один материал интерфейса — тёплое дерево и золото; красный — только здоровье, урон и опасность */
+  --wood-a:#3a2a1e;--wood-b:#241812;--wood-c:#1c130e;--rim:#7a5a36;--glint:#8a6a44;--gold:#c8a060;--gold-d:#9a7640;--btn:#2a1e16;--btn-on:#3e2c1c;
+  --serif:"Iowan Old Style",Palatino,"Palatino Linotype",Georgia,serif}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
 html,body{margin:0;height:100%;position:fixed;inset:0;width:100%;background:var(--bg);color:var(--ink);font:15px/1.35 system-ui,-apple-system,sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-drag:none}
 #gl{position:fixed;inset:0;width:100%;height:100%;display:block}
@@ -341,3 +344,35 @@ html:not([data-desk]) #bagCard:not([hidden]){position:absolute;left:8px;right:8p
 #panel .pstack{display:contents}
 [data-desk] #panel .pbox{max-width:min(1180px,var(--pbw,1180px));width:100%}
 [data-desk] #panel .pcols{grid-template-columns:repeat(3,minmax(0,1fr))}[data-desk] #panel .pstack{display:flex;flex-direction:column;gap:12px}
+
+/* ---- шаг 9 аудита: единый материал интерфейса ---- */
+.pbox{background:linear-gradient(180deg,var(--wood-a),var(--wood-b) 38%,var(--wood-c));border:2px solid var(--rim);border-radius:14px;
+  box-shadow:inset 0 1px 0 var(--glint),inset 0 0 0 1px rgba(0,0,0,.6),0 18px 48px rgba(0,0,0,.5)}
+[data-desk] .pbox{border:2px solid var(--rim);border-radius:14px}
+.bhead{padding-bottom:8px;border-bottom:1px solid rgba(200,160,96,.28);margin-bottom:8px}
+.pbox h2,.pbox h3,.bhead h2,#heroPick h2,.hcard .nm,#bagCard .nm,#bagTip .nm,.veil h1{font-family:var(--serif);letter-spacing:.01em}
+.bhead h2{font-size:19px;font-weight:700;color:#f0e2c8}
+/* закрыть окно — круглая нейтральная кнопка; главная кнопка действия — золотая, одна на окно */
+.bhead button.close{flex:none;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:50%;background:var(--btn);border:2px solid var(--rim);color:var(--ink);font-size:24px;line-height:1;font-weight:400}
+.bhead button.close:hover{background:var(--btn-on)}
+#again,.prow .main,.acts .main,#talk,.skrow .plus{background:linear-gradient(var(--gold),var(--gold-d));border-color:#3a2a16;color:#1c130e;font-weight:700;text-shadow:none}
+.skrow .plus:disabled{background:var(--btn);color:#6a5a50}
+.acts button,.prow button,.jbtn,.hcard button,#bag .bhead .jbtn{background:var(--btn);border-color:var(--rim)}
+.slot.sel,.item.sel{border-color:var(--gold)}
+.trow input{accent-color:var(--gold)}
+/* вкладки: не ниже 44 px, выбранная — золотая рамка */
+.tab{min-height:44px;background:var(--btn);border-color:var(--line)}.tab.on{background:var(--btn-on);border-color:var(--gold);color:#f6e6c8}
+/* карточки разделов меню и строки — тот же материал темнее */
+#panel .pcol{background:rgba(0,0,0,.18);border-color:var(--line)}
+/* тосты — карточки с подложкой, не больше 3 (main.js) */
+#toasts{gap:6px;max-width:min(420px,60%)}
+.toast{align-self:flex-start;padding:6px 12px;background:rgba(30,20,14,.86);border:1px solid #6a5038;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.35);text-shadow:none;animation:toastIn 3.4s ease-out forwards}
+@keyframes toastIn{0%{opacity:0;transform:translateY(-8px)}6%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.toast{animation:toastFade 3.4s linear forwards}@keyframes toastFade{0%,85%{opacity:1}100%{opacity:0}}}
+/* верх HUD: капсулы — уровень, пепел, время; цифры моноширинные */
+#kills{display:flex;justify-content:center;align-content:center;gap:4px;opacity:1;font-size:12px;flex-wrap:wrap;min-width:0}
+#kills span{padding:2px 8px;background:rgba(28,19,14,.72);border:1px solid rgba(122,90,54,.7);border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums}
+#kills #hudAsh{font-size:14px;font-weight:700;color:#f0d29a}
+#hpWrap{min-width:110px}
+[data-desk] #kills{gap:6px;font-size:13px;flex-wrap:nowrap}[data-desk] #kills span{padding:3px 10px}[data-desk] #kills #hudAsh{font-size:16px}
+#hpTxt,.bs b,#bagCap,.price,.cost{font-variant-numeric:tabular-nums}

@@ -350,7 +350,10 @@ try {
     await pg.screenshot({ path: join(out, '3d-desk-vale-dual.png') });
     // выпад-телепорт (клавиша 1) за спину врага и тень-двойник (клавиша 4)
     await pg.evaluate(() => { const b = window.__b3d, W = b.W; W.lv = 30; W.ab = { blink: 1, shadow: 1 }; W.acd = {}; W.player.face = 0; const e = b.spawn('brute', W.player.x, W.player.z + 6); e.hp = e.maxhp = 5000; e.cd = 99; });
-    await pg.keyboard.press('Digit1');
+    // сначала герой доигрывает удар из проверки клинков (под нагрузкой — дольше): во время удара умение не начинается
+    const idle = () => pg.waitForFunction(() => { const p = window.__b3d.W.player; p.atkBuf = 0; return p.state === 'idle' || p.state === 'run'; }, null, { timeout: 3000 }).catch(() => {});
+    await idle(); await pg.keyboard.press('Digit1');
+    if (!(await pg.waitForFunction(() => window.__b3d.W.acd.blink > 0, null, { timeout: 2000 }).then(() => true, () => false))) { await idle(); await pg.keyboard.press('Digit1'); }
     await pg.waitForFunction(() => window.__b3d.W.acd.blink > 0, null, { timeout: 4000 }).catch(() => bad('клавиша 1 не дала выпад Вейла'));
     await pg.keyboard.press('Digit4');
     await pg.waitForFunction(() => window.__b3d.W.allies.some(a => a.decoy), null, { timeout: 4000 }).catch(() => bad('клавиша 4 не вызвала тень'));

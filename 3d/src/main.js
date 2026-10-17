@@ -131,7 +131,7 @@ function onText(x, y, z, txt, cls) {
 function toast(txt, cls = '', color) {
   const box = $('toasts'), d = document.createElement('div');
   d.className = 'toast ' + cls; d.textContent = txt; if (color) d.style.color = color;
-  box.appendChild(d); while (box.children.length > 6) box.firstChild.remove();
+  box.appendChild(d); while (box.children.length > 3) box.firstChild.remove();     // не больше 3 (шаг 9)
   setTimeout(() => d.remove(), 3500);
 }
 const P = loadPrefs();
@@ -277,7 +277,7 @@ if (desk) {
     const c = e.code;
     if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3'].indexOf(c); if (n >= 0) pickHero(HERO_IDS[n]); else if (c === 'Escape' && heroSwitching) closeHeroPick(); return; }
     if (!$('dead').hidden) { if (c === 'Enter' || c === 'KeyE') $('again').click(); return; }
-    if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.main'); if (open) open.click(); else $('gear').click(); return; }
+    if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.close'); if (open) open.click(); else $('gear').click(); return; }
     if (c === 'KeyM') { if (!panelOpen || !mapEl.hidden) $('miniBtn').click(); return; }
     if (c === 'KeyI') { if (vis('bag')) $('bagClose').click(); else if (!panelOpen) $('bagBtn').click(); return; }
     if (c === 'KeyN') { if (vis('skills')) $('skillClose').click(); else if (!panelOpen) $('skillBtn').click(); return; }
@@ -408,7 +408,7 @@ let lastBoss = '';
 const comboEl = $('combo'), statusRow = $('statusRow');
 let lastCombo = 0, lastSt = '';
 $('smithJournal').addEventListener('click', () => { smith.close(); journal.open(); });
-const hpFill = $('hpFill'), hpGhost = $('hpGhost'), hpTxt = $('hpTxt'), killsEl = $('kills');
+const hpFill = $('hpFill'), hpGhost = $('hpGhost'), hpTxt = $('hpTxt'), hudLv = $('hudLv'), hudAsh = $('hudAsh'), hudTime = $('hudTime');
 let saveT = 0, lastHp = -1, lastKey = '', last = performance.now(), simK = 1;
 const CALM_UI = matchMedia('(prefers-reduced-motion: reduce)').matches;
 // замер кадра (C5): время процессора на симуляцию и подготовку отрисовки, вызовы и треугольники; окно последних 600 кадров
@@ -451,7 +451,7 @@ function loop(now) {
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; const k = `scaleX(${Math.max(0, W.player.hp / W.player.maxhp)})`; hpFill.style.transform = k; hpGhost.style.transform = k; hpTxt.textContent = Math.ceil(W.player.hp); }     // след потерянного здоровья догоняет с задержкой (шаг 5)
-  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; killsEl.textContent = `Ур. ${W.lv} · пепел ${W.inv.ash} · ${W.night ? '🌙' : '☀'} ${clockText(W.t, cfg.daynight)}`; xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }
+  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; hudLv.textContent = `Ур. ${W.lv}`; hudAsh.textContent = `◆ ${W.inv.ash}`; hudAsh.title = 'Пепел'; hudTime.textContent = `${W.night ? '🌙' : '☀'} ${clockText(W.t, cfg.daynight)}`; xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
   requestAnimationFrame(loop);
 }

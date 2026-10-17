@@ -16,7 +16,7 @@
 
 <header id="hud">
   <div id="hpWrap"><div id="hpBar"><i id="hpGhost"></i><i id="hpFill"></i><i id="xpFill"></i></div><span id="hpTxt">100</span></div>
-  <div id="kills">Ур. 1</div>
+  <div id="kills"><span id="hudLv">Ур. 1</span><span id="hudAsh">0</span><span id="hudTime"></span></div>
   <button id="skillBtn" type="button" aria-label="Навыки">✦</button>
   <button id="bagBtn" type="button" aria-label="Сумка">🎒<span id="bagFill"></span></button>
   <button id="gear" type="button" aria-label="Настройки прототипа">⚙</button>
@@ -45,7 +45,7 @@
 
 <section id="shop" hidden>
   <div class="pbox">
-    <div class="bhead"><h2 id="shopHead">Торговец</h2><button id="shopClose" type="button" class="main">Закрыть</button></div>
+    <div class="bhead"><h2 id="shopHead">Торговец</h2><button id="shopClose" type="button" class="close" aria-label="Закрыть" title="Закрыть (Esc)">×</button></div>
     <div id="shopTabs" class="tabs"></div>
     <button id="shopJunk" type="button" class="junk" hidden>Продать весь хлам (безделушки, монеты, записки, материалы)</button>
     <div id="shopFlash"></div>
@@ -55,7 +55,7 @@
 
 <section id="map" hidden>
   <div class="pbox">
-    <div class="bhead"><h2 id="mapHead">Карта</h2><button id="mapClose" type="button" class="main">Играть</button></div>
+    <div class="bhead"><h2 id="mapHead">Карта</h2><button id="mapClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
     <div id="mapZoom" class="prow"><button id="mapIn" type="button">＋</button><button id="mapOut" type="button">－</button><button id="mapMe" type="button">⌖ К герою</button><button id="mapAll" type="button">Весь мир</button></div>
     <canvas id="mapCv" width="640" height="640"></canvas>
     <div id="mapLegend"></div>
@@ -64,7 +64,7 @@
 
 <section id="fires" hidden>
   <div class="pbox">
-    <div class="bhead"><h2>Костры</h2><button id="firesClose" type="button" class="main">Играть</button></div>
+    <div class="bhead"><h2>Костры</h2><button id="firesClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
     <p id="firesNote" class="note"></p>
     <div id="firesList"></div>
   </div>
@@ -72,7 +72,7 @@
 
 <section id="skills" hidden>
   <div class="pbox">
-    <div class="bhead"><h2 id="skillHead">Навыки</h2><button id="skillClose" type="button" class="main">Играть</button></div>
+    <div class="bhead"><h2 id="skillHead">Навыки</h2><button id="skillClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
     <div id="skillXp" class="bstats"></div>
     <div id="skillTabs" class="tabs"></div>
     <div id="skillFlash"></div>
@@ -83,7 +83,7 @@
 
 <section id="captain" hidden>
   <div class="pbox">
-    <div class="bhead"><h2 id="captainHead">Застава</h2><button id="captainClose" type="button" class="main">Закрыть</button></div>
+    <div class="bhead"><h2 id="captainHead">Застава</h2><button id="captainClose" type="button" class="close" aria-label="Закрыть" title="Закрыть (Esc)">×</button></div>
     <div id="captainFlash"></div>
     <div id="captainList"></div>
   </div>
@@ -91,7 +91,7 @@
 
 <section id="quests" hidden>
   <div class="pbox">
-    <div class="bhead"><h2 id="questHead">Задания</h2><button id="questClose" type="button" class="main">Закрыть</button></div>
+    <div class="bhead"><h2 id="questHead">Задания</h2><button id="questClose" type="button" class="close" aria-label="Закрыть" title="Закрыть (Esc)">×</button></div>
     <div id="questTabs" class="tabs"></div>
     <div id="questFlash"></div>
     <div id="questList"></div>
@@ -100,7 +100,7 @@
 
 <section id="journal" hidden>
   <div class="pbox">
-    <div class="bhead"><h2>Журнал знаний</h2><button id="journalClose" type="button" class="main">Закрыть</button></div>
+    <div class="bhead"><h2>Журнал знаний</h2><button id="journalClose" type="button" class="close" aria-label="Закрыть" title="Закрыть (Esc)">×</button></div>
     <div id="journalTabs" class="tabs"></div>
     <div id="journalList"></div>
   </div>
@@ -108,7 +108,7 @@
 
 <section id="smith" hidden>
   <div class="pbox">
-    <div class="bhead"><h2 id="smithHead">Кузнец</h2><button id="smithClose" type="button" class="main">Закрыть</button></div>
+    <div class="bhead"><h2 id="smithHead">Кузнец</h2><button id="smithClose" type="button" class="close" aria-label="Закрыть" title="Закрыть (Esc)">×</button></div>
     <div id="smithTabs" class="tabs"></div>
     <p id="smithNote" class="note"></p>
     <button id="smithJournal" type="button" class="reset">📖 Журнал знаний</button>
@@ -120,7 +120,7 @@
 <div id="heroPick" class="veil" hidden><h2>Кто выходит из пепла?</h2><div id="heroCards"></div><p id="heroNote" class="note">Героя можно сменить потом в меню (⚙): уровень, пепел и вещи останутся.</p><button id="heroCancel" type="button" class="reset" hidden>Отмена</button></div>
 <section id="bag" hidden>
   <div class="pbox">
-    <div class="bhead"><h2 id="bagHead">Сумка</h2><button id="bagQuests" type="button" class="jbtn" aria-label="Задания">📜</button><button id="bagJournal" type="button" class="jbtn" aria-label="Журнал знаний">📖</button><button id="bagClose" type="button" class="main">Играть</button></div>
+    <div class="bhead"><h2 id="bagHead">Сумка</h2><button id="bagQuests" type="button" class="jbtn" aria-label="Задания">📜</button><button id="bagJournal" type="button" class="jbtn" aria-label="Журнал знаний">📖</button><button id="bagClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
     <div class="bhero">
       <div id="bagEq" class="doll"></div>
       <div id="bagStats" class="bstats"></div>
@@ -138,7 +138,7 @@
 
 <section id="panel" hidden>
   <div class="pbox">
-    <div class="bhead"><h2>Меню</h2><button id="tweakClose" type="button" class="main">Играть</button></div>
+    <div class="bhead"><h2>Меню</h2><button id="tweakClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
     <p id="keysHelp" class="note" hidden>⌨ WASD или стрелки — ходить · пробел или левая кнопка мыши — удар (держать — тяжёлый удар) · Shift или правая кнопка — перекат · E — люк, торговец · M — карта · I — сумка · N — навыки · Q — задания · 1–5 — умения · Esc — меню и закрыть окно</p>
     <div class="pcols">
       <div class="pcol">
