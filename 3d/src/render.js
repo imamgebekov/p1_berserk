@@ -643,7 +643,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       const en = entity(e);
       const ey = Y(e.x, e.z); en.m.group.position.set(e.x, ey, e.z); en.m.group.rotation.y = e.face;
       { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
-      animateMonster(en.m, e, t, cfg);
+      animateMonster(en.m, e, t, cfg, p.x, p.z);
       if (e.elite) {
         if (!en.elite) { en.elite = new THREE.Mesh(new THREE.RingGeometry(.95, 1.25, 28), new THREE.MeshBasicMaterial({ color: e.affColor, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide })); en.elite.rotation.x = -Math.PI / 2; scene.add(ovl(en.elite)); }
         en.elite.position.set(e.x, .07 + ey, e.z); en.elite.visible = !e.dead; en.elite.scale.setScalar(cfg.enemies[e.type].scale * (e.scaleMul || 1) * (1 + .06 * Math.sin(t * 5)));

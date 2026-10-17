@@ -2,7 +2,7 @@
 // начинаются и кончаются в стойке, прямой и обратный замахи идут в разные стороны, завершающий отличается, полный оборот не раскручивается назад.
 import { CFG3 } from '../3d/src/config3d.js';
 import { TRAITS } from '../3d/src/data/weapons3d.js';
-import { FAMILY, KEYS, REST, familyOf, stepOf, swingPose, chargePose, trailOn } from '../3d/src/anim3d.js';
+import { FAMILY, KEYS, REST, familyOf, stepOf, swingPose, chargePose, trailOn, gait, bank, strikeBody, rollLand, hitLean, heroDeath, foeDeath } from '../3d/src/anim3d.js';
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
@@ -57,6 +57,21 @@ for (const fam of Object.keys(KEYS)) {
 }
 // след виден только в размахе
 ok(!trailOn(.02, hit) && trailOn(hit, hit) && !trailOn(.99, hit), 'след виден не только в размахе');
+
+// тело (G5): походка по скорости, дыхание стоя, крен, выпад и сжатие в ударе, приземление переката, отклик на удар, смерть
+{ const still = gait(0, 5, 1.3), full = gait(5, 5, 1.3), half = gait(2.5, 5, 1.3);
+  ok(still.leg === 0 && still.lean === 0 && still.breath >= 0 && still.breath <= 1, 'стоя машет ногами или не дышит');
+  ok(full.breath === 0 && full.lean > .15 && Math.abs(full.leg) <= .9 && half.run === .5, 'на бегу дышит, не наклоняется или шаг не по скорости');
+  let mx = 0; for (let t = 0; t < 3; t += .01) mx = Math.max(mx, Math.abs(gait(1, 5, t).leg)); ok(mx < .25, 'медленный шаг машет как бег: ' + mx.toFixed(2));
+  ok(bank(10, 1) === -.22 && bank(-10, 1) === .22 && bank(10, 0) === 0, 'крен в поворот не ограничен или есть стоя');
+  const h = .45, S = t => strikeBody(t, h);
+  ok(S(0).lunge === 0 && S(h * .7).lunge > .06 && S(h * .7).lunge < .16 && Math.abs(S(h).lunge - .16) < 1e-9 && S(1).lunge < 1e-6, 'выпад не к моменту попадания');
+  ok(S(h * .8).sy < 1 && S(h + .09).sy > 1 && Math.abs(S(0).sy - 1) < 1e-9 && Math.abs(S(1).sy - 1) < 1e-9, 'нет сжатия перед ударом или вытяжки после');
+  ok(rollLand(.5) === 1 && rollLand(.9) < .85 && Math.abs(rollLand(1) - 1) < 1e-9, 'нет сжатия при приземлении');
+  ok(hitLean(1, 0).rx < 0 && hitLean(1, Math.PI).rx > 0 && Math.abs(hitLean(1, Math.PI / 2).rz) > .4, 'отклик на удар не прочь от удара');
+  const k = heroDeath(.25), d = heroDeath(1); ok(k.y < -.3 && k.rx > .2 && Math.abs(d.rx + 1.5) < 1e-6 && Math.abs(d.y - .3) < 1e-6, 'герой не встаёт на колени перед падением');
+  const ends = [0, 1, 2, 3].map(id => foeDeath(1, id)); ok(new Set(ends.map(e => e.rx.toFixed(2) + '/' + e.rz.toFixed(2))).size === 4 && ends.every(e => Math.abs(e.scale - .25) < 1e-6 && e.y < -.85), 'враги падают одинаково или не тают');
+  let prev = 0, mono = true; for (let t = 0; t <= .6; t += .02) { const y = foeDeath(t, 1).y; if (y > prev + 1e-9) mono = false; prev = y; } ok(mono, 'тело врага подпрыгивает при смерти'); }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Позы ударов 3D: OK (семейств ' + Object.keys(KEYS).length + ', типов оружия ' + Object.keys(FAMILY).length + ')');

@@ -249,8 +249,9 @@ try {
     if (!btn || list.length < 2 || !list.every(b => b.h >= 44) || !list.some(b => b.id === f.id && b.dis) || at.d > 4 || at.open) bad('костры не работают: ' + JSON.stringify({ btn, list, at }));
     console.log('  костры: ' + JSON.stringify({ list: list.length, d: at.d.toFixed(1) })); }
   // объём слоями (F4): под кроной у тропы окно у героя меняет кадр (прорезает листву), в открытом поле — нет
-  { const cnt = await ev(() => { const E = window.__b3d.cfg.enemies, n = E.count; E.count = 0; return n; });     // без врагов (стайки и их стрелы) и в полдень (без утреннего тумана и дождя) — кадр у героя меняет только окно
-    const at = async q => { await ev(q => { const W = window.__b3d.W; W.t = 30; W.enemies.length = 0; if (W.proj) W.proj.length = 0; W.player.x = q.x; W.player.z = q.z; }, q); await page.waitForTimeout(2200); };
+  { const cnt = await ev(() => { const E = window.__b3d.cfg.enemies, n = E.count; E.count = 0; return n; });     // без врагов, в полдень, без неуязвимости (герой мигает — safe() даёт её на 99 с) и без ввода — кадр у героя меняет только окно
+    await ev(() => { const i = window.__b3d.input; window.__readKeep = i.read; i.read = () => ({ mx: 0, mz: 0, attack: false, attackPress: false, roll: false, ability: 0 }); });     // замер без ввода: герой стоит
+    const at = async q => { await ev(q => { const W = window.__b3d.W; W.t = 30; W.enemies.length = 0; if (W.proj) W.proj.length = 0; W.player.x = q.x; W.player.z = q.z; W.player.vx = W.player.vz = 0; W.player.inv = 0; window.__atQ = q; }, q); await page.waitForTimeout(2200); };
     const diff = () => ev(async () => { const b = window.__b3d, c = document.getElementById('gl'), U = b.renderer.xray(), cut = U.uXrCut.value;
       const grab = () => { const g = document.createElement('canvas'); g.width = c.width; g.height = c.height; const x = g.getContext('2d'); x.drawImage(c, 0, 0); const cx = (U.uHero.value.x * .5 + .5) * c.width, cy = (.5 - U.uHero.value.y * .5) * c.height, r = Math.round(c.height * .08); return Array.from(x.getImageData(Math.round(cx - r), Math.round(cy - r), 2 * r, 2 * r).data); };
       const wait = () => new Promise(r => setTimeout(r, 250));
@@ -260,12 +261,13 @@ try {
     const spots = await ev(async () => { const { overheadOf } = await import('/3d/src/overhead3d.js'); const b = window.__b3d, O = overheadOf(b.W.map, b.cfg), c = O.canopy[0]; return { can: { x: c.x + c.toX * c.reach, z: c.z + c.toZ * c.reach } }; });
     await ev(() => { const c = window.__b3d.cfg; c.wind.calm = c.wind.breeze = c.wind.gust = 0; c.sunlight.wind = [0, 0]; });     // без качания и дрейфа света
     await at(spots.can); const under = await diff(); await page.screenshot({ path: join(out, '3d-desk-canopy.png') });
-    const field = await ev(async () => { const { propsIn } = await import('/3d/src/chunks3d.js'); const { overheadOf } = await import('/3d/src/overhead3d.js'); const b = window.__b3d, M = b.W.map, C = b.cfg, O = overheadOf(M, C);     // открытое место: ни деревьев, ни домов, ни крон рядом
+    const field = await ev(async () => { const { propsIn } = await import('/3d/src/chunks3d.js'); const { waterDist } = await import('/3d/src/terrain3d.js'); const { overheadOf } = await import('/3d/src/overhead3d.js'); const b = window.__b3d, M = b.W.map, C = b.cfg, O = overheadOf(M, C);     // открытое место: ни деревьев, ни домов, ни крон рядом
       for (let x = 30; x < 80; x += 3) for (let z = -60; z < 60; z += 3) { if (Math.hypot(x, z) > 80) continue; const P = propsIn(M, C, Math.floor(x / 64), Math.floor(z / 64));
-        if (P.every(q => Math.hypot(q.x - x, q.z - z) > 9) && M.buildings.every(q => Math.hypot(q.x - x, q.z - z) > 14) && O.canopy.every(q => Math.hypot(q.x - x, q.z - z) > 10) && O.arches.every(q => Math.hypot(q.x - x, q.z - z) > 10) && M.solids.every(q => Math.hypot(q.x - x, q.z - z) > 6)) return { x, z }; } return { x: 60, z: 10 }; });
+        if (P.every(q => Math.hypot(q.x - x, q.z - z) > 9) && M.buildings.every(q => Math.hypot(q.x - x, q.z - z) > 14) && O.canopy.every(q => Math.hypot(q.x - x, q.z - z) > 10) && O.arches.every(q => Math.hypot(q.x - x, q.z - z) > 10) && M.solids.every(q => Math.hypot(q.x - x, q.z - z) > 6) && (!M.river || waterDist(M.river, x, z) > 8) && !(M.blocks || []).some(r => x > r.x0 - 4 && x < r.x1 + 4 && z > r.z0 - 4 && z < r.z1 + 4)) return { x, z }; } return { x: 60, z: 10 }; });
     await at(field); let open = 1; for (let k = 0; k < 3; k++) { await ev(() => { window.__b3d.W.enemies.length = 0; }); open = Math.min(open, Math.abs(await diff())); }     // меньшее из трёх: мимо может пройти враг или ворона
     if (!(under > .03 && open < under / 3)) bad(`окно у героя не работает: под кроной ${under.toFixed(3)}, в поле ${open.toFixed(3)}`);
-    await ev(n => { window.__b3d.cfg.enemies.count = n; }, cnt);
+    { const moved = await ev(() => { const p = window.__b3d.W.player, q = window.__atQ; return Math.hypot(p.x - q.x, p.z - q.z); }); if (moved > .5) console.log(`  окно: герой сместился на ${moved.toFixed(1)} м без ввода`); }
+    await ev(n => { window.__b3d.cfg.enemies.count = n; window.__b3d.input.read = window.__readKeep; }, cnt);
     console.log('  окно: ' + JSON.stringify({ under: under.toFixed(3), open: open.toFixed(3) }));
     await ev(() => { Object.assign(window.__b3d.cfg.wind, { calm: .06, breeze: .55, gust: .45 }); window.__b3d.cfg.sunlight.wind = [.6, .25]; }); }
   // погода (F3): в дождь — капли, туман гуще, птицы молчат, слышен дождь; в ясную — капель нет

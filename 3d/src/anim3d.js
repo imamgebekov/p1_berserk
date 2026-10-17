@@ -92,3 +92,34 @@ export function chargePose(family, chargeT, full, time) {
 
 // след за клинком: видно ли его в этот момент (только во время размаха)
 export const trailOn = (t, hit) => t > hit * .5 && t < Math.min(.95, hit + (1 - hit) * .45);
+
+// ---- тело (шаг G5): походка, дыхание, крен, выпад, приземление, отклик на удар, смерть. Чистые числа, только вид ----
+const clamp01 = k => Math.max(0, Math.min(1, k));
+// походка по настоящей скорости: run 0..1; стоя — дыхание (breath 0..1), на бегу — наклон вперёд
+export function gait(speed, max, time, seed = 0) {
+  const run = clamp01(speed / Math.max(.01, max)), ph = time * (5 + run * 8) + seed * 1.7;
+  return { run, leg: Math.sin(ph) * .9 * run, arm: -Math.sin(ph) * .7 * run, bob: Math.abs(Math.sin(ph)) * .1 * run, lean: .2 * run, breath: (1 - run) * (.5 + .5 * Math.sin(time * 2.2 + seed)) };
+}
+// крен в поворот: скорость поворота (рад/с) × бег → наклон вбок, не больше .22
+export const bank = (turnRate, run) => Math.max(-.22, Math.min(.22, -turnRate * .05 * run));
+// удар: выпад вперёд к моменту попадания и возврат; сжатие перед попаданием (замах) и вытяжка сразу после
+export function strikeBody(t, hit) {
+  const lunge = t < hit ? .16 * easeInOut(clamp01(t / hit)) : .16 * (1 - easeOut(clamp01((t - hit) / (1 - hit))));
+  const pre = clamp01((t - hit * .4) / (hit * .6)), post = clamp01((t - hit) / .18);
+  const sy = t < hit ? 1 - .07 * Math.sin(Math.PI * pre) : 1 + .05 * Math.sin(Math.PI * post);
+  return { lunge, sy };
+}
+// перекат: сжатие при приземлении (последние 20%)
+export const rollLand = k => 1 - .2 * Math.sin(Math.PI * clamp01((k - .8) / .2));
+// отклик на удар: наклон прочь от удара; a — откуда пришёл удар относительно лица (0 — спереди)
+export const hitLean = (k, a) => ({ rx: -.45 * k * Math.cos(a), rz: .45 * k * Math.sin(a) });
+// смерть героя: сначала на колени (0–.25 с), потом навзничь
+export function heroDeath(t) {
+  const kneel = easeOut(clamp01(t / .25)), fall = easeInOut(clamp01((t - .25) / .35));
+  return { rx: .25 * kneel * (1 - fall) - 1.5 * fall, y: -.35 * kneel * (1 - fall) + .3 * fall };
+}
+// смерть врага: вид падения по номеру (назад, вперёд, на бок); с отскоком, потом оседает и тает
+export function foeDeath(t, id) {
+  const v = id % 4, k = clamp01(t / .3), b = k < 1 ? 1 + Math.sin(k * Math.PI) * .12 : 1, f = clamp01((t - .3) / .3), a = 1.4 * k * b;
+  return { rx: v === 0 ? -a : v === 1 ? a : 0, rz: v === 2 ? a : v === 3 ? -a : 0, y: -.5 * k - .4 * f, scale: 1 - .75 * f };
+}

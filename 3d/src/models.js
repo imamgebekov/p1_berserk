@@ -1,7 +1,7 @@
 // Модели из кубиков (никаких внешних файлов): герой, бес, рогач, дерево, камень, костёр.
 import * as THREE from 'three';
 import { makeWeapon } from './weaponview.js';
-import { familyOf, stepOf, swingPose, chargePose, REST } from './anim3d.js';
+import { familyOf, stepOf, swingPose, chargePose, REST, gait, bank, strikeBody, rollLand, hitLean, heroDeath, foeDeath } from './anim3d.js';
 
 const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
 const basic = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, ...extra });
@@ -73,26 +73,27 @@ export function makeHero() {
 
 export function animateHero(h, p, time, dt, cfg, swingMul = 1) {
   { const left = p.state === 'atk' && p.hand === 1; h.swing.scale.x = left ? -1 : 1; if (h.off) h.off.visible = !left; }     // удар левым клинком: размах зеркально, клинок «в замахе»
-  const speed = Math.hypot(p.vx, p.vz), run = Math.min(1, speed / cfg.player.speed);
-  const ph = time * (7 + run * 6);
+  const speed = Math.hypot(p.vx, p.vz), G = gait(speed, cfg.player.speed, time), run = G.run;
   const roll = p.state === 'roll', atk = p.state === 'atk', dead = p.dead;
-  h.legL.rotation.x = Math.sin(ph) * .9 * run; h.legR.rotation.x = -Math.sin(ph) * .9 * run;
-  h.armL.rotation.x = -Math.sin(ph) * .7 * run;
-  const bob = Math.abs(Math.sin(ph)) * .1 * run;
-  h.root.position.y = bob; h.root.rotation.x = 0; h.root.scale.set(1, 1, 1);
-  h.cloak.rotation.x = .12 + run * .5 + Math.sin(time * 3) * .05;
+  h.legL.rotation.x = G.leg; h.legR.rotation.x = -G.leg; h.armL.rotation.x = G.arm + G.breath * .06;
+  // крен в поворот (G5): скорость поворота лица, сглаженная
+  { let d = p.face - (h.lastFace ?? p.face); while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; h.lastFace = p.face; h.turn = (h.turn || 0) * .85 + (dt > 0 ? d / dt : 0) * .15; }
+  h.root.position.y = G.bob; h.root.position.z = 0; h.root.rotation.x = G.lean; h.root.rotation.z = roll || atk ? 0 : bank(h.turn, run); h.root.scale.set(1, 1 + G.breath * .015, 1);
+  h.head.rotation.x = -G.breath * .04;
+  h.cloak.rotation.x = .12 + run * .55 + Math.sin(time * (3 + run * 6)) * (.05 + run * .06);
   // оружие: поза удара по семейству движений и шагу цепочки (прямой, обратный, завершающий); swingMul — скорость удара от вещей
   const hit = cfg.player.attackHitAt / cfg.player.attackTime;
   const q = atk ? swingPose(h.family, p.heavy ? 'fin' : stepOf(p.chain, p.fin), p.atkT / (cfg.player.attackTime * swingMul), hit, p.heavy > 0)
     : p.state === 'charge' ? chargePose(h.family, p.chargeT, cfg.player.heavy.full, time)
     : p.state === 'dash' ? swingPose(h.family, 'fin', Math.min(.9, .3 + p.dashT / p.dashDur * .6), .5) : REST;     // рывок умения — размах завершающего удара
   h.swing.rotation.y = q.yaw; h.sword.rotation.x = q.pitch; h.sword.rotation.z = q.tilt; h.sword.position.z = .12 + q.reach;
-  h.root.rotation.y = q.twist; h.root.rotation.x = q.lean; h.root.position.y += q.lift;
+  h.root.rotation.y = q.twist; h.root.rotation.x += q.lean; h.root.position.y += q.lift;
+  if (atk) { const B = strikeBody(p.atkT / (cfg.player.attackTime * swingMul), hit); h.root.position.z = B.lunge; h.root.scale.set(2 - B.sy, B.sy, 2 - B.sy); }     // выпад и сжатие (G5)
   if (roll) {
-    const k = p.rollT / cfg.player.rollTime;
-    h.root.rotation.x = k * Math.PI * 2; h.root.position.y = .85 + Math.sin(k * Math.PI) * .25; h.root.scale.set(.85, .75, .85);
+    const k = p.rollT / cfg.player.rollTime, sq = rollLand(k);
+    h.root.rotation.x = k * Math.PI * 2; h.root.position.y = .85 + Math.sin(k * Math.PI) * .25; h.root.scale.set(.85 * (2 - sq), .75 * sq, .85 * (2 - sq));
   }
-  if (dead) { h.root.rotation.x = -Math.min(1.5, p.deadT * 4); h.root.position.y = .3; }
+  if (dead) { const D = heroDeath(p.deadT); h.root.rotation.x = D.rx; h.root.rotation.z = 0; h.root.position.y = D.y; h.root.scale.set(1, 1, 1); }     // на колени, потом навзничь
   else if (!roll && h.hurtT > 0) { const k = h.hurtT / .22; h.root.rotation.x -= .4 * k; h.root.position.y += .06 * k; }     // ранен: вздрагивает назад
   // вспышка при уроне: мигаем во время неуязвимости
   h.flash(p.inv > 0 && !roll && p.state !== 'dash' && Math.floor(time * 20) % 2 ? .7 : 0);
@@ -147,14 +148,15 @@ export function makeMonster(kind, cfg) {
   return { group: g, root, armL, armR, legL, legR, head, flash: flasher(mats), kind, ember, ghost: !!L.ghost, mats };
 }
 
-export function animateMonster(m, e, time, cfg) {
+export function animateMonster(m, e, time, cfg, hx, hz) {
+  if (hx !== undefined && e.flash > 0 && !m.hitSet) { m.hitA = Math.atan2(hx - e.x, hz - e.z) - e.face; m.hitSet = true; } else if (!(e.flash > 0)) m.hitSet = false;     // откуда ударили (G5)
   const C = cfg.enemies[e.type];
-  const spd = Math.hypot(e.vx, e.vz);
-  const moving = e.state === 'chase' && !e.dead;
-  const ph = time * (6 + C.speed) + e.id * 1.7;
-  m.legL.rotation.x = moving ? Math.sin(ph) * .8 : 0; m.legR.rotation.x = moving ? -Math.sin(ph) * .8 : 0;
-  m.armL.rotation.x = moving ? -Math.sin(ph) * .6 : 0; m.armR.rotation.x = moving ? Math.sin(ph) * .6 : 0;
-  m.root.position.y = moving ? Math.abs(Math.sin(ph)) * .08 : 0; m.root.rotation.x = 0; m.root.rotation.z = 0; m.root.position.z = 0; m.root.position.x = 0; m.root.scale.set(1, 1, 1);
+  // походка по настоящей скорости (G5): патрульный бредёт, стоящий дышит, а не машет ногами на месте
+  { const dtm = time - (m.lt ?? time); if (dtm > 0) { const v = Math.hypot(e.x - m.lx, e.z - m.lz) / dtm; m.sp = (m.sp || 0) * .8 + Math.min(v, C.speed * 2) * .2; } m.lt = time; m.lx = e.x; m.lz = e.z; }
+  const G = gait(e.dead ? 0 : m.sp || 0, C.speed, time * (1 + C.speed * .08), e.id);
+  m.legL.rotation.x = G.leg * .9; m.legR.rotation.x = -G.leg * .9;
+  m.armL.rotation.x = G.arm * .85 - G.breath * .08; m.armR.rotation.x = -G.arm * .85 - G.breath * .08;
+  m.root.position.y = G.bob * .8; m.root.rotation.x = G.lean * .7; m.root.rotation.z = 0; m.root.position.z = 0; m.root.position.x = 0; m.root.scale.set(1, 1 + G.breath * .025, 1);
   let red = 0;
   if (e.state === 'aim') { const k = Math.min(1, e.t / .2); m.root.rotation.x = .25 * k; m.armR.rotation.x = -1.4 * k; m.armL.rotation.x = -1.1 * k; red = .25 + .25 * Math.sin(time * 30); }
   else if (e.state === 'dash') { m.root.rotation.x = .45; m.armR.rotation.x = -1.5; m.armL.rotation.x = -1.2; m.legL.rotation.x = .9; m.legR.rotation.x = -.9; }
@@ -162,15 +164,16 @@ export function animateMonster(m, e, time, cfg) {
   else if (e.state === 'wind') {
     const k = Math.min(1, Math.max(0, e.t) / C.wind);
     m.armL.rotation.x = m.armR.rotation.x = -2.4 * k; m.root.rotation.x = -.3 * k; m.root.position.z = -.15 * k;
+    m.root.position.y = -.08 * k; m.root.position.x = Math.sin(time * 50 + e.id) * .025 * k * k; m.root.scale.set(1 + .05 * k, 1 - .06 * k, 1 + .05 * k);     // присед и дрожь перед ударом (G5)
     red = .35 + .35 * Math.sin(time * 40);
   } else if (e.state === 'rec') {
     const k = Math.min(1, e.t / .25);
     m.armL.rotation.x = m.armR.rotation.x = -2.4 + 3.2 * Math.min(1, k * 3); m.root.rotation.x = .4 * (1 - k); m.root.position.z = .25 * (1 - k);
   }
   // попадание: откидывается назад и сплющивается (e.flash ставит симуляция)
-  if (!e.dead && e.flash > 0) { const k = Math.min(1, e.flash / .12); m.root.rotation.x -= .45 * k; m.root.position.z -= .12 * k; m.root.scale.set(1 + .12 * k, 1 - .16 * k, 1 + .12 * k); }
+  if (!e.dead && e.flash > 0) { const k = Math.min(1, e.flash / .12), L = hitLean(k, m.hitA ?? 0); m.root.rotation.x += L.rx; m.root.rotation.z += L.rz; m.root.position.z -= .12 * k * Math.cos(m.hitA ?? 0); m.root.scale.set(1 + .12 * k, 1 - .16 * k, 1 + .12 * k); }     // прочь от удара (G5)
   // смерть: валится за 0,3 с, потом оседает и тает (тело убирается через 0,6 с)
-  if (e.dead) { const k = Math.min(1, e.deadT / .3), f = Math.max(0, Math.min(1, (e.deadT - .3) / .3)); m.root.rotation.z = 1.4 * k; m.root.position.y = -.5 * k - .4 * f; m.root.scale.setScalar(1 - .75 * f); red = 0; }
+  if (e.dead) { const D = foeDeath(e.deadT, e.id); m.root.rotation.x = D.rx; m.root.rotation.z = D.rz; m.root.position.y = D.y; m.root.scale.setScalar(D.scale); red = 0; }     // падает в свою сторону (G5)
   // цвет статуса: горит, мёрзнет, отравлен, кровоточит, оглушён
   let tint = null; const st = e.st;
   if (st && !e.dead) {
