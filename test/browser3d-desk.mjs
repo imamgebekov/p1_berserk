@@ -417,6 +417,27 @@ try {
     const mn = await ps.evaluate(() => ({ tweak: !document.getElementById('tweakBox').hidden, back: !document.getElementById('back').hidden, bagReset: !!document.getElementById('bagReset'), saveReset: !!document.getElementById('saveReset') }));     // шаг 4 «Минус»
     if (mn.tweak || mn.back || mn.bagReset || !mn.saveReset) bad('меню: служебное видно без ?dev или сброс прогресса не в «Сохранении» ' + JSON.stringify(mn));
     await cs.close(); }
+  // первые минуты (шаг 12): чистое сохранение — Торн с мечом, цепочка «Первая искра» проходит до награды, строка цели не пустая
+  { const cf = await browser.newContext({ viewport: { width: 1280, height: 800 } }), pf = await cf.newPage(); pf.setDefaultTimeout(8000);
+    pf.on('pageerror', e => logs.push('pageerror (искра): ' + e.message));
+    await pf.goto(url + '?shot&hero=thorn&retro'); await pf.waitForTimeout(1500);
+    const line = () => pf.evaluate(() => ({ t: document.getElementById('tracker').textContent, shown: !document.getElementById('tracker').hidden, goal: !!window.__b3d.W.goal }));
+    const s0 = await pf.evaluate(() => ({ w: window.__b3d.W.inv.eq.weapon, ash: window.__b3d.W.inv.ash })), l0 = await line();
+    if (s0.w !== 'w_sword_rust') bad('Торн начинает не с ржавым мечом: ' + s0.w);
+    if (!l0.shown || !/торговцу/.test(l0.t) || !l0.goal) bad('нет первой цели «к торговцу» или точки на миникарте: ' + JSON.stringify(l0));
+    const until = async (re, what) => { await pf.waitForFunction(r => new RegExp(r).test(document.getElementById('tracker').textContent), re, { timeout: 4000 }).catch(async () => bad(what + ': ' + (await line()).t)); };
+    await pf.evaluate(() => { const W = window.__b3d.W, b = W.map.buildings.find(q => q.npc && q.npc.kind === 'merchant'); W.player.x = b.npc.x + 1; W.player.z = b.npc.z + 1; });
+    await until('прогоните', 'торговец не засчитан');
+    await pf.evaluate(async () => { const { killEnemy } = await import('/3d/src/sim.js'), B = window.__b3d; for (let i = 0; i < 3; i++) killEnemy(B.W, B.spawn('imp', 70 + i * 2, 10), 1); });
+    await until('костру', 'враги за оградой не засчитаны');
+    await pf.evaluate(() => { const p = window.__b3d.W.player; p.x = 1; p.z = 1; });
+    await until('опыт|навыки', 'костёр не засчитан');
+    await pf.evaluate(() => { const W = window.__b3d.W; W.skills = { ...W.skills, warcry: 1 }; });
+    await until('костёр «', 'после цепочки цель не следующий костёр');
+    const s1 = await pf.evaluate(() => ({ ash: window.__b3d.W.inv.ash, done: window.__b3d.W.spark.done, toast: [...document.querySelectorAll('.toast')].some(e => /Первая искра зажжена/.test(e.textContent)) }));
+    if (!s1.done || !s1.toast || s1.ash < s0.ash + 50) bad('цепочка не завершилась наградой: ' + JSON.stringify(s1));
+    await pf.screenshot({ path: join(out, '3d-spark.png') });
+    await cf.close(); }
   // защита от сбоев (шаг 11): ошибка в кадре не останавливает игру; «Сохранить в файл» отдаёт код; потеря WebGL — плашка
   // и сохранение; испорченное сохранение поднимается из резервной копии с сообщением
   { const cx = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true }), pz = await cx.newPage(); pz.setDefaultTimeout(8000);

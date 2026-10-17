@@ -161,6 +161,7 @@ function spawnRing(W) {
     const t = i === 0 ? type : (reg ? pickEntry(reg.filter(a => (a[2] !== 'night' || W.night) && !a[3]), W.rng)[0] : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp');
     const o = { x: x + rr(W, -2.5, 2.5), z: z + rr(W, -2.5, 2.5) }; resolve(W.map, o, 1);
     const e = spawnEnemy(W, t, o.x, o.z, 'patrol'); e.pack = true;
+    const Y = RM.firstPack; if (Y && W.lv < Y.lv && Math.hypot(o.x, o.z) < Y.r) { e.maxhp = e.hp = Math.max(1, Math.ceil(e.maxhp * Y.hp)); e.young = true; }     // «молодые» у лагеря в начале (шаг 12)
   }
 }
 // гарнизоны (G2): опасные места большого мира и стоянки заселяются, когда герой ближе near м, но дальше far (вне экрана);

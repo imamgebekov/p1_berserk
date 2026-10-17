@@ -29,6 +29,7 @@ import { rotateInput, resolve } from './map.js';
 import { createInput } from './input.js';
 import { loadTweaks, createTweakPanel } from './tweak.js';
 import { setIconText, applyIcons } from './uiicons.js';
+import { sparkFresh, sparkEvent, sparkTick, goalOf, sanitizeSpark } from './spark3d.js';
 
 const $ = id => document.getElementById(id);
 applyIcons(document);     // иконки-силуэты вместо эмодзи в кнопках разметки (шаг 10)
@@ -63,6 +64,7 @@ const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded
 if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
 if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
+W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
 let saveFailT = -1e9;     // ошибка записи (кончилось место): сообщаем не чаще раза в минуту
 const saver = BENCH ? createSaver(W, memStore) : createSaver(W, globalThis.localStorage, { onFail: () => { const t = performance.now(); if (t - saveFailT > 60000) { saveFailT = t; toast('Не удалось сохранить: в браузере мало места. Меню → Сохранение → «Сохранить в файл»', 'bad', '#ff8a6a', 'warn'); } } });
 
@@ -142,6 +144,7 @@ function toast(txt, cls = '', color, ic) {     // ic — иконка из uiico
 }
 const P = loadPrefs();
 function onEvent(v) {
+  sparkEvent(W, v);     // «Первая искра»: враги за оградой (шаг 12)
   if (v.k === 'hurt') buzz(P, 35); else if (v.k === 'level' || v.k === 'questdone') buzz(P, [40, 40, 70]); else if (v.k === 'bossaggro' || v.k === 'bossblast') buzz(P, 90);
   sfx(v.k, v.x === undefined ? null : { x: v.x, z: v.z, px: W.player.x, pz: W.player.z, yaw: cfg.view.camYaw });     // звук мира: тише вдали, панорама по экрану (шаг 8)
   if (v.k === 'fireFound') { toast('Открыт костёр: ' + v.name, '', '#ffb060', 'fire'); sfx('evDone'); }
@@ -235,7 +238,7 @@ const bag = createBag(document, W, cfg, {
   onReset: () => { saver.reset(); location.reload(); }     // сброс — из меню «Сохранение» с удержанием (шаг 4)
 });
 const shop = createShop(document, W, cfg, {
-  onOpen: () => { panelOpen = true; input.release(); },
+  onOpen: () => { panelOpen = true; input.release(); if (W.spark) W.spark.trader = true; },
   onClose: () => { panelOpen = false; saver.write(); },
   onChange: () => { saver.write(); bag.render(); }
 });
@@ -304,7 +307,7 @@ const showMute = () => { setIconText(muteBtn, isMuted() ? 'mute' : 'sound', isMu
 muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); });
 showMute();
 const bagFill = $('bagFill');
-let reliefDone = false, ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0;
+let reliefDone = false, goalT = 0, ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0;
 // личные настройки: левша, размер кнопок, вибрация, счётчик кадров, подсказки
 const prefBtn = (id, get, label, flip, ic) => { const b = $(id); const show = () => { setIconText(b, ic, label(get())); }; b.addEventListener('click', () => { flip(); savePrefs(P); applyPrefs(); }); return show; };
 const uiTabs = $('uiTabs');
@@ -488,7 +491,11 @@ function frame(now) {
       for (const b of buffs) chip(`${b[0]} ${Math.ceil(b[1])}с`, b[2]); } }
   { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); setIconText(questBtn, 'scroll', mk === 'ready' ? 'Сдать задание' : mk ? 'Есть задания!' : 'Задания'); } }
   drawAbil();
-  { const tl = eventLine(W) || trackerLine(W); if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
+  { const sr = sparkTick(W); if (sr === 'step') sfx('questready'); else if (sr === 'done') { toast(`Первая искра зажжена: +${cfg.spark.ash} пепла`, '', '#e8c04a', 'fire'); sfx('questdone'); saver.write(); } }
+  // строка цели не бывает пустой (шаг 12): событие → «Первая искра» → взятое задание → ближайший неоткрытый костёр
+  if ((goalT -= real) <= 0) { goalT = .25; const g = W.lvl === 'surface' ? goalOf(W) : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null }, sp = W.spark && !W.spark.done;
+    const tl = eventLine(W) || (sp ? g.text : trackerLine(W) || g.text); W.goal = !eventLine(W) && (sp || !trackerLine(W)) ? g.at : null;
+    if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }
   if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0); }
