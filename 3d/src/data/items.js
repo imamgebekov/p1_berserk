@@ -11,7 +11,8 @@ export const RARITY = [
   { id: 'fine', name: 'Добротный', color: '#7fb069' },
   { id: 'rare', name: 'Редкий', color: '#5d9cec' },
   { id: 'epic', name: 'Великий', color: '#b388eb' },
-  { id: 'brand', name: 'Клеймёный', color: '#e8643a' }
+  { id: 'brand', name: 'Клеймёный', color: '#e8643a' },
+  { id: 'gold', name: 'Золотой', color: '#f5c542' }                // G3b: только у торговца, со своей механикой
 ];
 
 export const SLOTS = ['weapon', 'offhand', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet'];
@@ -19,6 +20,7 @@ export const SLOT_NAME = { weapon: 'Оружие', offhand: 'Вторая рук
 export const STAT_NAME = { dmg: 'урон', armor: 'броня', block: 'блок %', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
 
 import { NAMED_ARMOR } from './sets3d.js';
+import { GOLD, GOLD_K, goldText } from './gold3d.js';
 import { TOMES } from './tomes3d.js';
 import { TRAITS, PERKS, MATERIAL_PERKS, ELEMENTS, ENCHANTED_KINDS, UNIQUES, weaponText } from './weapons3d.js';
 
@@ -260,12 +262,20 @@ const BOOKS = [
 ];
 for (const [id, name, text] of BOOKS) add({ id: 'b_' + id, name, cat: 'curio', pool: 'book', rar: /bestiary|sermon|star_chart|map_scrap/.test(id) ? 1 : 0, stack: 1, value: 6, text });
 
+// золотые (G3b): статы лучшей клеймёной вещи того же места × GOLD_K
+for (const [id, name, slot, kind, perks, gold, story, extra] of GOLD) {
+  const base = ITEMS.filter(i => i.rar === 4 && i.slot === slot && (slot === 'weapon' || slot === 'offhand' ? i.kind === kind : true) && i.stats).sort((a, b) => b.value - a.value)[0]
+    || ITEMS.filter(i => i.slot === slot && i.kind === kind && i.stats).sort((a, b) => b.rar - a.rar || b.value - a.value)[0];
+  const stats = {}; for (const [k, v] of Object.entries(base.stats)) stats[k] = k === 'swing' || k === 'reach' ? v : v > 0 ? Math.round(v * GOLD_K + .49) : v;
+  for (const [k, v] of Object.entries(extra || {})) stats[k] = (stats[k] || 0) + v;
+  add({ ...base, id: 'g_' + id, name, pool: 'gold', rar: 5, stats, value: base.value * 1.6, mat: 'gold', perks: perks || base.perks, gold: gold || null, text: (perks ? weaponText(kind, perks) : goldText(gold)) + ' ' + story });
+}
 export const CATALOG = ITEMS;
 export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
 export const item = id => BY_ID[id];
 // индекс «пул → редкость → вещи» для таблиц добычи
 export const BY_POOL = {};
-for (const it of ITEMS) ((BY_POOL[it.pool] ||= [[], [], [], [], []])[it.rar]).push(it);
+for (const it of ITEMS) ((BY_POOL[it.pool] ||= [[], [], [], [], [], []])[it.rar]).push(it);
 export const rarityColor = it => RARITY[it.rar].color;
 
 // короткое описание статов: «+7 урон · +3% крит»

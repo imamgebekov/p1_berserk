@@ -60,7 +60,7 @@ const pickW = (arr, rng, wf = x => x[1]) => { let t = 0; for (const a of arr) t 
 // одна вещь из пула по редкости (если такой редкости нет — ближайшая ниже, потом выше)
 export function pickItem(pool, rar, rng) {
   const tiers = BY_POOL[pool]; if (!tiers) return null;
-  for (let d = 0; d < 5; d++) for (const r of [rar - d, rar + d]) if (r >= 0 && r < 5 && tiers[r].length) return tiers[r][(rng() * tiers[r].length) | 0];
+  for (let d = 0; d < 6; d++) for (const r of [rar - d, rar + d]) if (r >= 0 && r < tiers.length && tiers[r].length) return tiers[r][(rng() * tiers[r].length) | 0];
   return null;
 }
 

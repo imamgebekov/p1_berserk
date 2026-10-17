@@ -2,7 +2,7 @@
 import { CATALOG, BY_ID, BY_POOL, RARITY, SLOTS } from '../3d/src/data/items.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const n = CATALOG.length;
-ok(n >= 300 && n <= 550, `размер каталога ${n} вне 300–550`);
+ok(n >= 300 && n <= 600, `размер каталога ${n} вне 300–600`);
 ok(new Set(CATALOG.map(i => i.id)).size === n, 'повторяются id');
 ok(new Set(CATALOG.map(i => i.name)).size === n, 'повторяются названия: ' + CATALOG.map(i => i.name).filter((x, i, a) => a.indexOf(x) !== i).slice(0, 5).join(', '));
 for (const it of CATALOG) {

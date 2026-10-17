@@ -24,7 +24,7 @@ const SH = 's_tower_iron', BU = 's_buckler_iron';
 // ---------- 1. каталог и правила ----------
 {
   const S = CATALOG.filter(i => i.slot === 'offhand');
-  ok(SLOTS.includes('offhand') && S.length === 8 && S.every(i => i.kind === 'shield' && i.pool === 'shield' && i.stats.block > 0 && templateOf(i) === 'offhand'), `щитов ${S.length}`);
+  ok(SLOTS.includes('offhand') && S.length === 9 && S.every(i => i.kind === 'shield' && (i.pool === 'shield' || i.pool === 'gold') && i.stats.block > 0 && templateOf(i) === 'offhand'), `щитов ${S.length}`);
   const has = d => d.pools.some(p => p[0] === 'shield' && p[1] > 0);
   ok(has(CONTAINERS.armorstand) && has(CONTAINERS.ironchest) && has(SHOP), 'щиты не выпадают или не продаются');
   ok(canWield('thorn', BY_ID[SH]) && !canWield('vale', BY_ID[SH]) && !canWield('jay', BY_ID[SH]), 'щит не только Торну');

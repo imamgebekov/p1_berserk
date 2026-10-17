@@ -29,7 +29,7 @@ const shot = (W, sec = 1.2) => { freeze(W); step(W, 1 / 60, { attackPress: true 
   ok(!CATALOG.some(i => i.pool === 'weapon' && TRAITS[i.kind] && TRAITS[i.kind].ranged), 'лук в пуле ближнего оружия');
   const has = d => d.pools.some(p => p[0] === 'ranged' && p[1] > 0);
   ok(has(CONTAINERS.chest) && has(CONTAINERS.ironchest) && has(SHOP) && has(DROPS.archer), 'луки не выпадают из сундуков, лучников и не продаются');
-  ok(CATALOG.length <= 550, 'каталог больше 550');
+  ok(CATALOG.length <= 600, 'каталог больше 600');
 }
 // ---------- 2. стрела бьёт врага, не задевает героя и бойца на пути ----------
 {

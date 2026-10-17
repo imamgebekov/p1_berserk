@@ -106,7 +106,7 @@ export function templateOf(it) {
 }
 
 // цвета: основной — по материалу (металл, кожа, кость…) или виду расходника; r — редкость (у зелий — цвет зелья)
-const MAT = { rust: '#8a5a3a', iron: '#9a9890', tempered: '#b8b4a8', bone: '#d8ccb0', steel: '#cfc9bb', black: '#4a4652', blood: '#9a2428', unique: '#e2c27a',
+const MAT = { gold: '#f2c64a', rust: '#8a5a3a', iron: '#9a9890', tempered: '#b8b4a8', bone: '#d8ccb0', steel: '#cfc9bb', black: '#4a4652', blood: '#9a2428', unique: '#e2c27a',
   rag: '#8a7a62', leather: '#8a6038', studded: '#7a6448', mail: '#a8a8a0', plate: '#c0bcb0', ash: '#6a6260', set_pogost: '#5a6a58', set_eclipse: '#4a3460', set_rust: '#8a4a2a' };
 const CAT = { ring: '#d8b860', amulet: '#c8a050', food: '#c89050', potion: '#d0d8e0', fairy: '#e0d0ff', medic: '#e8e0d0', coin: '#e0b040', material: '#a8a090', craftmat: '#a8a090', monstermat: '#8a6a4a', trophy: '#e0d8c8', tome: '#6a3a2a', bosstome: '#3a2a4a', book: '#7a5a3a', curio: '#c0b090', key: '#c8a040' };
 const POTION = { p_heal1: '#d03838', p_heal2: '#e04848', p_heal3: '#ff5a5a', p_fairy_elixir: '#ff8ad8', p_fairy_dust: '#ffe070', p_fairy_might: '#b070ff', u_recall: '#9a70e0' };

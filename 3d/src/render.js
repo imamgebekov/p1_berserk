@@ -685,7 +685,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
-      else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { fx.flash(v.x, 1.4, v.z, 2.6, RARITY[4].color); burst(v.x, 1, v.z, 12, RARITY[4].color, 4); }
+      else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { const c = RARITY[BY_ID[v.id].rar].color; fx.flash(v.x, 1.4, v.z, 2.6, c); burst(v.x, 1, v.z, 12, c, 4); }
+      else if (v.k === 'sun') { fx.flash(v.x, 1.2, v.z, v.r + 1, '#ffd86a'); burst(v.x, .8, v.z, 18, '#ffd86a', v.r * 1.6); }          // золото (G3b)
+      else if (v.k === 'aegisUp' || v.k === 'aegis' || v.k === 'reflect') burst(v.x, 1.1, v.z, v.k === 'aegis' ? 10 : 6, '#f5c542', 2.2);
       else if (v.k === 'ability') {                   // умения: вспышки и кольца
         const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30', blink: '#c8a0ff', parry: '#fff0c0', dance: '#c8d8ff', shadow: '#2a1838', execute: '#ff3030', leap: '#c8e0b0', volley: '#eef4ff', trap: '#8a8478', venom: '#7ad060', rain: '#eef4ff' }[v.id] || '#ffe8b0';
         if (v.id === 'cry' || v.id === 'whirl') for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r = v.id === 'cry' ? 2.5 : 1.8; burst(v.x + Math.sin(a) * r, 1, v.z + Math.cos(a) * r, 2, col, 3); }

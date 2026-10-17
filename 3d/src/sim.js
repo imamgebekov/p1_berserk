@@ -83,7 +83,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), fires: {}, hero: DEFAULT_HERO, ap: 0, ab: {}, acd: {}, abuf: {}, traps: [], zones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), fires: {}, gfx: {}, hero: DEFAULT_HERO, ap: 0, ab: {}, acd: {}, abuf: {}, traps: [], zones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
@@ -254,10 +254,13 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   // щит: удар спереди ослаблен на блок %, отброс меньше; пока герой бьёт или заряжает — щит не закрывает
   let knock = 5;
   if (W.gear.block > 0 && fromX !== undefined && p.state !== 'atk' && p.state !== 'charge' && Math.abs(angDiff(Math.atan2(fromX - p.x, fromZ - p.z), p.face)) < W.cfg.block.arc * DEG / 2) {
+    if (W.gfx.reflect && att && !att.dead) { dealDamage(W, att, Math.round(dmg * W.gfx.reflect), null); W.ev.push({ k: 'reflect', x: att.x, z: att.z }); }     // Щит Восхода
     dmg *= 1 - Math.min(80, W.gear.block) / 100; knock *= W.cfg.block.knock; W.ev.push({ k: 'block', x: p.x, z: p.z, face: p.face, hero: true });
   }
   if (W.abuf.iron > 0) { dmg *= W.abuf.ironTaken; knock = 0; }          // несокрушимость: меньше урона, не отбрасывает
   dmg = Math.max(1, Math.round(dmg / (1 + Math.max(0, W.gear.armor) * W.cfg.gear.armorK)));
+  p.lastHurt = W.t;
+  if (W.gfx.aegis && W.aegis > 0) { const a = Math.min(W.aegis, dmg); W.aegis -= a; dmg -= a; W.ev.push({ k: 'aegis', x: p.x, z: p.z, left: W.aegis }); if (W.aegis <= 0) W.aegisT = W.gfx.aegis[0]; if (dmg <= 0) { p.inv = W.cfg.player.hurtInvuln; return true; } }     // Кираса Солнца: щит берёт удар первым
   p.calm = W.cfg.player.fire.calm;
   p.hp -= dmg; p.inv = W.cfg.player.hurtInvuln; W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
   const d = len(p.x - fromX, p.z - fromZ) || 1;
@@ -278,6 +281,8 @@ export function killEnemy(W, e, share) {
   if (e.dead) return;
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
+  if (share >= 1 && W.gfx.midas && !e.boss && W.rng() < W.gfx.midas) dropLoot(W, e);                         // Перстень Мидаса: добыча дважды
+  if (share >= 1 && W.gfx.gale) { const ex = W.buffs.find(b => b.src === 'gale'); if (ex) ex.t = W.gfx.gale[1]; else W.buffs.push({ stat: 'spd', amt: W.gfx.gale[0], t: W.gfx.gale[1], src: 'gale' }); }     // Сапоги Ветра
   if (e.guard && !W.keys[e.guard]) { W.keys[e.guard] = true; W.ev.push({ k: 'key', key: e.guard, x: e.x, z: e.z }); }     // страж замка отдаёт ключ трона (C4)
   if (share >= 1) {                                                   // свойства оружия за убийство
     const pm = W.wp.pm;
@@ -398,6 +403,7 @@ function updateArrows(W, dt) {
       strike(W, e, q.dmg, { crit: q.crit, dx: q.vx, dz: q.vz, d: len(q.vx, q.vz), knock: q.knock, fx: q.fx, fin: q.fin || q.hk > 0, heavy: q.hk > 0 });
       if (q.hk && !e.dead) applyStatus(W, e, 'stun', 0, W.cfg.player.heavy.stun * q.hk * S.stun);
       if (q.poison && !e.dead) applyStatus(W, e, 'poison', q.poison[0], q.poison[1]);          // ядовитая стрела умения
+      goldHit(W, e, q.crit); if (q.hit.length === 1) sunCount(W, e);
       weaponStatuses(W, e, q.dmg, q.crit, W.player);
       W.combo.n = Math.min(99, W.combo.n + 1); W.combo.t = 2.2;
       if (q.hit.length > q.pierce) { end = true; break; }
@@ -406,6 +412,16 @@ function updateArrows(W, dt) {
   }
 }
 
+// золото (G3b): крит лечит (Венец Полудня)
+function goldHit(W, e, crit) { if (crit && W.gfx.critHeal && !W.player.dead) W.player.hp = Math.min(W.player.maxhp, W.player.hp + W.gfx.critHeal); }
+// перк «Солнце»: каждый n-й удар (попавший замах или стрела) — вспышка вокруг цели: доля урона и оглушение; без рандома
+function sunCount(W, at) {
+  const S = W.wp.pm.sun; if (!S) return;
+  if ((W.sunN = (W.sunN || 0) + 1) < S[0]) return; W.sunN = 0;
+  const p = W.player, c = at || p, dmg = Math.round((W.cfg.player.attackDamage + W.gear.dmg) * S[2]);
+  W.ev.push({ k: 'sun', x: c.x, z: c.z, r: S[1] });
+  for (const o of W.enemies.slice()) if (!o.dead && len(o.x - c.x, o.z - c.z) < S[1] + W.cfg.enemies[o.type].radius) { dealDamage(W, o, dmg, 'fire'); if (!o.dead) applyStatus(W, o, 'stun', 0, S[3]); }
+}
 // второй клинок (Вейл): доля его урона (с заточкой) к каждому удару; щит и пустая рука — 0
 function offDmg(W) {
   const id = W.inv.eq.offhand, it = id && BY_ID[id];
@@ -443,6 +459,7 @@ function attackHit(W, mult = 1, echo = false) {
     if (tr.backstab && (!e.alert || Math.abs(angDiff(e.face, Math.atan2(-dx, -dz))) > 1.9)) m *= tr.backstab;
     if (pm.execute && e.hp < e.maxhp * pm.execute[0]) m *= pm.execute[1];
     if (pm.shatter && e.st && (e.st.freeze || e.st.stun)) m *= pm.shatter;
+    if (W.gfx.dawn && W.t - p.lastRollEnd < W.gfx.dawn[0]) m *= 1 + W.gfx.dawn[1];          // Плащ Рассвета
     let dmg = Math.round((P.attackDamage + W.gear.dmg + offDmg(W)) * m * rr(W, .9, 1.15));
     const crit = W.rng() < .12 + W.gear.crit / 100;
     if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
@@ -450,6 +467,7 @@ function attackHit(W, mult = 1, echo = false) {
     strike(W, e, dmg, { crit, dx, dz, d, knock: (tr.knock || 1) * (p.fin && !echo ? 1.6 : 1) * (hk ? 1 + (H.knock - 1) * hk : 1), fx, fin: (p.fin && !echo) || hk > 0, heavy: hk > 0, roll: p.rollAtk && !echo });
     if (hk && !e.dead) applyStatus(W, e, 'stun', 0, H.stun * hk);
     hits++;
+    goldHit(W, e, crit);
     weaponStatuses(W, e, dmg, crit, p);
     if (crit && W.setFx.ignite && !e.dead && W.rng() < W.setFx.ignite) applyStatus(W, e, 'burn', 4, 4);
     if (tr.splash) for (const o of W.enemies) if (!o.dead && o !== e && len(o.x - e.x, o.z - e.z) < tr.splash[0]) dealDamage(W, o, Math.round(dmg * tr.splash[1]), null);
@@ -464,6 +482,7 @@ function attackHit(W, mult = 1, echo = false) {
       if (pm.echo && W.rng() < pm.echo) W.echoQ.push({ t: .2, mult: .7 });
     }
     if (pm.bulwark) { W.bul.n = Math.min(pm.bulwark[1], W.bul.n + 1); W.bul.t = pm.bulwark[2]; W.bul.amt = pm.bulwark[0]; }
+    if (!echo) sunCount(W);
   }
   return hits;
 }
@@ -785,6 +804,7 @@ export function refreshGear(W) {
   base.luck = (base.luck || 0) + W.dif.luck + (W.night ? W.cfg.daynight.night.luck : 0);
   const HM = heroMul(W); if (HM.crit) base.crit = (base.crit || 0) + HM.crit;
   W.gear = gearStats(W.inv, W.buffs, W.cfg.smith.bonus, base); W.setFx = setBonus(W.inv).fx;
+  W.gfx = {}; for (const id of Object.values(W.inv.eq)) { const g = id && BY_ID[id] && BY_ID[id].gold; if (g) Object.assign(W.gfx, g); }     // механики золотых вещей (G3b)
   const p = W.player; p.maxhp = Math.max(10, W.cfg.player.hp * HM.hp + W.gear.hp); if (p.hp > p.maxhp) p.hp = p.maxhp;
 }
 
@@ -796,6 +816,9 @@ export function step(W, dt, input = {}) {
   for (const k of ['reap', 'bul']) { const o = W[k]; if (o.n && (o.t -= dt) <= 0) { o.n = 0; o.t = 0; } }
   if (W.combo.n && (W.combo.t -= dt) <= 0) W.combo.n = 0;
   refreshGear(W);
+  { const g = W.gfx, p = W.player;                                             // золото: щит кирасы заряжается, знак лечит вне боя
+    if (g.aegis) { if (!(W.aegis > 0) && (W.aegisT = (W.aegisT ?? 0) - dt) <= 0) { W.aegis = g.aegis[1]; W.ev.push({ k: 'aegisUp', x: p.x, z: p.z }); } } else W.aegis = 0;
+    if (g.sunheal && !p.dead && p.hp < p.maxhp && W.t - (p.lastHurt ?? -1e9) > g.sunheal[0]) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * g.sunheal[1] * dt); }
   if (W.freeze > 0) { W.freeze -= dt; if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200); return; }
   updatePlayer(W, dt, input);
   tickPlayer(W, dt);

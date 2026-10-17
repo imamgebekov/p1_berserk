@@ -33,7 +33,7 @@ export function rareShelf(W) {
     if (rng() >= T.chance) return;
     const n = T.n[0] + ((rng() * (T.n[1] - T.n[0] + 1)) | 0);
     for (let j = 0; j < n; j++) for (let a = 0; a < 16; a++) {
-      const it = pickItem(R.pools[(rng() * R.pools.length) | 0], T.rar, rng);
+      const P = T.pools || R.pools, it = pickItem(P[(rng() * P.length) | 0], T.rar, rng);
       if (it && it.rar === T.rar && canWield(W.hero, it) && !out.some(o => o.id === it.id)) { out.push({ id: it.id, n: 1, tier: k + 1, fresh: true }); break; }
     }
   });

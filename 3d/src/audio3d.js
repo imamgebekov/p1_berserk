@@ -78,6 +78,10 @@ const SFX = {
   hire: { gap: .3, f: () => { tone(196, .15, 'square', .05); tone(294, .2, 'square', .05, 0, .13); } },
   tomb: { gap: .3, f: () => { tone(440, .1, 'triangle', .05); tone(660, .3, 'triangle', .05, 0, .09); } },
   react: { gap: .1, f: () => { noise(.2, .12, 2200, 400); tone(300, .2, 'sawtooth', .05, 100); } },
+  sun: { gap: .2, f: () => { noise(.25, .12, 2400, 600); for (let i = 0; i < 3; i++) tone([784, 988, 1175][i], .5, 'triangle', .06, 0, i * .03); } },     // золото (G3b): вспышка «Солнца»
+  aegisUp: { gap: 1, f: () => { tone(1319, .4, 'sine', .04); tone(1760, .5, 'sine', .03, 0, .08); } },
+  aegis: { gap: .15, f: () => { tone(1568, .18, 'triangle', .06); noise(.08, .06, 3000, 1500); } },
+  reflect: { gap: .15, f: () => { tone(1175, .15, 'square', .03); tone(1568, .2, 'triangle', .04, 0, .04); } },
   boom: { gap: .15, f: () => { noise(.5, .22, 700, 80); tone(70, .4, 'sawtooth', .12, 35); } },
   bossaggro: { gap: 1, f: () => { tone(60, 1, 'sawtooth', .14, 38); tone(64, 1, 'sawtooth', .1, 40); noise(.8, .08, 300, 90); } },
   bossphase: { gap: 1, f: () => { tone(80, .7, 'sawtooth', .13, 45); noise(.5, .12, 600, 100); } },

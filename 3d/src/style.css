@@ -187,10 +187,11 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 .tile .upg{position:absolute;left:4px;top:2px;font-size:11px;font-weight:700;color:#ffd27a;text-shadow:0 1px 0 #000}
 .tile .bt{position:absolute;right:4px;top:1px;font-size:12px;color:#8fd07a;text-shadow:0 1px 0 #000}
 .tile.sel{outline:3px solid #fff;outline-offset:-1px}
-.r0{--rc:#5a4e44}.r1{--rc:#7fb069}.r2{--rc:#5d9cec}.r3{--rc:#b388eb}.r4{--rc:#e8643a}
-.slot.r0,.slot.r1,.slot.r2,.slot.r3,.slot.r4{border-color:var(--rc)}.slot.none{border-style:dashed}
+.r0{--rc:#5a4e44}.r1{--rc:#7fb069}.r2{--rc:#5d9cec}.r3{--rc:#b388eb}.r4{--rc:#e8643a}.r5{--rc:#f5c542}
+.slot.r0,.slot.r1,.slot.r2,.slot.r3,.slot.r4,.slot.r5{border-color:var(--rc)}.slot.none{border-style:dashed}
 .tile.r3,.slot.r3{box-shadow:0 0 8px -2px var(--rc)}
 .tile.r4,.slot.r4{box-shadow:0 0 10px -1px var(--rc);animation:brand 2.4s ease-in-out infinite}
+.tile.r5,.slot.r5{box-shadow:0 0 14px 0 var(--rc);animation:brand 1.8s ease-in-out infinite;background:linear-gradient(160deg,#3a2c10,#1b1211 60%)}
 @keyframes brand{50%{box-shadow:0 0 16px 1px var(--rc)}}
 #bagCard{border-color:var(--rc,var(--line))}
 #bagCard .ch{display:flex;gap:10px;align-items:center;justify-content:flex-start}#bagCard .cht{min-width:0}
@@ -199,7 +200,7 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 .stg{margin-top:6px;display:grid;gap:2px}
 .str{display:grid;grid-template-columns:1fr auto 16px;gap:8px;font-size:13px;padding:2px 6px;border-radius:6px;background:#1a1110}
 .str .sk{opacity:.75}.str .sv{font-variant-numeric:tabular-nums}.str.up{color:#8fd07a}.str.down{color:#e07a6a}
-@media (prefers-reduced-motion:reduce){.tile.r4,.slot.r4{animation:none}}
+@media (prefers-reduced-motion:reduce){.tile.r4,.slot.r4,.tile.r5,.slot.r5{animation:none}}
 /* сумка на компьютере: две колонки — слева герой и карточка, справа вкладки и сетка */
 [data-desk] #bag .pbox{max-width:1040px;display:grid;grid-template-columns:minmax(330px,400px) 1fr;grid-template-rows:auto auto auto auto 1fr auto;column-gap:16px;align-items:start}
 [data-desk] #bag .bhead{grid-column:1/-1}
