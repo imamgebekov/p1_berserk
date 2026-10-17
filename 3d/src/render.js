@@ -122,11 +122,35 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let shaftT = 0, picks = []; const sunCol = new THREE.Color();
   // вода: лента вдоль русла чуть ниже берега; мосты: настил, доски, перила, столбы
   const river = map.river, waterMat = new THREE.MeshLambertMaterial({ color: '#28485a', transparent: true, opacity: .88, emissive: '#0a1a24', side: THREE.DoubleSide }), riverGroup = new THREE.Group();
+  // вода (V2a): рябь по течению, блики на гребнях, светлое мелководье и пена у берега — поверх освещения и тумана Lambert
+  const WS = cfg.shaders && cfg.shaders.water, WaU = { uTime: { value: 0 }, uDay: { value: 1 } };
+  if (WS && WS.on) {
+    waterMat.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, WaU, { uRip: { value: WS.ripple }, uGlint: { value: WS.glint }, uShallow: { value: new THREE.Color(WS.shallow) }, uFoam: { value: new THREE.Color(WS.foam) }, uShoreW: { value: WS.shoreW }, uFoamW: { value: WS.foamW }, uFlowK: { value: WS.flow } });
+      sh.vertexShader = 'attribute vec2 bank; attribute vec2 flow; varying vec2 vBank; varying vec2 vFlow; varying vec3 vWPos;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vBank = bank; vFlow = flow; vWPos = (modelMatrix * vec4(transformed, 1.)).xyz;');
+      sh.fragmentShader = 'uniform float uTime, uDay, uRip, uGlint, uShoreW, uFoamW, uFlowK; uniform vec3 uShallow, uFoam; varying vec2 vBank; varying vec2 vFlow; varying vec3 vWPos;\n'
+        + 'float wh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n'
+        + 'float wn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(wh(i), wh(i + vec2(1., 0.)), f.x), mix(wh(i + vec2(0., 1.)), wh(i + vec2(1., 1.)), f.x), f.y); }\n'
+        + sh.fragmentShader
+          .replace('#include <color_fragment>', `#include <color_fragment>
+  vec2 wp = vWPos.xz, fl = vFlow * uFlowK * uTime;
+  float rip = wn(wp * .55 - fl) * .6 + wn(wp * 1.4 - fl * 1.7 + 7.3) * .4;
+  float shore = min(vBank.x, vBank.y - vBank.x);
+  diffuseColor.rgb = mix(diffuseColor.rgb, uShallow, (1. - smoothstep(0., uShoreW, shore)) * .6);
+  diffuseColor.rgb *= 1. + (rip - .5) * .45 * uRip;
+  float foam = (1. - smoothstep(0., uFoamW, shore)) * smoothstep(.35, .7, wn(wp * 2.6 - fl * 2.));
+  diffuseColor.rgb = mix(diffuseColor.rgb, uFoam, foam * .85);`)
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += vec3(1., .96, .86) * smoothstep(.8, .95, wn(wp * 3.2 - fl * 2.4 + 3.1) * .55 + rip * .45) * uGlint * (.25 + .75 * uDay) * (1. - foam);');
+    };
+    waterMat.customProgramCacheKey = () => 'water-v2';
+  }
   if (river) {
-    const P = river.pts, v = [], idx = [], hw = river.w / 2 + .5;
+    const P = river.pts, v = [], idx = [], hw = river.w / 2 + .5, bank = [], flow = [];
     P.forEach((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
-      v.push(p.x + nx * hw, cfg.terrain.water, p.z + nz * hw, p.x - nx * hw, cfg.terrain.water, p.z - nz * hw); if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); } });
+      v.push(p.x + nx * hw, cfg.terrain.water, p.z + nz * hw, p.x - nx * hw, cfg.terrain.water, p.z - nz * hw); if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
+      bank.push(0, hw * 2, hw * 2, hw * 2); flow.push(dx / l, dz / l, dx / l, dz / l); });     // до берега, м (V2), и направление течения
     const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); wg.setIndex(idx); wg.computeVertexNormals();
+    wg.setAttribute('bank', new THREE.Float32BufferAttribute(bank, 2)); wg.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2));
     riverGroup.add(new THREE.Mesh(wg, waterMat));
     const wood = new THREE.MeshLambertMaterial({ color: '#5a3e26' }), dark = new THREE.MeshLambertMaterial({ color: '#3a2818' }), dk = cfg.terrain.bridge.deck;
     for (const b of river.bridges) {
@@ -143,7 +167,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     scene.add(riverGroup);
   }
   const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
-  const decor = buildDecor(map, mulberry32(cfg.world.seed + 2)); scene.add(decor.group);
+  const decor = buildDecor(map, mulberry32(cfg.world.seed + 2), cfg.shaders && cfg.shaders.grime); scene.add(decor.group);
   const npcs = [];
   for (const b of map.buildings) if (b.npc) { const n = makeNpc(b.npc.kind); n.group.position.set(b.npc.x, 0, b.npc.z); n.pos = b.npc; n.mark = new THREE.Mesh(new THREE.OctahedronGeometry(.22), new THREE.MeshBasicMaterial({ color: '#e8c04a' })); n.mark.position.set(0, 2.6, 0); n.mark.visible = false; n.group.add(n.mark); scene.add(n.group); npcs.push(n); }
 
@@ -154,6 +178,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     float sw = uWind * uAmp * k * k * ( 0.55 + 0.45 * sin( uTime * ( 1.1 + uWind * 1.6 ) + wp.x * .21 + wp.y * .17 ) );
     float fl = uWind * uLeaf * step( .7, k ) * sin( uTime * 9. + wp.x * 3.1 + wp.y * 2.3 + mvPosition.y * 4. );
     mvPosition.xz += uDir * sw + vec2( fl, -fl * .6 ); }
+  vWP = ( modelMatrix * vec4( mvPosition.xyz, 1. ) ).xyz;
   mvPosition = modelViewMatrix * mvPosition;
   gl_Position = projectionMatrix * mvPosition;`;
   const GRASS_PV = `vec4 mvPosition = vec4( transformed, 1.0 );
@@ -165,12 +190,23 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     mvPosition.xz += uDir * sw; }
   mvPosition = modelViewMatrix * mvPosition;
   gl_Position = projectionMatrix * mvPosition;`;
+  const LS = cfg.shaders && cfg.shaders.leaf, LeU = { uDayL: { value: 1 } };
   const windy = (mat, kind) => {
     mat.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, WU, { uAmp: { value: kind === 'tree' ? WC.sway.tree : WC.sway.grass }, uLeaf: { value: WC.sway.leaf }, uH: { value: WC.grass.h } });
-      sh.vertexShader = (kind === 'tree' ? 'attribute float sway;\n' : '') + 'uniform float uTime, uWind, uAmp, uLeaf, uH; uniform vec2 uDir;\n' + sh.vertexShader.replace('#include <project_vertex>', kind === 'tree' ? TREE_PV : GRASS_PV);
+      sh.vertexShader = (kind === 'tree' ? 'attribute float sway; varying vec3 vWP;\n' : '') + 'uniform float uTime, uWind, uAmp, uLeaf, uH; uniform vec2 uDir;\n' + sh.vertexShader.replace('#include <project_vertex>', kind === 'tree' ? TREE_PV : GRASS_PV);
+      if (kind === 'tree' && LS && LS.on) {                                       // листва (V2b): пятна цвета, прогретые участки, мягкий просвет
+        Object.assign(sh.uniforms, LeU, { uVary: { value: LS.vary }, uLit: { value: LS.lit } });
+        sh.fragmentShader = 'uniform float uVary, uLit, uDayL; varying vec3 vWP;\nfloat lh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat lvn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(lh(i), lh(i + vec2(1., 0.)), f.x), mix(lh(i + vec2(0., 1.)), lh(i + vec2(1., 1.)), f.x), f.y); }\n' + sh.fragmentShader
+          .replace('#include <color_fragment>', `#include <color_fragment>
+  float leaf = smoothstep(0., .05, diffuseColor.g - max(diffuseColor.r, diffuseColor.b));
+  float pn = lvn(vWP.xz * .09) * .65 + lvn(vWP.xz * .33 + 5.) * .35;
+  diffuseColor.rgb *= mix(1., .78 + .44 * pn, leaf * uVary);
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.1, 1.07, .8), leaf * smoothstep(.55, .8, pn) * uVary * .6);`)
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * leaf * uLit * uDayL;');
+      }
     };
-    mat.customProgramCacheKey = () => 'wind-' + kind; return mat;
+    mat.customProgramCacheKey = () => 'wind-' + kind + (LS && LS.on ? '-leaf' : ''); return mat;
   };
   // деревья и камни одним мешем (один вызов отрисовки)
   const rnd = mulberry32(cfg.world.seed), parts = [], treeXZ = [];
@@ -326,8 +362,26 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const t0 = i / n - G.turn - .02, t1 = (i + 1) / n - G.turn + .02, K = 48;
     for (let k = 0; k <= K; k++) { const a = (t0 + (t1 - t0) * k / K) * Math.PI * 2; v.push(Math.sin(a) * R0, y, Math.cos(a) * R0, Math.sin(a) * R1, y, Math.cos(a) * R1); if (k) { const q = k * 2; idx.push(q - 2, q - 1, q, q - 1, q + 1, q); } }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const bank = [], flow = []; for (let k = 0; k <= K; k++) { const a = (t0 + (t1 - t0) * k / K) * Math.PI * 2; bank.push(0, 1e4, R1 - R0, 1e4); flow.push(Math.sin(a) * .3, Math.cos(a) * .3, Math.sin(a) * .3, Math.cos(a) * .3); }     // прибой — к берегу
+    g.setAttribute('bank', new THREE.Float32BufferAttribute(bank, 2)); g.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2));
     const m = new THREE.Mesh(g, waterMat); scene.add(m); return m;
   })();
+  // ореолы ночью (V2c): светлые пятна к камере у фонарей и костров (без настоящих источников света); одним вызовом
+  const HS = cfg.shaders && cfg.shaders.halo, haloSpots = [];
+  for (const d of map.decor) { if (d.t === 'lamp') { const c = Math.cos(d.rot || 0), s = Math.sin(d.rot || 0); haloSpots.push({ x: d.x + .28 * c, y: 2.75, z: d.z - .28 * s, k: 'lamp' }); } else if (d.t === 'campfire') haloSpots.push({ x: d.x, y: .7, z: d.z, k: 'fire' }); }
+  for (const f of map.fires || []) haloSpots.push({ x: f.x, y: .7, z: f.z, k: 'fire' });
+  const halos = (() => { if (!HS || !HS.on) return null;
+    const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+    const m = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: '#ffffff' }), HS.max);
+    m.frustumCulled = false; m.count = 0; m.renderOrder = 3; scene.add(m); return m; })();
+  const haloC = { lamp: new THREE.Color(HS ? HS.lamp[1] : '#fff'), fire: new THREE.Color(HS ? HS.fire[1] : '#fff') }, haloO = new THREE.Object3D(), haloTmp = new THREE.Color();
+  function updateHalos(px, pz, night, t) {
+    if (!halos) return; let n = 0;
+    if (night > .02) for (const h of haloSpots) { if (n >= HS.max || Math.abs(h.x - px) > HS.near || Math.abs(h.z - pz) > HS.near) continue;
+      const sz = HS[h.k][0] * (h.k === 'fire' && !calm ? 1 + .08 * Math.sin(t * 9 + h.x) : 1); haloO.position.set(h.x, h.y + Y(h.x, h.z), h.z); haloO.quaternion.copy(camera.quaternion); haloO.scale.set(sz, sz, 1); haloO.updateMatrix();
+      halos.setMatrixAt(n, haloO.matrix); halos.setColorAt(n, haloTmp.copy(haloC[h.k]).multiplyScalar(night * .55)); n++; }
+    halos.count = n; halos.instanceMatrix.needsUpdate = true; if (halos.instanceColor) halos.instanceColor.needsUpdate = true;
+  }
   // отсечение по расстоянию (C3b): дальние дома, сундуки и клетки декора не рисуются и не обновляются (раз в 0,3 с)
   let cullT = 0;
   function cullFar(x, z) {
@@ -346,7 +400,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (!up) { scene.fog.color.set('#070504'); scene.background.set('#070504'); hemi.color.set('#6a5a50'); hemi.groundColor.set('#1a1210'); hemi.intensity = .9; }
     lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts; fx.clear();
   }
-  const hero = makeHero(); scene.add(hero.group); let heroLook = null;
+  // ободок силуэта (V2c): край фигуры светлее (эмиссия по краю), ночью сильнее — героя и врагов видно в темноте
+  const RS = cfg.shaders && cfg.shaders.rim, RimU = { uRim: { value: RS ? RS.day : 0 } };
+  const rimify = (root, color) => { if (!RS || !RS.on) return; const c = new THREE.Color(color); root.traverse(o => { const mats = !o.material ? [] : Array.isArray(o.material) ? o.material : [o.material];
+    for (const mat of mats) { if (mat.userData.rim || !(mat.isMeshLambertMaterial || mat.isMeshPhongMaterial)) continue; mat.userData.rim = true; const prev = mat.onBeforeCompile, key = mat.customProgramCacheKey ? mat.customProgramCacheKey() : '';
+      mat.onBeforeCompile = (sh, r) => { if (prev) prev(sh, r); Object.assign(sh.uniforms, RimU, { uRimC: { value: c }, uRimP: { value: RS.pow } });
+        sh.fragmentShader = 'uniform float uRim, uRimP; uniform vec3 uRimC;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  { float rimK = pow(1. - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0., 1.), uRimP); totalEmissiveRadiance += uRimC * rimK * uRim; }'); };
+      mat.customProgramCacheKey = () => key + '|rim'; mat.needsUpdate = true; } }); };
+  const hero = makeHero(); scene.add(hero.group); let heroLook = null, rimKey = '';
   // тень-двойник Вейла: тёмная копия героя с его клинком
   const decoyModel = () => { const h = makeHero(); h.setLook({ cloth: '#1a1824', cape: '#2a1838', hair: '#0a0810', legs: '#14121c', shoulder: false, hood: false, quiver: false, capeLen: .7 }); h.setWeapon('rapier', 'black'); h.root.rotation.x = .12; return h; };
   // кольцо заряда тяжёлого удара под героем: растёт с зарядом, при полном — оранжевое и пульсирует
@@ -449,7 +510,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function entity(e) {
     let en = ents.get(e.id);
     if (!en) {
-      const m = makeMonster(e.type, cfg), sh = shadow(.55 * cfg.enemies[e.type].scale);
+      const m = makeMonster(e.type, cfg), sh = shadow(.55 * cfg.enemies[e.type].scale); rimify(m.group, RS && RS.foe);
       const ring = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 28), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
       ring.rotation.x = -Math.PI / 2; ring.position.y = .06;
       scene.add(m.group, sh, ovl(ring));
@@ -648,6 +709,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       }
       if (puffs.count) puffs.instanceMatrix.needsUpdate = true;
     }
+    updateHalos(p.x, p.z, under ? 0 : Math.min(1, Math.max(0, (.55 - (W.light ?? 1)) / .4)), t);
+    WaU.uTime.value = calm ? 0 : t; WaU.uDay.value = W.light ?? 1; LeU.uDayL.value = W.light ?? 1;
     if (!under && river && !calm) waterMat.emissive.setRGB(.04 + .015 * Math.sin(t * 1.3), .1 + .02 * Math.sin(t * 1.7 + 1), .14 + .02 * Math.sin(t * 1.1));
     // костёр: мерцание света и пламени
     const fl = .8 + .2 * Math.sin(t * 17) + .1 * Math.sin(t * 29.3);
@@ -660,7 +723,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     // герой
     const py = Y(p.x, p.z); hero.group.position.set(p.x, py, p.z);
     asciiLamp.visible = asciiOn && !under; if (asciiLamp.visible) asciiLamp.position.set(p.x, py + 2.6, p.z); hero.group.rotation.y = p.face;
-    { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); }
+    { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); if (hero.wkey !== rimKey) { rimKey = hero.wkey; rimify(hero.group, RS && RS.hero); } }
+    if (RS) RimU.uRim.value = RS.night + (RS.day - RS.night) * Math.min(1, Math.max(0, ((W.light ?? 1) - .15) / .6));
     { const o = W.inv.eq.offhand && BY_ID[W.inv.eq.offhand]; hero.setOff(o ? o.id : '', o && o.kind, o && o.mat, o && o.form); }
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
     animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);

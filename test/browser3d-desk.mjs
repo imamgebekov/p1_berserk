@@ -143,7 +143,8 @@ try {
   await page.setViewportSize({ width: 1000, height: 480 }); await page.waitForTimeout(400);
   const ta = await ev(() => window.__b3d.W.t); await page.waitForTimeout(400);
   if (await shown('rotate')) bad('в низком окне просит повернуть телефон');
-  if ((await ev(() => window.__b3d.W.t)) <= ta) bad('в низком окне игра стоит');
+  { let moved = false; for (let i = 0; i < 15 && !moved; i++) { moved = (await ev(() => window.__b3d.W.t)) > ta; if (!moved) await page.waitForTimeout(200); }     // после смены размера кадры могут встать на миг (пересборка целей отрисовки)
+    if (!moved) bad('в низком окне игра стоит'); }
   await page.screenshot({ path: join(out, '3d-desk-low.png') });
   // Торн со щитом: в сумке 8 слотов, щит во второй руке и даёт блок
   await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(300);

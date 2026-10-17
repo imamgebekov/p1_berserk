@@ -336,6 +336,14 @@ const BASE = {
   // погода (F3): виды [вес, мин. длина с, макс. длина с], переход ramp с; в дождь туман гуще (+fog), земля темнее (×wet),
   // капель drops (косо по ветру, падают со скоростью fall м/с в коробке box [ширина, высота] у камеры), всплесков splash в
   // секунду, кругов на воде ripples; force — для тестов ('clear' | 'cloudy' | 'rain'). На бой погода не влияет.
+  // шейдеры (V2): вода — рябь по течению (ripple), блики (glint), мелководье у берега shallow на shoreW м, пена foam на foamW м;
+  // сила 0 — выключено
+  // листва — пятна цвета по месту (vary), прогретые участки и мягкий просвет (lit); металл оружия — блеск shine, сила блика spec;
+  // декор — потёртости и пятна камня и дерева (grime)
+  shaders: { water: { on: true, ripple: 1, glint: .9, shallow: '#3f7c78', shoreW: 1.8, foam: '#d6e6dc', foamW: .6, flow: .7 },
+    leaf: { on: true, vary: 1, lit: .22 }, metal: { on: true, shine: 60, spec: '#8c8c8c' }, grime: { on: true, k: .18 },
+    // ободок силуэта (V2c): край фигуры светлее — днём day, ночью night; ореолы ночью у фонарей и костров: размер, м, и цвет; max — сколько сразу
+    rim: { on: true, day: .08, night: .26, pow: 5, hero: '#ffd8a8', foe: '#ff9078' }, halo: { on: true, lamp: [2.6, '#ffb35a'], fire: [4.4, '#ff8a3a'], near: 70, max: 96 } },
   weather: { on: true, kinds: { clear: [.55, 150, 360], cloudy: [.25, 80, 200], rain: [.2, 70, 160] }, ramp: 14, fog: .6, wet: .7,
     drops: 900, fall: 16, box: [34, 18], splash: 26, ripples: 24, force: null,
     // дождь в бою (шаг R): при полном дожде враги слышат ×hear и видят ×sight, огонь (шанс и длительность поджога) ×fire,
