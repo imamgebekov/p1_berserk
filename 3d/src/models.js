@@ -73,7 +73,7 @@ function heroVolume(M, mats, g, root, cloth, skin, dark, cape, legs) {
   const shoulder = new THREE.Group(); shoulder.add(mesh(blobGeo(.25, .17, .27, 1), metalS, .42, 1.62, 0), mesh(blobGeo(.2, .1, .22, 0), metalS, .44, 1.5, 0));     // наплечник
   const head = new THREE.Group(); head.position.set(0, 1.92, .02);
   head.add(mesh(blobGeo(.23, .26, .24, 1), skin, 0, 0, 0), mesh(coneGeo(.05, .14, 4), skin, 0, -.02, .25, Math.PI / 2), mesh(blobGeo(.1, .07, .08, 0), skin, 0, -.16, .12),     // голова, нос, подбородок
-    mesh(blobGeo(.035, .035, .02, 0), basic('#1a1210'), .09, .04, .22), mesh(blobGeo(.035, .035, .02, 0), basic('#1a1210'), -.09, .04, .22));
+    ...(e => [mesh(blobGeo(.035, .035, .02, 0), e, .09, .04, .22), mesh(blobGeo(.035, .035, .02, 0), e, -.09, .04, .22)])(basic('#1a1210')));     // глаза — один материал, сливаются
   const hair = new THREE.Group(); hair.add(mesh(blobGeo(.25, .15, .26, 1), dark, 0, .14, -.03), mesh(blobGeo(.23, .22, .12, 1), dark, 0, -.02, -.17)); head.add(hair);
   const cloak = new THREE.Group(); cloak.position.set(0, 1.6, -.26); cloak.add(mesh(panelGeo(.5, 1.25, 1.7), cape, 0, -.62, .3));
   cape.side = THREE.DoubleSide;
@@ -421,11 +421,11 @@ function npcVolume(kind, tint) {
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const smith = kind === 'smith', cap = kind === 'captain', wand = kind === 'wanderer', trav = kind === 'traveler', m = c => lam(c);
   const coat = m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : trav ? '#4a5a34' : tint), legs = m(smith ? '#2a2420' : '#4a3a2c'), skin = m(smith ? '#b89a7a' : '#cdb89a'), dark = m('#2a1c12');
-  const leg = s => limbV(legs, s * .14, .78, 0, .78, .11, .09, .08, mesh(blobGeo(.1, .07, .15, 0), dark, 0, .05, .04));
+  const leg = s => limbV(legs, s * .14, .78, 0, .78, .11, .09, .08, mesh(blobGeo(.1, .07, .15, 0), legs, 0, .05, .04));     // сапог того же цвета — одна деталь на ногу (кадры в лагере)
   root.add(leg(1), leg(-1), mesh(barrelGeo(.36, .4, .82, 8, .72), coat, 0, 1.22, 0), mesh(barrelGeo(.34, .44, .5, 8, .74), coat, 0, .82, 0),     // туловище и полы
     mesh(barrelGeo(.37, .37, .08, 8, .72), dark, 0, 1.0, 0), mesh(barrelGeo(.09, .1, .14, 6), skin, 0, 1.68, 0));     // пояс, шея
   const head = new THREE.Group(); head.position.set(0, 1.92, .02);
-  head.add(mesh(blobGeo(.21, .24, .22, 1), skin), mesh(coneGeo(.045, .12, 4), skin, 0, -.02, .23, Math.PI / 2), mesh(blobGeo(.03, .03, .02, 0), basic('#1a1210'), .08, .04, .2), mesh(blobGeo(.03, .03, .02, 0), basic('#1a1210'), -.08, .04, .2));
+  const eyeM = basic('#1a1210'); head.add(mesh(blobGeo(.21, .24, .22, 1), skin), mesh(coneGeo(.045, .12, 4), skin, 0, -.02, .23, Math.PI / 2), mesh(blobGeo(.03, .03, .02, 0), eyeM, .08, .04, .2), mesh(blobGeo(.03, .03, .02, 0), eyeM, -.08, .04, .2));
   if (smith || kind === 'merchant') head.add(mesh(blobGeo(.18, .16, .12, 1), m(smith ? '#3a2a1e' : '#6a5a4a'), 0, -.14, .1));     // борода
   if (cap) { const mt = m('#8a8f98'); head.add(mesh(blobGeo(.26, .2, .26, 1), mt, 0, .1, -.01), mesh(coneGeo(.06, .36, 4), m('#a1121f'), 0, .42, -.02)); root.add(mesh(barrelGeo(.035, .035, 1.9, 5), m('#6a5a46'), .62, 1.0, .1), mesh(coneGeo(.07, .3, 4), mt, .62, 2.08, .1)); }     // шлем с плюмажем, копьё
   else if (kind === 'villager') head.add(mesh(blobGeo(.23, .1, .23, 1), m('#3a2a1e'), 0, .17, 0));
@@ -434,7 +434,7 @@ function npcVolume(kind, tint) {
   else if (smith) { root.add(mesh(panelGeo(.38, .8, 1.6, 4), m('#4a3628'), 0, 1.08, .02)); }     // фартук
   else { const hat = m('#2a1c12'); head.add(mesh(barrelGeo(.38, .38, .04, 8), hat, 0, .17, 0), mesh(barrelGeo(.2, .23, .2, 8), hat, 0, .28, 0)); }     // шляпа торговца
   root.add(head);
-  const hand = () => mesh(blobGeo(.08, .08, .08, 0), skin);
+  const hand = () => mesh(blobGeo(.08, .08, .08, 0), coat);     // рукавица цвета одежды — одна деталь на руку
   const armL = limbV(coat, .44, 1.6, 0, .7, .1, .085, .075, hand()), armR = limbV(coat, -.44, 1.6, 0, .7, .1, .085, .075, hand());
   if (smith) armR.add(mesh(barrelGeo(.035, .035, .5, 5), m('#5a3e26'), 0, -.72, .15, Math.PI / 2.4), mesh(blobGeo(.12, .09, .09, 0), m('#6a645c'), 0, -.7, .38));     // молот
   root.add(armL, armR); bakeDeep(root);
