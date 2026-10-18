@@ -15,6 +15,7 @@ import { addXp, gainXp } from './progress3d.js';
 import { restock } from './economy3d.js';
 import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
 import { useSlot, dashStep, tickAbilities } from './abilities3d.js';
+import { abilityPointsAt } from './data/abilities3d.js';
 import { waterDist, inStream } from './terrain3d.js';
 import { pathGoal } from './path3d.js';
 import { inCliff } from './cliffs3d.js';
@@ -89,7 +90,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), fires: {}, gfx: {}, hero: DEFAULT_HERO, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), fires: {}, gfx: {}, hero: DEFAULT_HERO, heroes: {}, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
@@ -869,11 +870,14 @@ function goalOf(W, e, dt = 1 / 60) {
 
 // input: { mx, mz (−1..1), attack (держится), roll (нажатие) }
 // пересчёт характеристик от надетого и баффов (вызывается каждый шаг и при смене экипировки в сумке)
-// смена героя без потери прогресса: уровень, пепел, вещи и навыки остаются; очки умений возвращаются (умения у героев свои);
+// смена героя (2026-10-18): у каждого героя свой уровень, опыт, очки, навыки и панель умений (W.heroes — отложенные);
+// новый герой — с 1-го уровня; общее — сумка, пепел, камни, костры, отряд;
 // чужое оружие и вторая рука уходят в сумку (даже сверх размера), в руку — лучшее своё из сумки или стартовое оружие героя
 export function switchHero(W, id) {
   const H = HEROES[id]; if (!H || !H.open || id === W.hero) return false;
-  W.hero = id; W.ap += Object.values(W.ab).reduce((a, b) => a + b, 0); W.ab = {}; W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.ezones = []; W.bar = []; W.wsk = null; W.meteors = [];
+  W.heroes = W.heroes || {}; W.heroes[W.hero] = { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab, bar: W.bar };
+  const nx = W.heroes[id] || { lv: 1, xp: 0, sp: 0, skills: {}, ap: abilityPointsAt(1, W.cfg), ab: {}, bar: [] }; delete W.heroes[id];
+  W.hero = id; Object.assign(W, { lv: nx.lv, xp: nx.xp, sp: nx.sp, skills: nx.skills, ap: nx.ap, ab: nx.ab, bar: nx.bar }); W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.ezones = []; W.wsk = null; W.meteors = [];
   W.allies = W.allies.filter(a => !a.decoy);
   const inv = W.inv, back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot])); inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; };
   if (inv.eq.weapon && !canWield(id, BY_ID[inv.eq.weapon])) back('weapon');

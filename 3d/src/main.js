@@ -69,7 +69,7 @@ const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : 
 const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)
 if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
-if (saved) { W.hero = saved.hero; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
+if (saved) { W.hero = saved.hero; W.heroes = saved.heroes || {}; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
 W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
 W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);     // «Путь пепла» (шаг 13): старому сохранению — по уже сделанному
 let saveFailT = -1e9;     // ошибка записи (кончилось место): сообщаем не чаще раза в минуту
@@ -89,7 +89,7 @@ let heroSwitching = false;      // экран выбора открыт из м�
 function pickHero(id) {
   const H = HEROES[id]; if (!H || !H.open || $('heroPick').hidden) return;
   input.release();
-  if (heroSwitching) { if (!switchHero(W, id)) return; toast(`Теперь вы — ${H.name}. Очки умений вернулись`, '', '#e8c04a'); }
+  if (heroSwitching) { if (!switchHero(W, id)) return; toast(`Теперь вы — ${H.name}, уровень ${W.lv}`, '', '#e8c04a'); }
   else { W.hero = id; if (H.start && !W.inv.eq.weapon) W.inv.eq.weapon = H.start; refreshGear(W); W.player.hp = W.player.maxhp; toast(`${H.name} выходит из пепла`, '', '#e8c04a'); }
   rerollRare(W); closeHeroPick(); saver.write(true);     // полка редкостей — под выбранного героя
 }
@@ -97,13 +97,13 @@ function closeHeroPick() { $('heroPick').hidden = true; panelOpen = false; heroS
 function openHeroPick(switching = false) {
   heroSwitching = switching;
   $('heroCancel').hidden = !switching;
-  $('heroNote').textContent = switching ? 'Уровень, пепел, вещи и навыки останутся. Очки умений вернутся: умения у героев свои. Чужое оружие уйдёт в сумку.' : 'Героя можно сменить потом в меню: уровень, пепел и вещи останутся.';
+  $('heroNote').textContent = switching ? 'У каждого героя свой уровень, навыки и умения. Пепел, вещи и камни общие. Чужое оружие уйдёт в сумку.' : 'Героя можно сменить потом в меню: уровень, пепел и вещи останутся.';
   const box = $('heroCards'); box.textContent = '';
   HERO_IDS.forEach((id, i) => {
     const H = HEROES[id], c = document.createElement('div'), add = (tag, cls, txt) => { const e = document.createElement(tag); e.className = cls; e.textContent = txt; c.append(e); return e; };
     c.className = 'hcard' + (H.open ? '' : ' shut'); c.dataset.hero = id;
     const cv = document.createElement('canvas'); cv.width = cv.height = 16; drawPortrait(cv, H.look); c.append(cv);
-    add('div', 'nm', H.name); add('div', 'role', H.role); add('div', 'txt', H.text);
+    add('div', 'nm', H.name + (switching ? ` · ур. ${id === W.hero ? W.lv : (W.heroes && W.heroes[id] ? W.heroes[id].lv : 1)}` : '')); add('div', 'role', H.role); add('div', 'txt', H.text);
     add('div', 'wk', H.kinds.length ? 'Оружие: ' + H.kinds.map(k => KIND_NAME[k]).join(', ') + '.' : H.soon);
     const cur = switching && id === W.hero; if (cur) c.classList.add('cur');
     const b = add('button', '', cur ? 'Сейчас' : H.open ? 'Выбрать' + (desk ? ' · ' + (i + 1) : '') : 'Скоро'); b.type = 'button'; b.disabled = !H.open || cur;

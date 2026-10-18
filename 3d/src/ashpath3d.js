@@ -51,7 +51,7 @@ export function pathGoal(W) { const i = pathIndex(W), s = PATH[i]; return s.id =
 // что открыто: кузнец и журнал — после первой победы над боссом; наём — с уровня; блок сета — после 2 вещей сета
 export function unlocks(W) {
   const P = W.path || { slain: {} }, boss = Object.keys(P.slain).length > 0 || !W.cfg.path.on;
-  return { smith: boss, journal: boss, squad: !W.cfg.path.on || W.lv >= W.cfg.path.squadLv, sets: !W.cfg.path.on || !!P.sets };
+  return { smith: boss, journal: boss, squad: !W.cfg.path.on || Math.max(W.lv, ...Object.values(W.heroes || {}).map(h => h.lv)) >= W.cfg.path.squadLv, sets: !W.cfg.path.on || !!P.sets };
 }
 // когда откроется закрытый житель — для подсказки
 export const lockedHint = (W, npc) => (npc === 'smith' ? 'Кузнец раздует горн, когда падёт Пожиратель Погоста' : npc === 'captain' ? `Капитан берёт под начало героя с ${W.cfg.path.squadLv}-го уровня` : '');

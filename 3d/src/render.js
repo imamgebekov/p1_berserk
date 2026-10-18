@@ -679,11 +679,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     const m = mergeGeometries(parts, false); parts.forEach(g => g.dispose()); return m;
   }
-  function zap(x1, z1, x2, z2) {
+  function zap(x1, z1, x2, z2, col = '#fff2a0', col2 = '#ffc840', wk = 1) {     // col, col2, wk — цвет, ореол и толщина (копьё бездны — фиолетовое и толще)
     const a = { x: x1, y: 1.2 + Y(x1, z1), z: z1 }, b = { x: x2, y: 1.2 + Y(x2, z2), z: z2 }, L = lightning(a, b, Math.random);
-    const core = new THREE.Mesh(boltGeo(L, .09), new THREE.MeshBasicMaterial({ color: '#fff2a0', transparent: true, opacity: .85, depthWrite: false, blending: THREE.AdditiveBlending }));     // без белой сердцевины (шаг 4)
-    const halo = new THREE.Mesh(boltGeo(L, .34), new THREE.MeshBasicMaterial({ color: '#fff2a0', transparent: true, opacity: .8, depthWrite: false, blending: THREE.AdditiveBlending }));
-    const outer = new THREE.Mesh(boltGeo(L, .8), new THREE.MeshBasicMaterial({ color: '#ffc840', transparent: true, opacity: .3, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const core = new THREE.Mesh(boltGeo(L, .09 * wk), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .85, depthWrite: false, blending: THREE.AdditiveBlending }));     // без белой сердцевины (шаг 4)
+    const halo = new THREE.Mesh(boltGeo(L, .34 * wk), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .8, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const outer = new THREE.Mesh(boltGeo(L, .8 * wk), new THREE.MeshBasicMaterial({ color: col2, transparent: true, opacity: .3, depthWrite: false, blending: THREE.AdditiveBlending }));
     scene.add(core, halo, outer); fxPool.push({ m: core, t: .25, kind: 'bolt' }, { m: halo, t: .25, kind: 'bolt' }, { m: outer, t: .25, kind: 'bolt' });
     fx.flash(b.x, b.y, b.z, 1.8, '#fff6c0');
     for (let i = 0; i < 12; i++) { const q = statusPart('shock', Math.random, 1); fx.emit(b.x, b.y - .4 + q.dy * .5, b.z, q.vx * 1.4, q.vy + 1, q.vz * 1.4, q.color, q.life * 2, 9, .07, true); }
@@ -705,7 +705,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // области реакций стихий: диск цвета смеси и частицы (пар, лава, гололёд, трясина, отравленный источник)
   const EZ = { cloud: ['#4a8a30', '#9ae070', .6], steam: ['#e8eef2', '#ffffff', 2.2], lava: ['#e2683a', '#ffb040', 1.4], glaze: ['#bfe8ff', '#e8f8ff', .3], bog: ['#5a4a2e', '#8a7a4e', .2], spring: ['#5a9a40', '#a8f070', .8] };
   const ezMeshes = [0, 1, 2, 3, 4, 5].map(() => { const m = new THREE.Mesh(new THREE.CircleGeometry(1, 36), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: .3, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(ovl(m)); return m; });
-  const zoneMeshes = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(.92, 1, 40), new THREE.MeshBasicMaterial({ color: '#eef4ff', transparent: true, opacity: .55, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(ovl(m)); return m; });
+  const zoneMeshes = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(.92, 1, 40), new THREE.MeshBasicMaterial({ color: '#eef4ff', transparent: true, opacity: .55, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.add(new THREE.Mesh(new THREE.CircleGeometry(.92, 40), new THREE.MeshBasicMaterial({ color: '#cfe6ff', transparent: true, opacity: .18, side: THREE.DoubleSide, depthWrite: false }))); m.visible = false; scene.add(ovl(m)); return m; });     // вьюга: кольцо и голубая заливка
+  // умения Ирги заметнее (2026-10-18): падающий метеор, пузырь щита маны; вьюга и облако — гуще
+  const meteorMeshes = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(.75, 0), new THREE.MeshBasicMaterial({ color: '#ff7a20', fog: false })); m.visible = false; scene.add(ovl(m)); return m; });
+  const shieldBubble = new THREE.Mesh(new THREE.IcosahedronGeometry(1.15, 1), new THREE.MeshBasicMaterial({ color: '#6a7aff', transparent: true, opacity: .3, depthWrite: false })); shieldBubble.visible = false; scene.add(shieldBubble);
   for (let i = 0; i < 24; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.14, .14, .9), new THREE.MeshBasicMaterial({ color: '#ffd27a' })); m.visible = false; m.userData.k = 'foe'; scene.add(m); projMeshes.push(m); }
   for (let i = 0; i < 6; i++) {
     const ring = new THREE.Mesh(new THREE.RingGeometry(.94, 1, 40), new THREE.MeshBasicMaterial({ color: '#d060ff', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
@@ -716,8 +719,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function updateFoes(W, t) {
     trapMeshes.forEach((g, i) => { const tp = W.traps[i]; g.visible = !!tp; if (tp) g.position.set(tp.x, Y(tp.x, tp.z), tp.z); });
     ezMeshes.forEach((m, i) => { const zn = W.ezones && W.ezones[i]; m.visible = !!zn; if (!zn) return; const c = EZ[zn.kind] || EZ.steam; m.material.color.set(c[0]); m.material.opacity = (zn.kind === 'steam' ? .22 : .38) * Math.min(1, zn.t * 2); m.position.set(zn.x, .05 + Y(zn.x, zn.z), zn.z); m.scale.setScalar(zn.r);
-      if (Math.random() < .6) { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * zn.r, px = zn.x + Math.cos(a) * r, pz = zn.z + Math.sin(a) * r; fx.emit(px, .2 + Y(px, pz), pz, 0, c[2], 0, c[1], zn.kind === 'steam' ? 1.2 : .7, zn.kind === 'steam' ? -.4 : 1, zn.kind === 'steam' ? .35 : .09, zn.kind === 'lava'); } });
-    zoneMeshes.forEach((m, i) => { const zn = W.zones[i]; m.visible = !!zn; if (zn) { m.position.set(zn.x, .06 + Y(zn.x, zn.z), zn.z); m.scale.setScalar(zn.r); if (Math.random() < .5) burst(zn.x + (Math.random() - .5) * zn.r * 1.6, 3.5, zn.z + (Math.random() - .5) * zn.r * 1.6, 1, '#eef4ff', 1); } });
+      for (let k = 0; k < (zn.kind === 'cloud' && !calm ? 3 : 1); k++) if (Math.random() < .6) { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * zn.r, px = zn.x + Math.cos(a) * r, pz = zn.z + Math.sin(a) * r; fx.emit(px, .2 + Y(px, pz), pz, 0, c[2], 0, c[1], zn.kind === 'steam' ? 1.2 : .7, zn.kind === 'steam' ? -.4 : 1, zn.kind === 'steam' ? .35 : zn.kind === 'cloud' ? .26 : .09, zn.kind === 'lava'); } });
+    zoneMeshes.forEach((m, i) => { const zn = W.zones[i]; m.visible = !!zn; if (zn) { m.position.set(zn.x, .06 + Y(zn.x, zn.z), zn.z); m.scale.setScalar(zn.r); for (let k = 0; k < (calm ? 1 : zn.snow ? 4 : 1); k++) { const a = Math.random() * 6.283, rr = Math.sqrt(Math.random()) * zn.r, px = zn.x + Math.cos(a) * rr, pz = zn.z + Math.sin(a) * rr; fx.emit(px, 3.5 + Math.random() * 1.5 + Y(px, pz), pz, Math.sin(t * 3 + a) * 1.2, -3.2, Math.cos(t * 3 + a) * 1.2, '#eef4ff', 1.1, 0, .11, true); } } });     // вьюга: снег кружит по всему кругу
+    meteorMeshes.forEach((m, i) => { const q = W.meteors && W.meteors[i]; m.visible = !!q && (q.lvl || 'surface') === (W.lvl || 'surface'); if (!m.visible) return; const D = cfg.abilities.irga.meteor.delay, k = Math.max(0, q.t / D), gy = Y(q.x, q.z);     // метеор падает за время задержки
+      m.position.set(q.x - k * 5, gy + .6 + k * 16, q.z - k * 3); m.rotation.set(t * 5, t * 3, 0); if (!calm) for (let n = 0; n < 3; n++) fx.emit(m.position.x, m.position.y, m.position.z, (Math.random() - .5) * 1.5 + 2, Math.random() * 1.5 + 3, (Math.random() - .5) * 1.5 + 1, n ? '#ff8a30' : '#ffe27a', .5, 0, .16, true); });
+    { const on = !!(W.abuf && W.abuf.mshield > 0); shieldBubble.visible = on; if (on) { const p = W.player; shieldBubble.position.set(p.x, 1.1 + Y(p.x, p.z), p.z); shieldBubble.rotation.y = t * .6; shieldBubble.material.opacity = calm ? .3 : .28 + Math.sin(t * 5) * .07; } }     // щит маны — пузырь вокруг героя
     projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { const k = q.friendly ? q.kind : 'foe'; if (m.userData.k !== k) { m.userData.k = k; m.material.color.set(k === 'foe' ? '#ffd27a' : k === 'bolt' ? '#b8c4d8' : k === 'venom' ? '#7ad060' : k === 'orb' ? '#c8a8ff' : '#eef4ff'); m.scale.set(k === 'bolt' ? 1.4 : k === 'orb' ? 3.2 : 1, k === 'bolt' ? 1.4 : k === 'orb' ? 3.2 : 1, k === 'bolt' ? .8 : k === 'orb' ? .3 : 1); }
         if (k === 'orb' && !calm && Math.random() < .7) { const c = q.fx ? FXCOL[q.fx] || '#b48aff' : '#b48aff'; fx.emit(q.x, 1.1 + Y(q.x, q.z), q.z, (Math.random() - .5) * .6, .3, (Math.random() - .5) * .6, c, .35, 0, .09, true); } m.position.set(q.x, 1.1 + Y(q.x, q.z), q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });     // свои стрелы светлые, болт толще     // сфера оставляет искры
     hazMeshes.forEach((h, i) => {
@@ -950,7 +956,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'nova') { ringFx(v.x, v.z, v.r, '#bfe8ff'); for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2; burst(v.x + Math.sin(a) * v.r * .8, .8, v.z + Math.cos(a) * v.r * .8, 2, '#e8f8ff', 3); } fx.flash(v.x, 1.2, v.z, 2.4, '#cfeeff'); }
       else if (v.k === 'meteorMark') { ringFx(v.x, v.z, v.r, '#ff6a3a'); burst(v.x, 6, v.z, 10, '#ffb040', 2); }
       else if (v.k === 'meteor') { ringFx(v.x, v.z, v.r, '#ff8a30'); burst(v.x, .8, v.z, 40, '#ff8a30', 7); burst(v.x, .8, v.z, 20, '#ffe27a', 5); fx.flash(v.x, 1.4, v.z, 3.4, '#ffb060'); fx.ash(v.x, .6, v.z, 14, ['#3a302a', '#5a4a40', '#2a2420']); }
-      else if (v.k === 'spear') { zap(v.x, v.z, v.x2, v.z2); burst(v.x2, 1.2, v.z2, 24, '#8a5aff', 6); fx.flash(v.x2, 1.2, v.z2, 2.4, '#b48aff'); }
+      else if (v.k === 'spear') { zap(v.x, v.z, v.x2, v.z2, '#e0c8ff', '#8a5aff', 1.8); for (let i = 1; i < 8; i++) { const k = i / 8; burst(v.x + (v.x2 - v.x) * k, 1.2, v.z + (v.z2 - v.z) * k, 3, '#b48aff', 2); } burst(v.x2, 1.2, v.z2, 24, '#8a5aff', 6); fx.flash(v.x2, 1.2, v.z2, 2.4, '#b48aff'); }
       else if (v.k === 'mshield') burst(v.x, 1.3, v.z, 6, '#7a8aff', 3)
       else if (v.k === 'combo') { hooks.onText && hooks.onText(v.x, 3.6, v.z, 'Связка: ' + v.name + '!', 'crit'); fx.flash(v.x, 1.4, v.z, 2.6, '#ffd27a'); burst(v.x, 1.4, v.z, 18, '#ffe8a8', 4); }
       else if (v.k === 'pulse') ringFx(v.x, v.z, v.r, '#c8a8ff')
