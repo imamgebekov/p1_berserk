@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { makeWeapon } from './weaponview.js';
 import { CFG3 } from './config3d.js';
+import { barrelGeo, blobGeo, coneGeo, panelGeo, mesh, limbV, bakeDeep } from './parts3d.js';
 import { familyOf, stepOf, swingPose, chargePose, REST, gait, bank, strikeBody, rollLand, hitLean, heroDeath, foeDeath, dampK, smoothPose, poseLambda } from './anim3d.js';
 
 const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
@@ -39,6 +40,7 @@ export function makeHero() {
   const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const cloth = M('#6a5148'), skin = M('#cdb89a'), dark = M('#3a2c28'), cape = M('#7a1e26'), legs = M('#4a3a35');
+  if (VOL()) return heroVolume(M, mats, g, root, cloth, skin, dark, cape, legs);     // объёмный вид (2026-10-18); ?boxy — прежние кубики
   const legL = limb(.28, .8, .32, legs, .2, .8, 0), legR = limb(.28, .8, .32, legs, -.2, .8, 0);
   const torso = box(.78, .85, .45, cloth, 0, 1.25, 0);
   const belt = box(.8, .12, .47, M('#2a2422'), 0, .88, 0);
@@ -56,10 +58,45 @@ export function makeHero() {
   const hood = new THREE.Group(); hood.add(box(.54, .2, .54, cape, 0, 2.18, -.02), box(.54, .5, .14, cape, 0, 1.95, -.26)); hood.visible = false;
   const quiver = new THREE.Group(); quiver.position.set(-.18, 1.35, -.34); quiver.rotation.z = .35; quiver.add(box(.18, .7, .18, M('#6a4a2a'), 0, 0, 0), box(.04, .22, .04, M('#d8c8a0'), .04, .45, 0), box(.04, .26, .04, M('#d8c8a0'), -.04, .47, 0)); quiver.visible = false;
   root.add(legL, legR, torso, belt, shoulder, head, hair, hair2, eyeL, eyeR, cloak, swing, armL, hood, quiver);
+  return heroApi(mats, g, root, { legL, legR, cloak, swing, sword, armL, head, shoulder, hood, hair, quiver }, { cloth, cape, dark, legs });
+}
+// объёмный герой: те же шарниры и точки (ноги от бедра 0,8, левая рука от плеча, правая — в группе удара), детали — грани
+const VOL = () => !(CFG3.shapes && CFG3.shapes.volume === false);
+function heroVolume(M, mats, g, root, cloth, skin, dark, cape, legs) {
+  const boot = M('#2e2420'), metalS = M('#5a564e'), leather = M('#4a3626');
+  const foot = () => mesh(blobGeo(.13, .09, .2, 0), boot, 0, .06, .05);
+  const legL = limbV(legs, .19, .8, 0, .8, .15, .12, .1, foot()), legR = limbV(legs, -.19, .8, 0, .8, .15, .12, .1, foot());
+  const torso = new THREE.Group();
+  torso.add(mesh(barrelGeo(.42, .33, .62, 8, .66), cloth, 0, 1.33, 0), mesh(barrelGeo(.33, .35, .26, 8, .7), cloth, 0, .92, 0),     // грудь шире пояса, таз
+    mesh(blobGeo(.26, .1, .17, 1), cloth, 0, 1.64, 0), mesh(barrelGeo(.1, .11, .16, 6), skin, 0, 1.72, .01));                     // плечевой пояс, шея
+  const belt = new THREE.Group(); belt.add(mesh(barrelGeo(.36, .36, .11, 8, .7), leather, 0, 1.03, 0), mesh(blobGeo(.07, .06, .03, 0), metalS, 0, 1.03, .25));
+  const shoulder = new THREE.Group(); shoulder.add(mesh(blobGeo(.25, .17, .27, 1), metalS, .42, 1.62, 0), mesh(blobGeo(.2, .1, .22, 0), metalS, .44, 1.5, 0));     // наплечник
+  const head = new THREE.Group(); head.position.set(0, 1.92, .02);
+  head.add(mesh(blobGeo(.23, .26, .24, 1), skin, 0, 0, 0), mesh(coneGeo(.05, .14, 4), skin, 0, -.02, .25, Math.PI / 2), mesh(blobGeo(.1, .07, .08, 0), skin, 0, -.16, .12),     // голова, нос, подбородок
+    mesh(blobGeo(.035, .035, .02, 0), basic('#1a1210'), .09, .04, .22), mesh(blobGeo(.035, .035, .02, 0), basic('#1a1210'), -.09, .04, .22));
+  const hair = new THREE.Group(); hair.add(mesh(blobGeo(.25, .15, .26, 1), dark, 0, .14, -.03), mesh(blobGeo(.23, .22, .12, 1), dark, 0, -.02, -.17)); head.add(hair);
+  const cloak = new THREE.Group(); cloak.position.set(0, 1.6, -.26); cloak.add(mesh(panelGeo(.5, 1.25, 1.7), cape, 0, -.62, .3));
+  cape.side = THREE.DoubleSide;
+  const swing = new THREE.Group(); swing.position.set(0, 1.55, 0);
+  const sword = new THREE.Group(); sword.position.set(-.48, 0, .12); swing.add(sword);
+  swing.add(mesh(blobGeo(.13, .13, .13, 0), cloth, -.42, .05, 0), mesh(barrelGeo(.08, .1, .34, 6), cloth, -.46, -.05, .06, Math.PI / 2.4));     // правое плечо и рука к рукояти
+  sword.add(mesh(blobGeo(.085, .085, .085, 0), skin, 0, 0, 0));                                                    // кисть на рукояти
+  const armL = limbV(cloth, .5, 1.62, 0, .75, .1, .085, .075, mesh(blobGeo(.085, .085, .085, 0), skin, 0, -.02, 0));
+  const hood = new THREE.Group(); hood.add(mesh(blobGeo(.3, .3, .3, 1), cape, 0, 1.97, -.02), mesh(panelGeo(.32, .5, 2.2), cape, 0, 1.78, 0)); hood.visible = false;
+  const quiver = new THREE.Group(); quiver.position.set(-.18, 1.35, -.34); quiver.rotation.z = .35;
+  quiver.add(mesh(barrelGeo(.1, .09, .7, 6), M('#6a4a2a')), mesh(barrelGeo(.02, .02, .3, 4), M('#d8c8a0'), .04, .45, 0), mesh(barrelGeo(.02, .02, .34, 4), M('#d8c8a0'), -.03, .47, .03), mesh(coneGeo(.05, .12, 3), M('#e8e0d0'), .04, .62, 0));
+  const robe = new THREE.Group(); robe.add(mesh(barrelGeo(.36, .5, .8, 8, .8), cloth, 0, .6, 0), mesh(barrelGeo(.5, .52, .06, 8, .8), M('#2a1e40'), 0, .22, 0)); robe.visible = false;     // мантия (Ирга)
+  root.add(legL, legR, torso, belt, shoulder, head, cloak, swing, armL, hood, quiver, robe);
+  bakeDeep(root);
+  return heroApi(mats, g, root, { legL, legR, cloak, swing, sword, armL, head, shoulder, hood, hair, quiver, robe }, { cloth, cape, dark, legs });
+}
+// общее у обоих видов героя: вспышка, облик, вторая рука, оружие
+function heroApi(mats, g, root, P, C) {
+  const { legL, legR, cloak, swing, sword, armL, head, shoulder, hood, hair, quiver } = P, { cloth, cape, dark, legs } = C;
   const set = f => flasher(mats)(f);
   const h = { group: g, root, legL, legR, cloak, swing, sword, armL, head, flash: set, kind: 'hero', weapon: null, wkey: '', family: 'fists' };
   // вид героя (data/heroes3d.js → look): цвета одежды, плаща, волос; наплечник, капюшон, колчан, длина плаща
-  h.setLook = L => { cloth.color.set(L.cloth); cape.color.set(L.cape); dark.color.set(L.hair); legs.color.set(L.legs); shoulder.visible = L.shoulder; hood.visible = L.hood; hair.visible = !L.hood; quiver.visible = L.quiver; cloak.scale.y = L.capeLen; };
+  h.setLook = L => { cloth.color.set(L.cloth); cape.color.set(L.cape); dark.color.set(L.hair); legs.color.set(L.legs); shoulder.visible = L.shoulder; hood.visible = L.hood; hair.visible = !L.hood; quiver.visible = L.quiver; cloak.scale.y = L.capeLen; if (P.robe) P.robe.visible = !!L.robe; };
   // вторая рука: щит (форма buckler/tower) или второй клинок; key — что надето, null — пусто
   h.okey = ''; h.off = null;
   h.setOff = (key, kind, mat, form) => {
@@ -147,6 +184,7 @@ export function makeMonster(kind, cfg) {
   const body = M(L.body), dark = M(L.dark), bone = M('#d8cfbd');
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const shape = L.shape || kind, hound = shape === 'hound', ghoul = shape === 'ghoul', bones = shape === 'bones';
+  if (VOL()) return monsterVolume(kind, cfg, L, shape, M, mats, body, dark, bone, g, root);     // объёмные (2026-10-18); ?boxy — прежние кубики
   root.add(box(hound ? .6 : bones ? .5 : .8, hound ? .7 : .85, hound ? .8 : bones ? .3 : .55, body, 0, .95, 0));
   if (bones) for (let i = 0; i < 3; i++) root.add(box(.62, .06, .36, dark, 0, .8 + i * .16, 0));     // рёбра
   const head = box(.55, .5, hound ? .7 : .5, body, 0, hound ? 1.45 : 1.65, hound ? .35 : .05); root.add(head);
@@ -171,6 +209,76 @@ export function makeMonster(kind, cfg) {
   return { group: g, root, armL, armR, legL, legR, head, flash: flasher(mats), kind, ember, ghost: !!L.ghost, mats };
 }
 
+// объёмные враги (2026-10-18): шарниры те же (руки, ноги, корень), детали — грани. Бес — сутулый с рогами и хвостом,
+// рогач — горбатая громада с рогами и бивнями, гончая — на четырёх лапах (руки — передние лапы)
+function monsterVolume(kind, cfg, L, shape, M, mats, body, dark, bone, g, root) {
+  const eye = basic(L.eye), claw = M('#d8cfbd');
+  let head, armL, armR, legL, legR, ember = null;
+  const eyes = (y, z, dx) => [mesh(blobGeo(.05, .04, .03, 0), eye, dx, y, z), mesh(blobGeo(.05, .04, .03, 0), eye, -dx, y, z)];
+  const hand = s => { const h = new THREE.Group(); h.add(mesh(blobGeo(.1 * s, .09 * s, .1 * s, 0), body)); for (const x of [-.05, 0, .05]) h.add(mesh(coneGeo(.025 * s, .12 * s, 3), claw, x * s, -.1 * s, .05 * s, Math.PI * .85)); return h; };
+  if (shape === 'hound') {
+    root.add(mesh(blobGeo(.32, .3, .58, 1), body, 0, .98, -.05), mesh(blobGeo(.28, .3, .3, 1), body, 0, 1.08, .3),     // туловище, грудь
+      mesh(barrelGeo(.05, .09, .6, 5), body, 0, 1.0, -.72, -Math.PI / 2.6), mesh(blobGeo(.08, .07, .2, 0), dark, 0, 1.14, -.98));     // хвост
+    head = new THREE.Group(); head.position.set(0, 1.42, .52);
+    head.add(mesh(blobGeo(.2, .19, .22, 1), body), mesh(barrelGeo(.09, .13, .3, 6, .85), body, 0, -.05, .26, Math.PI / 2), mesh(blobGeo(.05, .04, .04, 0), dark, 0, -.02, .42),     // голова, морда, нос
+      mesh(coneGeo(.07, .2, 4), dark, .12, .2, -.04, -.2, 0, -.3), mesh(coneGeo(.07, .2, 4), dark, -.12, .2, -.04, -.2, 0, .3), ...eyes(.06, .17, .09),
+      mesh(coneGeo(.02, .08, 3), claw, .05, -.14, .3, Math.PI), mesh(coneGeo(.02, .08, 3), claw, -.05, -.14, .3, Math.PI));     // уши, глаза, клыки
+    root.add(head);
+    const paw = () => mesh(blobGeo(.09, .06, .12, 0), dark, 0, .04, .04);
+    armL = limbV(body, .2, .82, .38, .8, .1, .075, .06, paw()); armR = limbV(body, -.2, .82, .38, .8, .1, .075, .06, paw());     // передние лапы
+    legL = limbV(dark, .2, .72, -.42, .68, .13, .08, .06, paw()); legR = limbV(dark, -.2, .72, -.42, .68, .13, .08, .06, paw());
+  } else if (shape === 'brute') {
+    root.add(mesh(barrelGeo(.5, .36, .78, 8, .78), body, 0, 1.08, .02, .18), mesh(barrelGeo(.36, .38, .3, 8, .8), dark, 0, .66, 0),     // горбатый торс, бёдра
+      mesh(blobGeo(.25, .17, .24, 1), body, .5, 1.38, 0), mesh(blobGeo(.25, .17, .24, 1), body, -.5, 1.38, 0), mesh(blobGeo(.3, .16, .24, 1), body, 0, 1.44, -.14),     // плечи и загривок — плоские, не шары
+      mesh(panelGeo(.37, .34, 1.4, 4), dark, 0, .55, .02), mesh(barrelGeo(.38, .38, .1, 8, .8), M('#3a2a1e'), 0, .78, 0));     // набедренная повязка и пояс
+    head = new THREE.Group(); head.position.set(0, 1.56, .28);
+    head.add(mesh(blobGeo(.24, .22, .24, 1), body), mesh(blobGeo(.17, .1, .14, 0), dark, 0, -.12, .14), ...eyes(.03, .2, .09),     // голова, челюсть
+      mesh(coneGeo(.07, .42, 5), bone, .2, .22, -.02, -.2, 0, -.6), mesh(coneGeo(.07, .42, 5), bone, -.2, .22, -.02, -.2, 0, .6),     // рога
+      mesh(coneGeo(.035, .14, 4), bone, .1, -.1, .22, -.4), mesh(coneGeo(.035, .14, 4), bone, -.1, -.1, .22, -.4));     // бивни
+    root.add(head);
+    armL = limbV(body, .58, 1.36, 0, .8, .15, .12, .14, hand(1.5)); armR = limbV(body, -.58, 1.36, 0, .8, .15, .12, .14, hand(1.5));
+    legL = limbV(dark, .24, .58, 0, .58, .17, .14, .12, mesh(blobGeo(.16, .08, .2, 0), dark, 0, .04, .04)); legR = limbV(dark, -.24, .58, 0, .58, .17, .14, .12, mesh(blobGeo(.16, .08, .2, 0), dark, 0, .04, .04));
+  } else if (shape === 'ghoul') {     // упырь: тощий, сгорбленный, длинные руки до земли, лохмотья
+    root.add(mesh(barrelGeo(.28, .2, .7, 7, .7), body, 0, 1.1, .1, .45), mesh(barrelGeo(.2, .24, .3, 7, .7), dark, 0, .72, 0),
+      ...[0, 1, 2].map(i => mesh(barrelGeo(.27 - i * .02, .27 - i * .02, .04, 7, .72), dark, 0, 1.0 + i * .14, .1 + i * .05, .45)),     // рёбра
+      mesh(panelGeo(.3, .7, 2.2, 5), dark, 0, 1.15, -.05, .3));     // рваный плащ на спине
+    head = new THREE.Group(); head.position.set(0, 1.52, .42);
+    head.add(mesh(blobGeo(.2, .22, .2, 1), body), mesh(blobGeo(.14, .07, .12, 0), dark, 0, -.15, .08), ...eyes(.02, .17, .08),
+      mesh(blobGeo(.24, .12, .24, 1), dark, 0, .16, -.03));     // впалая голова, челюсть, капюшон-лохмотья
+    root.add(head);
+    const longHand = () => { const h = new THREE.Group(); h.add(mesh(blobGeo(.08, .07, .08, 0), body)); for (const x of [-.04, 0, .04]) h.add(mesh(coneGeo(.02, .2, 3), claw, x, -.13, .04, Math.PI * .9)); return h; };
+    armL = limbV(body, .42, 1.36, .2, 1.05, .07, .055, .05, longHand()); armR = limbV(body, -.42, 1.36, .2, 1.05, .07, .055, .05, longHand());
+    legL = limbV(dark, .16, .62, 0, .62, .08, .06, .05, mesh(blobGeo(.07, .05, .13, 0), dark, 0, .03, .05), -.25); legR = limbV(dark, -.16, .62, 0, .62, .08, .06, .05, mesh(blobGeo(.07, .05, .13, 0), dark, 0, .03, .05), -.25);
+  } else if (shape === 'bones') {     // скелет: рёбра, позвоночник, череп с пустыми глазницами, тонкие кости
+    root.add(mesh(barrelGeo(.05, .05, .7, 5), bone, 0, 1.0, -.08), mesh(barrelGeo(.2, .22, .16, 6, .7), bone, 0, .68, 0),     // позвоночник, таз
+      ...[0, 1, 2, 3].map(i => mesh(barrelGeo(.24 - i * .025, .26 - i * .025, .05, 7, .65), bone, 0, .95 + i * .13, 0)), mesh(barrelGeo(.32, .3, .07, 7, .6), bone, 0, 1.42, 0));
+    head = new THREE.Group(); head.position.set(0, 1.66, .04);
+    head.add(mesh(blobGeo(.2, .22, .21, 1), bone), mesh(blobGeo(.12, .06, .1, 0), bone, 0, -.17, .08), mesh(blobGeo(.06, .06, .03, 0), dark, .08, .02, .18), mesh(blobGeo(.06, .06, .03, 0), dark, -.08, .02, .18), ...eyes(.02, .19, .08));
+    root.add(head);
+    const bh = () => mesh(blobGeo(.06, .07, .06, 0), bone);
+    armL = limbV(bone, .36, 1.38, 0, .95, .045, .04, .035, bh()); armR = limbV(bone, -.36, 1.38, 0, .95, .045, .04, .035, bh());
+    legL = limbV(bone, .14, .62, 0, .62, .05, .045, .04, mesh(blobGeo(.07, .04, .12, 0), bone, 0, .03, .04)); legR = limbV(bone, -.14, .62, 0, .62, .05, .045, .04, mesh(blobGeo(.07, .04, .12, 0), bone, 0, .03, .04));
+  } else {
+    root.add(mesh(barrelGeo(.34, .26, .62, 7, .72), body, 0, 1.08, .02, .22), mesh(blobGeo(.27, .22, .22, 1), body, 0, .78, .04),     // сутулый торс, пузо
+      mesh(barrelGeo(.03, .07, .7, 4), dark, 0, .75, -.42, -Math.PI / 2.2), mesh(coneGeo(.07, .14, 3), dark, 0, .64, -.78, -Math.PI / 1.7));     // хвост с жалом
+    head = new THREE.Group(); head.position.set(0, 1.6, .16);
+    head.add(mesh(blobGeo(.22, .21, .21, 1), body), mesh(coneGeo(.08, .18, 4), body, 0, -.08, .2, Math.PI / 2.2), ...eyes(.03, .18, .08),     // голова, морда
+      mesh(coneGeo(.05, .3, 4), bone, .12, .22, 0, -.3, 0, -.35), mesh(coneGeo(.05, .3, 4), bone, -.12, .22, 0, -.3, 0, .35),     // рожки
+      mesh(coneGeo(.05, .2, 3), body, .22, .04, -.02, 0, 0, -1.4), mesh(coneGeo(.05, .2, 3), body, -.22, .04, -.02, 0, 0, 1.4));     // острые уши
+    root.add(head);
+    armL = limbV(body, .42, 1.3, .05, .78, .08, .065, .055, hand(1)); armR = limbV(body, -.42, 1.3, .05, .78, .08, .065, .055, hand(1));
+    legL = limbV(dark, .17, .62, 0, .62, .11, .08, .065, mesh(blobGeo(.08, .06, .13, 0), dark, 0, .04, .05), -.2); legR = limbV(dark, -.17, .62, 0, .62, .11, .08, .065, mesh(blobGeo(.08, .06, .13, 0), dark, 0, .04, .05), -.2);
+  }
+  if (L.crown) { const cm = basic(L.crown); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; head.add(mesh(coneGeo(.05, .3 + (i % 2) * .1, 4), cm, Math.cos(a) * .2, .28, Math.sin(a) * .2)); } head.add(mesh(barrelGeo(.24, .24, .08, 8), cm, 0, .2, 0)); }     // корона босса
+  if (L.prop === 'shield') { const sm = M('#6a645a'), rim = M('#3a342c'); root.add(mesh(barrelGeo(.55, .55, .12, 8), sm, 0, 1.05, .62, Math.PI / 2), mesh(barrelGeo(.58, .58, .06, 8), rim, 0, 1.05, .56, Math.PI / 2), mesh(blobGeo(.12, .12, .08, 0), rim, 0, 1.05, .7)); }
+  if (L.prop === 'ember') { ember = basic('#ff7a20'); root.add(mesh(blobGeo(.2, .17, .08, 1), ember, 0, .82, .22)); }     // тлеющее пузо
+  if (L.prop === 'spear') { const al = .95, wood = M('#5a3e26'), tip = M('#b8b4a8'); armR.add(mesh(barrelGeo(.035, .035, 2.6, 5), wood, 0, -al, .6, Math.PI / 2), mesh(coneGeo(.07, .4, 4), tip, 0, -al, 1.95, Math.PI / 2)); }     // копьё скелета
+  root.add(armL, armR, legL, legR);
+  bakeDeep(root);
+  if (L.ghost) for (const m of mats) { m.transparent = true; m.opacity = .55; m.depthWrite = false; }
+  const s = cfg.enemies[kind].scale; g.scale.set(s, s, s);
+  return { group: g, root, armL, armR, legL, legR, head, flash: flasher(mats), kind, ember, ghost: !!L.ghost, mats };
+}
 export function animateMonster(m, e, time, cfg, hx, hz) {
   if (hx !== undefined && e.flash > 0 && !m.hitSet) { m.hitA = Math.atan2(hx - e.x, hz - e.z) - e.face; m.hitSet = true; } else if (!(e.flash > 0)) m.hitSet = false;     // откуда ударили (G5)
   const C = cfg.enemies[e.type];
@@ -292,6 +400,7 @@ export function makeCampfire() {
 
 // торговец: человек в фартуке и шляпе, стоит за прилавком и поворачивается к герою
 export function makeNpc(kind = 'merchant', tint = '#5a4a3a') {
+  if (VOL()) return npcVolume(kind, tint);
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const smith = kind === 'smith', cap = kind === 'captain', wand = kind === 'wanderer', trav = kind === 'traveler', m = c => lam(c);
   root.add(box(.5, .8, .3, m(smith ? '#2a2420' : '#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : trav ? '#4a5a34' : tint), 0, 1.25, 0), box(.5, .5, .42, m(smith ? '#2a2420' : '#8a7a62'), 0, smith ? 1.1 : 1.0, .02), box(.42, .42, .42, m(smith ? '#b89a7a' : '#cdb89a'), 0, 1.95, 0));
@@ -306,8 +415,78 @@ export function makeNpc(kind = 'merchant', tint = '#5a4a3a') {
   return { group: g, root, armL, armR };
 }
 
+// объёмные жители и торговцы (2026-10-18): торговец в балахоне и шляпе, кузнец в фартуке с молотом, капитан в шлеме с копьём,
+// сказочный торговец в остроконечной шляпе, путник с котомкой, житель в шапке
+function npcVolume(kind, tint) {
+  const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
+  const smith = kind === 'smith', cap = kind === 'captain', wand = kind === 'wanderer', trav = kind === 'traveler', m = c => lam(c);
+  const coat = m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : trav ? '#4a5a34' : tint), legs = m(smith ? '#2a2420' : '#4a3a2c'), skin = m(smith ? '#b89a7a' : '#cdb89a'), dark = m('#2a1c12');
+  const leg = s => limbV(legs, s * .14, .78, 0, .78, .11, .09, .08, mesh(blobGeo(.1, .07, .15, 0), dark, 0, .05, .04));
+  root.add(leg(1), leg(-1), mesh(barrelGeo(.36, .4, .82, 8, .72), coat, 0, 1.22, 0), mesh(barrelGeo(.34, .44, .5, 8, .74), coat, 0, .82, 0),     // туловище и полы
+    mesh(barrelGeo(.37, .37, .08, 8, .72), dark, 0, 1.0, 0), mesh(barrelGeo(.09, .1, .14, 6), skin, 0, 1.68, 0));     // пояс, шея
+  const head = new THREE.Group(); head.position.set(0, 1.92, .02);
+  head.add(mesh(blobGeo(.21, .24, .22, 1), skin), mesh(coneGeo(.045, .12, 4), skin, 0, -.02, .23, Math.PI / 2), mesh(blobGeo(.03, .03, .02, 0), basic('#1a1210'), .08, .04, .2), mesh(blobGeo(.03, .03, .02, 0), basic('#1a1210'), -.08, .04, .2));
+  if (smith || kind === 'merchant') head.add(mesh(blobGeo(.18, .16, .12, 1), m(smith ? '#3a2a1e' : '#6a5a4a'), 0, -.14, .1));     // борода
+  if (cap) { const mt = m('#8a8f98'); head.add(mesh(blobGeo(.26, .2, .26, 1), mt, 0, .1, -.01), mesh(coneGeo(.06, .36, 4), m('#a1121f'), 0, .42, -.02)); root.add(mesh(barrelGeo(.035, .035, 1.9, 5), m('#6a5a46'), .62, 1.0, .1), mesh(coneGeo(.07, .3, 4), mt, .62, 2.08, .1)); }     // шлем с плюмажем, копьё
+  else if (kind === 'villager') head.add(mesh(blobGeo(.23, .1, .23, 1), m('#3a2a1e'), 0, .17, 0));
+  else if (trav) { head.add(mesh(barrelGeo(.33, .33, .04, 8), m('#3a2a1a'), 0, .18, 0), mesh(barrelGeo(.17, .2, .16, 8), m('#3a2a1a'), 0, .26, 0)); root.add(mesh(blobGeo(.2, .3, .15, 1), m('#6a4a2a'), 0, 1.3, -.34)); }
+  else if (wand) { const hat = m('#2e1e48'); head.add(mesh(barrelGeo(.42, .42, .04, 9), hat, 0, .16, 0), mesh(coneGeo(.22, .7, 7), hat, .04, .5, -.04, -.2), mesh(blobGeo(.07, .07, .07, 0), m('#c8a04a'), .1, .82, -.12)); }     // остроконечная шляпа
+  else if (smith) { root.add(mesh(panelGeo(.38, .8, 1.6, 4), m('#4a3628'), 0, 1.08, .02)); }     // фартук
+  else { const hat = m('#2a1c12'); head.add(mesh(barrelGeo(.38, .38, .04, 8), hat, 0, .17, 0), mesh(barrelGeo(.2, .23, .2, 8), hat, 0, .28, 0)); }     // шляпа торговца
+  root.add(head);
+  const hand = () => mesh(blobGeo(.08, .08, .08, 0), skin);
+  const armL = limbV(coat, .44, 1.6, 0, .7, .1, .085, .075, hand()), armR = limbV(coat, -.44, 1.6, 0, .7, .1, .085, .075, hand());
+  if (smith) armR.add(mesh(barrelGeo(.035, .035, .5, 5), m('#5a3e26'), 0, -.72, .15, Math.PI / 2.4), mesh(blobGeo(.12, .09, .09, 0), m('#6a645c'), 0, -.7, .38));     // молот
+  root.add(armL, armR); bakeDeep(root);
+  return { group: g, root, armL, armR };
+}
+
+// объёмные звери (2026-10-18): голова — своя группа (олень наклоняет её к траве), ноги — шарниры для шага
+function beastVolume(kind) {
+  const g = new THREE.Group(), legs = [], head = new THREE.Group();
+  const leg = (mat, x, y, z, r, end) => { const l = limbV(mat, x, y, z, y, r, r * .8, r * .7, end); g.add(l); legs.push(l); };
+  if (kind === 'deer') {
+    const fur = lam('#8a5a32'), pale = lam('#d8c8a8'), dark = lam('#3a2616');
+    g.add(mesh(blobGeo(.27, .27, .6, 1), fur, 0, 1.02, 0), mesh(barrelGeo(.12, .17, .5, 6), fur, 0, 1.38, .5, -.5), mesh(blobGeo(.12, .1, .07, 0), pale, 0, 1.06, -.6));     // туловище, шея, хвост
+    head.position.set(0, 1.62, .66); head.add(mesh(blobGeo(.13, .13, .17, 1), fur), mesh(barrelGeo(.06, .09, .2, 5), fur, 0, -.04, .17, Math.PI / 2), mesh(blobGeo(.03, .03, .03, 0), dark, 0, -.03, .28),
+      ...[1, -1].flatMap(s => [mesh(barrelGeo(.02, .025, .38, 4), dark, s * .08, .25, -.02, 0, 0, -s * .3), mesh(barrelGeo(.015, .02, .2, 4), dark, s * .17, .38, -.02, 0, 0, -s * 1.1), mesh(coneGeo(.04, .12, 3), fur, s * .12, .08, -.06, 0, 0, -s * 1.2)]));     // рога и уши
+    for (const [x, z] of [[-.15, -.4], [.15, -.4], [-.15, .4], [.15, .4]]) leg(fur, x, .82, z, .06, mesh(blobGeo(.05, .04, .06, 0), dark, 0, .03, .02));
+  } else if (kind === 'fox') {
+    const fur = lam('#c8642a'), pale = lam('#f0e4d0'), dark = lam('#2a1a12');
+    g.add(mesh(blobGeo(.15, .15, .34, 1), fur, 0, .44, 0), mesh(barrelGeo(.02, .1, .5, 6), fur, 0, .5, -.48, -Math.PI / 2.3), mesh(blobGeo(.07, .07, .1, 0), pale, 0, .58, -.74));     // туловище, пушистый хвост
+    head.position.set(0, .58, .36); head.add(mesh(blobGeo(.11, .1, .11, 1), fur), mesh(coneGeo(.06, .18, 4), pale, 0, -.03, .13, Math.PI / 2), mesh(blobGeo(.025, .025, .025, 0), dark, 0, -.03, .23), mesh(coneGeo(.04, .12, 3), dark, .07, .12, -.02), mesh(coneGeo(.04, .12, 3), dark, -.07, .12, -.02));
+    for (const [x, z] of [[-.08, -.2], [.08, -.2], [-.08, .2], [.08, .2]]) leg(dark, x, .32, z, .035, null);
+  } else if (kind === 'goat') {
+    const fur = lam('#d8d0c0'), dark = lam('#5a4a3a'), horn = lam('#8a7a62');
+    g.add(mesh(blobGeo(.22, .22, .42, 1), fur, 0, .8, 0), mesh(barrelGeo(.09, .12, .3, 6), fur, 0, 1.02, .38, -.6));
+    head.position.set(0, 1.12, .55); head.add(mesh(blobGeo(.1, .11, .14, 1), fur), mesh(blobGeo(.04, .1, .04, 0), dark, 0, -.12, .07), mesh(coneGeo(.04, .3, 4), horn, .06, .17, -.08, -.6), mesh(coneGeo(.04, .3, 4), horn, -.06, .17, -.08, -.6));     // борода, рога назад
+    for (const [x, z] of [[-.12, -.28], [.12, -.28], [-.12, .28], [.12, .28]]) leg(dark, x, .62, z, .05, null);
+  } else if (kind === 'heron') {
+    const gray = lam('#a8acb0'), pale = lam('#e8ecec'), dark = lam('#3a3a3a'), beak = lam('#d8a83a');
+    g.add(mesh(blobGeo(.15, .15, .28, 1), gray, 0, 1.12, 0), mesh(blobGeo(.12, .05, .18, 0), dark, 0, 1.18, -.2), mesh(barrelGeo(.035, .05, .5, 5), pale, 0, 1.42, .18, .35));
+    head.position.set(0, 1.7, .28); head.add(mesh(blobGeo(.06, .06, .08, 0), pale), mesh(coneGeo(.025, .3, 4), beak, 0, -.02, .19, Math.PI / 2), mesh(coneGeo(.015, .14, 3), dark, 0, .04, -.1, -Math.PI / 2));
+    for (const x of [-.06, .06]) leg(dark, x, .98, 0, .018, null);
+  } else if (kind === 'duck') {
+    const body = lam('#7a5a3a'), green = lam('#2a6a4a'), beak = lam('#d8a83a'), pale = lam('#e8e0d0');
+    g.add(mesh(blobGeo(.15, .09, .22, 1), body, 0, .08, 0), mesh(blobGeo(.14, .03, .06, 0), pale, 0, .13, .04), mesh(coneGeo(.05, .1, 3), body, 0, .12, -.22, -Math.PI / 2.4));
+    head.position.set(0, .24, .14); head.add(mesh(blobGeo(.07, .07, .08, 0), green), mesh(blobGeo(.04, .02, .06, 0), beak, 0, -.01, .09));
+  } else {     // заяц
+    const fur = lam('#9a8a6a'), pale = lam('#e8e0d0');
+    g.add(mesh(blobGeo(.14, .14, .22, 1), fur, 0, .3, 0), mesh(blobGeo(.06, .06, .05, 0), pale, 0, .34, -.22));
+    head.position.set(0, .44, .2); head.add(mesh(blobGeo(.09, .09, .1, 1), fur), mesh(blobGeo(.03, .14, .05, 0), fur, .04, .17, -.03), mesh(blobGeo(.03, .14, .05, 0), fur, -.04, .17, -.03));
+    for (const [x, z] of [[-.08, -.12], [.08, -.12], [-.06, .12], [.06, .12]]) leg(fur, x, .2, z, .04, null);
+  }
+  g.add(head); bakeDeep(g);
+  return { group: g, legs, head };
+}
+
 // ворона: тело и два крыла (крылья машут в полёте)
 export function makeCrow() {
+  if (VOL()) { const g = new THREE.Group(), black = lam('#141012'), beak = lam('#3a3020');     // объёмная ворона
+    g.add(mesh(blobGeo(.12, .11, .22, 1), black, 0, .18, 0), mesh(blobGeo(.09, .09, .1, 0), black, 0, .32, .2), mesh(coneGeo(.03, .12, 4), beak, 0, .31, .32, Math.PI / 2), mesh(coneGeo(.07, .18, 4), black, 0, .2, -.26, -Math.PI / 2));
+    const wl = new THREE.Group(), wr = new THREE.Group(); wl.position.set(.08, .22, 0); wr.position.set(-.08, .22, 0);
+    wl.add(mesh(blobGeo(.22, .025, .13, 0), black, .2, 0, 0)); wr.add(mesh(blobGeo(.22, .025, .13, 0), black, -.2, 0, 0)); g.add(wl, wr); bakeDeep(g);
+    return { group: g, wl, wr }; }
   const g = new THREE.Group(), black = lam('#141012');
   g.add(box(.22, .2, .42, black, 0, .16, 0), box(.16, .16, .18, black, 0, .3, .22), box(.06, .05, .12, lam('#3a3020'), 0, .28, .36));
   const wl = new THREE.Group(), wr = new THREE.Group(); wl.position.set(.1, .22, 0); wr.position.set(-.1, .22, 0);
@@ -317,6 +496,7 @@ export function makeCrow() {
 
 // звери (G2): олень и заяц из коробок; legs — ноги для шага
 export function makeBeast(kind) {
+  if (VOL()) return beastVolume(kind);
   const g = new THREE.Group(), legs = [];
   if (kind === 'deer') {
     const fur = lam('#8a5a32'), pale = lam('#d8c8a8'), dark = lam('#3a2616');
@@ -367,6 +547,22 @@ export function makeSoldier(type, cfg) {
   const M = c => { const m = lam(c); mats.push(m); return m; };
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const tint = M(T.tint), metal = M('#8a8f98'), skin = M('#cdb89a'), dark = M('#2a2420'), cloth = M('#4a3a2c');
+  if (VOL()) {     // объёмный боец (2026-10-18): страж с алебардой, солдат с мечом и щитом, ветеран с двуручником и плюмажем
+    root.add(mesh(barrelGeo(.36, .3, .7, 8, .7), tint, 0, 1.28, 0), mesh(barrelGeo(.32, .32, .1, 8, .7), dark, 0, .92, 0), mesh(barrelGeo(.3, .32, .2, 8, .7), cloth, 0, .8, 0),
+      mesh(blobGeo(.17, .12, .2, 0), metal, .36, 1.55, 0), mesh(blobGeo(.17, .12, .2, 0), metal, -.36, 1.55, 0), mesh(blobGeo(.2, .22, .2, 1), skin, 0, 1.86, 0));
+    if (type === 'guard') root.add(mesh(barrelGeo(.32, .32, .04, 8), metal, 0, 1.98, 0), mesh(blobGeo(.2, .14, .2, 1), metal, 0, 2.04, 0));     // шляпа-шапель
+    else if (type === 'soldier') root.add(mesh(blobGeo(.23, .2, .23, 1), metal, 0, 2.0, -.01), mesh(barrelGeo(.03, .03, .2, 4), metal, 0, 1.88, .21));     // шлем с наносником
+    else root.add(mesh(blobGeo(.24, .22, .24, 1), M('#1a1a1e'), 0, 1.99, 0), mesh(coneGeo(.06, .38, 4), M('#a1121f'), 0, 2.32, -.04));     // ветеран: чёрный шлем, красный плюмаж
+    const hand = () => mesh(blobGeo(.075, .075, .075, 0), skin);
+    const armL = limbV(tint, .42, 1.55, 0, .7, .09, .08, .07, hand()), armR = limbV(tint, -.42, 1.55, 0, .7, .09, .08, .07, hand());
+    const leg = s => limbV(cloth, s * .15, .74, 0, .74, .12, .1, .085, mesh(blobGeo(.1, .07, .15, 0), dark, 0, .05, .04));
+    const legL = leg(1), legR = leg(-1);
+    if (type === 'guard') armR.add(mesh(barrelGeo(.03, .03, 2.1, 5), M('#6a5a46'), 0, -.2, .25), mesh(coneGeo(.06, .3, 4), metal, 0, .98, .25), mesh(blobGeo(.14, .1, .03, 0), metal, .08, .78, .25));
+    else if (type === 'soldier') { armR.add(mesh(barrelGeo(.04, .03, 1.0, 4, 2.5), metal, 0, -.55, .3)); armL.add(mesh(barrelGeo(.32, .32, .06, 8), tint, .1, -.35, .15, 0, 0, Math.PI / 2), mesh(blobGeo(.09, .09, .05, 0), metal, .14, -.35, .15)); }
+    else armR.add(mesh(barrelGeo(.05, .035, 1.7, 4, 2.2), metal, 0, -.45, .3), mesh(barrelGeo(.04, .04, .34, 4), dark, 0, .35, .3, 0, 0, Math.PI / 2));
+    root.add(armL, armR, legL, legR); bakeDeep(root);
+    return { group: g, root, armL, armR, legL, legR, flash: f => { for (const m of mats) m.emissive.setRGB(f, f * .8, f * .8); } };
+  }
   root.add(box(.62, .8, .38, tint, 0, 1.25, 0), box(.64, .12, .4, dark, 0, .88, 0), box(.4, .4, .4, skin, 0, 1.85, 0));
   const helm = type === 'guard' ? box(.46, .22, .46, metal, 0, 2.08, 0) : type === 'soldier' ? box(.46, .34, .46, metal, 0, 2.05, 0) : box(.5, .4, .5, M('#1a1a1e'), 0, 2.06, 0);
   root.add(helm);

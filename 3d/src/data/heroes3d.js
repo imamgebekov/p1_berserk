@@ -28,7 +28,7 @@ export const HEROES = {
     name: 'Ирга', role: 'Ведунья',
     text: 'Носит только лёгкую броню, зато владеет стихиями: огонь, лёд, молния и яд по площади, одно мощное копьё по одной цели. Посохи и жезлы.',
     kinds: ['staff', 'wand'], off: [], start: 'w_staff_rust', armorBan: ['helm', 'sallet', 'cuirass', 'mail', 'plate', 'greaves'],     // лёгкая броня: без шлемов, кирас, кольчуг, лат и поножей
-    look: { cloth: '#3e2e5e', cape: '#2a1e48', hair: '#d8d0c0', legs: '#3e2e5e', shoulder: false, hood: true, quiver: false, capeLen: 1.15 },
+    look: { cloth: '#3e2e5e', cape: '#2a1e48', hair: '#d8d0c0', legs: '#3e2e5e', shoulder: false, hood: true, quiver: false, capeLen: 1.15, robe: true },     // robe — мантия до пят (объёмный вид)
     open: true
   }
 };

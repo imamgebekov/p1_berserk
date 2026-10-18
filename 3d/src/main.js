@@ -40,6 +40,7 @@ const $ = id => document.getElementById(id);
 applyIcons(document);     // иконки-силуэты вместо эмодзи в кнопках разметки (шаг 10)
 $('keysMore').addEventListener('click', () => { const p = $('keysAll'); p.hidden = !p.hidden; $('keysMore').setAttribute('aria-expanded', String(!p.hidden)); });     // все клавиши по «?»
 const defaults = JSON.parse(JSON.stringify(CFG3));
+if (new URLSearchParams(location.search).has('boxy')) CFG3.shapes.volume = false;     // ?boxy — прежние модели из кубиков (сравнение)
 const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
