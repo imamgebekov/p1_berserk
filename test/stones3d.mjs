@@ -5,8 +5,8 @@ import { BY_ID, CATALOG } from '../3d/src/data/items.js';
 import { createWorld, step, spawnEnemy, killEnemy, dropItem, refreshGear, switchHero } from '../3d/src/sim.js';
 import { equipAt, unequip, serialize, deserialize, socketsOf, createInv } from '../3d/src/inv.js';
 import { sellItem } from '../3d/src/economy3d.js';
-import { gemDropOf, socketGem, unsocketGem, fuseGems, gemsAt, weaponMix, gemId } from '../3d/src/stones3d.js';
-import { applyStatus } from '../3d/src/status3d.js';
+import { gemDropOf, socketGem, unsocketGem, fuseGems, gemsAt, weaponMix, gemId, armorGemFx } from '../3d/src/stones3d.js';
+import { applyStatus, applyPlayer } from '../3d/src/status3d.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const S = CFG3.stones, MAX = 40;
@@ -22,7 +22,7 @@ const RARE = 'w_sword_steel_storm', PLAIN3 = 'w_sword_black', TWO = CATALOG.find
 // ---------- 1. каталог и гнёзда ----------
 { const g = CATALOG.filter(i => i.cat === 'gem'); ok(g.length === 21 && new Set(g.map(i => i.gem)).size === 7 && g.every(i => i.rank >= 1 && i.rank <= 3 && i.text && i.stack === 20), 'камней не 7 × 3 или у камня нет текста');
   ok(BY_ID[gemId('fire', 1)].name === 'Осколок огня' && BY_ID[gemId('storm', 3)].name === 'Сердце молнии', 'имена камней');
-  ok([0, 1, 2, 3, 4, 5].every(r => socketsOf({ slot: 'weapon', rar: r }, CFG3) === S.sockets[r]) && socketsOf({ slot: 'body', rar: 5 }, CFG3) === 0, 'гнёзда по редкости неверны'); }
+  ok([0, 1, 2, 3, 4, 5].every(r => socketsOf({ slot: 'weapon', rar: r }, CFG3) === S.sockets[r]) && socketsOf({ slot: 'ring', rar: 5 }, CFG3) === 0, 'гнёзда по редкости неверны (у колец гнёзд нет)'); }
 
 // ---------- 2. выпадение ----------
 { const W = mk(); let n = 0, rngCalls = 0; const r0 = W.rng; W.rng = () => { rngCalls++; return r0(); };
@@ -86,6 +86,19 @@ const hitWith = (weapon, gems, setup) => { const W = mk(weapon, 0); W.inv.gem.we
 { const W = mk(TWO, 0); W.inv.gem.weapon = [gemId('blood', 1), gemId('blood', 1)]; refreshGear(W); const e = foe(W, 1.6, 0); W.player.hp = 10; W.player.maxhp = 1000;
   for (let i = 0; i < 50; i++) step(W, 1 / 60, { attack: i < 2 }); ok(W.player.hp > 10, '«Жажда» не лечит ударом'); void e; }
 { const r = hitWith('w_sword_steel', []); ok(!r.ev.some(v => v.k === 'react' || v.k === 'mix'), 'оружие без камней даёт сплав'); }
+
+// ---------- гнёзда в броне (2026-10-18) ----------
+{ const A = CFG3.stones.armor, ar = r => CATALOG.find(i => i.slot === 'body' && i.rar === r && i.stats);
+  ok([0, 1, 2, 3, 4].every(r => !ar(r) || socketsOf(ar(r), CFG3) === A.sockets[r]) && socketsOf(BY_ID.r_ring_might, CFG3) === 0, 'гнёзд в броне не столько, сколько задано (кольцо — без гнёзд)');
+  const body = CATALOG.find(i => i.slot === 'body' && i.rar === 4 && i.stats).id, W = mk(); W.inv.eq.body = body; W.nearNpc = 'smith'; refreshGear(W);
+  const hp0 = W.gear.hp, dmg0 = W.gear.dmg; W.inv.bag.push({ id: gemId('earth', 3), n: 1 }, { id: gemId('venom', 2), n: 1 });
+  ok(socketGem(W, { slot: 'body' }, 0, gemId('earth', 3)) === 'ok' && socketGem(W, { slot: 'body' }, 1, gemId('venom', 2)) === 'ok', 'камень не вставился в доспех');
+  refreshGear(W); ok(W.gear.hp === hp0 + A.stat.earth[1][2] && W.gear.crit >= A.stat.venom[1][1] && W.gear.dmg === dmg0, `камни в доспехе не дали характеристик: здоровье ${hp0} → ${W.gear.hp}`);
+  ok(W.gear.res.poison === A.res[1] && !W.gear.res.burn, 'яд в доспехе не защищает от яда');
+  W.pst = {}; applyPlayer(W, 'poison', 10, 5); ok(Math.abs(W.pst.poison.dps - 10 * (1 - A.res[1])) < 1e-9, 'яд на герое не ослаб: ' + W.pst.poison.dps);
+  const back = deserialize(JSON.parse(JSON.stringify(serialize(W.inv))), 99, W.hero, CFG3); ok(back.gem.body && back.gem.body[0] === gemId('earth', 3), 'сохранение потеряло камень доспеха');
+  W.inv.ash = 999; ok(unsocketGem(W, { slot: 'body' }, 0, 99) === 'ok' && W.inv.bag.some(s => s.id === gemId('earth', 3)), 'камень из доспеха не вынулся');
+  ok(/здоровья/.test(armorGemFx(BY_ID[gemId('earth', 1)], CFG3)) && /яд на вас слабее/.test(armorGemFx(BY_ID[gemId('venom', 1)], CFG3)), 'подсказка камня в броне'); }
 
 if (fails.length) { console.error('Камни силы 3D: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
 console.log('Камни силы 3D: OK');

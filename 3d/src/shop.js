@@ -1,7 +1,7 @@
 // Окно торговли: «Купить» (витрина) и «Продать» (сумка). Продавать можно только рядом с торговцем.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, statLine } from './data/items.js';
 import { betterThanWorn, nameOf, socketsOf } from './inv.js';
-import { socketGem, unsocketGem, fuseGems, gemsAt, weaponMix, unsocketCost, gemId } from './stones3d.js';
+import { socketGem, unsocketGem, fuseGems, gemsAt, weaponMix, unsocketCost, gemId, armorGemFx } from './stones3d.js';
 import { MIX_NAME, MIX_TEXT, ELEMENT_NAME, ELEMENT_COLOR, mixKey } from './elements3d.js';
 import { canWield, NOT_FOR } from './data/heroes3d.js';
 import { RECIPES } from './data/recipes3d.js';
@@ -84,7 +84,8 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
   let pick = null;
   const maxSlots = () => cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
   const res = r => flash({ ok: '', far: 'Подойдите к кузнецу', ash: 'Не хватает пепла', full: 'Сумка полна', busy: 'Гнездо занято', nogem: 'Нет такого камня', few: 'Нужно три одинаковых камня', max: 'Выше некуда' }[r] || '');
-  const mixLine = (it, g) => { const m = weaponMix(it, g); if (!m) return 'Гнёзда пусты: вставьте камень силы.'; if (!m.b) return `Стихия удара: ${ELEMENT_NAME[m.a]}`; return `Сплав: ${MIX_NAME[mixKey(m.a, m.b)]} (${ELEMENT_NAME[m.a]} + ${ELEMENT_NAME[m.b]})${m.amp ? ' · стихия оружия усиливает' : ''}`; };
+  const mixLine = (it, g) => { if (it.slot !== 'weapon') { const fx = g.filter(Boolean).map(id => armorGemFx(BY_ID[id], cfg)); return fx.length ? 'Камни в броне: ' + fx.join('; ') : 'Гнёзда пусты: камень в броне даёт характеристику и защиту от стихии.'; }     // броня (2026-10-18)
+    const m = weaponMix(it, g); if (!m) return 'Гнёзда пусты: вставьте камень силы.'; if (!m.b) return `Стихия удара: ${ELEMENT_NAME[m.a]}`; return `Сплав: ${MIX_NAME[mixKey(m.a, m.b)]} (${ELEMENT_NAME[m.a]} + ${ELEMENT_NAME[m.b]})${m.amp ? ' · стихия оружия усиливает' : ''}`; };
   const samePick = (where, i) => pick && pick.i === i && pick.where.slot === where.slot && pick.where.idx === where.idx;
   // что даёт камень в ударе (числа — config3d.js → stones): шанс по рангу и метка стихии
   const gemFx = G => { const S = cfg.stones, k = S.power[G.rank - 1], e = S.el[G.gem], ch = Math.round(S.chance[G.rank - 1] * 100), r1 = v => Math.round(v * 10) / 10;
@@ -95,8 +96,8 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
     const box = el('div', 'gempop'), gems = W.inv.bag.map((s, k) => ({ s, k, it: BY_ID[s.id] })).filter(r => r.it.cat === 'gem').sort((a, b) => a.it.gem.localeCompare(b.it.gem) || b.it.rank - a.it.rank);
     if (!gems.length) { box.append(el('div', 'emptyl', 'В сумке нет камней силы. С каких врагов они падают — в книге рецептов (R).')); return box; }
     for (const r of gems) { const b = el('button', 'gemopt'); b.type = 'button'; b.style.setProperty('--gc', ELEMENT_COLOR[r.it.gem]);
-      const other = g.find((x, j) => j !== i && x), mix = other ? MIX_NAME[mixKey(BY_ID[other].gem, r.it.gem)] : null;
-      b.append(el('span', 'gn', `${r.it.name} ×${r.s.n}`), el('span', 'gf', gemFx(r.it)), mix ? el('span', 'gm', `Сплав с ${BY_ID[other].name.toLowerCase()}: ${mix}. ${MIX_TEXT[mixKey(BY_ID[other].gem, r.it.gem)] || ''}`) : '');
+      const arm = it.slot !== 'weapon', other = arm ? null : g.find((x, j) => j !== i && x), mix = other ? MIX_NAME[mixKey(BY_ID[other].gem, r.it.gem)] : null;     // в броне — своё действие, без сплава
+      b.append(el('span', 'gn', `${r.it.name} ×${r.s.n}`), el('span', 'gf', arm ? armorGemFx(r.it, cfg) : gemFx(r.it)), mix ? el('span', 'gm', `Сплав с ${BY_ID[other].name.toLowerCase()}: ${mix}. ${MIX_TEXT[mixKey(BY_ID[other].gem, r.it.gem)] || ''}`) : '');
       b.addEventListener('click', () => { res(socketGem(W, where, i, r.it.id)); pick = null; render(); onChange && onChange(); }); box.append(b); }
     return box;
   }
@@ -113,11 +114,12 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
     info.append(socks); g.forEach((gem, i) => { if (!gem && samePick(where, i)) info.append(gemPop(it, where, i, g)); }); r.append(info); return r;
   }
   function gemsTab() {
-    noteEl.textContent = 'Камень в гнезде даёт удару стихию, две стихии сплавляются (таблица — в книге рецептов, клавиша R). Вынуть камень можно за пепел: он вернётся целым.';
+    noteEl.textContent = 'В оружии камень даёт удару стихию, две стихии сплавляются (таблица — в книге рецептов, клавиша R). В броне камень даёт характеристику, а огонь, яд и кровь ещё защищают от горения, яда и кровотечения. Вынуть камень можно за пепел: он вернётся целым.';
     let n = 0;
     if (W.inv.eq.weapon && socketsOf(BY_ID[W.inv.eq.weapon], cfg)) { listEl.appendChild(weaponRow(W.inv.eq.weapon, { slot: 'weapon' }, 'в руке')); n++; }
+    for (const sl of cfg.stones.armor.slots) if (W.inv.eq[sl] && socketsOf(BY_ID[W.inv.eq[sl]], cfg)) { listEl.appendChild(weaponRow(W.inv.eq[sl], { slot: sl }, 'надето')); n++; }     // надетая броня с гнёздами
     W.inv.bag.forEach((s, i) => { if (socketsOf(BY_ID[s.id], cfg)) { listEl.appendChild(weaponRow(s.id, { idx: i }, 'в сумке')); n++; } });
-    if (!n) listEl.appendChild(el('div', 'emptyl', 'Нет оружия с гнёздами. Гнёзда бывают у редкого оружия и выше: одно у синего и фиолетового, два у оранжевого и золотого.'));
+    if (!n) listEl.appendChild(el('div', 'emptyl', 'Нет вещей с гнёздами. У оружия: одно у синего и фиолетового, два у оранжевого и золотого. У брони: одно у фиолетовой, два у оранжевой и золотой.'));
     const gems = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).filter(r => r.it.cat === 'gem');
     const seen = new Set(), fusable = gems.filter(r => r.it.rank < 3 && !seen.has(r.it.id) && seen.add(r.it.id));
     if (fusable.length) listEl.appendChild(el('div', 'emptyl', 'Сплавить: три одинаковых камня → один рангом выше'));

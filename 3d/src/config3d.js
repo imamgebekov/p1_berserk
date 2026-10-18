@@ -239,6 +239,11 @@ const BASE = {
     of: { imp: 'fire', brute: 'earth', hound: 'blood', ghoul: 'venom', archer: 'storm', witch: 'fire', shield: 'earth', bomber: 'fire', lunger: 'blood', shade: 'ice' },
     hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood' },
     fuse: { n: 3, ash: [40, 150] }, unsocket: [15, 50, 150],
+    // гнёзда в броне (2026-10-18): шлем, доспех, плащ, сапоги; гнёзд по редкости sockets; камень даёт характеристику стихии по рангу (stat),
+    // огонь, яд и кровь ещё ослабляют на герое горение, яд и кровотечение (res по рангу, сумма не больше resMax)
+    armor: { slots: ['head', 'body', 'cloak', 'boots'], sockets: [0, 0, 1, 1, 2, 2],
+      stat: { fire: ['dmg', [2, 4, 7]], ice: ['armor', [3, 6, 10]], water: ['regen', [.5, 1, 1.8]], storm: ['spd', [2, 4, 6]], venom: ['crit', [2, 4, 6]], blood: ['leech', [1, 2, 3]], earth: ['hp', [12, 25, 45]] },
+      resist: { fire: 'burn', venom: 'poison', blood: 'bleed' }, res: [.25, .4, .6], resMax: .8 },
     // посохи и жезлы с врагов (Ирга): magic — шанс у Ирги и у других героев, magicElite — у элиты; материал — по опасности места
     magic: [.03, .006], magicElite: .25,
     // сплав в ударе: chance — шанс по рангу камня (тяжёлый удар и конец серии — всегда); power — сила по рангу; amp — стихия вещи

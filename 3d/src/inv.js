@@ -11,7 +11,7 @@ export const createInv = () => ({ bag: [], eq: Object.fromEntries(SLOTS.map(s =>
 export const hasGems = g => Array.isArray(g) && g.some(Boolean);
 export const isPlain = s => !s.up && !hasGems(s.g);
 const entryOf = (id, up, g) => { const e = { id, n: 1 }; if (up) e.up = up; if (hasGems(g)) e.g = g.slice(); return e; };
-export const socketsOf = (it, cfg) => (it && it.slot === 'weapon' && cfg && cfg.stones ? cfg.stones.sockets[it.rar] || 0 : 0);
+export const socketsOf = (it, cfg) => (!it || !cfg || !cfg.stones ? 0 : it.slot === 'weapon' ? cfg.stones.sockets[it.rar] || 0 : cfg.stones.armor && cfg.stones.armor.slots.includes(it.slot) ? cfg.stones.armor.sockets[it.rar] || 0 : 0);     // оружие и броня (2026-10-18)
 // камни из сохранения: только настоящие камни, не больше гнёзд
 export const cleanGems = (g, n) => { if (!Array.isArray(g) || !n) return null; const o = []; for (let i = 0; i < n; i++) { const x = g[i]; o.push(typeof x === 'string' && BY_ID[x] && BY_ID[x].cat === 'gem' ? x : null); } return hasGems(o) ? o : null; };
 

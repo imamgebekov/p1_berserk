@@ -7,7 +7,7 @@ import { PERKS } from './data/weapons3d.js';
 import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots } from './sim.js';
 import { readTome } from './craft3d.js';
 import { socketsOf } from './inv.js';
-import { weaponMix } from './stones3d.js';
+import { weaponMix, armorGemFx } from './stones3d.js';
 import { skillOfItem } from './weaponskill3d.js';
 import { MIX_NAME, ELEMENT_NAME, mixKey } from './elements3d.js';
 
@@ -48,7 +48,8 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
   // гнёзда и сплав камней силы: «Гнёзда 1/2: Камень огня · Сплав: Лава»
   function gemLine(it, g) {
     const n = socketsOf(it, cfg); if (!n) return null;
-    const list = Array.from({ length: n }, (_, i) => (g && g[i] ? BY_ID[g[i]].name : 'пусто')), m = weaponMix(it, g);
+    const list = Array.from({ length: n }, (_, i) => (g && g[i] ? BY_ID[g[i]].name : 'пусто')), m = it.slot === 'weapon' ? weaponMix(it, g) : null;
+    if (it.slot !== 'weapon') { const fx = (g || []).filter(Boolean).map(id => armorGemFx(BY_ID[id], cfg)); return el('div', 'gems', `Гнёзда ${(g || []).filter(Boolean).length}/${n}: ${list.join(', ')}${fx.length ? ' · ' + fx.join('; ') : ''}`); }     // броня
     const mix = !m ? '' : m.b ? ` · сплав «${MIX_NAME[mixKey(m.a, m.b)]}»` : ` · стихия: ${ELEMENT_NAME[m.a].toLowerCase()}`;
     return el('div', 'gems', `Гнёзда ${(g || []).filter(Boolean).length}/${n}: ${list.join(', ')}${mix}`);
   }

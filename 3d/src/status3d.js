@@ -62,6 +62,7 @@ export function tickEnemy(W, e, dt) {
 export function applyPlayer(W, kind, dps, dur) {
   if (W.player.dead || !DOT.includes(kind)) return;
   if (kind === 'burn') dur *= rainK(W, 'fire');
+  dps *= 1 - ((W.gear && W.gear.res && W.gear.res[kind]) || 0);     // камни в броне ослабляют горение, яд и кровотечение
   const st = W.pst, ex = st[kind];
   if (kind === 'poison') st.poison = { t: dur, dps, n: Math.min(5, (ex ? ex.n : 0) + 1) };
   else st[kind] = { t: Math.max(dur, ex ? ex.t : 0), dps };

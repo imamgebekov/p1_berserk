@@ -81,6 +81,18 @@ const PERK_EL = { fire: 'fire', frost: 'ice', venom: 'venom', storm: 'storm' };
 export const weaponElement = it => { for (const p of (it && it.perks) || []) if (PERK_EL[p]) return PERK_EL[p]; return null; };
 // сплав оружия: стихии [a, b] и ранг силы; одна стихия — b === null. Правила таблицы: стихия вещи + камень; у двух камней —
 // сплав камней, а стихия вещи усиливает (amp). Без камней — null (оружие бьёт как раньше)
+// камни в надетой броне: прибавка к характеристикам и ослабление статусов на герое { stats, res }
+export function armorGems(inv, cfg) {
+  const A = cfg.stones && cfg.stones.armor, stats = {}, res = {}; if (!A) return { stats, res };
+  for (const slot of A.slots) for (const id of (inv.gem && inv.gem[slot]) || []) { const G = id && BY_ID[id]; if (!G) continue;
+    const [k, v] = A.stat[G.gem]; stats[k] = (stats[k] || 0) + v[G.rank - 1];
+    const st = A.resist[G.gem]; if (st) res[st] = Math.min(A.resMax, (res[st] || 0) + A.res[G.rank - 1]); }
+  return { stats, res };
+}
+const STAT_WORD = { dmg: 'урона', armor: 'брони', regen: 'здоровья в секунду', spd: '% скорости', crit: '% крита', leech: '% вампиризма', hp: 'здоровья' }, RES_WORD = { burn: 'горение', poison: 'яд', bleed: 'кровотечение' };
+// что даёт камень в броне: «+4 урона, горение на вас слабее на 40%»
+export function armorGemFx(G, cfg) { const A = cfg.stones.armor, [k, v] = A.stat[G.gem], st = A.resist[G.gem];
+  return `+${v[G.rank - 1]} ${STAT_WORD[k]}` + (st ? `, ${RES_WORD[st]} на вас слабее на ${Math.round(A.res[G.rank - 1] * 100)}%` : ''); }
 export function weaponMix(it, gems) {
   const g = (gems || []).filter(Boolean); if (!g.length) return null;
   const own = weaponElement(it), els = g.map(id => BY_ID[id].gem), rank = Math.max(...g.map(id => BY_ID[id].rank));

@@ -32,7 +32,7 @@ import { lightOf, isNight } from './daynight.js';
 import { rollElite, makeChief, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned, rainK } from './status3d.js';
 import { tickZones, isWet } from './elements3d.js';
-import { weaponMix, gemDropOf, weaponElement, magicDropOf } from './stones3d.js';
+import { weaponMix, gemDropOf, weaponElement, magicDropOf, armorGems } from './stones3d.js';
 import { useWeaponSkill, tickWeaponSkill } from './weaponskill3d.js';
 import { makeWeather, weatherAt } from './weather3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
@@ -903,7 +903,8 @@ export function refreshGear(W) {
   base.hp = (base.hp || 0) + (W.lv - 1) * L.hpPer; base.dmg = (base.dmg || 0) + (W.lv - 1) * L.dmgPer + W.reap.n * W.reap.amt; base.armor = (base.armor || 0) + W.bul.n * W.bul.amt;
   base.luck = (base.luck || 0) + W.dif.luck + (W.night ? W.cfg.daynight.night.luck : 0);
   const HM = heroMul(W); if (HM.crit) base.crit = (base.crit || 0) + HM.crit;
-  W.gear = gearStats(W.inv, W.buffs, W.cfg.smith.bonus, base); W.setFx = setBonus(W.inv).fx;
+  const AG = armorGems(W.inv, W.cfg); for (const k of Object.keys(AG.stats)) base[k] = (base[k] || 0) + AG.stats[k];     // камни в броне (2026-10-18)
+  W.gear = gearStats(W.inv, W.buffs, W.cfg.smith.bonus, base); W.gear.res = AG.res; W.setFx = setBonus(W.inv).fx;
   W.gfx = {}; for (const id of Object.values(W.inv.eq)) { const g = id && BY_ID[id] && BY_ID[id].gold; if (g) Object.assign(W.gfx, g); }     // механики золотых вещей (G3b)
   const p = W.player; p.maxhp = Math.max(10, W.cfg.player.hp * HM.hp + W.gear.hp); if (p.hp > p.maxhp) p.hp = p.maxhp;
 }
