@@ -15,7 +15,7 @@ const BASE = {
     // ниже up мс — выше) раз в every с, после warm с от старта, кадры дольше stall мс не считаются; shadow — карта теней:
     // size точек (на телефоне phone), охват ±span м вокруг героя, радиус размытия radius, смещения bias / normalBias
     quality: {
-      low: { scale: .75, grass: .5, shafts: false, shadows: false }, mid: { scale: 1, grass: 1, shafts: true, shadows: false }, high: { scale: 1, grass: 1, shafts: true, shadows: true },
+      low: { scale: .75, grass: .5, shafts: false, shadows: false, life: .5 }, mid: { scale: 1, grass: 1, shafts: true, shadows: false, life: 1 }, high: { scale: 1, grass: 1, shafts: true, shadows: true, life: 1 },     // life — доля живности
       auto: { lo: .6, hi: 1, step: .1, up: 12, down: 18, every: 2, warm: 5, stall: 100 },
       shadow: { size: 2048, span: 25, radius: 3, bias: -.0006, normalBias: .03, dist: 80 } },
     // сглаживание движения (шаг 3 аудита), скорость затухания 1/с: pose — позы героя и врагов, hit — в окне удара (резко),
@@ -49,6 +49,11 @@ const BASE = {
   // перехода от ядра), посёлки (villages, не ближе villageGap м), опасные места (dangers, по видам биома), ориентиры
   // (landmarks), река продлевается шагом riverStep м; depthMax — глубина у края; ground — цвет земли биома; trees — плотность
   // деревьев и камней (×), доля деревьев, доля сухих деревьев
+  // озёра и ручьи (2026-10-18): lakes — n озёр радиусом r м, вес по биомам bio, не ближе gap м к местам и road м к тропам;
+  // неровность берега amp; пруды-точки интереса становятся озёрами радиусом pond × свой. streams — n ручьёв шириной w м от
+  // from м до ближайшей воды, шаг step м, не длиннее max шагов; slow — скорость в ручье ×
+  water: { lakes: { n: 12, r: [10, 24], gap: 12, road: 14, bio: { forest: 2, swamp: 4, mountains: 1, waste: .3, coast: 2 }, amp: [.12, .08], pond: .8 },
+    streams: { n: 10, w: [1, 1.6], from: [40, 110], step: 5, max: 40, wobble: .45 }, slow: .85 },
   worldgen: { on: true, coreR: 85, belt: 30, turn: .07, wobble: .035, villages: 18, villageGap: 70, dangers: 30, dangerGap: 45, landmarks: 60, riverStep: 6, depthMax: 2,
     // точки интереса (G2): n штук не ближе gap м друг к другу и road м от троп; вид — по весам биома. r — занимаемый радиус, м.
     // bandits — стоянка с сундуком и гарнизоном, shrine — святилище с даром, wagon — брошенная телега, barrow — курган с гарнизоном,
@@ -177,7 +182,12 @@ const BASE = {
   // святилища (G2): касание (ближе reach м) даёт один дар из списка на t с; снова — через again с. Звери (G2, только вид): n вокруг
   // героя на ring м, пугаются ближе scare м и убегают со скоростью run, уйдя за away м — появляются заново вне экрана
   shrine: { reach: 2.2, again: 600, gifts: [{ stat: 'dmg', amt: 12, t: 180, name: 'Сила камня' }, { stat: 'regen', amt: 2, t: 180, name: 'Тихий родник' }, { stat: 'luck', amt: 25, t: 300, name: 'Взгляд звёзд' }, { stat: 'armor', amt: 10, t: 180, name: 'Кора дуба' }] },
-  beasts: { on: true, n: 6, ring: [16, 34], scare: 9, run: 7.5, away: 46, walk: .6 },
+  // звери (G2; биомы — 2026-10-18): kinds — кто водится в биоме [вид, вес]; ducks — утки на ближнем озере (near м), пугаются ближе
+  // scare м; fish — всплеск рыбы раз в fish с на озере рядом; fly — бабочки днём, летучие мыши ночью (n штук вокруг героя)
+  beasts: { on: true, n: 9, ring: [16, 34], scare: 9, run: 7.5, away: 46, walk: .6,
+    kinds: { forest: [['deer', 2], ['hare', 2], ['fox', 1]], swamp: [['heron', 2], ['hare', 1]], mountains: [['goat', 2], ['hare', 1]], waste: [['fox', 1], ['hare', 2]], coast: [['deer', 1], ['hare', 2], ['heron', 1]] },
+    speed: { deer: 1.15, fox: 1.25, goat: 1, heron: .8, hare: 1 },
+    ducks: { n: 4, near: 70, scare: 7, swim: .5, flee: 2.2 }, fish: [2, 5], fly: { n: 10, r: 10 } },
   ambient: { on: true, villagers: 5, walk: 1.3, pause: [3, 9], fireGap: 3.2, birds: 12, scare: 6, flySpeed: 7, flyUp: 3.5, flyTime: 4, back: 45, smokeKinds: ['house', 'tavern', 'smithy'], chimneyH: 1.4, smoke: 6, fogPeak: .04, fogWidth: .1, fogAmp: 1.4 },
   // стрельба героя (луки и арбалеты): assist — наводка на врага в конусе ±assist° перед героем; заряд (тяжёлый удар) даёт
   // дальность ×(1 + chargeRange × заряд) и скорость стрелы ×(1 + chargeSpeed × заряд); hitR — запас попадания, м; spawn — откуда вылетает
@@ -480,7 +490,7 @@ const BASE = {
   audio: {
     volume: .7, musicVol: .55, natureVol: .8, voices: 24, look: 1.2,          // предел одновременных голосов; ноты ставятся вперёд на look с
     water: { near: 2, far: 25, vol: .09, plips: 6 },                     // полная громкость у берега, тишина дальше far м; бульков в секунду
-    birds: { vol: .05, gap: [2, 7], day: [.45, .75], owlGap: [9, 20], owlVol: .05 },   // пауза между трелями, рассвет→день (свет)
+    birds: { vol: .05, gap: [2, 7], day: [.45, .75], owlGap: [9, 20], owlVol: .05, frogGap: [1.5, 5], frogVol: .045, frogNear: 16 },     // лягушки — вечером и ночью у воды ближе frogNear м   // пауза между трелями, рассвет→день (свет)
     combat: { r: 16, n: 2, fade: 1.5 }, rustle: { vol: .06 }, rain: { vol: .08 },     // шелест листвы (F2), шум дождя (F3)             // шелест листвы (F2)                                   // встревоженных врагов в r м: n — полный бой; музыка и птицы стихают
     music: { vol: .12, rest: [30, 60], dayBpm: 84, nightBpm: 70, nightVol: .6, phrase: 8, form: 'AABA' },
     // сведение (шаг 8 аудита): все шины → громкость → мягкий ограничитель (до limit — без изменений, выше — плавно к 1) → выход;

@@ -2,7 +2,7 @@
 // участок можно построить в любой момент и в любом порядке: результат один и тот же. Чистая логика (проверяется в Node).
 import { mulberry32 } from './sim.js';
 import { propsBlocked } from './map.js';
-import { waterDist, CHUNK } from './terrain3d.js';
+import { waterDist, streamDist, CHUNK } from './terrain3d.js';
 import { pathSegs, distSeg } from './world3d.js';
 import { biomeAt } from './worldgen3d.js';
 import { inCliff } from './cliffs3d.js';
@@ -47,7 +47,7 @@ export function grassIn(map, cfg, ci, cj, segs = pathSegs(map)) {
   for (let x = x0; x < x0 + CHUNK; x += G.step) for (let z = z0; z < z0 + CHUNK; z += G.step) {
     const px = x + r() * G.step, pz = z + r() * G.step, s = .7 + r() * .6, rot = r() * Math.PI;
     if (Math.hypot(px, pz) > R || r() > G.fill * gk(px, pz) || Math.hypot(px, pz) < 3) continue;
-    if (map.river && waterDist(map.river, px, pz) < 1.2) continue;
+    if (map.river && (waterDist(map.river, px, pz) < 1.2 || streamDist(map.river, px, pz) < .5)) continue;     // не в воде и не в ручье
     if (inCliff(map.plateaus, px, pz, .4)) continue;
     if (blds.some(b => px > b.x0 - .5 && px < b.x1 + .5 && pz > b.z0 - .5 && pz < b.z1 + .5)) continue;
     if (sols.some(q => Math.hypot(q.x - px, q.z - pz) < q.r + .3)) continue;

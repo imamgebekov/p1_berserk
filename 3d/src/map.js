@@ -83,7 +83,7 @@ export function nearBuilding(map, x, z, pad) {
 // поэтому результат совпадает с полным перебором до бита
 const GCS = 8, GK = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
 function gridOf(map) {
-  const nb = map.buildings.length, nk = (map.blocks || []).length, nd = (map.doors || []).length, ns = (map.solids || []).length, nw = map.river ? map.river.pts.length - 1 : 0, G0 = map.grid;
+  const nb = map.buildings.length, nk = (map.blocks || []).length, nd = (map.doors || []).length, ns = (map.solids || []).length, nw = map.river ? map.river.pts.length - 1 + (map.river.lakes || []).length * 1000 : 0, G0 = map.grid;
   if (G0 && G0.nb === nb && G0.nk === nk && G0.nd === nd && G0.ns === ns && G0.nw === nw) return G0;
   const cells = new Map();
   const box = (kind, i, x0, z0, x1, z1) => {
@@ -95,9 +95,11 @@ function gridOf(map) {
   (map.blocks || []).forEach((w, i) => box('k', i, w.x0, w.z0, w.x1, w.z1));
   (map.doors || []).forEach((d, i) => box('d', i, d.rect.x0, d.rect.z0, d.rect.x1, d.rect.z1));
   (map.solids || []).forEach((q, i) => box('s', i, q.x - q.r, q.z - q.r, q.x + q.r, q.z + q.r));
-  if (map.river) { const P = map.river.pts, h = map.river.w / 2; for (let i = 0; i < nw; i++) box('w', i, Math.min(P[i].x, P[i + 1].x) - h, Math.min(P[i].z, P[i + 1].z) - h, Math.max(P[i].x, P[i + 1].x) + h, Math.max(P[i].z, P[i + 1].z) + h); }     // участки русла
-  const mark = { b: new Uint32Array(nb), k: new Uint32Array(nk), d: new Uint32Array(nd), s: new Uint32Array(ns), w: new Uint32Array(nw) };
-  return (map.grid = { cells, nb, nk, nd, ns, nw, mark, stamp: 0 });
+  if (map.river) (map.river.lakes || []).forEach((L, k) => { const e = L.r * 1.3; box('w', -(k + 1), L.x - e, L.z - e, L.x + e, L.z + e); });     // озёра — индексы −(k+1)
+  if (map.river) { const P = map.river.pts, h = map.river.w / 2; for (let i = 0; i < P.length - 1; i++) box('w', i, Math.min(P[i].x, P[i + 1].x) - h, Math.min(P[i].z, P[i + 1].z) - h, Math.max(P[i].x, P[i + 1].x) + h, Math.max(P[i].z, P[i + 1].z) + h); }     // участки русла
+  const wOff = map.river ? map.river.pts.length - 1 : 0, nl = map.river ? (map.river.lakes || []).length : 0;     // отметки озёр — после участков реки
+  const mark = { b: new Uint32Array(nb), k: new Uint32Array(nk), d: new Uint32Array(nd), s: new Uint32Array(ns), w: new Uint32Array(wOff + nl) };
+  return (map.grid = { cells, nb, nk, nd, ns, nw, mark, stamp: 0, wOff });
 }
 const byNum = (a, b) => a - b, KINDS = ['b', 'k', 'd', 's', 'w'];
 // индексы домов, стен, дверей и препятствий, чьи рамки задевают прямоугольник (в исходном порядке)
@@ -105,7 +107,7 @@ export function nearby(map, x0, z0, x1, z1) {
   const G = gridOf(map), out = { b: [], k: [], d: [], s: [], w: [] }, st = ++G.stamp;
   for (let cx = Math.floor(x0 / GCS), cx1 = Math.floor(x1 / GCS); cx <= cx1; cx++) for (let cz = Math.floor(z0 / GCS), cz1 = Math.floor(z1 / GCS); cz <= cz1; cz++) {
     const c = G.cells.get(GK(cx, cz)); if (!c) continue;
-    for (const kind of KINDS) { const m = G.mark[kind], o = out[kind]; for (const i of c[kind]) if (m[i] !== st) { m[i] = st; o.push(i); } }
+    for (const kind of KINDS) { const m = G.mark[kind], o = out[kind]; for (const i of c[kind]) { const j = i < 0 ? G.wOff - i - 1 : i; if (m[j] !== st) { m[j] = st; o.push(i); } } }
   }
   for (const kind of KINDS) if (out[kind].length > 1) out[kind].sort(byNum);
   return out;

@@ -3,7 +3,7 @@ import { makeMap, propsBlocked, campGates, insideOf, insideCamp } from './map.js
 import { buildDecor } from './decor.js';
 import { buildTown } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
-import { buildHeights, heightAt, waterDist } from './terrain3d.js';
+import { buildHeights, heightAt, waterDist, lakeR, streamDist } from './terrain3d.js';
 import { createAscii, OVERLAY } from './ascii3d.js';
 import { makeField, pickShafts } from './sunlight3d.js';
 import { windAt, grassSpots } from './wind3d.js';
@@ -19,7 +19,7 @@ import { qualityOf } from './quality3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
 import { heroOf } from './data/heroes3d.js';
-import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul, makeBeasts, updateBeasts } from './ambient3d.js';
+import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul, makeBeasts, updateBeasts, makeDucks, updateDucks } from './ambient3d.js';
 import { mulberry32 } from './sim.js';
 import { questMark } from './quests3d.js';
 import { skyAt } from './daynight.js';
@@ -188,6 +188,30 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       for (let k = -b.len / 2 + .4; k < b.len / 2; k += .55) { const pl = new THREE.Mesh(new THREE.BoxGeometry(b.w + .1, .04, .08), dark); pl.position.set(0, yk(k) + .01, k); pl.rotation.x = Math.atan(8 * ar * k / (b.len * b.len)); g.add(pl); }
       for (const s of [-1, 1]) for (let k = -b.len / 2; k <= b.len / 2 + .01; k += b.len / 4) { const post = new THREE.Mesh(new THREE.BoxGeometry(.14, 1.5, .14), dark); post.position.set(s * (b.w / 2 - .05), yk(k) + .1, k); g.add(post); }
       riverGroup.add(g);
+    }
+    // озёра (2026-10-18): веер от центра к неровному берегу, шейдер воды (bank — до берега, течения нет); камыш по кромке
+    const reedMat = new THREE.MeshLambertMaterial({ color: '#5a6a2e' }), reedTop = new THREE.MeshLambertMaterial({ color: '#5a3a22' }), reeds = [];
+    for (const L of river.lakes || []) {
+      const N = 44, v = [L.x, cfg.terrain.water, L.z], idx = [], bank = [L.r, L.r * 2], flow = [0, 0];
+      for (let i = 0; i <= N; i++) { const a = i / N * Math.PI * 2, R = lakeR(L, a) + .35; v.push(L.x + Math.sin(a) * R, cfg.terrain.water, L.z + Math.cos(a) * R); bank.push(0, L.r * 2); flow.push(0, 0); if (i) idx.push(0, i, i + 1); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals();
+      g.setAttribute('bank', new THREE.Float32BufferAttribute(bank, 2)); g.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2)); riverGroup.add(new THREE.Mesh(g, waterMat));
+      const nr = Math.round(L.r * 1.6); for (let i = 0; i < nr; i++) { const h = Math.sin(i * 12.9898 + L.x) * 43758.5453, f = h - Math.floor(h), a = (i + f) / nr * Math.PI * 2; if (f < .35) continue; const R = lakeR(L, a) + .2 + f * .6; reeds.push([L.x + Math.sin(a) * R, L.z + Math.cos(a) * R, .8 + f * .6]); }
+    }
+    // ручьи: лента вдоль русла на высоте земли (русло чуть ниже), течение к устью
+    for (const S of river.streams || []) {
+      const P = S.pts, v = [], idx = [], bank = [], flow = [], hw = S.w / 2 + .15;
+      P.forEach((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l, y = Y(p.x, p.z) + .14;
+        v.push(p.x + nx * hw, y, p.z + nz * hw, p.x - nx * hw, y, p.z - nz * hw); if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
+        bank.push(0, hw * 2, hw * 2, hw * 2); flow.push(dx / l * 1.6, dz / l * 1.6, dx / l * 1.6, dz / l * 1.6);
+        if (i % 2 === 0) for (const s of [-1, 1]) { const h = Math.sin(i * 78.233 + p.x * s) * 43758.5453, f = h - Math.floor(h); if (f > .55) reeds.push([p.x + nx * s * (hw + .3 + f * .4), p.z + nz * s * (hw + .3 + f * .4), .6 + f * .4]); } });
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals();
+      g.setAttribute('bank', new THREE.Float32BufferAttribute(bank, 2)); g.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2)); riverGroup.add(new THREE.Mesh(g, waterMat));
+    }
+    if (reeds.length) {     // камыш одним вызовом отрисовки: стебли и метёлки
+      const st = new THREE.InstancedMesh(new THREE.BoxGeometry(.07, 1, .07), reedMat, reeds.length), tp = new THREE.InstancedMesh(new THREE.BoxGeometry(.11, .26, .11), reedTop, reeds.length), o = new THREE.Object3D();
+      reeds.forEach(([x, z, h], i) => { const y = Y(x, z); o.position.set(x, y + h / 2, z); o.scale.set(1, h, 1); o.rotation.set(0, i, (i % 5 - 2) * .05); o.updateMatrix(); st.setMatrixAt(i, o.matrix); o.position.set(x, y + h + .1, z); o.scale.set(1, 1, 1); o.updateMatrix(); tp.setMatrixAt(i, o.matrix); });
+      riverGroup.add(st, tp);
     }
     scene.add(riverGroup);
   }
@@ -376,7 +400,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const crows = (AMB.on ? makeBirds(map, cfg, arnd) : []).map(b => { const m = makeCrow(); m.group.rotation.y = b.face; life.add(m.group); return { b, m }; });
   // звери (G2): вокруг героя, где можно стоять — не вода, не дом, не камень, не лагерь, не обрыв
   const BEA = cfg.beasts, beastOk = (x, z) => Math.hypot(x, z) < cfg.world.radius - 4 && !(map.camp && insideCamp(map.camp, x, z, -3)) && !(river && waterDist(river, x, z) < 1.5) && insideOf(map, x, z, 1) < 0 && !map.solids.some(q => Math.abs(q.x - x) < q.r + .6 && Math.abs(q.z - z) < q.r + .6) && !(map.plateaus.length && inCliff(map.plateaus, x, z, 1));
-  const beasts = (BEA && BEA.on ? makeBeasts(BEA.n) : []).map(b => { const m = makeBeast(b.kind); m.group.visible = false; life.add(m.group); return { b, m }; });
+  const beasts = (BEA && BEA.on ? makeBeasts(BEA.n) : []).map(b => { const m = makeBeast(b.kind); m.group.visible = false; life.add(m.group); return { b, m, ms: { [b.kind]: m } }; });     // ms — модели по видам (вид меняется по биому)
+  const beastModel = c => { if (!c.ms[c.b.kind]) { const m = makeBeast(c.b.kind); life.add(m.group); c.ms[c.b.kind] = m; } for (const [k, m] of Object.entries(c.ms)) if (k !== c.b.kind) m.group.visible = false; c.m = c.ms[c.b.kind]; return c.m; };
+  // утки на озере, рыба, бабочки и летучие мыши (2026-10-18) — только вид
+  const ducks = (BEA && BEA.on && BEA.ducks ? makeDucks(BEA.ducks.n) : []).map(b => { const m = makeBeast('duck'); m.group.visible = false; life.add(m.group); return { b, m }; });
+  let fishT = 2;
+  const FLY = BEA && BEA.fly, flies = FLY ? new THREE.InstancedMesh(new THREE.BoxGeometry(.16, .02, .1), new THREE.MeshBasicMaterial({ color: '#ffffff' }), FLY.n) : null;
+  if (flies) { flies.frustumCulled = false; const cs = ['#f0d070', '#e8a0c8', '#a8d0f0', '#f0f0e8', '#f0a050']; for (let i = 0; i < FLY.n; i++) flies.setColorAt(i, new THREE.Color(cs[i % cs.length])); flies.count = 0; life.add(flies); }
+  const flyO = new THREE.Object3D();
   const pipes = AMB.on ? chimneys(map, cfg) : [];
   if (pipes.length) life.add(new THREE.Mesh(mergeGeometries(pipes.map(c => new THREE.BoxGeometry(.5, AMB.chimneyH + .6, .5).translate(c.x, c.y - AMB.chimneyH / 2 + .3, c.z))), new THREE.MeshLambertMaterial({ color: '#3a302a' })));
   const puffN = pipes.length * AMB.smoke, puffs = new THREE.InstancedMesh(new THREE.BoxGeometry(.5, .5, .5), new THREE.MeshBasicMaterial({ color: '#8a8078', transparent: true, opacity: .32, depthWrite: false }), Math.max(1, puffN));
@@ -782,8 +813,18 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (!under) {
       for (const { v, m } of villagers) { stepVillager(v, dt, vStops, AMB, Math.random); m.group.position.set(v.x, Y(v.x, v.z), v.z); m.group.rotation.y = v.face; m.root.position.y = v.moving && !calm ? Math.abs(Math.sin(t * 8 + v.id)) * .07 : 0; m.armL.rotation.x = v.moving && !calm ? Math.sin(t * 8 + v.id) * .5 : 0; m.armR.rotation.x = -m.armL.rotation.x; }
       updateBirds(crows.map(c => c.b), p.x, p.z, dt, AMB);
-      if (beasts.length && W.lvl === 'surface') { updateBeasts(beasts.map(c => c.b), p.x, p.z, dt, BEA, Math.random, beastOk);
-        for (const { b, m } of beasts) { m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; const hop = b.kind === 'hare' && b.moving ? Math.abs(Math.sin(b.step * 2.2)) * .25 : 0; m.group.position.set(b.x, Y(b.x, b.z) + hop, b.z); m.group.rotation.y = b.face; m.legs.forEach((l, i) => { l.rotation.x = b.moving ? Math.sin(b.step * (b.kind === 'deer' ? 3.2 : 4) + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * .7 : 0; }); m.group.children[2].rotation.x = b.state === 'graze' && b.kind === 'deer' ? .5 : 0; } }
+      if (beasts.length && W.lvl === 'surface') { const nOn = Math.max(2, Math.round(beasts.length * (Q.life ?? 1))); updateBeasts(beasts.slice(0, nOn).map(c => c.b), p.x, p.z, dt, BEA, Math.random, beastOk, (x, z) => biomeAt(cfg, x, z));
+        for (let i = nOn; i < beasts.length; i++) for (const m of Object.values(beasts[i].ms)) m.group.visible = false;     // на «Низком» — меньше зверей
+        for (const c of beasts.slice(0, nOn)) { const b = c.b, m = beastModel(c); m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; const hop = b.kind === 'hare' && b.moving ? Math.abs(Math.sin(b.step * 2.2)) * .25 : 0; m.group.position.set(b.x, Y(b.x, b.z) + hop, b.z); m.group.rotation.y = b.face; m.legs.forEach((l, i) => { l.rotation.x = b.moving ? Math.sin(b.step * (b.kind === 'deer' ? 3.2 : 4) + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * .7 : 0; }); m.group.children[2].rotation.x = b.state === 'graze' && b.kind === 'deer' ? .5 : 0; } }
+      if (ducks.length && W.lvl === 'surface' && river) { updateDucks(ducks.map(c => c.b), p.x, p.z, dt, river.lakes, BEA.ducks, lakeR);
+        for (const { b, m } of ducks) { m.group.visible = !!b.lake; if (!b.lake) continue; m.group.position.set(b.x, cfg.terrain.water + .02 + Math.sin(t * 2 + b.id) * .02, b.z); m.group.rotation.y = b.face; } }
+      if (river && river.lakes && W.lvl === 'surface' && (fishT -= dt) <= 0) { fishT = BEA.fish[0] + Math.random() * (BEA.fish[1] - BEA.fish[0]);     // рыба плеснула
+        const L = river.lakes.find(q => Math.hypot(q.x - p.x, q.z - p.z) < q.r + 30); if (L && !calm) { const a = Math.random() * 6.283, rr = Math.random() * L.r * .6, x = L.x + Math.sin(a) * rr, z = L.z + Math.cos(a) * rr; ringFx(x, z, .9, '#d6e6dc'); for (let i = 0; i < 8; i++) fx.emit(x, cfg.terrain.water + .1, z, (Math.random() - .5) * 1.2, 1.6 + Math.random(), (Math.random() - .5) * 1.2, '#d8ecf4', .6, 6, .06, false); } }
+      if (flies && W.lvl === 'surface' && !calm) {     // днём бабочки у травы, ночью летучие мыши повыше
+        const n = Math.round(FLY.n * (Q.life ?? 1) * (W.rain > .3 ? 0 : 1)), night = !!W.night; flies.count = n; flies.material.color.set(night ? '#2a2026' : '#ffffff');
+        for (let i = 0; i < n; i++) { const ph = i * 2.399, sp = night ? 1.6 : .5, a = t * sp * (i % 2 ? 1 : -1) + ph, r = FLY.r * (.35 + .6 * ((i * .618) % 1)), x = p.x + Math.sin(a) * r + Math.sin(t * 1.7 + i) * .8, z = p.z + Math.cos(a * .8) * r;
+          flyO.position.set(x, Y(x, z) + (night ? 3.2 + Math.sin(t * 3 + i) * .6 : .7 + Math.abs(Math.sin(t * 2.3 + i)) * .6), z); flyO.rotation.set(0, a, Math.sin(t * (night ? 30 : 18) + i) * .9); flyO.scale.setScalar(night ? 2 : 1.9); flyO.updateMatrix(); flies.setMatrixAt(i, flyO.matrix); }
+        flies.instanceMatrix.needsUpdate = true; } else if (flies) flies.count = 0;
       for (const { b, m } of crows) { m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; m.group.position.set(b.x, b.y + Y(b.x, b.z), b.z); m.group.rotation.y = b.face; const fl = b.state === 'fly' ? Math.sin(t * 22) * .9 : (b.peck < .3 ? .2 : 0); m.wl.rotation.z = fl; m.wr.rotation.z = -fl; }
       for (let i = 0; i < puffs.count; i++) {
         const c = pipes[(i / AMB.smoke) | 0], k = ((t / 4 + (i % AMB.smoke) / AMB.smoke + c.x * .013) % 1), s = .35 + k * 1.1 * (1 - k * .6);

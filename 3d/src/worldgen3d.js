@@ -155,6 +155,37 @@ export function expandWorld(base) {
       cfg.map.pois.push({ id, t, x, z, r: pr, rot: rp() * TAU, bio, place: place && place.id }); taken.push({ x, z, r: pr + P.gap * .5 }); i++;
     }
   }
+  // озёра и ручьи (2026-10-18): свой генератор — всё выше не сдвигается; озёра — не у мест, троп, логов и реки; пруды — маленькие озёра
+  const WA = cfg.water;
+  if (rv && WA) {
+    const rl = mul(cfg.world.seed * 3031 + 11), lakes = [], LK = WA.lakes, shape = (x, z, r) => ({ x, z, r, a: [LK.amp[0] * (.5 + rl()), LK.amp[1] * (.5 + rl())], p: [rl() * TAU, rl() * TAU] });
+    for (const q of cfg.map.pois) if (q.t === 'pond') lakes.push(shape(q.x, q.z, q.r * LK.pond));
+    const lair = cfg.bosses.list.filter(b => !b.level), bioW = Object.values(LK.bio).reduce((a, b) => a + b, 0) / BIOMES.length;
+    for (let i = 0, tries = 0; i < LK.n && tries < LK.n * 80; tries++) {
+      const r0 = LK.r[0] + rl() * (LK.r[1] - LK.r[0]), a = rl() * TAU, d = G.coreR + 30 + r0 + Math.sqrt(rl()) * (R - G.coreR - 50 - r0 * 2), x = Math.sin(a) * d, z = Math.cos(a) * d;
+      if (rl() * bioW * 2 > (LK.bio[biomeAt(cfg, x, z)] || 1)) continue;     // по биомам: на болоте чаще, в пустоши редко
+      if (wetAt(x, z, r0 * 1.3 + 10) || taken.some(q => Math.hypot(q.x - x, q.z - z) < r0 * 1.3 + LK.gap + q.r) || lakes.some(q => Math.hypot(q.x - x, q.z - z) < (q.r + r0) * 1.3 + LK.gap)) continue;
+      if (cfg.map.links.some(([A, B]) => segD(x, z, A, B) < r0 * 1.3 + LK.road) || lair.some(b => Math.hypot(b.x - x, b.z - z) < r0 * 1.3 + 20)) continue;
+      lakes.push(shape(x, z, r0)); taken.push({ x, z, r: r0 * 1.3 }); i++;
+    }
+    // ручьи: от точки в лесу, горах или на болоте — к ближайшей воде (озеру или реке), петляя; через места не текут
+    const ST = WA.streams, streams = [], waterNear = (x, z) => Math.min(waterDist(rv, x, z), ...lakes.map(L => Math.hypot(L.x - x, L.z - z) - L.r * .9));
+    for (let i = 0, tries = 0; i < ST.n && tries < ST.n * 40; tries++) {
+      const a = rl() * TAU, d = G.coreR + 20 + rl() * (R - G.coreR - 40), x0 = Math.sin(a) * d, z0 = Math.cos(a) * d;
+      if (!['forest', 'mountains', 'swamp'].includes(biomeAt(cfg, x0, z0)) || taken.some(q => Math.hypot(q.x - x0, q.z - z0) < q.r + 6)) continue;
+      let tgt = null, td = 1e9; for (const L of lakes) { const dd = Math.hypot(L.x - x0, L.z - z0); if (dd < td) { td = dd; tgt = { x: L.x, z: L.z }; } }
+      for (const P of rv.pts) { const dd = Math.hypot(P.x - x0, P.z - z0); if (dd < td) { td = dd; tgt = P; } }
+      if (!tgt || td < ST.from[0] || td > ST.from[1]) continue;
+      const pts = [{ x: x0, z: z0 }]; let ang = Math.atan2(tgt.x - x0, tgt.z - z0), ok = false, bad = false;
+      for (let k = 0; k < ST.max; k++) { const p = pts[pts.length - 1], want = Math.atan2(tgt.x - p.x, tgt.z - p.z); ang += (want - ang) * .35 + (rl() - .5) * ST.wobble * 2;
+        const q = { x: p.x + Math.sin(ang) * ST.step, z: p.z + Math.cos(ang) * ST.step }; pts.push(q);
+        if (taken.some(t => Math.hypot(t.x - q.x, t.z - q.z) < t.r) || Math.hypot(q.x, q.z) > R - 8) { bad = true; break; }
+        if (waterNear(q.x, q.z) < 0) { ok = true; break; } }
+      if (!ok || bad) continue;
+      streams.push({ pts, w: ST.w[0] + rl() * (ST.w[1] - ST.w[0]) }); i++;
+    }
+    T.river.lakes = lakes; T.river.streams = streams;
+  }
   if (rv) {
     const extra = [], B = T.bridge;
     for (const [a, b] of cfg.map.links) for (let i = 1; i < rv.pts.length; i++) {

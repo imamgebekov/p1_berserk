@@ -1,7 +1,7 @@
 // Подложка карты с рельефом (шаг 10б аудита, «как карта Skyrim»): цвет земли как в игре (оттенок биома), светотень склонов
 // по высотам, выше — светлее, вода реки, камень обрывов. Строится один раз на мир кусками (по рядам), чтобы не было рывка.
 // reliefRows — чистая функция (проверяется в Node), makeRelief — холст для браузера.
-import { buildHeights, heightAt, waterDist } from './terrain3d.js';
+import { buildHeights, heightAt, waterDist, streamDist } from './terrain3d.js';
 import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
 import { inCliff } from './cliffs3d.js';
 
@@ -22,7 +22,7 @@ export function reliefRows(S, j0, j1, out) {
     if (Math.hypot(x, z) > R) { out[k + 3] = 0; continue; }
     const h = H(x, z), hx = H(x + step, z), hz = H(x, z + step);
     let c;
-    if (map.river && waterDist(map.river, x, z) < V.waterIn) c = water.slice();
+    if (map.river && (waterDist(map.river, x, z) < V.waterIn || streamDist(map.river, x, z) < .4)) c = water.slice();     // и ручьи
     else {
       const t = biomeTint(S.cfg, x, z); c = base.map((v, q) => v * t[q]);
       if (map.plateaus && map.plateaus.length && inCliff(map.plateaus, x, z, .9)) c = rock.slice();

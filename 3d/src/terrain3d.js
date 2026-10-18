@@ -26,13 +26,30 @@ export function riverOf(cfg) {
   for (let i = 1; i < all.length; i++) { const a = all[i - 1], b = all[i];
     for (let cx = Math.floor((Math.min(a.x, b.x) - RPAD) / RCELL); cx <= Math.floor((Math.max(a.x, b.x) + RPAD) / RCELL); cx++)
       for (let cz = Math.floor((Math.min(a.z, b.z) - RPAD) / RCELL); cz <= Math.floor((Math.max(a.z, b.z) + RPAD) / RCELL); cz++) { const k = cx * 100003 + cz; if (!cells.has(k)) cells.set(k, []); cells.get(k).push(i); } }
-  return { pts: all, w: RV.w, bridges, cells, core: pts.length };
+  // озёра (2026-10-18): в том же указателе клеток — индексы −(k+1); ручьи — свой указатель scells (они проходимы)
+  const lakes = (RV.lakes || []).map(L => ({ ...L }));
+  lakes.forEach((L, k) => { const e = L.r * 1.3 + RPAD;
+    for (let cx = Math.floor((L.x - e) / RCELL); cx <= Math.floor((L.x + e) / RCELL); cx++) for (let cz = Math.floor((L.z - e) / RCELL); cz <= Math.floor((L.z + e) / RCELL); cz++) { const q = cx * 100003 + cz; if (!cells.has(q)) cells.set(q, []); cells.get(q).push(-(k + 1)); } });
+  const streams = (RV.streams || []).map(S => ({ ...S })), scells = new Map();
+  streams.forEach((S, k) => { for (let i = 1; i < S.pts.length; i++) { const a = S.pts[i - 1], b = S.pts[i];
+    for (let cx = Math.floor((Math.min(a.x, b.x) - 8) / RCELL); cx <= Math.floor((Math.max(a.x, b.x) + 8) / RCELL); cx++) for (let cz = Math.floor((Math.min(a.z, b.z) - 8) / RCELL); cz <= Math.floor((Math.max(a.z, b.z) + 8) / RCELL); cz++) { const q = cx * 100003 + cz; if (!scells.has(q)) scells.set(q, []); scells.get(q).push([k, i]); } } });
+  return { pts: all, w: RV.w, bridges, cells, core: pts.length, lakes, streams, scells };
 }
+// озеро: неровный берег — радиус по углу (две волны); расстояние до берега (отрицательное — в воде)
+export const lakeR = (L, ang) => L.r * (1 + L.a[0] * Math.sin(3 * ang + L.p[0]) + L.a[1] * Math.sin(5 * ang + L.p[1]));
+export const lakeDist = (L, x, z) => { const dx = x - L.x, dz = z - L.z; return Math.hypot(dx, dz) - lakeR(L, Math.atan2(dx, dz)); };
+// ручей: расстояние до русла (отрицательное — в ручье)
+export function streamDist(rv, x, z) {
+  const L = rv && rv.scells ? rv.scells.get(Math.floor(x / RCELL) * 100003 + Math.floor(z / RCELL)) : null; if (!L) return 1e3;
+  let d = 1e9; for (const [k, i] of L) { const S = rv.streams[k]; d = Math.min(d, segDist(x, z, S.pts[i - 1], S.pts[i]).d - S.w / 2); }
+  return d;
+}
+export const inStream = (rv, x, z) => !!rv && !!rv.streams && rv.streams.length > 0 && streamDist(rv, x, z) < 0;
 const RCELL = 32, RPAD = 34;
 // есть ли река ближе RPAD м к прямоугольнику
 export function riverNearBox(rv, x0, z0, x1, z1) {
   if (!rv) return false; if (!rv.cells) return true;
-  for (let cx = Math.floor(x0 / RCELL); cx <= Math.floor(x1 / RCELL); cx++) for (let cz = Math.floor(z0 / RCELL); cz <= Math.floor(z1 / RCELL); cz++) if (rv.cells.has(cx * 100003 + cz)) return true;
+  for (let cx = Math.floor(x0 / RCELL); cx <= Math.floor(x1 / RCELL); cx++) for (let cz = Math.floor(z0 / RCELL); cz <= Math.floor(z1 / RCELL); cz++) if (rv.cells.has(cx * 100003 + cz) || (rv.scells && rv.scells.has(cx * 100003 + cz))) return true;     // и ручьи
   return false;
 }
 // точка на мосту (в прямоугольнике моста, ось ang — вдоль моста)
@@ -41,19 +58,21 @@ export function onBridge(rv, x, z, pad = 0) {
   return null;
 }
 // расстояние от точки до воды (отрицательное — в воде)
-export function waterDist(rv, x, z) {
-  let d = 1e9; const L = rv.cells ? rv.cells.get(Math.floor(x / RCELL) * 100003 + Math.floor(z / RCELL)) : null;
-  if (rv.cells) { if (!L) return 1e3; for (const i of L) d = Math.min(d, segDist(x, z, rv.pts[i - 1], rv.pts[i]).d); }     // точно до RPAD м от воды
-  else for (let i = 1; i < rv.pts.length; i++) d = Math.min(d, segDist(x, z, rv.pts[i - 1], rv.pts[i]).d);
-  return d - rv.w / 2;
+export function waterDist(rv, x, z, lakes = true) {     // lakes = false — только река (для мостов и обхода)
+  let d = 1e9, dl = 1e9; const L = rv.cells ? rv.cells.get(Math.floor(x / RCELL) * 100003 + Math.floor(z / RCELL)) : null;
+  if (rv.cells) { if (!L) return 1e3; for (const i of L) { if (i < 0) { if (lakes) dl = Math.min(dl, lakeDist(rv.lakes[-i - 1], x, z)); } else d = Math.min(d, segDist(x, z, rv.pts[i - 1], rv.pts[i]).d); } }     // точно до RPAD м от воды
+  else { for (let i = 1; i < rv.pts.length; i++) d = Math.min(d, segDist(x, z, rv.pts[i - 1], rv.pts[i]).d); if (lakes) for (const Lk of rv.lakes || []) dl = Math.min(dl, lakeDist(Lk, x, z)); }
+  return Math.min(d - rv.w / 2, dl);
 }
 export const inWater = (rv, x, z, pad = 0) => !!rv && waterDist(rv, x, z) < pad && !onBridge(rv, x, z);
 // вытолкнуть круг из воды на ближайший берег (на мосту — не трогать); segs — индексы участков русла рядом (из сетки), иначе все
 export function pushWater(rv, o, r, segs) {
   if (onBridge(rv, o.x, o.z)) return false;
   let hit = false;
-  const list = segs || rv.pts.slice(1).map((_, i) => i);
+  const list = segs || [...rv.pts.slice(1).map((_, i) => i), ...(rv.lakes || []).map((_, k) => -(k + 1))];
   for (const i of list) {
+    if (i < 0) { const Lk = rv.lakes[-i - 1], d0 = Math.hypot(o.x - Lk.x, o.z - Lk.z), dx = d0 > 1e-3 ? o.x - Lk.x : 1, dz = d0 > 1e-3 ? o.z - Lk.z : 0, dd = Math.hypot(dx, dz), R = lakeR(Lk, Math.atan2(dx, dz)) + r;     // озеро — на берег (из центра — на восток)
+      if (dd < R) { o.x = Lk.x + dx / dd * R; o.z = Lk.z + dz / dd * R; hit = true; } continue; }
     const a = rv.pts[i], b = rv.pts[i + 1], q = segDist(o.x, o.z, a, b), m = rv.w / 2 + r;
     if (q.d >= m) continue;
     hit = true;
@@ -65,7 +84,7 @@ export function pushWater(rv, o, r, segs) {
 // пересекает ли отрезок воду (не по мосту)
 export function crossesWater(rv, x0, z0, x1, z1) {
   const n = Math.max(2, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / .5));
-  for (let i = 1; i < n; i++) { const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n; if (waterDist(rv, x, z) < 0 && !onBridge(rv, x, z)) return true; }
+  for (let i = 1; i < n; i++) { const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n; if (waterDist(rv, x, z, false) < 0 && !onBridge(rv, x, z)) return true; }     // озёра обходятся, мосты — только через реку
   return false;
 }
 // куда идти, чтобы попасть к цели через реку: к ближнему концу лучшего моста, оттуда на ось моста, по мосту — к дальнему концу;
@@ -113,6 +132,7 @@ export function buildHeights(cfg, map) {
   for (const b of cfg.bosses.list) if (!b.level) circle(b.x, b.z, 12);
   for (const c of map.cfg.castles || []) circle(c.x, c.z, 22);
   for (const q of map.cfg.pois || []) circle(q.x, q.z, q.r + 1);                  // точки интереса — на ровном (G2)                   // двор и стены замка — ровно (C4c)
+  for (const L of (map.river && map.river.lakes) || []) circle(L.x, L.z, L.r * 1.25);     // берег озера — ровный, вода не выше земли
   for (const q of map.portals || []) circle(q.x, q.z, 4);
   for (const c of map.containers) circle(c.x, c.z, 2.5);
   for (const q of map.solids) circle(q.x, q.z, q.r + 1.5);
@@ -136,6 +156,7 @@ function nodeH(hf, x, z, ks, rv, box) {
   let d = 1e9; for (const k of ks) { if (box && (x < k.x0 || x > k.x1 || z < k.z0 || z > k.z1)) continue; const v = k.f(x, z); if (v < d) d = v; if (d <= 0) break; }
   const kk = d <= 0 ? 0 : d >= HL.blend ? 1 : smooth(d / HL.blend);
   let h = 0; if (kk > 0) { let amp = 1, fr = 1 / HL.scale, sum = 0, norm = 0; for (let o = 0; o < HL.oct; o++) { sum += (vnoise(x * fr, z * fr, hf.seed + o) - .5) * 2 * amp; norm += amp; amp *= .5; fr *= 2; } h = sum / norm * HL.amp * kk; }
+  if (rv && rv.streams && rv.streams.length) { const sd = streamDist(rv, x, z); if (sd < 1.2) h = Math.min(h, T.bed * .45 * smooth(Math.max(0, Math.min(1, 1 - sd / 1.2)))); }     // русло ручья
   if (rv) { const w = waterDist(rv, x, z); if (w < T.bank) { const t = Math.max(0, Math.min(1, w < 0 ? 0 : w / T.bank)); h = h * smooth(t) + T.bed * (1 - smooth(t)); } }
   const e = R - Math.max(Math.abs(x), Math.abs(z)); if (e < 10) h *= Math.max(0, e / 10);     // к краю мира — ровно
   return h;

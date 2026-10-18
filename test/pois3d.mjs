@@ -26,7 +26,8 @@ for (const t of Object.keys(G.pois.r)) ok(M.pois.filter(q => q.t === t).length >
 for (const [i, q] of M.pois.entries()) {
   const d = Math.hypot(q.x, q.z);
   ok(d > G.coreR + 20 && d < R - 20, `${q.id}: в ядре или у края`);
-  ok(waterDist(map.river, q.x, q.z) > q.r + 1, `${q.id}: в реке`);
+  if (q.t === 'pond') ok(waterDist(map.river, q.x, q.z) < 0 && waterDist(map.river, q.x, q.z, false) > q.r + 1, `${q.id}: пруд не стал озером или в реке`);     // пруды — маленькие озёра (2026-10-18)
+  else ok(waterDist(map.river, q.x, q.z) > q.r + 1, `${q.id}: в воде`);
   ok(!segs.some(([a, b]) => distSeg(q.x, q.z, a, b) < q.r + 1), `${q.id}: на тропе`);
   ok(!inCliff(map.plateaus, q.x, q.z, q.r), `${q.id}: на обрыве`);
   ok(!map.buildings.some(b => q.x > b.x0 - q.r && q.x < b.x1 + q.r && q.z > b.z0 - q.r && q.z < b.z1 + q.r), `${q.id}: в доме`);

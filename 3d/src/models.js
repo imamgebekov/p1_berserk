@@ -323,6 +323,22 @@ export function makeBeast(kind) {
     g.add(box(.5, .5, 1.2, fur, 0, 1.0, 0), box(.3, .55, .3, fur, 0, 1.4, .55), box(.26, .26, .46, fur, 0, 1.68, .72), box(.2, .16, .06, pale, 0, 1.05, -.62));
     for (const sx of [-1, 1]) g.add(box(.05, .45, .05, dark, sx * .12, 2.0, .62), box(.24, .05, .05, dark, sx * .2, 2.18, .62));
     for (const [x, z] of [[-.17, -.45], [.17, -.45], [-.17, .45], [.17, .45]]) { const l = new THREE.Group(); l.position.set(x, .78, z); l.add(box(.1, .78, .1, fur, 0, -.39, 0)); g.add(l); legs.push(l); }
+  } else if (kind === 'fox') {     // лиса (2026-10-18)
+    const fur = lam('#c8642a'), pale = lam('#f0e4d0'), dark = lam('#2a1a12');
+    g.add(box(.26, .26, .66, fur, 0, .42, 0), box(.22, .22, .26, fur, 0, .56, .38), box(.12, .1, .16, pale, 0, .5, .56), box(.06, .12, .04, dark, -.07, .72, .4), box(.06, .12, .04, dark, .07, .72, .4), box(.14, .14, .44, fur, 0, .46, -.5), box(.14, .14, .12, pale, 0, .46, -.76));
+    for (const [x, z] of [[-.09, -.22], [.09, -.22], [-.09, .22], [.09, .22]]) { const l = new THREE.Group(); l.position.set(x, .3, z); l.add(box(.07, .3, .07, dark, 0, -.15, 0)); g.add(l); legs.push(l); }
+  } else if (kind === 'goat') {     // горный козёл
+    const fur = lam('#d8d0c0'), dark = lam('#5a4a3a'), horn = lam('#8a7a62');
+    g.add(box(.36, .38, .8, fur, 0, .78, 0), box(.2, .3, .24, fur, 0, 1.06, .44), box(.16, .16, .26, fur, 0, 1.14, .6), box(.06, .2, .06, dark, 0, .95, .74));
+    for (const sx of [-1, 1]) g.add(box(.05, .26, .05, horn, sx * .07, 1.32, .5), box(.05, .05, .18, horn, sx * .07, 1.44, .42));
+    for (const [x, z] of [[-.12, -.3], [.12, -.3], [-.12, .3], [.12, .3]]) { const l = new THREE.Group(); l.position.set(x, .6, z); l.add(box(.08, .6, .08, dark, 0, -.3, 0)); g.add(l); legs.push(l); }
+  } else if (kind === 'heron') {     // цапля на болоте: длинные ноги и шея
+    const gray = lam('#a8acb0'), pale = lam('#e8ecec'), dark = lam('#3a3a3a'), beak = lam('#d8a83a');
+    g.add(box(.26, .28, .5, gray, 0, 1.1, 0), box(.08, .5, .08, pale, 0, 1.45, .22), box(.12, .12, .16, pale, 0, 1.72, .26), box(.04, .04, .28, beak, 0, 1.7, .46), box(.24, .06, .3, dark, 0, 1.22, -.24));
+    for (const x of [-.06, .06]) { const l = new THREE.Group(); l.position.set(x, .96, 0); l.add(box(.03, .96, .03, dark, 0, -.48, 0)); g.add(l); legs.push(l); }
+  } else if (kind === 'duck') {     // утка на воде (без ног)
+    const body = lam('#7a5a3a'), head = lam('#2a6a4a'), beak = lam('#d8a83a'), pale = lam('#e8e0d0');
+    g.add(box(.26, .16, .4, body, 0, .08, 0), box(.14, .14, .14, head, 0, .24, .16), box(.08, .04, .1, beak, 0, .22, .27), box(.27, .04, .1, pale, 0, .14, .05));
   } else {
     const fur = lam('#9a8a6a'), pale = lam('#e8e0d0');
     g.add(box(.28, .26, .46, fur, 0, .3, 0), box(.2, .2, .22, fur, 0, .42, .24), box(.05, .26, .08, fur, -.05, .64, .24), box(.05, .26, .08, fur, .05, .64, .24), box(.12, .12, .1, pale, 0, .34, -.26));

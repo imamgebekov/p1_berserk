@@ -3,7 +3,7 @@
 // composePiece — своя музыка «лесная сказка»: вальс 3/4, форма AABA из фраз по 8 тактов, мелодия по аккордам с зерном
 // (каждый раз новая, ничего не копирует): флейта, арфа-переборы, струнный фон с басом, хор «а-а» без слов.
 // birdSong / owlCall — трели птиц и уханье совы (слоги со свистом частоты).
-import { waterDist } from './terrain3d.js';
+import { waterDist, streamDist } from './terrain3d.js';
 import { mulberry32 } from './sim.js';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -13,14 +13,15 @@ export function mixOf(W, A, env) {
   const p = W.player, under = W.lvl !== 'surface';
   let n = 0; for (const e of W.enemies) if (!e.dead && e.alert && Math.hypot(e.x - p.x, e.z - p.z) < A.combat.r) n++;
   const combat = p.dead ? 0 : clamp01(n / A.combat.n), danger = clamp01(W.place && W.place.danger ? W.place.danger / 3 : 0);
-  const rv = !under && W.map.river, d = rv ? Math.max(0, waterDist(rv, p.x, p.z)) : 1e9;
+  const rv = !under && W.map.river, d = rv ? Math.max(0, Math.min(waterDist(rv, p.x, p.z), streamDist(rv, p.x, p.z) + 3)) : 1e9;     // ручей журчит тише реки (как будто на 3 м дальше)
   const water = rv ? 1 - smooth(A.water.near, A.water.far, d) : 0;
   const day = under ? 0 : smooth(A.birds.day[0], A.birds.day[1], W.light);
   const wetK = env && env.rain ? clamp01(env.rain) : 0;
   const birds = day * (1 - danger * .8) * (1 - combat) * (1 - wetK), owl = under ? 0 : (1 - day) * (W.night ? 1 : 0) * (1 - combat);
   const music = under || p.dead ? 0 : (1 - combat) * (W.night ? A.music.nightVol : 1);
   const rustle = under || !env ? 0 : Math.pow(clamp01(env.wind), 1.5) * clamp01(env.trees);     // шелест: ветер и деревья рядом
-  return { water, birds, owl, music, combat, night: !!W.night, under, rustle, rain: under ? 0 : wetK };
+  const frog = under || !A.birds.frogNear ? 0 : (1 - day) * Math.max(0, 1 - d / A.birds.frogNear) * (1 - combat) * (1 - wetK * .5);     // лягушки у воды в сумерках и ночью
+  return { water, birds, owl, frog, music, combat, night: !!W.night, under, rustle, rain: under ? 0 : wetK };
 }
 
 // ---- музыка ----
@@ -89,4 +90,6 @@ export function birdSong(r) {
   else { const n = 2 + Math.floor(r() * 3); for (let i = 0; i < n; i++) out.push({ t: i * .13, d: .08, f0: 5200 - r() * 600, f1: 3000, v: .7 }); }     // чирик
   return { kind, syl: out };
 }
+// кваканье: два-три коротких низких «ква» с изломом частоты
+export const frogCall = r => { const f = 150 + r() * 70, n = 2 + (r() * 2 | 0); return Array.from({ length: n }, (_, i) => ({ t: i * .19, d: .12, f0: f * 1.25, f1: f * .8, v: 1 - i * .15 })); };
 export const owlCall = r => { const f = 360 + r() * 40; return [{ t: 0, d: .35, f0: f, f1: f * .92, v: 1 }, { t: .55, d: .5, f0: f * 1.02, f1: f * .88, v: .9 }]; };

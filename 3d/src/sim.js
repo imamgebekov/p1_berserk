@@ -15,7 +15,7 @@ import { addXp, gainXp } from './progress3d.js';
 import { restock } from './economy3d.js';
 import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
 import { useSlot, dashStep, tickAbilities } from './abilities3d.js';
-import { waterDist } from './terrain3d.js';
+import { waterDist, inStream } from './terrain3d.js';
 import { pathGoal } from './path3d.js';
 import { inCliff } from './cliffs3d.js';
 import { firesOf, discoverFires } from './fires3d.js';
@@ -630,7 +630,9 @@ function updatePlayer(W, dt, input) {
       if (p.atkT >= P.attackTime * p.swingMul) { p.state = 'idle'; p.lastAtkEnd = W.t; p.heavy = 0; }
     }
     // бег с разгоном; при ударе медленнее
-    const sp = P.speed * heroMul(W).speed * (1 + clamp(W.gear.spd, -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1);
+    const wet = W.map.river && inStream(W.map.river, p.x, p.z);     // ручей (2026-10-18): медленнее, горение гаснет
+    if (wet && W.pst.burn) { delete W.pst.burn; W.ev.push({ k: 'douse', x: p.x, z: p.z }); }
+    const sp = P.speed * heroMul(W).speed * (1 + clamp(W.gear.spd, -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1);
     const tx = moving ? mx * sp : 0, tz = moving ? mz * sp : 0;
     const a = P.accel * dt;
     const dvx = tx - p.vx, dvz = tz - p.vz, dl = len(dvx, dvz);
@@ -655,7 +657,9 @@ function updateEnemies(W, dt) {
     if (!e.boss && W.lvl === SURFACE && len(p.x - e.x, p.z - e.z) > E.sleep.r) { e.sleep = true; continue; }     // далеко от героя — спит (C1)
     e.sleep = false;
     tickEnemy(W, e, dt); if (e.dead) continue;
-    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1);
+    const ws = W.map.river && W.map.river.streams && W.map.river.streams.length && inStream(W.map.river, e.x, e.z);     // враг в ручье: медленнее и мокрый
+    if (ws && W.cfg.elements.react && !(e.st && e.st.wet && e.st.wet.t > 1)) applyStatus(W, e, 'wet', 0, W.cfg.elements.mark.wet);
+    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1) * (ws ? W.cfg.water.slow : 1);
     slide(W.map, e, e.vx * dt, e.vz * dt, C.radius);
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
     if (e.boss) { updateBoss(W, e, dt, spd); continue; }

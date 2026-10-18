@@ -1,5 +1,5 @@
 // Звук 3D: всё синтезируется (осцилляторы и шум), файлов нет. Контекст создаётся по первому касанию (правило iOS).
-import { composePiece, birdSong, owlCall } from './soundscape3d.js';
+import { composePiece, birdSong, owlCall, frogCall } from './soundscape3d.js';
 import { CFG3 } from './config3d.js';
 let ac = null, master = null, sfxBus = null, out = null, noiseBuf = null, amb = null, volume = .7, muted = false, lastT = {}, vp = 1;
 const FX = () => ((A && A.fx) || CFG3.audio.fx);     // числа сведения: из cfg.audio (setScene) или по умолчанию
@@ -242,6 +242,10 @@ export function tickAudio() {
     const t0 = now + .2; for (const q of owlCall(rnd)) voice(atmo.nature, { t: t0 + q.t, d: q.d, f0: q.f0, f1: q.f1, type: 'sine', v: A.birds.owlVol * m.owl * q.v, att: .08, rel: .2, low: true });
     stats.owls++; atmo.nextOwl = now + A.birds.owlGap[0] + rnd() * (A.birds.owlGap[1] - A.birds.owlGap[0]);
   } else if (m.owl <= .05 && atmo.nextOwl < now) atmo.nextOwl = now + 3;
+  if ((m.frog || 0) > .05 && now >= (atmo.nextFrog || 0)) {     // лягушки у воды (2026-10-18)
+    const t0 = now + .1; for (const q of frogCall(rnd)) voice(atmo.nature, { t: t0 + q.t, d: q.d, f0: q.f0, f1: q.f1, type: 'triangle', v: A.birds.frogVol * m.frog * q.v, att: .01, rel: .05, low: true });
+    stats.frogs = (stats.frogs || 0) + 1; atmo.nextFrog = now + A.birds.frogGap[0] + rnd() * (A.birds.frogGap[1] - A.birds.frogGap[0]);
+  }
   // бульки у воды: короткий свист вверх (пузырёк)
   if (m.water > .05) {
     if (atmo.nextPlip < now) atmo.nextPlip = now;

@@ -78,19 +78,21 @@ export function fogMul(t, D, A) {
 // звери (G2): олени и зайцы пасутся вокруг героя вне экрана, пугаются ближе scare м и убегают; ушедшие за away м — появляются заново.
 // ok(x, z) — можно ли тут стоять (не вода, не дом, не камень, не лагерь). Только вид.
 export function makeBeasts(n) { return Array.from({ length: n }, (_, i) => ({ id: i, kind: i % 3 === 0 ? 'deer' : 'hare', x: 0, z: 0, face: 0, state: 'gone', t: 0, step: 0, moving: false })); }
-export function updateBeasts(B, px, pz, dt, A, rnd, ok) {
+// вид зверя по биому (2026-10-18): таблица весов A.kinds; вне биомов (ядро) — как в лесу
+export function beastKind(A, bio, rnd) { const T = (A.kinds && (A.kinds[bio] || A.kinds.forest)) || [['deer', 1], ['hare', 2]]; let w = rnd() * T.reduce((a, k) => a + k[1], 0); for (const [k, n] of T) { w -= n; if (w <= 0) return k; } return T[0][0]; }
+export function updateBeasts(B, px, pz, dt, A, rnd, ok, bioAt) {
   for (const b of B) {
     const dx = b.x - px, dz = b.z - pz, d = Math.hypot(dx, dz);
     if (b.state === 'gone' || d > A.away) {
       const a = rnd() * TAU, r = A.ring[0] + rnd() * (A.ring[1] - A.ring[0]), x = px + Math.sin(a) * r, z = pz + Math.cos(a) * r;
-      if (ok(x, z)) Object.assign(b, { x, z, state: 'graze', t: 1 + rnd() * 3, face: rnd() * TAU }); else b.state = 'gone';
+      if (ok(x, z)) Object.assign(b, { x, z, state: 'graze', t: 1 + rnd() * 3, face: rnd() * TAU, kind: bioAt ? beastKind(A, bioAt(x, z), rnd) : b.kind }); else b.state = 'gone';
       continue;
     }
     if (b.state !== 'flee' && d < A.scare) { b.state = 'flee'; b.face = Math.atan2(dx, dz) + (rnd() - .5) * .6; b.t = 0; }
     let v = 0;
     if (b.state === 'graze') { if ((b.t -= dt) <= 0) { b.state = 'walk'; b.t = 1 + rnd() * 2; b.face += (rnd() - .5) * 2; } }
     else if (b.state === 'walk') { v = A.walk; if ((b.t -= dt) <= 0) { b.state = 'graze'; b.t = 2 + rnd() * 4; } }
-    else { v = A.run * (b.kind === 'deer' ? 1.15 : 1); b.t += dt; if (b.kind === 'hare' && b.t > .45) { b.t = 0; b.face += (rnd() - .5) * 1.4; } }     // заяц петляет
+    else { v = A.run * ((A.speed && A.speed[b.kind]) || (b.kind === 'deer' ? 1.15 : 1)); b.t += dt; if (b.kind === 'hare' && b.t > .45) { b.t = 0; b.face += (rnd() - .5) * 1.4; } }     // заяц петляет
     if (v) {
       const nx = b.x + Math.sin(b.face) * v * dt, nz = b.z + Math.cos(b.face) * v * dt;
       if (ok(nx, nz)) { b.x = nx; b.z = nz; } else b.face += 1.3;
@@ -98,3 +100,20 @@ export function updateBeasts(B, px, pz, dt, A, rnd, ok) {
     b.moving = v > 0; b.step += dt * v;
   }
 }
+
+// утки (2026-10-18): плавают по ближнему озеру (ближе near м к герою) кругами; герой у воды ближе scare м — отплывают прочь,
+// но остаются в озере. lakes — [{ x, z, r }], R(L, ang) — радиус берега по углу. Только вид.
+export function makeDucks(n) { return Array.from({ length: n }, (_, i) => ({ id: i, lake: null, a: i * 1.7, rr: .35 + (i % 3) * .15, x: 0, z: 0, face: 0, flee: 0 })); }
+export function updateDucks(D, px, pz, dt, lakes, A, R) {
+  let lake = null, ld = A.near; for (const L of lakes || []) { const d = Math.hypot(L.x - px, L.z - pz) - L.r; if (d < ld && L.r > 5) { ld = d; lake = L; } }
+  for (const d of D) {
+    if (d.lake !== lake) { d.lake = lake; d.flee = 0; }
+    if (!lake) continue;
+    const away = Math.hypot(d.x - px, d.z - pz) < A.scare && d.flee <= 0 ? 1 : 0; if (away) d.flee = 2.5; if (d.flee > 0) d.flee -= dt;
+    const w = (A.swim / Math.max(2, lake.r * d.rr)) * (d.flee > 0 ? A.flee : 1) * (d.id % 2 ? 1 : -1); d.a += w * dt;
+    if (d.flee > 0) { const pa = Math.atan2(px - lake.x, pz - lake.z), da = Math.atan2(Math.sin(d.a - pa), Math.cos(d.a - pa)); d.a += Math.sign(da || 1) * dt * A.flee * .4; }     // прочь от героя по кругу
+    const rad = R(lake, d.a) * d.rr * (d.flee > 0 ? .7 : 1), nx = lake.x + Math.sin(d.a) * rad, nz = lake.z + Math.cos(d.a) * rad;
+    d.face = Math.atan2(nx - d.x, nz - d.z); d.x = nx; d.z = nz;
+  }
+}
+
