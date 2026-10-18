@@ -172,6 +172,8 @@ const BASE = {
   // ambush: только на дороге (road — ширина) вне лагеря и безопасных мест; враги в r м впереди и с боков; flee — убежал дальше (или в лагерь) — засада кончилась.
   // caravan: обоз ждёт за воротами, трогается, когда герой ближе start; едет, пока герой ближе follow; waves — доли пути с налётами (ahead м впереди).
   // foes: враги по видам событий: n — [основа, + за глубину]; reward — пепел (от–до × (1 + глубина)), сундук box и бафф.
+  // сюжет (этап 3, 2026-10-19): Акт I — data/story3d.js; fordAt — брод на дороге к узлу Ольхового леса, м от лагеря
+  story: { on: true, fordAt: 105 },
   events: {
     on: true, first: [300, 540], every: [420, 780], retry: 30, kinds: { rescue: 3, ambush: 3, caravan: 2 },
     rescue: { name: 'Путник', hp: 300, taken: .4, dmg: 8, range: 1.9, cd: 1.2, dist: [30, 60], side: 4, campPad: 8, r: 1, wake: 18, wait: 240, time: 150, thanks: 4 },
@@ -410,6 +412,11 @@ const BASE = {
     types: {
       guard:   { name: 'Стражник', hp: 130, dmg: 18,  speed: 4.8, range: 1.9, wind: .32, recover: .5,  cost: 140, tint: '#4a5a78', text: 'Быстрый и недорогой. Копьё.' },
       soldier: { name: 'Ратник',   hp: 240, dmg: 28, speed: 4.5, range: 2.1, wind: .36, recover: .55, cost: 380, tint: '#7a3a30', text: 'Меч и щит. Держит удар.' },
+      // герои сюжета (этап 3): идут с героем по сюжету, не нанимаются (story); Аларик — модель для поединка
+      irma:    { name: 'Ирма', story: true, hp: 420, dmg: 34, speed: 5, range: 2.1, wind: .32, recover: .5, cost: 0, tint: '#4a2a30', text: 'Правая рука Аларика.' },
+      timka:   { name: 'Тимка', story: true, hp: 300, dmg: 26, speed: 5.4, range: 1.9, wind: .28, recover: .45, cost: 0, tint: '#4a5a34', text: 'Разведчик отряда.' },
+      kord:    { name: 'Корд', story: true, hp: 600, dmg: 40, speed: 4.4, range: 2.4, wind: .42, recover: .6, cost: 0, tint: '#5a3a2a', text: 'Здоровяк с молотом.' },
+      alaric:  { name: 'Аларик Белый', story: true, hp: 500, dmg: 38, speed: 5.4, range: 2.2, wind: .3, recover: .45, cost: 0, tint: '#d8d2c6', text: 'Вожак «Пепельных Крыльев».' },
       veteran: { name: 'Ветеран',  hp: 400, dmg: 42, speed: 4.5, range: 2.5, wind: .4,  recover: .6,  cost: 950, tint: '#2e2e34', text: 'Двуручный меч. Дорог, но страшен.' }
     }
   },
@@ -603,6 +610,7 @@ const BASE = {
     // bomber: подбегает на fuse.at и поджигает фитиль: через fuse.t взрыв радиуса fuse.r (ранит героя, отряд и других врагов), сам гибнет
     bomber: { name: 'Тлеющий', ai: 'bomber', xp: 18, hp: 70, speed: 4.6, damage: 34, range: 1.6, wind: .4, recover: .6, radius: .45, scale: .95, fuse: { at: 2.2, t: 1.2, r: 2.8 }, on: ['burn', 1, 3, 4] },
     // lunge: с min–max целится aim секунд (полоса на земле), потом рывок по прямой len м со скоростью speed; w — ширина полосы; cd — перезарядка
+    alaric: { name: 'Аларик Белый', ai: 'lunge', soldier: 'alaric', xp: 0, hp: 300, speed: 4.8, damage: 12, range: 2, wind: .36, recover: .45, radius: .5, scale: 1.05, lunge: { min: 3, max: 8, aim: .5, speed: 16, len: 7, w: .9, cd: 2, mul: 1.2 } },     // поединок Акта I: быстрый, точный, не убивает (этап 3)
     lunger: { name: 'Копейщик Погоста', ai: 'lunge', xp: 30, hp: 200, speed: 2.9, damage: 30, range: 1.8, wind: .6, recover: 1.1, radius: .5, scale: 1.15, lunge: { min: 4, max: 9, aim: .8, speed: 15, len: 8, w: .9, cd: 3.5, mul: 1.3 }, on: ['bleed', .5, 3, 4] },
     // blink: с min–max исчезает и появляется за спиной героя (behind м), замах после этого дольше на extra с; cd — перезарядка
     shade: { name: 'Тень', g: 'f', ai: 'blink', xp: 26, hp: 110, speed: 3.6, damage: 24, range: 1.5, wind: .75, recover: .8, radius: .45, scale: 1.05, blink: { min: 5, max: 12, cd: 5, behind: 1.7, extra: .3 }, immune: ['bleed', 'poison'] },

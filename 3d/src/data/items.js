@@ -228,6 +228,7 @@ add({ id: 'm_chief_fang', name: 'Клык Вожака', cat: 'material', pool: 
 add({ id: 'm_castellan_seal', name: 'Печать Кастеляна', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 320, text: 'Тяжёлый перстень с гербом сгоревшей крепости. Трофей Пепельной Твердыни.' });
 add({ id: 'm_ashking_crown', name: 'Венец Пепельного Короля', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 420, text: 'Корона из спёкшегося пепла, ещё тёплая. Трофей павшего города.' });
 add({ id: 'm_tyrant_skull', name: 'Череп Тирана', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 400, text: 'Череп в трещинах, в глазницах тлеет. Трофей павшего города.' });
+add({ id: 'a_cloak_wings', name: 'Плащ Пепельных Крыльев', cat: 'armor', slot: 'cloak', kind: 'cloak', mat: 'wings', tint: '#6a625c', pool: 'story', rar: 3, stats: { armor: 9, hp: 22, spd: 3 }, value: 420, text: 'Серый плащ с выжженным крылом. Награда отряда тем, кто держал брод.' });     // награда Акта I
 add({ id: 'm_queen_veil', name: 'Вуаль Королевы', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 360, text: 'Ткань из пыли, что не оседает. Трофей Чертога Пустоши.' });
 add({ id: 'm_ash_alloy', name: 'Пепельный сплав', cat: 'material', pool: 'craftmat', rar: 3, stack: 20, value: 150, text: 'Сталь, пепел и огонь. Делается в кузне, рецепт в книге.' });
 add({ id: 'm_tempered_sinew', name: 'Жила упыря', cat: 'material', pool: 'monstermat', rar: 2, stack: 20, value: 26, text: 'Крепкая закалённая жила: нужна для закалки оружия.' });

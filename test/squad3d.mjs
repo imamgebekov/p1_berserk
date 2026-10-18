@@ -11,7 +11,7 @@ const atCaptain = W => { const b = W.map.buildings.find(b => b.npc && b.npc.kind
 const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i++) step(W, 1 / 60, inp); };
 
 // данные
-{ const T = CFG3.squad.types; ok(Object.keys(T).length === 3, 'три вида бойцов'); const ks = Object.values(T); for (let i = 1; i < ks.length; i++) ok(ks[i].cost > ks[i - 1].cost && ks[i].hp > ks[i - 1].hp && ks[i].dmg > ks[i - 1].dmg, 'лестница бойцов'); }
+{ const T = Object.fromEntries(Object.entries(CFG3.squad.types).filter(([, t]) => !t.story)); ok(Object.keys(T).length === 3, 'три вида бойцов (наём; герои сюжета — отдельно)'); const ks = Object.values(T); for (let i = 1; i < ks.length; i++) ok(ks[i].cost > ks[i - 1].cost && ks[i].hp > ks[i - 1].hp && ks[i].dmg > ks[i - 1].dmg, 'лестница бойцов'); }
 // места в отряде растут с уровнем
 { const W = mk(); const m = lv => { W.lv = lv; return squadMax(W); }; ok(m(1) === 1 && m(8) === 2 && m(16) === 3 && m(24) === 4 && m(30) === 4, 'места в отряде по уровню'); }
 // найм

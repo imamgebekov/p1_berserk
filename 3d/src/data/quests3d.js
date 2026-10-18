@@ -31,8 +31,21 @@ export const QUESTS = [
   { id: 'c_chief', giver: 'captain', name: 'Голова Вожака', text: 'Вожак Ржавых держит весь лагерь в страхе. Убейте его.', type: 'boss', boss: 'chief', minLv: 12, after: 'c_lager', reward: { ash: 500, xp: 700, items: [['key_black', 1]] } },
   { id: 'c_lord', giver: 'captain', name: 'Слуга Затмения', text: 'Он выходит из руин на закате. Убейте его до того, как придёт ночь.', type: 'boss', boss: 'lord', minLv: 14, after: 'c_ruins', reward: { ash: 650, xp: 900, items: [['key_black', 1]] } },
   { id: 'c_devourer', giver: 'captain', name: 'Погост не спит', text: 'Пожиратель Погоста поднимает мёртвых. Остановите его.', type: 'boss', boss: 'devourer', minLv: 10, reward: { ash: 400, xp: 500 } },
-  { id: 'c_b_hounds', giver: 'captain', name: 'Заказ: гончие', text: 'Гончие опять рыщут по дороге. Десять пасти, на выбор.', type: 'kill', enemy: 'hound', n: 10, repeat: 900, after: 'c_hire', reward: { ash: 160, xp: 80 } }
+  { id: 'c_b_hounds', giver: 'captain', name: 'Заказ: гончие', text: 'Гончие опять рыщут по дороге. Десять пасти, на выбор.', type: 'kill', enemy: 'hound', n: 10, repeat: 900, after: 'c_hire', reward: { ash: 160, xp: 80 } },
+  // ---- отряд «Пепельные Крылья» (этап 3, Акт I): открываются по сюжету — story: после какой сцены ----
+  { id: 't_hounds', giver: 'timka', story: 'duel', name: 'Стая у тракта', text: 'Гончие режут наших лошадей. Восемь штук — и Корд перестанет ворчать.', type: 'kill', enemy: 'hound', n: 8, reward: { ash: 140, xp: 160 } },
+  { id: 't_scout', giver: 'timka', story: 'firstblood', name: 'Что в Руинах', text: 'Аларик хочет знать, что творится в Руинах Скорби. Сходи посмотри, только не геройствуй.', type: 'visit', place: 'ruiny', reward: { ash: 120, xp: 220 } },
+  { id: 't_archers', giver: 'timka', story: 'pogost', name: 'Стрелки на опушке', text: 'Лучники Ржавых бьют из кустов. Шестерых хватит, чтобы остальные задумались.', type: 'kill', enemy: 'archer', n: 6, reward: { ash: 220, xp: 380 } },
+  { id: 't_wolves', giver: 'timka', story: 'hundred', name: 'Волчий лес', text: 'В Ольховом лесу гончих больше, чем деревьев. Проредим, пока Ирма отдыхает.', type: 'kill', enemy: 'hound', n: 12, reward: { ash: 360, xp: 900 } },
+  { id: 'k_bread', giver: 'kord', story: 'duel', name: 'Похлёбка', text: 'Хлеба. Шесть.', type: 'bring', item: 'f_rye', n: 6, reward: { ash: 110, xp: 120 } },
+  { id: 'k_ore', giver: 'kord', story: 'firstblood', name: 'Руда для молота', text: 'Молот треснул. Руды. Восемь.', type: 'bring', item: 'm_ore', n: 8, reward: { ash: 180, xp: 200 } },
+  { id: 'k_hides', giver: 'kord', story: 'pogost', name: 'Шкуры на зиму', text: 'Зима скоро. Шкуры. Пять.', type: 'bring', item: 'm_beast_hide', n: 5, reward: { ash: 220, xp: 320 } },
+  { id: 'k_shields', giver: 'kord', story: 'masked', name: 'Стена на стену', text: 'Щитоносцы Ржавых. Пять. Покажи, как ломать стену.', type: 'kill', enemy: 'shield', n: 5, reward: { ash: 300, xp: 520 } },
+  { id: 'i_drill', giver: 'irma', story: 'firstblood', name: 'Учебный бой', text: 'Двенадцать бесов. Не для пепла — для руки. Повторим, когда скажу.', type: 'kill', enemy: 'imp', n: 12, repeat: 900, reward: { ash: 90, xp: 180 } },
+  { id: 'i_ghouls', giver: 'irma', story: 'pogost', name: 'Мёртвые не лежат', text: 'После Пожирателя упыри всё ещё бродят у Погоста. Восемь — и хватит.', type: 'kill', enemy: 'ghoul', n: 8, reward: { ash: 260, xp: 420 } },
+  { id: 'i_lungers', giver: 'irma', story: 'masked', name: 'Копья из тумана', text: 'Копейщики Погоста стали ходить по ночам. Пятеро. Береги ноги.', type: 'kill', enemy: 'lunger', n: 5, reward: { ash: 320, xp: 600 } },
+  { id: 'i_brutes', giver: 'irma', story: 'rust', name: 'Добить Ржавых', text: 'От Ржавых остались рогачи-одиночки. Десять. Чтобы не собрались снова.', type: 'kill', enemy: 'brute', n: 10, reward: { ash: 420, xp: 800 } },
 ];
 export const QUEST_BY_ID = Object.fromEntries(QUESTS.map(q => [q.id, q]));
-export const GIVER_NAME = { merchant: 'Торговец', smith: 'Кузнец', captain: 'Капитан Заставы' };
+export const GIVER_NAME = { merchant: 'Торговец', smith: 'Кузнец', captain: 'Капитан Заставы', timka: 'Тимка', kord: 'Корд', irma: 'Ирма', alaric: 'Аларик Белый' };
 export const questLine = q => ({ kill: `Убить: ${q.n}`, boss: 'Победить босса', visit: 'Дойти до места', bring: `Принести: ${q.n}`, craft: 'Скрафтить', tome: 'Прочитать книгу', open: `Вскрыть контейнеров: ${q.n}`, hire: 'Нанять бойца' }[q.type]);

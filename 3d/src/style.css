@@ -448,3 +448,9 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 .skrow .slots .bslot.on{border-color:var(--gold);background:var(--btn-on);color:#f6e6c8}
 .gempop{display:flex;flex-direction:column;gap:5px;margin-top:6px;padding:6px;border:1px solid var(--line);border-radius:10px;background:#140d0c}.gemopt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:44px;padding:6px 10px;text-align:left;background:#1e1414;border:2px solid var(--gc);border-radius:10px}.gemopt .gn{font-weight:700;color:var(--gc)}.gemopt .gf,.gemopt .gm{font-size:12px;opacity:.8}.gemopt .gm{color:#e8c04a}
 #firesMap{display:block;width:min(100%,520px,62vh);aspect-ratio:1;margin:6px auto 10px;border-radius:12px;border:2px solid var(--line);cursor:pointer;touch-action:manipulation}
+/* разговор (этап 3): внизу экрана, над панелью умений; портрет слева, ответы кнопками */
+#dialog{position:fixed;left:50%;bottom:calc(120px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(720px,calc(100% - 24px));display:flex;gap:14px;align-items:flex-start;padding:14px 16px;background:rgba(18,11,10,.94);border:2px solid #6a4a2a;border-radius:14px;z-index:8;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+#dlgFace{width:72px;height:72px;flex:none;image-rendering:pixelated;border-radius:10px;background:#2a1d1b;border:2px solid #4a3426}
+#dialog .dtx{display:grid;gap:6px;min-width:0;flex:1}#dlgScene{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#a89878}#dlgWho{font:700 16px/1.2 Georgia,'Palatino Linotype',serif}#dlgLine{font-size:16px;line-height:1.45;color:#f0e6d4}
+#dlgOpts{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}#dlgOpts button{min-height:44px;padding:0 16px;border-radius:10px;background:#2a1b1a;border:2px solid #6a4a2a;color:#f0e6d4;font-weight:600}#dlgOpts button.main{background:#e8c04a;color:#1a1008;border-color:#e8c04a}
+#dlgOpts button:focus-visible{outline:2px solid #fff;outline-offset:2px}

@@ -1,4 +1,5 @@
 // Сцена Three.js: мир, свет, камера, спецэффекты. Рисует в маленьком разрешении и растягивает без сглаживания.
+import { storyActors, storyTalkable } from './story3d.js';
 import { makeMap, addFires, propsBlocked, campGates, insideOf, insideCamp } from './map.js';
 import { firesOf } from './fires3d.js';
 import { buildDecor } from './decor.js';
@@ -227,7 +228,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
   const decor = buildDecor(map, mulberry32(cfg.world.seed + 2), cfg.shaders && cfg.shaders.grime); scene.add(decor.group); freeze(decor.group);
   const decorCells = [...decor.group.children], CL = cfg.cull;     // клетки декора (снимаются вдали); дальности и доля травы — config3d.js → cull
-  const npcs = [];
+  const npcs = [], storyNpcs = new Map();     // герои сюжета (этап 3)
+  const markTex = Object.fromEntries(['!', '?'].map(ch => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.font = '900 54px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = '#1a0e06'; g.strokeText(ch, 32, 34); g.fillStyle = ch === '!' ? '#ffd23a' : '#d8d8e0'; g.fillText(ch, 32, 34); return [ch, new THREE.CanvasTexture(c)]; }));
   for (const b of map.buildings) if (b.npc) { const n = makeNpc(b.npc.kind); n.group.position.set(b.npc.x, 0, b.npc.z); n.pos = b.npc; n.mark = new THREE.Mesh(new THREE.OctahedronGeometry(.22), new THREE.MeshBasicMaterial({ color: '#e8c04a' })); n.mark.position.set(0, 2.6, 0); n.mark.visible = false; n.group.add(n.mark); scene.add(n.group); npcs.push(n); }
 
   // ветер (F2): общие uniform для шейдеров крон и травы; смещение — после всех преобразований, по миру (одно направление)
@@ -826,7 +828,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
     if (!under) town.update(W.inside, dt, W.map);
     conts.update(W, t);
-    for (const n of npcs) { const dx = p.x - n.pos.x, dz = p.z - n.pos.z; if (Math.hypot(dx, dz) < 9) n.group.rotation.y += angDiffTo(Math.atan2(dx, dz), n.group.rotation.y) * Math.min(1, dt * 6); n.root.position.y = Math.sin(t * 2) * .02; { const mk = questMark(W, n.kind || n.pos.kind); n.mark.visible = !!mk; if (mk) { n.mark.material.color.set(mk === 'ready' ? '#7ad06a' : '#e8c04a'); n.mark.position.y = 2.6 + Math.sin(t * 3) * .08; n.mark.rotation.y = t * 2; } } n.armL.rotation.x = Math.sin(t * 1.6) * .08; n.armR.rotation.x = -Math.sin(t * 1.6) * .08; }
+    // герои сюжета (этап 3): модель жителя своего цвета; над головой «!» — начать сцену, «?» — вернуться
+    { const list = under ? [] : storyActors(W), seen = new Set();
+      for (const a of list) { seen.add(a.kind); let s = storyNpcs.get(a.kind);
+        if (!s) { const m = makeNpc(a.kind, a.tint), mk = new THREE.Sprite(new THREE.SpriteMaterial({ map: markTex['!'], depthTest: false, transparent: true })); mk.scale.set(.7, .7, 1); mk.position.y = 2.9; mk.renderOrder = 5; m.group.add(mk); scene.add(m.group); s = { m, mk }; storyNpcs.set(a.kind, s); }
+        const g = s.m.group, y = Y(a.x, a.z); g.visible = true; g.position.set(a.x, y, a.z); const dx = p.x - a.x, dz = p.z - a.z; if (Math.hypot(dx, dz) < 10) g.rotation.y += angDiffTo(Math.atan2(dx, dz), g.rotation.y) * Math.min(1, dt * 6);
+        s.m.root.position.y = Math.sin(t * 2 + a.x) * .02; s.mk.visible = !!a.mark; if (a.mark) { s.mk.material.map = markTex[a.mark]; s.mk.position.y = 2.9 + (calm ? 0 : Math.sin(t * 3) * .08); } }
+      for (const [k, s] of storyNpcs) if (!seen.has(k)) s.m.group.visible = false; }
+    for (const n of npcs) { const dx = p.x - n.pos.x, dz = p.z - n.pos.z; if (Math.hypot(dx, dz) < 9) n.group.rotation.y += angDiffTo(Math.atan2(dx, dz), n.group.rotation.y) * Math.min(1, dt * 6); n.root.position.y = Math.sin(t * 2) * .02; { const mk = storyTalkable(W, n.kind || n.pos.kind) ? 'available' : questMark(W, n.kind || n.pos.kind); n.mark.visible = !!mk; if (mk) { n.mark.material.color.set(mk === 'ready' ? '#7ad06a' : '#e8c04a'); n.mark.position.y = 2.6 + Math.sin(t * 3) * .08; n.mark.rotation.y = t * 2; } } n.armL.rotation.x = Math.sin(t * 1.6) * .08; n.armR.rotation.x = -Math.sin(t * 1.6) * .08; }
     { const w = W.wanderer; cart.group.visible = !under && !!w;
       if (w && !under) {
         cart.group.position.set(w.x, Y(w.x, w.z), w.z); cart.group.rotation.y = w.face;

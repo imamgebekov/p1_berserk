@@ -14,7 +14,7 @@ const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 ok(QUESTS.length >= 24 && new Set(QUESTS.map(q => q.id)).size === QUESTS.length, 'заданий мало или id повторяются');
 const places = new Set(CFG3.map.places.map(p => p.id)), bossTypes = new Set(CFG3.bosses.list.map(b => b.type));
 for (const q of QUESTS) {
-  ok(['merchant', 'smith', 'captain'].includes(q.giver) && q.name && q.text && q.reward, 'поля ' + q.id);
+  ok(['merchant', 'smith', 'captain', 'timka', 'kord', 'irma'].includes(q.giver) && (!['timka', 'kord', 'irma'].includes(q.giver) || q.story) && q.name && q.text && q.reward, 'поля ' + q.id);
   ok((q.reward.ash || 0) + (q.reward.xp || 0) + (q.reward.items || []).length > 0, 'пустая награда ' + q.id);
   for (const [i, n] of q.reward.items || []) ok(BY_ID[i] && n >= 1, `награда ${q.id}: ${i}`);
   ok(!q.after || (QUEST_BY_ID[q.after] && q.after !== q.id), 'after ' + q.id);

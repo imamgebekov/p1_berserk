@@ -1,5 +1,6 @@
 // Задания: выдача, прогресс по событиям мира, сдача и награды. Чистая логика (Node-тесты).
 import { QUESTS, QUEST_BY_ID } from './data/quests3d.js';
+import { ACT1 } from './data/story3d.js';
 import { BY_ID } from './data/items.js';
 import { addItem, removeAt, countOf } from './inv.js';
 
@@ -15,6 +16,7 @@ export function questState(W, q) {
   }
   if (st && st.s === 'active') return isReady(W, q, st) ? 'ready' : 'active';
   if (q.after && !(stateOf(W, q.after) && stateOf(W, q.after).s === 'done')) return 'locked';
+  if (q.story && W.story && W.story.i <= ACT1.findIndex(c => c.id === q.story)) return 'locked';     // задания отряда — по сюжету (этап 3)
   return 'available';
 }
 function isReady(W, q, st) {

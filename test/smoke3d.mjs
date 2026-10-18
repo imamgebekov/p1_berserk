@@ -19,6 +19,7 @@ try {
     page.on('pageerror', e => logs.push('pageerror: ' + e.message)); page.on('console', m => { if (m.type() === 'error') logs.push(m.text().slice(0, 200)); });
     await page.goto(url); ok(await poll(() => page.evaluate(() => !!(window.__b3d && window.__b3d.W)), 8000), 'игра не загрузилась');
     const ev = (f, a) => page.evaluate(f, a);
+    for (let k = 0; k < 20 && !(await ev(() => document.getElementById('dialog').hidden)); k++) { await page.keyboard.press('Escape'); await page.waitForTimeout(100); }     // пролог Акта I (этап 3) — пропустить
     await ev(() => { const W = window.__b3d.W; W.player.maxhp = W.player.hp = 1e6; W.enemies.length = 0; });
     await poll(() => ev(() => window.__b3d.perf().n >= 20), 20000);     // программная видеокарта сначала собирает шейдеры (секунды) — ждём, пока кадры пойдут
     const z0 = await ev(() => window.__b3d.W.player.z); await page.keyboard.down('KeyW');
@@ -35,6 +36,7 @@ try {
   { const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage(); page.setDefaultTimeout(15000);
     page.on('pageerror', e => logs.push('phone pageerror: ' + e.message));
     await page.goto(url); ok(await poll(() => page.evaluate(() => !!(window.__b3d && window.__b3d.W)), 8000), 'телефон: игра не загрузилась');
+    await page.waitForTimeout(600); await page.evaluate(() => { const b = document.querySelector('#dlgOpts button'); if (b && !document.getElementById('dialog').hidden) for (let k = 0; k < 9; k++) { const x = document.querySelector('#dlgOpts button'); if (!x || document.getElementById('dialog').hidden) break; x.click(); } });     // пролог на телефоне — пролистать
     const r = await page.evaluate(() => { const box = id => document.getElementById(id).getBoundingClientRect(); const a = box('bAtk'), b = box('bagBtn'); return { atk: a.width >= 44 && a.right <= innerWidth, bag: b.width >= 44 }; });
     ok(r.atk && r.bag, 'телефон: кнопки удара или сумки не на месте: ' + JSON.stringify(r));
     await page.tap('#bagBtn'); ok(await poll(() => page.evaluate(() => !document.getElementById('bag').hidden), 2000), 'телефон: сумка не открылась');

@@ -182,7 +182,7 @@ export function createCaptain(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     headEl.textContent = `Застава · отряд ${live.length}/${max} · пепел ${W.inv.ash}`;
     listEl.textContent = '';
     listEl.appendChild(el('div', 'ssec', 'Нанять'));
-    for (const [id, T] of Object.entries(cfg.squad.types)) {
+    for (const [id, T] of Object.entries(cfg.squad.types)) { if (T.story) continue;     // герои сюжета не нанимаются
       const r = el('div', 'srow'), info = el('div', 'sinfo');
       const nm = el('span', 'nm', T.name); nm.style.color = T.tint === '#2e2e34' ? '#c8c8d8' : T.tint;
       info.append(nm, el('div', 'sub', `${T.text} Здоровье ${T.hp}, урон ${T.dmg}.`));

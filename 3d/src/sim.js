@@ -26,6 +26,7 @@ import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDr
 import { TRAITS, PERKS } from './data/weapons3d.js';
 import { SETS } from './data/sets3d.js';
 import { initBoss, updateBoss } from './boss3d.js';
+import { storyFresh, storyTick, storyKill, storyBoss, storyActors, duelGuard } from './story3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent } from './quests3d.js';
 import { lightOf, isNight } from './daynight.js';
@@ -90,7 +91,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), fires: {}, gfx: {}, hero: DEFAULT_HERO, heroes: {}, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), story: cfg.story && cfg.story.on ? storyFresh() : null, fires: {}, gfx: {}, hero: DEFAULT_HERO, heroes: {}, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
@@ -279,7 +280,8 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   p.lastHurt = W.t;
   if (W.gfx.aegis && W.aegis > 0) { const a = Math.min(W.aegis, dmg); W.aegis -= a; dmg -= a; W.ev.push({ k: 'aegis', x: p.x, z: p.z, left: W.aegis }); if (W.aegis <= 0) W.aegisT = W.gfx.aegis[0]; if (dmg <= 0) { p.inv = W.cfg.player.hurtInvuln; return true; } }     // Кираса Солнца: щит берёт удар первым
   p.calm = W.cfg.player.fire.calm;
-  p.hp -= dmg; p.inv = W.cfg.player.hurtInvuln; W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
+  dmg = duelGuard(W, dmg); p.hp -= dmg; p.inv = W.cfg.player.hurtInvuln;     // поединок Акта I: герой не гибнет
+  W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
   const d = len(p.x - fromX, p.z - fromZ) || 1;
   p.vx += (p.x - fromX) / d * knock; p.vz += (p.z - fromZ) / d * knock;
   W.ev.push({ k: 'hurt', x: p.x, z: p.z, dmg }); resGain(W, 'hurt', dmg);     // ярость копится от урона
@@ -296,7 +298,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
 
 export function killEnemy(W, e, share) {
   if (e.dead) return;
-  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
+  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
   { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
   { const gid = gemDropOf(W, e); if (gid) { W.drops.push({ id: gid, n: 1, x: e.x + .5, z: e.z - .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: gid }); } }     // камень силы
@@ -312,6 +314,7 @@ export function killEnemy(W, e, share) {
 }
 
 function dropLoot(W, e) {
+  if (e.noLoot || e.duel) return;     // сюжетные: поединок без добычи
   const depth = clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1);
   const rolls = e.elite ? W.cfg.elite.lootRolls : 1;
   for (let r = 0; r < rolls; r++) for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck + (e.elite ? W.cfg.elite.luck : 0), W.cfg.drops.brandK)) {
@@ -684,6 +687,7 @@ function updateEnemies(W, dt) {
       const hops = roomHops(W.map, e.x, e.z, p.x, p.z);           // в подземелье слышно только через немного комнат
       const shut = hops > 0 && !!W.map.adj && !pathStep(W.map, e.x, e.z, p.x, p.z);   // запертая дверь глушит: к герою не пройти — не тревожится и не толпится у двери
       if (shut) e.alert = false;
+      if (e.duel) e.alert = true;     // противник поединка не теряет героя и в безопасном месте
       const wasAlert = e.alert, cool0 = e.lostT > 0; if (cool0) e.lostT -= dt;
       if (posted && !e.alert && !deep && !shut && !sheltered && !p.dead && spotted(W, e, d, dx, dz, H)) raiseAlarm(W, e);
       if (!e.alert && !posted && !deep && !shut && !sheltered && hops <= W.cfg.dungeons.hearRooms && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
@@ -804,10 +808,12 @@ function updateHouses(W, dt) {
     const r = M.doorReach, near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r) || W.allies.some(a => !a.dead && len(a.x - d.x, a.z - d.z) < r);
     d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
   }
-  { const nb = p.dead ? null : W.map.buildings.find(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach); W.nearNpc = nb ? nb.npc.kind : nearWanderer(W) ? 'wanderer' : null; W.nearMerchant = W.nearNpc === 'merchant' || W.nearNpc === 'wanderer'; }
+  { const nb = p.dead ? null : W.map.buildings.find(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach), na = p.dead || nb ? null : storyActors(W).find(a => len(p.x - a.x, p.z - a.z) < W.cfg.shop.reach); W.nearActor = na || null;     // герои сюжета — как жители (этап 3)
+    W.nearNpc = nb ? nb.npc.kind : na ? na.kind : nearWanderer(W) ? 'wanderer' : null; W.nearMerchant = W.nearNpc === 'merchant' || W.nearNpc === 'wanderer'; }
   if ((W.shop.t += dt) > W.cfg.shop.restock) restock(W);
   updateWanderer(W, dt);
   updateEvents(W, dt);
+  if (W.story) storyTick(W, dt);     // сюжет (этап 3)
   if (W.tomb && (W.tomb.lvl || SURFACE) === W.lvl && !p.dead && len(p.x - W.tomb.x, p.z - W.tomb.z) < 1.6) { W.inv.ash += W.tomb.ash; W.ev.push({ k: 'tomb', ash: W.tomb.ash, x: W.tomb.x, z: W.tomb.z }); W.tomb = null; }
   W.nearPortal = portalNear(W);
   // контейнеры других уровней тоже наполняются со временем
@@ -946,7 +952,7 @@ export function step(W, dt, input = {}) {
   updateFoes(W, dt);
   updateHouses(W, dt);
   for (const def of W.cfg.bosses.list) { if (def.level && !W.levels[def.level]) continue; const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def)); }     // боссы живут на своём уровне, даже если герой на другом
-  { let hb = null; for (const e of W.enemies) if (e.boss && !e.dead && e.alert && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!e.b.enraged, id: e.id }; break; } W.hudBoss = hb; }
+  { let hb = null; for (const e of W.enemies) if ((e.boss || e.duel) && !e.dead && (e.alert || e.duel) && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!(e.b && e.b.enraged), id: e.id }; if (e.duel) break; } W.hudBoss = hb; }     // противник поединка — тоже с полосой
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
   if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200);     // события забирает рендер; потолок защищает, если никто не забирает
 }

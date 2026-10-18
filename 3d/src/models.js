@@ -172,6 +172,7 @@ const LOOKS = {
   lord: { shape: 'imp', body: '#2a2028', dark: '#0e0a10', eye: '#ff7a20', crown: '#ff9a40' },
   castellan: { shape: 'brute', body: '#4a4440', dark: '#1e1a18', eye: '#ff6a20', crown: '#c8a060', prop: 'shield' },     // замки (C4)
   queen: { shape: 'imp', body: '#3a3428', dark: '#14100a', eye: '#a8ff60', crown: '#e8d890', ghost: true },
+  alaric: { soldier: 'alaric' },     // поединок Акта I: модель бойца в белом
   chief: { shape: 'brute', body: '#5a2c24', dark: '#2a1210', eye: '#ffc030', crown: '#d8c8a8' },
   ashking: { shape: 'brute', body: '#3a302c', dark: '#140e0c', eye: '#ffd040', crown: '#f0c040', prop: 'shield' },     // павшие города (2026-10-18)
   bonetyrant: { shape: 'ghoul', body: '#8a8270', dark: '#3a342a', eye: '#ff4030', crown: '#d8d0b8' },
@@ -182,6 +183,7 @@ const LOOKS = {
 };
 export function makeMonster(kind, cfg) {
   const mats = [], L = LOOKS[kind] || LOOKS.imp;
+  if (L.soldier) { const s = makeSoldier(L.soldier, cfg); return { ...s, head: s.root, kind, ember: null, ghost: false, mats: [] }; }     // человек-противник (Аларик)
   const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
   const body = M(L.body), dark = M(L.dark), bone = M('#d8cfbd');
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);

@@ -11,7 +11,7 @@ import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sf
 import { mixOf } from './soundscape3d.js';
 import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
-import { trackerLine, questMark } from './quests3d.js';
+import { trackerLine, questMark, questsOf } from './quests3d.js';
 import { eventLine } from './events3d.js';
 import { fireNear, knownFires, fastTravel, travelBlock, sanitizeFires } from './fires3d.js';
 import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
@@ -26,6 +26,8 @@ import { ELEMENT_COLOR } from './elements3d.js';
 import { KIND_NAME } from './data/items.js';
 import { drawMap, tickRelief } from './mapdraw.js';
 import { zoneAt } from './zones3d.js';
+import { storyTalk, storyTalked, storyTalkable, storyGoal, storyAutoPending, storyActors } from './story3d.js';
+import { SPEAKERS } from './data/story3d.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSaveAny, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave, saveFileName } from './save3d.js';
 import { createRenderer } from './render.js';
@@ -71,7 +73,7 @@ const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : 
 const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)
 if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
-if (saved) { W.hero = saved.hero; W.heroes = saved.heroes || {}; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
+if (saved) { W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
 W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
 W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);     // «Путь пепла» (шаг 13): старому сохранению — по уже сделанному
 let saveFailT = -1e9;     // ошибка записи (кончилось место): сообщаем не чаще раза в минуту
@@ -195,6 +197,10 @@ function onEvent(v) {
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
   else if (v.k === 'place') showPlace(v.place);
+  else if (v.k === 'storyGoal') { toast(`${v.name}: ${v.text}`, '', '#e8c04a', 'scroll'); sfx('questready'); }     // сюжет (этап 3)
+  else if (v.k === 'storyDone') { toast(v.end ? 'Акт I «Наёмник» пройден. Отряд идёт на войну' : `Сцена пройдена: ${v.name}`, '', '#ffd27a', 'scroll'); sfx('questdone'); }
+  else if (v.k === 'storyWave') toast(`Волна ${v.n} из ${v.of}`, 'bad', '#ff9a6a', 'warn');
+  else if (v.k === 'storyFail') toast(`Брод не удержан. Поговорите с Алариком снова`, 'bad', '#ff8a6a', 'warn');
   else if (v.k === 'drop') { const it = BY_ID[v.id]; if (it && it.rar >= 3) { toast(`Выпало: ${it.name}`, '', RARITY[it.rar].color, 'gem'); sfx(it.rar >= 4 ? 'brand' : 'rare'); } }
   else if (v.k === 'key') toast(`Ключ на связке: ${cfg.dungeons.keys[v.key] || 'ключ'}`, '', '#e8c04a', 'key');
   else if (v.k === 'doorLocked') toast(`Заперто: нужен ${cfg.dungeons.keys[v.key] || 'ключ'}`, 'bad');
@@ -342,6 +348,7 @@ if (desk) {
     const c = e.code;
     if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(c); if (n >= 0) pickHero(HERO_IDS[n]); else if (c === 'Escape' && heroSwitching) closeHeroPick(); return; }
     if (!$('dead').hidden) { if (c === 'Enter' || c === 'KeyE') $('again').click(); return; }
+    if (!$('dialog').hidden) { e.preventDefault(); const bs = [...$('dlgOpts').children], n = ['Digit1', 'Digit2', 'Digit3'].indexOf(c); if (n >= 0 && bs[n]) bs[n].click(); else if (c === 'KeyE' || c === 'Space' || c === 'Enter') bs[0] && bs[0].click(); else if (c === 'Escape') { dlg.i = dlg.lines.length; dlgClose(); } return; }     // разговор (этап 3)
     if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.close'); if (open) open.click(); else $('gear').click(); return; }
     if (c === 'KeyM') { if (!panelOpen || !mapEl.hidden) $('miniBtn').click(); return; }
     if (c === 'KeyI') { if (vis('bag')) $('bagClose').click(); else if (!panelOpen) $('bagBtn').click(); return; }
@@ -432,7 +439,7 @@ $('impBtn').addEventListener('click', () => {
 const questBtn = $('questBtn'), trackerEl = $('tracker'); questBtn.addEventListener('click', e => { e.stopImmediatePropagation(); quests.open('here'); }, true);
 let lastTrack = '', lastMark = '';
 const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
-talk.addEventListener('click', e => { e.stopImmediatePropagation(); (W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : shop).open(); }, true);
+talk.addEventListener('click', e => { e.stopImmediatePropagation(); if (storyTalkable(W, W.nearNpc)) { dlgOpen(storyTalk(W, W.nearNpc)); return; } if (W.nearActor) { if (questsOf(W, W.nearNpc).length) quests.open('here'); else toast(`${W.nearActor.name.split(',')[0]}: «Потом. Делай, что должен.»`, '', W.nearActor.tint); return; } (W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : shop).open(); }, true);     // сюжет первым (этап 3)
 // костры (C3d): у костра — список открытых, перенос к выбранному
 const fireBtn = $('fireBtn'), firesSec = $('fires');
 function openFires() {
@@ -482,6 +489,22 @@ sleepBtn.addEventListener('click', e => {
 }, true);
 $('firesClose').addEventListener('click', closeFires);
 const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); usePortal(W); }, true);
+const SHOT = new URLSearchParams(location.search).has('shot');     // режим тестов и снимков: пролог сам не открывается
+// разговор (этап 3): реплики по одной; у реплики-выбора — кнопки ответов; конец — сюжет идёт дальше
+const HAIR = { alaric: '#ece6da', irma: '#2a1a14', timka: '#7a4a24', kord: '#1a1412', masked: '#0a0808', hostess: '#5a3020', captain: '#4a4440', herald: '#6a5030' };
+const dlg = { lines: null, i: 0, part: null, scene: '' };
+function dlgFace(who) { const cv = $('dlgFace'); if (who === 'hero') { drawPortrait(cv, HEROES[W.hero].look); return; } const S = SPEAKERS[who] || SPEAKERS.hostess;
+  drawPortrait(cv, { cape: S.tint, cloth: S.tint, hair: HAIR[who] || '#3a2a1a', capeLen: .8, hood: who === 'masked' }); if (who === 'masked') { const g = cv.getContext('2d'); g.fillStyle = '#d8d0c0'; g.fillRect(5, 3, 6, 4); g.fillStyle = '#000'; g.fillRect(6, 4, 1, 1); g.fillRect(9, 4, 1, 1); } }
+function dlgShow() {
+  const L = dlg.lines[dlg.i], opts = $('dlgOpts'); opts.textContent = ''; $('dlgScene').textContent = 'Акт I · ' + dlg.scene;
+  const say = (who, text) => { const S = SPEAKERS[who] || SPEAKERS.hostess; $('dlgWho').textContent = S.name; $('dlgWho').style.color = who === 'hero' ? '#e8c04a' : S.tint === '#1c161a' ? '#b0a8b8' : S.tint; $('dlgLine').textContent = text; dlgFace(who); };
+  const btn = (label, fn, main) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; if (main) b.className = 'main'; b.addEventListener('click', fn); opts.append(b); return b; };
+  if (Array.isArray(L)) { say(L[0], L[1]); btn(dlg.i < dlg.lines.length - 1 ? 'Далее' + (desk ? ' · E' : '') : 'Закончить' + (desk ? ' · E' : ''), dlgNext, true).focus(); return; }
+  say('hero', '…'); L.choose.forEach(([label, reply], k) => btn((desk ? `${k + 1}. ` : '') + label, () => { dlg.lines.splice(dlg.i + 1, 0, reply); dlgNext(); }, k === 0));
+}
+function dlgNext() { dlg.i++; if (dlg.i >= dlg.lines.length) dlgClose(); else dlgShow(); }
+function dlgClose() { $('dialog').hidden = true; panelOpen = false; const part = dlg.part; dlg.lines = null; storyTalked(W, part); saver.write(true); }
+function dlgOpen(t) { if (!t || !t.lines || !t.lines.length) { if (t) storyTalked(W, t.part); return; } dlg.lines = t.lines.slice(); dlg.i = 0; dlg.part = t.part; dlg.scene = t.scene; $('dialog').hidden = false; panelOpen = true; input.release(); dlgShow(); }
 // карта: миникарта в углу, большая карта по касанию
 const miniCtx = $('mini').getContext('2d'), mapCv = $('mapCv'), mapCtx = mapCv.getContext('2d'), mapEl = $('map');
 let miniT = 0;
@@ -574,7 +597,8 @@ function frame(now) {
   if (renderer) renderer.render(W, dt);
   { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
   const hud = (hudT += real) >= cfg.cull.hud || paused !== hudP; if (hud) { hudT = 0; hudP = paused; }     // кнопки, статусы и умения — 10 раз в секунду (и сразу при открытии меню)
-  if (hud) { const show = !!W.nearNpc && !npcLocked(W.nearNpc) && !panelOpen && !landscape; if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
+  if (hud) { const show = !!W.nearNpc && (storyTalkable(W, W.nearNpc) || !npcLocked(W.nearNpc)) && !panelOpen && !landscape;     // сюжетный разговор — даже у закрытого жителя
+  if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
   if (hud) { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : '')); }
   if (hud) { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
   if (hud) { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; } }
@@ -586,14 +610,15 @@ function frame(now) {
       for (const k of Object.keys(W.pst)) chip(`${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`, STATUS_COLOR[k]);
       for (const b of buffs) chip(`${b[0]} ${Math.ceil(b[1])}с`, b[2]); } }
   if (hud) { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !npcLocked(near) && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); setIconText(questBtn, 'scroll', mk === 'ready' ? 'Сдать задание' : mk ? 'Есть задания!' : 'Задания'); } }
-  if (hud) { drawAbil(); showZone(); }
+  if (hud) { drawAbil(); showZone(); if (W.story && !SHOT && storyAutoPending(W) && !panelOpen && $('heroPick').hidden && $('dead').hidden) { W.story.autoShown = true; dlgOpen(storyTalk(W, null)); } }     // пролог начинается сам
   { const sr = sparkTick(W); if (sr === 'step') sfx('questready'); else if (sr === 'done') { toast(`Первая искра зажжена: +${cfg.spark.ash} пепла`, '', '#e8c04a', 'fire'); sfx('questdone'); saver.write(); } }
   // строка цели не бывает пустой (шаг 12): событие → «Первая искра» → взятое задание → ближайший неоткрытый костёр
   if ((goalT -= real) <= 0) { goalT = .25;
     { const pr = pathTick(W); if (pr && pr.k === 'step') { toast(`Путь пепла ${pr.i + 1}/${PATH.length - 1}: ${pr.text}`, '', '#e8c04a', 'fire'); sfx('questready'); saver.write(); } else if (pr && pr.k === 'end') { saver.write(); showEnd(); } }
     applyLocks();
     const sp = W.spark && !W.spark.done, pg = pathGoal(W), crypt = pg && PATH[pathIndex(W)].id === 'crypt';
-    const g = W.lvl === 'surface' ? (sp ? goalOf(W) : pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null };
+    const sg = !sp && W.story ? storyGoal(W) : null;     // сюжет (этап 3) — главнее «Пути пепла»
+    const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null };
     const tl = eventLine(W) || (sp ? g.text : trackerLine(W) || g.text); W.goal = !eventLine(W) && (sp || !trackerLine(W)) ? g.at : null;
     if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
@@ -612,5 +637,5 @@ function frame(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
+window.__b3d = { storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
 if (BENCH) setTimeout(() => runBench(W, cfg, input, renderer), 1500);
