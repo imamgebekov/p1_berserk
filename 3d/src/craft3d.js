@@ -3,7 +3,7 @@ import { BY_ID } from './data/items.js';
 import { RECIPES, RECIPE_BY_ID } from './data/recipes3d.js';
 import { TOMES, TOME_BY_ID } from './data/tomes3d.js';
 import { CONTAINERS, DROPS, SHOP, SHOP_STAPLES, BOSS_DROPS, BOSS_LOOT } from './data/loot.js';
-import { addItem, removeAt, countOf, isPlain } from './inv.js';
+import { addItem, removeAt, countOf, isPlain, roomFor, entryOf, nomIl } from './inv.js';
 
 export const newKnown = () => ({ tomes: {}, bestiary: {}, places: {}, kinds: {}, items: {} });
 export const recipeKnown = (K, r) => !r.needs || !!K.tomes[r.needs];
@@ -30,7 +30,9 @@ export function craft(W, id) {
   const st = craftStatus(W, r); if (st !== 'ok') return st;
   const tmp = { bag: JSON.parse(JSON.stringify(W.inv.bag)), eq: W.inv.eq, up: W.inv.up, ash: 0 };
   for (const [mid, n] of r.mats) take(tmp, mid, n);
-  if (addItem(tmp, r.result.id, r.result.n, W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0)) > 0) return 'full';
+  const mx = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0), R = BY_ID[r.result.id];
+  if (R.slot) { if (!roomFor(tmp, r.result.id, mx)) return 'full'; tmp.bag.push(entryOf(r.result.id, 0, null, Math.max(nomIl(R), W.lv))); }     // скованное снаряжение — уровня героя (этап 0)
+  else if (addItem(tmp, r.result.id, r.result.n, mx) > 0) return 'full';
   W.inv.bag = tmp.bag; W.inv.ash -= r.ash; W.known.items[r.result.id] = 1;
   W.ev.push({ k: 'craft', id: r.result.id, n: r.result.n }); W.fx.quest('craft', { item: r.result.id }); return 'ok';
 }

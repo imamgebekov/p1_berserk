@@ -1,8 +1,9 @@
 // Тест боссов замков 3D (шаг C4b): босс живёт в тронном зале последнего этажа (не наверху); страж предпоследнего этажа —
 // элита с ключом трона; убийство стража даёт ключ, босса — трофей и таймер возрождения на своём этаже; при долгом отсутствии
 // этаж наполняется врагами, а босс остаётся; сохранённый мёртвый босс после загрузки мёртв. Бой: бот в лучшем снаряжении
-// на 26 и 30 уровне (вместе) побеждает каждого босса замка в 40–92 % боёв.
+// на уровне тронного зала и на 6 ниже (вместе, вещи того же уровня) побеждает каждого босса замка в 40–92 % боёв.
 import { CFG3 } from '../3d/src/config3d.js';
+import { levelOfDepth } from '../3d/src/levels3d.js';
 import { createWorld, step, mulberry32, killEnemy, restoreBosses, refreshGear } from '../3d/src/sim.js';
 import { travel } from '../3d/src/levels3d.js';
 import { BY_ID } from '../3d/src/data/items.js';
@@ -36,7 +37,7 @@ ok(B.length === 2 && B.every(b => floors.some(d => d.id === b.level && d.throne)
 // ---------- 3. бой ----------
 const BLACK = { weapon: 'w_greatsword_black', body: 'a_body_plate_black', head: 'a_head_helm_black', boots: 'a_boots_greaves_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' };
 function fight(b, lv, seed) {
-  const W = mk(seed * 131 + 7), top = floors.find(d => d.id === b.level), T = top.throne; W.lv = lv; Object.assign(W.inv.eq, BLACK); refreshGear(W); W.player.hp = W.player.maxhp;
+  const W = mk(seed * 131 + 7), top = floors.find(d => d.id === b.level), T = top.throne; W.lv = lv; Object.assign(W.inv.eq, BLACK); W.inv.il = Object.fromEntries(Object.keys(BLACK).map(k => [k, lv])); refreshGear(W); W.player.hp = W.player.maxhp;     // вещи уровня героя (этап 0)
   travel(W, top.id, T.x - T.w * .3, T.z); W.enemies = W.levels[top.id].enemies = W.enemies.filter(e => e.boss); const dodge = mulberry32(seed + 5), p = W.player;
   for (let i = 0; i < 60 * 180; i++) {
     const e = W.enemies.find(x => x.boss && !x.dead); if (!e) return { win: true, t: i / 60 }; const d = Math.hypot(e.x - p.x, e.z - p.z), C = CFG3.enemies[e.type];
@@ -50,11 +51,12 @@ function fight(b, lv, seed) {
 }
 const N = Number(process.env.CB_N || 10);
 for (const b of B) { let all = 0;
-  for (const lv of [26, 30]) {
+  const lvT = Math.round(levelOfDepth(CFG3, floors.find(d => d.id === b.level).depth));     // уровень тронного зала (этап 0: уровни до 60)
+  for (const lv of [lvT - 6, lvT]) {
     let w = 0, t = 0; for (let s = 0; s < N; s++) { const r = fight(b, lv, s); w += r.win ? 1 : 0; t += r.t; } all += w;
     console.log(`${CFG3.enemies[b.type].name} / ур. ${lv}`.padEnd(32), `побед ${(w / N * 100).toFixed(0)}%  среднее время ${(t / N).toFixed(0)} с`);
   }
-  const k = all / (2 * N); ok(k >= .4 && k <= .92, `${b.type}: побед на 26–30 уровне ${(k * 100).toFixed(0)}% (нужно 40–92)`); }
+  const k = all / (2 * N); ok(k >= .4 && k <= .92, `${b.type}: побед на уровне трона −6…0 ${(k * 100).toFixed(0)}% (нужно 40–92)`); }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + [...new Set(fails)].join('\n')); process.exit(1); }
 console.log('Боссы замков 3D: OK');

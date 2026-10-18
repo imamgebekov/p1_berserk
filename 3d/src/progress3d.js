@@ -1,5 +1,5 @@
 // Опыт, уровни и навыки.
-import { depthAt } from './levels3d.js';
+import { depthAt, levelOfDepth } from './levels3d.js';
 import { canRank } from './data/skills3d.js';
 import { refreshGear } from './sim.js';
 import { abilityPointsAt } from './data/abilities3d.js';
@@ -7,8 +7,9 @@ import { abilityPointsAt } from './data/abilities3d.js';
 // ---- опыт, уровни, навыки ----
 export const xpNeed = (lv, cfg) => Math.round(cfg.level.base * Math.pow(lv, cfg.level.pow));
 export function addXp(W, e, share = 1) {
-  const L = W.cfg.level, depth = depthAt(W, e.x, e.z), C = W.cfg.enemies[e.type];
-  gainXp(W, Math.round((C.xp || 5) * (1 + depth * .8) * (1 + W.cfg.enemies.dangerXp * (e.danger || 0)) * (e.elite ? W.cfg.elite.xp : 1) * share) || 1);
+  const L = W.cfg.level, depth = depthAt(W, e.x, e.z), C = W.cfg.enemies[e.type], lv = levelOfDepth(W.cfg, depth);
+  gainXp(W, Math.round((C.xp || 5) * (1 + Math.min(1, depth) * .8) * (1 + Math.max(0, lv - L.core) * L.xp) *     // за ядром опыт растёт по уровню места (этап 0)
+    (1 + W.cfg.enemies.dangerXp * (e.danger || 0)) * (e.elite ? W.cfg.elite.xp : 1) * share) || 1);
 }
 export function gainXp(W, n) {
   const L = W.cfg.level; if (W.lv >= L.max) return;

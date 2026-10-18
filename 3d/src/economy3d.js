@@ -3,7 +3,7 @@ import { BY_ID } from './data/items.js';
 import { SHOP, SHOP_STAPLES, rollLoot, pickItem } from './data/loot.js';
 import { canWield } from './data/heroes3d.js';
 import { mulberry32 } from './sim.js';
-import { addItem, removeAt, hasGems } from './inv.js';
+import { addItem, removeAt, hasGems, roomFor, entryOf, nomIl, ilMul } from './inv.js';
 
 // ---- кузнец: улучшение вещей за пепел ----
 export const upgradeCost = (it, lvl, cfg) => Math.round(cfg.smith.base + it.value * cfg.smith.costK * Math.pow(lvl + 1, cfg.smith.pow));
@@ -22,7 +22,7 @@ export function upgradeItem(W, where) {
 }
 
 // ---- торговля ----
-export const sellPrice = (it, cfg, up = 0, trade = 0) => Math.max(1, Math.round(it.value * cfg.shop.sellMul * (1 + up * .25) * (1 + trade / 100)));
+export const sellPrice = (it, cfg, up = 0, trade = 0, il = 0) => Math.max(1, Math.round(it.value * cfg.shop.sellMul * (1 + up * .25) * ilMul(it, il) * (1 + trade / 100)));     // вещь выше уровнем — дороже
 export const buyPrice = (it, cfg, mul = 1) => Math.max(2, Math.round(it.value * cfg.shop.buyMul * mul));
 // полка редкостей (G3): при каждом обновлении витрины — свой бросок по уровням (редкое, очень редкое, супер редкое);
 // только то, что герой может носить; свой генератор — бой не сдвигается. tier — номер уровня (1–3), fresh — «новинка»
@@ -60,7 +60,9 @@ export function buyItem(W, i) {
   const sh = shopOf(W), s = sh.stock[i]; if (!s || !W.nearMerchant) return 'far'; if (closed(W)) return 'closed';
   const price = stockPrice(W, s);
   if (W.inv.ash < price) return 'ash';
-  if (addItem(W.inv, s.id, 1, W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0)) > 0) return 'full';
+  const mx = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
+  if (BY_ID[s.id].slot) { if (!roomFor(W.inv, s.id, mx)) return 'full'; W.inv.bag.push(entryOf(s.id, 0, null, Math.max(nomIl(BY_ID[s.id]), W.lv))); }     // снаряжение у торговца — уровня героя (не ниже родного)
+  else if (addItem(W.inv, s.id, 1, mx) > 0) return 'full';
   W.inv.ash -= price; s.n -= 1; if (s.n <= 0) sh.stock.splice(i, 1);
   W.ev.push({ k: 'pickup', id: s.id, n: 1 }); return 'ok';
 }
@@ -71,9 +73,9 @@ export function sellItem(W, idx, n = 1) {
     const tmp = { bag: JSON.parse(JSON.stringify(W.inv.bag)) }; tmp.bag.splice(idx, 1);
     const max = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
     for (const g of s.g) if (g && addItem(tmp, g, 1, max) > 0) return 'full';
-    W.inv.bag = tmp.bag; W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade); W.ev.push({ k: 'unsocket', n: s.g.filter(Boolean).length }); return 'ok';
+    W.inv.bag = tmp.bag; W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade, s.il); W.ev.push({ k: 'unsocket', n: s.g.filter(Boolean).length }); return 'ok';
   }
-  W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade) * q; removeAt(W.inv, idx, q); return 'ok';
+  W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade, s.il) * q; removeAt(W.inv, idx, q); return 'ok';
 }
 // продать весь хлам разом: безделушки, деньги, записки и материалы (оружие, броня, ключи и расходники остаются)
 export function sellJunk(W) {

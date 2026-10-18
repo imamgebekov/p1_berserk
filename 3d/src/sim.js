@@ -36,10 +36,10 @@ import { weaponMix, gemDropOf, weaponElement, magicDropOf, armorGems } from './s
 import { useWeaponSkill, tickWeaponSkill } from './weaponskill3d.js';
 import { makeWeather, weatherAt } from './weather3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
-import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain, roomFor } from './inv.js';
+import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain, roomFor, ilMul } from './inv.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
-import { initLevels, withLevel, depthAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
+import { initLevels, withLevel, depthAt, levelOfDepth, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 import { resGain } from './resource3d.js';
 const critBonus = W => (W.abuf && W.abuf.hawk > 0 ? W.abuf.hawkCrit : 0);     // «Ястребиный глаз» Сойки: шанс крита на время
 
@@ -98,8 +98,8 @@ function makeWorld(cfg, rng) {
 
 
 export function spawnEnemy(W, type, x, z, mode = null) {
-  const C = W.cfg.enemies[type], E = W.cfg.enemies, d0 = depthAt(W, x, z), depth = Math.min(1, d0) + Math.max(0, d0 - 1) * (E.outerK || 1), pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * (1 + E.dangerHp * danger) * W.dif.hp);     // глубина за ядром растёт мягче (×outerK, C3b)
-  const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * W.dif.dmg * (W.night ? W.cfg.daynight.night.dmg : 1), danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
+  const C = W.cfg.enemies[type], E = W.cfg.enemies, d0 = depthAt(W, x, z), depth = Math.min(1, d0), lvl = levelOfDepth(W.cfg, d0), grow = 1 + Math.max(0, lvl - W.cfg.level.core) * W.cfg.level.grow, pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * grow * (1 + E.dangerHp * danger) * W.dif.hp);     // за ядром — по уровню места (этап 0): ×grow на уровень сверх core
+  const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, lvl: Math.round(lvl), dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * grow * W.dif.dmg * (W.night ? W.cfg.daynight.night.dmg : 1), danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
   rollElite(W, e, depth, danger);
   if (mode === 'guard' || mode === 'patrol') postEnemy(W, e, mode);
   W.enemies.push(e);
@@ -218,7 +218,8 @@ export const aliveEnemies = W => W.enemies.filter(e => !e.dead);
 // босс: здоровье из конфига (без роста от глубины), логово — точка появления
 export function spawnBoss(W, def) {
   const C = W.cfg.enemies[def.type], e = spawnEnemy(W, def.type, def.x, def.z);
-  e.hp = e.maxhp = Math.round(C.hp * W.dif.hp); e.dmgMul = W.dif.dmg; initBoss(W, e, def); resolve(W.map, e, C.radius); e.b.home = { x: e.x, z: e.z };
+  const L = W.cfg.level, bk = 1 + Math.max(0, (e.lvl || 1) - L.bossBase) * L.grow;     // боссы настроены под bossBase; глубже — крепче и злее (этап 0)
+  e.hp = e.maxhp = Math.round(C.hp * W.dif.hp * bk); e.dmgMul = W.dif.dmg * bk; initBoss(W, e, def); resolve(W.map, e, C.radius); e.b.home = { x: e.x, z: e.z };
   delete W.bossDead[def.type]; return e;
 }
 function bossDefeated(W, e) {
@@ -229,7 +230,7 @@ function bossDefeated(W, e) {
   if (tid) items.push({ id: 'tome_' + tid, n: 1 });                      // книга выпадает, пока не прочитана (первой по порядку)
   items.push({ id: 'key_black', n: 1 }, ...rollLoot(BOSS_LOOT, W.rng, 1, W.gear.luck));
   if (bd.gold && W.rng() < bd.gold) { const G = CATALOG.filter(i => i.pool === 'gold'); items.push({ id: G[(W.rng() * G.length) | 0].id, n: 1 }); }     // босс павшего города: шанс золотой вещи
-  items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0 }); });
+  items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: ilRoll(W, Math.max(e.lvl || 1, W.lv), e.id + i) + W.cfg.level.il.drop } : {}) }); });     // с босса — не ниже уровня героя
   for (const m of e.b.minions) if (!m.dead) { m.dead = true; m.deadT = 0; }
   W.bossDead[e.type] = Math.round(W.cfg.bosses.respawn * W.dif.boss);
   W.ev.push({ k: 'bossdead', name: C.name, type: e.type, x: e.x, z: e.z });     // type — для «Пути пепла» (шаг 13)
@@ -297,7 +298,7 @@ export function killEnemy(W, e, share) {
   if (e.dead) return;
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
-  { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
+  { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
   { const gid = gemDropOf(W, e); if (gid) { W.drops.push({ id: gid, n: 1, x: e.x + .5, z: e.z - .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: gid }); } }     // камень силы
   if (share >= 1) mixOnDeath(W, e);
   if (share >= 1 && W.gfx.midas && !e.boss && W.rng() < W.gfx.midas) dropLoot(W, e);                         // Перстень Мидаса: добыча дважды
@@ -315,7 +316,7 @@ function dropLoot(W, e) {
   const rolls = e.elite ? W.cfg.elite.lootRolls : 1;
   for (let r = 0; r < rolls; r++) for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck + (e.elite ? W.cfg.elite.luck : 0), W.cfg.drops.brandK)) {
     const a = W.rng() * TAU;
-    W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * .7, z: e.z + Math.cos(a) * .7, t: 0, cd: 0 });
+    W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * .7, z: e.z + Math.cos(a) * .7, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: ilRoll(W, e.lvl, e.id + r) } : {}) });
     W.ev.push({ k: 'drop', x: e.x, z: e.z, id: it.id });
   }
 }
@@ -513,7 +514,7 @@ export function sunFlash(W, at) {
 function offDmg(W) {
   const id = W.inv.eq.offhand, it = id && BY_ID[id];
   if (!it || it.slot !== 'weapon' || !canOff(W.hero, it)) return 0;
-  return it.stats.dmg * (1 + (W.inv.up.offhand || 0) * W.cfg.smith.bonus) * W.cfg.dual.mul;
+  return it.stats.dmg * (1 + (W.inv.up.offhand || 0) * W.cfg.smith.bonus) * ilMul(it, W.inv.il && W.inv.il.offhand) * W.cfg.dual.mul;
 }
 // ярость берсерка: множитель урона, пока действует (иначе ровно 1 — бой без умений не меняется)
 const rageMul = W => (W.abuf.rage > 0 ? W.abuf.rageMul : 1);
@@ -767,6 +768,7 @@ function refill(W, c) {
   const def = CONTAINERS[c.kind], depth = Math.min(1, depthAt(W, c.x, c.z));     // добыча — не выше глубины 1 и в большом мире
   const pl = placeAt(W.map, c.x, c.z);
   c.items = rollLoot(def, W.rng, depth, W.gear.luck, pl && pl.danger ? pl.danger * W.cfg.enemies.dangerLoot : 0);
+  { const lv = Math.round(levelOfDepth(W.cfg, depthAt(W, c.x, c.z))); for (const it of c.items) if (BY_ID[it.id].slot) it.il = ilRoll(W, lv, c.x * 7 + c.z); }     // уровень вещи — по месту (этап 0)
   c.ready = c.items.length > 0; c.t = 0;
   c.locked = !!def.locked; c.keyTier = def.locked ? (depth < .3 ? 1 : depth < .6 ? 2 : 3) : 0;
 }
@@ -775,6 +777,8 @@ function refill(W, c) {
 // сумка: базовые места + навык «Глубокие карманы»; bagCap — наибольшая возможная (для загрузки сохранения)
 export const bagSlots = W => W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
 export const bagCap = cfg => cfg.bag.slots + SKILLS.pockets.max * SKILLS.pockets.stats.bag;
+// уровень вещи: уровень места + 0…drop (без W.rng — бой не сдвигается)
+const ilRoll = (W, lv, salt) => Math.max(1, Math.round(lv || 1) + Math.abs(Math.round(salt)) % (W.cfg.level.il.drop + 1));
 function give(W, id, n) { const left = addItem(W.inv, id, n, bagSlots(W)); if (n - left > 0) { W.ev.push({ k: 'pickup', id, n: n - left }); W.known.items[id] = 1; } return left; }
 
 // двери открываются сами, когда рядом кто-то есть; контейнеры отдают добычу при касании и позже наполняются снова
@@ -821,7 +825,7 @@ function updateHouses(W, dt) {
     }
     if (c.key && !W.keys[c.key]) { W.keys[c.key] = true; W.ev.push({ k: 'key', key: c.key, x: c.x, z: c.z }); }    // ключ подземелья — на связку
     const rest = [];
-    for (const it of c.items) { const left = give(W, it.id, it.n); if (left > 0) rest.push({ id: it.id, n: left }); }
+    for (const it of c.items) { const left = it.il ? (roomFor(W.inv, it.id, bagSlots(W)) ? (W.inv.bag.push(entryOf(it.id, 0, null, it.il)), W.ev.push({ k: 'pickup', id: it.id, n: 1 }), W.known.items[it.id] = 1, 0) : 1) : give(W, it.id, it.n); if (left > 0) rest.push({ id: it.id, n: left, ...(it.il ? { il: it.il } : {}) }); }     // вещь с уровнем — отдельной записью
     c.items = rest; W.known.kinds[c.kind] = 1; questEvent(W, 'open', { kind: c.kind }); W.ev.push({ k: 'open', kind: c.kind, x: c.x, z: c.z });
     if (rest.length) { if (!(c.cd > 0)) { c.cd = 2.5; W.ev.push({ k: 'full', x: c.x, z: c.z }); } }
     else { c.ready = false; c.t = 0; }
@@ -831,7 +835,7 @@ function updateHouses(W, dt) {
     const q = W.drops[i]; q.t += dt;
     const d = len(p.x - q.x, p.z - q.z);
     if (!p.dead && d < W.cfg.gear.pickup * 2.2) { const k = Math.min(1, dt * 8); q.x += (p.x - q.x) * k * .5; q.z += (p.z - q.z) * k * .5; }
-    if (!p.dead && d < W.cfg.gear.pickup * .8 && (q.up || q.g)) { if (roomFor(W.inv, q.id, bagSlots(W))) { W.inv.bag.push(entryOf(q.id, q.up, q.g)); W.ev.push({ k: 'pickup', id: q.id, n: 1 }); W.drops.splice(i, 1); continue; } if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }     // вещь с заточкой или камнями — целиком
+    if (!p.dead && d < W.cfg.gear.pickup * .8 && (q.up || q.g || q.il)) { if (roomFor(W.inv, q.id, bagSlots(W))) { W.inv.bag.push(entryOf(q.id, q.up, q.g, q.il)); W.known.items[q.id] = 1; W.ev.push({ k: 'pickup', id: q.id, n: 1 }); W.drops.splice(i, 1); continue; } if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }     // вещь с заточкой или камнями — целиком
     else if (!p.dead && d < W.cfg.gear.pickup * .8) { const left = give(W, q.id, q.n); if (left < q.n) { q.n = left; if (!left) { W.drops.splice(i, 1); continue; } } else if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }
     if (q.cd > 0) q.cd -= dt;
     if (q.t > W.cfg.gear.dropLife) W.drops.splice(i, 1);
@@ -856,7 +860,7 @@ export function dropItem(W, idx, n = 1) {
   const s = W.inv.bag[idx]; if (!s) return false;
   const q = Math.min(n, s.n), p = W.player;
   const dq = { id: s.id, n: q, x: p.x + Math.sin(p.face) * 1.6, z: p.z + Math.cos(p.face) * 1.6, t: W.cfg.gear.dropLife - 12, cd: 0 };   // брошенное лежит недолго
-  if (!isPlain(s)) { dq.n = 1; if (s.up) dq.up = s.up; if (s.g) dq.g = s.g.slice(); }     // заточка и камни остаются при вещи
+  if (!isPlain(s) || s.il) { dq.n = 1; if (s.up) dq.up = s.up; if (s.g) dq.g = s.g.slice(); if (s.il) dq.il = s.il; }     // заточка, камни и уровень остаются при вещи
   W.drops.push(dq);
   removeAt(W.inv, idx, q); return true;
 }
@@ -883,12 +887,12 @@ export function switchHero(W, id) {
   const nx = W.heroes[id] || { lv: 1, xp: 0, sp: 0, skills: {}, ap: abilityPointsAt(1, W.cfg), ab: {}, bar: [] }; delete W.heroes[id];
   W.hero = id; Object.assign(W, { lv: nx.lv, xp: nx.xp, sp: nx.sp, skills: nx.skills, ap: nx.ap, ab: nx.ab, bar: nx.bar }); W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.ezones = []; W.wsk = null; W.meteors = [];
   W.allies = W.allies.filter(a => !a.decoy);
-  const inv = W.inv, back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot])); inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; };
+  const inv = W.inv, back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot], inv.il && inv.il[slot])); inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; if (inv.il) delete inv.il[slot]; };
   if (inv.eq.weapon && !canWield(id, BY_ID[inv.eq.weapon])) back('weapon');
   if (inv.eq.offhand && !canOff(id, BY_ID[inv.eq.offhand])) back('offhand');
   for (const sl of ['head', 'body', 'cloak', 'boots']) if (inv.eq[sl] && !canWield(id, BY_ID[inv.eq[sl]])) back(sl);     // тяжёлая броня — в сумку (Ирге только лёгкая)
   if (!inv.eq.weapon) {
-    let bi = -1, bd = -1; inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; if (it.slot === 'weapon' && canWield(id, it) && it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus) > bd) { bd = it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus); bi = i; } });
+    let bi = -1, bd = -1; inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; if (it.slot === 'weapon' && canWield(id, it) && it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus) * ilMul(it, s.il) > bd) { bd = it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus) * ilMul(it, s.il); bi = i; } });
     if (bi >= 0) equipAt(inv, bi, id); else if (H.start) inv.eq.weapon = H.start;
   }
   refreshGear(W); W.player.hp = Math.min(W.player.hp, W.player.maxhp);

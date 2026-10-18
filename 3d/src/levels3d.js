@@ -40,6 +40,9 @@ export function depthAt(W, x, z) {
   const L = W.levels && W.levels[W.lvl];
   return L && L.def ? L.def.depth : depthCurve(W.cfg, len(x, z));
 }
+// уровень места (этап 0): глубина 0–1 (ядро) → 1…core, 1–depthMax → core…edge; дробный, для показа — округлить
+export function levelOfDepth(cfg, d) { const L = cfg.level, M = cfg.world.depthMax || 1; return d <= 1 || M <= 1 ? 1 + (L.core - 1) * Math.min(1, d) : L.core + (L.edge - L.core) * Math.min(1, (d - 1) / (M - 1)); }
+export const levelAt = (W, x, z) => levelOfDepth(W.cfg, depthAt(W, x, z));
 export function depthCurve(cfg, d) {
   const P = cfg.world.depth || [[0, 0], [cfg.world.radius, 1]], M = cfg.world.depthMax || 1;     // за ядром большого мира глубина растёт до depthMax (C3b)
   if (d <= P[0][0]) return clamp(P[0][1], 0, M);

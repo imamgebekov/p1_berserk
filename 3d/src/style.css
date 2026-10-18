@@ -201,6 +201,7 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 #bagList{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));grid-auto-rows:min-content;align-content:start;gap:6px}
 .tile{position:relative;aspect-ratio:1;min-height:48px;padding:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#2a1d1b,#140d0c);border:2px solid var(--rc,var(--line));border-radius:10px}
 .tile .ic{width:72%;height:72%}
+.tile .ilv{position:absolute;left:4px;top:2px;font-size:10.5px;font-weight:700;opacity:.75;text-shadow:0 1px 0 #000}
 .tile .cnt{position:absolute;right:4px;bottom:2px;font-size:11.5px;font-weight:700;text-shadow:0 1px 0 #000,0 0 3px #000}
 .tile .upg{position:absolute;left:4px;top:2px;font-size:11px;font-weight:700;color:#ffd27a;text-shadow:0 1px 0 #000}
 .tile .bt{position:absolute;right:4px;top:1px;font-size:12px;color:#8fd07a;text-shadow:0 1px 0 #000}

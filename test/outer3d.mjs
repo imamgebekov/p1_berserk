@@ -1,4 +1,4 @@
-// Тест большого мира 3D (шаг C3b): бот баланса (как в balance3d) на глубинах пояса за ядром — под разными углами, то есть
+// Тест большого мира 3D (шаг C3b; пояса уровней 20–60 — этап 0): бот баланса (как в balance3d) на глубинах пояса за ядром — под разными углами, то есть
 // в разных биомах. Глубже — опаснее; в лучшем снаряжении у ядра почти не гибнут; у края мира риск есть, но пройти можно;
 // голый герой за ядром гибнет. Генератор: места и дома не в воде и не друг в друге, у каждого посёлка путь к лагерю. Напор — прежний (кольцо и погоня, без стаек G1): меряем силу врагов по глубине.
 import { CFG3 } from '../3d/src/config3d.js';
@@ -17,7 +17,7 @@ const SEEDS = Number(process.env.OUT_SEEDS || 8), SECONDS = 75;
 function run(tier, depth, seed, lv) {
   const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.enemies.roam.on = false; cfg.map.places = []; cfg.bosses.list = []; cfg.terrain.on = false;
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3)), pt = pointAtDepth(cfg, depth, seed * 1.37 + .4);
-  Object.assign(W.inv.eq, TIERS[tier]); W.lv = lv; refreshGear(W); W.player.hp = W.player.maxhp; W.player.x = pt.x; W.player.z = pt.z;     // уровень, с которым сюда приходят
+  Object.assign(W.inv.eq, TIERS[tier]); W.lv = lv; W.inv.il = Object.fromEntries(Object.keys(TIERS[tier]).map(k => [k, lv])); refreshGear(W); W.player.hp = W.player.maxhp; W.player.x = pt.x; W.player.z = pt.z;     // уровень, с которым сюда приходят
   let taken = 0; const dodge = mulberry32(seed + 99);
   for (let i = 0; i < 60 * SECONDS; i += 1) {
     const p = W.player, en = aliveEnemies(W); let tgt = null, bd = 1e9;
@@ -34,17 +34,20 @@ function run(tier, depth, seed, lv) {
   }
   return { dead: false, kills: W.kills, taken };
 }
-const T = {}, LV = { 1.25: 15, 1.5: 22, 2: 30 };
+// пояса уровней (этап 0, 2026-10-19): уровень места — из глубины (1 → 20, 1.25 → 30, 1.5 → 40, 1.75 → 50, 2 → 60); герой того же уровня в вещах того же уровня
+const T = {}, LV = { 1: 20, 1.25: 30, 1.5: 40, 1.75: 50, 2: 60 };
 const cell = (tier, depth, lv, key) => {
   let dead = 0, kills = 0, taken = 0; for (let s = 0; s < SEEDS; s++) { const r = run(tier, depth, s, lv); dead += r.dead ? 1 : 0; kills += r.kills; taken += r.taken; }
   T[key] = { dead: dead / SEEDS, kills: kills / SEEDS, tpk: taken / Math.max(1, kills) };
   console.log(`${tier} / глубина ${depth} / ур. ${lv}`.padEnd(32), `смертей ${(dead / SEEDS * 100).toFixed(0).padStart(3)}%  убито ${(kills / SEEDS).toFixed(1).padStart(5)}  урона на убийство ${(taken / Math.max(1, kills)).toFixed(1)}`);
 };
-for (const tier of Object.keys(TIERS)) for (const depth of [1.25, 1.5, 2]) cell(tier, depth, LV[depth], tier + depth);
-cell('чёрное', 2, 15, 'чёрное2@15');                              // тот же уровень, что у ядра: глубже — опаснее
-ok(T['чёрное2@15'].tpk > T['чёрное1.25'].tpk * 1.2, 'у края мира не опаснее, чем у ядра (на одном уровне)');
-ok(T['чёрное1.25'].dead <= .3, 'в лучшем снаряжении у ядра гибнут слишком часто: ' + T['чёрное1.25'].dead);
-ok(T['чёрное2'].dead <= .9, 'у края мира не пройти и в лучшем снаряжении: ' + T['чёрное2'].dead);
+for (const depth of [1, 1.25, 1.5, 1.75, 2]) cell('чёрное', depth, LV[depth], 'чёрное' + depth);
+cell('без вещей', 1.5, 40, 'без вещей1.5');
+cell('чёрное', 2, 30, 'чёрное2@30');                              // герой 30-го уровня у края мира (место 60-го) — гибнет чаще
+const band = [1, 1.25, 1.5, 1.75, 2].map(d => T['чёрное' + d].dead);
+ok(band.every(x => x <= .5), 'в каком-то поясе герой своего уровня гибнет слишком часто: ' + band.join(' / '));
+ok(Math.max(...band) - Math.min(...band) <= .4, 'пояса уровней неровные по смертям: ' + band.join(' / '));
+ok(T['чёрное2@30'].dead >= T['чёрное2'].dead + .25 || T['чёрное2@30'].tpk > T['чёрное2'].tpk * 1.5, 'у края мира герою 30-го уровня не опаснее, чем герою 60-го');
 ok(T['без вещей1.5'].dead >= .75, 'голый герой за ядром выживает: ' + T['без вещей1.5'].dead);     // 8 прогонов: шаг 12,5 %
 
 // ---------- генератор ----------

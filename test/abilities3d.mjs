@@ -30,8 +30,8 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   ok(A.ranks.map(r => r[0]).join() === '3,6,9,12,15,19,24,30' && A.ranks.every(r => r.length === 3 && r.every((l, k) => !k || l >= r[k - 1]) && r[2] <= 30), 'уровни открытия не 3/6/9/12/15/19/24/30 или ранги не по 3 и не по возрастанию');
   const c = clone(); c.enemies.count = 0; c.map.places = []; const W = createWorld(c, mulberry32(2)); W.hero = 'thorn';
   gainXp(W, 1e3); const lv = W.lv; ok(W.ap === abilityPoints(lv, c) && abilityPoints(2, c) === 0 && abilityPoints(3, c) === 1 && abilityPoints(4, c) === 2, `очков умений ${W.ap} на уровне ${lv}`);
-  for (let i = 0; i < 400 && W.lv < 30; i++) gainXp(W, 1e5);
-  ok(W.lv === 30 && W.ap === 28 && W.sp === 29, `на 30-м уровне умений ${W.ap}, навыков ${W.sp}`);
+  for (let i = 0; i < 2000 && W.lv < 60; i++) gainXp(W, 1e5);
+  ok(W.lv === 60 && W.ap === 24 && W.sp === 59, `на 60-м уровне умений ${W.ap} (все ранги — 24), навыков ${W.sp}`);     // уровни до 60 (этап 0): очков умений не больше всех рангов
 }
 // ---------- 2. открытие, ранги, перезарядка ----------
 {

@@ -48,7 +48,7 @@ export const ABILITIES = {
 // ---- правила рангов (чистые, для боя, сохранения и окна навыков) ----
 export const rankLvs = (cfg, i) => cfg.abilities.ranks[i] || [];
 // очков умений к уровню lv: по одному за каждый уровень с 3-го (решение владельца 2026-10-18)
-export const abilityPointsAt = (lv, cfg) => Math.max(0, lv - (cfg.abilities.firstLv || 3) + 1);
+export const abilityPointsAt = (lv, cfg) => Math.max(0, Math.min(lv - (cfg.abilities.firstLv || 3) + 1, cfg.abilities.ranks.length * 3));     // не больше, чем всех рангов (уровни до 60: лишние очки не копятся)
 // сколько рангов умения слота i доступно на уровне lv
 export const ranksOpenAt = (lv, cfg, i) => rankLvs(cfg, i).filter(l => l <= lv).length;
 // индекс в списках силы (3 числа) для ранга 1–3

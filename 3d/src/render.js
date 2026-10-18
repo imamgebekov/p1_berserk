@@ -857,7 +857,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       for (const { b, m } of crows) { m.group.visible = b.state !== 'gone' && inView(b.x, b.y + 1 + Y(b.x, b.z), b.z, 1.5); if (!m.group.visible) continue; m.group.position.set(b.x, b.y + Y(b.x, b.z), b.z); m.group.rotation.y = b.face; const fl = b.state === 'fly' ? Math.sin(t * 22) * .9 : (b.peck < .3 ? .2 : 0); m.wl.rotation.z = fl; m.wr.rotation.z = -fl; }
       for (let i = 0; i < puffs.count; i++) {
         const c = pipes[(i / AMB.smoke) | 0], k = ((t / 4 + (i % AMB.smoke) / AMB.smoke + c.x * .013) % 1), s = .35 + k * 1.1 * (1 - k * .6);
-        const dr = .4 + 2.6 * windNow.s; puffP.set(c.x + k * dr * windNow.dir[0] + Math.sin(t + i) * .15, c.y + .3 + k * 3.2 * (1 - .4 * windNow.s), c.z + k * dr * windNow.dir[1]);     // дым сносит ветром puffS.set(s, s, s); puffM.compose(puffP, puffQ, puffS); puffs.setMatrixAt(i, puffM);
+        const dr = .4 + 2.6 * windNow.s; puffP.set(c.x + k * dr * windNow.dir[0] + Math.sin(t + i) * .15, c.y + .3 + k * 3.2 * (1 - .4 * windNow.s), c.z + k * dr * windNow.dir[1]); puffS.set(s, s, s); puffM.compose(puffP, puffQ, puffS); puffs.setMatrixAt(i, puffM);     // дым сносит ветром
       }
       if (puffs.count) puffs.instanceMatrix.needsUpdate = true;
     }
