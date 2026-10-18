@@ -12,7 +12,7 @@ const near = (a, b, t = .6) => Math.abs(a - b) <= t;
   ok(wp.every(i => i.perks.every(p => PERKS[p])), 'неизвестное свойство'); ok(UNIQUES.length === 16 && wp.filter(i => i.pool === 'unique').length === 16, 'уникальных клинков должно быть 16');
   ok(wp.filter(i => i.perks.length && i.pool === 'weapon').length >= 20, 'мало оружия со свойствами'); ok(wp.filter(i => /Пламенн|Ледян|Ядовит|Грозов/.test(i.name)).length === ELEMENTS.length * 3, 'зачарованных клинков 12');
   for (const u of wp.filter(i => i.pool === 'unique')) ok(u.perks.length >= 1 && u.rar === 4 && u.value >= 400, 'уникальный клинок слабоват: ' + u.name);
-  ok(CATALOG.length <= 600, 'каталог превысил 600: ' + CATALOG.length);
+  ok(CATALOG.length <= 700, 'каталог превысил 700: ' + CATALOG.length);
   ok(new Set(wp.map(i => i.kind)).size === Object.keys(TRAITS).length - 1, 'не каждому умению типа есть оружие'); }
 
 // ---- стенд ----

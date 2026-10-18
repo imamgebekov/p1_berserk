@@ -25,6 +25,9 @@ export const SETS = [
   // именные: вещи ниже, пул setunique (падают с боссов)
   { id: 'pogost', name: 'Саван Погоста', pieces: ['as_pogost_head', 'as_pogost_body', 'as_pogost_cloak', 'as_pogost_boots'], b2: { stats: { armor: 6, hp: 20 } }, b4: { stats: { luck: 8, leech: 3 }, fx: { plague: 6 } } },
   { id: 'eclipse', name: 'Регалии Затмения', pieces: ['as_eclipse_head', 'as_eclipse_body', 'as_eclipse_cloak', 'as_eclipse_boots'], b2: { stats: { dmg: 6, crit: 5 } }, b4: { stats: { dmg: 4, spd: 5 }, fx: { ignite: .5 } } },
+  // золотые комплекты (2026-10-18): тяжёлый — из золотых вещей торговца, лёгкий — для всех героев (и для Ирги)
+  { id: 'sun', name: 'Солнечный доспех', pieces: ['g_nooncrown', 'g_sunplate', 'g_dawncloak', 'g_galeboots'], b2: { stats: { armor: 8, hp: 25 } }, b4: { stats: { hp: 40, dmg: 6 }, fx: { ignite: .3 } } },
+  { id: 'dawn', name: 'Облачение Зари', pieces: ['g_dawnhood', 'g_dawnrobe', 'g_dawnmantle', 'g_dawnsteps'], b2: { stats: { crit: 5, spd: 4 } }, b4: { stats: { dmg: 6, hp: 30 }, fx: { killHeal: 6 } } },
   { id: 'rust', name: 'Доспех Ржавых', pieces: ['as_rust_head', 'as_rust_body', 'as_rust_cloak', 'as_rust_boots'], b2: { stats: { armor: 6, dmg: 4 } }, b4: { stats: { hp: 30 }, fx: { killHeal: 8, rage: .25 } } }
 ];
 

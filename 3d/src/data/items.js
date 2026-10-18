@@ -25,6 +25,7 @@ import { TOMES } from './tomes3d.js';
 import { TRAITS, PERKS, MATERIAL_PERKS, ELEMENTS, ENCHANTED_KINDS, UNIQUES, weaponText } from './weapons3d.js';
 
 const ITEMS = [];
+export const HEAVY_KINDS = ['helm', 'sallet', 'cuirass', 'mail', 'plate', 'greaves'];     // тяжёлая броня (лёгкую носят все, тяжёлую — не Ирга: data/heroes3d.js → armorBan)
 const add = it => { it.stack = it.stack || 1; it.value = Math.max(1, Math.round(it.value)); ITEMS.push(it); return it; };
 const idOf = (...a) => a.join('_');
 // прилагательное по роду: m, f, n, p (мн.)
@@ -284,12 +285,14 @@ const BOOKS = [
 for (const [id, name, text] of BOOKS) add({ id: 'b_' + id, name, cat: 'curio', pool: 'book', rar: /bestiary|sermon|star_chart|map_scrap/.test(id) ? 1 : 0, stack: 1, value: 6, text });
 
 // золотые (G3b): статы лучшей клеймёной вещи того же места × GOLD_K
-for (const [id, name, slot, kind, perks, gold, story, extra] of GOLD) {
-  const base = ITEMS.filter(i => i.rar === 4 && i.slot === slot && (slot === 'weapon' || slot === 'offhand' ? i.kind === kind : true) && i.stats).sort((a, b) => b.value - a.value)[0]
+for (const [id, name, slot, kind0, perks, gold, story, extra] of GOLD) {
+  const light = kind0.startsWith('light:'), kind = light ? kind0.slice(6) : kind0;     // лёгкая золотая вещь: основа — лучшая лёгкая клеймёная того же места
+  const base = light ? ITEMS.filter(i => i.rar === 4 && i.slot === slot && !HEAVY_KINDS.includes(i.kind) && i.stats).sort((a, b) => b.value - a.value)[0] : ITEMS.filter(i => i.rar === 4 && i.slot === slot && (slot === 'weapon' || slot === 'offhand' ? i.kind === kind : true) && i.stats).sort((a, b) => b.value - a.value)[0]
     || ITEMS.filter(i => i.slot === slot && i.kind === kind && i.stats).sort((a, b) => b.rar - a.rar || b.value - a.value)[0];
   const stats = {}; for (const [k, v] of Object.entries(base.stats)) stats[k] = k === 'swing' || k === 'reach' ? v : v > 0 ? Math.round(v * GOLD_K + .49) : v;
+  if (light && stats.spd < 0) delete stats.spd;
   for (const [k, v] of Object.entries(extra || {})) stats[k] = (stats[k] || 0) + v;
-  add({ ...base, id: 'g_' + id, base: base.id, name, pool: 'gold', rar: 5, stats, value: base.value * 1.6, mat: 'gold', perks: perks || base.perks, gold: gold || null, text: (perks ? weaponText(kind, perks) : goldText(gold)) + ' ' + story });
+  add({ ...base, ...(light ? { kind } : {}), id: 'g_' + id, base: base.id, name, pool: 'gold', rar: 5, stats, value: base.value * 1.6, mat: 'gold', perks: perks || base.perks, gold: gold || null, text: (perks ? weaponText(kind, perks) : goldText(gold)) + ' ' + story });
 }
 export const CATALOG = ITEMS;
 export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));

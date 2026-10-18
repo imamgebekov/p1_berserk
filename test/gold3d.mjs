@@ -13,10 +13,11 @@ const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const G = CATALOG.filter(i => i.rar === 5);
 
 // ---------- 1. каталог ----------
-ok(RARITY[5] && RARITY[5].name === 'Золотой' && G.length === 12 && G.every(i => i.pool === 'gold' && i.slot && i.stats), 'золотых вещей не 12 или не те');     // 12-я — Посох Зенита (Ирга)
+ok(RARITY[5] && RARITY[5].name === 'Золотой' && G.length === 16 && G.every(i => i.pool === 'gold' && i.slot && i.stats), 'золотых вещей не 16 или не те');     // 12-я — Посох Зенита (Ирга); 13–16 — лёгкий комплект «Облачение Зари»
 ok(G.every(i => i.gold || (i.perks || []).includes('sun')), 'у золотой вещи нет своей механики');
 for (const it of G) {
-  const base = CATALOG.filter(i => i.rar === 4 && i.slot === it.slot && (it.slot === 'weapon' || it.slot === 'offhand' ? i.kind === it.kind : true) && i.stats).sort((a, b) => b.value - a.value)[0];
+  const light = ['head', 'body', 'boots'].includes(it.slot) && canWield('irga', it);     // лёгкая золотая броня сравнивается с лучшей лёгкой клеймёной
+  const base = CATALOG.filter(i => i.rar === 4 && i.slot === it.slot && (it.slot === 'weapon' || it.slot === 'offhand' ? i.kind === it.kind : true) && (!light || canWield('irga', i)) && i.stats).sort((a, b) => b.value - a.value)[0];
   if (base) for (const [k, v] of Object.entries(base.stats)) if (v > 0 && k !== 'swing' && k !== 'reach') ok(it.stats[k] >= Math.round(v * GOLD_K), `${it.id}: ${k} ${it.stats[k]} не выше клеймёной (${v})`);
 }
 for (const h of Object.keys(HEROES)) ok(G.some(i => i.slot === 'weapon' && canWield(h, i)), `нет золотого оружия для ${h}`);

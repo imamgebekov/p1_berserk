@@ -1,4 +1,5 @@
 // Тест сетов брони: данные, счёт частей, бонусы 2 и 4, особые эффекты, именные сеты боссов.
+import { canWield } from '../3d/src/data/heroes3d.js';
 import { CFG3 } from '../3d/src/config3d.js';
 import { BY_ID, CATALOG } from '../3d/src/data/items.js';
 import { SETS, SET_SLOTS, NAMED_ARMOR, FX_TEXT } from '../3d/src/data/sets3d.js';
@@ -7,7 +8,10 @@ import { createWorld, step, spawnEnemy, mulberry32, refreshGear } from '../3d/sr
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 
 // ---- данные ----
-ok(SETS.length === 10 && new Set(SETS.map(s => s.id)).size === 10, 'сетов должно быть 10');
+ok(SETS.length === 12 && new Set(SETS.map(s => s.id)).size === 12, 'сетов должно быть 12 (с двумя золотыми)');
+// золотые комплекты (2026-10-18): все 4 части — золотые вещи; лёгкий годится Ирге целиком
+for (const id of ['sun', 'dawn']) { const st = SETS.find(s => s.id === id); ok(st && st.pieces.length === 4 && st.pieces.every(p => BY_ID[p] && BY_ID[p].pool === 'gold'), 'золотой комплект ' + id); }
+ok(SETS.find(s => s.id === 'dawn').pieces.every(p => canWield('irga', BY_ID[p])), 'Ирга не может надеть лёгкий золотой комплект');
 for (const s of SETS) {
   ok(s.name && s.b2 && s.b4, 'бонусы сета ' + s.id); ok(s.ids.length >= 4, 'мало вещей в сете ' + s.id);
   for (const slot of SET_SLOTS) ok(s.ids.some(id => BY_ID[id].slot === slot), `в сете ${s.id} нет слота ${slot}`);
@@ -16,7 +20,7 @@ for (const s of SETS) {
   ok(Object.keys(s.b4.fx || {}).length || Object.keys(s.b4.stats).length >= 2, 'бонус за 4 должен быть заметен: ' + s.id);
 }
 ok(NAMED_ARMOR.length === 12 && NAMED_ARMOR.every(([id, slot, name, st]) => BY_ID[`as_${id}_${slot}`] && BY_ID[`as_${id}_${slot}`].pool === 'setunique' && BY_ID[`as_${id}_${slot}`].rar === 4), 'именные вещи');
-ok(CATALOG.length <= 600, 'каталог превысил 600: ' + CATALOG.length);
+ok(CATALOG.length <= 700, 'каталог превысил 700: ' + CATALOG.length);
 ok(CATALOG.filter(i => i.slot && i.stats && i.stats.armor).every(i => i.stats.armor <= 30), 'броня вещи выше 30');
 
 // ---- счёт частей и бонусы ----
