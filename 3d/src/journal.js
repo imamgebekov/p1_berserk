@@ -5,7 +5,8 @@ const GOLD_IDS = CATALOG.filter(i => i.pool === 'gold').map(i => i.id);     // �
 import { TOMES, TOME_BY_ID } from './data/tomes3d.js';
 import { RECIPES } from './data/recipes3d.js';
 import { CONTAINERS } from './data/loot.js';
-import { sourcesOf, bestiaryEntry, POOL_NAME, recipeKnown, missing } from './craft3d.js';
+import { sourcesOf, bestiaryEntry, POOL_NAME, recipeKnown, missing, craft, craftStatus } from './craft3d.js';
+import { PROFS, profSkill, profCap, recipeColor, factions, repOf, tierOf, rewardStatus, takeReward } from './life3d.js';
 import { ELEMENTS, ELEMENT_NAME, ELEMENT_COLOR, MIX_NAME, MIX_TEXT, mixKey } from './elements3d.js';
 import { gemSources, gemId } from './stones3d.js';
 import { unlocks } from './ashpath3d.js';
@@ -13,14 +14,14 @@ import { combosOf } from './combos3d.js';
 import { heroAbilities } from './abilities3d.js';
 
 const TYPES = ['imp', 'brute', 'hound', 'ghoul', 'archer', 'witch', 'devourer', 'lord', 'chief'];
-export function createJournal(doc, W, cfg, { onOpen, onClose } = {}) {
+export function createJournal(doc, W, cfg, { onOpen, onClose, onCraft } = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('journal'), listEl = $('journalList'), tabsEl = $('journalTabs');
-  let tab = 'recipes', sel = null, filter = 'all', mixSel = 'water+storm';
+  let tab = 'recipes', sel = null, filter = 'all', mixSel = 'water+storm', prof = 'smith', note = '';
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const row = (cls, html) => { const r = el('div', 'jrow ' + (cls || '')); r.innerHTML = html; return r; };
   const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  const TABS = [['recipes', 'Рецепты'], ['mixes', 'Сплавы'], ['stones', 'Камни'], ['combos', 'Связки'], ['sources', 'Источники'], ['bestiary', 'Бестиарий'], ['atlas', 'Атлас']], LOCKED = ['bestiary', 'atlas'];
+  const TABS = [['recipes', 'Рецепты'], ['mixes', 'Сплавы'], ['stones', 'Камни'], ['combos', 'Связки'], ['sources', 'Источники'], ['bestiary', 'Бестиарий'], ['atlas', 'Атлас'], ['trades', 'Ремёсла'], ['rep', 'Слава']], LOCKED = ['bestiary', 'atlas'];
   for (const [id, label] of TABS) { const b = el('button', 'tab', label); b.type = 'button'; b.dataset.tab = id; b.addEventListener('click', () => { tab = id; sel = null; render(); }); tabsEl.appendChild(b); }
   const K = () => W.known;
   const kindName = k => (K().kinds[k] ? CONTAINERS[k].name : '???');
@@ -121,11 +122,42 @@ export function createJournal(doc, W, cfg, { onOpen, onClose } = {}) {
     }
     for (const id of ids.slice(0, 120)) { const it = BY_ID[id]; const b = el('button', 'jrow'); b.type = 'button'; b.innerHTML = `<b style="color:${RARITY[it.rar].color}">${esc(it.name)}</b><div class="sub">${esc(it.cat === 'tome' ? 'книга' : it.slot ? 'снаряжение' : it.cat === 'material' ? 'материал' : it.cat)}</div>`; b.addEventListener('click', () => { sel = id; render(); }); listEl.appendChild(b); }
   }
+  // ремёсла (этап 6): навык, предел, рецепты по требованию с цветом роста; кузнечное — у кузнеца, остальное — где угодно без врагов рядом
+  const ST = { tome: 'нужна книга', skill: 'мал навык', far: 'у кузнеца', danger: 'враги рядом', mats: 'мало материалов', ash: 'мало пепла', full: 'сумка полна' };
+  function trades() {
+    if (!W.life) return;
+    const bar = el('div', 'jtabs'); for (const [id, nm] of Object.entries(PROFS)) { const b = el('button', 'tab' + (prof === id ? ' on' : ''), `${nm} · ${profSkill(W, id)}`); b.type = 'button'; b.addEventListener('click', () => { prof = id; note = ''; render(); }); bar.append(b); }
+    listEl.append(bar);
+    listEl.appendChild(row('', `<b>${esc(PROFS[prof])}: ${profSkill(W, prof)} из ${cfg.life.trades.max}</b><div class="sub">Предел сейчас ${profCap(W)}: растёт с уровнем героя. Навык растёт от изготовления — <span class="rc orange">оранжевые</span> наверняка, <span class="rc yellow">жёлтые</span> часто, <span class="rc green">зелёные</span> редко, <span class="rc grey">серые</span> нет. ${prof === 'smith' ? 'Куётся у кузнеца.' : 'Делается где угодно, если рядом нет врагов.'}${note ? ' <b>' + esc(note) + '</b>' : ''}</div>`));
+    for (const r of RECIPES.filter(q => q.prof === prof).sort((a, b) => a.skill - b.skill)) {
+      const it = BY_ID[r.result.id], col = recipeColor(W, r), known = recipeKnown(K(), r), st = craftStatus(W, r);
+      const card = row(known ? '' : 'dim', `<b style="color:${RARITY[it.rar].color}">${esc(it.name)}${r.result.n > 1 ? ' ×' + r.result.n : ''}</b> <span class="rc ${col}">${col === 'red' ? 'нужно ' + r.skill : 'навык ' + r.skill}</span>${known ? '' : ' <span class="k">нужна книга</span>'}`);
+      const m = el('div', 'mats'); for (const [id, n, have] of missing(W, r)) m.append(matBtn(id, `${BY_ID[id].name} ${Math.min(have, n)}/${n}`, have >= n)); m.append(el('span', W.inv.ash >= r.ash ? 'have' : 'lack', `пепел ${r.ash}`)); card.append(m);
+      const b = el('button', 'craftb', st === 'ok' ? 'Сделать' : ST[st] || '—'); b.type = 'button'; b.disabled = st !== 'ok';
+      b.addEventListener('click', () => { const res = craft(W, r.id); note = res === 'ok' ? `Готово: ${it.name}` : ST[res] || ''; onCraft && onCraft(res); render(); }); card.append(b);
+      listEl.appendChild(card);
+    }
+  }
+  // слава (этап 6): ступени у четырёх сторон и их награды
+  const RS = { tier: 'рано', far: 'у торговца', ash: 'мало пепла', have: 'уже есть', full: 'сумка полна' };
+  function rep() {
+    if (!W.life) return; const T = cfg.life.rep.tiers;
+    listEl.appendChild(row('', `<b>Слава</b><div class="sub">Уважение растёт от заданий, сцен сюжета, боя в краях стороны и побед над боссами. Награды берут у торговца, кузнеца или капитана. Ступень у Пепельного Брода — скидка у торговцев ${Math.round(cfg.life.rep.brodDiscount * 100)}% за ступень.${note ? ' <b>' + esc(note) + '</b>' : ''}</div>`));
+    for (const f of factions(W)) {
+      const v = repOf(W, f.id), i = tierOf(W, f.id), nx = T[i + 1], card = row('', `<b>${esc(f.name)}</b> · ${esc(T[i][1])}<div class="sub">${esc(f.text)} ${nx ? `${v} / ${nx[0]} — до «${esc(nx[1])}»` : 'Наивысшая ступень.'}</div>`);
+      const bar = el('div', 'repbar'), fill = el('i'); fill.style.transform = `scaleX(${nx ? Math.max(0, (v - T[i][0]) / (nx[0] - T[i][0])) : 1})`; bar.append(fill); card.append(bar);
+      cfg.life.rep.rewards.forEach((r, k) => { if (r.f !== f.id) return;
+        const st = rewardStatus(W, k), name = r.mount ? r.name : BY_ID[r.item].name, line = el('div', 'rewl'); line.append(el('span', '', `${T[r.tier][1]}: ${name} · ${r.ash} пепла`));
+        const b = el('button', 'craftb', st === 'ok' ? 'Взять' : RS[st] || '—'); b.type = 'button'; b.disabled = st !== 'ok';
+        b.addEventListener('click', () => { const res = takeReward(W, k); note = res === 'ok' ? `Получено: ${name}` : RS[res] || ''; onCraft && onCraft(res); render(); }); line.append(b); card.append(line); });
+      listEl.appendChild(card);
+    }
+  }
   function render() {
     const lock = !unlocks(W).journal; if (lock && LOCKED.includes(tab)) tab = 'recipes';
     for (const b of tabsEl.children) { b.classList.toggle('on', b.dataset.tab === tab); b.hidden = lock && LOCKED.includes(b.dataset.tab); }
     listEl.textContent = '';
-    ({ bestiary, atlas, recipes, mixes, stones, combos, sources })[tab]();
+    ({ bestiary, atlas, recipes, mixes, stones, combos, sources, trades, rep })[tab]();
   }
   // open(вкладка, вещь): книга на нужной вкладке; вещь — сразу карточка «где взять»
   const open = (t, item) => { if (t) tab = t; if (item !== undefined) sel = item; else if (t) sel = null; render(); root.hidden = false; onOpen && onOpen(); };

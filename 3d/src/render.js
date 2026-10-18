@@ -19,7 +19,7 @@ import { inCliff } from './cliffs3d.js';
 import * as THREE from 'three';
 import { qualityOf } from './quality3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
+import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeHorse, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
 import { heroOf } from './data/heroes3d.js';
 import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul, makeBeasts, updateBeasts, makeDucks, updateDucks } from './ambient3d.js';
 import { mulberry32 } from './sim.js';
@@ -495,6 +495,29 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         sh.fragmentShader = 'uniform float uRim, uRimP; uniform vec3 uRimC;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  { float rimK = pow(1. - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0., 1.), uRimP); totalEmissiveRadiance += uRimC * rimK * uRim; }'); };
       mat.customProgramCacheKey = () => key + '|rim'; mat.needsUpdate = true; } }); };
   const hero = makeHero(); scene.add(hero.group); let heroLook = null, rimKey = '';
+  const horse = makeHorse(); horse.group.visible = false; scene.add(horse.group);     // ездовое животное (этап 6)
+  // точки сбора (этап 6): по виду — основа и яркая метка, по одному InstancedMesh на часть (мало вызовов отрисовки); собранная — скрыта до роста
+  const NODE_LOOK = { herb: [new THREE.ConeGeometry(.42, .7, 6), '#3e7a30', new THREE.SphereGeometry(.12, 6, 4), '#f0d860', .62], ore: [new THREE.DodecahedronGeometry(.55, 0), '#66666e', new THREE.BoxGeometry(.5, .1, .14), '#e8b040', .45], hide: [new THREE.BoxGeometry(1.1, .4, .6), '#6a4630', new THREE.BoxGeometry(.7, .08, .08), '#e8e0c8', .3] };
+  let nodeParts = null, nodeT = 0; const NM = new THREE.Matrix4(), NQ = new THREE.Quaternion(), NS = new THREE.Vector3(), NP = new THREE.Vector3(), NY = new THREE.Vector3(0, 1, 0);
+  function updateNodes(W, dt) {
+    const L0 = W.levels ? W.levels.surface.map : W.map, list = L0.nodes || []; if (!list.length) return;
+    if (!nodeParts) { nodeParts = []; for (const [kind, [g1, c1, g2, c2, ay]] of Object.entries(NODE_LOOK)) { const ns = list.filter(n => n.kind === kind); if (!ns.length) continue;
+      const a = new THREE.InstancedMesh(g1, new THREE.MeshLambertMaterial({ color: c1 }), ns.length), b = new THREE.InstancedMesh(g2, new THREE.MeshBasicMaterial({ color: c2 }), ns.length); scene.add(a, b); nodeParts.push({ ns, a, b, ay }); } nodeT = 0; }
+    if ((nodeT -= dt) > 0) return; nodeT = .5;
+    const under = W.lvl && W.lvl !== 'surface';
+    for (const P of nodeParts) { P.a.visible = P.b.visible = !under; if (under) continue;
+      P.ns.forEach((n, i) => { const k = W.life && W.life.nodes[n.id] > W.t ? 0 : 1, y = Y(n.x, n.z); NQ.setFromAxisAngle(NY, (n.x * 7.3 + n.z) % 6.28); NS.setScalar(k * 1e-3 + k);
+        NP.set(n.x, y + .3, n.z); NM.compose(NP, NQ, NS); P.a.setMatrixAt(i, NM); NP.set(n.x, y + P.ay, n.z); NM.compose(NP, NQ, NS); P.b.setMatrixAt(i, NM); });
+      P.a.instanceMatrix.needsUpdate = P.b.instanceMatrix.needsUpdate = true; }
+  }
+  // повозки (этап 6): модель только рядом с героем (дальние — не рисуются)
+  const coachEnts = new Map();
+  function updateCoaches(W) {
+    const L0 = W.levels ? W.levels.surface.map : W.map, p = W.player, under = W.lvl && W.lvl !== 'surface';
+    for (const c of L0.coaches || []) { const near = !under && Math.hypot(c.x - p.x, c.z - p.z) < 70; let m = coachEnts.get(c.id);
+      if (near && !m) { m = makeCart(false); m.group.position.set(c.x, Y(c.x, c.z), c.z); m.group.rotation.y = Math.atan2(-c.x, -c.z) + Math.PI / 2; scene.add(m.group); coachEnts.set(c.id, m); }
+      if (m) m.group.visible = near; }
+  }
   // тень-двойник Вейла: тёмная копия героя с его клинком
   const MATE_W = { thorn: 'sword', vale: 'dagger', jay: 'bow', irga: 'staff' };     // спутник-герой (этап 4): облик героя и его оружие
   const mateModel = T => { const h = makeHero(); h.setLook(heroOf(T.hero).look); h.setWeapon(MATE_W[T.hero] || 'sword', 'steel'); return h; };
@@ -905,6 +928,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     { const o = W.inv.eq.offhand && BY_ID[W.inv.eq.offhand]; hero.setOff(o ? o.id : '', o && o.kind, o && o.mat, o && o.form); }
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
     animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
+    { const on = !!(W.life && W.life.mount.on) && !p.dead; horse.group.visible = on;     // верхом: конь под героем, герой выше и сидит
+      if (on) { horse.group.position.set(p.x, py, p.z); horse.group.rotation.y = hero.group.rotation.y; horse.step(t, Math.hypot(p.vx, p.vz)); hero.group.position.y = py + .95; hero.legL.rotation.x = hero.legR.rotation.x = -1.2; } }
+    updateNodes(W, dt); updateCoaches(W);
     statusFx(heroFx, p.dead ? null : W.pst, p.x, Y(p.x, p.z), p.z, 1.7, 1, dt);
     updateCharge(p, t);
     updateTrail(W, p, dt);

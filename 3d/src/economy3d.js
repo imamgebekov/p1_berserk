@@ -1,4 +1,5 @@
 // Кузнец (улучшение вещей) и торговля: цены, ассортимент, покупка и продажа.
+import { priceRep } from './life3d.js';
 import { BY_ID } from './data/items.js';
 import { SHOP, SHOP_STAPLES, rollLoot, pickItem } from './data/loot.js';
 import { canWield } from './data/heroes3d.js';
@@ -54,7 +55,7 @@ export function rerollRare(W) { W.shop.stock = [...rareShelf(W), ...W.shop.stock
 export const stockPrice = (W, s) => buyPrice(BY_ID[s.id], W.cfg, W.dif.buy * priceMulOf(W) * (s.tier ? W.cfg.shop.rare.tiers[s.tier - 1].mul : 1));
 // у повозки сказочного торговца — его витрина, наценка и торговля ночью
 export const shopOf = W => (W.nearNpc === 'wanderer' && W.wanderer) || W.shop;
-export const priceMulOf = W => W.nearNpc === 'wanderer' ? W.cfg.wanderer.priceMul : 1;
+export const priceMulOf = W => (W.nearNpc === 'wanderer' ? W.cfg.wanderer.priceMul : 1) * (W.life ? priceRep(W) : 1);     // скидка за репутацию у Пепельного Брода (этап 6)
 const closed = W => W.night && W.nearNpc !== 'wanderer';
 export function buyItem(W, i) {
   const sh = shopOf(W), s = sh.stock[i]; if (!s || !W.nearMerchant) return 'far'; if (closed(W)) return 'closed';

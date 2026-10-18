@@ -468,3 +468,13 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 #bossCast{position:relative;height:16px;margin-top:4px;border-radius:4px;background:rgba(0,0,0,.6);border:1px solid #6a3a9a;overflow:hidden}#bossCast[hidden]{display:none}
 #bossCast i{position:absolute;inset:0;background:linear-gradient(90deg,#7a3ad0,#c08aff);transform-origin:left}#bossCast span{position:relative;display:block;font-size:11px;line-height:14px;text-align:center;color:#fff;text-shadow:0 1px 0 #000}
 #boss.shield #bossFill{background:linear-gradient(90deg,#8a9ab8,#d8e4ff)}
+/* жизнь мира (этап 6): повозка, сбор, конь; ремёсла и слава в журнале */
+#coachBtn,#gatherBtn{position:fixed;left:50%;bottom:calc(262px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:48px;max-width:calc(100vw - 32px);padding:0 18px;background:#2a3a24;color:#e0f0c8;font-weight:700;border:3px solid #000;border-radius:12px}
+#coachBtn{background:#3a2c20;color:#ffe2b0}#coachBtn[hidden],#gatherBtn[hidden],#mountBtn[hidden]{display:none}
+#mountBtn{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(330px + env(safe-area-inset-bottom));min-height:44px;min-width:64px;padding:0 12px;background:#3a2a1c;color:#ffe2b0;font-weight:700;border:2px solid #000;border-radius:12px}
+[data-desk] #coachBtn,[data-desk] #gatherBtn{bottom:150px}[data-desk] #mountBtn{bottom:96px;right:24px}
+.jtabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.jtabs .tab{min-height:40px}
+.rc{font-size:11px;padding:1px 6px;border-radius:6px;background:rgba(0,0,0,.4)}.rc.orange{color:#ff9a40}.rc.yellow{color:#ffe060}.rc.green{color:#7fd060}.rc.grey{color:#9a9a9a}.rc.red{color:#ff6a5a}
+.craftb{min-height:40px;margin-top:6px;padding:0 14px;border-radius:8px;border:2px solid #6a4a2a;background:#2a1b1a;color:#f0e6d4;font-weight:700}.craftb:disabled{opacity:.5}
+.repbar{height:8px;margin:6px 0;border-radius:4px;background:rgba(0,0,0,.5);overflow:hidden}.repbar i{display:block;height:100%;background:linear-gradient(90deg,#a8822a,#ffd27a);transform-origin:left}
+.rewl{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;margin-top:4px}

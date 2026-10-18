@@ -69,7 +69,7 @@ export function claimQuest(W, id) {
   if (r.xp) W.fx.xp(r.xp);
   for (const [iid, n] of r.items || []) { const left = addItem(W.inv, iid, n, W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0)); W.known.items[iid] = 1; if (left > 0) W.drops.push({ id: iid, n: left, x: W.player.x + 1, z: W.player.z, t: 0, cd: 0 }); }
   W.quests[id] = { s: 'done', n: 0, ok: false, t: W.t };
-  W.ev.push({ k: 'questdone', name: q.name, ash: r.ash || 0 });
+  W.ev.push({ k: 'questdone', name: q.name, ash: r.ash || 0, giver: q.giver });     // giver — для репутации (этап 6)
   return 'ok';
 }
 export function abandonQuest(W, id) { const st = stateOf(W, id); if (!st || st.s !== 'active') return false; delete W.quests[id]; return true; }

@@ -410,6 +410,41 @@ const BASE = {
         chests: [{ kind: 'grave', x: 13.5, z: -19.5, key: 'crypt_bone' }, { kind: 'grave', x: 15, z: 15.5, key: 'crypt_iron' }, { kind: 'corpse', x: 19.5, z: 12.5 }, { kind: 'altar', x: 34.5, z: -17 }, { kind: 'coffer', x: 32, z: -19.8 }] }
     ]
   },
+  // жизнь мира (этап 6): сбор, ремёсла, ездовое животное, перелёты повозкой, репутация
+  life: { on: true,
+    // сбор: n точек по миру (не ближе gap м друг к другу; в ядре — core точек и gapCore), reach — дотянуться, respawn — через сколько секунд точка растёт снова;
+    // kinds — вес вида точки по биому (core — ядро); yields[вид][ступень] — [вещь, сколько, шанс]; ступень по уровню места: до 20, до 40, выше
+    gather: { n: 260, core: 30, gapCore: 11, gap: 22, reach: 1.9, respawn: 300,     // core — сколько из n в ядре (ниже 20 ур.)
+      kinds: { core: { herb: 2, ore: 1, hide: 1 }, forest: { herb: 3, hide: 2, ore: 1 }, swamp: { herb: 3, hide: 1 }, mountains: { ore: 4, herb: 1 }, waste: { ore: 2, hide: 2 }, coast: { herb: 1, hide: 2, ore: 1 } },
+      names: { herb: 'Травы', ore: 'Рудная жила', hide: 'Туша зверя' },
+      yields: {
+        herb: [[['m_grave_moss', 2, 1], ['m_amber', 1, .1]], [['m_grave_moss', 2, 1], ['m_ash_salt', 1, .6], ['m_amber', 1, .2]], [['m_ash_salt', 2, 1], ['m_amber', 1, .35], ['m_black_resin', 1, .2]]],
+        ore: [[['m_ore', 2, 1], ['m_coal', 1, .5]], [['m_ore', 3, 1], ['m_coal', 1, 1], ['m_soot', 1, .2]], [['m_ore', 3, 1], ['m_coal', 2, 1], ['m_soot', 1, .4], ['m_black_resin', 1, .25]]],
+        hide: [[['m_beast_hide', 1, 1], ['m_sinew', 1, .5], ['m_tallow', 1, .5]], [['m_beast_hide', 2, 1], ['m_sinew', 1, 1], ['m_tempered_sinew', 1, .3]], [['m_beast_hide', 2, 1], ['m_tempered_sinew', 1, .6], ['m_tallow', 1, 1]]] } },
+    // ремёсла: навык 0…max; предел растёт с уровнем героя: base + perLv × ур.; рост за изготовление по разнице «навык − требование рецепта»:
+    // меньше 10 — +1 наверняка, меньше 20 — с шансом .6, меньше 30 — .25, дальше — ничего. Алхимия и кожевенное — где угодно, если рядом нет врагов (safeR)
+    trades: { max: 150, base: 25, perLv: 3, chance: [[10, 1], [20, .6], [30, .25]], safeR: 14 },
+    // ездовое животное: скорость ×speed; сесть нельзя, если враги ближе safeR; удар, перекат, умение и урон — спешивают
+    mount: { speed: 1.65, safeR: 16 },
+    // повозки между узлами: в лагере и в городах-узлах зон; open — открывается, когда герой рядом; цена = base + perM × расстояние, пепел
+    coach: { reach: 3, open: 14, base: 15, perM: .12, safeR: 14 },
+    // репутация у четырёх сторон: пороги ступеней; за что даётся; brodDiscount — скидка у торговцев за ступень у Пепельного Брода;
+    // rewards — награды за ступень (tier): вещь item или конь mount; покупаются у торговца, кузнеца или капитана
+    rep: {
+      factions: [{ id: 'brod', name: 'Пепельный Брод', text: 'Торговцы и ремесленники лагеря.' }, { id: 'zastava', name: 'Застава', text: 'Капитан Бруно и его стража.' },
+        { id: 'band', name: 'Пепельные Крылья', text: 'Отряд Аларика.' }, { id: 'olkh', name: 'Ольховые общины', text: 'Посёлки за ядром.' }],
+      tiers: [[0, 'Нейтралитет'], [500, 'Дружелюбие'], [1500, 'Уважение'], [3500, 'Почтение'], [7500, 'Восхищение']],
+      quest: 250, scene: 300, kill: 2, elite: 6, boss: 150, dungeon: 200, brodDiscount: .05,
+      givers: { merchant: 'brod', smith: 'brod', captain: 'zastava', irma: 'band', timka: 'band', kord: 'band', alaric: 'band' },
+      dungeons: { inst_brod: 'zastava', inst_olkh: 'olkh' },
+      rewards: [
+        { f: 'zastava', tier: 1, mount: true, name: 'Конь Заставы', ash: 600, text: 'Быстрее в пути. Удар или перекат — спешиться.' },
+        { f: 'zastava', tier: 2, item: 'tome_blackarm', ash: 500 }, { f: 'zastava', tier: 3, item: 'a_cloak_pelt_black', ash: 900 },
+        { f: 'brod', tier: 1, item: 'tome_medic', ash: 150 }, { f: 'brod', tier: 2, item: 'p_elixir', ash: 200 }, { f: 'brod', tier: 3, item: 'tome_alloy', ash: 700 },
+        { f: 'band', tier: 1, item: 'p_heal3', ash: 90 }, { f: 'band', tier: 2, item: 'tome_fine', ash: 350 }, { f: 'band', tier: 4, item: 'a_cloak_wings', ash: 1500 },
+        { f: 'olkh', tier: 1, item: 'tome_leather', ash: 150 }, { f: 'olkh', tier: 2, item: 'p_skin', ash: 160 }, { f: 'olkh', tier: 3, item: 'tome_smelting', ash: 400 }
+      ] }
+  },
   // подземелья зон (этап 5): отдельные уровни с боссами по залам. at — вход наверху (нет — генератор ищет место в зоне zone с уровнем lv ±1);
   // level — уровень врагов внутри; base — уровень, под который настроены боссы; bosses — { type, room, attacks, phases, loot (вещи босса) }.
   // Механики атак: slam (круг), nova (кольцо), charge (рывок), beam (луч), pools (лужи «не стой в огне»), cast (чтение — сбить тяжёлым ударом или умением);

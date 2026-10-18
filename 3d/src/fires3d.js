@@ -8,7 +8,7 @@ import { waterDist } from './terrain3d.js';
 import { inCliff } from './cliffs3d.js';
 
 // свободное место рядом с (x, z): по спирали, не в доме, не у препятствий, не в воде и не у обрыва
-function freeNear(map, x, z, maxR = 14) {
+export function freeNear(map, x, z, maxR = 14) {
   const ok = (px, pz) => !nearBuilding(map, px, pz, 2.5) && map.solids.every(q => Math.hypot(q.x - px, q.z - pz) > q.r + 1.8) && (!map.river || waterDist(map.river, px, pz) > 3) && !inCliff(map.plateaus, px, pz, 2) && (!map.camp || !insideCamp(map.camp, px, pz, -2.5) || Math.hypot(px, pz) < 1) && !resolve(map, { x: px, z: pz }, 1.2);     // и не у частокола, не в стене
   for (let r = 0; r <= maxR; r += 1.5) for (let k = 0, n = Math.max(1, Math.round(r * 2)); k < n; k++) { const a = k / n * Math.PI * 2, px = x + Math.sin(a) * r, pz = z + Math.cos(a) * r; if (ok(px, pz)) return { x: px, z: pz }; }
   return null;
@@ -50,15 +50,19 @@ export function travelBlock(W) {
 // перенос к открытому костру id
 export function fastTravel(W, id) {
   const f = fireById(W, id); if (!f || !W.fires || !W.fires[id] || travelBlock(W)) return false;
-  const p = W.player, a = Math.atan2(-f.x, -f.z) || 0;                          // встать у костра, со стороны лагеря
-  Object.assign(p, { x: f.x + Math.sin(a) * 2.2, z: f.z + Math.cos(a) * 2.2, vx: 0, vz: 0, state: 'idle', atkT: 0, rollT: 0, face: a + Math.PI });
+  relocate(W, f.x, f.z);
+  W.ev.push({ k: 'travel', to: 'surface', up: false, fire: id });
+  return true;
+}
+// перенести героя и отряд к точке (x, z) на поверхности: встать в 2,2 м от неё со стороны лагеря; погоня не переносится (костры, повозки этапа 6)
+export function relocate(W, x, z) {
+  const p = W.player, a = Math.atan2(-x, -z) || 0;
+  Object.assign(p, { x: x + Math.sin(a) * 2.2, z: z + Math.cos(a) * 2.2, vx: 0, vz: 0, state: 'idle', atkT: 0, rollT: 0, face: a + Math.PI });
   p.inv = Math.max(p.inv, 1); resolve(W.map, p, W.cfg.player.radius);
   W.proj.length = 0; W.haz.length = 0; W.inside = -1;
   W.enemies = W.enemies.filter(e => e.boss || Math.hypot(e.x - p.x, e.z - p.z) < 40 && !e.alert);    // погоня не переносится
   W.allies.forEach((q, i) => { if (q.dead || q.guest) return; const b = p.face + Math.PI + (i - 1) * .9; q.x = p.x + Math.sin(b) * 1.6; q.z = p.z + Math.cos(b) * 1.6; q.vx = q.vz = 0; resolve(W.map, q, .45); });
   reveal(W, p.x, p.z, W.revR); W.revealT = .3;
-  W.ev.push({ k: 'travel', to: 'surface', up: false, fire: id });
-  return true;
 }
 export const knownFires = W => (W.levels ? W.levels.surface.map : W.map).fires.filter(f => W.fires && W.fires[f.id]);
 export const sanitizeFires = (list, ids) => { const o = {}; if (Array.isArray(list)) for (const id of list) if (typeof id === 'string' && ids.includes(id)) o[id] = 1; return o; };

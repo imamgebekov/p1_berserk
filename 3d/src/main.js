@@ -30,6 +30,7 @@ import { storyTalk, storyTalked, storyTalkable, storyGoal, storyAutoPending, sto
 import { SPEAKERS } from './data/story3d.js';
 import { liveAllies, squadCommand } from './squad3d.js';
 import { setHeroic, isInstance, heroicOpen } from './levels3d.js';
+import { nodeNear, gather, mountToggle, coachNear, coachList, flightCost, fly } from './life3d.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSaveAny, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave, saveFileName } from './save3d.js';
 import { createRenderer } from './render.js';
@@ -75,7 +76,7 @@ const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : 
 const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)
 if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
-if (saved) { W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
+if (saved) { W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
 W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
 W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);     // «Путь пепла» (шаг 13): старому сохранению — по уже сделанному
 let saveFailT = -1e9;     // ошибка записи (кончилось место): сообщаем не чаще раза в минуту
@@ -236,6 +237,12 @@ function onEvent(v) {
   else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
   else if (v.k === 'allydead') toast(`${v.name} пал`, 'bad');
   else if (v.k === 'allyleft') toast(`${v.name} теперь вы — спутник покинул отряд, ${v.ash} пепла вернулось`);
+  else if (v.k === 'gather') { const t = v.items.map(([id, n]) => `${BY_ID[id].name}${n > 1 ? ' ×' + n : ''}`).join(', '); toast(t ? 'Собрано: ' + t : 'Пусто — в этот раз ничего', t ? '' : 'bad'); }     // этап 6
+  else if (v.k === 'profUp') { if (v.lv % 5 === 0 || v.lv < 5) toast(`${v.name}: ${v.lv}`, '', '#ffd27a'); }
+  else if (v.k === 'mount') toast(v.on ? 'Верхом' : 'Спешились');
+  else if (v.k === 'coachFound') toast(`Открыта повозка: ${v.name}`, '', '#ffd27a');
+  else if (v.k === 'repTier') { toast(`${v.name}: ${v.tier}`, '', '#ffd27a', 'scroll'); sfx('level'); }
+  else if (v.k === 'reward') toast(`Награда: ${v.name}`, '', '#ffd27a');
   else if (v.k === 'bossCast') { toast(`${v.name} читает «${v.what}» — собейте тяжёлым ударом или умением`, 'bad', '#c8a0ff', 'warn'); sfx('fuse'); }     // этап 5
   else if (v.k === 'bossInterrupt') { toast(`Чтение сбито: ${v.name} оглушён`, '', '#ffd27a'); sfx('block'); }
   else if (v.k === 'squadCmd') toast(v.auto ? 'Отряд снова идёт за вами' : v.cmd === 'hold' ? 'Отряд: держим здесь' : v.cmd === 'assist' ? 'Отряд: бьём вашу цель' : 'Отряд: за мной');
@@ -279,7 +286,8 @@ fit();
 
 const journal = createJournal(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); },
-  onClose: () => { panelOpen = false; }
+  onClose: () => { panelOpen = false; },
+  onCraft: r => { if (r === 'ok') { sfx('craft'); saver.write(true); } }     // ремёсла и награды славы (этап 6)
 });
 const quests = createQuests(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); },
@@ -365,7 +373,8 @@ if (desk) {
     if (c === 'KeyR') { if (vis('journal')) $('journalClose').click(); else if (!panelOpen) journal.open('recipes'); return; }
     if (c === 'KeyG') { if (!panelOpen || vis('bag') || vis('smith') || vis('shop') || vis('journal')) whereFrom(); return; }
     if (c === 'KeyB' && !panelOpen && vis('sleepBtn')) sleepBtn.click();
-    if (c === 'KeyE' && !panelOpen) { if (vis('portalBtn')) portalBtn.click(); else if (vis('fireBtn')) fireBtn.click(); else if (vis('talk')) talk.click(); }
+    if (c === 'KeyE' && !panelOpen) { if (vis('portalBtn')) portalBtn.click(); else if (vis('fireBtn')) fireBtn.click(); else if (vis('coachBtn')) coachBtn.click(); else if (vis('gatherBtn')) gatherBtn.click(); else if (vis('talk')) talk.click(); }
+    if (c === 'KeyV' && !panelOpen) mountBtn.click();     // конь (этап 6)
   });
 }
 $('again').addEventListener('click', () => { if (W.ironDead) { location.reload(); return; } respawnPlayer(W); $('dead').hidden = true; });
@@ -451,7 +460,7 @@ talk.addEventListener('click', e => { e.stopImmediatePropagation(); if (storyTal
 // костры (C3d): у костра — список открытых, перенос к выбранному
 const fireBtn = $('fireBtn'), firesSec = $('fires');
 function openFires() {
-  const here = fireNear(W), list = $('firesList'), block = travelBlock(W); list.textContent = '';
+  const here = fireNear(W), list = $('firesList'), block = travelBlock(W); list.textContent = ''; firesSec.querySelector('h2').textContent = 'Костры'; $('firesMap').hidden = false;
   $('firesNote').textContent = block && block !== 'Подойдите к костру' ? block + ' — перенос невозможен.' : 'Перенос к открытому костру. Новые костры открываются, когда к ним подходишь.';
   const p = W.player;
   for (const f of knownFires(W).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))) {
@@ -483,6 +492,25 @@ $('firesMap').addEventListener('click', e => {
 });
 function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write(); }
 fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
+// жизнь мира (этап 6): повозка — окно костров без карты; сбор; конь
+const coachBtn = $('coachBtn'), gatherBtn = $('gatherBtn'), mountBtn = $('mountBtn');
+const FLY = { far: 'Подойдите к повозке', unknown: 'Этот узел ещё не открыт', danger: 'Рядом враги', ash: 'Не хватает пепла' };
+function openCoach() {
+  const here = coachNear(W), list = $('firesList'); if (!here) return; list.textContent = ''; firesSec.querySelector('h2').textContent = 'Повозка'; $('firesMap').hidden = true;
+  $('firesNote').textContent = 'Повозка везёт в открытые узлы: лагерь и города зон. Новый узел открывается, когда вы к нему подходите.';
+  for (const c of coachList(W).filter(q => W.life.coaches[q.id])) {
+    const b = document.createElement('button'), me = c.id === here.id, cost = flightCost(W, here, c); b.type = 'button'; b.textContent = c.name;
+    const sm = document.createElement('small'); sm.textContent = me ? 'вы здесь' : `${cost} пепла · ${Math.round(Math.hypot(c.x - here.x, c.z - here.z))} м`; b.appendChild(sm); b.disabled = me || W.inv.ash < cost;
+    b.addEventListener('click', () => { const r = fly(W, c.id); if (r === 'ok') { closeFires(); sfx('travel'); toast(`Повозка: ${c.name}, −${cost} пепла`); } else toast(FLY[r] || 'Нельзя', 'bad'); });
+    list.appendChild(b);
+  }
+  firesSec.hidden = false; panelOpen = true; input.release();
+}
+coachBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openCoach(); }, true);
+const GATHER = { danger: 'Рядом враги — не до сбора', full: 'Сумка полна', none: 'Нечего собирать' };
+gatherBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const r = gather(W); if (r === 'ok') sfx('pickup'); else toast(GATHER[r] || 'Нельзя', 'bad'); }, true);
+const MOUNT = { none: 'Коня нет: его даёт Застава (слава «Дружелюбие»)', place: 'Здесь верхом нельзя', danger: 'Рядом враги — не сесть', dead: '' };
+mountBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const r = mountToggle(W); if (MOUNT[r]) toast(MOUNT[r], 'bad'); }, true);
 // сон (G4): затемнение, ночь проживается разом, утром — полное здоровье (или «разбудили»)
 const sleepBtn = $('sleepBtn'), sleepFade = $('sleepFade'); let sleepingUI = false;
 sleepBtn.addEventListener('click', e => {
@@ -628,7 +656,11 @@ function frame(now) {
   const hud = (hudT += real) >= cfg.cull.hud || paused !== hudP; if (hud) { hudT = 0; hudP = paused; }     // кнопки, статусы и умения — 10 раз в секунду (и сразу при открытии меню)
   if (hud) { const show = !!W.nearNpc && (storyTalkable(W, W.nearNpc) || !npcLocked(W.nearNpc)) && !panelOpen && !landscape;     // сюжетный разговор — даже у закрытого жителя
   if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
-  if (hud) { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : '')); }
+  if (hud) { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : ''));
+    const free = !f && !W.nearPortal && !panelOpen && !landscape && !W.player.dead, cn = free && W.life && coachNear(W), nd = free && !cn && W.life && nodeNear(W);     // этап 6: повозка, сбор, конь
+    if (coachBtn.hidden === !!cn) coachBtn.hidden = !cn; if (cn) { const l = 'Повозка' + (desk ? ' · E' : ''); if (coachBtn.textContent !== l) coachBtn.textContent = l; }
+    if (gatherBtn.hidden === !!nd) gatherBtn.hidden = !nd; if (nd) { const l = 'Собрать: ' + cfg.life.gather.names[nd.kind] + (desk ? ' · E' : ''); if (gatherBtn.textContent !== l) gatherBtn.textContent = l; }
+    const ms = !!(W.life && W.life.mount.owned) && W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mountBtn.hidden === ms) mountBtn.hidden = !ms; if (ms) { const l = (W.life.mount.on ? 'Спешиться' : 'Конь') + (desk ? ' · V' : ''); if (mountBtn.textContent !== l) mountBtn.textContent = l; } }
   if (hud) { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
   if (hud) { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; }
     const hshow = show && !q.up && isInstance(W, q.to) && heroicOpen(W); if (heroicBtn.hidden === hshow) heroicBtn.hidden = !hshow; if (hshow) { const l = 'Героическая: ' + W.levels[q.to].def.name + (desk ? ' · H' : ''); if (heroicBtn.textContent !== l) heroicBtn.textContent = l; } }

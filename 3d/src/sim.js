@@ -11,6 +11,7 @@ import { TAU, DEG, clamp, len, rr } from './util3d.js';
 import { biomeAt } from './worldgen3d.js';
 import { hurtAlly, updateAllies } from './squad3d.js';
 import { threatPick, addThreat } from './threat3d.js';
+import { lifeFresh, nodesOf, coachesOf, mountMul, mountInput, dismount, repEvents, discoverCoaches } from './life3d.js';
 import { trackPlace, reveal } from './places3d.js';
 import { addXp, gainXp } from './progress3d.js';
 import { restock } from './economy3d.js';
@@ -92,13 +93,15 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), story: cfg.story && cfg.story.on ? storyFresh() : null, fires: {}, gfx: {}, hero: DEFAULT_HERO, heroes: {}, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, party: { cmd: 'follow', hx: 0, hz: 0, mark: 0, last: 0 }, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: withLife(addFires(makeMap(cfg), cfg, firesOf), cfg), life: lifeFresh(), story: cfg.story && cfg.story.on ? storyFresh() : null, fires: {}, gfx: {}, hero: DEFAULT_HERO, heroes: {}, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, party: { cmd: 'follow', hx: 0, hz: 0, mark: 0, last: 0 }, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
 }
 
 
+// точки сбора и повозки (этап 6) — на карте поверхности
+function withLife(map, cfg) { map.nodes = nodesOf(map, cfg); map.coaches = coachesOf(map, cfg); return map; }
 export function spawnEnemy(W, type, x, z, mode = null) {
   const C = W.cfg.enemies[type], E = W.cfg.enemies, d0 = depthAt(W, x, z), depth = Math.min(1, d0), lvl = levelAt(W, x, z), grow = 1 + Math.max(0, lvl - W.cfg.level.core) * W.cfg.level.grow, pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * grow * (1 + E.dangerHp * danger) * W.dif.hp);     // за ядром — по уровню места (этап 0): ×grow на уровень сверх core
   const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, lvl: Math.round(lvl), dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * grow * W.dif.dmg * (W.night ? W.cfg.daynight.night.dmg : 1), danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
@@ -284,7 +287,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   p.lastHurt = W.t;
   if (W.gfx.aegis && W.aegis > 0) { const a = Math.min(W.aegis, dmg); W.aegis -= a; dmg -= a; W.ev.push({ k: 'aegis', x: p.x, z: p.z, left: W.aegis }); if (W.aegis <= 0) W.aegisT = W.gfx.aegis[0]; if (dmg <= 0) { p.inv = W.cfg.player.hurtInvuln; return true; } }     // Кираса Солнца: щит берёт удар первым
   p.calm = W.cfg.player.fire.calm;
-  dmg = duelGuard(W, dmg); p.hp -= dmg; p.inv = W.cfg.player.hurtInvuln;     // поединок Акта I: герой не гибнет
+  dmg = duelGuard(W, dmg); p.hp -= dmg; if (W.life && W.life.mount.on) dismount(W); p.inv = W.cfg.player.hurtInvuln;     // поединок Акта I: герой не гибнет     // ранен — спешился (этап 6)
   W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
   const d = len(p.x - fromX, p.z - fromZ) || 1;
   p.vx += (p.x - fromX) / d * knock; p.vz += (p.z - fromZ) / d * knock;
@@ -302,7 +305,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
 
 export function killEnemy(W, e, share) {
   if (e.dead) return;
-  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
+  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
   { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
   { const gid = gemDropOf(W, e); if (gid) { W.drops.push({ id: gid, n: 1, x: e.x + .5, z: e.z - .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: gid }); } }     // камень силы
@@ -647,7 +650,7 @@ function updatePlayer(W, dt, input) {
     // бег с разгоном; при ударе медленнее
     const wet = W.map.river && inStream(W.map.river, p.x, p.z);     // ручей (2026-10-18): медленнее, горение гаснет
     if (wet && W.pst.burn) { delete W.pst.burn; W.ev.push({ k: 'douse', x: p.x, z: p.z }); }
-    const sp = P.speed * heroMul(W).speed * (1 + clamp(W.gear.spd, -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1);
+    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd, -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1);
     const tx = moving ? mx * sp : 0, tz = moving ? mz * sp : 0;
     const a = P.accel * dt;
     const dvx = tx - p.vx, dvz = tz - p.vz, dl = len(dvx, dvz);
@@ -928,7 +931,7 @@ export function refreshGear(W) {
 
 export function step(W, dt, input = {}) {
   if (!(dt > 0)) return;                                          // нулевой или отрицательный шаг (первый кадр rAF) ничего не двигает
-  W.t += dt;
+  W.t += dt; const ev0 = W.ev.length;
   { const D = W.cfg.daynight, n = isNight(W.t, D); W.light = lightOf(W.t, D); if (n !== W.night) { W.night = n; W.ev.push({ k: n ? 'dusk' : 'dawn' }); } }
   for (let i = W.buffs.length - 1; i >= 0; i--) { W.buffs[i].t -= dt; if (W.buffs[i].t <= 0) W.buffs.splice(i, 1); }
   for (const k of ['reap', 'bul']) { const o = W[k]; if (o.n && (o.t -= dt) <= 0) { o.n = 0; o.t = 0; } }
@@ -943,6 +946,7 @@ export function step(W, dt, input = {}) {
     if (g.sunheal && !p.dead && p.hp < p.maxhp && W.t - (p.lastHurt ?? -1e9) > g.sunheal[0]) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * g.sunheal[1] * dt); }
   if (W.freeze > 0) { W.freeze -= dt; if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200); return; }
   W.aimPt = input.aimPt && Number.isFinite(input.aimPt.x) ? input.aimPt : null;     // прицел курсором (компьютер); без него — как раньше
+  mountInput(W, input);     // удар, перекат, умение верхом — спешиться (этап 6)
   updatePlayer(W, dt, input);
   tickPlayer(W, dt);
   tickAbilities(W, dt);
@@ -961,6 +965,7 @@ export function step(W, dt, input = {}) {
   for (const def of W.cfg.bosses.list) { if (def.level && !W.levels[def.level]) continue; const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def)); }     // боссы живут на своём уровне, даже если герой на другом
   { let hb = null; for (const e of W.enemies) if ((e.boss || e.duel) && !e.dead && (e.alert || e.duel) && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!(e.b && e.b.enraged), id: e.id, shield: !!(e.b && e.b.shield), cast: e.b && e.b.state === 'wind' && e.b.atk && e.b.atk.kind === 'cast' ? { name: e.b.atk.name, k: e.b.atk.t / e.b.atk.wind } : null }; if (e.duel) break; } W.hudBoss = hb; }     // противник поединка — тоже с полосой     // этап 5: щит и чтение на полосе босса
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
+  if (W.life) { repEvents(W, ev0); discoverCoaches(W); }     // репутация по событиям шага, повозки рядом (этап 6)
   if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200);     // события забирает рендер; потолок защищает, если никто не забирает
 }
 

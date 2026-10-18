@@ -539,6 +539,13 @@ export function makeBeast(kind) {
 }
 
 // повозка сказочного торговца: кузов, колёса, полог, светящийся фонарь и сам торговец в остроконечной шляпе
+// ездовой конь (этап 6): тело, шея, голова, хвост, седло; ноги качаются по скорости
+export function makeHorse() {
+  const g = new THREE.Group(), hide = lam('#4a3020'), dark = lam('#2a1a10'), legs = [];
+  g.add(box(.7, .7, 1.7, hide, 0, 1.2, 0), box(.4, .7, .5, hide, 0, 1.75, .95), box(.2, .25, .4, dark, 0, 1.95, 1.3), box(.12, .55, .3, dark, 0, 1.35, -.95), box(.76, .12, .8, lam('#6a2a20'), 0, 1.6, -.05), box(.06, .45, .3, dark, 0, 2.0, .85));
+  for (const [x, z] of [[-.25, -.6], [.25, -.6], [-.25, .6], [.25, .6]]) { const L = new THREE.Group(); L.position.set(x, .85, z); L.add(box(.16, .85, .16, hide, 0, -.42, 0)); g.add(L); legs.push(L); }
+  return { group: g, step: (t, sp) => { const k = Math.min(1, sp / 6), ph = t * 13; legs.forEach((L, i) => { L.rotation.x = Math.sin(ph + (i % 2 ? Math.PI : 0) + (i > 1 ? .6 : 0)) * .65 * k; }); } };
+}
 export function makeCart(wanderer = true) {
   const g = new THREE.Group(), wood = lam('#5a3e26'), dark = lam('#2e2018'), cloth = lam(wanderer ? '#4a2e6e' : '#8a7a5a'), trim = lam(wanderer ? '#c8a04a' : '#5a4a32');
   g.add(box(1.8, .5, 3, wood, 0, .9, 0), box(1.9, .12, 3.1, dark, 0, 1.18, 0));

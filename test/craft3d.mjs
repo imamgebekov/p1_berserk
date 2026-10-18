@@ -36,7 +36,7 @@ const need = t => RECIPES.filter(r => r.needs === t).reduce((a, r) => a + r.mats
 ok(need('set_pogost') === 4 && need('blades_pogost') === 10 && need('blades_eclipse') === 12 && need('blades_rust') === 10, 'число трофеев на комплекты: ' + [need('set_pogost'), need('blades_pogost'), need('blades_eclipse'), need('blades_rust')]);
 
 // ---- процесс ----
-const mk = (seed = 1) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = cfg.map.places.slice(); return createWorld(cfg, mulberry32(seed)); };
+const mk = (seed = 1) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = cfg.map.places.slice(); const W = createWorld(cfg, mulberry32(seed)); W.life.prof = { smith: 150, alch: 150, leather: 150 }; return W; };     // навык ремёсел (этап 6) проверяет test/trades3d.mjs
 const atSmith = W => { const b = W.map.buildings.find(x => x.npc && x.npc.kind === 'smith'); W.player.x = b.npc.x + 1; W.player.z = b.npc.z; W.player.inv = 1e9; step(W, 1 / 60, {}); return b; };
 const give = (W, id, n = 1) => W.inv.bag.push({ id, n });
 { const W = mk(); const r = RECIPE_BY_ID.ingot; step(W, 1 / 60, {});

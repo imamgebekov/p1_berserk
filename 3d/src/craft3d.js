@@ -4,6 +4,7 @@ import { RECIPES, RECIPE_BY_ID } from './data/recipes3d.js';
 import { TOMES, TOME_BY_ID } from './data/tomes3d.js';
 import { CONTAINERS, DROPS, SHOP, SHOP_STAPLES, BOSS_DROPS, BOSS_LOOT } from './data/loot.js';
 import { addItem, removeAt, countOf, isPlain, roomFor, entryOf, nomIl } from './inv.js';
+import { profSkill, tradeBlock, tradeUp } from './life3d.js';
 
 export const newKnown = () => ({ tomes: {}, bestiary: {}, places: {}, kinds: {}, items: {} });
 export const recipeKnown = (K, r) => !r.needs || !!K.tomes[r.needs];
@@ -14,10 +15,11 @@ function take(inv, id, n) {
   for (let i = inv.bag.length - 1; i >= 0 && n > 0; i--) { const s = inv.bag[i]; if (s.id !== id || (BY_ID[id].slot && !isPlain(s))) continue; const t = Math.min(n, s.n); removeAt(inv, i, t); n -= t; }
 }
 
-// 'ok' | 'tome' (нет книги) | 'far' (не у кузнеца) | 'mats' | 'ash'
+// 'ok' | 'tome' (нет книги) | 'skill' (мал навык ремесла) | 'far' (кузнечное — не у кузнеца) | 'danger' (враги рядом) | 'mats' | 'ash'
 export function craftStatus(W, r) {
   if (!recipeKnown(W.known, r)) return 'tome';
-  if (W.nearNpc !== 'smith') return 'far';
+  if (W.life && profSkill(W, r.prof) < (r.skill || 0)) return 'skill';     // ремёсла (этап 6)
+  { const b = W.life ? tradeBlock(W, r) : W.nearNpc === 'smith' ? null : 'far'; if (b) return b; }
   if (r.mats.some(([id, n]) => plainCount(W.inv, id) < n)) return 'mats';
   if (W.inv.ash < r.ash) return 'ash';
   return 'ok';
@@ -34,7 +36,7 @@ export function craft(W, id) {
   if (R.slot) { if (!roomFor(tmp, r.result.id, mx)) return 'full'; tmp.bag.push(entryOf(r.result.id, 0, null, Math.max(nomIl(R), W.lv))); }     // скованное снаряжение — уровня героя (этап 0)
   else if (addItem(tmp, r.result.id, r.result.n, mx) > 0) return 'full';
   W.inv.bag = tmp.bag; W.inv.ash -= r.ash; W.known.items[r.result.id] = 1;
-  W.ev.push({ k: 'craft', id: r.result.id, n: r.result.n }); W.fx.quest('craft', { item: r.result.id }); return 'ok';
+  W.ev.push({ k: 'craft', id: r.result.id, n: r.result.n }); W.fx.quest('craft', { item: r.result.id }); if (W.life) tradeUp(W, r); return 'ok';
 }
 
 // прочитать книгу из сумки: открывает рецепты, записи бестиария и атласа; книга тратится
