@@ -78,6 +78,8 @@ for (let s = 1; s <= 4; s++) {
   ok(fairy === 300 * C.fairy, 'сказочных товаров не столько, сколько задано');
   ok(epic >= 300 * C.gear[0] && epic <= 300 * C.gear[1], 'великого снаряжения не столько, сколько задано');
   ok(uniq > 300 * C.uniqueChance * .6 && uniq < 300 * C.uniqueChance * 1.4, `именных вещей ${uniq} из 300`);
+  { let one = 0, two = 0; for (let i = 0; i < 300; i++) { const g = wandererStock(W).filter(s => BY_ID[s.id].pool === 'gold').length; if (g >= 1) one++; if (g === 2) two++; }
+    ok(one === 300 && two > 300 * C.gold2 * .7 && two < 300 * C.gold2 * 1.3, `золото у торговца: хоть одно в ${one} из 300, два — в ${two}`); }
   const rng = mulberry32(3); let leak = 0;
   for (let i = 0; i < 3000; i++) { for (const k of Object.keys(CONTAINERS)) for (const x of rollLoot(CONTAINERS[k], rng, 1, 100)) if (BY_ID[x.id].pool === 'fairy') leak++; for (const k of Object.keys(DROPS)) { const d = rollDrop(k, rng, 1, 100); for (const x of [].concat(d || [])) if (x && BY_ID[x.id] && BY_ID[x.id].pool === 'fairy') leak++; } }
   ok(leak === 0, 'сказочные товары выпадают из сундуков или врагов');

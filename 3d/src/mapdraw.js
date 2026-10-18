@@ -88,7 +88,7 @@ export function drawMap(ctx, W, v) {
   ctx.fillStyle = '#ffc860';
   for (const c of M.containers) if (c.ready && isSeen(W, c.x, c.z)) ctx.fillRect(X(c.x) - 1.5, Y(c.z) - 1.5, 3, 3);
   // логова боссов (видны в открытых клетках; серые — убитые и ещё не вернувшиеся)
-  if (!under) for (const d of W.cfg.bosses.list) { if (!isSeen(W, d.x, d.z)) continue; const dead = W.bossDead[d.type] !== undefined, slain = W.path && W.path.slain[d.type]; ctx.save(); ctx.translate(X(d.x), Y(d.z)); ctx.rotate(Math.PI / 4); ctx.fillStyle = slain ? '#8a7a5a' : dead ? '#6a6a6a' : '#ff3a2a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; const r = Math.max(3.5, sc * 1.6); ctx.fillRect(-r, -r, r * 2, r * 2); ctx.strokeRect(-r, -r, r * 2, r * 2); ctx.restore(); }     // веха пройдена — тусклое «эхо» (шаг 13)
+  // логова боссов — поверх дымки, ниже (блок «боссы и мини-боссы»)
   // могила с потерянным пеплом
   if (W.tomb && (W.tomb.lvl || 'surface') === (W.lvl || 'surface')) { ctx.strokeStyle = '#000'; ctx.fillStyle = '#ffd45a'; ctx.lineWidth = 1.5; const tx = X(W.tomb.x), ty = Y(W.tomb.z); ctx.fillRect(tx - 1.5, ty - 5, 3, 10); ctx.fillRect(tx - 4, ty - 2, 8, 3); ctx.strokeRect(tx - 1.5, ty - 5, 3, 10); }
   // туман войны: на земле — светлая дымка с мягким краем (сквозь неё виден рельеф); в подземелье — тёмный
@@ -113,6 +113,17 @@ export function drawMap(ctx, W, v) {
   }
   // враги рядом (на большой карте не показываем: туман — это неизвестность)
   if (!full) { ctx.fillStyle = '#ff3a30'; for (const e of W.enemies) if (!e.dead) { const x = X(e.x), y = Y(e.z); if (x > 0 && x < w && y > 0 && y < h) { ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 6.2832); ctx.fill(); } } }
+  // боссы и мини-боссы (2026-10-18): логова и замки видны всегда, даже под дымкой; на большой карте — с именем; серые — убитые и ещё не вернувшиеся, тусклые — веха пройдена
+  // мини-боссы (элита и стражи замков) — оранжевые ромбы: на миникарте рядом, на большой карте — в открытых местах
+  { const mark = (x, y, r, col, crown) => { ctx.save(); ctx.translate(x, y); ctx.fillStyle = col; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      if (crown) { ctx.fillStyle = '#1a0a06'; ctx.fillRect(-r * .45, -r * .05, r * .9, r * .35); for (const k of [-1, 0, 1]) ctx.fillRect(k * r * .33 - r * .1, -r * .4, r * .2, r * .4); } ctx.restore(); };
+    const named = (x, y, txt) => { if (!full) return; ctx.font = '600 11px "Iowan Old Style", Palatino, Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(244,236,214,.92)'; ctx.fillStyle = '#5a1a10'; ctx.strokeText(txt, x, y); ctx.fillText(txt, x, y); ctx.textBaseline = 'alphabetic'; };
+    const inMap = (x, y) => x > -8 && x < w + 8 && y > -8 && y < h + 8, BR = full ? 7 : 5;
+    if (!under) {
+      for (const d of W.cfg.bosses.list) { if (d.level) continue; const x = X(d.x), y = Y(d.z); if (!inMap(x, y)) continue; const dead = W.bossDead[d.type] !== undefined, slain = W.path && W.path.slain[d.type]; mark(x, y, BR, slain ? '#8a7a5a' : dead ? '#6a6a6a' : '#ff3a2a', true); named(x, y + BR + 8, W.cfg.enemies[d.type].name); }     // боссы замков — внутри, на поверхности их место — замок
+      for (const c of M.cfg.castles || []) { if (!Number.isFinite(c.x)) continue; const x = X(c.x), y = Y(c.z), t = c.boss && c.boss.type; if (!inMap(x, y)) continue; mark(x, y, BR + 1, t && W.bossDead[t] !== undefined ? '#6a6a6a' : '#c03adf', true); named(x, y + BR + 9, c.name); }
+    }
+    for (const e of W.enemies) if (!e.dead && !e.boss && (e.elite || e.guard) && (under || !full || isSeen(W, e.x, e.z))) { const x = X(e.x), y = Y(e.z); if (x > 0 && x < w && y > 0 && y < h) mark(x, y, full ? 4.5 : 3.5, '#ff9a2a', false); } }
   // свои бойцы
   ctx.fillStyle = '#6ab0ff'; for (const a of W.allies || []) if (!a.dead && !a.guest) { ctx.beginPath(); ctx.arc(X(a.x), Y(a.z), 2.6, 0, 6.2832); ctx.fill(); }
   // повозка сказочного торговца: видна и сквозь туман; на миникарте прижимается к краю, показывая направление

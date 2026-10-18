@@ -139,7 +139,7 @@ function drawWeaponSkill() {
   wBtn.style.setProperty('--cd', v.cd > 0 ? (v.cd / v.cdMax).toFixed(3) : 0);
 }
 let abilKey = '';
-// ресурс героя (ярость, концентрация, ритм): полоса над панелью умений на компьютере, под здоровьем на телефоне
+// ресурс героя (ярость, концентрация, мана): полоса над панелью умений на компьютере, под здоровьем на телефоне
 const resBar = $('resBar'); let resKey = '';
 function drawRes() {
   const r = resView(W), show = !!r && !panelOpen && !landscape && !W.player.dead && W.ab && Object.keys(W.ab).length > 0, key = show ? r.name + Math.round(r.now) : '';
@@ -458,7 +458,7 @@ const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.s
 // карта: миникарта в углу, большая карта по касанию
 const miniCtx = $('mini').getContext('2d'), mapCv = $('mapCv'), mapCtx = mapCv.getContext('2d'), mapEl = $('map');
 let miniT = 0;
-function drawMini() { drawMap(miniCtx, W, { w: 92, h: 92, scale: 2.1, cx: W.player.x, cz: W.player.z, full: false }); }
+function drawMini() { drawMap(miniCtx, W, { w: 128, h: 128, scale: 128 / cfg.mapView.miniSpan, cx: W.player.x, cz: W.player.z, full: false }); }     // miniSpan — сколько метров видно поперёк
 // большая карта (C3e): масштаб и прокрутка — вид mv { cx, cz, span (м на ширину) }; в подземелье — весь уровень
 const MAP_MIN = 60, mapMax = () => cfg.world.radius * 2 + 6, mv = { cx: 0, cz: 0, span: 220 };
 const mapClamp = () => { mv.span = Math.max(MAP_MIN, Math.min(mapMax(), mv.span)); const R = cfg.world.radius, m = Math.max(0, R - mv.span / 2 + 20); mv.cx = Math.max(-m, Math.min(m, mv.cx)); mv.cz = Math.max(-m, Math.min(m, mv.cz)); };
@@ -466,7 +466,7 @@ let mapRaf = 0; const mapRedraw = () => { if (!mapRaf) mapRaf = requestAnimation
 const mapZoom = (k, px = 320, py = 320) => { const s0 = mv.span, wx = mv.cx + (px / 640 - .5) * s0, wz = mv.cz + (py / 640 - .5) * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px / 640 - .5) * mv.span; mv.cz = wz - (py / 640 - .5) * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте
 function drawFull() { const B = W.map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; drawMap(mapCtx, W, { w: 640, h: 640, scale: 640 / span, cx, cz, full: true }); const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
 // легенда карты — чипы «значок + слово» вместо абзаца (шаг 10): sq — квадрат, ring — круг-граница, dot — точка, fog — туман
-const LEG_SURF = [['sq', '#8a5a30', 'Люк'], ['ring', '#82c878', 'Безопасно'], ['ring', '#dc4632', 'Опасно'], ['dot', '#ffc860', 'Сундук'], ['dot', '#ffd45a', 'Торговец'], ['dot', '#ff8a3a', 'Кузнец'], ['fog', '#2a1e17', 'Не исследовано']];
+const LEG_SURF = [['sq', '#8a5a30', 'Люк'], ['ring', '#82c878', 'Безопасно'], ['ring', '#dc4632', 'Опасно'], ['dot', '#ffc860', 'Сундук'], ['dot', '#ffd45a', 'Торговец'], ['dot', '#ff8a3a', 'Кузнец'], ['dia', '#ff3a2a', 'Босс'], ['dia', '#c03adf', 'Замок'], ['dia', '#ff9a2a', 'Мини-босс'], ['fog', '#2a1e17', 'Не исследовано']];
 const LEG_UNDER = [['sq', '#e8d0a0', 'Лестница наверх'], ['dot', '#ffc860', 'Сундук'], ['fog', '#2a1e17', 'Не исследовано']];
 function legend(here, items) {
   const box = $('mapLegend'), key = here + items.length; if (box.dataset.k === key) return; box.dataset.k = key;

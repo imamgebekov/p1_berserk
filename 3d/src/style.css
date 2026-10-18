@@ -121,7 +121,8 @@ button{font:inherit;color:var(--ink)}
 .skrow .plus{flex:none;width:48px;min-height:48px;border-radius:10px;border:2px solid #000;background:var(--red);color:#fff;font-size:24px;font-weight:700}.skrow .plus:disabled{background:#2a1b1a;color:#6a5a50;border-color:var(--line)}
 .sbranch{flex:1}
 
-#miniBtn{position:fixed;right:var(--pad);top:calc(env(safe-area-inset-top) + 62px);width:96px;height:96px;padding:2px;border:2px solid #000;border-radius:50%;overflow:hidden;background:#0c0807;z-index:4;touch-action:none;box-shadow:0 0 0 1px var(--line)}
+:root{--mm:112px}[data-desk]{--mm:132px}     /* миникарта: телефон / компьютер */
+#miniBtn{position:fixed;right:var(--pad);top:calc(env(safe-area-inset-top) + 62px);width:var(--mm);height:var(--mm);padding:2px;border:2px solid #000;border-radius:50%;overflow:hidden;background:#0c0807;z-index:4;touch-action:none;box-shadow:0 0 0 1px var(--line)}
 #mini{width:100%;height:100%;border-radius:50%;display:block}
 #place{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 58px);transform:translateX(-50%);padding:3px 12px;border-radius:12px;background:rgba(10,5,6,.55);font-size:12.5px;text-align:center;pointer-events:none;white-space:nowrap;animation:place 4.5s ease-out forwards;text-shadow:0 1px 0 #000;z-index:4}
 #place.safe{color:#a8e0a0}#place.danger{color:#ff9a8a}
@@ -173,7 +174,7 @@ button.jrow{width:100%}.mats{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top
 .qrow.ready{border-color:#6aa860}.qrow.cooldown,.qrow.done{opacity:.55}
 #questBtn{position:fixed;left:50%;bottom:calc(206px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:44px;padding:0 18px;background:#241514;color:var(--ink);font-weight:700;border:3px solid #000;border-radius:12px;z-index:6;touch-action:none}
 #questBtn[hidden]{display:none}#questBtn.dot{border-color:#e8c04a;color:#ffd27a}
-#tracker{position:fixed;right:calc(var(--pad) + env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 168px);max-width:46%;font-size:12px;line-height:1.25;text-align:right;color:#e8c04a;text-shadow:0 1px 0 #000,0 0 4px #000;pointer-events:none}
+#tracker{position:fixed;right:calc(var(--pad) + env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 72px + var(--mm));max-width:46%;font-size:12px;line-height:1.25;text-align:right;color:#e8c04a;text-shadow:0 1px 0 #000,0 0 4px #000;pointer-events:none}
 #tracker[hidden]{display:none}
 
 /* режим левши: кнопки слева (джойстик плавающий и так работает в любом месте экрана) */
@@ -338,6 +339,7 @@ html:not([data-desk]) #bagCard:not([hidden]){position:absolute;left:8px;right:8p
 [data-desk] #bagTabs{grid-column:auto;grid-row:auto;margin:0}
 [data-desk] #bagTabs{gap:4px}[data-desk] #bagTabs .tab{flex:1 1 auto;padding:0 6px}
 [data-desk] #bagCard{grid-column:3;grid-row:2;margin:0;max-height:var(--blh,60vh);min-height:0;overflow-y:auto}
+#bagCard .pickrow{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;margin:4px 0;padding:4px 8px;background:#1e1414;border:2px solid var(--line);border-radius:10px;text-align:left}#bagCard .pickrow .ic{width:32px;height:32px;flex:none}#bagCard .pickrow .pn{font-weight:600;flex:1;min-width:0}#bagCard .pickrow .ps{font-size:11px;opacity:.7;max-width:45%}#bagCard .pickrow:hover{border-color:#e8c04a}
 #bagCard.idle{display:flex;align-items:center;justify-content:center;text-align:center;opacity:.6;border-style:dashed}#bagCard .cph{font-size:13px;line-height:1.4;max-width:240px}
 [data-desk] #bagFlash{grid-column:1/-1;grid-row:3}
 [data-desk] #bagStats{grid-column:auto;grid-row:auto;align-self:auto}
@@ -404,7 +406,7 @@ button > .ic,.toast > .ic,#kills .ic{margin-right:.4em}
 #mapLegend{opacity:1;font-size:12.5px}#mapLegend .here{font-family:var(--serif);font-size:14px;color:#f0e2c8;margin-bottom:6px}
 #mapLegend .chips{display:flex;flex-wrap:wrap;gap:6px}
 #mapLegend .chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid var(--line);border-radius:999px;background:rgba(0,0,0,.2)}
-#mapLegend .sw{width:11px;height:11px;flex:none;background:var(--c)}#mapLegend .sw.dot{border-radius:50%}#mapLegend .sw.ring{border-radius:50%;background:transparent;border:2px dashed var(--c)}
+#mapLegend .sw{width:11px;height:11px;flex:none;background:var(--c)}#mapLegend .sw.dot{border-radius:50%}#mapLegend .sw.dia{transform:rotate(45deg) scale(.8);outline:1px solid #000}#mapLegend .sw.ring{border-radius:50%;background:transparent;border:2px dashed var(--c)}
 #mapLegend .sw.fog{border-radius:3px;background:repeating-linear-gradient(45deg,#2a1e17 0 3px,#4a3a2c 3px 6px)}
 .skrow .sub.nx{color:#9ad08a;opacity:.9;margin-top:2px}
 #keysHelp.keys{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 10px;font-size:13px}#keysHelp.keys[hidden]{display:none}

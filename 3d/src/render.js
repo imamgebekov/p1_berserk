@@ -1,5 +1,6 @@
 // Сцена Three.js: мир, свет, камера, спецэффекты. Рисует в маленьком разрешении и растягивает без сглаживания.
-import { makeMap, propsBlocked, campGates, insideOf, insideCamp } from './map.js';
+import { makeMap, addFires, propsBlocked, campGates, insideOf, insideCamp } from './map.js';
+import { firesOf } from './fires3d.js';
 import { buildDecor } from './decor.js';
 import { buildTown } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
@@ -105,7 +106,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(GW, GW), new THREE.MeshLambertMaterial({ map: gtex2 }));     // под всем миром, тот же масштаб травы
   ground.rotation.x = -Math.PI / 2; ground.position.y = -1.2; scene.add(ground);     // ниже дна реки: внутри мира землю рисуют холмы
 
-  const map = makeMap(cfg);
+  const map = addFires(makeMap(cfg), cfg, firesOf);     // костры вне лагеря — та же карта, что у мира (раньше рендер строил её без костров)
   // рельеф (C2): поле высот только для вида; Y — высота земли под точкой (в подземельях 0)
   const hf = buildHeights(cfg, map); let groundOn = true;
   const Y = (x, z) => (groundOn ? heightAt(hf, x, z) : 0);

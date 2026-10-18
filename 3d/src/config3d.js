@@ -150,9 +150,9 @@ const BASE = {
 
   // сказочный торговец: повозка у дороги вне лагеря. first/every — через сколько секунд появляется (от–до), stay — сколько стоит,
   // linger — не уезжает, пока герой ближе; dist — на каком расстоянии от героя; side — отступ от дороги; campPad — отступ от частокола;
-  // priceMul — наценка; fairy — сколько видов сказочных товаров; gear — сколько сильных вещей (от–до); uniqueChance — шанс именной вещи;
+  // priceMul — наценка; fairy — сколько видов сказочных товаров; gear — сколько сильных вещей (от–до); uniqueChance — шанс именной вещи; gold — золотых вещей всегда, gold2 — шанс ещё одной;
   // retry — повторная попытка, если сейчас поставить некуда (герой в подземелье, мёртв, нет места)
-  wanderer: { on: true, first: [240, 480], every: [480, 960], stay: 180, linger: 8, dist: [25, 70], side: 3, campPad: 6, r: 1.6, priceMul: 1.6, fairy: 3, gear: [2, 3], uniqueChance: .15, reach: 3.4, retry: 30 },
+  wanderer: { on: true, first: [240, 480], every: [480, 960], stay: 180, linger: 8, dist: [25, 70], side: 3, campPad: 6, r: 1.6, priceMul: 1.6, fairy: 3, gear: [2, 3], uniqueChance: .15, gold: 1, gold2: .5, reach: 3.4, retry: 30 },
   // случайные события (одно за раз): first/every — когда (от–до, с); retry — повтор, если не к месту; kinds — веса видов.
   // taken — доля урона, которую получают путник и обоз.
   // rescue: путник в беде вне любых мест (dist от героя); враги появляются, когда герой ближе wake; wait/time — сколько ждёт и сколько длится бой.
@@ -250,7 +250,7 @@ const BASE = {
     res: {
       thorn: { name: 'Ярость', color: '#d8402a', max: 100, start: 0, hit: 3.5, hurt: .3, roll: 0, regen: 0, decay: 6, idle: 4, perLv: 2 },
       jay: { name: 'Концентрация', color: '#e8c04a', max: 100, start: 100, hit: 4, hurt: 0, roll: 0, regen: 9, decay: 0, idle: 0, perLv: 2 },
-      vale: { name: 'Ритм', color: '#6ab0ff', max: 100, start: 0, hit: 3, hurt: 0, roll: 6, regen: 0, decay: 7, idle: 3, perLv: 2 },
+      vale: { name: 'Концентрация', color: '#6ab0ff', max: 100, start: 100, hit: 2, hurt: 0, roll: 0, regen: 10, decay: 0, idle: 0, perLv: 2 },     // Вейл — скрытый дуэлянт: восстанавливается сама (пожелание 2026-10-18; было «Ритм» от ударов)
       irga: { name: 'Мана', color: '#7a8aff', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 }
     },
     thorn: {
@@ -400,6 +400,7 @@ const BASE = {
   // сложность. hp/dmg — множители врагов (и боссов), count — добавка к числу врагов, hear — слух врагов, luck — к удаче,
   // xp — опыт, buy — цены торговца, boss — множитель времени возрождения боссов, death — штраф: ash — доля теряемого пепла (остаётся «могила»), gear — теряется уровень улучшения у надетого
   // элитные враги: шанс = chance + глубина × depthK + опасность × dangerK (+ nightK ночью). hp/dmg/xp — множители, luck и lootRolls — добыча.
+  drops: { brandK: .25 },     // добыча с врагов: вес оранжевых (клеймёных) ×brandK — их было до половины снаряжения; сундуков и боссов не касается
   elite: {
     chance: .04, depthK: .03, dangerK: .03, nightK: .03, hp: 1.9, dmg: 1.2, xp: 3, scale: 1.2, luck: 10, lootRolls: 2,
     affixes: {
@@ -440,7 +441,7 @@ const BASE = {
   // карта и миникарта (шаг 10б аудита, «как карта Skyrim»): подложка n×n с рельефом строится по budget мс за кадр; вода — ниже
   // waterIn м от кромки воды; светотень: свет light (x, y, z), преувеличение склонов exag, яркость shade[0] + shade[1] × освещённость, выше на
   // 1 м — светлее на lift; bright, desat — карта светлее и спокойнее земли в игре; неисследованное — дымка haze (rgb) с плотностью hazeFull / hazeMini; bg — за краем мира
-  mapView: { n: 400, budget: 2, water: '#4f7b94', waterIn: .5, rock: '#8a8478', light: [-1, 1.6, -1], exag: 12, shade: [.62, .5], lift: .03, bright: 4.2, desat: .25,
+  mapView: { miniSpan: 80, n: 400, budget: 2, water: '#4f7b94', waterIn: .5, rock: '#8a8478', light: [-1, 1.6, -1], exag: 12, shade: [.62, .5], lift: .03, bright: 4.2, desat: .25,
     haze: [222, 212, 188], hazeFull: .62, hazeMini: .55, bg: '#a89c80', road: 'rgba(110,84,58,.85)',
     regions: { forest: 'Лес', swamp: 'Болота', mountains: 'Горы', waste: 'Пустошь', coast: 'Побережье' } },
   // палитра поверхности (E2): трава вместо пепла, деревья с кронами (bare — доля сухих), камни, небо (верх и горизонт)

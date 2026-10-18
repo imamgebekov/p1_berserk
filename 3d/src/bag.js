@@ -75,9 +75,24 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     b.addEventListener('mousemove', e => { if (!tipEl.hidden) moveTip(e); });
     b.addEventListener('mouseleave', hideTip);
   }
+  // выбор вещи в слот (2026-10-18): нажатие на пустой слот или «Заменить» — список подходящих вещей из сумки; во вторую руку — щит или второй клинок
+  const fits = (slot, it) => !!it && (slot === 'offhand' ? canOff(W.hero, it) : it.slot === slot && canWield(W.hero, it));
+  function pickCard(slot) {
+    cardEl.className = 'pick'; const h = el('div', 'ch'), t = el('div', 'cht');
+    t.append(el('div', 'cn', SLOT_NAME[slot]), el('div', 'rr', slot === 'offhand' ? (heroOf(W.hero).off.length ? 'Во вторую руку: ' + (heroOf(W.hero).off.includes('shield') ? 'щит' : 'второй клинок') : `${heroOf(W.hero).name} держит оружие двумя руками`) : 'Что надеть'));
+    h.append(t); { const x = el('button', 'cclose', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть'); x.addEventListener('click', () => { sel = null; render(); }); h.append(x); }
+    cardEl.appendChild(h);
+    const list = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).filter(r => fits(slot, r.it)).sort((a, b) => scoreUp(b.it, b.s.up || 0, cfg.smith.bonus) - scoreUp(a.it, a.s.up || 0, cfg.smith.bonus));
+    if (!list.length) cardEl.appendChild(el('div', 'emptyl', 'В сумке нет подходящих вещей.'));
+    for (const r of list) { const row = el('button', 'pickrow r' + r.it.rar); row.type = 'button'; row.append(icon(r.it), el('span', 'pn', nameOf(r.it.id, r.s.up || 0)), el('span', 'ps', r.it.stats ? statLine(r.it) : ''));
+      row.addEventListener('click', () => { const okk = slot === 'offhand' && r.it.slot === 'weapon' ? equipOff(W.inv, r.i, W.hero) : equipAt(W.inv, r.i, W.hero); if (okk) sel = null; render(); onChange && onChange(); });
+      if (desk) hoverable(row, () => ({ it: r.it, up: r.s.up || 0, g: r.s.g, worn: W.inv.eq[slot] ? BY_ID[W.inv.eq[slot]] : null }));
+      cardEl.appendChild(row); }
+  }
   function card() {
     cardEl.textContent = ''; cardEl.hidden = !sel && !desk;
     if (!sel) { if (desk) { cardEl.className = 'idle'; cardEl.append(el('div', 'cph', 'Наведите на вещь — подсказка со сравнением. Щелчок — подробно и действия. Двойной щелчок — надеть или использовать.')); } return; }
+    if (sel.from === 'pick') { pickCard(sel.slot); return; }
     const id = sel.from === 'eq' ? W.inv.eq[sel.slot] : (W.inv.bag[sel.i] || {}).id, it = id && BY_ID[id];
     if (!it) { sel = null; cardEl.hidden = true; return; }
     const n = sel.from === 'bag' ? W.inv.bag[sel.i].n : 1, up = sel.from === 'eq' ? W.inv.up[sel.slot] || 0 : W.inv.bag[sel.i].up || 0;
@@ -119,6 +134,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     const row = el('div', 'acts');
     const btn = (label, fn, cls) => { const b = el('button', cls || '', label); b.type = 'button'; b.addEventListener('click', () => { fn(); render(); onChange && onChange(); }); row.appendChild(b); };
     if (sel.from === 'eq') btn('Снять', () => { if (!unequip(W.inv, sel.slot, bagSlots(W))) flash('Сумка полна'); else sel = null; }, 'main');
+    if (sel.from === 'eq' && W.inv.bag.some(s => fits(sel.slot, BY_ID[s.id]))) btn('Заменить', () => { sel = { from: 'pick', slot: sel.slot }; });
     else {
       if (it.slot && mine) btn('Надеть', () => { if (equipAt(W.inv, sel.i, W.hero)) sel = null; }, 'main');
       if (it.slot === 'weapon' && canOff(W.hero, it)) btn('Во вторую руку', () => { if (equipOff(W.inv, sel.i, W.hero)) sel = null; }, 'main');
@@ -151,7 +167,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       b.append(el('span', 'sl', SLOT_NAME[slot]));
       b.setAttribute('aria-label', it ? SLOT_NAME[slot] + ': ' + nameOf(it.id, up) : SLOT_NAME[slot] + ': пусто');
       if (it) hoverable(b, () => ({ it, up, worn: null, g: W.inv.gem[slot] }));
-      b.addEventListener('click', () => { if (it) { sel = { from: 'eq', slot }; render(); } });
+      b.addEventListener('click', () => { sel = it ? { from: 'eq', slot } : { from: 'pick', slot }; render(); });     // пустой слот — список подходящих вещей
       eqEl.appendChild(b);
     }
     // сетка сумки: вещи (лучшие сверху), во вкладке «Всё» — ещё пустые ячейки до вместимости

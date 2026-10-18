@@ -1,6 +1,7 @@
 // Журнал знаний (он же книга рецептов, клавиша R): рецепты с нехваткой материалов, сплавы стихий, камни силы, источники вещей —
 // открыты с начала; бестиарий и атлас — после первого босса («Путь пепла»). Материал в рецепте — кнопка «где взять».
-import { BY_ID, RARITY } from './data/items.js';
+import { BY_ID, RARITY, CATALOG } from './data/items.js';
+const GOLD_IDS = CATALOG.filter(i => i.pool === 'gold').map(i => i.id);     // золотые вещи в журнале видны всегда — с подсказкой, где взять
 import { TOMES, TOME_BY_ID } from './data/tomes3d.js';
 import { RECIPES } from './data/recipes3d.js';
 import { CONTAINERS } from './data/loot.js';
@@ -102,7 +103,7 @@ export function createJournal(doc, W, cfg, { onOpen, onClose } = {}) {
     const bar = el('div', 'tabs'); bar.style.display = 'flex'; bar.style.gap = '6px'; bar.style.overflowX = 'auto';
     for (const [id, label] of FILTERS) { const b = el('button', 'tab' + (filter === id ? ' on' : ''), label); b.type = 'button'; b.addEventListener('click', () => { filter = id; sel = null; render(); }); bar.appendChild(b); }
     listEl.appendChild(bar);
-    const ids = Object.keys(K().items).filter(id => BY_ID[id] && (filter === 'all' || BY_ID[id].cat === filter || (filter === 'weapon' && BY_ID[id].slot === 'weapon') || (filter === 'armor' && BY_ID[id].slot && BY_ID[id].slot !== 'weapon'))).sort((a, b) => BY_ID[b].rar - BY_ID[a].rar || BY_ID[a].name.localeCompare(BY_ID[b].name, 'ru'));
+    const ids = [...new Set([...Object.keys(K().items), ...GOLD_IDS])].filter(id => BY_ID[id] && (filter === 'all' || BY_ID[id].cat === filter || (filter === 'weapon' && BY_ID[id].slot === 'weapon') || (filter === 'armor' && BY_ID[id].slot && BY_ID[id].slot !== 'weapon'))).sort((a, b) => BY_ID[b].rar - BY_ID[a].rar || BY_ID[a].name.localeCompare(BY_ID[b].name, 'ru'));
     if (!ids.length && !(sel && BY_ID[sel])) { listEl.appendChild(el('div', 'emptyl', 'Здесь появятся предметы, которые вы уже находили, с подсказками, где их искать.')); return; }
     if (sel && BY_ID[sel]) {
       const it = BY_ID[sel], s = sourcesOf(sel), lines = it.cat === 'gem' ? gemSources(cfg, sel) : [];
@@ -110,6 +111,7 @@ export function createJournal(doc, W, cfg, { onOpen, onClose } = {}) {
       if (s.drops.length) lines.push('С врагов: ' + s.drops.map(enemyName).join(', '));
       if (s.bosses.length) lines.push('С боссов: ' + s.bosses.map(enemyName).join(', '));
       if (s.shop) lines.push('Продаётся у торговца');
+      if (s.fairy) lines.push('Продаётся у сказочного торговца' + (it.pool === 'gold' ? ' (одна-две золотые вещи всегда)' : ''));
       if (s.craft.length) lines.push('Куётся: ' + s.craft.map(id => RECIPES.find(r => r.id === id)).map(r => (recipeKnown(K(), r) ? 'рецепт известен' : 'нужна книга «' + TOME_BY_ID[r.needs].name + '»')).join('; '));
       if (s.uses.length) lines.push('Идёт в крафт: ' + [...new Set(s.uses.map(id => BY_ID[RECIPES.find(r => r.id === id).result.id].name))].slice(0, 6).join(', ') + (s.uses.length > 6 ? ' и ещё' : ''));
       if (!lines.length) lines.push('Источник неизвестен');

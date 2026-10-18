@@ -65,8 +65,8 @@ export function pickItem(pool, rar, rng) {
 }
 
 // бросок добычи: [{id, n}]
-export function rollLoot(def, rng, depth = 0, luck = 0, extraQ = 0) {
-  const [a, b] = def.slots, slots = a + ((rng() * (b - a + 1)) | 0), out = [], w = rarityWeights(def.q + extraQ, depth, luck);
+export function rollLoot(def, rng, depth = 0, luck = 0, extraQ = 0, brandK = 1) {
+  const [a, b] = def.slots, slots = a + ((rng() * (b - a + 1)) | 0), out = [], w = rarityWeights(def.q + extraQ, depth, luck); w[4] *= brandK;     // brandK — доля оранжевых (с врагов их меньше)
   for (let i = 0; i < slots; i++) {
     const pool = pickW(def.pools.filter(p => p[1] > 0 && BY_POOL[p[0]]), rng)[0];
     let rar = pickW(w.map((x, r) => [r, x]), rng)[0];
@@ -78,7 +78,7 @@ export function rollLoot(def, rng, depth = 0, luck = 0, extraQ = 0) {
   }
   return out;
 }
-export function rollDrop(kind, rng, depth = 0, luck = 0) {
+export function rollDrop(kind, rng, depth = 0, luck = 0, brandK = 1) {
   const d = DROPS[kind]; if (!d || rng() > d.chance) return [];
-  return rollLoot(d, rng, depth, luck);
+  return rollLoot(d, rng, depth, luck, 0, brandK);
 }

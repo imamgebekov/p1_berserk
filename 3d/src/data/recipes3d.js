@@ -1,5 +1,6 @@
 // Рецепты крафта. mats — материалы и вещи (по одной) из сумки, ash — пепел, needs — книга знаний (null: известен с начала).
 // Именные вещи сетов и уникальные клинки делаются только здесь: трофеи боссов, редкие материалы и нужная книга.
+import { CATALOG } from './items.js';
 export const RECIPES = [];
 const R = (id, res, n, mats, ash, needs, text) => RECIPES.push({ id, result: { id: res, n }, mats, ash, needs, text });
 
@@ -26,5 +27,7 @@ for (const set of Object.keys(TROPHY)) for (const slot of ['head', 'body', 'cloa
 // уникальные клинки: чёрная основа того же типа + трофей босса + сплав
 const BLADES = { pogost: ['whisper:dagger', 'bitterfruit:sickle', 'reaper:scythe', 'undertaker:pick', 'needle:spear'], eclipse: ['ember:sword', 'widow:rapier', 'nightmaw:greatsword', 'finalword:axe', 'ashchron:halberd', 'eclipsebrother:flail'], rust: ['roar:hammer', 'law:war_axe', 'wardnail:mace', 'lullaby:club', 'pocketstorm:chain_ball'] };
 for (const boss of Object.keys(BLADES)) for (const s of BLADES[boss]) { const [id, kind] = s.split(':'); R(`wu_${id}`, `wu_${id}`, 1, [[`w_${kind}_black`, 1], [TROPHY[boss], 2], ['m_ash_alloy', 1]], 250, `blades_${boss}`, 'Уникальный клинок.'); }
+// золочение (2026-10-18): клеймёная основа того же места + трофей замка (оружие и щит — печать Кастеляна, остальное — вуаль Королевы) + сплав и серебряная нить; известно с начала
+for (const g of CATALOG.filter(i => i.pool === 'gold' && i.base)) R('gild_' + g.id.slice(2), g.id, 1, [[g.base, 1], [g.slot === 'weapon' || g.slot === 'offhand' ? 'm_castellan_seal' : 'm_queen_veil', 1], ['m_ash_alloy', 2], ['m_silver_thread', 2]], 500, null, 'Золочение клеймёной вещи: трофей замка, сплав и серебряная нить.');
 export const RECIPE_BY_ID = Object.fromEntries(RECIPES.map(r => [r.id, r]));
 export const TROPHIES = TROPHY;      // набор → трофей

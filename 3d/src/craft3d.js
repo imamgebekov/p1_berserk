@@ -53,9 +53,9 @@ export function readTome(W, idx) {
 // ---- источники предмета ----
 export const POOL_NAME = { food: 'еда', potion: 'зелья', medic: 'лекарства', material: 'материалы', monstermat: 'трофеи монстров', coin: 'монеты', curio: 'безделушки', book: 'записки', key: 'ключи', tome: 'книги', weapon: 'оружие', ranged: 'луки и арбалеты', shield: 'щиты', head: 'шлемы', body: 'броня', cloak: 'плащи', boots: 'обувь', ring: 'кольца', amulet: 'амулеты' };
 export function sourcesOf(id) {
-  const it = BY_ID[id], out = { containers: [], drops: [], bosses: [], shop: false, craft: [], uses: [] };
+  const it = BY_ID[id], out = { containers: [], drops: [], bosses: [], shop: false, fairy: it.pool === 'gold' || it.pool === 'fairy', craft: [], uses: [] };
   for (const [k, d] of Object.entries(CONTAINERS)) if (d.pools.some(p => p[1] > 0 && p[0] === it.pool)) out.containers.push(k);
-  for (const [t, d] of Object.entries(DROPS)) if (d.pools.some(p => p[1] > 0 && p[0] === it.pool)) out.drops.push(t);
+  for (const [t, d] of Object.entries(DROPS)) if (it.pool === 'magic' || d.pools.some(p => p[1] > 0 && p[0] === it.pool)) out.drops.push(t);     // посохи и жезлы — свой бросок с любого врага (stones3d → magicDropOf)
   for (const [t, b] of Object.entries(BOSS_DROPS)) if (b.trophy === id || b.tomes.some(x => 'tome_' + x === id) || id === 'key_black' || BOSS_LOOT.pools.some(p => p[0] === it.pool)) out.bosses.push(t);
   out.shop = SHOP.pools.some(p => p[1] > 0 && p[0] === it.pool) || SHOP_STAPLES.some(([sid]) => sid === id);
   for (const r of RECIPES) { if (r.result.id === id) out.craft.push(r.id); if (r.mats.some(([m]) => m === id)) out.uses.push(r.id); }

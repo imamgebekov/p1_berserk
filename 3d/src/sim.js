@@ -308,7 +308,7 @@ export function killEnemy(W, e, share) {
 function dropLoot(W, e) {
   const depth = clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1);
   const rolls = e.elite ? W.cfg.elite.lootRolls : 1;
-  for (let r = 0; r < rolls; r++) for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck + (e.elite ? W.cfg.elite.luck : 0))) {
+  for (let r = 0; r < rolls; r++) for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck + (e.elite ? W.cfg.elite.luck : 0), W.cfg.drops.brandK)) {
     const a = W.rng() * TAU;
     W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * .7, z: e.z + Math.cos(a) * .7, t: 0, cd: 0 });
     W.ev.push({ k: 'drop', x: e.x, z: e.z, id: it.id });

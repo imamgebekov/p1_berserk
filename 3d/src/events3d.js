@@ -11,16 +11,17 @@ import { distSeg, pathSegs } from './world3d.js';
 const between = (rng, [a, b]) => a + rng() * (b - a);
 const pickN = (rng, list, n) => { const a = list.slice(), out = []; while (out.length < n && a.length) out.push(a.splice(rng() * a.length | 0, 1)[0]); return out; };
 const GEAR = CATALOG.filter(i => i.slot && i.rar === 3 && i.pool !== 'unique' && i.pool !== 'setunique');
-const UNIQUE = CATALOG.filter(i => i.pool === 'unique' || i.pool === 'setunique');
+const UNIQUE = CATALOG.filter(i => i.pool === 'unique' || i.pool === 'setunique'), GOLDS = CATALOG.filter(i => i.pool === 'gold');
 
 export const erng = W => W.erng || (W.erng = W.rng === Math.random ? Math.random : mulberry32((W.cfg.world.seed || 1) * 7919 + 17));
 
-// товар: несколько сказочных зелий и свитков, 2–3 великие вещи, иногда именная
+// товар: несколько сказочных зелий и свитков, 2–3 великие вещи, иногда именная, одна-две золотые
 export function wandererStock(W) {
   const C = W.cfg.wanderer, rng = erng(W), out = [];
   for (const it of pickN(rng, BY_POOL.fairy.flat(), C.fairy)) out.push({ id: it.id, n: 1 + (rng() < .5 ? 1 : 0) });
   for (const it of pickN(rng, GEAR, Math.round(between(rng, C.gear)))) out.push({ id: it.id, n: 1 });
   if (rng() < C.uniqueChance) out.push({ id: pickN(rng, UNIQUE, 1)[0].id, n: 1 });
+  for (const it of pickN(rng, GOLDS, (C.gold || 0) + (rng() < (C.gold2 || 0) ? 1 : 0))) out.push({ id: it.id, n: 1 });     // золотое — всегда одно, второе с шансом
   return out;
 }
 

@@ -289,7 +289,7 @@ for (const [id, name, slot, kind, perks, gold, story, extra] of GOLD) {
     || ITEMS.filter(i => i.slot === slot && i.kind === kind && i.stats).sort((a, b) => b.rar - a.rar || b.value - a.value)[0];
   const stats = {}; for (const [k, v] of Object.entries(base.stats)) stats[k] = k === 'swing' || k === 'reach' ? v : v > 0 ? Math.round(v * GOLD_K + .49) : v;
   for (const [k, v] of Object.entries(extra || {})) stats[k] = (stats[k] || 0) + v;
-  add({ ...base, id: 'g_' + id, name, pool: 'gold', rar: 5, stats, value: base.value * 1.6, mat: 'gold', perks: perks || base.perks, gold: gold || null, text: (perks ? weaponText(kind, perks) : goldText(gold)) + ' ' + story });
+  add({ ...base, id: 'g_' + id, base: base.id, name, pool: 'gold', rar: 5, stats, value: base.value * 1.6, mat: 'gold', perks: perks || base.perks, gold: gold || null, text: (perks ? weaponText(kind, perks) : goldText(gold)) + ' ' + story });
 }
 export const CATALOG = ITEMS;
 export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
