@@ -16,7 +16,13 @@ export function rollElite(W, e, depth, danger) {
   if (A.on) e.onx = A.on; if (A.immune) e.imm = A.immune;
   return true;
 }
-export const eliteName = (W, e) => (e.elite ? `${e.affName} ${W.cfg.enemies[e.type].name || ''}`.trim() : '');
+// вожак (мини-босс места, 2026-10-18): всегда элита со свойством, крепче в k раз, со званием; метка на карте — как у элиты
+export function makeChief(W, e, title, k) {
+  if (!e.elite) { const K = W.cfg.elite, ids = Object.keys(K.affixes), id = ids[e.id % ids.length], A = K.affixes[id], C = W.cfg.enemies[e.type];
+    e.elite = true; e.aff = id; e.affName = C.g === 'f' && A.nameF ? A.nameF : A.name; e.affColor = A.color; e.hp = e.maxhp = Math.round(e.maxhp * K.hp * (A.hp || 1)); e.dmgMul *= K.dmg; e.scaleMul = K.scale; e.spdMul = A.speed || 1; if (A.on) e.onx = A.on; if (A.immune) e.imm = A.immune; }
+  e.hp = e.maxhp = Math.round(e.maxhp * k); e.chief = title; e.scaleMul = (e.scaleMul || 1) * 1.15;
+}
+export const eliteName = (W, e) => (e.chief ? `${e.chief} · ${e.affName.toLowerCase()}` : e.elite ? `${e.affName} ${W.cfg.enemies[e.type].name || ''}`.trim() : '');
 // вампир лечится от нанесённого урона; вызывается после удара по герою
 export function eliteOnHit(W, e, dmg) { if (e.aff === 'vampiric') e.hp = Math.min(e.maxhp, e.hp + dmg * W.cfg.elite.affixes.vampiric.heal); }
 // взрывной оставляет пятно: через пару мгновений рванёт и заденет всех рядом

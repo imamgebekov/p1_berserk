@@ -64,6 +64,19 @@ const BASE = {
     // рощи (G2): за ядром деревья растут пятнами — шум с шагом scale м; доля леса в пятне от lo до 1, boost — во сколько раз больше кандидатов
     groves: { scale: 70, lo: .12, boost: 1.6 },
     plateaus: { n: 7, r: [14, 26], h: 3.5, rw: .2, len: 9 },
+    // вражеские лагеря и павшие города (2026-10-18): свой генератор после всего прочего — прежние места не сдвигаются.
+    // forts — лагеря размером с наш: n штук, полуширина H м (квадрат частокола, двое ворот шириной gate), шатров tents; gap — до других мест
+    // cities — n городов в кольце ring м: полуширина H (каменные стены, ворота на четыре стороны), домов houses, площадь plaza м у центра,
+    // боссы — свои у каждого города (тип, удары, фазы); villages — посёлки крупнее: ещё домов extra (от–до) внешним кольцом ring м
+    forts: { n: 5, H: 19, gate: 5, tents: 6, gap: 60 },
+    cities: { n: 2, H: 34, gate: 6, ring: [300, 520], gap: 110, houses: 14, plaza: 11,
+      bosses: [
+        { type: 'ashking', attacks: [{ kind: 'slam', wind: .8, r: 4.8, mul: 1.15, cd: 3, range: 5 }, { kind: 'charge', wind: .9, len: 15, width: 3, mul: 1.2, cd: 6, range: 17 }, { kind: 'nova', wind: 1.2, r: 9, inner: 3, mul: 1, cd: 9, range: 99 }],
+          phases: [{ at: .7, summon: { type: 'shield', n: 2 } }, { at: .45, summon: { type: 'archer', n: 3 } }, { at: .3, enrage: true }] },
+        { type: 'bonetyrant', attacks: [{ kind: 'slam', wind: .6, r: 3.4, mul: 1, cd: 2.5, range: 3.8 }, { kind: 'nova', wind: 1, r: 8, inner: 2.6, mul: .95, cd: 7, range: 99 }, { kind: 'slam', wind: 1.5, r: 7.5, mul: 1.35, cd: 11, range: 99 }],
+          phases: [{ at: .7, summon: { type: 'ghoul', n: 3 } }, { at: .4, summon: { type: 'shade', n: 2 } }, { at: .3, enrage: true }] }
+      ] },
+    villagesMore: { extra: [2, 4], ring: 16 },
     // замки (C4): вход в кольце r м от костра, этажей floors; foes — кто живёт в залах; depth и danger — по этажам
     castles: [
       { id: 'castle_ash', name: 'Пепельная Твердыня', keyName: 'Ключ Твердыни', r: [260, 380], floors: 3, guard: { type: 'shield', hp: 7, dmg: 1.4 },
@@ -224,7 +237,7 @@ const BASE = {
   stones: {
     sockets: [0, 0, 1, 1, 2, 2], drop: .05, danger: .02, elite: .5, rain: 'water',
     of: { imp: 'fire', brute: 'earth', hound: 'blood', ghoul: 'venom', archer: 'storm', witch: 'fire', shield: 'earth', bomber: 'fire', lunger: 'blood', shade: 'ice' },
-    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice' },
+    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood' },
     fuse: { n: 3, ash: [40, 150] }, unsocket: [15, 50, 150],
     // посохи и жезлы с врагов (Ирга): magic — шанс у Ирги и у других героев, magicElite — у элиты; материал — по опасности места
     magic: [.03, .006], magicElite: .25,
@@ -250,7 +263,7 @@ const BASE = {
     res: {
       thorn: { name: 'Ярость', color: '#d8402a', max: 100, start: 0, hit: 3.5, hurt: .3, roll: 0, regen: 0, decay: 6, idle: 4, perLv: 2 },
       jay: { name: 'Концентрация', color: '#e8c04a', max: 100, start: 100, hit: 4, hurt: 0, roll: 0, regen: 9, decay: 0, idle: 0, perLv: 2 },
-      vale: { name: 'Концентрация', color: '#6ab0ff', max: 100, start: 100, hit: 2, hurt: 0, roll: 0, regen: 10, decay: 0, idle: 0, perLv: 2 },     // Вейл — скрытый дуэлянт: восстанавливается сама (пожелание 2026-10-18; было «Ритм» от ударов)
+      vale: { name: 'Концентрация', color: '#6ab0ff', max: 100, start: 0, hit: 2, hurt: 0, roll: 0, regen: 4, decay: 0, idle: 0, perLv: 2 },     // Вейл — скрытый дуэлянт: восстанавливается сама (пожелание 2026-10-18; было «Ритм» от ударов)
       irga: { name: 'Мана', color: '#7a8aff', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 }
     },
     thorn: {
@@ -581,11 +594,15 @@ const BASE = {
       camp: [['hound', 3], ['brute', 4], ['imp', 2], ['archer', 4], ['shield', 3], ['archer', 3, null, 'guard'], ['shield', 2, null, 'patrol'], ['brute', 2, null, 'patrol']],
       farm: [['hound', 3], ['imp', 4], ['ghoul', 1], ['archer', 2], ['bomber', 1], ['imp', 2, null, 'patrol']],
       bandits: [['archer', 3], ['brute', 3], ['hound', 2], ['shield', 1]],                 // стоянки разбойников и курганы большого мира (G2)
-      barrow: [['ghoul', 4], ['shade', 2], ['lunger', 1]]
+      barrow: [['ghoul', 4], ['shade', 2], ['lunger', 1]],
+      warcamp: [['archer', 4], ['shield', 3], ['brute', 4], ['hound', 2], ['bomber', 2], ['lunger', 1]],     // вражеские лагеря (2026-10-18)
+      city: [['shield', 3], ['brute', 3], ['witch', 2], ['shade', 2], ['lunger', 2], ['archer', 3], ['ghoul', 2]]     // павшие города
     },
     // гарнизоны (G2): опасные места и стоянки большого мира заселяются, когда герой ближе near м (но дальше far — вне экрана);
     // n — сколько врагов по виду места; после зачистки и ухода место заселяется снова через respawn с
-    garrison: { near: 62, far: 28, respawn: 480, n: { camp: 4, ruins: 4, graveyard: 4, farm: 3, bandits: 3, barrow: 2 } },
+    garrison: { near: 62, far: 28, respawn: 480, n: { camp: 4, ruins: 4, graveyard: 4, farm: 3, bandits: 3, barrow: 2, warcamp: 9, city: 14 },
+      // вожаки (мини-боссы): сколько, звание, во сколько раз крепче элиты; spread — доля радиуса места, где встают гарнизоны; cityHp — крепче в городах
+      chief: { warcamp: [1, 'Вожак лагеря', 2.2], city: [3, 'Капитан стражи', 2] }, spread: { warcamp: .6, city: .7 }, cityHp: 1.3, bossNear: 90 },
     // кто бродит по биому большого мира вне областей (C3b)
     biomes: {
       forest: [['imp', 4], ['brute', 4], ['hound', 2]],                       // как вне областей ядра (бесы и рогачи) + приправа биома;
@@ -607,6 +624,8 @@ const BASE = {
     lord:     { boss: true, name: 'Слуга Затмения',     xp: 1000, hp: 8500, speed: 4.4, damage: 52, range: 2.8, wind: .6, recover: .8, radius: 1.2, scale: 2.1, heavy: true, immune: ['stun', 'freeze'], on: ['burn', .6, 4, 4] },
     castellan: { boss: true, name: 'Кастелян Пепла',   xp: 2200, hp: 9000, speed: 3.3, damage: 46, range: 3.4, wind: .7, recover: .9, radius: 1.6, scale: 2.6, heavy: true, immune: ['stun', 'fear'], on: ['burn', .55, 3, 4] },     // замки (C4)
     queen:     { boss: true, name: 'Королева Пустоши', g: 'f', xp: 2800, hp: 10000, speed: 4.4, damage: 44, range: 2.9, wind: .6, recover: .8, radius: 1.3, scale: 2.3, heavy: true, immune: ['stun', 'freeze', 'poison'], on: ['poison', .7, 4, 5] },
+    ashking:   { boss: true, name: 'Пепельный Король', xp: 3600, hp: 15000, speed: 3.6, damage: 66, range: 3.5, wind: .7, recover: .85, radius: 1.7, scale: 2.9, heavy: true, immune: ['stun', 'fear'], on: ['burn', .7, 5, 6] },     // павшие города (2026-10-18)
+    bonetyrant: { boss: true, name: 'Костяной Тиран', xp: 3300, hp: 13500, speed: 4, damage: 58, range: 3.3, wind: .6, recover: .8, radius: 1.5, scale: 2.7, heavy: true, immune: ['stun', 'poison'], on: ['bleed', .7, 4, 6] },
     chief:    { boss: true, name: 'Вожак Ржавых',       xp: 1400, hp: 11500, speed: 3.2, damage: 62, range: 3.4, wind: .7, recover: .9, radius: 1.7, scale: 2.7, heavy: true, immune: ['stun'], on: ['bleed', .8, 4, 5] },
     // слух: чем громче герой, тем дальше его слышат. Услышавший идёт к герою, пока тот не уйдёт дальше `lose`
     hear: { idle: 10, run: 17, fight: 25, house: .55, lose: 32, drift: .3 },

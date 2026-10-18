@@ -21,7 +21,7 @@ import { pathGoal } from './path3d.js';
 import { inCliff } from './cliffs3d.js';
 import { firesOf, discoverFires } from './fires3d.js';
 import { addFires } from './map.js';
-import { BY_ID } from './data/items.js';
+import { BY_ID, CATALOG } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
 import { SETS } from './data/sets3d.js';
@@ -29,7 +29,7 @@ import { initBoss, updateBoss } from './boss3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent } from './quests3d.js';
 import { lightOf, isNight } from './daynight.js';
-import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
+import { rollElite, makeChief, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned, rainK } from './status3d.js';
 import { tickZones, isWet } from './elements3d.js';
 import { weaponMix, gemDropOf, weaponElement, magicDropOf } from './stones3d.js';
@@ -49,7 +49,7 @@ export function createWorld(cfg, rng = Math.random) {
   initLevels(W);
   for (const id of Object.keys(W.levels)) withLevel(W, id, () => { for (const c of W.map.containers) if (c.far) c.t = cfg.map.containerRespawn; else refill(W, c); });     // дальние — когда герой подойдёт
   restock(W);
-  for (const def of cfg.bosses.list) if (!def.level || W.levels[def.level]) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def));     // босс замка — в своём тронном зале (C4); нет уровня — нет босса
+  for (const def of cfg.bosses.list) if (!def.city && (!def.level || W.levels[def.level])) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def));     // босс города — когда герой подойдёт (garrisons)     // босс замка — в своём тронном зале (C4); нет уровня — нет босса
   return W;
 }
 // контекст оружия: умение типа и объединённые параметры свойств
@@ -177,15 +177,18 @@ function spawnRing(W) {
 function garrisons(W, dt) {
   const G = W.cfg.enemies.garrison; if (!G || (W.garrT = (W.garrT || 0) - dt) > 0) return; W.garrT = .5;
   const p = W.player, E = W.cfg.enemies; W.garr = W.garr || {};
+  if (W.lvl === SURFACE) for (const def of W.cfg.bosses.list) if (def.city && W.bossDead[def.type] === undefined && len(def.x - p.x, def.z - p.z) < (G.bossNear || 90) && !W.enemies.some(e => e.boss && e.type === def.type)) spawnBoss(W, def);     // босс павшего города встаёт при подходе
   for (const pl of W.map.cfg.places || []) {
     if (!pl.gen || pl.type !== 'danger' || pl.castle) continue;
     const d = len(pl.x - p.x, pl.z - p.z); if (d > G.near || d < G.far || (W.garr[pl.id] || 0) > W.t || W.enemies.some(e => e.garr === pl.id && !e.dead)) continue;
     const type = regionOf(W.map, pl.x, pl.z), tbl = E.regions[type]; if (!tbl) continue;
     W.garr[pl.id] = W.t + G.respawn;
-    const pool = tbl.filter(a => a[2] !== 'night' || W.night), n = G.n[type] || 3;
+    const pool = tbl.filter(a => a[2] !== 'night' || W.night), n = G.n[type] || 3, CH = (G.chief || {})[type], sp = (G.spread || {})[type] || .45;
     for (let i = 0; i < n; i++) {
-      const a = rr(W, 0, TAU), r0 = rr(W, 1.5, Math.max(2.5, pl.r * .45)), o = { x: pl.x + Math.sin(a) * r0, z: pl.z + Math.cos(a) * r0 }; resolve(W.map, o, 1);
+      const a = rr(W, 0, TAU), r0 = rr(W, 1.5, Math.max(2.5, pl.r * sp)), o = { x: pl.x + Math.sin(a) * r0, z: pl.z + Math.cos(a) * r0 }; resolve(W.map, o, 1);
       const e = spawnEnemy(W, pickEntry(pool, W.rng)[0], o.x, o.z, i % 2 ? 'patrol' : 'guard'); e.garr = pl.id;
+      if (pl.city && G.cityHp) e.hp = e.maxhp = Math.round(e.maxhp * G.cityHp);     // в павших городах враги крепче
+      if (CH && i < CH[0]) makeChief(W, e, CH[1], CH[2]);     // вожаки — мини-боссы места (2026-10-18)
     }
   }
 }
@@ -225,6 +228,7 @@ function bossDefeated(W, e) {
   const tid = bd.tomes.find(t => !W.known.tomes[t] && !W.inv.bag.some(x => x.id === 'tome_' + t) && !W.drops.some(x => x.id === 'tome_' + t));
   if (tid) items.push({ id: 'tome_' + tid, n: 1 });                      // книга выпадает, пока не прочитана (первой по порядку)
   items.push({ id: 'key_black', n: 1 }, ...rollLoot(BOSS_LOOT, W.rng, 1, W.gear.luck));
+  if (bd.gold && W.rng() < bd.gold) { const G = CATALOG.filter(i => i.pool === 'gold'); items.push({ id: G[(W.rng() * G.length) | 0].id, n: 1 }); }     // босс павшего города: шанс золотой вещи
   items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0 }); });
   for (const m of e.b.minions) if (!m.dead) { m.dead = true; m.deadT = 0; }
   W.bossDead[e.type] = Math.round(W.cfg.bosses.respawn * W.dif.boss);

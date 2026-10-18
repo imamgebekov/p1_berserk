@@ -23,11 +23,11 @@ export function genWorld(cfg, buildings) {
   const ring = (x, z, r, n, f) => { for (let i = 0; i < n; i++) { const a = rnd() * TAU, d = Math.sqrt(rnd()) * r; f(x + Math.cos(a) * d, z + Math.sin(a) * d, i); } };
 
   // дороги: от костра к двери каждого здания; к домам за частоколом лагеря — через ближайшие ворота
-  const camp = campOf(cfg), gates = camp ? campGates(camp) : [], used = new Set();
+  const camp = campOf(cfg), gates = camp ? campGates(camp) : [], used = new Set(), straight = new Set();
   const vil = id => (M.places || []).find(p => p.id === id);
   for (const b of buildings) {
     const o = b.door.out;
-    if (b.vil) { const v = vil(b.vil); if (v) roads.push([{ x: v.x, z: v.z }, { x: o.x, z: o.z }]); continue; }     // дом посёлка большого мира — к центру посёлка
+    if (b.vil) { const v = vil(b.vil); if (v) { const leg = [{ x: v.x, z: v.z }, { x: o.x, z: o.z }]; roads.push(leg); straight.add(leg); } continue; }     // дом посёлка или города — прямой улицей к центру
     if (!camp || insideCamp(camp, o.x, o.z)) { roads.push([{ x: 0, z: 0 }, { x: o.x, z: o.z }]); continue; }
     const g = gates.reduce((a, q) => (Math.hypot(q.x - o.x, q.z - o.z) < Math.hypot(a.x - o.x, a.z - o.z) ? q : a));
     const r = g.a * Math.PI / 180, gx = camp.x + Math.sin(r) * (camp.r + camp.roadOut), gz = camp.z + Math.cos(r) * (camp.r + camp.roadOut);     // из ворот — прямо наружу, потом к дому: дорога не срезает частокол
@@ -37,7 +37,7 @@ export function genWorld(cfg, buildings) {
   for (const [a, b] of M.links || []) roads.push([{ x: a.x, z: a.z }, { x: b.x, z: b.z }]);     // связи посёлков большого мира (C3b)
   const nearWall = (x, z) => camp && Math.abs(Math.hypot(x - camp.x, z - camp.z) - camp.r) < 2;
   // тропы (F1): за лагерем дорога — плавная кривая, внутри — прямая; свой генератор, чтобы не сдвинуть остальной мир
-  const paths = roads.map(leg => ({ leg, pts: curvePath(leg, cfg, mulberry(cfg.world.seed * 53 + 11 + Math.round(leg[1].x * 7 + leg[1].z * 13)), (x, z) => !inBuilding(x, z, 1.2) && !wet(x, z, 2.5) && Math.hypot(x, z) < R - 4 && (!camp || !insideCamp(camp, x, z, -2))) }));
+  const paths = roads.map(leg => ({ leg, pts: straight.has(leg) ? leg : curvePath(leg, cfg, mulberry(cfg.world.seed * 53 + 11 + Math.round(leg[1].x * 7 + leg[1].z * 13)), (x, z) => !inBuilding(x, z, 1.2) && !wet(x, z, 2.5) && Math.hypot(x, z) < R - 4 && (!camp || !insideCamp(camp, x, z, -2))) }));
   const segs = paths.flatMap(p => p.pts.slice(1).map((q, i) => [p.pts[i], q]));
   // фонари вдоль дорог через каждые ~11 м (только вблизи центра), не на домах
   for (const [a, b] of segs) {
@@ -157,6 +157,38 @@ export function genWorld(cfg, buildings) {
       if (side === gate) decor.push({ t: 'cgate', x: c.x + sx * H, z: c.z + sz * H, rot: sx ? Math.PI / 2 : 0, w: G });
     }
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = c.x + sx * H, z = c.z + sz * H; solids.push({ x, z, r: 2.2 }); decor.push({ t: 'ctower', x, z }); }
+  }
+  // вражеские лагеря и павшие города, убранство посёлков (2026-10-18): свой генератор — прежний декор не сдвигается
+  { const rw = mulberry(cfg.world.seed * 131 + 77), SIDES = [['s', 0, 1], ['n', 0, -1], ['e', 1, 0], ['w', -1, 0]];
+    // квадратная ограда: стены отрезками-блоками с проёмами ворот; wall — вид стены, gate — вид ворот
+    const square = (c, H, T, G, gates, wall, gate) => { for (const [side, sx, sz] of SIDES) { const segs = gates.includes(side) ? [[-H, -G / 2], [G / 2, H]] : [[-H, H]];
+      for (const [a, b] of segs) { const r = sx ? { x0: c.x + sx * H - T / 2, x1: c.x + sx * H + T / 2, z0: c.z + a, z1: c.z + b } : { x0: c.x + a, x1: c.x + b, z0: c.z + sz * H - T / 2, z1: c.z + sz * H + T / 2 }; blocks.push(r); decor.push({ t: wall, x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2, w: r.x1 - r.x0, d: r.z1 - r.z0 }); }
+      if (gates.includes(side)) decor.push({ t: gate, x: c.x + sx * H, z: c.z + sz * H, rot: sx ? Math.PI / 2 : 0, w: G }); } };
+    for (const f of M.forts || []) {
+      square(f, f.H, .9, f.gate, f.gates, 'palwall', 'palgate');
+      for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = f.x + sx * (f.H - 2), z = f.z + sz * (f.H - 2); solids.push({ x, z, r: 1.6 }); decor.push({ t: 'wtower', x, z }); }
+      reserved.length = 0; for (const [k, lx, lz] of [['locked', 3, -3], ['ironchest', -3.5, 2.5], ['rack', 5, 5], ['armorstand', -5, -5], ['chest', f.H - 6, 0], ['crate', -(f.H - 6), 3]]) { spots.push({ kind: k, x: f.x + lx, z: f.z + lz }); reserved.push({ x: f.x + lx, z: f.z + lz }); }
+      solid('campfire', f.x, f.z, .8);
+      for (let i = 0; i < f.tents; i++) { const a = i / f.tents * TAU + .3, d = f.H * .55, x = f.x + Math.cos(a) * d, z = f.z + Math.sin(a) * d; solid('tent', x, z, 1.6, { rot: a }); }
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + .78, x = f.x + Math.cos(a) * (f.H * .8), z = f.z + Math.sin(a) * (f.H * .8); put('banner', x, z, { rot: a }); }
+      for (let i = 0; i < 6; i++) { const x = f.x + (rw() - .5) * f.H * 1.4, z = f.z + (rw() - .5) * f.H * 1.4; if (free(x, z, 1)) put(rw() < .5 ? 'barrel_d' : 'crate_d', x, z, { rot: rw() * 3 }); }
+      reserved.length = 0;
+    }
+    for (const c of M.cities || []) {
+      square(c, c.H, 1.4, c.gate, ['s', 'n', 'e', 'w'], 'cwall', 'cgate');
+      for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = c.x + sx * c.H, z = c.z + sz * c.H; solids.push({ x, z, r: 2.2 }); decor.push({ t: 'ctower', x, z }); }
+      reserved.length = 0; for (const [k, lx, lz] of [['locked', 5, 5], ['locked', -5, -5], ['ironchest', 5, -5], ['altar', -5, 5]]) { spots.push({ kind: k, x: c.x + lx, z: c.z + lz }); reserved.push({ x: c.x + lx, z: c.z + lz }); }
+      for (const [lx, lz] of [[-7, 0], [7, 0], [0, -7], [0, 7]]) put('lamp', c.x + lx, c.z + lz);
+      for (const [lx, lz] of [[-9, -9], [9, 9], [9, -9], [-9, 9]]) solid('menhir', c.x + lx, c.z + lz, .6, { s: 1.6, rot: rw() });
+      for (let i = 0; i < 18; i++) { const x = c.x + (rw() - .5) * c.H * 1.8, z = c.z + (rw() - .5) * c.H * 1.8; if (free(x, z, 1.2) && Math.hypot(x - c.x, z - c.z) > 10) put(['crate_d', 'barrel_d', 'bones', 'wheel'][(rw() * 4) | 0], x, z, { rot: rw() * 3 }); }
+      reserved.length = 0;
+    }
+    for (const v of M.places || []) { if (v.type !== 'hamlet' || !v.gen) continue;     // посёлки: колодец, стога, изгородь, фонари
+      { const x = v.x + 2.5, z = v.z - 2.5; if (free(x, z, 1.4)) solid('well', x, z, 1.1); }
+      for (let i = 0; i < 3; i++) { const a = rw() * TAU, d = v.r - 2 + rw() * 3, x = v.x + Math.cos(a) * d, z = v.z + Math.sin(a) * d; if (free(x, z, 2) && !nearRoad(x, z, 2.5)) solid('haystack', x, z, 1.2, { s: .7 + rw() * .4 }); }
+      for (let i = 0; i < 2; i++) { const a = rw() * TAU, x = v.x + Math.cos(a) * 6, z = v.z + Math.sin(a) * 6; if (free(x, z, 1)) put('lamp', x, z); }
+      for (let i = 0; i < 4; i++) { const a = rw() * TAU, d = v.r + 1, x = v.x + Math.cos(a) * d, z = v.z + Math.sin(a) * d; if (free(x, z, 1.5) && !nearRoad(x, z, 3)) put('fence', x, z, { w: 4, rot: rw() < .5 }); }
+    }
   }
   return { decor, solids, spots, roads, paths, blocks };
 }

@@ -39,7 +39,9 @@ const NAMES = {
   farm: [['Брошенная ферма', 'Пустой хутор', 'Мёртвые поля'], ['у брода', 'на холме', 'у леса', 'за рекой', 'у топи', 'на отшибе']],
   bandits: [['Стоянка', 'Лёжка', 'Засека'], ['разбойников', 'лихих людей', 'беглых', 'Кривого', 'Рыжего', 'Безухого', 'Хромого', 'Чёрной шайки']],
   barrow: [['Курган', 'Могильник'], ['Старый', 'Безымянный', 'Вождя', 'Трёх воинов', 'Немой', 'Чёрный', 'Высокий', 'Ведьмин']],
-  shrine: [['Святилище', 'Алтарь', 'Капище'], ['Ветра', 'Луны', 'Дуба', 'Родника', 'Звёзд', 'Камня', 'Зари', 'Предков', 'Тумана']]
+  shrine: [['Святилище', 'Алтарь', 'Капище'], ['Ветра', 'Луны', 'Дуба', 'Родника', 'Звёзд', 'Камня', 'Зари', 'Предков', 'Тумана']],
+  warcamp: [['Острог', 'Лагерь', 'Укрепление'], ['Ржавых', 'Пепельных', 'Кровавых', 'Чёрного клыка', 'Безглазых', 'Волчьей стаи', 'Серых плащей']],
+  city: [['Павший', 'Мёртвый', 'Пепельный'], ['Вельград', 'Красноград', 'Остромир', 'Белоград', 'Звенигор']]
 };
 const nameOf = (r, kind, used) => { const [a, b] = NAMES[kind]; for (let k = 0; k < 40; k++) { const n = a[(r() * a.length) | 0] + ' ' + (kind === 'village' ? b[(r() * b.length) | 0] : b[(r() * b.length) | 0]); if (!used.has(n)) { used.add(n); return n; } } return a[0] + ' ' + used.size; };
 
@@ -185,6 +187,55 @@ export function expandWorld(base) {
       streams.push({ pts, w: ST.w[0] + rl() * (ST.w[1] - ST.w[0]) }); i++;
     }
     T.river.lakes = lakes; T.river.streams = streams;
+  }
+  // посёлки крупнее, вражеские лагеря и павшие города (2026-10-18): свой генератор — всё выше не сдвигается
+  { const rc = mul(cfg.world.seed * 4049 + 13), L0 = (T && T.river) || {}, lakes = L0.lakes || [], streams = L0.streams || [];
+    const wet2 = (x, z, pad) => wetAt(x, z, pad) || lakes.some(q => Math.hypot(q.x - x, q.z - z) < q.r * 1.3 + pad) || streams.some(st => st.pts.some((q, i) => i > 0 && segD(x, z, st.pts[i - 1], q) < pad));
+    const onRoad = (x, z, pad) => cfg.map.links.some(([a, b]) => segD(x, z, a, b) < pad);
+    const overB = (x, z, w, d, pad) => cfg.map.buildings.some(b => Math.abs(b.x - x) < (b.w + w) / 2 + pad && Math.abs(b.z - z) < (b.d + d) / 2 + pad);
+    const big = [];     // лагеря и города: между собой не ближе gap
+    const isPoi = q => cfg.map.pois.some(p => p.t !== 'pond' && Math.abs(p.x - q.x) < .01 && Math.abs(p.z - q.z) < .01);     // мелкая точка интереса (не пруд) — город может встать на её место
+    const spot2 = (dMin, dMax, gap, pad, soft = false) => { for (let k = 0; k < 900; k++) { const a = rc() * TAU, d = dMin + Math.sqrt(rc()) * (dMax - dMin), x = Math.sin(a) * d, z = Math.cos(a) * d;
+      if (wet2(x, z, pad) || onRoad(x, z, pad) || taken.some(q => !(soft && isPoi(q)) && Math.hypot(q.x - x, q.z - z) < pad + q.r) || big.some(q => Math.hypot(q.x - x, q.z - z) < gap) || (cfg.map.plateaus || []).some(q => Math.hypot(q.x - x, q.z - z) < q.r + q.len + pad)) continue; big.push({ x, z }); return { x, z }; } return null; };
+    const doorTo = (ox, oz) => (Math.abs(ox) >= Math.abs(oz) ? (ox > 0 ? 'w' : 'e') : (oz > 0 ? 'n' : 's'));     // дверь — к центру
+    // посёлки: ещё 2–4 дома внешним кольцом (не на тропе, не в воде, не на других домах); безопасная зона шире
+    const VM = G.villagesMore;
+    if (VM) for (const v of villages) {
+      const k = VM.extra[0] + ((rc() * (VM.extra[1] - VM.extra[0] + 1)) | 0);
+      for (let j = 0, t = 0; j < k && t < 30; t++) { const a = rc() * TAU, x = Math.round((v.x + Math.sin(a) * VM.ring) * 2) / 2, z = Math.round((v.z + Math.cos(a) * VM.ring) * 2) / 2, w = 5 + ((rc() * 3) | 0), d = 5 + ((rc() * 2) | 0);
+        if (overB(x, z, w, d, 2.5) || wet2(x, z, 6) || onRoad(x, z, 5) || Math.hypot(x, z) > R - 12) continue;
+        cfg.map.buildings.push({ x, z, w, d, door: doorTo(x - v.x, z - v.z), kind: ['house', 'hut', 'warehouse', 'house'][(rc() * 4) | 0], chests: ['chest', 'crate', 'barrel', 'sack', 'wardrobe'].filter(() => rc() < .4).slice(0, 2), vil: v.id }); j++; }
+      v.r = 21;
+    }
+    // вражеские лагеря: квадрат частокола, ворота к центру мира и напротив; гарнизон и вожак — при подходе героя (sim.js → garrisons)
+    const F = G.forts; cfg.map.forts = [];
+    if (F) for (let i = 0; i < F.n; i++) {
+      const s = spot2(G.coreR + 70, R - F.H - 20, F.gap, F.H * 1.42 + 4); if (!s) continue;
+      const k = (Math.hypot(s.x, s.z) - G.coreR) / (R - G.coreR), id = 'wf' + i;
+      cfg.map.places.push({ id, name: nameOf(rc, 'warcamp', used), type: 'danger', x: s.x, z: s.z, r: F.H + 5, danger: Math.min(3, 2 + Math.floor(k * 1.6)), gen: 1, fort: true });
+      cfg.map.zones.push({ type: 'warcamp', x: s.x, z: s.z, w: F.H * 2 - 4, d: F.H * 2 - 4, gen: 1 });
+      const toC = Math.abs(s.x) > Math.abs(s.z) ? (s.x > 0 ? 'w' : 'e') : (s.z > 0 ? 'n' : 's'), opp = { w: 'e', e: 'w', n: 's', s: 'n' }[toC];
+      cfg.map.forts.push({ id, x: s.x, z: s.z, H: F.H, gate: F.gate, gates: [toC, opp], tents: F.tents }); taken.push({ x: s.x, z: s.z, r: F.H * 1.45 + 8 });
+    }
+    // павшие города: каменные стены, ворота на четыре стороны, дома кварталами вокруг площади, босс на площади; дорога — к ближайшему посёлку
+    const CI = G.cities; cfg.map.cities = [];
+    if (CI) for (let i = 0; i < CI.n; i++) {
+      const s = spot2(CI.ring[0], Math.min(CI.ring[1], R - CI.H - 20), CI.gap, CI.H * 1.42 + 6, true); if (!s) continue;
+      const id = 'wc' + i, H = CI.H;
+      { const gone = cfg.map.pois.filter(p => p.t !== 'pond' && Math.abs(p.x - s.x) < H + p.r + 4 && Math.abs(p.z - s.z) < H + p.r + 4), ids = new Set(gone.map(p => p.place).filter(Boolean));     // точки интереса на месте города убираются вместе с их местами
+        cfg.map.pois = cfg.map.pois.filter(p => !gone.includes(p)); cfg.map.places = cfg.map.places.filter(p => !ids.has(p.id)); cfg.map.zones = cfg.map.zones.filter(zn => !(zn.poi && gone.some(p => Math.abs(p.x - zn.x) < .01 && Math.abs(p.z - zn.z) < .01))); }
+      cfg.map.places.push({ id, name: nameOf(rc, 'city', used), type: 'danger', x: s.x, z: s.z, r: H + 4, danger: 3, gen: 1, city: true });
+      cfg.map.zones.push({ type: 'city', x: s.x, z: s.z, w: H * 2 - 4, d: H * 2 - 4, gen: 1 });
+      const cells = []; for (const ox of [-24, -12, 0, 12, 24]) for (const oz of [-24, -12, 0, 12, 24]) if (Math.max(Math.abs(ox), Math.abs(oz)) > CI.plaza + 2 && ox !== 0 && oz !== 0) cells.push([ox, oz]);     // кварталы; улицы по осям — к воротам
+      for (let j = 0; j < CI.houses && cells.length; j++) { const [ox, oz] = cells.splice((rc() * cells.length) | 0, 1)[0], w = 7 + ((rc() * 2) | 0), d = 6 + ((rc() * 2) | 0);
+        cfg.map.buildings.push({ x: s.x + ox, z: s.z + oz, w, d, door: doorTo(ox, oz), kind: ['house', 'warehouse', 'house', 'hut'][(rc() * 4) | 0], chests: ['locked', 'ironchest', 'chest', 'wardrobe', 'coffer'].filter(() => rc() < .45).slice(0, 2), vil: id, city: id }); }
+      cfg.bosses.list.push({ ...CI.bosses[i % CI.bosses.length], x: s.x, z: s.z, city: id });
+      cfg.map.cities.push({ id, x: s.x, z: s.z, H, gate: CI.gate, name: cfg.map.places[cfg.map.places.length - 1].name }); taken.push({ x: s.x, z: s.z, r: H * 1.45 + 10 });
+      const to = villages.reduce((a, v) => (!a || Math.hypot(v.x - s.x, v.z - s.z) < Math.hypot(a.x - s.x, a.z - s.z) ? v : a), null);     // дорога — к ближайшему посёлку, из ворот на его сторону
+      if (to) { const dx = to.x - s.x, dz = to.z - s.z, gs = [['s', 0, 1], ['n', 0, -1], ['e', 1, 0], ['w', -1, 0]].reduce((a, q) => (q[1] * dx + q[2] * dz > a[1] * dx + a[2] * dz ? q : a)); const lk = [{ x: to.x, z: to.z }, { x: s.x + gs[1] * (H + 6), z: s.z + gs[2] * (H + 6) }]; cfg.map.links.push(lk);
+        const gone = cfg.map.pois.filter(p => p.t !== 'pond' && segD(p.x, p.z, lk[0], lk[1]) < p.r + 14), ids = new Set(gone.map(p => p.place).filter(Boolean));     // точки интереса на новой дороге убираются (тропа гнётся до ~12 м)
+        cfg.map.pois = cfg.map.pois.filter(p => !gone.includes(p)); cfg.map.places = cfg.map.places.filter(p => !ids.has(p.id)); cfg.map.zones = cfg.map.zones.filter(zn => !(zn.poi && gone.some(p => Math.abs(p.x - zn.x) < .01 && Math.abs(p.z - zn.z) < .01))); }
+    }
   }
   if (rv) {
     const extra = [], B = T.bridge;

@@ -173,6 +173,8 @@ const LOOKS = {
   castellan: { shape: 'brute', body: '#4a4440', dark: '#1e1a18', eye: '#ff6a20', crown: '#c8a060', prop: 'shield' },     // замки (C4)
   queen: { shape: 'imp', body: '#3a3428', dark: '#14100a', eye: '#a8ff60', crown: '#e8d890', ghost: true },
   chief: { shape: 'brute', body: '#5a2c24', dark: '#2a1210', eye: '#ffc030', crown: '#d8c8a8' },
+  ashking: { shape: 'brute', body: '#3a302c', dark: '#140e0c', eye: '#ffd040', crown: '#f0c040', prop: 'shield' },     // павшие города (2026-10-18)
+  bonetyrant: { shape: 'ghoul', body: '#8a8270', dark: '#3a342a', eye: '#ff4030', crown: '#d8d0b8' },
   shield: { shape: 'brute', body: '#5a4a3a', dark: '#2a2018', eye: '#ffb030', prop: 'shield' },
   bomber: { shape: 'imp', body: '#4a2a1a', dark: '#1e1008', eye: '#ffd040', prop: 'ember' },
   lunger: { shape: 'bones', body: '#cfc4a8', dark: '#5a5244', eye: '#80ffd0', prop: 'spear' },

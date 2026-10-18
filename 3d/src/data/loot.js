@@ -31,7 +31,9 @@ export const BOSS_DROPS = {
   lord: { trophy: 'm_eclipse_cloak', n: [2, .5], tomes: ['set_eclipse', 'blades_eclipse'] },
   chief: { trophy: 'm_chief_fang', n: [2, .5], tomes: ['set_rust', 'blades_rust'] },
   castellan: { trophy: 'm_castellan_seal', n: [2, .6], tomes: [] },     // замки (C4)
-  queen: { trophy: 'm_queen_veil', n: [2, .6], tomes: [] }
+  queen: { trophy: 'm_queen_veil', n: [2, .6], tomes: [] },
+  ashking: { trophy: 'm_ashking_crown', n: [2, .7], tomes: [], gold: .35 },     // павшие города (2026-10-18): gold — шанс золотой вещи
+  bonetyrant: { trophy: 'm_tyrant_skull', n: [2, .7], tomes: [], gold: .35 }
 };
 // добыча боссов (кроме гарантированного уникального клинка)
 export const BOSS_LOOT = { name: 'Добыча босса', q: 3, slots: [3, 3], pools: [['weapon', 1], ['body', 1], ['head', 1], ['boots', 1], ['ring', 2], ['amulet', 2], ['potion', 2], ['key', 1]] };

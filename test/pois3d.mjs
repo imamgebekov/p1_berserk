@@ -19,7 +19,7 @@ const M = CFG3.map, G = CFG3.worldgen, R = CFG3.world.radius, map = makeMap(CFG3
 // ---------- 1. генератор ----------
 const gen = M.places.filter(p => p.gen);
 ok(gen.filter(p => p.type === 'hamlet').length === G.villages, 'посёлков не ' + G.villages);
-ok(gen.filter(p => p.type === 'danger' && !p.poi && !p.castle).length === G.dangers, 'опасных мест не ' + G.dangers);
+ok(gen.filter(p => p.type === 'danger' && !p.poi && !p.castle && !p.fort && !p.city).length === G.dangers, 'опасных мест не ' + G.dangers);
 ok(M.landmarks.length === G.landmarks, 'ориентиров не ' + G.landmarks);
 ok(M.pois.length >= G.pois.n * .95, 'точек интереса мало: ' + M.pois.length);
 for (const t of Object.keys(G.pois.r)) ok(M.pois.filter(q => q.t === t).length >= 8, `точек «${t}» меньше 8`);

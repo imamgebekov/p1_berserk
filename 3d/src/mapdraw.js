@@ -58,6 +58,17 @@ export function drawMap(ctx, W, v) {
   }
   // замки (C4c): стены квадратом, проём ворот
   if (!under) for (const c of M.cfg.castles || []) { if (!isSeen(W, c.x, c.z)) continue; ctx.strokeStyle = '#b0a898'; ctx.lineWidth = Math.max(2, sc * 1.2); ctx.strokeRect(X(c.x - 13), Y(c.z - 13), 26 * sc, 26 * sc); ctx.fillStyle = '#b0a898'; for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.fillRect(X(c.x + sx * 13) - 3, Y(c.z + sz * 13) - 3, 6, 6); }
+  // вражеские лагеря (частокол — бурый) и павшие города (каменные стены, башни) — квадратом с проёмами ворот (2026-10-18)
+  if (!under) for (const [list, col, w0] of [[M.cfg.forts || [], '#7a4a2a', 1], [M.cfg.cities || [], '#b0a898', 1.4]]) for (const c of list) { if (!isSeen(W, c.x, c.z)) continue;
+    const H = c.H, G = c.gate / 2, gates = c.gates || ['s', 'n', 'e', 'w']; ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, sc * w0 * 1.2); ctx.lineCap = 'butt';
+    for (const [side, sx, sz] of [['s', 0, 1], ['n', 0, -1], ['e', 1, 0], ['w', -1, 0]]) { const segs = gates.includes(side) ? [[-H, -G], [G, H]] : [[-H, H]];
+      for (const [a, b] of segs) { ctx.beginPath(); if (sx) { ctx.moveTo(X(c.x + sx * H), Y(c.z + a)); ctx.lineTo(X(c.x + sx * H), Y(c.z + b)); } else { ctx.moveTo(X(c.x + a), Y(c.z + sz * H)); ctx.lineTo(X(c.x + b), Y(c.z + sz * H)); } ctx.stroke(); } }
+    ctx.fillStyle = col; for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.fillRect(X(c.x + sx * H) - 3, Y(c.z + sz * H) - 3, 6, 6); ctx.lineCap = 'round'; }
+  // ориентиры (C3b): башня — серый треугольник, мельница — бурый крест, руины крепости — серый квадрат
+  if (!under) for (const l of M.cfg.landmarks || []) { if (!isSeen(W, l.x, l.z)) continue; const x = X(l.x), y = Y(l.z), s = Math.max(3, Math.min(5, sc * 1.6)); ctx.lineWidth = 1.5; ctx.strokeStyle = '#2a2018';
+    if (l.t === 'tower') { ctx.fillStyle = '#9a968c'; ctx.beginPath(); ctx.moveTo(x, y - s * 1.4); ctx.lineTo(x + s, y + s); ctx.lineTo(x - s, y + s); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    else if (l.t === 'mill') { ctx.strokeStyle = '#8a6a48'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s); ctx.moveTo(x + s, y - s); ctx.lineTo(x - s, y + s); ctx.stroke(); }
+    else { ctx.fillStyle = '#7e7a70'; ctx.fillRect(x - s, y - s, s * 2, s * 2); ctx.strokeRect(x - s, y - s, s * 2, s * 2); } }
   // точки интереса (G2): маленькие значки цвета вида; святилище, использованное недавно, — тусклое
   if (!under) { const PC = { bandits: '#e05a3a', shrine: '#9ad8ff', wagon: '#c8a46c', barrow: '#9a8ab0', hut: '#c89a5a', pond: '#5a9ac8', stones: '#b8b4a8' }, s = Math.max(2, Math.min(4, sc * 1.4));
     for (const q of M.cfg.pois || []) { if (!isSeen(W, q.x, q.z)) continue; const x = X(q.x), y = Y(q.z);

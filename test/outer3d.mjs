@@ -57,7 +57,7 @@ ok(T['без вещей1.5'].dead >= .75, 'голый герой за ядром
   ok(new Set(gen.map(p => biomeAt(CFG3, p.x, p.z))).size >= 4, 'места не во всех биомах');
   ok(BIOMES.every(b => { for (let a = 0; a < 6.28; a += .05) if (biomeAt(CFG3, Math.sin(a) * 300, Math.cos(a) * 300) === b) return true; return false; }), 'какого-то биома нет на круге 300 м');
   ok(biomeAt(CFG3, 10, 20) === null && Math.abs(depthCurve(CFG3, R) - G.depthMax) < 1e-9, 'в ядре есть биом или край мира не на depthMax');
-  ok(CFG3.map.links.length === gen.filter(p => p.type === 'hamlet').length, 'не у каждого посёлка связь к лагерю'); }
+  ok(CFG3.map.links.length === gen.filter(p => p.type === 'hamlet').length + (CFG3.map.cities || []).length, 'не у каждого посёлка (и города) связь к лагерю'); }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Большой мир 3D: OK');
