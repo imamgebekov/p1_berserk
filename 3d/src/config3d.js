@@ -239,7 +239,7 @@ const BASE = {
   stones: {
     sockets: [0, 0, 1, 1, 2, 2], drop: .05, danger: .02, elite: .5, rain: 'water',
     of: { imp: 'fire', brute: 'earth', hound: 'blood', ghoul: 'venom', archer: 'storm', witch: 'fire', shield: 'earth', bomber: 'fire', lunger: 'blood', shade: 'ice' },
-    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood' },
+    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
     fuse: { n: 3, ash: [40, 150] }, unsocket: [15, 50, 150],
     // гнёзда в броне (2026-10-18): шлем, доспех, плащ, сапоги; гнёзд по редкости sockets; камень даёт характеристику стихии по рангу (stat),
     // огонь, яд и кровь ещё ослабляют на герое горение, яд и кровотечение (res по рангу, сумма не больше resMax)
@@ -349,6 +349,9 @@ const BASE = {
   bosses: {
     homeHeal: .12,        // доля здоровья в секунду, которую босс лечит, вернувшись в логово (и пока герой в подземелье)
     respawn: 600, aggro: 28, leash: 70, enrageSpeed: 1.25, enrageCd: .7, enrageDmg: 1.2, minionCap: 6,
+    // механики (этап 5): tick — шаг урона луча и луж, с (дольше неуязвимости героя после удара); brk — доля здоровья босса, которую надо снять,
+    // чтобы сбить чтение без тяжёлого удара; stun — сколько босс стоит, когда чтение сбито, с
+    mech: { tick: .6, brk: .15, stun: 2.2 },
     list: [
       { type: 'devourer', set: 'pogost', x: -44, z: -36,
         attacks: [{ kind: 'slam', wind: 1.0, r: 4.2, mul: 1, cd: 3, range: 5 }, { kind: 'slam', wind: 1.5, r: 7, mul: 1.5, cd: 10, range: 99 }],
@@ -405,6 +408,57 @@ const BASE = {
         spawns: [{ room: 'c1', n: 1 }, { room: 'nave', n: 3 }, { room: 'tombs', n: 3 }, { room: 'ossuary', n: 2 }, { room: 'vault', n: 2 }],
         entry: { x: -.5, z: 0 }, exit: { x: -3, z: 0 },
         chests: [{ kind: 'grave', x: 13.5, z: -19.5, key: 'crypt_bone' }, { kind: 'grave', x: 15, z: 15.5, key: 'crypt_iron' }, { kind: 'corpse', x: 19.5, z: 12.5 }, { kind: 'altar', x: 34.5, z: -17 }, { kind: 'coffer', x: 32, z: -19.8 }] }
+    ]
+  },
+  // подземелья зон (этап 5): отдельные уровни с боссами по залам. at — вход наверху (нет — генератор ищет место в зоне zone с уровнем lv ±1);
+  // level — уровень врагов внутри; base — уровень, под который настроены боссы; bosses — { type, room, attacks, phases, loot (вещи босса) }.
+  // Механики атак: slam (круг), nova (кольцо), charge (рывок), beam (луч), pools (лужи «не стой в огне»), cast (чтение — сбить тяжёлым ударом или умением);
+  // фазы: summon (подмога), shield (неуязвим, пока жива подмога), enrage (ярость). heroic — героическая сложность: с уровня lv героя;
+  // враги и боссы — уровня lv, боссы × hp и × dmg, вещи с босса на il выше и ещё extra вещей. loot2 — шанс второй вещи босса
+  instances: {
+    heroic: { lv: 60, hp: 1.6, dmg: 1.3, il: 6, extra: 1 }, loot2: .35,
+    list: [
+      { id: 'inst_brod', name: 'Катакомбы Брода', zone: 'brod', at: { x: 4, z: -66 }, back: { x: 4, z: -63 }, level: 14, base: 14, depth: .7, danger: 2,
+        rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
+          { id: 'ossuary', x: 36, z: 0, w: 14, d: 14 }, { id: 'c3', x: 36, z: -11, w: 2.4, d: 8 }, { id: 'niches', x: 36, z: -21, w: 12, d: 12 }, { id: 'c4', x: 36, z: -31, w: 2.4, d: 8 },
+          { id: 'chapel', x: 36, z: -42, w: 14, d: 14 }, { id: 'c5', x: 47, z: -42, w: 8, d: 2.4 }, { id: 'pit', x: 61, z: -42, w: 20, d: 20 }],
+        doors: [], foes: [['ghoul', 3], ['imp', 2], ['witch', 1], ['hound', 1]], spawns: [{ room: 'gallery', n: 4 }, { room: 'niches', n: 4 }, { room: 'c5', n: 1, type: 'ghoul' }],
+        entry: { x: -2.5, z: 0 }, exit: { x: -4, z: 1.6 },
+        chests: [{ kind: 'coffer', x: 21, z: 3.5 }, { kind: 'grave', x: 40, z: -25 }, { kind: 'altar', x: 69, z: -42 }, { kind: 'ironchest', x: 69, z: -36 }],
+        bosses: [
+          { type: 'gravekeeper', room: 'ossuary', loot: ['d_spade_olm', 'd_shroud_olm'],
+            attacks: [{ kind: 'slam', wind: .9, r: 3.8, mul: 1, cd: 3, range: 4.5 }, { kind: 'pools', wind: .8, n: 3, r: 2.2, dur: 9, mul: .5, cd: 9, range: 99 }],
+            phases: [{ at: .5, summon: { type: 'ghoul', n: 2 } }, { at: .25, enrage: true }] },
+          { type: 'ashsister', room: 'chapel', loot: ['d_veil_sister', 'd_wand_sister'],
+            attacks: [{ kind: 'cast', name: 'Пепельный плач', wind: 3, r: 99, mul: 4, cd: 11, range: 99 }, { kind: 'nova', wind: 1.1, r: 7, inner: 2.4, mul: 1, cd: 8, range: 99 }, { kind: 'charge', wind: .8, len: 12, width: 2.4, mul: 1, cd: 6, range: 14 }],
+            phases: [{ at: .3, enrage: true }] },
+          { type: 'boneshepherd', room: 'pit', loot: ['d_crook_shepherd', 'd_ring_shepherd', 'd_bow_shepherd'],
+            attacks: [{ kind: 'beam', wind: 1.2, len: 14, width: 1.6, dur: 4, sweep: .7, mul: .9, cd: 12, range: 99 }, { kind: 'slam', wind: .8, r: 4.2, mul: 1, cd: 3, range: 4.8 }, { kind: 'pools', wind: .8, n: 2, r: 2.4, dur: 8, mul: .5, cd: 11, range: 99 }],
+            phases: [{ at: .6, summon: { type: 'ghoul', n: 3 }, shield: true }, { at: .3, enrage: true }] }
+        ] },
+      { id: 'inst_olkh', name: 'Ольховый Курган', zone: 'olkh', lv: 22, level: 23, base: 23, depth: 1.1, danger: 3,
+        rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'roots', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
+          { id: 'den', x: 36, z: 0, w: 14, d: 14 }, { id: 'c3', x: 36, z: -11, w: 2.4, d: 8 }, { id: 'thicket', x: 36, z: -21, w: 12, d: 12 }, { id: 'c4', x: 36, z: -31, w: 2.4, d: 8 },
+          { id: 'grove', x: 36, z: -42, w: 14, d: 14 }, { id: 'c5', x: 47, z: -42, w: 8, d: 2.4 }, { id: 'hollow', x: 58, z: -42, w: 14, d: 14 }, { id: 'c6', x: 58, z: -31, w: 2.4, d: 8 },
+          { id: 'throne', x: 58, z: -16, w: 20, d: 22 }],
+        doors: [], foes: [['hound', 3], ['brute', 2], ['ghoul', 2], ['shield', 1], ['archer', 1]], spawns: [{ room: 'roots', n: 4 }, { room: 'thicket', n: 4 }, { room: 'c5', n: 2, type: 'hound' }, { room: 'c6', n: 1, type: 'brute' }],
+        entry: { x: -2.5, z: 0 }, exit: { x: -4, z: 1.6 },
+        chests: [{ kind: 'chest', x: 21, z: -3.5 }, { kind: 'coffer', x: 40, z: -17 }, { kind: 'ironchest', x: 63, z: -46 }, { kind: 'altar', x: 66, z: -8 }],
+        bosses: [
+          { type: 'mossbeast', room: 'den', loot: ['d_maul_moss', 'd_hide_moss'],
+            attacks: [{ kind: 'charge', wind: .9, len: 13, width: 2.8, mul: 1.1, cd: 6, range: 15 }, { kind: 'slam', wind: .8, r: 4.2, mul: 1, cd: 3, range: 4.8 }, { kind: 'pools', wind: .9, n: 3, r: 2.4, dur: 7, mul: .5, cd: 11, range: 99 }],
+            phases: [{ at: .3, enrage: true }] },
+          { type: 'thornwitch', room: 'grove', loot: ['d_staff_thorn', 'd_hood_thorn'],
+            attacks: [{ kind: 'cast', name: 'Терновая буря', wind: 2.6, r: 99, mul: 2, cd: 12, range: 99 }, { kind: 'pools', wind: .7, n: 4, r: 2.2, dur: 9, mul: .5, cd: 8, range: 99 }, { kind: 'nova', wind: 1, r: 7.5, inner: 2.5, mul: 1, cd: 9, range: 99 }],
+            phases: [{ at: .5, summon: { type: 'hound', n: 3 } }, { at: .25, enrage: true }] },
+          { type: 'greywolf', room: 'hollow', loot: ['d_fangs_wolf', 'd_boots_wolf'],
+            attacks: [{ kind: 'charge', wind: .7, len: 14, width: 2.4, mul: 1.1, cd: 4.5, range: 16 }, { kind: 'slam', wind: .6, r: 3.4, mul: .9, cd: 2.5, range: 3.8 }],
+            phases: [{ at: .6, summon: { type: 'hound', n: 4 }, shield: true }, { at: .3, enrage: true }] },
+          { type: 'oakking', room: 'throne', loot: ['d_crown_oak', 'd_greatsword_oak', 'd_amulet_oak'],
+            attacks: [{ kind: 'beam', wind: 1.2, len: 16, width: 1.8, dur: 4.5, sweep: .8, mul: .9, cd: 11, range: 99 }, { kind: 'slam', wind: .9, r: 4.8, mul: 1.1, cd: 3, range: 5.2 },
+              { kind: 'cast', name: 'Гнев леса', wind: 2.8, r: 99, mul: 2.2, cd: 15, range: 99 }, { kind: 'pools', wind: .8, n: 3, r: 2.6, dur: 9, mul: .5, cd: 10, range: 99 }],
+            phases: [{ at: .7, summon: { type: 'brute', n: 2 }, shield: true }, { at: .4, summon: { type: 'hound', n: 3 } }, { at: .25, enrage: true }] }
+        ] }
     ]
   },
   squad: {
@@ -667,6 +721,14 @@ const BASE = {
     castellan: { boss: true, name: 'Кастелян Пепла',   xp: 2200, hp: 9000, speed: 3.3, damage: 46, range: 3.4, wind: .7, recover: .9, radius: 1.6, scale: 2.6, heavy: true, immune: ['stun', 'fear'], on: ['burn', .55, 3, 4] },     // замки (C4)
     queen:     { boss: true, name: 'Королева Пустоши', g: 'f', xp: 2800, hp: 10000, speed: 4.4, damage: 44, range: 2.9, wind: .6, recover: .8, radius: 1.3, scale: 2.3, heavy: true, immune: ['stun', 'freeze', 'poison'], on: ['poison', .7, 4, 5] },
     ashking:   { boss: true, name: 'Пепельный Король', xp: 3600, hp: 15000, speed: 3.6, damage: 66, range: 3.5, wind: .7, recover: .85, radius: 1.7, scale: 2.9, heavy: true, immune: ['stun', 'fear'], on: ['burn', .7, 5, 6] },     // павшие города (2026-10-18)
+    // боссы подземелий (этап 5): здоровье и урон — под уровень base из instances (выше — рост ×grow, героическая — ×heroic)
+    gravekeeper:  { boss: true, name: 'Могильщик Ольм',     xp: 900,  hp: 5200,  speed: 2.8, damage: 34, range: 3.0, wind: .65, recover: .9, radius: 1.3, scale: 2.2, heavy: true, immune: ['stun'], on: ['poison', .7, 3, 5] },
+    ashsister:    { boss: true, name: 'Сестра Пепла', g: 'f', xp: 900, hp: 8000, speed: 3.8, damage: 30, range: 2.6, wind: .55, recover: .8, radius: 1.0, scale: 1.9, heavy: true, immune: ['stun', 'fear'], on: ['burn', .6, 3, 4] },
+    boneshepherd: { boss: true, name: 'Костяной Пастырь',   xp: 1500, hp: 8000,  speed: 3.0, damage: 40, range: 3.2, wind: .65, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .7, 3, 5] },
+    mossbeast:    { boss: true, name: 'Мшистый Зверь',      xp: 1800, hp: 9000,  speed: 3.4, damage: 52, range: 3.2, wind: .7, recover: .9, radius: 1.6, scale: 2.6, heavy: true, immune: ['stun'], on: ['poison', .7, 4, 5] },
+    thornwitch:   { boss: true, name: 'Терновая Ведьма', g: 'f', xp: 1800, hp: 11000, speed: 3.6, damage: 46, range: 2.6, wind: .55, recover: .8, radius: 1.0, scale: 2.0, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .7, 4, 5] },
+    greywolf:     { boss: true, name: 'Вожак Серых',        xp: 1800, hp: 9500,  speed: 5.0, damage: 50, range: 2.4, wind: .45, recover: .7, radius: 1.1, scale: 2.0, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .8, 4, 4] },
+    oakking:      { boss: true, name: 'Ольховый Король',    xp: 3200, hp: 15000, speed: 3.0, damage: 60, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear', 'freeze'], on: ['poison', .8, 5, 5] },
     bonetyrant: { boss: true, name: 'Костяной Тиран', xp: 3300, hp: 13500, speed: 4, damage: 58, range: 3.3, wind: .6, recover: .8, radius: 1.5, scale: 2.7, heavy: true, immune: ['stun', 'poison'], on: ['bleed', .7, 4, 6] },
     chief:    { boss: true, name: 'Вожак Ржавых',       xp: 1400, hp: 11500, speed: 3.2, damage: 62, range: 3.4, wind: .7, recover: .9, radius: 1.7, scale: 2.7, heavy: true, immune: ['stun'], on: ['bleed', .8, 4, 5] },
     // слух: чем громче герой, тем дальше его слышат. Услышавший идёт к герою, пока тот не уйдёт дальше `lose`

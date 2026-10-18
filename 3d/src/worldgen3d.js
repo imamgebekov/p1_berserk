@@ -4,7 +4,7 @@
 // biomeAt / biomeTint — какой биом в точке (пять секторов с волнистыми границами) и его оттенок земли с плавными стыками.
 import { riverOf, waterDist } from './terrain3d.js';
 import { castleFloors } from './castle3d.js';
-import { zoneAt, allZones } from './zones3d.js';
+import { zoneAt, zoneLevel, allZones } from './zones3d.js';
 
 const TAU = Math.PI * 2;
 const mul = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -265,6 +265,21 @@ export function expandWorld(base) {
       extra.push({ x, z, ang: Math.atan2(Q.x - P.x, Q.z - P.z) + Math.PI / 2, len: T.river.w + B.over * 2, w: B.w });
     }
     T.river.extraBridges = extra;
+  }
+  // подземелья зон (этап 5): вход из config (ядро) или место в своей зоне с уровнем lv ±1, не у троп и воды; последним и своим генератором — остальной мир не сдвигается
+  { const ri = mul(cfg.world.seed * 4049 + 3), RV = (T && T.river) || {}, wet3 = (x, z, pad) => wetAt(x, z, pad) || (RV.lakes || []).some(q => Math.hypot(q.x - x, q.z - z) < q.r * 1.3 + pad) || (RV.streams || []).some(st => st.pts.some(q => Math.hypot(q.x - x, q.z - z) < pad));
+    for (const I of (cfg.instances && cfg.instances.list) || []) {
+      let at = I.at || null;
+      for (let k = 0; !at && k < 3000; k++) {
+        const a = ri() * TAU, d = G.coreR + 30 + ri() * (R - G.coreR - 60), x = Math.sin(a) * d, z = Math.cos(a) * d, q = zoneAt(cfg, x, z);
+        if (!q || q.id !== I.zone || Math.abs(zoneLevel(cfg, x, z) - I.lv) > 1 || wet3(x, z, 14) || taken.some(t => Math.hypot(t.x - x, t.z - z) < t.r + 22) || cfg.map.links.some(([p0, p1]) => segD(x, z, p0, p1) < 20)) continue;
+        at = { x, z };
+      }
+      if (!at) continue;
+      cfg.dungeons.list.push({ id: I.id, name: I.name, inst: true, at, back: I.back || { x: at.x, z: at.z + 3 }, level: I.level, depth: I.depth, danger: I.danger, rooms: I.rooms, doors: I.doors, foes: I.foes, spawns: I.spawns, entry: I.entry, exit: I.exit, chests: I.chests });
+      taken.push({ x: at.x, z: at.z, r: 10 });
+      for (const B of I.bosses) { const rm = I.rooms.find(q => q.id === B.room); cfg.bosses.list.push({ ...B, x: rm.x, z: rm.z, level: I.id, base: I.base, inst: I.id }); }
+    }
   }
   return cfg;
 }

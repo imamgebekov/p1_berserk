@@ -28,7 +28,7 @@
 
 <div id="statusRow" aria-live="polite"></div>
 <div id="party" hidden><div id="partyList"></div><div id="partyCmd"><button type="button" data-cmd="follow" title="За мной (Z)">За мной</button><button type="button" data-cmd="hold" title="Держать здесь (X)">Держать</button><button type="button" data-cmd="assist" title="Бить мою цель (C)">Цель</button></div></div>
-<div id="boss" hidden><div id="bossName"></div><div id="bossBar"><i id="bossFill"></i></div></div>
+<div id="boss" hidden><div id="bossName"></div><div id="bossBar"><i id="bossFill"></i></div><div id="bossCast" hidden><i></i><span></span></div></div>
 <div id="fps" hidden></div>
 <div id="toasts" aria-live="polite"></div>
 <div id="place" aria-live="polite" hidden></div>
@@ -45,6 +45,7 @@
 <button id="talk" type="button" hidden>Торговать</button>
 <button id="questBtn" type="button" hidden data-icon="scroll">Задания</button>
 <button id="portalBtn" type="button" hidden>Спуститься</button>
+<button id="heroicBtn" type="button" hidden>Героическая</button>
 <button id="fireBtn" type="button" hidden data-icon="fire">Костёр</button>
 <button id="sleepBtn" type="button" hidden data-icon="sleep">Спать до утра</button>
 <div id="sleepFade" hidden><span>Сон…</span></div>
@@ -148,7 +149,7 @@
 <section id="panel" hidden>
   <div class="pbox">
     <div class="bhead"><h2>Меню</h2><button id="tweakClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
-    <div id="keysHelp" class="keys" hidden><span><kbd>WASD</kbd>ходить</span><span><kbd>ЛКМ</kbd>удар</span><span><kbd>ПКМ</kbd>перекат</span><span><kbd>I</kbd>сумка</span><span><kbd>Esc</kbd>меню</span><button id="keysMore" type="button" class="kmore" aria-label="Все клавиши" aria-expanded="false" data-icon="question"></button><p id="keysAll" class="note" hidden>WASD или стрелки — ходить · пробел или левая кнопка мыши — удар (держать — тяжёлый удар) · Shift или правая кнопка — перекат · E — люк, торговец · M — карта · I — сумка · N — навыки · Q — задания · R — книга рецептов · G — где взять вещь под курсором · 1–5 — умения · F — умение оружия · Z / X / C — отряд: за мной, держать, бить мою цель · Esc — меню и закрыть окно</p></div>
+    <div id="keysHelp" class="keys" hidden><span><kbd>WASD</kbd>ходить</span><span><kbd>ЛКМ</kbd>удар</span><span><kbd>ПКМ</kbd>перекат</span><span><kbd>I</kbd>сумка</span><span><kbd>Esc</kbd>меню</span><button id="keysMore" type="button" class="kmore" aria-label="Все клавиши" aria-expanded="false" data-icon="question"></button><p id="keysAll" class="note" hidden>WASD или стрелки — ходить · пробел или левая кнопка мыши — удар (держать — тяжёлый удар) · Shift или правая кнопка — перекат · E — люк, торговец · M — карта · I — сумка · N — навыки · Q — задания · R — книга рецептов · G — где взять вещь под курсором · 1–5 — умения · F — умение оружия · Z / X / C — отряд: за мной, держать, бить мою цель · H — героическая сложность у входа в подземелье (с 60 уровня) · Esc — меню и закрыть окно</p></div>
     <div class="pcols">
       <div class="pcol">
         <h2>Игра</h2>

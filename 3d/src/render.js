@@ -707,6 +707,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const teleInner = new THREE.Mesh(new THREE.RingGeometry(.97, 1, 32), new THREE.MeshBasicMaterial({ color: '#8affc0', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
   const teleLine = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
   for (const m of [teleRing, teleDisc, teleInner, teleLine]) { m.rotation.x = -Math.PI / 2; m.position.y = .09; m.visible = false; scene.add(ovl(m)); }
+  // лужи боссов (этап 5): «не стой в огне» — диск с ободом, гаснет к концу
+  const poolMeshes = [0, 1, 2, 3, 4, 5, 6, 7].map(() => { const m = new THREE.Mesh(new THREE.CircleGeometry(1, 32), new THREE.MeshBasicMaterial({ color: '#ff5a1a', transparent: true, opacity: .45, depthWrite: false, side: THREE.DoubleSide }));
+    m.add(new THREE.Mesh(new THREE.RingGeometry(.92, 1, 32), new THREE.MeshBasicMaterial({ color: '#ffb040', transparent: true, opacity: .85, depthWrite: false, side: THREE.DoubleSide }))); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(ovl(m)); return m; });
   // стрелы и пятна колдовства: небольшие пулы мешей
   const projMeshes = [], hazMeshes = [];
   // капканы и круги града стрел (умения Сойки)
@@ -758,10 +761,19 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   function updateTele(W, t) {
     teleRing.visible = teleDisc.visible = teleInner.visible = teleLine.visible = false;
+    poolMeshes.forEach((m, i) => { const z = W.bzones && W.bzones[i]; m.visible = !!z && z.lvl === W.lvl; if (!m.visible) return; m.position.set(z.x, .07 + Y(z.x, z.z), z.z); m.scale.setScalar(z.r); m.material.opacity = Math.min(.45, z.t * .3) * (.85 + .15 * Math.sin(t * 6 + i)); });
     for (const e of W.enemies) {
-      if (!e.boss || e.dead || !e.b || e.b.state !== 'wind') continue;
-      const a = e.b.atk, k = Math.min(1, a.t / a.wind), pulse = .25 + .25 * Math.sin(t * 30) + .2 * k;
-      if (a.kind === 'charge') {
+      if (!e.boss || e.dead || !e.b || (e.b.state !== 'wind' && e.b.state !== 'beam')) continue;
+      const a = e.b.atk, k = Math.min(1, a.t / a.wind), pulse = .25 + .25 * Math.sin(t * 30) + .2 * k, live = e.b.state === 'beam';
+      const col = a.kind === 'cast' ? '#b05aff' : live ? '#ffb040' : '#ff3a2a'; for (const m of [teleRing, teleDisc, teleLine]) m.material.color.set(col);
+      if (a.kind === 'beam') {     // луч (этап 5): замах — тонкая линия к цели, потом яркий горящий луч
+        const x = live ? e.x : a.x, z = live ? e.z : a.z;
+        teleLine.visible = true; teleLine.scale.set(live ? a.width : a.width * .5, a.len, 1); teleLine.position.set(x + a.dx * a.len / 2, .09 + Y(x, z), z + a.dz * a.len / 2);
+        teleLine.rotation.order = 'YXZ'; teleLine.rotation.set(-Math.PI / 2, Math.atan2(a.dx, a.dz), 0); teleLine.material.opacity = live ? .7 + .2 * Math.sin(t * 40) : pulse;
+      } else if (a.kind === 'cast') {     // чтение: кольцо вокруг босса растёт — успейте сбить
+        teleRing.visible = true; teleRing.position.set(e.x, .09 + Y(e.x, e.z), e.z); teleRing.scale.setScalar(3 + 4 * k); teleRing.material.opacity = .9;
+        teleDisc.visible = true; teleDisc.position.set(e.x, .08 + Y(e.x, e.z), e.z); teleDisc.scale.setScalar(3 + 4 * k); teleDisc.material.opacity = pulse * .5;
+      } else if (a.kind === 'charge') {
         teleLine.visible = true; teleLine.scale.set(a.width, a.len, 1); teleLine.position.set(a.x + a.dx * a.len / 2, .09 + Y(a.x, a.z), a.z + a.dz * a.len / 2);
         teleLine.rotation.set(-Math.PI / 2, 0, -Math.atan2(a.dx, a.dz)); teleLine.rotation.order = 'YXZ'; teleLine.rotation.set(-Math.PI / 2, Math.atan2(a.dx, a.dz), 0); teleLine.material.opacity = pulse;
       } else {

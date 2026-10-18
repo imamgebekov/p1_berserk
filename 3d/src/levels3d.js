@@ -3,7 +3,7 @@
 import { clamp, len } from './util3d.js';
 import { makeLevelMap, resolve } from './map.js';
 import { reveal } from './places3d.js';
-import { mulberry32, spawnEnemy } from './sim.js';
+import { mulberry32, spawnEnemy, spawnBoss } from './sim.js';
 import { bossAway } from './boss3d.js';
 import { zoneLevel } from './zones3d.js';
 
@@ -51,7 +51,7 @@ export function dungeonLevel(cfg, def) {
 }
 // на поверхности за ядром — по зоне (этап 1); в ядре и в подземельях без своего уровня — по глубине
 export function levelAt(W, x, z) {
-  const L = W.levels && W.levels[W.lvl]; if (L && L.def) return dungeonLevel(W.cfg, L.def);
+  const L = W.levels && W.levels[W.lvl]; if (L && L.def) return L.heroic ? W.cfg.instances.heroic.lv : dungeonLevel(W.cfg, L.def);     // героическая — уровень из instances.heroic
   const zl = zoneLevel(W.cfg, x, z); return zl ?? levelOfDepth(W.cfg, depthAt(W, x, z));
 }
 export function depthCurve(cfg, d) {
@@ -114,10 +114,19 @@ export function travel(W, id, x, z) {
   Object.assign(p, { x, z, vx: 0, vz: 0, state: 'idle', atkT: 0, rollT: 0 });
   p.inv = Math.max(p.inv, .8);
   resolve(W.map, p, W.cfg.player.radius);
-  W.proj.length = 0; W.haz.length = 0; W.echoQ.length = 0; W.inside = -1; W.hudBoss = null;
+  W.proj.length = 0; W.haz.length = 0; W.echoQ.length = 0; W.inside = -1; W.hudBoss = null; if (W.bzones) W.bzones.length = 0;
   W.allies.forEach((a, i) => { if (a.dead || a.guest) return; const ang = p.face + Math.PI + (i - 1) * .9; a.x = p.x + Math.sin(ang) * 1.4; a.z = p.z + Math.cos(ang) * 1.4; a.vx = a.vz = 0; a.state = 'idle'; a.tg = null; resolve(W.map, a, .45); });
   reveal(W, p.x, p.z, W.revR); W.revealT = .3;
   W.ev.push({ k: 'travel', to: id, up: id === SURFACE });
+  return true;
+}
+// героическая сложность подземелья (этап 5): переключение заново наполняет его — враги и боссы другой силы
+export const isInstance = (W, id) => !!(W.levels[id] && W.levels[id].def && W.levels[id].def.inst);
+export const heroicOpen = W => W.lv >= W.cfg.instances.heroic.lv;
+export function setHeroic(W, id, on) {
+  const L = W.levels[id]; if (!isInstance(W, id) || !!L.heroic === !!on || (on && !heroicOpen(W))) return false;
+  L.heroic = !!on; L.leftT = undefined;     // при входе подземелье наполнится заново
+  withLevel(W, id, () => { W.enemies = W.enemies.filter(e => !e.boss); for (const def of W.cfg.bosses.list) if (def.level === id) { delete W.bossDead[def.type]; spawnBoss(W, def); } });
   return true;
 }
 export function usePortal(W) { const q = portalNear(W); return q ? travel(W, q.to, q.tx, q.tz) : false; }

@@ -297,6 +297,27 @@ for (const [id, name, slot, kind0, perks, gold, story, extra] of GOLD) {
   for (const [k, v] of Object.entries(extra || {})) stats[k] = (stats[k] || 0) + v;
   add({ ...base, ...(light ? { kind } : {}), id: 'g_' + id, base: base.id, name, pool: 'gold', rar: 5, stats, value: base.value * 1.6, mat: 'gold', perks: perks || base.perks, gold: gold || null, text: (perks ? weaponText(kind, perks) : goldText(gold)) + ' ' + story });
 }
+// вещи боссов подземелий (этап 5): основа — чёрная вещь (вид, модель в руке, свойства материала), свои имя и характеристики;
+// pool 'dungeon' — только с босса boss (не в таблицах добычи); добавлены после золотых, чтобы не менять их основу
+const DUN = [
+  ['d_spade_olm', 'w_scythe_black', 'Заступ Могильщика', 'gravekeeper', { dmg: 19, reach: .6, crit: 6, swing: 1.15, leech: 3 }, 'Им Ольм закапывал тех, кто ещё дышал. Лезвие помнит вкус.'],
+  ['d_shroud_olm', 'a_cloak_pelt_black', 'Саван Ольма', 'gravekeeper', { armor: 8, hp: 30, spd: 2 }, 'Серое полотно, пропитанное землёй. Греет, как ни странно.'],
+  ['d_veil_sister', 'a_head_hood_black', 'Покров Сестры', 'ashsister', { armor: 6, crit: 5, hp: 12 }, 'Капюшон, под которым плакали пеплом.'],
+  ['d_wand_sister', 'w_wand_black', 'Жезл Плача', 'ashsister', { dmg: 13, crit: 12, swing: .85 }, 'Тёплый, как зола после пожара.'],
+  ['d_crook_shepherd', 'w_staff_black', 'Посох Пастыря', 'boneshepherd', { dmg: 20, crit: 5, swing: 1.2, hp: 15 }, 'Пастух собирал не овец. Кость на навершии ещё шевелится.'],
+  ['d_ring_shepherd', 'r_ring_blood', 'Кольцо из позвонка', 'boneshepherd', { hp: 26, leech: 2 }, 'Гладкое и тяжёлое. Лучше не думать, чьё.', '#d8ccb0'],
+  ['d_bow_shepherd', 'w_longbow_black', 'Лук Костяной Жилы', 'boneshepherd', { dmg: 22, crit: 9, swing: 1.15 }, 'Тетива из жилы. Бьёт тихо.'],
+  ['d_maul_moss', 'w_hammer_black', 'Мшистая Колотушка', 'mossbeast', { dmg: 23, reach: -.1, crit: 2, swing: 1.25, hp: 18 }, 'Корень, обросший камнем. Тяжела, как старый дуб.'],
+  ['d_hide_moss', 'a_body_plate_black', 'Шкура Мшистого Зверя', 'mossbeast', { armor: 23, hp: 20, spd: -2 }, 'Мох на ней ещё растёт. Удары вязнут, как в болоте.'],
+  ['d_staff_thorn', 'w_staff_black', 'Терновый Посох', 'thornwitch', { dmg: 22, crit: 6, swing: 1.15, leech: 2 }, 'Колючки впиваются в ладонь — и в того, по кому бьёшь.'],
+  ['d_hood_thorn', 'a_head_hood_black', 'Венец Терна', 'thornwitch', { armor: 7, crit: 6, hp: 16 }, 'Сплетён из живых веток. Иногда цветёт.'],
+  ['d_fangs_wolf', 'w_dagger_black', 'Клык Серого Вожака', 'greywolf', { dmg: 9, reach: -.7, crit: 12, swing: .72 }, 'Вожак отдал его не по своей воле.'],
+  ['d_boots_wolf', 'a_boots_greaves_black', 'Поступь Серых', 'greywolf', { armor: 8, spd: 5 }, 'Шаг становится тише и шире.'],
+  ['d_crown_oak', 'a_head_helm_black', 'Ольховая Корона', 'oakking', { armor: 10, hp: 28, crit: 3 }, 'Корона короля, которого лес короновал сам.'],
+  ['d_greatsword_oak', 'w_greatsword_black', 'Меч Ольхового Короля', 'oakking', { dmg: 26, reach: .6, crit: 7, swing: 1.25 }, 'Клинок с прожилками, как у листа. Тяжёл и честен.'],
+  ['d_amulet_oak', 'm_talisman_blood', 'Жёлудь Кургана', 'oakking', { hp: 34, armor: 4 }, 'Тёплый жёлудь в оправе. Говорят, из него вырастет новый лес.', '#9ab050']
+];
+for (const [id, b, name, boss, stats, text, tint] of DUN) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'dungeon', rar: 3, boss, stats, value: B.value * 2.2, text, ...(tint ? { tint } : {}) }); }     // tint — свой цвет значка у кольца и амулета
 export const CATALOG = ITEMS;
 export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
 export const item = id => BY_ID[id];

@@ -9,7 +9,7 @@ import { travel } from '../3d/src/levels3d.js';
 import { BY_ID } from '../3d/src/data/items.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
-const B = CFG3.bosses.list.filter(b => b.level), floors = CFG3.dungeons.list.filter(d => d.castle);
+const B = CFG3.bosses.list.filter(b => b.level && !b.inst), floors = CFG3.dungeons.list.filter(d => d.castle);
 const mk = (seed = 1) => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; return createWorld(c, mulberry32(seed)); };
 
 // ---------- 1. где боссы и стражи ----------

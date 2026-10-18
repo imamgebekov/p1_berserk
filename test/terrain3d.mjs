@@ -20,7 +20,7 @@ if (map.camp) dry(map.camp.x, map.camp.z, map.camp.r + 4, 'лагерь');
 dry(0, 0, 8, 'костёр');
 for (const b of map.buildings) for (const [x, z] of [[b.x0, b.z0], [b.x1, b.z0], [b.x0, b.z1], [b.x1, b.z1]]) dry(x, z, 1, 'дом ' + b.kind);
 for (const p of CFG3.map.places || []) if (p.safe) dry(p.x, p.z, p.r, 'место ' + p.name);
-for (const b of CFG3.bosses.list) dry(b.x, b.z, 6, 'логово ' + b.id);
+for (const b of CFG3.bosses.list.filter(q => !q.level)) dry(b.x, b.z, 6, 'логово ' + b.id);
 for (const q of map.portals || []) dry(q.x, q.z, 3, 'вход');
 for (const c of map.containers) dry(c.x, c.z, 1.5, 'сундук');
 for (const b of rv.bridges) ok(Math.hypot(b.x, b.z) < R - 4 && waterDist(rv, b.x, b.z) < 0 && onBridge(rv, b.x, b.z), 'мост не над водой или за краем мира');
@@ -50,7 +50,7 @@ ok(heightAt(hf, rv.pts[rv.pts.length >> 1].x, rv.pts[rv.pts.length >> 1].z) < CF
   while (q.length) { const k = q.pop(), i = k % N, j = (k / N) | 0; for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= N || b >= N) continue; const n = b * N + a; if (free[n] && !seen[n]) { seen[n] = 1; q.push(n); } } }
   const reach = (x, z, m) => { for (let r = 0; r <= 3; r++) for (let a = 0; a < 8; a++) { const k = idx(x + Math.sin(a * .785) * r, z + Math.cos(a * .785) * r); if (seen[k]) return; } fails.push(`${m} не достижимо от лагеря (${x.toFixed(0)}, ${z.toFixed(0)})`); };
   for (const p of CFG3.map.places || []) reach(p.x, p.z, 'место ' + p.name);
-  for (const b of CFG3.bosses.list) reach(b.x, b.z, 'логово ' + b.id);
+  for (const b of CFG3.bosses.list.filter(q => !q.level)) reach(b.x, b.z, 'логово ' + b.id);
   for (const q2 of map.portals || []) reach(q2.x, q2.z, 'вход');
   for (const c of map.containers) reach(c.x, c.z, 'сундук');
   for (const b of map.buildings) if (b.door) reach(b.door.x, b.door.z, 'дверь ' + b.kind);

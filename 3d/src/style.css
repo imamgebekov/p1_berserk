@@ -462,3 +462,9 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 #partyCmd{display:flex;gap:4px;margin-top:2px;pointer-events:auto}#partyCmd button{flex:1;min-height:44px;min-width:44px;padding:0 4px;font-size:11px;border-radius:8px;background:rgba(30,20,14,.78);border:2px solid #5a4630;color:#e8dcc8}
 #partyCmd button.on{border-color:#e8c04a;color:#ffd27a}#partyCmd button:focus-visible{outline:2px solid #fff;outline-offset:2px}
 [data-desk] #partyCmd button{min-height:34px}
+/* подземелья (этап 5): героический вход, чтение босса */
+#heroicBtn{position:fixed;left:50%;bottom:calc(262px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:44px;max-width:calc(100vw - 32px);padding:0 18px;background:#3a1a2a;color:#ffc8e0;border:2px solid #b05a8a;border-radius:12px;font-weight:700}#heroicBtn[hidden]{display:none}
+[data-desk] #heroicBtn{bottom:150px}
+#bossCast{position:relative;height:16px;margin-top:4px;border-radius:4px;background:rgba(0,0,0,.6);border:1px solid #6a3a9a;overflow:hidden}#bossCast[hidden]{display:none}
+#bossCast i{position:absolute;inset:0;background:linear-gradient(90deg,#7a3ad0,#c08aff);transform-origin:left}#bossCast span{position:relative;display:block;font-size:11px;line-height:14px;text-align:center;color:#fff;text-shadow:0 1px 0 #000}
+#boss.shield #bossFill{background:linear-gradient(90deg,#8a9ab8,#d8e4ff)}

@@ -59,6 +59,7 @@ export function sourcesOf(id) {
   for (const [k, d] of Object.entries(CONTAINERS)) if (d.pools.some(p => p[1] > 0 && p[0] === it.pool)) out.containers.push(k);
   for (const [t, d] of Object.entries(DROPS)) if (it.pool === 'magic' || d.pools.some(p => p[1] > 0 && p[0] === it.pool)) out.drops.push(t);     // посохи и жезлы — свой бросок с любого врага (stones3d → magicDropOf)
   for (const [t, b] of Object.entries(BOSS_DROPS)) if (b.trophy === id || b.tomes.some(x => 'tome_' + x === id) || id === 'key_black' || BOSS_LOOT.pools.some(p => p[0] === it.pool)) out.bosses.push(t);
+  if (it.boss && !out.bosses.includes(it.boss)) out.bosses.push(it.boss);     // своя добыча босса подземелья (этап 5)
   out.shop = SHOP.pools.some(p => p[1] > 0 && p[0] === it.pool) || SHOP_STAPLES.some(([sid]) => sid === id);
   for (const r of RECIPES) { if (r.result.id === id) out.craft.push(r.id); if (r.mats.some(([m]) => m === id)) out.uses.push(r.id); }
   return out;
@@ -71,7 +72,8 @@ export function bestiaryEntry(type, cfg) {
   const names = z => { const p = cfg.map.places.find(q => q.id === ZONE_PLACE[z]); return p ? p.name : ZONE_NAME[z] || z; };
   const where = Object.entries(cfg.enemies.regions || {}).filter(([, t]) => t.some(x => x[0] === type)).map(([z]) => names(z));
   const lair = (cfg.bosses.list.find(b => b.type === type) || null);
-  if (lair) { const pl = cfg.map.places.filter(p => Math.hypot(p.x - lair.x, p.z - lair.z) < p.r).sort((a, b) => a.r - b.r)[0]; where.push(pl ? pl.name : 'глушь'); }
+  if (lair && lair.level) { const dn = (cfg.dungeons.list || []).find(d => d.id === lair.level); where.push(dn ? dn.name : 'подземелье'); }     // логово в подземелье или замке: координаты не наверху
+  else if (lair) { const pl = cfg.map.places.filter(p => Math.hypot(p.x - lair.x, p.z - lair.z) < p.r).sort((a, b) => a.r - b.r)[0]; where.push(pl ? pl.name : 'глушь'); }
   else if (!where.length || ['imp', 'brute'].includes(type)) where.unshift('везде');
   const on = C.on ? { poison: 'яд', bleed: 'кровотечение', burn: 'горение' }[C.on[0]] : null;
   const loot = C.boss ? ['трофей', 'книги', 'добыча босса'] : (DROPS[type] ? [...new Set(DROPS[type].pools.filter(p => p[1] > 0).map(p => POOL_NAME[p[0]] || p[0]))] : []);

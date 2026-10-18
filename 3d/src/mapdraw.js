@@ -135,6 +135,8 @@ export function drawMap(ctx, W, v) {
     const inMap = (x, y) => x > -8 && x < w + 8 && y > -8 && y < h + 8, BR = full ? 7 : 5;
     if (!under) {
       for (const d of W.cfg.bosses.list) { if (d.level) continue; const x = X(d.x), y = Y(d.z); if (!inMap(x, y)) continue; const dead = W.bossDead[d.type] !== undefined, slain = W.path && W.path.slain[d.type]; mark(x, y, BR, slain ? '#8a7a5a' : dead ? '#6a6a6a' : '#ff3a2a', true); named(x, y + BR + 8, W.cfg.enemies[d.type].name); }     // боссы замков — внутри, на поверхности их место — замок
+      for (const d of W.cfg.dungeons.list) { if (!d.inst || !d.at) continue; const x = X(d.at.x), y = Y(d.at.z); if (!inMap(x, y)) continue; const ab = W.cfg.bosses.list.filter(b => b.level === d.id), done = ab.length && ab.every(b => W.bossDead[b.type] !== undefined);     // подземелья зон (этап 5): видны всегда, как замки
+        mark(x, y, BR + 1, done ? '#6a6a6a' : '#3a8adf', true); named(x, y + BR + 9, `${d.name} · ур. ${d.level}`); }
       for (const c of M.cfg.castles || []) { if (!Number.isFinite(c.x)) continue; const x = X(c.x), y = Y(c.z), t = c.boss && c.boss.type; if (!inMap(x, y)) continue; mark(x, y, BR + 1, t && W.bossDead[t] !== undefined ? '#6a6a6a' : '#c03adf', true); named(x, y + BR + 9, c.name); }
     }
     for (const e of W.enemies) if (!e.dead && !e.boss && (e.elite || e.guard) && (under || !full || isSeen(W, e.x, e.z))) { const x = X(e.x), y = Y(e.z); if (x > 0 && x < w && y > 0 && y < h) mark(x, y, full ? 4.5 : 3.5, '#ff9a2a', false); } }

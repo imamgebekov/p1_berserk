@@ -175,6 +175,13 @@ const LOOKS = {
   alaric: { soldier: 'alaric' },     // поединок Акта I: модель бойца в белом
   chief: { shape: 'brute', body: '#5a2c24', dark: '#2a1210', eye: '#ffc030', crown: '#d8c8a8' },
   ashking: { shape: 'brute', body: '#3a302c', dark: '#140e0c', eye: '#ffd040', crown: '#f0c040', prop: 'shield' },     // павшие города (2026-10-18)
+  gravekeeper: { shape: 'ghoul', body: '#4a4436', dark: '#1e1a12', eye: '#c8ff60', crown: '#8a7a5a' },     // боссы подземелий (этап 5)
+  ashsister: { shape: 'imp', body: '#4a4440', dark: '#1a1614', eye: '#ffb060', crown: '#d8d0c0', ghost: true },
+  boneshepherd: { shape: 'bones', body: '#b8ae96', dark: '#4a4234', eye: '#ff5030', crown: '#e8e0c8' },
+  mossbeast: { shape: 'brute', body: '#3a5030', dark: '#18240e', eye: '#d8ff60', crown: '#6a8a40' },
+  thornwitch: { shape: 'imp', body: '#3a2a2a', dark: '#140c0c', eye: '#ff6a8a', crown: '#6a8a3a' },
+  greywolf: { shape: 'hound', body: '#6a6a66', dark: '#2a2a28', eye: '#ffd040', crown: '#c8c8c0' },
+  oakking: { shape: 'brute', body: '#4a3a26', dark: '#1e160c', eye: '#c8ff70', crown: '#7aa040', prop: 'shield' },
   bonetyrant: { shape: 'ghoul', body: '#8a8270', dark: '#3a342a', eye: '#ff4030', crown: '#d8d0b8' },
   shield: { shape: 'brute', body: '#5a4a3a', dark: '#2a2018', eye: '#ffb030', prop: 'shield' },
   bomber: { shape: 'imp', body: '#4a2a1a', dark: '#1e1008', eye: '#ffd040', prop: 'ember' },

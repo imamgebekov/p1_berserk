@@ -26,7 +26,7 @@ import { BY_ID, CATALOG } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
 import { SETS } from './data/sets3d.js';
-import { initBoss, updateBoss } from './boss3d.js';
+import { initBoss, updateBoss, tickBossZones } from './boss3d.js';
 import { storyFresh, storyTick, storyKill, storyBoss, storyActors, duelGuard } from './story3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent } from './quests3d.js';
@@ -220,19 +220,22 @@ export const aliveEnemies = W => W.enemies.filter(e => !e.dead);
 // босс: здоровье из конфига (без роста от глубины), логово — точка появления
 export function spawnBoss(W, def) {
   const C = W.cfg.enemies[def.type], e = spawnEnemy(W, def.type, def.x, def.z);
-  const L = W.cfg.level, bk = 1 + Math.max(0, (e.lvl || 1) - L.bossBase) * L.grow;     // боссы настроены под bossBase; глубже — крепче и злее (этап 0)
-  e.hp = e.maxhp = Math.round(C.hp * W.dif.hp * bk); e.dmgMul = W.dif.dmg * bk; initBoss(W, e, def); resolve(W.map, e, C.radius); e.b.home = { x: e.x, z: e.z };
+  const L = W.cfg.level, bk = 1 + Math.max(0, (e.lvl || 1) - (def.base ?? L.bossBase)) * L.grow;     // боссы настроены под bossBase (подземелья — под свой base); глубже — крепче и злее (этап 0)
+  const H = W.levels && W.levels[W.lvl] && W.levels[W.lvl].heroic ? W.cfg.instances.heroic : null;     // героическая (этап 5)
+  e.hp = e.maxhp = Math.round(C.hp * W.dif.hp * bk * (H ? H.hp : 1)); e.dmgMul = W.dif.dmg * bk * (H ? H.dmg : 1); if (H) e.heroic = true; initBoss(W, e, def); resolve(W.map, e, C.radius); e.b.home = { x: e.x, z: e.z };
   delete W.bossDead[def.type]; return e;
 }
 function bossDefeated(W, e) {
   const C = W.cfg.enemies[e.type], p = W.player;
-  const bd = BOSS_DROPS[e.type], items = [];
-  items.push({ id: bd.trophy, n: bd.n[0] + (W.rng() < bd.n[1] ? 1 : 0) });
+  const bd = BOSS_DROPS[e.type] || { trophy: null, n: [0, 0], tomes: [] }, items = [];
+  if (bd.trophy) items.push({ id: bd.trophy, n: bd.n[0] + (W.rng() < bd.n[1] ? 1 : 0) });
+  { const own = [...((e.b && e.b.def && e.b.def.loot) || [])], I = W.cfg.instances;     // своя добыча босса подземелья (этап 5): одна вещь наверняка, вторая — с шансом, на героической — ещё extra
+    for (let k = own.length ? 1 + (W.rng() < I.loot2 ? 1 : 0) + (e.heroic ? I.heroic.extra : 0) : 0; k > 0 && own.length; k--) items.push({ id: own.splice((W.rng() * own.length) | 0, 1)[0], n: 1 }); }
   const tid = bd.tomes.find(t => !W.known.tomes[t] && !W.inv.bag.some(x => x.id === 'tome_' + t) && !W.drops.some(x => x.id === 'tome_' + t));
   if (tid) items.push({ id: 'tome_' + tid, n: 1 });                      // книга выпадает, пока не прочитана (первой по порядку)
   items.push({ id: 'key_black', n: 1 }, ...rollLoot(BOSS_LOOT, W.rng, 1, W.gear.luck));
   if (bd.gold && W.rng() < bd.gold) { const G = CATALOG.filter(i => i.pool === 'gold'); items.push({ id: G[(W.rng() * G.length) | 0].id, n: 1 }); }     // босс павшего города: шанс золотой вещи
-  items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: ilRoll(W, Math.max(e.lvl || 1, W.lv), e.id + i) + W.cfg.level.il.drop } : {}) }); });     // с босса — не ниже уровня героя
+  items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: ilRoll(W, Math.max(e.lvl || 1, W.lv), e.id + i) + W.cfg.level.il.drop + (e.heroic ? W.cfg.instances.heroic.il : 0) } : {}) }); });     // с босса — не ниже уровня героя
   for (const m of e.b.minions) if (!m.dead) { m.dead = true; m.deadT = 0; }
   W.bossDead[e.type] = Math.round(W.cfg.bosses.respawn * W.dif.boss);
   W.ev.push({ k: 'bossdead', name: C.name, type: e.type, x: e.x, z: e.z });     // type — для «Пути пепла» (шаг 13)
@@ -361,7 +364,8 @@ function strike(W, e, dmg, o) {
   if (gm < 1) { dmg = Math.max(1, Math.round(dmg * gm)); o = { ...o, knock: o.knock * .3 }; }      // щит: удар спереди почти не проходит
   if (C.guard && o.heavy) applyStatus(W, e, 'stun', 0, C.guard.breakStun);                          // тяжёлый удар ломает защиту
   dmg = cracked(W, e, dmg);
-  e.hp -= dmg; e.flash = .12; p.calm = P.fire.calm; addThreat(W, e, 0, dmg); W.party.last = e.id;     // угроза героя (этап 4); последняя цель — для «моей цели»
+  e.hp -= dmg; e.flash = .12; p.calm = P.fire.calm; addThreat(W, e, 0, dmg); W.party.last = e.id;
+  if (e.b && (o.heavy || o.ab)) e.b.kick = true;     // тяжёлый удар или умение сбивает чтение босса (этап 5)     // угроза героя (этап 4); последняя цель — для «моей цели»
   { const thirst = W.wp.mix && W.wp.mix.a === 'blood' && W.wp.mix.b === 'blood' ? W.cfg.stones.thirst[0] : 0, lch = (W.gear.leech + thirst + (W.abuf.blood > 0 ? W.abuf.bloodLeech : 0)) * (e.st && e.st.bleed && W.cfg.elements.react && isWet(W, e) ? W.cfg.elements.mix.tide : 1); if (lch > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * lch / 100); }     // «Кровавый прилив»: мокрый и кровоточащий     // «Кровавый порыв» Торна добавляет вампиризм
   const heavy = C.heavy || e.aff === 'armored', k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
@@ -952,9 +956,10 @@ export function step(W, dt, input = {}) {
   updateAllies(W, dt);
   updateArrows(W, dt);
   updateFoes(W, dt);
+  tickBossZones(W, dt);
   updateHouses(W, dt);
   for (const def of W.cfg.bosses.list) { if (def.level && !W.levels[def.level]) continue; const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def)); }     // боссы живут на своём уровне, даже если герой на другом
-  { let hb = null; for (const e of W.enemies) if ((e.boss || e.duel) && !e.dead && (e.alert || e.duel) && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!(e.b && e.b.enraged), id: e.id }; if (e.duel) break; } W.hudBoss = hb; }     // противник поединка — тоже с полосой
+  { let hb = null; for (const e of W.enemies) if ((e.boss || e.duel) && !e.dead && (e.alert || e.duel) && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!(e.b && e.b.enraged), id: e.id, shield: !!(e.b && e.b.shield), cast: e.b && e.b.state === 'wind' && e.b.atk && e.b.atk.kind === 'cast' ? { name: e.b.atk.name, k: e.b.atk.t / e.b.atk.wind } : null }; if (e.duel) break; } W.hudBoss = hb; }     // противник поединка — тоже с полосой     // этап 5: щит и чтение на полосе босса
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
   if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200);     // события забирает рендер; потолок защищает, если никто не забирает
 }

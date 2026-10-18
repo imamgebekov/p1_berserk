@@ -96,7 +96,7 @@ export function squadCommand(W, cmd) {
 // удар спутника: урон, угроза, толчок, прерывание замаха; ranged — толчок слабее
 function allyHit(W, T, id, e, dmg, from, push = 1) {
   e.hp -= dmg; e.flash = .12; e.alert = true;
-  addThreat(W, e, id, dmg * (T.threat || 1));
+  addThreat(W, e, id, dmg * (T.threat || 1)); if (e.b && T.role === 'tank') e.b.kick = true;     // защитник сбивает чтение босса (этап 5)
   const d = len(e.x - from.x, e.z - from.z) || 1, C = W.cfg.enemies[e.type], k = 3 * push / (C.scale > 1.2 ? 2.2 : 1); e.vx += (e.x - from.x) / d * k; e.vz += (e.z - from.z) / d * k;
   if (e.state === 'wind' && push >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: false, id: e.id, ally: true });
@@ -140,6 +140,16 @@ function tryTaunt(W, a, T) {
   for (const e of W.enemies) if (near(e)) taunt(W, e, a, U.t);
   a.tcd = U.cd; W.ev.push({ k: 'taunt', x: a.x, z: a.z, r: U.r, name: T.name });
 }
+// опасность под ногами (этап 5): лужа босса или луч (горит или вот-вот загорится) — куда уходить, иначе null
+function dangerAway(W, a) {
+  for (const z of W.bzones || []) { if (z.lvl !== W.lvl) continue; const ux = a.x - z.x, uz = a.z - z.z, d = len(ux, uz); if (d < z.r + .6) return d > 1e-3 ? { x: ux / d, z: uz / d } : { x: 1, z: 0 }; }
+  for (const e of W.enemies) {
+    const B = e.boss && !e.dead && e.b; if (!B || !B.atk || B.atk.kind !== 'beam' || (B.state !== 'beam' && B.state !== 'wind')) continue;
+    const A = B.atk, ahead = (a.x - e.x) * A.dx + (a.z - e.z) * A.dz, side = (a.x - e.x) * A.dz - (a.z - e.z) * A.dx;
+    if (ahead > 0 && ahead < A.len + 1 && Math.abs(side) < A.width / 2 + .8) { const s = side >= 0 ? 1 : -1; return { x: A.dz * s, z: -A.dx * s }; }
+  }
+  return null;
+}
 // цель спутника: «моя цель» — метка; «держать» — враги у точки; иначе ближайший рядом с ним и с героем. Защитник снимает врагов с других
 function pickTarget(W, a, T, P, enemies) {
   const S = W.cfg.squad, p = W.player, ia = insideOf(W.map, a.x, a.z);
@@ -168,6 +178,7 @@ export function updateAllies(W, dt) {
     if (a.flash > 0) a.flash -= dt; if (a.calm > 0) a.calm -= dt; if (a.hcd > 0) a.hcd -= dt; if (a.tcd > 0) a.tcd -= dt;
     const px = a.x, pz = a.z;
     slide(W.map, a, a.vx * dt, a.vz * dt, .45); const kd = Math.exp(-8 * dt); a.vx *= kd; a.vz *= kd;
+    { const v = a.state !== 'wind' && dangerAway(W, a); if (v) { a.state = 'idle'; a.face = Math.atan2(v.x, v.z); steer(W, a, v.x, v.z, T.speed * 1.2 * dt); a.moving = true; return; } }     // этап 5: из луж и с линии луча — прочь
     if (T.heal && a.state === 'idle' && tryHeal(W, a, T)) { a.moving = false; return; }
     if (T.taunt) tryTaunt(W, a, T);
     const tgt = pickTarget(W, a, T, P, enemies);

@@ -29,6 +29,7 @@ import { zoneAt } from './zones3d.js';
 import { storyTalk, storyTalked, storyTalkable, storyGoal, storyAutoPending, storyActors } from './story3d.js';
 import { SPEAKERS } from './data/story3d.js';
 import { liveAllies, squadCommand } from './squad3d.js';
+import { setHeroic, isInstance, heroicOpen } from './levels3d.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSaveAny, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave, saveFileName } from './save3d.js';
 import { createRenderer } from './render.js';
@@ -235,6 +236,8 @@ function onEvent(v) {
   else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
   else if (v.k === 'allydead') toast(`${v.name} пал`, 'bad');
   else if (v.k === 'allyleft') toast(`${v.name} теперь вы — спутник покинул отряд, ${v.ash} пепла вернулось`);
+  else if (v.k === 'bossCast') { toast(`${v.name} читает «${v.what}» — собейте тяжёлым ударом или умением`, 'bad', '#c8a0ff', 'warn'); sfx('fuse'); }     // этап 5
+  else if (v.k === 'bossInterrupt') { toast(`Чтение сбито: ${v.name} оглушён`, '', '#ffd27a'); sfx('block'); }
   else if (v.k === 'squadCmd') toast(v.auto ? 'Отряд снова идёт за вами' : v.cmd === 'hold' ? 'Отряд: держим здесь' : v.cmd === 'assist' ? 'Отряд: бьём вашу цель' : 'Отряд: за мной');
   else if (v.k === 'hire') toast(`${v.name} теперь с вами`, 'sys');
   else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков` + (cfg.abilities.ranks.flat().includes(v.lv) ? ' и умений' : '') + (cfg.abilities.ranks.some(r => r[0] === v.lv) ? ' · открылось умение' : ''), '', '#e8c04a');
@@ -353,6 +356,7 @@ if (desk) {
     if (!$('dead').hidden) { if (c === 'Enter' || c === 'KeyE') $('again').click(); return; }
     if (!$('dialog').hidden) { e.preventDefault(); const bs = [...$('dlgOpts').children], n = ['Digit1', 'Digit2', 'Digit3'].indexOf(c); if (n >= 0 && bs[n]) bs[n].click(); else if (c === 'KeyE' || c === 'Space' || c === 'Enter') bs[0] && bs[0].click(); else if (c === 'Escape') { dlg.i = dlg.lines.length; dlgClose(); } return; }     // разговор (этап 3)
     if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.close'); if (open) open.click(); else $('gear').click(); return; }
+    if (c === 'KeyH' && !panelOpen) { if (vis('heroicBtn')) heroicBtn.click(); return; }
     if ((c === 'KeyZ' || c === 'KeyX' || c === 'KeyC') && !panelOpen) { partyCmd(c === 'KeyZ' ? 'follow' : c === 'KeyX' ? 'hold' : 'assist'); return; }     // команды отряда (этап 4)
     if (c === 'KeyM') { if (!panelOpen || !mapEl.hidden) $('miniBtn').click(); return; }
     if (c === 'KeyI') { if (vis('bag')) $('bagClose').click(); else if (!panelOpen) $('bagBtn').click(); return; }
@@ -492,7 +496,8 @@ sleepBtn.addEventListener('click', e => {
   }, 650);
 }, true);
 $('firesClose').addEventListener('click', closeFires);
-const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); usePortal(W); }, true);
+const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const q = W.nearPortal; if (q && !q.up) setHeroic(W, q.to, false); usePortal(W); }, true);     // обычный вход в подземелье снимает героическую
+const heroicBtn = $('heroicBtn'); heroicBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const q = W.nearPortal; if (q && !q.up && isInstance(W, q.to)) { setHeroic(W, q.to, true); usePortal(W); } }, true);     // этап 5
 const SHOT = new URLSearchParams(location.search).has('shot');     // режим тестов и снимков: пролог сам не открывается
 // разговор (этап 3): реплики по одной; у реплики-выбора — кнопки ответов; конец — сюжет идёт дальше
 const HAIR = { alaric: '#ece6da', irma: '#2a1a14', timka: '#7a4a24', kord: '#1a1412', masked: '#0a0808', hostess: '#5a3020', captain: '#4a4440', herald: '#6a5030' };
@@ -625,8 +630,10 @@ function frame(now) {
   if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
   if (hud) { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : '')); }
   if (hud) { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
-  if (hud) { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; } }
-  if (hud) { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); } } }
+  if (hud) { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; }
+    const hshow = show && !q.up && isInstance(W, q.to) && heroicOpen(W); if (heroicBtn.hidden === hshow) heroicBtn.hidden = !hshow; if (hshow) { const l = 'Героическая: ' + W.levels[q.to].def.name + (desk ? ' · H' : ''); if (heroicBtn.textContent !== l) heroicBtn.textContent = l; } }
+  if (hud) { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged + hb.shield + (hb.cast ? hb.cast.name + Math.round(hb.cast.k * 50) : '') : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : '') + (hb.shield ? ' · щит' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); bossEl.classList.toggle('shield', !!hb.shield);
+    const bc = $('bossCast'); bc.hidden = !hb.cast; if (hb.cast) { bc.firstChild.style.transform = `scaleX(${Math.min(1, hb.cast.k)})`; bc.lastChild.textContent = `Читает «${hb.cast.name}» — собейте!`; } } } }     // этап 5: чтение и щит на полосе
   { const n = W.combo.n; if (n !== lastCombo) { comboEl.hidden = n < 2; if (n >= 2) { comboEl.innerHTML = `×${n}<small>+${Math.round(Math.min(.3, n * .02) * 100)}%</small>`; comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); } lastCombo = n; } }
   if (hud) { const ab = W.abuf, buffs = [ab.iron > 0 && ['Несокрушимость', ab.iron, '#9fd0ff'], ab.rage > 0 && ['Ярость', ab.rage, '#ff6a4a']].filter(Boolean);     // статусы и баффы умений
     const key = Object.keys(W.pst).map(k => k + Math.ceil(W.pst[k].t) + (W.pst[k].n || '')).join() + buffs.map(b => b[0] + Math.ceil(b[1])).join();
