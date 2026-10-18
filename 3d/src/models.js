@@ -14,7 +14,7 @@ const roundGeo = new Map();
 function boxGeo(w, h, d) {
   const R = CFG3.shapes && CFG3.shapes.round; if (!R || !R.on) return new THREE.BoxGeometry(w, h, d);
   const key = w + ',' + h + ',' + d; let g = roundGeo.get(key);
-  if (!g) { g = new RoundedBoxGeometry(w, h, d, R.seg, Math.min(R.max, Math.min(w, h, d) * R.k)); roundGeo.set(key, g); }
+  if (!g) { g = new RoundedBoxGeometry(w, h, d, R.seg, Math.min(R.max, Math.min(w, h, d) * R.k)); g.userData.shared = true; roundGeo.set(key, g); }
   return g;
 }
 function box(w, h, d, mat, x = 0, y = 0, z = 0) {

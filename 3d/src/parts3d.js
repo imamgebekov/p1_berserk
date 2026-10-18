@@ -6,7 +6,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const cache = new Map();
 const facet = g => { const n = g.index ? g.toNonIndexed() : g; n.computeVertexNormals(); return n; };
-const cached = (key, make) => { let g = cache.get(key); if (!g) { g = facet(make()); cache.set(key, g); } return g; };
+const cached = (key, make) => { let g = cache.get(key); if (!g) { g = facet(make()); g.userData.shared = true; cache.set(key, g); } return g; };     // shared — общая, не освобождать
 
 // бочонок: сужение сверху вниз (rt, rb), высота h, граней seg, сплющен по глубине на k (1 — круглый)
 export const barrelGeo = (rt, rb, h, seg = 7, k = 1) => cached(`b${rt},${rb},${h},${seg},${k}`, () => { const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1); g.scale(1, 1, k); return g; });

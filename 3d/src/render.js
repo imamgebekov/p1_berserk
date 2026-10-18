@@ -74,6 +74,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const gl = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: !!hooks.preserve });     // сглаживание краёв (шаг 2)
   gl.setPixelRatio(1);
   const scene = new THREE.Scene();
+  // оптимизация (2026-10-18): что в кадре — пирамида камеры раз в кадр; живое вне кадра не анимируется, события вне кадра не рисуются
+  const FR = new THREE.Frustum(), PV = new THREE.Matrix4(), SPH = new THREE.Sphere();
+  const inView = (x, y, z, r = 2.5) => { SPH.center.set(x, y, z); SPH.radius = r; return FR.intersectsSphere(SPH); };
+  // освободить модель: геометрии и материалы экземпляра (общие из кэша — userData.shared — не трогаем)
+  const disposeDeep = o => { if (!o) return; o.traverse(m => { if (!m.isMesh && !m.isInstancedMesh) return; if (m.geometry && !m.geometry.userData.shared) m.geometry.dispose(); for (const mt of [].concat(m.material || [])) if (!mt.userData.shared) mt.dispose(); }); };
+  // неподвижное: матрицы — один раз; дальнее — снять со сцены (не обходится каждый кадр), ближнее — вернуть
+  const freeze = o => { o.traverse(q => { q.updateMatrix(); q.matrixAutoUpdate = false; }); o.updateMatrixWorld(true); };
+  const park = (o, far) => { if (far) { if (o.parent) { o.userData.home = o.parent; o.parent.remove(o); } } else if (!o.parent && o.userData.home) o.userData.home.add(o); };
   scene.background = new THREE.Color(FOG);
   scene.fog = new THREE.FogExp2(FOG, cfg.view.fogDensity);
   const camera = new THREE.PerspectiveCamera(cfg.view.fov, 1, .5, 700);
@@ -213,10 +221,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       reeds.forEach(([x, z, h], i) => { const y = Y(x, z); o.position.set(x, y + h / 2, z); o.scale.set(1, h, 1); o.rotation.set(0, i, (i % 5 - 2) * .05); o.updateMatrix(); st.setMatrixAt(i, o.matrix); o.position.set(x, y + h + .1, z); o.scale.set(1, 1, 1); o.updateMatrix(); tp.setMatrixAt(i, o.matrix); });
       riverGroup.add(st, tp);
     }
-    scene.add(riverGroup);
+    scene.add(riverGroup); freeze(riverGroup);     // вода и мосты неподвижны
   }
   const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
-  const decor = buildDecor(map, mulberry32(cfg.world.seed + 2), cfg.shaders && cfg.shaders.grime); scene.add(decor.group);
+  const decor = buildDecor(map, mulberry32(cfg.world.seed + 2), cfg.shaders && cfg.shaders.grime); scene.add(decor.group); freeze(decor.group);
+  const decorCells = [...decor.group.children], CL = cfg.cull;     // клетки декора (снимаются вдали); дальности и доля травы — config3d.js → cull
   const npcs = [];
   for (const b of map.buildings) if (b.npc) { const n = makeNpc(b.npc.kind); n.group.position.set(b.npc.x, 0, b.npc.z); n.pos = b.npc; n.mark = new THREE.Mesh(new THREE.OctahedronGeometry(.22), new THREE.MeshBasicMaterial({ color: '#e8c04a' })); n.mark.position.set(0, 2.6, 0); n.mark.visible = false; n.group.add(n.mark); scene.add(n.group); npcs.push(n); }
 
@@ -316,10 +325,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       spots.forEach((q, i) => { const k = Math.floor(q.x / 16) + ',' + Math.floor(q.z / 16); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(i); });
       let done = 0;
       for (const all of cells.values()) {
-        const ids = Q.grass < 1 ? all.filter(i => (i * .6180339) % 1 < Q.grass) : all; if (!ids.length) continue;     // реже трава на «Низком» (шаг 14)
+        const ids = (Q.grass < 1 ? all.filter(i => (i * .6180339) % 1 < Q.grass) : all).sort((a, b) => (a * .7548776) % 1 - (b * .7548776) % 1); if (!ids.length) continue;     // реже трава на «Низком» (шаг 14); порядок вперемешку — вдали отрезается равномерно
         const m = new THREE.InstancedMesh(grassGeo, grassMat, ids.length);
         ids.forEach((i, j) => { const q = spots[i]; E4.set(0, q.rot, 0); Q4.setFromEuler(E4); P4.set(q.x, Y(q.x, q.z), q.z); S4.set(q.s, q.s, q.s); M4.compose(P4, Q4, S4); m.setMatrixAt(j, M4); if (FL) { const [hh, ss, ll] = grassHSL(q.x, q.z, FL, i); C4.setHSL(hh, ss, ll); } else C4.setHSL(.27 + (i % 7) * .012, .45, .38 + (i % 5) * .04); m.setColorAt(j, C4); });
         m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.computeBoundingSphere(); m.boundingSphere.radius += 1; g.add(m);
+        m.userData.full = ids.length; m.userData.cx = m.boundingSphere.center.x; m.userData.cz = m.boundingSphere.center.z; (liveLand.get(ci + ',' + cj).grass ||= []).push(m);
         if (++done % 4 === 0) yield;
       }
     }
@@ -338,10 +348,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const LAND_VIEW = 96;
   function streamLand(x, z) {
     const need = chunksAround(x, z, LAND_VIEW, cfg.world.radius), keys = new Set(need.map(q => q.ci + ',' + q.cj)), miss = need.filter(q => !liveLand.has(q.ci + ',' + q.cj));
-    if (miss.length > 4) { for (const [k, j] of jobs) { for (const _ of j); jobs.delete(k); } for (const q of miss) buildLand(q.ci, q.cj); }
+    if (miss.length > 4) { for (const [k, j] of jobs) { for (const _ of j); jobs.delete(k); const L = liveLand.get(k); if (L) freeze(L.g); } for (const q of miss) { buildLand(q.ci, q.cj); const L = liveLand.get(q.ci + ',' + q.cj); if (L) freeze(L.g); } }
     else {                                                                    // на ходу: один шаг постройки за кадр, ближний участок — первым
       if (!jobs.size && miss.length) { const q = miss[0], k = q.ci + ',' + q.cj; jobs.set(k, landJob(q.ci, q.cj)); }
-      for (const [k, j] of jobs) { if (j.next().done) jobs.delete(k); break; }
+      for (const [k, j] of jobs) { if (j.next().done) { jobs.delete(k); const L = liveLand.get(k); if (L) freeze(L.g); } break; }     // участок достроен — матрицы один раз
     }
     for (const key of [...liveLand.keys()]) if (!keys.has(key)) { const [ci, cj] = key.split(',').map(Number), cx = (ci + .5) * CHUNK, cz = (cj + .5) * CHUNK; if (Math.hypot(cx - x, cz - z) > LAND_VIEW + CHUNK * 1.5) dropLand(key); }
   }
@@ -390,7 +400,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       beams.push(new THREE.BoxGeometry(C.gateW + 1.2, .4, .5).rotateY(a + Math.PI / 2).translate(g.x, C.h + .9, g.z));
     }
     palisade.add(new THREE.Mesh(mergeGeometries(posts), new THREE.MeshLambertMaterial({ color: '#4a3220' })), new THREE.Mesh(mergeGeometries(beams), new THREE.MeshLambertMaterial({ color: '#3a2618' })), new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })));
-    scene.add(palisade);
+    scene.add(palisade); freeze(palisade);
   }
   const cart = makeCart(); cart.group.visible = false; scene.add(cart.group);   // повозка сказочного торговца
   const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -459,8 +469,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let cullT = 0;
   function cullFar(x, z) {
     for (const it of town.items) { const far = Math.hypot(it.b.x - x, it.b.z - z) > 120; if (far === it.far) continue; it.far = far; it.walls.visible = it.floor.visible = !far; if (it.glow) it.glow.visible = !far; if (far) it.roof.visible = false; }
-    for (const g of decor.group.children) g.visible = Math.hypot(g.userData.cx - x, g.userData.cz - z) < 150;
-    if (curView && curView.conts && curView.conts.items) for (const it of curView.conts.items) it.g.visible = Math.hypot(it.c.x - x, it.c.z - z) < 95;
+    for (const g of decorCells) park(g, Math.hypot(g.userData.cx - x, g.userData.cz - z) >= CL.decor);     // дальний декор — со сцены
+    if (curView && curView.conts && curView.conts.items) for (const it of curView.conts.items) park(it.g, Math.hypot(it.c.x - x, it.c.z - z) >= CL.box);     // дальние сундуки — со сцены
+    for (const L of liveLand.values()) for (const m of L.grass || []) { const d = Math.hypot(m.userData.cx - x, m.userData.cz - z), k = CL.grass.find(q => d < q[0])[1]; m.count = Math.max(1, Math.round(m.userData.full * k)); }     // трава вдали реже
   }
   const surfaceObjs = [land, sea, riverGroup, sunGroup, rainGroup, ohGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
@@ -573,8 +584,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       for (let i = 0; i < r.n; i++) { const q = statusPart(k, Math.random, h); fx.emit(x + q.dx * sc, y + q.dy, z + q.dz * sc, q.vx, q.vy, q.vz, q.color, q.life, q.g, q.s * Math.max(1, sc * .8), q.add); if (k === 'bleed' && Math.random() < .12) fx.decal(x + q.dx, z + q.dz, .25, BLOOD); }
     }
   }
-  const starGeo = new THREE.BoxGeometry(.22, .22, .06), starMat = new THREE.MeshBasicMaterial({ color: '#ffe27a' });
-  const iceGeo = new THREE.ConeGeometry(.17, 1.0, 4), iceMat = new THREE.MeshLambertMaterial({ color: '#cfefff', emissive: '#3a6a8a', transparent: true, opacity: .8 });
+  const starGeo = new THREE.BoxGeometry(.22, .22, .06), starMat = new THREE.MeshBasicMaterial({ color: '#ffe27a' }); starGeo.userData.shared = starMat.userData.shared = true;
+  const iceGeo = new THREE.ConeGeometry(.17, 1.0, 4), iceMat = new THREE.MeshLambertMaterial({ color: '#cfefff', emissive: '#3a6a8a', transparent: true, opacity: .8 }); iceGeo.userData.shared = iceMat.userData.shared = true;
   function statusMarks(en, st, x, y, z, sc, dt, t) {
     const stun = st && st.stun, fr = st && st.freeze;
     if (stun && !en.stars) { en.stars = new THREE.Group(); for (let i = 0; i < 3; i++) en.stars.add(new THREE.Mesh(starGeo, starMat)); scene.add(en.stars); }
@@ -582,6 +593,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (fr && !en.ice) { en.ice = new THREE.Group(); for (let i = 0; i < 7; i++) { const c = new THREE.Mesh(iceGeo, iceMat), a = i / 7 * Math.PI * 2 + i, r = .35 + (i % 3) * .12; c.position.set(Math.cos(a) * r, .25, Math.sin(a) * r); c.rotation.set(Math.sin(a) * .5, 0, -Math.cos(a) * .5); c.scale.setScalar(.7 + (i % 4) * .2); en.ice.add(c); } en.iceK = 0; scene.add(en.ice); }
     if (en.ice) { en.iceK = Math.max(0, Math.min(1, en.iceK + (fr ? dt * 6 : -dt * 3))); en.ice.visible = en.iceK > 0; if (en.ice.visible) { en.ice.position.set(x, y, z); en.ice.scale.setScalar(sc * en.iceK); } }
   }
+  // враг вне кадра: спрятать модель, тень, кольца, звёзды, лёд и полоску (анимация не идёт)
+  function hideEnt(id, en) { if (en.hid) return; en.hid = true; en.m.group.visible = en.sh.visible = en.ring.visible = false; if (en.elite) en.elite.visible = false; if (en.stars) en.stars.visible = false; if (en.ice) en.ice.visible = false; const b = bars.get(id); if (b) b.g.visible = false; }
+  // убрать и освободить модель врага (умер, исчез или далеко); при возвращении в кадр соберётся заново
+  function dropEnt(id, en) { scene.remove(en.m.group, en.sh, en.ring); disposeDeep(en.m.group); disposeDeep(en.sh); disposeDeep(en.ring); if (en.elite) { scene.remove(en.elite); disposeDeep(en.elite); } if (en.stars) scene.remove(en.stars); if (en.ice) scene.remove(en.ice); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete(id); } }
   function entity(e) {
     let en = ents.get(e.id);
     if (!en) {
@@ -762,6 +777,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
     camera.position.set(cam.x + Math.sin(yaw) * hd + sh * (Math.sin(wt * FV.f[0] * 6.283) + .5 * Math.sin(wt * FV.f[1] * 6.283 + 1.3)) / 3, Math.sin(pitch) * dist + cfg.view.camLookUp + cam.y + sh * (Math.sin(wt * FV.f[1] * 6.283 + .7) + .5 * Math.sin(wt * FV.f[0] * 6.283 + 2.1)) / 3, cam.z + Math.cos(yaw) * hd);
     camera.lookAt(cam.x, cfg.view.camLookUp + cam.y, cam.z);
+    camera.updateMatrixWorld(); PV.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); FR.setFromProjectionMatrix(PV);     // что в кадре
     if (sun.castShadow && SHD) {                                      // карта теней — за героем, шаг в тексель (тень не дрожит)
       const tx = 2 * SHD.span / SHD.size; shT.set(cam.x, cam.y, cam.z);
       const a = Math.round(shT.dot(shR) / tx) * tx, b = Math.round(shT.dot(shU) / tx) * tx, c = shT.dot(sunDir);
@@ -811,13 +827,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       } }
     // оживление: жители ходят, вороны взлетают, дым из труб
     if (!under) {
-      for (const { v, m } of villagers) { stepVillager(v, dt, vStops, AMB, Math.random); m.group.position.set(v.x, Y(v.x, v.z), v.z); m.group.rotation.y = v.face; m.root.position.y = v.moving && !calm ? Math.abs(Math.sin(t * 8 + v.id)) * .07 : 0; m.armL.rotation.x = v.moving && !calm ? Math.sin(t * 8 + v.id) * .5 : 0; m.armR.rotation.x = -m.armL.rotation.x; }
+      for (const { v, m } of villagers) { stepVillager(v, dt, vStops, AMB, Math.random); if (!(m.group.visible = inView(v.x, 1 + Y(v.x, v.z), v.z, 2))) continue; m.group.position.set(v.x, Y(v.x, v.z), v.z); m.group.rotation.y = v.face; m.root.position.y = v.moving && !calm ? Math.abs(Math.sin(t * 8 + v.id)) * .07 : 0; m.armL.rotation.x = v.moving && !calm ? Math.sin(t * 8 + v.id) * .5 : 0; m.armR.rotation.x = -m.armL.rotation.x; }
       updateBirds(crows.map(c => c.b), p.x, p.z, dt, AMB);
       if (beasts.length && W.lvl === 'surface') { const nOn = Math.max(2, Math.round(beasts.length * (Q.life ?? 1))); updateBeasts(beasts.slice(0, nOn).map(c => c.b), p.x, p.z, dt, BEA, Math.random, beastOk, (x, z) => biomeAt(cfg, x, z));
         for (let i = nOn; i < beasts.length; i++) for (const m of Object.values(beasts[i].ms)) m.group.visible = false;     // на «Низком» — меньше зверей
-        for (const c of beasts.slice(0, nOn)) { const b = c.b, m = beastModel(c); m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; const hop = b.kind === 'hare' && b.moving ? Math.abs(Math.sin(b.step * 2.2)) * .25 : 0; m.group.position.set(b.x, Y(b.x, b.z) + hop, b.z); m.group.rotation.y = b.face; m.legs.forEach((l, i) => { l.rotation.x = b.moving ? Math.sin(b.step * (b.kind === 'deer' ? 3.2 : 4) + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * .7 : 0; }); (m.head || m.group.children[2]).rotation.x = b.state === 'graze' && (b.kind === 'deer' || b.kind === 'goat') ? .5 : 0; } }
+        for (const c of beasts.slice(0, nOn)) { const b = c.b, m = beastModel(c); m.group.visible = b.state !== 'gone' && inView(b.x, 1 + Y(b.x, b.z), b.z, 2); if (!m.group.visible) continue; const hop = b.kind === 'hare' && b.moving ? Math.abs(Math.sin(b.step * 2.2)) * .25 : 0; m.group.position.set(b.x, Y(b.x, b.z) + hop, b.z); m.group.rotation.y = b.face; m.legs.forEach((l, i) => { l.rotation.x = b.moving ? Math.sin(b.step * (b.kind === 'deer' ? 3.2 : 4) + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * .7 : 0; }); (m.head || m.group.children[2]).rotation.x = b.state === 'graze' && (b.kind === 'deer' || b.kind === 'goat') ? .5 : 0; } }
       if (ducks.length && W.lvl === 'surface' && river) { updateDucks(ducks.map(c => c.b), p.x, p.z, dt, river.lakes, BEA.ducks, lakeR);
-        for (const { b, m } of ducks) { m.group.visible = !!b.lake; if (!b.lake) continue; m.group.position.set(b.x, cfg.terrain.water + .02 + Math.sin(t * 2 + b.id) * .02, b.z); m.group.rotation.y = b.face; } }
+        for (const { b, m } of ducks) { m.group.visible = !!b.lake && inView(b.x, 0, b.z, 1); if (!b.lake) continue; m.group.position.set(b.x, cfg.terrain.water + .02 + Math.sin(t * 2 + b.id) * .02, b.z); m.group.rotation.y = b.face; } }
       if (river && river.lakes && W.lvl === 'surface' && (fishT -= dt) <= 0) { fishT = BEA.fish[0] + Math.random() * (BEA.fish[1] - BEA.fish[0]);     // рыба плеснула
         const L = river.lakes.find(q => Math.hypot(q.x - p.x, q.z - p.z) < q.r + 30); if (L && !calm) { const a = Math.random() * 6.283, rr = Math.random() * L.r * .6, x = L.x + Math.sin(a) * rr, z = L.z + Math.cos(a) * rr; ringFx(x, z, .9, '#d6e6dc'); for (let i = 0; i < 8; i++) fx.emit(x, cfg.terrain.water + .1, z, (Math.random() - .5) * 1.2, 1.6 + Math.random(), (Math.random() - .5) * 1.2, '#d8ecf4', .6, 6, .06, false); } }
       if (flies && W.lvl === 'surface' && !calm) {     // днём бабочки у травы, ночью летучие мыши повыше
@@ -825,7 +841,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         for (let i = 0; i < n; i++) { const ph = i * 2.399, sp = night ? 1.6 : .5, a = t * sp * (i % 2 ? 1 : -1) + ph, r = FLY.r * (.35 + .6 * ((i * .618) % 1)), x = p.x + Math.sin(a) * r + Math.sin(t * 1.7 + i) * .8, z = p.z + Math.cos(a * .8) * r;
           flyO.position.set(x, Y(x, z) + (night ? 3.2 + Math.sin(t * 3 + i) * .6 : .7 + Math.abs(Math.sin(t * 2.3 + i)) * .6), z); flyO.rotation.set(0, a, Math.sin(t * (night ? 30 : 18) + i) * .9); flyO.scale.setScalar(night ? 2 : 1.9); flyO.updateMatrix(); flies.setMatrixAt(i, flyO.matrix); }
         flies.instanceMatrix.needsUpdate = true; } else if (flies) flies.count = 0;
-      for (const { b, m } of crows) { m.group.visible = b.state !== 'gone'; if (!m.group.visible) continue; m.group.position.set(b.x, b.y + Y(b.x, b.z), b.z); m.group.rotation.y = b.face; const fl = b.state === 'fly' ? Math.sin(t * 22) * .9 : (b.peck < .3 ? .2 : 0); m.wl.rotation.z = fl; m.wr.rotation.z = -fl; }
+      for (const { b, m } of crows) { m.group.visible = b.state !== 'gone' && inView(b.x, b.y + 1 + Y(b.x, b.z), b.z, 1.5); if (!m.group.visible) continue; m.group.position.set(b.x, b.y + Y(b.x, b.z), b.z); m.group.rotation.y = b.face; const fl = b.state === 'fly' ? Math.sin(t * 22) * .9 : (b.peck < .3 ? .2 : 0); m.wl.rotation.z = fl; m.wr.rotation.z = -fl; }
       for (let i = 0; i < puffs.count; i++) {
         const c = pipes[(i / AMB.smoke) | 0], k = ((t / 4 + (i % AMB.smoke) / AMB.smoke + c.x * .013) % 1), s = .35 + k * 1.1 * (1 - k * .6);
         const dr = .4 + 2.6 * windNow.s; puffP.set(c.x + k * dr * windNow.dir[0] + Math.sin(t + i) * .15, c.y + .3 + k * 3.2 * (1 - .4 * windNow.s), c.z + k * dr * windNow.dir[1]);     // дым сносит ветром puffS.set(s, s, s); puffM.compose(puffP, puffQ, puffS); puffs.setMatrixAt(i, puffM);
@@ -864,7 +880,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const alive = new Set();
     for (const e of W.enemies) {
       alive.add(e.id);
+      { const sc0 = cfg.enemies[e.type].scale * (e.scaleMul || 1), far = Math.hypot(e.x - p.x, e.z - p.z) > CL.foe;     // вне кадра — не анимировать; дальше 70 м — освободить модель
+        if (!e.boss && (far || !inView(e.x, Y(e.x, e.z) + 1.2 * sc0, e.z, 2.5 * sc0 + 1))) { const en0 = ents.get(e.id); if (en0) { if (far) dropEnt(e.id, en0); else hideEnt(e.id, en0); } continue; } }
       const en = entity(e);
+      if (en.hid) { en.hid = false; en.m.group.visible = en.sh.visible = en.ring.visible = true; }
       const ey = Y(e.x, e.z); en.m.group.position.set(e.x, ey, e.z); if (!en.yawInit || !cfg.view.blend) en.m.group.rotation.y = e.face; else if (!e.dead) en.m.group.rotation.y = dampAngle(en.m.group.rotation.y, e.face, e.state === 'dash' ? cfg.view.blend.hit : cfg.view.blend.yawFoe, dt); en.yawInit = true;     // поворот — плавно (шаг 3), мёртвый не крутится
       { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
       animateMonster(en.m, e, t, cfg, p.x, p.z);
@@ -892,11 +911,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       const b = bar({ id: 'a' + a.id }, a.guest ? '#d8b040' : '#3a8a4a'), show = (a.guest || a.hp < a.maxhp) && !a.dead;
       b.g.visible = show; if (show) { b.g.position.set(a.x, (a.cart ? 3.4 : 2.7) + ay, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }
     }
-    for (const [id, en] of allyEnts) if (!aliveA.has(id)) { scene.remove(en.m.group, en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); bars.delete('a' + id); } }
-    for (const [id, en] of ents) if (!alive.has(id)) { scene.remove(en.m.group, en.sh, en.ring); if (en.elite) scene.remove(en.elite); if (en.stars) scene.remove(en.stars); if (en.ice) scene.remove(en.ice); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); bars.delete(id); } }
+    for (const [id, en] of allyEnts) if (!aliveA.has(id)) { scene.remove(en.m.group, en.sh); disposeDeep(en.m.group); disposeDeep(en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete('a' + id); } }
+    for (const [id, en] of ents) if (!alive.has(id)) dropEnt(id, en);
 
     // события боя → эффекты и подписи (подписи отдаёт hooks.onText)
     for (const v of W.ev) {
+      if (v.x !== undefined && v.z !== undefined && !inView(v.x, 1 + Y(v.x, v.z), v.z, (v.r || 2) + 4)) continue;     // событие вне кадра — без частиц, вспышек и цифр
       hooks.onEvent && hooks.onEvent(v);
       if (v.k === 'hit') { hitFx(v, p); hooks.onText && hooks.onText(v.x, 2, v.z, String(v.dmg) + (v.crit ? '!' : ''), v.crit ? 'crit' : v.fin ? 'fin' : ''); }
       else if (v.k === 'die') dieFx(v, p);
@@ -1001,5 +1021,5 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function setDprMax(v) { dprMax = v; resize(); }
 
   const treesNear = (x, z) => { if (!WC) return 0; let n = 0; const r2 = WC.rustle.r * WC.rustle.r, count = A => { for (let i = 0; i < A.length; i += 2) { const dx = A[i] - x, dz = A[i + 1] - z; if (dx * dx + dz * dz < r2) n++; } }; count(treeXZ); for (const L of liveLand.values()) count(L.trees); return Math.min(1, n / WC.rustle.full); };
-  return { render, resize, project, setAscii, setRetro, setDprMax, setQuality, setResScale: v => { resScale = v; resize(); }, quality: () => ({ ...Q, shadowsOn: gl.shadowMap.enabled, resScale }), look: () => ({ retro, ascii: asciiOn, w: canvas.width, h: canvas.height, tone: gl.toneMapping }), vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  return { dbg: { scene, gl }, render, resize, project, setAscii, setRetro, setDprMax, setQuality, setResScale: v => { resScale = v; resize(); }, quality: () => ({ ...Q, shadowsOn: gl.shadowMap.enabled, resScale }), look: () => ({ retro, ascii: asciiOn, w: canvas.width, h: canvas.height, tone: gl.toneMapping }), vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }

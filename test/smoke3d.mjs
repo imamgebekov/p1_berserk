@@ -20,6 +20,7 @@ try {
     await page.goto(url); ok(await poll(() => page.evaluate(() => !!(window.__b3d && window.__b3d.W)), 8000), 'игра не загрузилась');
     const ev = (f, a) => page.evaluate(f, a);
     await ev(() => { const W = window.__b3d.W; W.player.maxhp = W.player.hp = 1e6; W.enemies.length = 0; });
+    await poll(() => ev(() => window.__b3d.perf().n >= 20), 20000);     // программная видеокарта сначала собирает шейдеры (секунды) — ждём, пока кадры пойдут
     const z0 = await ev(() => window.__b3d.W.player.z); await page.keyboard.down('KeyW');
     ok(await poll(async () => (await ev(() => window.__b3d.W.player.z)) < z0 - .8), 'W не ведёт героя'); await page.keyboard.up('KeyW');
     await ev(() => { const b = window.__b3d, p = b.W.player; p.face = 0; const e = b.spawn('imp', p.x, p.z + 1.6); e.hp = e.maxhp = 500; e.cd = 99; window.__imp = e; });
