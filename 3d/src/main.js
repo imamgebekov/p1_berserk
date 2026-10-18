@@ -19,6 +19,8 @@ import { isNight } from './daynight.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView, resView, barOf } from './abilities3d.js';
+import { weaponSkillView } from './weaponskill3d.js';
+import { ELEMENT_COLOR } from './elements3d.js';
 import { KIND_NAME } from './data/items.js';
 import { drawMap, tickRelief } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
@@ -119,6 +121,21 @@ const abilBtns = [0, 1, 2, 3, 4].map(i => {
   for (const t of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(t, () => b.classList.remove('on'));
   $('abil').append(b); return b;
 });
+// умение оружия (клеймёное, золотое): ячейка «F» после пяти умений на компьютере, отдельная кнопка над «Перекатом» на телефоне
+const wBtn = document.createElement('button'); wBtn.type = 'button'; wBtn.className = 'ab wsk'; wBtn.dataset.i = 5; wBtn.hidden = true;
+wBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); wBtn.classList.add('on'); input.ability(6); });
+for (const t of ['pointerup', 'pointercancel', 'pointerleave']) wBtn.addEventListener(t, () => wBtn.classList.remove('on'));
+$('abil').append(wBtn);
+let wKey = '';
+function drawWeaponSkill() {
+  const v = weaponSkillView(W), show = !!v && !panelOpen && !landscape && !W.player.dead, mx = W.wp.mix, el = mx ? mx.a : W.wp.el;
+  const key = show ? v.id + Math.ceil(v.cd * 10) + v.gold + (el || '') : '';
+  if (key === wKey) return; wKey = key; if (wBtn.hidden === show) wBtn.hidden = !show; if (!show) return;
+  if (wBtn.dataset.id !== v.id + v.gold) { wBtn.dataset.id = v.id + v.gold; wBtn.textContent = v.icon; const k = document.createElement('span'); k.className = 'k'; k.textContent = 'F'; wBtn.append(k);
+    wBtn.setAttribute('aria-label', `Умение оружия: ${v.name} (F)`); wBtn.title = `${v.name} · клавиша F · перезарядка ${v.cdMax} с. ${v.text}`; }
+  wBtn.classList.toggle('gold', !!v.gold); wBtn.style.setProperty('--wc', el ? ELEMENT_COLOR[el] : '#e8c07a');
+  wBtn.style.setProperty('--cd', v.cd > 0 ? (v.cd / v.cdMax).toFixed(3) : 0);
+}
 let abilKey = '';
 // ресурс героя (ярость, концентрация, ритм): полоса над панелью умений на компьютере, под здоровьем на телефоне
 const resBar = $('resBar'); let resKey = '';
@@ -128,7 +145,7 @@ function drawRes() {
   resBar.style.setProperty('--rc', r.color); resBar.firstChild.style.width = (100 * r.now / r.max).toFixed(1) + '%'; resBar.lastChild.textContent = desk ? `${r.name} ${Math.round(r.now)}/${r.max}` : String(Math.round(r.now)); resBar.title = r.name;     // на телефоне — только число (мало места)
 }
 function drawAbil() {
-  drawRes();
+  drawRes(); drawWeaponSkill();
   const all = abilityView(W), bar = barOf(W), v = bar.map(id => all.find(a => a.id === id) || null), next = all.find(a => !a.open);
   const key = v.map(a => (a ? a.id + a.rank + Math.ceil(a.cd * 10) + (a.enough ? 1 : 0) : '-')).join() + panelOpen + landscape + W.lv;
   if (key === abilKey) return; abilKey = key;

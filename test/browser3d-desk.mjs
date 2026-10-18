@@ -354,6 +354,15 @@ try {
       if (!src.open || src.smith || !/С врагов|Контейнеры|Продаётся|Куётся|Источник/.test(src.text)) bad('G над материалом не открыл «где взять»: ' + JSON.stringify({ ...src, text: src.text.slice(0, 120) }));
     } else bad('у кузнеца в «Ковке» нет кнопок материалов');
     await page.keyboard.press('Escape'); await page.waitForTimeout(150); await ev(() => { window.__b3d.W.nearNpc = null; }); }
+  // умение оружия (2026-10-18): у клеймёного меча — шестая ячейка «F»; F бьёт врага рядом и запускает перезарядку
+  { await ev(() => { const b = window.__b3d, W = b.W, p = W.player; W.inv.eq.weapon = 'w_sword_blood'; W.wcd = 0; W.enemies.length = 0; const e = b.spawn('brute', p.x + 1.6, p.z); e.hp = e.maxhp = 1e5; e.cd = 99; });
+    await page.waitForTimeout(300);
+    const cell = await ev(() => { const b = document.querySelector('#abil .ab.wsk'), r = b.getBoundingClientRect(); return { shown: !b.hidden, k: b.querySelector('.k') && b.querySelector('.k').textContent, w: r.width }; });
+    if (!cell.shown || cell.k !== 'F' || cell.w < 44) bad('ячейка умения оружия: ' + JSON.stringify(cell));
+    await page.keyboard.press('KeyF'); let cd = 0; for (let t = 0; t < 1500 && !(cd > 0); t += 100) { await page.waitForTimeout(100); cd = await ev(() => window.__b3d.W.wcd); }
+    const hit = await ev(() => window.__b3d.W.enemies.some(e => e.hp < e.maxhp));
+    if (!(cd > 0) || !hit) bad(`F не запустило умение оружия: перезарядка ${cd}, попал ${hit}`);
+    await page.screenshot({ path: join(out, '3d-desk-wskill.png') }); await ev(() => { window.__b3d.W.enemies.length = 0; }); }
   await ctx.close();
   // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
   { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);
@@ -422,13 +431,13 @@ try {
   { const c5 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c5.newPage(); pg.setDefaultTimeout(8000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
     await pg.goto(url + '?shot&hero=thorn'); await pg.waitForTimeout(1200);
-    await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { charge: 1, cry: 1, whirl: 1, iron: 1, rage: 1 }; W.resHero = W.hero; W.res = 100; });
+    await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { charge: 1, cry: 1, whirl: 1, iron: 1, rage: 1 }; W.resHero = W.hero; W.res = 100; W.inv.eq.weapon = 'w_sword_blood'; });     // клеймёный меч — кнопка умения оружия
     await pg.waitForTimeout(400);
     const r = await pg.evaluate(() => { const box = el => el.getBoundingClientRect(), list = [...document.querySelectorAll('#abil .ab')].filter(b => !b.hidden).map(box), atk = box(document.getElementById('bAtk')), roll = box(document.getElementById('bRoll'));
       const over = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; let bad = 0;
       list.forEach((a, i) => { if (over(a, atk) || over(a, roll) || a.left < 0 || a.right > innerWidth) bad++; list.forEach((b, j) => { if (j > i && over(a, b)) bad++; }); });
       return { n: list.length, bad, min: Math.min(...list.map(a => Math.min(a.width, a.height))) }; });
-    if (r.n !== 5 || r.bad || r.min < 44) bad('кнопки умений на телефоне: ' + JSON.stringify(r));
+    if (r.n !== 6 || r.bad || r.min < 44) bad('кнопки умений и оружия на телефоне: ' + JSON.stringify(r));
     { const rb = await pg.evaluate(() => { const b = document.getElementById('resBar'), r = b.getBoundingClientRect(), h = document.getElementById('hpWrap').getBoundingClientRect(); return { shown: !b.hidden, top: r.top, hpB: h.bottom, left: r.left }; });
       if (!rb.shown || rb.top < rb.hpB - 2 || rb.left < 0) bad('полоса ресурса на телефоне не под здоровьем: ' + JSON.stringify(rb)); }
     await pg.screenshot({ path: join(out, '3d-phone-abilities.png') });

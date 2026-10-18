@@ -102,6 +102,7 @@ button{font:inherit;color:var(--ink)}
 .srow.tier1,.srow.tier2,.srow.tier3{background:#1d1418;box-shadow:inset 3px 0 0 var(--tc)}.srow.tier3{box-shadow:inset 3px 0 0 var(--tc),0 0 12px -2px var(--tc);animation:tierGlow 2.4s ease-in-out infinite}
 @keyframes tierGlow{50%{box-shadow:inset 3px 0 0 var(--tc),0 0 18px 0 var(--tc)}}
 @media (prefers-reduced-motion:reduce){.srow.tier3{animation:none}}
+.wskl{font-size:12px;color:#f0b070;margin:3px 0}
 #bagTip .gems,#bagCard .gems,.gems{font-size:12px;color:#e8c07a;margin:3px 0}
 .socks{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.sock{min-height:44px;padding:0 12px;border-radius:10px;border:2px dashed var(--line);background:#1b1211;font-size:12.5px}.sock.full,.sock.pickg{border-style:solid;border-color:var(--gc);box-shadow:inset 3px 0 0 var(--gc)}.sock.pickg{display:block;width:100%;margin:4px 0;text-align:left}.gemrow{align-items:flex-start}
 .srow .buy{flex:none;min-height:44px;min-width:92px;padding:0 10px;background:#2a1b1a;border:2px solid var(--line);border-radius:10px;font-size:13px;font-weight:600}.srow .buy.no{opacity:.4}
@@ -259,6 +260,8 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 #abil .ab[data-i="2"]{right:calc(100px + env(safe-area-inset-right));bottom:calc(144px + env(safe-area-inset-bottom))}
 #abil .ab[data-i="3"]{right:calc(176px + env(safe-area-inset-right));bottom:calc(30px + env(safe-area-inset-bottom))}
 #abil .ab[data-i="4"]{right:calc(182px + env(safe-area-inset-right));bottom:calc(88px + env(safe-area-inset-bottom))}
+#abil .ab.wsk{right:calc(33px + env(safe-area-inset-right));bottom:calc(58px + 160px * var(--ui,1) + env(safe-area-inset-bottom));border-color:var(--wc);box-shadow:0 0 10px -2px var(--wc)}#abil .ab.wsk.gold{background:radial-gradient(#7a5a20,#3a2a10)}
+html[data-lefty] #abil .ab.wsk{left:calc(33px + env(safe-area-inset-left))}
 html[data-lefty] #abil .ab{right:auto!important}
 html[data-lefty] #abil .ab[data-i="0"]{left:calc(118px + env(safe-area-inset-left))}html[data-lefty] #abil .ab[data-i="1"]{left:calc(124px + env(safe-area-inset-left))}
 html[data-lefty] #abil .ab[data-i="2"]{left:calc(100px + env(safe-area-inset-left))}html[data-lefty] #abil .ab[data-i="3"]{left:calc(176px + env(safe-area-inset-left))}
@@ -427,7 +430,7 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 [data-desk] #abil .ab::after{border-radius:4px;background:conic-gradient(rgba(0,0,0,.7) calc(var(--cd,0) * 360deg),transparent 0)}
 [data-desk] #abil .ab.empty{background:rgba(30,20,14,.5);border-style:dashed;color:transparent}
 [data-desk] #abil .ab .lv{position:absolute;inset:auto 0 3px 0;font-size:9px;color:#9a8a70;text-align:center}
-[data-desk] #abil .ab .k{left:4px;right:auto;top:2px;bottom:auto;color:#d8c8a0}[data-desk] #abil .ab .c{left:auto;right:4px}
+[data-desk] #abil .ab.wsk{margin-left:12px;border-color:var(--wc);box-shadow:inset 0 0 0 1px var(--wc),0 0 10px -3px var(--wc)}[data-desk] #abil .ab .k{left:4px;right:auto;top:2px;bottom:auto;color:#d8c8a0}[data-desk] #abil .ab .c{left:auto;right:4px}
 [data-desk] #resBar{left:50%;transform:translateX(-50%);top:auto;bottom:calc(92px * var(--dz,1));width:calc(300px * var(--dz,1));height:calc(12px * var(--dz,1))}
 [data-desk] #resBar span{font-size:calc(9px * var(--dz,1));line-height:calc(12px * var(--dz,1))}
 /* выбор ячейки панели в окне «Навыки → Умения» (2026-10-18) */

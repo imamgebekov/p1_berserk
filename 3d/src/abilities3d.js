@@ -154,8 +154,8 @@ const ACT = {
 export function dashStep(W) {
   const p = W.player;
   for (const e of W.enemies) {
-    if (!p.dashMul || e.dead || p.dashHit.includes(e.id) || len(e.x - p.x, e.z - p.z) > W.cfg.abilities.thorn.charge.width / 2 + W.cfg.enemies[e.type].radius + .4) continue;
-    p.dashHit.push(e.id); abilityHit(W, e, p.dashMul, { knock: p.dashKnock, heavy: true });
+    if (!p.dashMul || e.dead || p.dashHit.includes(e.id) || len(e.x - p.x, e.z - p.z) > (p.dashW || W.cfg.abilities.thorn.charge.width) / 2 + W.cfg.enemies[e.type].radius + .4) continue;
+    p.dashHit.push(e.id); abilityHit(W, e, p.dashMul, { knock: p.dashKnock, heavy: true, mix: !!p.dashMix });     // dashMix — выпад умения оружия
   }
 }
 // перезарядки и действие баффов умений

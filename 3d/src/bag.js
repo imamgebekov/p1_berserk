@@ -8,6 +8,7 @@ import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots } from '.
 import { readTome } from './craft3d.js';
 import { socketsOf } from './inv.js';
 import { weaponMix } from './stones3d.js';
+import { skillOfItem } from './weaponskill3d.js';
 import { MIX_NAME, ELEMENT_NAME, mixKey } from './elements3d.js';
 
 const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
@@ -51,10 +52,12 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     const mix = !m ? '' : m.b ? ` · сплав «${MIX_NAME[mixKey(m.a, m.b)]}»` : ` · стихия: ${ELEMENT_NAME[m.a].toLowerCase()}`;
     return el('div', 'gems', `Гнёзда ${(g || []).filter(Boolean).length}/${n}: ${list.join(', ')}${mix}`);
   }
+  // умение оружия у клеймёного и золотого: «Умение (F): Жатва — …»
+  function skillLine(it) { const s = skillOfItem(it, cfg); return s ? el('div', 'wskl', `Умение${desk ? ' (F)' : ''}: ${s.name}${s.gold ? ', золотое — сильнее и с «Солнцем»' : ''}. ${s.text}`) : null; }
   function tip(e, it, up, worn, g) {
     tipEl.textContent = ''; tipEl.className = 'r' + it.rar;
     tipEl.append(nm(it, 1, up), el('div', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : '')));
-    { const gl = gemLine(it, g); if (gl) tipEl.appendChild(gl); }
+    { const gl = gemLine(it, g); if (gl) tipEl.appendChild(gl); const sl = skillLine(it); if (sl) tipEl.appendChild(sl); }
     if (it.stats) for (const r of statDiff(it, worn, up, worn ? W.inv.up[it.slot] || 0 : 0, cfg.smith.bonus)) {
       if (!worn && !(r.k in it.stats)) continue;
       const row = el('div', 'str' + (r.d > 0 ? ' up' : r.d < 0 ? ' down' : '')); row.append(el('span', 'sk', r.name), el('span', 'sv', worn ? `${fmt(r.k, r.a)} → ${fmt(r.k, r.b)}` : fmt(r.k, r.b)), el('span', 'sd', r.d > 0 ? '▲' : r.d < 0 ? '▼' : '')); tipEl.appendChild(row);
@@ -83,7 +86,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     t.append(nm(it, n, up), el('div', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : ''))); h.append(t);
     { const x = el('button', 'cclose', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть'); x.addEventListener('click', () => { sel = null; render(); }); h.append(x); }
     cardEl.appendChild(h);
-    { const gl = gemLine(it, sel.from === 'eq' ? W.inv.gem[sel.slot] : W.inv.bag[sel.i].g); if (gl) cardEl.appendChild(gl); }
+    { const gl = gemLine(it, sel.from === 'eq' ? W.inv.gem[sel.slot] : W.inv.bag[sel.i].g); if (gl) cardEl.appendChild(gl); const sl = skillLine(it); if (sl) cardEl.appendChild(sl); }
     // характеристики: у вещи из сумки — рядом с надетым (было → стало), стрелка — лучше или хуже
     const worn = it.slot && sel.from === 'bag' && W.inv.eq[it.slot] ? BY_ID[W.inv.eq[it.slot]] : null;
     if (it.stats) {

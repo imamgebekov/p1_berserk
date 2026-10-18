@@ -28,6 +28,7 @@ import { trailOn, dampAngle } from './anim3d.js';
 import { createFx } from './fx3d.js';
 import { RATE, statusPart, emitCount, lightning, stunStar } from './vfx3d.js';
 import { ELEMENT_COLOR } from './elements3d.js';
+import { WSKILL } from './weaponskill3d.js';
 import { groundNoise, pathMix, segsNear, contactGrid, contactShade } from './ground3d.js';
 
 const FOG = '#150c0b';
@@ -471,6 +472,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const s of trailS) s.age += dt;
     while (trailS.length && trailS[0].age > TRAIL_LIFE) trailS.shift();
     const w = hero.weapon, P = cfg.player, sw = p.swingMul || W.gear.swing || 1, mx = W.wp.mix;
+    if (W.wsk && W.wsk.kind === 'tempest' && !calm) for (let i = 0; i < 2; i++) { const a = W.t * 9 + i * Math.PI, el = mx ? (i ? mx.b || mx.a : mx.a) : W.wp.el; fx.emit(p.x + Math.sin(a) * 2.4, .9 + Y(p.x, p.z), p.z + Math.cos(a) * 2.4, 0, .5, 0, el ? ELEMENT_COLOR[el] : '#d8c8a8', .4, 0, .1, true); }     // «Цепная буря»
     if (w && w.tip && mx && !calm && Math.random() < dt * 5) { const t = w.tip.getWorldPosition(new THREE.Vector3()), el = Math.random() < .5 || !mx.b ? mx.a : mx.b; fx.emit(t.x, t.y, t.z, (Math.random() - .5) * .3, .4 + Math.random() * .4, (Math.random() - .5) * .3, ELEMENT_COLOR[el], .5, -.2, .06, true); }     // оружие с камнями искрит цветом стихий
     if (w && p.state === 'atk' && hero.family !== 'bow' && trailOn(p.atkT / (P.attackTime * sw), P.attackHitAt / P.attackTime)) {
       hero.group.updateMatrixWorld(true);
@@ -871,6 +873,16 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { const c = RARITY[BY_ID[v.id].rar].color; fx.flash(v.x, 1.4, v.z, 2.6, c); burst(v.x, 1, v.z, 12, c, 4); }
       else if (v.k === 'sun') { fx.flash(v.x, 1.2, v.z, v.r + 1, '#ffd86a'); burst(v.x, .8, v.z, 18, '#ffd86a', v.r * 1.6); }          // золото (G3b)
       else if (v.k === 'aegisUp' || v.k === 'aegis' || v.k === 'reflect') burst(v.x, 1.1, v.z, v.k === 'aegis' ? 10 : 6, '#f5c542', 2.2);
+      else if (v.k === 'wskill') {                    // умение оружия: кольцо и вспышка цвета стихии, имя над героем
+        const c1 = v.el && v.el[0] ? ELEMENT_COLOR[v.el[0]] : '#f0d8a8', c2 = v.el && v.el[1] ? ELEMENT_COLOR[v.el[1]] : c1, sx = Math.sin(v.face), sz = Math.cos(v.face);
+        if (v.id === 'lunge') for (let i = 0; i < 10; i++) burst(v.x + sx * i * .6, 1, v.z + sz * i * .6, 2, i % 2 ? c1 : c2, 3);
+        else if (v.id === 'reap') for (let i = 0; i < 14; i++) { const a = v.face + (i / 13 - .5) * 3.8; burst(v.x + Math.sin(a) * 3.2, 1, v.z + Math.cos(a) * 3.2, 2, i % 2 ? c1 : c2, 4); }
+        else if (v.id !== 'elemshot') { ringFx(v.x, v.z, v.r || 3, c1); for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; burst(v.x + Math.sin(a) * (v.r || 3) * .8, 1, v.z + Math.cos(a) * (v.r || 3) * .8, 2, i % 2 ? c1 : c2, 3); } }
+        fx.flash(v.x, 1.3, v.z, 2.4, v.gold ? '#ffe27a' : c1); if (v.id === 'shatter') W.shake = Math.max(W.shake, .5);
+        hooks.onText && hooks.onText(v.x, 3.3, v.z, WSKILL[v.id].name + '!', 'crit');
+      }
+      else if (v.k === 'wskill2') ringFx(v.x, v.z, 3.4, '#f0d8a8')
+      else if (v.k === 'eblast') { const c1 = v.el && v.el[0] ? ELEMENT_COLOR[v.el[0]] : '#f0d8a8'; ringFx(v.x, v.z, v.r, c1); burst(v.x, 1.1, v.z, 24, c1, 5); if (v.el && v.el[1]) burst(v.x, 1.1, v.z, 14, ELEMENT_COLOR[v.el[1]], 5); fx.flash(v.x, 1.2, v.z, 2.2, c1); }
       else if (v.k === 'ability') {                   // умения: вспышки и кольца
         const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30', blink: '#c8a0ff', parry: '#fff0c0', dance: '#c8d8ff', shadow: '#2a1838', execute: '#ff3030', leap: '#c8e0b0', volley: '#eef4ff', trap: '#8a8478', venom: '#7ad060', rain: '#eef4ff' }[v.id] || '#ffe8b0';
         if (v.id === 'cry' || v.id === 'whirl') for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r = v.id === 'cry' ? 2.5 : 1.8; burst(v.x + Math.sin(a) * r, 1, v.z + Math.cos(a) * r, 2, col, 3); }

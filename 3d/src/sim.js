@@ -31,7 +31,8 @@ import { lightOf, isNight } from './daynight.js';
 import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned, rainK } from './status3d.js';
 import { tickZones, isWet } from './elements3d.js';
-import { weaponMix, gemDropOf } from './stones3d.js';
+import { weaponMix, gemDropOf, weaponElement } from './stones3d.js';
+import { useWeaponSkill, tickWeaponSkill } from './weaponskill3d.js';
 import { makeWeather, weatherAt } from './weather3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain } from './inv.js';
@@ -55,7 +56,7 @@ const SET_BY_ID = Object.fromEntries(SETS.map(x => [x.id, x]));
 export function weaponCtx(item, gems) {
   const kind = item ? item.kind : 'fists', perks = item && item.perks ? item.perks : [], pm = {};
   for (const id of perks) { const P = PERKS[id]; if (P) for (const k of Object.keys(P)) if (k !== 'name' && k !== 'text') pm[k] = P[k]; }
-  return { kind, trait: TRAITS[kind] || TRAITS.fists, perks, pm, mix: weaponMix(item, gems) };     // mix — сплав камней (или null)
+  return { kind, trait: TRAITS[kind] || TRAITS.fists, perks, pm, mix: weaponMix(item, gems), el: weaponElement(item) };     // mix — сплав камней (или null), el — стихия вещи
 }
 
 // связки для модуля статусов: урон, реакции, смерть
@@ -396,6 +397,8 @@ function putEl(W, e, el, dmg, k) {
     if (best) { W.ev.push({ k: 'chain', x: e.x, z: e.z, x2: best.x, z2: best.z }); dealDamage(W, best, sd, 'storm'); if (!best.dead) applyStatus(W, best, 'shock', sd, X.mark.shock); }
   }
 }
+// умение оружия: сплав камней, а без камней — стихия вещи; без стихии — ничего
+function skillStrike(W, e, dmg) { const mx = W.wp.mix || (W.wp.el ? { a: W.wp.el, b: null, rank: 1, amp: false } : null); if (mx) mixHit(W, e, dmg, mx); }
 function mixHit(W, e, dmg, mx) {
   const S = W.cfg.stones, k = S.power[mx.rank - 1] * (mx.amp ? S.amp : 1), p = W.player;
   if (mx.b === null) { putEl(W, e, mx.a, dmg, k); return; }
@@ -443,7 +446,7 @@ export function abilityArrow(W, ang, mult, extra = {}) {
   let dmg = Math.round((W.cfg.player.attackDamage + W.gear.dmg) * mult * rageMul(W) * rr(W, .9, 1.15));
   const crit = W.rng() < .12 + W.gear.crit / 100 + critBonus(W); if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
   const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null, sx = Math.sin(ang), sz = Math.cos(ang);
-  const q = { friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * tr.speed, vz: sz * tr.speed, dmg, crit, fx, hk: 0, fin: false, knock: tr.knock || 1, pierce: (tr.pierce || 0) + (extra.pierce || 0), hit: [], life: tr.range / tr.speed, kind: extra.kind || (tr.bolt ? 'bolt' : 'arrow'), poison: extra.poison, freeze: extra.freeze, burn: extra.burn, bleed: extra.bleed, blast: extra.blast };
+  const q = { friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * tr.speed, vz: sz * tr.speed, dmg, crit, fx, hk: 0, fin: false, knock: tr.knock || 1, pierce: (tr.pierce || 0) + (extra.pierce || 0), hit: [], life: tr.range / tr.speed, kind: extra.kind || (tr.bolt ? 'bolt' : 'arrow'), poison: extra.poison, freeze: extra.freeze, burn: extra.burn, bleed: extra.bleed, blast: extra.blast, mixAll: !!extra.mixAll, eblast: extra.eblast };
   W.proj.push(q); return q;
 }
 // стрелы героя: летят, бьют первых врагов на пути (арбалет — насквозь pierce врагов), гаснут о стену и по дальности
@@ -463,6 +466,9 @@ function updateArrows(W, dt) {
       if (q.bleed && !e.dead) applyStatus(W, e, 'bleed', q.bleed[0], q.bleed[1]);                  // нож веера: кровотечение
       if (q.blast) { const B = q.blast; q.blast = null; W.ev.push({ k: 'firearrow', x: e.x, z: e.z, r: B.r });     // зажигательная: огонь вокруг цели
         for (const o of W.enemies) if (!o.dead && len(o.x - e.x, o.z - e.z) < B.r + W.cfg.enemies[o.type].radius) { if (o !== e) dealDamage(W, o, Math.max(1, Math.round(q.dmg * B.k)), 'fire'); if (!o.dead) applyStatus(W, o, 'burn', B.dps, B.t); } }
+      if (q.mixAll && !e.dead) skillStrike(W, e, q.dmg);                                         // стрела стихии: сплав наверняка
+      if (q.eblast) { const B = q.eblast; q.eblast = null; W.ev.push({ k: 'eblast', x: e.x, z: e.z, r: B.r, el: W.wp.mix ? [W.wp.mix.a, W.wp.mix.b] : [W.wp.el] });
+        for (const o of W.enemies) if (!o.dead && o !== e && len(o.x - e.x, o.z - e.z) < B.r + W.cfg.enemies[o.type].radius) { dealDamage(W, o, Math.max(1, Math.round(q.dmg * B.k)), q.fx); if (!o.dead) skillStrike(W, o, q.dmg * B.k); } }
       goldHit(W, e, q.crit); if (q.hit.length === 1) sunCount(W, e);
       weaponStatuses(W, e, q.dmg, q.crit, W.player);
       W.combo.n = Math.min(99, W.combo.n + 1); W.combo.t = 2.2;
@@ -478,6 +484,11 @@ function goldHit(W, e, crit) { if (crit && W.gfx.critHeal && !W.player.dead) W.p
 function sunCount(W, at) {
   const S = W.wp.pm.sun; if (!S) return;
   if ((W.sunN = (W.sunN || 0) + 1) < S[0]) return; W.sunN = 0;
+  sunFlash(W, at);
+}
+// солнечная вспышка (и по счёту ударов, и в конце умения золотого оружия)
+export function sunFlash(W, at) {
+  const S = W.wp.pm.sun; if (!S) return;
   const p = W.player, c = at || p, dmg = Math.round((W.cfg.player.attackDamage + W.gear.dmg) * S[2]);
   W.ev.push({ k: 'sun', x: c.x, z: c.z, r: S[1] });
   const mx = W.wp.mix, k = mx ? W.cfg.stones.power[mx.rank - 1] : 0;
@@ -498,6 +509,7 @@ export function abilityHit(W, e, mult, o = {}) {
   const crit = W.rng() < .12 + W.gear.crit / 100 + critBonus(W); if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
   strike(W, e, dmg, { crit, dx, dz, d, knock: o.knock || 1, fx: o.fx || null, fin: true, heavy: !!o.heavy, ab: true });     // ab — удар умения: ресурса не даёт
   if (!e.dead && o.stun) applyStatus(W, e, 'stun', 0, o.stun);
+  if (o.mix && !e.dead) skillStrike(W, e, dmg);                                // умение оружия: стихия наверняка
   W.combo.n = Math.min(99, W.combo.n + 1); W.combo.t = 2.2;
   return dmg;
 }
@@ -567,7 +579,8 @@ function updatePlayer(W, dt, input) {
   if (pressed) { p.holdT = 0; p.atkBuf = H.buffer; } else if (held) p.holdT += dt;
 
   // перекат
-  if (input.ability) useSlot(W, input.ability - 1);          // умения: ячейки панели 1–5
+  if (input.ability === 6) useWeaponSkill(W);                  // умение оружия: F
+  else if (input.ability) useSlot(W, input.ability - 1);          // умения: ячейки панели 1–5
   if (input.roll && p.state !== 'roll' && p.state !== 'dash' && p.rollCd <= 0) {
     const dl = moving ? ml : 0;
     p.rollDirX = moving ? mx / dl : Math.sin(p.face); p.rollDirZ = moving ? mz / dl : Math.cos(p.face);
@@ -578,7 +591,7 @@ function updatePlayer(W, dt, input) {
   }
   if (p.state === 'dash') {                                    // рывок умения: летит по прямой, бьёт всех на пути
     p.dashT += dt; p.vx = p.dashX * p.dashV; p.vz = p.dashZ * p.dashV; dashStep(W);
-    if (p.dashT >= p.dashDur) { p.state = 'idle'; p.vx *= .2; p.vz *= .2; }
+    if (p.dashT >= p.dashDur) { p.state = 'idle'; p.vx *= .2; p.vz *= .2; p.dashMix = false; p.dashW = 0; }
   } else if (p.state === 'roll') {
     if (pressed) p.rollPress = true;
     if (p.atkBuf > 0) p.atkBuf -= dt;
@@ -703,7 +716,7 @@ function updateEnemies(W, dt) {
       if (d < 1e-6) { const ang = (i * 7 + j) * 2.399; dx = Math.cos(ang) * 1e-6; dz = Math.sin(ang) * 1e-6; d = 1e-6; }   // стояли в одной точке
       if (d < m) { const k = (m - d) / 2 / d; a.x -= dx * k; a.z -= dz * k; b.x += dx * k; b.z += dz * k; }
     }
-    if (!p.dead) {
+    if (!p.dead && !p.dashMix) {     // выпад умения оружия проходит сквозь врагов
       const dx = a.x - p.x, dz = a.z - p.z, d = len(dx, dz), m = ra + P_RADIUS(W);
       if (d < m && d > 1e-6) { const k = (m - d) / d; a.x += dx * k * .8; a.z += dz * k * .8; p.x -= dx * k * .2; p.z -= dz * k * .2; }
     }
@@ -846,7 +859,7 @@ function goalOf(W, e, dt = 1 / 60) {
 // чужое оружие и вторая рука уходят в сумку (даже сверх размера), в руку — лучшее своё из сумки или стартовое оружие героя
 export function switchHero(W, id) {
   const H = HEROES[id]; if (!H || !H.open || id === W.hero) return false;
-  W.hero = id; W.ap += Object.values(W.ab).reduce((a, b) => a + b, 0); W.ab = {}; W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.ezones = []; W.bar = [];
+  W.hero = id; W.ap += Object.values(W.ab).reduce((a, b) => a + b, 0); W.ab = {}; W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.ezones = []; W.bar = []; W.wsk = null;
   W.allies = W.allies.filter(a => !a.decoy);
   const inv = W.inv, back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot])); inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; };
   if (inv.eq.weapon && !canWield(id, BY_ID[inv.eq.weapon])) back('weapon');
@@ -891,6 +904,7 @@ export function step(W, dt, input = {}) {
   updatePlayer(W, dt, input);
   tickPlayer(W, dt);
   tickAbilities(W, dt);
+  tickWeaponSkill(W, dt);
   tickZones(W, dt, (o, k, d, t) => applyStatus(W, o, k, d, t));     // области реакций стихий
   for (let i = W.echoQ.length - 1; i >= 0; i--) { const q = W.echoQ[i]; if ((q.t -= dt) <= 0) { W.echoQ.splice(i, 1); if (!W.player.dead) { if (W.wp.trait.ranged) shoot(W, q.mult, true); else attackHit(W, q.mult, true); } } }
   trackPlace(W, dt);
