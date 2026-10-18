@@ -47,7 +47,9 @@ try {
   const s1 = await st();
   await page.screenshot({ path: join(out, '3d-move.png') });
   await touch('touchEnd');
-  if (!(s1.z < s0.z - 1.5)) bad(`джойстик вверх не двигает героя вперёд: z ${s0.z.toFixed(2)} → ${s1.z.toFixed(2)}`);
+  { const a = await page.evaluate(() => window.__b3d.W.cfg.view.camYaw * Math.PI / 180), dx = s1.x - s0.x, dz = s1.z - s0.z;     // вперёд = от камеры, она повёрнута на camYaw
+    const fwd = -(dx * Math.sin(a) + dz * Math.cos(a)), side = Math.abs(dx * Math.cos(a) - dz * Math.sin(a));
+    if (!(fwd > 1 && side < fwd * .3)) bad(`джойстик вверх не двигает героя вперёд: вперёд ${fwd.toFixed(2)}, вбок ${side.toFixed(2)}`); }
   if (await page.evaluate(() => window.__b3d.input.state.mx !== 0 || window.__b3d.input.state.mz !== 0)) bad('джойстик не обнулился после отпускания');
 
   // страница не листается и нет ссылок поверх игрового поля
@@ -82,13 +84,15 @@ try {
   await page.tap('#skillBtn'); await page.waitForTimeout(250);
   if (await page.evaluate(() => document.getElementById('skills').hidden)) bad('окно навыков не открылось');
   await page.screenshot({ path: join(out, '3d-skills.png') });
-  await page.tap('#skillList .skrow:first-child .plus'); await page.tap('#skillList .skrow:first-child .plus'); await page.waitForTimeout(120);
-  if ((await page.evaluate(() => window.__b3d.W.skills.hand)) !== 2 || (await page.evaluate(() => window.__b3d.W.sp)) !== 2) bad('вложение очка в навык не сработало');
-  if (!(await page.$eval('#skillList .skrow:nth-child(2)', e => e.classList.contains('lock')))) bad('второй ярус должен быть закрыт');
-  await page.tap('#skillTabs .tab[data-tab="guard"]'); await page.waitForTimeout(100);
+  const dmg0 = await page.evaluate(() => window.__b3d.W.gear.dmg);
+  await page.tap('#skillTabs .tab[data-tab="th_slayer"]'); await page.waitForTimeout(100);
+  await page.locator('#skillList .skrow .plus').first().tap(); await page.locator('#skillList .skrow .plus').first().tap(); await page.waitForTimeout(120);
+  if ((await page.evaluate(() => window.__b3d.W.skills.th_hand)) !== 2 || (await page.evaluate(() => window.__b3d.W.sp)) !== 2) bad('вложение очка в талант не сработало');
+  if (!(await page.locator('#skillList .skrow').nth(1).evaluate(e => e.classList.contains('lock')))) bad('второй ярус должен быть закрыт');
+  await page.tap('#skillTabs .tab[data-tab="wander"]'); await page.waitForTimeout(100);
   { const small = await page.evaluate(() => [...document.querySelectorAll('#skills button')].filter(b => b.offsetParent && (b.getBoundingClientRect().height < 40 || b.getBoundingClientRect().width < 40)).map(b => b.textContent)); if (small.length) bad('кнопки навыков мельче 40px: ' + small.join(',')); }
   await page.tap('#skillClose'); await page.waitForTimeout(100);
-  if (!(await page.evaluate(() => window.__b3d.W.gear.dmg >= 4 + 5 * .4))) bad('навык не повлиял на урон: ' + (await page.evaluate(() => window.__b3d.W.gear.dmg)));
+  { const d = await page.evaluate(() => window.__b3d.W.gear.dmg); if (!(d >= dmg0 + 4)) bad(`талант не повлиял на урон: ${dmg0} → ${d}`); }
   await page.evaluate(() => { const w = window.__b3d.W; w.lv = 1; w.sp = 0; w.skills = {}; });
   // торговец: кнопка «Торговать» появляется рядом, покупка и продажа
   await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'merchant'); w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.inv.ash = 500; w.inv.bag.push({ id: 'k_goblet', n: 1 }); });
@@ -226,7 +230,7 @@ try {
   await page.tap('#difTabs .tab[data-id="berserk"]'); await page.tap('#tweakClose'); await page.waitForTimeout(100);
   // смерть: пепел остаётся могилой
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 30; w.player.z = 30; w.inv.ash = 400; w.player.inv = 0; w.player.hp = 1; w.cfg.player.hp = 100; const e = window.__b3d.spawn('brute', 31, 30); e.alert = true; e.state = 'wind'; e.t = w.cfg.enemies.brute.wind - .01; });
-  await page.waitForTimeout(1800);
+  await page.waitForFunction(() => !document.getElementById('dead').hidden, null, { timeout: 6000 }).catch(() => {});     // экран ждёт 0,9 с игры: при 12 кадр/с это дольше 1,8 с
   { const r = await page.evaluate(() => ({ dead: !document.getElementById('dead').hidden, txt: document.getElementById('deadTxt').textContent, tomb: window.__b3d.W.tomb })); if (!r.dead || !r.txt.includes('100') || !r.tomb) bad('экран смерти без штрафа: ' + JSON.stringify(r)); }
   await page.screenshot({ path: join(out, '3d-death.png') }); await page.tap('#again'); await page.waitForTimeout(200);
   await page.evaluate(() => { const w = window.__b3d.W; w.tomb = null; w.inv.ash = 0; w.player.x = 0; w.player.z = 4; w.player.inv = 1e9; w.enemies = w.enemies.filter(x => x.boss); });

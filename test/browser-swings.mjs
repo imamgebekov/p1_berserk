@@ -56,7 +56,7 @@ try {
     W.freeze = 999;
     W.ev.push({ k: 'hit', x: e1.x, z: e1.z, dmg: 23, crit: true, id: e1.id }, { k: 'hit', x: e2.x, z: e2.z, dmg: 31, fin: true, id: e2.id }, { k: 'hit', x: e2.x, z: e2.z, dmg: 4, fx: 'burn', id: e2.id });
     e2.hp = 0; e2.dead = true; e2.deadT = 0; W.ev.push({ k: 'die', x: e2.x, z: e2.z, type: e2.type, id: e2.id });
-    await new Promise(r => setTimeout(r, 160));
+    for (let t = 0; t < 1500 && !(b.renderer.fx.live().decals >= 2 && document.querySelector('#dmg .num.fin')); t += 50) await new Promise(r => setTimeout(r, 50));     // при низком FPS кадр с эффектами приходит позже
     const live = b.renderer.fx.live(), nums = [...document.querySelectorAll('#dmg .num')].map(d => d.className + ':' + d.textContent);
     return { live, nums };
   });
@@ -86,7 +86,7 @@ try {
     await new Promise(r => setTimeout(r, 1500));                 // камера доезжает до героя (подписи за кадром не рисуются)
     const { spawnEnemy } = await import('/3d/src/sim.js');
     const e = spawnEnemy(W, 'brute', p.x + 2, p.z + 6, 'guard'); e.look = e.face = Math.atan2(p.x - e.x, p.z - e.z); e.cd = 99;
-    await new Promise(r => setTimeout(r, 350));
+    for (let t = 0; t < 1500 && !document.querySelector('#dmg .num.alarm'); t += 50) await new Promise(r => setTimeout(r, 50));
     return { alert: e.alert, marks: [...document.querySelectorAll('#dmg .num.alarm')].length };
   });
   await page.screenshot({ path: join(out, '3d-spot.png'), clip: { x: 0, y: 100, width: 390, height: 460 } });

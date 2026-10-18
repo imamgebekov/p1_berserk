@@ -454,3 +454,4 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 #dialog .dtx{display:grid;gap:6px;min-width:0;flex:1}#dlgScene{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#a89878}#dlgWho{font:700 16px/1.2 Georgia,'Palatino Linotype',serif}#dlgLine{font-size:16px;line-height:1.45;color:#f0e6d4}
 #dlgOpts{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}#dlgOpts button{min-height:44px;padding:0 16px;border-radius:10px;background:#2a1b1a;border:2px solid #6a4a2a;color:#f0e6d4;font-weight:600}#dlgOpts button.main{background:#e8c04a;color:#1a1008;border-color:#e8c04a}
 #dlgOpts button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#dialog[hidden]{display:none}
