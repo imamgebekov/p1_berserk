@@ -327,6 +327,33 @@ try {
     if (/ASCII/.test(t2) || st2.on || Math.abs(st2.w - Math.floor(st2.iw / Math.round(st2.ps))) > 1) bad('ASCII не выключился: ' + JSON.stringify({ t2, ...st2 }));
     console.log('  ASCII: ' + JSON.stringify({ strokes: px.dark.toFixed(3), plain: st2.edges.toFixed(3), bar: px.red, dpr: st.dpr, w: st.w }));
     await ev(() => { window.__b3d.W.enemies.length = 0; }); }
+  // книга рецептов и камни силы (2026-10-18): R открывает книгу на «Рецептах»; «Сплавы» — 49 клеток, выбор показывает смесь;
+  // у кузнеца вкладка «Камни»: камень встаёт в гнездо двумя щелчками; G над материалом — карточка «где взять»; кнопка книги на HUD
+  { await ev(() => { const W = window.__b3d.W; W.inv.eq.weapon = 'w_sword_steel_storm'; delete W.inv.gem.weapon; W.inv.bag.push({ id: 'gem_water_1', n: 2 }); });
+    const hb = await ev(() => { const r = document.getElementById('bookBtn').getBoundingClientRect(), s = getComputedStyle(document.getElementById('bookBtn')); return { w: r.width, h: r.height, bg: s.backgroundColor }; });
+    if (hb.w < 44 || hb.h < 44 || /255, 255, 255/.test(hb.bg)) bad('кнопка книги на HUD мелкая или без стиля: ' + JSON.stringify(hb));
+    await page.keyboard.press('KeyR'); let open = false; for (let t = 0; t < 2000 && !open; t += 100) { await page.waitForTimeout(100); open = await shown('journal'); }
+    const tab = await ev(() => (document.querySelector('#journalTabs button.on') || {}).dataset.tab);
+    if (!open || tab !== 'recipes') bad(`R не открыл книгу на «Рецептах»: ${open} ${tab}`);
+    await page.click('#journalTabs button[data-tab="mixes"]'); await page.waitForTimeout(150);
+    const cells = await ev(() => document.querySelectorAll('#journalList .mixc').length); await page.locator('#journalList .mixc').nth(2).click(); await page.waitForTimeout(150);
+    const card = await ev(() => document.querySelector('#journalList .mixcard b').textContent);
+    if (cells !== 49 || card !== 'Пар') bad(`таблица сплавов: клеток ${cells}, выбрано «${card}»`);
+    await page.screenshot({ path: join(out, '3d-desk-book.png') });
+    await page.keyboard.press('KeyR'); await page.waitForTimeout(200); if (await shown('journal')) bad('R не закрыл книгу');
+    await ev(() => { const { W, smith } = window.__b3d; W.nearNpc = 'smith'; W.path.slain.devourer = true; smith.open(); });
+    await page.click('#smithTabs button[data-tab="gems"]'); await page.waitForTimeout(150);
+    await page.locator('#smithList .sock').first().click(); await page.waitForTimeout(100); await page.locator('#smithList .pickg').first().click(); await page.waitForTimeout(150);
+    const g = await ev(() => ({ gem: (window.__b3d.W.inv.gem.weapon || [])[0], mix: window.__b3d.W.wp.mix, line: document.querySelector('#smithList .gemrow .sub').textContent }));
+    if (g.gem !== 'gem_water_1' || !/Грозовой поток/.test(g.line)) bad('камень не встал в гнездо у кузнеца: ' + JSON.stringify(g));
+    await page.screenshot({ path: join(out, '3d-desk-smith-gems.png') });
+    await page.click('#smithTabs button[data-tab="craft"]'); await page.waitForTimeout(150);
+    const mid = await ev(() => (document.querySelector('#smithList .mat') || {}).dataset?.item);
+    if (mid) { await page.locator('#smithList .mat').first().hover(); await page.keyboard.press('KeyG'); await page.waitForTimeout(300);
+      const src = await ev(() => ({ open: !document.getElementById('journal').hidden, smith: !document.getElementById('smith').hidden, text: document.getElementById('journalList').innerText }));
+      if (!src.open || src.smith || !/С врагов|Контейнеры|Продаётся|Куётся|Источник/.test(src.text)) bad('G над материалом не открыл «где взять»: ' + JSON.stringify({ ...src, text: src.text.slice(0, 120) }));
+    } else bad('у кузнеца в «Ковке» нет кнопок материалов');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(150); await ev(() => { window.__b3d.W.nearNpc = null; }); }
   await ctx.close();
   // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
   { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);
@@ -440,7 +467,7 @@ try {
     await pf.evaluate(() => { const W = window.__b3d.W, b = W.map.buildings.find(q => q.npc && q.npc.kind === 'smith'); W.player.x = b.npc.x + 1; W.player.z = b.npc.z + 1; });
     await pf.waitForTimeout(700);
     { const k = await pf.evaluate(() => ({ near: window.__b3d.W.nearNpc, talk: !document.getElementById('talk').hidden, hint: [...document.querySelectorAll('.toast')].some(e => /Пожиратель/.test(e.textContent)), journal: !document.getElementById('bagJournal').hidden }));
-      if (k.near !== 'smith' || k.talk || !k.hint || k.journal) bad('закрытый кузнец: ' + JSON.stringify(k)); }
+      if (k.near !== 'smith' || k.talk || !k.hint || !k.journal) bad('закрытый кузнец (книга рецептов при этом открыта): ' + JSON.stringify(k)); }
     const until = async (re, what) => { await pf.waitForFunction(r => new RegExp(r).test(document.getElementById('tracker').textContent), re, { timeout: 4000 }).catch(async () => bad(what + ': ' + (await line()).t)); };
     await pf.evaluate(() => { const W = window.__b3d.W, b = W.map.buildings.find(q => q.npc && q.npc.kind === 'merchant'); W.player.x = b.npc.x + 1; W.player.z = b.npc.z + 1; });
     await until('прогоните', 'торговец не засчитан');

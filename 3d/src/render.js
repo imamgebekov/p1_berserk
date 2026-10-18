@@ -27,6 +27,7 @@ import { BY_ID, RARITY } from './data/items.js';
 import { trailOn, dampAngle } from './anim3d.js';
 import { createFx } from './fx3d.js';
 import { RATE, statusPart, emitCount, lightning, stunStar } from './vfx3d.js';
+import { ELEMENT_COLOR } from './elements3d.js';
 import { groundNoise, pathMix, segsNear, contactGrid, contactShade } from './ground3d.js';
 
 const FOG = '#150c0b';
@@ -465,11 +466,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3)); trailGeo.setAttribute('color', new THREE.BufferAttribute(trailCol, 3)); trailGeo.setIndex(trailIdx);
   const trail = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
   trail.frustumCulled = false; trail.visible = false; scene.add(trail);
-  const trailS = [], trailC = new THREE.Color(), PERK_TRAIL = { fire: FXCOL.fire, frost: FXCOL.frost, venom: FXCOL.venom, storm: FXCOL.storm, rend: FXCOL.bleed, siphon: FXCOL.bleed };
+  const trailS = [], trailC = new THREE.Color(), trailC2 = new THREE.Color(), trailMix = new THREE.Color(), PERK_TRAIL = { fire: FXCOL.fire, frost: FXCOL.frost, venom: FXCOL.venom, storm: FXCOL.storm, rend: FXCOL.bleed, siphon: FXCOL.bleed };
   function updateTrail(W, p, dt) {
     for (const s of trailS) s.age += dt;
     while (trailS.length && trailS[0].age > TRAIL_LIFE) trailS.shift();
-    const w = hero.weapon, P = cfg.player, sw = p.swingMul || W.gear.swing || 1;
+    const w = hero.weapon, P = cfg.player, sw = p.swingMul || W.gear.swing || 1, mx = W.wp.mix;
+    if (w && w.tip && mx && !calm && Math.random() < dt * 5) { const t = w.tip.getWorldPosition(new THREE.Vector3()), el = Math.random() < .5 || !mx.b ? mx.a : mx.b; fx.emit(t.x, t.y, t.z, (Math.random() - .5) * .3, .4 + Math.random() * .4, (Math.random() - .5) * .3, ELEMENT_COLOR[el], .5, -.2, .06, true); }     // оружие с камнями искрит цветом стихий
     if (w && p.state === 'atk' && hero.family !== 'bow' && trailOn(p.atkT / (P.attackTime * sw), P.attackHitAt / P.attackTime)) {
       hero.group.updateMatrixWorld(true);
       trailS.push({ a: w.base.getWorldPosition(new THREE.Vector3()), b: w.tip.getWorldPosition(new THREE.Vector3()), age: 0 });
@@ -477,11 +479,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     trail.visible = trailS.length > 1; if (!trail.visible) return;
     const perk = (W.wp.perks || []).find(k => PERK_TRAIL[k]), str = p.heavy ? .6 + .5 * p.heavy : p.fin ? .8 : .5;
-    trailC.set(perk ? PERK_TRAIL[perk] : '#fff1dc');
+    trailC.set(mx ? ELEMENT_COLOR[mx.a] : perk ? PERK_TRAIL[perk] : '#fff1dc'); trailC2.set(mx ? ELEMENT_COLOR[mx.b || mx.a] : trailC);     // сплав: след из двух цветов
     for (let i = 0; i < TRAIL_N; i++) {
-      const s = trailS[Math.min(i, trailS.length - 1)], f = Math.max(0, 1 - s.age / TRAIL_LIFE) * str * (i < trailS.length ? 1 : 0);
+      const s = trailS[Math.min(i, trailS.length - 1)], f = Math.max(0, 1 - s.age / TRAIL_LIFE) * str * (i < trailS.length ? 1 : 0), c = trailMix.copy(trailC).lerp(trailC2, i / TRAIL_N);
       trailPos.set([s.a.x, s.a.y, s.a.z, s.b.x, s.b.y, s.b.z], i * 6);
-      trailCol.set([0, 0, 0, trailC.r * f, trailC.g * f, trailC.b * f], i * 6);     // у основания гаснет: виден только край размаха
+      trailCol.set([0, 0, 0, c.r * f, c.g * f, c.b * f], i * 6);     // у основания гаснет: виден только край размаха
     }
     trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.color.needsUpdate = true;
   }
@@ -529,7 +531,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
 
   // статусы (V1): частицы горения, инея, яда, крови; звёзды оглушения; ледяные шипы у ног замороженного
-  const SKINDS = ['burn', 'freeze', 'poison', 'bleed'];
+  const SKINDS = ['burn', 'freeze', 'poison', 'bleed', 'wet', 'shock', 'crack'];
   function statusFx(holder, st, x, y, z, h, sc, dt) {
     holder.acc = holder.acc || {};
     for (const k of SKINDS) {
@@ -651,6 +653,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const projMeshes = [], hazMeshes = [];
   // капканы и круги града стрел (умения Сойки)
   const trapMeshes = [0, 1, 2, 3].map(() => { const g = new THREE.Group(), mt = new THREE.MeshLambertMaterial({ color: '#6a6458' }); for (const s of [-1, 1]) { const j = new THREE.Mesh(new THREE.BoxGeometry(.9, .12, .12), mt); j.position.set(0, .08, s * .22); g.add(j); for (let k = -2; k <= 2; k++) { const t = new THREE.Mesh(new THREE.BoxGeometry(.06, .14, .06), mt); t.position.set(k * .18, .16, s * .16); g.add(t); } } g.add(new THREE.Mesh(new THREE.BoxGeometry(.3, .05, .3), new THREE.MeshLambertMaterial({ color: '#3a2a1a' }))); g.visible = false; scene.add(g); return g; });
+  // области реакций стихий: диск цвета смеси и частицы (пар, лава, гололёд, трясина, отравленный источник)
+  const EZ = { steam: ['#e8eef2', '#ffffff', 2.2], lava: ['#e2683a', '#ffb040', 1.4], glaze: ['#bfe8ff', '#e8f8ff', .3], bog: ['#5a4a2e', '#8a7a4e', .2], spring: ['#5a9a40', '#a8f070', .8] };
+  const ezMeshes = [0, 1, 2, 3, 4, 5].map(() => { const m = new THREE.Mesh(new THREE.CircleGeometry(1, 36), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: .3, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(ovl(m)); return m; });
   const zoneMeshes = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(.92, 1, 40), new THREE.MeshBasicMaterial({ color: '#eef4ff', transparent: true, opacity: .55, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(ovl(m)); return m; });
   for (let i = 0; i < 24; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.14, .14, .9), new THREE.MeshBasicMaterial({ color: '#ffd27a' })); m.visible = false; m.userData.k = 'foe'; scene.add(m); projMeshes.push(m); }
   for (let i = 0; i < 6; i++) {
@@ -661,6 +666,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   function updateFoes(W, t) {
     trapMeshes.forEach((g, i) => { const tp = W.traps[i]; g.visible = !!tp; if (tp) g.position.set(tp.x, Y(tp.x, tp.z), tp.z); });
+    ezMeshes.forEach((m, i) => { const zn = W.ezones && W.ezones[i]; m.visible = !!zn; if (!zn) return; const c = EZ[zn.kind] || EZ.steam; m.material.color.set(c[0]); m.material.opacity = (zn.kind === 'steam' ? .22 : .38) * Math.min(1, zn.t * 2); m.position.set(zn.x, .05 + Y(zn.x, zn.z), zn.z); m.scale.setScalar(zn.r);
+      if (Math.random() < .6) { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * zn.r, px = zn.x + Math.cos(a) * r, pz = zn.z + Math.sin(a) * r; fx.emit(px, .2 + Y(px, pz), pz, 0, c[2], 0, c[1], zn.kind === 'steam' ? 1.2 : .7, zn.kind === 'steam' ? -.4 : 1, zn.kind === 'steam' ? .35 : .09, zn.kind === 'lava'); } });
     zoneMeshes.forEach((m, i) => { const zn = W.zones[i]; m.visible = !!zn; if (zn) { m.position.set(zn.x, .06 + Y(zn.x, zn.z), zn.z); m.scale.setScalar(zn.r); if (Math.random() < .5) burst(zn.x + (Math.random() - .5) * zn.r * 1.6, 3.5, zn.z + (Math.random() - .5) * zn.r * 1.6, 1, '#eef4ff', 1); } });
     projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { const k = q.friendly ? q.kind : 'foe'; if (m.userData.k !== k) { m.userData.k = k; m.material.color.set(k === 'foe' ? '#ffd27a' : k === 'bolt' ? '#b8c4d8' : k === 'venom' ? '#7ad060' : '#eef4ff'); m.scale.set(k === 'bolt' ? 1.4 : 1, k === 'bolt' ? 1.4 : 1, k === 'bolt' ? .8 : 1); } m.position.set(q.x, 1.1 + Y(q.x, q.z), q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });     // свои стрелы светлые, болт толще
     hazMeshes.forEach((h, i) => {
@@ -857,7 +864,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'dot') { hooks.onText && hooks.onText(v.x, 2.2, v.z, String(v.dmg), 'dot-' + v.fx); }
       else if (v.k === 'react' && v.name === 'Раскол') { fx.flash(v.x, 1.2, v.z, 2.4, '#e8f8ff'); for (let i = 0; i < 26; i++) { const a = Math.random() * 6.283, sp = 3 + Math.random() * 4; fx.emit(v.x, 1 + Math.random() * .6, v.z, Math.cos(a) * sp, 2 + Math.random() * 3, Math.sin(a) * sp, ['#e8f8ff', '#bfe8ff', '#9fdcff'][i % 3], .6 + Math.random() * .4, 14, .1 + Math.random() * .12, false); } hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .35); }
       else if (v.k === 'react' && v.name === 'Токсичный взрыв') { ringFx(v.x, v.z, 3.4, '#7ad060'); for (let i = 0; i < 34; i++) { const a = Math.random() * 6.283, sp = .8 + Math.random() * 2.2; fx.emit(v.x, .4 + Math.random() * .8, v.z, Math.cos(a) * sp, .3 + Math.random() * .6, Math.sin(a) * sp, ['#7ad060', '#4a9a3a', '#a8f070'][i % 3], 1 + Math.random() * .6, -.3, .2 + Math.random() * .18, false); } hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }
-      else if (v.k === 'react') { burst(v.x, 1.2, v.z, 16, '#bfe8ff', 5); hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }
+      else if (v.k === 'react') { const cs = v.key ? v.key.split('+').map(k => ELEMENT_COLOR[k]) : ['#bfe8ff', '#bfe8ff']; if (v.r) ringFx(v.x, v.z, v.r, cs[0]); burst(v.x, 1.2, v.z, 10, cs[0], 5); burst(v.x, 1.2, v.z, 10, cs[1], 5); hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }     // цвета двух стихий смеси
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }

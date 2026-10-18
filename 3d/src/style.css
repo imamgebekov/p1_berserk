@@ -7,13 +7,14 @@ html,body{margin:0;height:100%;position:fixed;inset:0;width:100%;background:var(
 #gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #gl.retro{image-rendering:pixelated;image-rendering:crisp-edges}
 #hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top) + 10px) var(--pad) 0;pointer-events:none}
-#hud #bagBtn,#hud #skillBtn{pointer-events:auto}
+#hud #bagBtn,#hud #skillBtn,#hud #bookBtn{pointer-events:auto}
 #hpWrap{display:flex;align-items:center;gap:8px;flex:1;max-width:220px}
 #hpBar{flex:1;height:14px;background:#1a0d0e;border:2px solid #000;box-shadow:0 0 0 1px var(--line)}
 #hpFill{display:block;height:100%;width:100%;background:linear-gradient(#d4202c,#7a0e16);transform-origin:left}
 #hpTxt{font-weight:700;min-width:2.2em;text-shadow:0 1px 0 #000}
 #kills{flex:1;text-align:center;font-size:12px;line-height:1.2;text-shadow:0 1px 0 #000;opacity:.85}
-#skillBtn,#bagBtn,#gear{pointer-events:auto;width:44px;height:44px;border:2px solid var(--line);background:#150c0d;color:var(--ink);font-size:22px;border-radius:10px}
+#bookBtn{display:none}[data-desk] #bookBtn{display:inline-block}     /* на телефоне книга — из сумки: в шапке нет места */
+#skillBtn,#bookBtn,#bagBtn,#gear{pointer-events:auto;width:44px;height:44px;border:2px solid var(--line);background:#150c0d;color:var(--ink);font-size:22px;border-radius:10px}
 #zone{position:fixed;left:0;top:64px;width:100%;bottom:0;touch-action:none}
 #stick{position:fixed;width:112px;height:112px;margin:-56px 0 0 -56px;border:2px solid #5a3a34;border-radius:50%;background:rgba(10,5,6,.35);opacity:0;pointer-events:none;transition:opacity .12s}
 #stick.on{opacity:1}
@@ -101,6 +102,8 @@ button{font:inherit;color:var(--ink)}
 .srow.tier1,.srow.tier2,.srow.tier3{background:#1d1418;box-shadow:inset 3px 0 0 var(--tc)}.srow.tier3{box-shadow:inset 3px 0 0 var(--tc),0 0 12px -2px var(--tc);animation:tierGlow 2.4s ease-in-out infinite}
 @keyframes tierGlow{50%{box-shadow:inset 3px 0 0 var(--tc),0 0 18px 0 var(--tc)}}
 @media (prefers-reduced-motion:reduce){.srow.tier3{animation:none}}
+#bagTip .gems,#bagCard .gems,.gems{font-size:12px;color:#e8c07a;margin:3px 0}
+.socks{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.sock{min-height:44px;padding:0 12px;border-radius:10px;border:2px dashed var(--line);background:#1b1211;font-size:12.5px}.sock.full,.sock.pickg{border-style:solid;border-color:var(--gc);box-shadow:inset 3px 0 0 var(--gc)}.sock.pickg{display:block;width:100%;margin:4px 0;text-align:left}.gemrow{align-items:flex-start}
 .srow .buy{flex:none;min-height:44px;min-width:92px;padding:0 10px;background:#2a1b1a;border:2px solid var(--line);border-radius:10px;font-size:13px;font-weight:600}.srow .buy.no{opacity:.4}
 .junk{min-height:44px;margin:0 0 6px;background:#2a1b1a;border:2px solid var(--line);border-radius:10px;font-size:12.5px;padding:0 10px}
 #shopFlash{min-height:0;font-size:12.5px;color:#ff9a8a;margin-bottom:4px}
@@ -154,6 +157,10 @@ body:has(#boss:not([hidden])) #place{display:none}
 .jbtn{min-height:44px;min-width:48px;margin-left:auto;margin-right:8px;font-size:20px;background:#241514;border:2px solid var(--line);border-radius:10px;color:var(--ink)}
 .bhead .main{flex:none}
 #journalTabs{display:flex;gap:6px;margin:8px 0;overflow-x:auto;flex:none}
+.mats .mat{min-height:44px;min-width:44px;padding:2px 8px;border-radius:8px;border:1px solid currentColor;background:transparent;font-size:12px;color:inherit}.mats .mat.have{color:#a8e0a0}.mats .mat.lack{color:#ff9a8a}.sub .mat{min-height:44px;min-width:44px;padding:2px 8px;border-radius:8px;border:1px solid currentColor;background:transparent;font-size:12px;margin:2px 4px 2px 0}.sub .mat.have{color:#a8e0a0}.sub .mat.lack{color:#d8c8a8}
+.jrow.ready{box-shadow:inset 3px 0 0 #8fd07a}.jrow.mixcard{box-shadow:inset 4px 0 0 var(--ca),inset 8px 0 0 var(--cb)}.mixwrap{overflow-x:auto;flex:none;padding-bottom:4px}
+.mixt{border-collapse:separate;border-spacing:3px}.mixt th{font-size:11px;font-weight:600;padding:2px 4px;white-space:nowrap}.mixt td{padding:0}
+.mixc{width:76px;min-height:44px;padding:2px;overflow-wrap:anywhere;hyphens:auto;border-radius:8px;border:2px solid transparent;background:linear-gradient(135deg,var(--ca) 0 50%,var(--cb) 50% 100%);color:#140e0a;font-size:10px;font-weight:700;line-height:1.1;text-shadow:0 0 3px rgba(255,248,236,.9)}.mixc.on{border-color:#fff2d0;outline:2px solid #140e0a;outline-offset:-4px}
 #journalList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:5px;min-height:90px;padding-bottom:6px}
 .jrow{padding:8px 10px;background:#1b1211;border:2px solid var(--line);border-radius:8px;flex:none;font-size:13px;line-height:1.35;text-align:left}
 .jrow.dim{opacity:.45}.jrow b{font-size:14px}.jrow .sub{opacity:.65;font-size:12px;margin-top:2px}.jrow .k{color:#e8c04a}.jrow .z{color:#ff9a8a}.jrow .g{color:#a8e0a0}
@@ -381,8 +388,8 @@ html:not([data-desk]) #bagCard:not([hidden]){position:absolute;left:8px;right:8p
 .ic{width:1.15em;height:1.15em;flex:none;fill:currentColor;vertical-align:-.2em;display:inline-block}
 button .ic+*,button .ic{pointer-events:none}
 button > .ic,.toast > .ic,#kills .ic{margin-right:.4em}
-#skillBtn .ic,#bagBtn .ic,#gear .ic{width:24px;height:24px;margin:0}
-#bagBtn,#skillBtn,#gear{color:#e8d2a8}
+#skillBtn .ic,#bookBtn .ic,#bagBtn .ic,#gear .ic{width:24px;height:24px;margin:0}
+#bagBtn,#skillBtn,#bookBtn,#gear{color:#e8d2a8}
 .jbtn .ic{width:22px;height:22px;margin:0}
 .toast{display:flex;align-items:center}
 .toast > .ic{width:18px;height:18px}

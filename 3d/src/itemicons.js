@@ -112,7 +112,7 @@ const CAT = { ring: '#d8b860', amulet: '#c8a050', food: '#c89050', potion: '#d0d
 const POTION = { p_heal1: '#d03838', p_heal2: '#e04848', p_heal3: '#ff5a5a', p_fairy_elixir: '#ff8ad8', p_fairy_dust: '#ffe070', p_fairy_might: '#b070ff', u_recall: '#9a70e0' };
 const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), f = c => Math.max(0, Math.min(255, Math.round(c * k))); return '#' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(f).map(x => x.toString(16).padStart(2, '0')).join(''); };
 export function paletteOf(it) {
-  const rar = RARITY[(it && it.rar) || 0].color, base = (it && (MAT[it.mat] || CAT[it.pool] || CAT[it.cat])) || '#a8a090';
+  const rar = RARITY[(it && it.rar) || 0].color, base = (it && (it.tint || MAT[it.mat] || CAT[it.pool] || CAT[it.cat])) || '#a8a090';     // камни силы — цвет стихии
   const r = it && it.cat === 'consumable' && (it.pool === 'potion' || it.pool === 'fairy') ? (POTION[it.id] || (/mana|ash/.test(it.id) ? '#4a8ad8' : '#7ad060')) : rar;
   return { b: '#140c0a', a: base, d: shade(base, 1.35), e: shade(base, .62), c: '#6a4a2a', r, w: '#e8e0d0' };
 }

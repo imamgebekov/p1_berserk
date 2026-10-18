@@ -5,12 +5,20 @@ import { canWield, canOff } from './data/heroes3d.js';
 
 export const UP_MAX = 5;
 // up — уровень улучшения (+N) у надетых вещей по слотам; в сумке — поле up у записи
-export const createInv = () => ({ bag: [], eq: Object.fromEntries(SLOTS.map(s => [s, null])), up: {}, ash: 0 });
+export const createInv = () => ({ bag: [], eq: Object.fromEntries(SLOTS.map(s => [s, null])), up: {}, gem: {}, ash: 0 });
+// камни в гнёздах (2026-10-18): у записи сумки — поле g (массив id камней или null по гнёздам), у надетого — inv.gem[слот].
+// Вещь с заточкой или камнями — отдельная запись: не складывается и не идёт в материалы. Камни едут с вещью везде.
+export const hasGems = g => Array.isArray(g) && g.some(Boolean);
+export const isPlain = s => !s.up && !hasGems(s.g);
+const entryOf = (id, up, g) => { const e = { id, n: 1 }; if (up) e.up = up; if (hasGems(g)) e.g = g.slice(); return e; };
+export const socketsOf = (it, cfg) => (it && it.slot === 'weapon' && cfg && cfg.stones ? cfg.stones.sockets[it.rar] || 0 : 0);
+// камни из сохранения: только настоящие камни, не больше гнёзд
+export const cleanGems = (g, n) => { if (!Array.isArray(g) || !n) return null; const o = []; for (let i = 0; i < n; i++) { const x = g[i]; o.push(typeof x === 'string' && BY_ID[x] && BY_ID[x].cat === 'gem' ? x : null); } return hasGems(o) ? o : null; };
 
 // положить n штук; возвращает, сколько НЕ влезло
 export function addItem(inv, id, n, maxSlots) {
   const it = BY_ID[id]; if (!it) return n;
-  for (const s of inv.bag) { if (n <= 0) break; if (s.id === id && !s.up && s.n < it.stack) { const t = Math.min(n, it.stack - s.n); s.n += t; n -= t; } }
+  for (const s of inv.bag) { if (n <= 0) break; if (s.id === id && isPlain(s) && s.n < it.stack) { const t = Math.min(n, it.stack - s.n); s.n += t; n -= t; } }
   while (n > 0 && inv.bag.length < maxSlots) { const t = Math.min(n, it.stack); inv.bag.push({ id, n: t }); n -= t; }
   return n;
 }
@@ -25,27 +33,30 @@ export const countOf = (inv, id) => inv.bag.reduce((c, s) => c + (s.id === id ? 
 export function equipAt(inv, idx, hero) {
   const s = inv.bag[idx], it = s && BY_ID[s.id]; if (!it || !it.slot) return false;
   if (hero && !canWield(hero, it)) return false;
-  const prev = inv.eq[it.slot], prevUp = inv.up[it.slot] || 0;
+  const prev = inv.eq[it.slot], prevUp = inv.up[it.slot] || 0, prevG = inv.gem[it.slot];
   removeAt(inv, idx, 1);
   inv.eq[it.slot] = it.id; if (s.up) inv.up[it.slot] = s.up; else delete inv.up[it.slot];
-  if (prev) { const e = { id: prev, n: 1 }; if (prevUp) e.up = prevUp; inv.bag.splice(Math.min(idx, inv.bag.length), 0, e); }     // старая вещь встаёт на место новой
+  if (hasGems(s.g)) inv.gem[it.slot] = s.g.slice(); else delete inv.gem[it.slot];
+  if (prev) inv.bag.splice(Math.min(idx, inv.bag.length), 0, entryOf(prev, prevUp, prevG));     // старая вещь встаёт на место новой
   return true;
 }
 // во вторую руку: щит или (у дуэлянта) второй клинок
 export function equipOff(inv, idx, hero) {
   const s = inv.bag[idx], it = s && BY_ID[s.id]; if (!it || !canOff(hero, it)) return false;
-  const prev = inv.eq.offhand, prevUp = inv.up.offhand || 0;
+  const prev = inv.eq.offhand, prevUp = inv.up.offhand || 0, prevG = inv.gem.offhand;
   removeAt(inv, idx, 1);
   inv.eq.offhand = it.id; if (s.up) inv.up.offhand = s.up; else delete inv.up.offhand;
-  if (prev) { const e = { id: prev, n: 1 }; if (prevUp) e.up = prevUp; inv.bag.splice(Math.min(idx, inv.bag.length), 0, e); }
+  if (hasGems(s.g)) inv.gem.offhand = s.g.slice(); else delete inv.gem.offhand;
+  if (prev) inv.bag.splice(Math.min(idx, inv.bag.length), 0, entryOf(prev, prevUp, prevG));
   return true;
 }
 export function unequip(inv, slot, maxSlots) {
   const id = inv.eq[slot]; if (!id) return false;
   if (inv.bag.length >= maxSlots) return false;
-  const e = { id, n: 1 }; if (inv.up[slot]) e.up = inv.up[slot];
-  inv.eq[slot] = null; delete inv.up[slot]; inv.bag.push(e); return true;
+  inv.bag.push(entryOf(id, inv.up[slot], inv.gem[slot]));
+  inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; return true;
 }
+export { entryOf };
 export const nameOf = (id, up) => (up ? `+${up} ` : '') + BY_ID[id].name;
 
 // ---- сеты ----
@@ -102,15 +113,15 @@ export function betterThanWorn(inv, it) {
 }
 
 // сохранение: только проверенные id; чужое и неизвестное отбрасываем
-export function serialize(inv) { return { bag: inv.bag.map(s => (s.up ? { id: s.id, n: s.n, up: s.up } : { id: s.id, n: s.n })), eq: { ...inv.eq }, up: { ...inv.up }, ash: inv.ash }; }
+export function serialize(inv) { return { bag: inv.bag.map(s => { const o = { id: s.id, n: s.n }; if (s.up) o.up = s.up; if (hasGems(s.g)) o.g = s.g.slice(); return o; }), eq: { ...inv.eq }, up: { ...inv.up }, gem: JSON.parse(JSON.stringify(inv.gem || {})), ash: inv.ash }; }
 // hero — чьё сохранение: чужое оружие в руке уходит в сумку (даже сверх размера — вещи не пропадают)
-export function deserialize(data, maxSlots, hero) {
+export function deserialize(data, maxSlots, hero, cfg) {
   const inv = createInv();
   if (!data || typeof data !== 'object') return inv;
-  for (const s of Array.isArray(data.bag) ? data.bag : []) if (s && BY_ID[s.id] && Number.isFinite(s.n) && s.n > 0) { const n = Math.min(Math.floor(s.n), BY_ID[s.id].stack); if (BY_ID[s.id].slot && Number.isFinite(s.up) && s.up > 0) { if (inv.bag.length < maxSlots) inv.bag.push({ id: s.id, n: 1, up: Math.min(UP_MAX, Math.floor(s.up)) }); } else addItem(inv, s.id, n, maxSlots); }
-  for (const slot of SLOTS) { const id = data.eq && data.eq[slot]; if (id && BY_ID[id] && (BY_ID[id].slot === slot || (slot === 'offhand' && BY_ID[id].slot === 'weapon'))) { inv.eq[slot] = id; const u = data.up && data.up[slot]; if (Number.isFinite(u) && u > 0) inv.up[slot] = Math.min(UP_MAX, Math.floor(u)); } }
+  for (const s of Array.isArray(data.bag) ? data.bag : []) if (s && BY_ID[s.id] && Number.isFinite(s.n) && s.n > 0) { const n = Math.min(Math.floor(s.n), BY_ID[s.id].stack), up = BY_ID[s.id].slot && Number.isFinite(s.up) && s.up > 0 ? Math.min(UP_MAX, Math.floor(s.up)) : 0, g = cleanGems(s.g, socketsOf(BY_ID[s.id], cfg)); if (up || g) { if (inv.bag.length < maxSlots) inv.bag.push(entryOf(s.id, up, g)); } else addItem(inv, s.id, n, maxSlots); }
+  for (const slot of SLOTS) { const id = data.eq && data.eq[slot]; if (id && BY_ID[id] && (BY_ID[id].slot === slot || (slot === 'offhand' && BY_ID[id].slot === 'weapon'))) { inv.eq[slot] = id; const u = data.up && data.up[slot]; if (Number.isFinite(u) && u > 0) inv.up[slot] = Math.min(UP_MAX, Math.floor(u)); const g = cleanGems(data.gem && data.gem[slot], socketsOf(BY_ID[id], cfg)); if (g) inv.gem[slot] = g; } }
   inv.ash = Number.isFinite(data.ash) && data.ash > 0 ? Math.floor(data.ash) : 0;
-  const back = slot => { const e = { id: inv.eq[slot], n: 1 }; if (inv.up[slot]) e.up = inv.up[slot]; inv.bag.unshift(e); delete inv.eq[slot]; delete inv.up[slot]; };
+  const back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot])); delete inv.eq[slot]; delete inv.up[slot]; delete inv.gem[slot]; };
   if (hero && inv.eq.weapon && !canWield(hero, BY_ID[inv.eq.weapon])) back('weapon');
   if (inv.eq.offhand && (BY_ID[inv.eq.offhand].slot === 'weapon' ? !hero || !canOff(hero, BY_ID[inv.eq.offhand]) : hero && !canOff(hero, BY_ID[inv.eq.offhand]))) back('offhand');     // клинок во второй руке — только у своего героя
   return inv;

@@ -215,6 +215,12 @@ add({ id: 'm_ash_alloy', name: 'Пепельный сплав', cat: 'material',
 add({ id: 'm_tempered_sinew', name: 'Жила упыря', cat: 'material', pool: 'monstermat', rar: 2, stack: 20, value: 26, text: 'Крепкая закалённая жила: нужна для закалки оружия.' });
 add({ id: 'm_beast_hide', name: 'Звериная шкура', cat: 'material', pool: 'monstermat', rar: 1, stack: 20, value: 12, text: 'Шкура гончей. Нужна для кожи и чёрной брони.' });
 
+// ---------- камни силы (2026-10-18): 7 стихий × 3 ранга; вставляются в оружие у кузнеца ----------
+const GEM_GEN = { fire: 'огня', ice: 'льда', water: 'воды', storm: 'молнии', venom: 'яда', blood: 'крови', earth: 'земли' };
+const GEM_TINT = { fire: '#e2683a', ice: '#8fd0ec', water: '#3f8fd0', storm: '#e9d24a', venom: '#7cc35a', blood: '#c43a4a', earth: '#b08a5c' };
+for (const el of Object.keys(GEM_GEN)) for (const rank of [1, 2, 3]) add({ id: `gem_${el}_${rank}`, name: `${['Осколок', 'Камень', 'Сердце'][rank - 1]} ${GEM_GEN[el]}`, cat: 'gem', pool: 'gem', rar: rank + 1, stack: 20, value: [18, 60, 200][rank - 1], gem: el, rank, tint: GEM_TINT[el],
+  text: `Камень силы. У кузнеца вставляется в оружие с гнездом и даёт удару стихию; две стихии сплавляются. ${rank < 3 ? 'Три одинаковых кузнец сплавит в ранг выше.' : 'Высший ранг.'}` });
+
 // ---------- книги знаний ----------
 for (const t of TOMES) add({ id: 'tome_' + t.id, name: t.name, cat: 'tome', pool: /^(set|blades)_/.test(t.id) ? 'bosstome' : 'tome', rar: t.rar, stack: 1, value: t.value, tome: t.id, text: t.text });
 

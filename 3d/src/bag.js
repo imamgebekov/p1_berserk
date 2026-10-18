@@ -6,6 +6,9 @@ import { iconURL, slotIconURL } from './itemicons.js';
 import { PERKS } from './data/weapons3d.js';
 import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots } from './sim.js';
 import { readTome } from './craft3d.js';
+import { socketsOf } from './inv.js';
+import { weaponMix } from './stones3d.js';
+import { MIX_NAME, ELEMENT_NAME, mixKey } from './elements3d.js';
 
 const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
 const tabOf = it => it.slot === 'weapon' ? 'weapon' : it.slot ? 'armor' : it.cat === 'consumable' ? 'use' : 'other';
@@ -41,9 +44,17 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
   const FIG = '<svg viewBox="0 0 60 120" aria-hidden="true"><g fill="currentColor"><circle cx="30" cy="16" r="10"/><path d="M16 30h28l5 36h-9l-2 50h-8l-1-34h-2l-1 34h-8l-2-50h-9z"/><path d="M14 31l-8 32 6 2 9-26zM46 31l8 32-6 2-9-26z"/></g></svg>';
   // подсказка при наведении (компьютер): название, редкость, статы со сравнением с надетым
   const tipEl = $('bagTip');
-  function tip(e, it, up, worn) {
+  // гнёзда и сплав камней силы: «Гнёзда 1/2: Камень огня · Сплав: Лава»
+  function gemLine(it, g) {
+    const n = socketsOf(it, cfg); if (!n) return null;
+    const list = Array.from({ length: n }, (_, i) => (g && g[i] ? BY_ID[g[i]].name : 'пусто')), m = weaponMix(it, g);
+    const mix = !m ? '' : m.b ? ` · сплав «${MIX_NAME[mixKey(m.a, m.b)]}»` : ` · стихия: ${ELEMENT_NAME[m.a].toLowerCase()}`;
+    return el('div', 'gems', `Гнёзда ${(g || []).filter(Boolean).length}/${n}: ${list.join(', ')}${mix}`);
+  }
+  function tip(e, it, up, worn, g) {
     tipEl.textContent = ''; tipEl.className = 'r' + it.rar;
     tipEl.append(nm(it, 1, up), el('div', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : '')));
+    { const gl = gemLine(it, g); if (gl) tipEl.appendChild(gl); }
     if (it.stats) for (const r of statDiff(it, worn, up, worn ? W.inv.up[it.slot] || 0 : 0, cfg.smith.bonus)) {
       if (!worn && !(r.k in it.stats)) continue;
       const row = el('div', 'str' + (r.d > 0 ? ' up' : r.d < 0 ? ' down' : '')); row.append(el('span', 'sk', r.name), el('span', 'sv', worn ? `${fmt(r.k, r.a)} → ${fmt(r.k, r.b)}` : fmt(r.k, r.b)), el('span', 'sd', r.d > 0 ? '▲' : r.d < 0 ? '▼' : '')); tipEl.appendChild(row);
@@ -57,7 +68,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
   // надеть или использовать сразу (двойной щелчок, долгое касание)
   function quick(i) { const s = W.inv.bag[i], it = s && BY_ID[s.id]; if (!it) return; if (it.slot && canWield(W.hero, it)) { if (equipAt(W.inv, i, W.hero)) sel = null; } else if (it.use) { if (!useItem(W, i)) flash('Сейчас не нужно'); } hideTip(); render(); onChange && onChange(); }
   function hoverable(b, get) {
-    b.addEventListener('mouseenter', e => { const g = get(); if (g) tip(e, g.it, g.up, g.worn); });
+    b.addEventListener('mouseenter', e => { const g = get(); if (g) tip(e, g.it, g.up, g.worn, g.g); });
     b.addEventListener('mousemove', e => { if (!tipEl.hidden) moveTip(e); });
     b.addEventListener('mouseleave', hideTip);
   }
@@ -72,6 +83,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     t.append(nm(it, n, up), el('div', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : ''))); h.append(t);
     { const x = el('button', 'cclose', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть'); x.addEventListener('click', () => { sel = null; render(); }); h.append(x); }
     cardEl.appendChild(h);
+    { const gl = gemLine(it, sel.from === 'eq' ? W.inv.gem[sel.slot] : W.inv.bag[sel.i].g); if (gl) cardEl.appendChild(gl); }
     // характеристики: у вещи из сумки — рядом с надетым (было → стало), стрелка — лучше или хуже
     const worn = it.slot && sel.from === 'bag' && W.inv.eq[it.slot] ? BY_ID[W.inv.eq[it.slot]] : null;
     if (it.stats) {
@@ -131,11 +143,11 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     for (const slot of SLOTS) {
       const id = W.inv.eq[slot], it = id && BY_ID[id], up = W.inv.up[slot] || 0;
       const b = el('button', 'slot' + (it ? ' r' + it.rar : ' none') + (sel && sel.from === 'eq' && sel.slot === slot ? ' sel' : '')); b.type = 'button'; b.style.gridArea = slot;
-      if (it) b.append(icon(it)); else { const i = el('img', 'ic ghost'); i.alt = ''; i.src = slotIconURL(doc, slot); b.append(i); }
+      if (it) { b.append(icon(it)); b.dataset.item = it.id; } else { const i = el('img', 'ic ghost'); i.alt = ''; i.src = slotIconURL(doc, slot); b.append(i); }
       if (it && up) b.append(el('span', 'upg', '+' + up));
       b.append(el('span', 'sl', SLOT_NAME[slot]));
       b.setAttribute('aria-label', it ? SLOT_NAME[slot] + ': ' + nameOf(it.id, up) : SLOT_NAME[slot] + ': пусто');
-      if (it) hoverable(b, () => ({ it, up, worn: null }));
+      if (it) hoverable(b, () => ({ it, up, worn: null, g: W.inv.gem[slot] }));
       b.addEventListener('click', () => { if (it) { sel = { from: 'eq', slot }; render(); } });
       eqEl.appendChild(b);
     }
@@ -150,9 +162,10 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       if (r.s.up) b.append(el('span', 'upg', '+' + r.s.up));
       const mine = canWield(W.hero, r.it);
       if (!mine) { b.classList.add('nw'); b.append(el('span', 'bt no', '✕')); } else if (betterThanWorn(W.inv, r.it)) b.append(el('span', 'bt', '▲'));
+      b.dataset.item = r.it.id;     // G — где взять
       b.title = nameOf(r.it.id, r.s.up || 0) + (r.s.n > 1 ? ' ×' + r.s.n : '') + (r.it.stats ? ' — ' + statLine(r.it) : '') + (mine ? '' : ' — ' + NOT_FOR[W.hero]);
       b.setAttribute('aria-label', b.title);
-      if (desk) { b.removeAttribute('title'); hoverable(b, () => ({ it: r.it, up: r.s.up || 0, worn: r.it.slot && W.inv.eq[r.it.slot] ? BY_ID[W.inv.eq[r.it.slot]] : null })); }
+      if (desk) { b.removeAttribute('title'); hoverable(b, () => ({ it: r.it, up: r.s.up || 0, g: r.s.g, worn: r.it.slot && W.inv.eq[r.it.slot] ? BY_ID[W.inv.eq[r.it.slot]] : null })); }
       b.addEventListener('click', () => { sel = { from: 'bag', i: r.i }; render(); });
       b.addEventListener('dblclick', () => quick(r.i));
       { let lp = 0; b.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; lp = setTimeout(() => { lp = 0; quick(r.i); }, 450); });     // долгое касание — надеть или использовать

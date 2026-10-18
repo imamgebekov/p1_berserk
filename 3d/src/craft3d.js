@@ -3,15 +3,15 @@ import { BY_ID } from './data/items.js';
 import { RECIPES, RECIPE_BY_ID } from './data/recipes3d.js';
 import { TOMES, TOME_BY_ID } from './data/tomes3d.js';
 import { CONTAINERS, DROPS, SHOP, SHOP_STAPLES, BOSS_DROPS, BOSS_LOOT } from './data/loot.js';
-import { addItem, removeAt, countOf } from './inv.js';
+import { addItem, removeAt, countOf, isPlain } from './inv.js';
 
 export const newKnown = () => ({ tomes: {}, bestiary: {}, places: {}, kinds: {}, items: {} });
 export const recipeKnown = (K, r) => !r.needs || !!K.tomes[r.needs];
 
 // количество вещи в сумке; улучшенное оружие и броня в материалы не идут
-const plainCount = (inv, id) => (BY_ID[id].slot ? inv.bag.reduce((c, s) => c + (s.id === id && !s.up ? s.n : 0), 0) : countOf(inv, id));
+const plainCount = (inv, id) => (BY_ID[id].slot ? inv.bag.reduce((c, s) => c + (s.id === id && isPlain(s) ? s.n : 0), 0) : countOf(inv, id));
 function take(inv, id, n) {
-  for (let i = inv.bag.length - 1; i >= 0 && n > 0; i--) { const s = inv.bag[i]; if (s.id !== id || (BY_ID[id].slot && s.up)) continue; const t = Math.min(n, s.n); removeAt(inv, i, t); n -= t; }
+  for (let i = inv.bag.length - 1; i >= 0 && n > 0; i--) { const s = inv.bag[i]; if (s.id !== id || (BY_ID[id].slot && !isPlain(s))) continue; const t = Math.min(n, s.n); removeAt(inv, i, t); n -= t; }
 }
 
 // 'ok' | 'tome' (нет книги) | 'far' (не у кузнеца) | 'mats' | 'ash'

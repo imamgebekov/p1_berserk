@@ -272,8 +272,19 @@ const captain = createCaptain(document, W, cfg, {
 const smith = createSmith(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); },
   onClose: () => { panelOpen = false; saver.write(); },
-  onChange: () => { saver.write(); bag.render(); }
+  onChange: () => { saver.write(); bag.render(); },
+  onSource: id => { smith.close(); journal.open('sources', id); }
 });
+// книга рецептов: кнопка на HUD и клавиша R; G — «где взять» для вещи под курсором (data-item)
+$('bookBtn').addEventListener('click', () => { if (!panelOpen) journal.open('recipes'); });
+let hoverItem = null;
+addEventListener('mouseover', e => { const t = e.target.closest && e.target.closest('[data-item]'); hoverItem = t ? t.dataset.item : null; });
+function whereFrom() {
+  const id = hoverItem; hideTipAll();
+  for (const s of document.querySelectorAll('#bag:not([hidden]) button.close, #smith:not([hidden]) button.close, #shop:not([hidden]) button.close')) s.click();
+  journal.open('sources', id || null);
+}
+const hideTipAll = () => { const t = $('bagTip'); if (t) t.hidden = true; };
 // сложность: выбор в панели ⚙; железный режим только на свежей игре при «Затмении»
 const difTabs = $('difTabs'), difText = $('difText'), ironBtn = $('ironBtn');
 for (const [id, lv] of Object.entries(cfg.difficulty.levels)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.id = id; b.textContent = lv.name; b.addEventListener('click', () => { if (W.iron) return; setDifficulty(W, id); saver.write(); renderDif(); }); difTabs.appendChild(b); }
@@ -296,7 +307,7 @@ createTweakPanel(document, cfg, defaults, {
 // клавиши компьютера (физические, работают на любой раскладке): действие, карта, сумка, навыки, задания, меню
 if (desk) {
   $('keysHelp').hidden = false;
-  for (const [id, k] of [['miniBtn', 'M'], ['bagBtn', 'I'], ['skillBtn', 'N'], ['gear', 'Esc']]) $(id).title = `${$(id).getAttribute('aria-label')} (${k})`;
+  for (const [id, k] of [['miniBtn', 'M'], ['bagBtn', 'I'], ['skillBtn', 'N'], ['bookBtn', 'R'], ['gear', 'Esc']]) $(id).title = `${$(id).getAttribute('aria-label')} (${k})`;
   const vis = id => !$(id).hidden;
   addEventListener('keydown', e => {
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -308,6 +319,8 @@ if (desk) {
     if (c === 'KeyI') { if (vis('bag')) $('bagClose').click(); else if (!panelOpen) $('bagBtn').click(); return; }
     if (c === 'KeyN') { if (vis('skills')) $('skillClose').click(); else if (!panelOpen) $('skillBtn').click(); return; }
     if (c === 'KeyQ') { if (vis('quests')) $('questClose').click(); else if (!panelOpen) { if (vis('questBtn')) $('questBtn').click(); else quests.open('mine'); } return; }
+    if (c === 'KeyR') { if (vis('journal')) $('journalClose').click(); else if (!panelOpen) journal.open('recipes'); return; }
+    if (c === 'KeyG') { if (!panelOpen || vis('bag') || vis('smith') || vis('shop') || vis('journal')) whereFrom(); return; }
     if (c === 'KeyB' && !panelOpen && vis('sleepBtn')) sleepBtn.click();
     if (c === 'KeyE' && !panelOpen) { if (vis('portalBtn')) portalBtn.click(); else if (vis('fireBtn')) fireBtn.click(); else if (vis('talk')) talk.click(); }
   });
@@ -489,7 +502,7 @@ $('gl').addEventListener('webglcontextrestored', () => location.reload());
 const npcLocked = npc => { const L = unlocks(W); return (npc === 'smith' && !L.smith) || (npc === 'captain' && !L.squad); };
 let lockedNear = null;
 function applyLocks() {
-  const L = unlocks(W); for (const id of ['bagJournal', 'smithJournal']) { const b = $(id); if (b && b.hidden === L.journal) b.hidden = !L.journal; }
+  for (const id of ['bagJournal', 'smithJournal']) { const b = $(id); if (b && b.hidden) b.hidden = false; }     // книга рецептов открыта с начала (2026-10-18); бестиарий и атлас внутри — по вехе
   const n = W.nearNpc && npcLocked(W.nearNpc) ? W.nearNpc : null; if (n && n !== lockedNear && !panelOpen) toast(lockedHint(W, n), 'sys', '#c8b898', 'hint'); lockedNear = n;
 }
 // финал «Пути пепла»: сводка и «Продолжить» (замки остаются вызовом)

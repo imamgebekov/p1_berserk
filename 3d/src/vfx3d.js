@@ -5,7 +5,7 @@
 
 const pick = (rng, a) => a[(rng() * a.length) | 0];
 // частиц в секунду у статуса (на единицу размера цели)
-export const RATE = { burn: 15, freeze: 4, poison: 5, bleed: 3, shock: 5 };     // вдвое тише (шаг 4 «Минус»)
+export const RATE = { burn: 15, freeze: 4, poison: 5, bleed: 3, shock: 5, wet: 4, crack: 3 };     // вдвое тише (шаг 4 «Минус»)
 // одна частица статуса kind; h — высота цели, м
 export function statusPart(kind, rng, h = 1.6) {
   const a = rng() * Math.PI * 2, r = .25 + rng() * .3, ox = Math.cos(a) * r, oz = Math.sin(a) * r;
@@ -16,6 +16,8 @@ export function statusPart(kind, rng, h = 1.6) {
   }
   if (kind === 'freeze') return { dx: ox * 1.2, dy: h * (.2 + rng() * .8), dz: oz * 1.2, vx: 0, vy: .25 + rng() * .3, vz: 0, color: pick(rng, ['#e8f8ff', '#bfe8ff', '#9fdcff']), life: .6 + rng() * .5, g: -.3, s: .05 + rng() * .05, add: true };
   if (kind === 'poison') return { dx: ox, dy: h * (.3 + rng() * .5), dz: oz, vx: (rng() - .5) * .2, vy: .6 + rng() * .5, vz: (rng() - .5) * .2, color: pick(rng, ['#7ad060', '#a8f070', '#4a9a3a']), life: .7 + rng() * .4, g: -.6, s: .07 + rng() * .07, add: false };
+  if (kind === 'wet') return { dx: ox * .9, dy: h * (.5 + rng() * .5), dz: oz * .9, vx: 0, vy: -.6 - rng() * .6, vz: 0, color: pick(rng, ['#3f8fd0', '#7ab8e8', '#a8d4f0']), life: .5 + rng() * .3, g: 4, s: .06, add: false };     // капли с мокрого
+  if (kind === 'crack') return { dx: ox * 1.1, dy: .1 + rng() * .3, dz: oz * 1.1, vx: (rng() - .5) * .5, vy: .3 + rng() * .4, vz: (rng() - .5) * .5, color: pick(rng, ['#b08a5c', '#8a6a44', '#c8a878']), life: .6 + rng() * .3, g: 1.5, s: .08, add: false };     // пыль трещины
   if (kind === 'bleed') return { dx: ox * .5, dy: h * (.4 + rng() * .4), dz: oz * .5, vx: (rng() - .5) * .8, vy: .3 + rng() * .6, vz: (rng() - .5) * .8, color: pick(rng, ['#a01818', '#d03030', '#701010']), life: .5 + rng() * .3, g: 12, s: .06 + rng() * .05, add: false };
   return { dx: ox, dy: h * (.2 + rng() * .8), dz: oz, vx: (rng() - .5) * 3, vy: rng() * 2, vz: (rng() - .5) * 3, color: pick(rng, ['#fff6c0', '#ffe27a']), life: .12 + rng() * .1, g: 0, s: .05, add: true };     // shock: искры
 }

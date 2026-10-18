@@ -239,6 +239,7 @@ try {
   if (!(await page.evaluate(() => window.__b3d.W.known.tomes.atlas_polya && window.__b3d.W.known.bestiary.hound === 2))) bad('книга не прочитана');
   await page.tap('#bagJournal'); await page.waitForTimeout(250);
   if (await page.evaluate(() => document.getElementById('journal').hidden)) bad('журнал не открылся');
+  await page.tap('#journalTabs .tab[data-tab="bestiary"]'); await page.waitForTimeout(100);     // книга открывается на «Рецептах» (2026-10-18)
   { const t = await page.$eval('#journalList', e => e.textContent); if (!t.includes('Гончая') || !t.includes('Здоровье')) bad('бестиарий не показывает полную запись: ' + t.slice(0, 120)); }
   await page.screenshot({ path: join(out, '3d-journal.png') });
   await page.tap('#journalTabs .tab[data-tab="atlas"]'); await page.waitForTimeout(100);
@@ -255,8 +256,7 @@ try {
   await page.screenshot({ path: join(out, '3d-forge.png') });
   await page.tap('#smithList .srow:first-of-type .buy'); await page.waitForTimeout(150);
   if (!(await page.evaluate(() => window.__b3d.W.inv.bag.some(s => s.id === 'm_ingot')))) bad('ковка в браузере не сработала');
-  await page.tap('#smithList .junk'); await page.waitForTimeout(100);
-  { const t = await page.$eval('#smithList', e => e.textContent); if (!t.includes('Нужна книга')) bad('закрытые рецепты не показаны с книгой'); }
+  { const t = await page.$eval('#smithList', e => e.textContent); if (!t.includes('Нужна книга')) bad('закрытые рецепты не показаны с книгой'); }     // по умолчанию — все рецепты
   { const small = await page.evaluate(() => [...document.querySelectorAll('#smith button, #journal button')].filter(b => b.offsetParent && (b.getBoundingClientRect().height < 40 || b.getBoundingClientRect().width < 40)).map(b => b.textContent)); if (small.length) bad('кнопки ковки/журнала мельче 40px: ' + small.join(',')); }
   await page.tap('#smithClose'); await page.waitForTimeout(100);
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; });

@@ -94,7 +94,8 @@ const withPerk = (perk, w = 'w_sword_iron') => { const W = mk(w, 0); W.inv.eq.we
 // ---- реакции ----
 { const W = mk('w_sword_iron'); const e = foe(W); applyStatus(W, e, 'freeze', 0, 3); const h = e.hp; W.ev.length = 0; applyStatus(W, e, 'burn', 4, 4); ok(!(e.st && (e.st.freeze || e.st.burn)) && h - e.hp > 30 && W.ev.some(v => v.k === 'react' && v.name === 'Раскол'), 'раскол: огонь по замёрзшему'); }
 { const W = mk('w_sword_iron'); const e = foe(W), o = foe(W, 0, 2.5); for (let i = 0; i < 3; i++) applyStatus(W, e, 'poison', 2, 5); const h = o.hp; W.ev.length = 0; applyStatus(W, e, 'burn', 4, 4); ok(h - o.hp >= 30 && !(e.st && e.st.poison) && W.ev.some(v => v.name === 'Токсичный взрыв'), 'токсичный взрыв: ' + (h - o.hp)); }
-{ const W = mk('w_sword_iron'); const e = foe(W); applyStatus(W, e, 'burn', 4, 4); applyStatus(W, e, 'freeze', 0, 2); ok(e.st.freeze && !e.st.burn, 'мороз не гасит огонь'); }
+{ const W = mk('w_sword_iron'); W.cfg.elements.react = false; const e = foe(W); applyStatus(W, e, 'burn', 4, 4); applyStatus(W, e, 'freeze', 0, 2); ok(e.st.freeze && !e.st.burn, 'без таблицы стихий мороз не гасит огонь'); }
+{ const W = mk('w_sword_iron'); const e = foe(W); applyStatus(W, e, 'burn', 4, 4); W.ev.length = 0; applyStatus(W, e, 'freeze', 0, 2); ok(!(e.st && (e.st.freeze || e.st.burn)) && W.ev.some(v => v.k === 'react' && v.name === 'Раскол'), 'лёд по горящему не даёт «Раскол»'); }
 // иммунитет (на случай боссов): статус не накладывается
 { const W = mk('w_sword_iron'); W.cfg.enemies.brute.immune = ['stun', 'freeze']; const e = foe(W); ok(!applyStatus(W, e, 'stun', 0, 2) && !applyStatus(W, e, 'freeze', 0, 2) && applyStatus(W, e, 'burn', 3, 3), 'иммунитет к статусам'); delete W.cfg.enemies.brute.immune; }
 // убийство от горения засчитывается (опыт, счётчик)

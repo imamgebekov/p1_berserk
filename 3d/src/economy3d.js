@@ -3,7 +3,7 @@ import { BY_ID } from './data/items.js';
 import { SHOP, SHOP_STAPLES, rollLoot, pickItem } from './data/loot.js';
 import { canWield } from './data/heroes3d.js';
 import { mulberry32 } from './sim.js';
-import { addItem, removeAt } from './inv.js';
+import { addItem, removeAt, hasGems } from './inv.js';
 
 // ---- кузнец: улучшение вещей за пепел ----
 export const upgradeCost = (it, lvl, cfg) => Math.round(cfg.smith.base + it.value * cfg.smith.costK * Math.pow(lvl + 1, cfg.smith.pow));
@@ -66,6 +66,12 @@ export function buyItem(W, i) {
 export function sellItem(W, idx, n = 1) {
   const s = W.inv.bag[idx]; if (!s) return 'none'; if (!W.nearMerchant) return 'far'; if (closed(W)) return 'closed';
   const q = Math.min(n, s.n), it = BY_ID[s.id];
+  if (hasGems(s.g)) {                                                          // камни из проданного оружия возвращаются в сумку
+    const tmp = { bag: JSON.parse(JSON.stringify(W.inv.bag)) }; tmp.bag.splice(idx, 1);
+    const max = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
+    for (const g of s.g) if (g && addItem(tmp, g, 1, max) > 0) return 'full';
+    W.inv.bag = tmp.bag; W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade); W.ev.push({ k: 'unsocket', n: s.g.filter(Boolean).length }); return 'ok';
+  }
   W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade) * q; removeAt(W.inv, idx, q); return 'ok';
 }
 // продать весь хлам разом: безделушки, деньги, записки и материалы (оружие, броня, ключи и расходники остаются)
