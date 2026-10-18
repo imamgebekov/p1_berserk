@@ -65,6 +65,12 @@ const guard = (W, dist, faceToHero, type = 'brute', mode = 'guard') => { const p
   W.player.x = e.home.x + 70; W.player.z = e.home.z; run(W, 20);     // далеко, но ближе границы сна врагов (мир теперь шире)
   ok(Math.hypot(e.x - e.home.x, e.z - e.home.z) < 1, 'сторож не вернулся на пост: ' + Math.hypot(e.x - e.home.x, e.z - e.home.z).toFixed(1));
 }
+// ---------- 6б. у края поводка не мечется: бросил погоню — идёт к посту, не замечая героя (иначе «!» и «?» каждый кадр) ----------
+{
+  const W = mk(9); const e = guard(W, 8, true, 'imp'); e.z = e.home.z - P.leash - 1; e.x = e.home.x; W.player.x = e.x; W.player.z = e.z - 4; e.alert = true; e.face = Math.PI;
+  let spot = 0, lost = 0; for (let i = 0; i < 60 * 3; i++) { step(W, 1 / 60, { attack: i % 20 < 3 }); for (const v of W.ev) if (v.id === e.id) { if (v.k === 'spot') spot++; if (v.k === 'lost') lost++; } W.ev.length = 0; }     // герой бьёт — шум боя слышно и спиной
+  ok(spot <= 1 && lost <= 1, `сторож мечется у края поводка: заметил ${spot}, потерял ${lost} за 3 с`);
+}
 // ---------- 7. в областях появляются сторожа и патрули; modes: false — нет ----------
 {
   const count = modes => { let posted = 0; for (let s = 0; s < 3; s++) { const W = mk(20 + s, c => { c.enemies.count = 8; c.enemies.posts.modes = modes; }); W.player.x = 56; W.player.z = -44; W.player.inv = 1e9; run(W, 30); posted += W.enemies.filter(e => e.mode === 'guard' || e.mode === 'patrol').length; } return posted; };

@@ -417,7 +417,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let fishT = 2;
   const FLY = BEA && BEA.fly, flies = FLY ? new THREE.InstancedMesh(new THREE.BoxGeometry(.16, .02, .1), new THREE.MeshBasicMaterial({ color: '#ffffff' }), FLY.n) : null;
   if (flies) { flies.frustumCulled = false; const cs = ['#f0d070', '#e8a0c8', '#a8d0f0', '#f0f0e8', '#f0a050']; for (let i = 0; i < FLY.n; i++) flies.setColorAt(i, new THREE.Color(cs[i % cs.length])); flies.count = 0; life.add(flies); }
-  const flyO = new THREE.Object3D();
+  const flyO = new THREE.Object3D(), flyA = [];     // у каждой бабочки своё место на земле: герой проходит мимо, а не тащит их с собой
   const pipes = AMB.on ? chimneys(map, cfg) : [];
   if (pipes.length) life.add(new THREE.Mesh(mergeGeometries(pipes.map(c => new THREE.BoxGeometry(.5, AMB.chimneyH + .6, .5).translate(c.x, c.y - AMB.chimneyH / 2 + .3, c.z))), new THREE.MeshLambertMaterial({ color: '#3a302a' })));
   const puffN = pipes.length * AMB.smoke, puffs = new THREE.InstancedMesh(new THREE.BoxGeometry(.5, .5, .5), new THREE.MeshBasicMaterial({ color: '#8a8078', transparent: true, opacity: .32, depthWrite: false }), Math.max(1, puffN));
@@ -838,8 +838,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         const L = river.lakes.find(q => Math.hypot(q.x - p.x, q.z - p.z) < q.r + 30); if (L && !calm) { const a = Math.random() * 6.283, rr = Math.random() * L.r * .6, x = L.x + Math.sin(a) * rr, z = L.z + Math.cos(a) * rr; ringFx(x, z, .9, '#d6e6dc'); for (let i = 0; i < 8; i++) fx.emit(x, cfg.terrain.water + .1, z, (Math.random() - .5) * 1.2, 1.6 + Math.random(), (Math.random() - .5) * 1.2, '#d8ecf4', .6, 6, .06, false); } }
       if (flies && W.lvl === 'surface' && !calm) {     // днём бабочки у травы, ночью летучие мыши повыше
         const n = Math.round(FLY.n * (Q.life ?? 1) * (W.rain > .3 ? 0 : 1)), night = !!W.night; flies.count = n; flies.material.color.set(night ? '#2a2026' : '#ffffff');
-        for (let i = 0; i < n; i++) { const ph = i * 2.399, sp = night ? 1.6 : .5, a = t * sp * (i % 2 ? 1 : -1) + ph, r = FLY.r * (.35 + .6 * ((i * .618) % 1)), x = p.x + Math.sin(a) * r + Math.sin(t * 1.7 + i) * .8, z = p.z + Math.cos(a * .8) * r;
-          flyO.position.set(x, Y(x, z) + (night ? 3.2 + Math.sin(t * 3 + i) * .6 : .7 + Math.abs(Math.sin(t * 2.3 + i)) * .6), z); flyO.rotation.set(0, a, Math.sin(t * (night ? 30 : 18) + i) * .9); flyO.scale.setScalar(night ? 2 : 1.9); flyO.updateMatrix(); flies.setMatrixAt(i, flyO.matrix); }
+        for (let i = 0; i < n; i++) { let A = flyA[i];
+          if (!A || Math.hypot(A.x - p.x, A.z - p.z) > FLY.r * 2.2) { const u = Math.random() * Math.PI * 2, d = FLY.r * (A ? .9 + Math.random() * .7 : .3 + Math.random()); A = flyA[i] = { x: p.x + Math.sin(u) * d, z: p.z + Math.cos(u) * d, t0: t, u: Math.random() * Math.PI * 2 }; }     // ушёл далеко — новое место у края, появляется плавно
+          A.u += (Math.random() - .5) * dt; A.x += Math.sin(A.u) * .25 * dt; A.z += Math.cos(A.u) * .25 * dt;     // место медленно блуждает
+          const ph = i * 2.399, sp = night ? 1.6 : .9, a = t * sp * (i % 2 ? 1 : -1) + ph, rr = night ? 2.2 : 1.1, x = A.x + Math.sin(a) * rr + Math.sin(t * 1.7 + i) * .4, z = A.z + Math.cos(a * .8) * rr;
+          flyO.position.set(x, Y(x, z) + (night ? 3.2 + Math.sin(t * 3 + i) * .6 : .7 + Math.abs(Math.sin(t * 2.3 + i)) * .6), z); flyO.rotation.set(0, a, Math.sin(t * (night ? 30 : 18) + i) * .9); flyO.scale.setScalar((night ? 2 : 1.9) * Math.min(1, (t - A.t0) / 1.2)); flyO.updateMatrix(); flies.setMatrixAt(i, flyO.matrix); }
         flies.instanceMatrix.needsUpdate = true; } else if (flies) flies.count = 0;
       for (const { b, m } of crows) { m.group.visible = b.state !== 'gone' && inView(b.x, b.y + 1 + Y(b.x, b.z), b.z, 1.5); if (!m.group.visible) continue; m.group.position.set(b.x, b.y + Y(b.x, b.z), b.z); m.group.rotation.y = b.face; const fl = b.state === 'fly' ? Math.sin(t * 22) * .9 : (b.peck < .3 ? .2 : 0); m.wl.rotation.z = fl; m.wr.rotation.z = -fl; }
       for (let i = 0; i < puffs.count; i++) {

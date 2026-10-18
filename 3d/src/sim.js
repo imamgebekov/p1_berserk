@@ -108,6 +108,7 @@ export function spawnEnemy(W, type, x, z, mode = null) {
 // сторож и патрульный замечают героя: глазами (конус, без стены на линии, тот же дом) или ушами — только шум боя
 function spotted(W, e, d, dx, dz, H) {
   if (W.abuf && W.abuf.smoke > 0) return false;     // «Дымовая завеса» Вейла: враги не замечают героя
+  if (e.lostT > 0) return false;                     // только что бросил погоню — идёт к посту
   const P = W.cfg.enemies.posts, p = W.player;
   const fight = p.state === 'atk' || p.state === 'roll' || p.state === 'charge';
   const hear = W.dif.hear * rainK(W, 'hear');                                  // в дождь хуже слышат и видят
@@ -119,7 +120,7 @@ function spotted(W, e, d, dx, dz, H) {
 function raiseAlarm(W, e) {
   e.alert = true; W.ev.push({ k: 'spot', x: e.x, z: e.z, id: e.id });
   const R = W.cfg.enemies.posts.alarm;
-  for (const o of W.enemies) if (o !== e && !o.dead && !o.alert && !o.boss && len(o.x - e.x, o.z - e.z) < R) o.alert = true;
+  for (const o of W.enemies) if (o !== e && !o.dead && !o.alert && !o.boss && !(o.lostT > 0) && len(o.x - e.x, o.z - e.z) < R) o.alert = true;
 }
 // своими делами: сторож у поста озирается (вернётся, если ушёл), патрульный идёт к следующей точке маршрута
 function keepPost(W, e, C, spd, dt) {
@@ -677,12 +678,12 @@ function updateEnemies(W, dt) {
       const hops = roomHops(W.map, e.x, e.z, p.x, p.z);           // в подземелье слышно только через немного комнат
       const shut = hops > 0 && !!W.map.adj && !pathStep(W.map, e.x, e.z, p.x, p.z);   // запертая дверь глушит: к герою не пройти — не тревожится и не толпится у двери
       if (shut) e.alert = false;
-      const wasAlert = e.alert;
+      const wasAlert = e.alert, cool0 = e.lostT > 0; if (cool0) e.lostT -= dt;
       if (posted && !e.alert && !deep && !shut && !sheltered && !p.dead && spotted(W, e, d, dx, dz, H)) raiseAlarm(W, e);
       if (!e.alert && !posted && !deep && !shut && !sheltered && hops <= W.cfg.dungeons.hearRooms && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
       else if (e.alert && d > H.lose) e.alert = false;
-      if (posted && e.alert && len(e.x - e.home.x, e.z - e.home.z) > W.cfg.enemies.posts.leash) e.alert = false;       // далеко от поста — бросает погоню
-      if (posted && wasAlert && !e.alert) W.ev.push({ k: 'lost', x: e.x, z: e.z, id: e.id });
+      if (posted && e.alert && len(e.x - e.home.x, e.z - e.home.z) > W.cfg.enemies.posts.leash) { e.alert = false; e.lostT = W.cfg.enemies.posts.cool; }       // далеко от поста — бросает погоню
+      if (posted && wasAlert && !e.alert && !cool0) W.ev.push({ k: 'lost', x: e.x, z: e.z, id: e.id });
       if (posted && !e.alert) { keepPost(W, e, C, spd, dt); continue; }
       if (C.ai && foeAI(W, e, C, d, dx, dz, dt, hops === 0 && insideOf(W.map, e.x, e.z) === W.inside)) continue;   // особое поведение: щит, фитиль, рывок, тень
       const al = pickAlly(W, e, d);                                     // союзник ближе героя: враг бьёт его
