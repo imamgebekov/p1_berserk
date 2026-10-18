@@ -62,20 +62,20 @@ const weapon = kind => CATALOG.find(i => i.slot === 'weapon' && i.kind === kind 
 
 // ---------- 5. смена героя без потери прогресса ----------
 {
-  const W = mk('thorn'); W.lv = 20; W.ap = abilityPoints(20, CFG3); W.inv.ash = 777; W.skills = { hand: 2 };
+  const W = mk('thorn'); W.lv = 20; W.ap = abilityPoints(20, CFG3); W.inv.ash = 777; W.skills = { th_hand: 2 };
   Object.assign(W.inv.eq, { weapon: 'w_greatsword_black', offhand: 's_tower_iron' }); W.inv.up.weapon = 2; upgradeAbility(W, 'charge'); upgradeAbility(W, 'cry'); refreshGear(W);
   ok(!switchHero(W, 'thorn') && !switchHero(W, 'gatz'), 'смена на того же или неизвестного героя прошла');
   ok(switchHero(W, 'jay') && W.hero === 'jay', 'Сойка не выбралась');
-  ok(W.lv === 1 && W.inv.ash === 777 && !W.skills.hand && W.ap === abilityPoints(1, CFG3) && !Object.keys(W.ab).length && !W.bar.filter(Boolean).length, 'новая Сойка не с 1-го уровня или пепел не общий');
+  ok(W.lv === 1 && W.inv.ash === 777 && !W.skills.th_hand && W.ap === abilityPoints(1, CFG3) && !Object.keys(W.ab).length && !W.bar.filter(Boolean).length, 'новая Сойка не с 1-го уровня или пепел не общий');
   W.lv = 7; W.bar = [null, null];
   ok(W.inv.eq.weapon === HEROES.jay.start && !W.inv.eq.offhand && W.inv.bag.some(s => s.id === 'w_greatsword_black' && s.up === 2) && W.inv.bag.some(s => s.id === 's_tower_iron'), 'чужое не ушло в сумку или Сойка без лука');
   W.inv.bag.push({ id: 'w_rapier_steel', n: 1 }, { id: 'w_dagger_iron', n: 1 });
   ok(switchHero(W, 'vale') && BY_ID[W.inv.eq.weapon].kind === 'rapier' && W.inv.bag.some(s => s.id === HEROES.jay.start), 'Вейл не взял лучший свой клинок из сумки');
-  ok(switchHero(W, 'thorn') && W.lv === 20 && W.skills.hand === 2 && W.ab.charge === 1 && W.ab.cry === 1 && W.ap === abilityPoints(20, CFG3) - 2, 'Торн не вернул свой уровень, навыки или умения');
+  ok(switchHero(W, 'thorn') && W.lv === 20 && W.skills.th_hand === 2 && W.ab.charge === 1 && W.ab.cry === 1 && W.ap === abilityPoints(20, CFG3) - 2, 'Торн не вернул свой уровень, навыки или умения');
   ok(switchHero(W, 'jay') && W.lv === 7, 'Сойка не вернула свой уровень');
   { const st = new Map(); const saver = createSaver(W, { getItem: k => st.get(k) ?? null, setItem: (k, v) => st.set(k, v), removeItem: k => st.delete(k) }); saver.write(true);
     const sv = loadSave(40, { getItem: k => st.get(k) ?? null, setItem: (k, v) => st.set(k, v), removeItem: k => st.delete(k) });
-    ok(sv && sv.hero === 'jay' && sv.prog.lv === 7 && sv.heroes.thorn && sv.heroes.thorn.lv === 20 && sv.heroes.thorn.ab.charge === 1 && sv.heroes.thorn.skills.hand === 2, 'сохранение не хранит уровень и умения других героев: ' + JSON.stringify(sv && sv.heroes)); }
+    ok(sv && sv.hero === 'jay' && sv.prog.lv === 7 && sv.heroes.thorn && sv.heroes.thorn.lv === 20 && sv.heroes.thorn.ab.charge === 1 && sv.heroes.thorn.skills.th_hand === 2, 'сохранение не хранит уровень и умения других героев: ' + JSON.stringify(sv && sv.heroes)); }
 }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }

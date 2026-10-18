@@ -35,7 +35,7 @@ import { tickZones, isWet } from './elements3d.js';
 import { weaponMix, gemDropOf, weaponElement, magicDropOf, armorGems } from './stones3d.js';
 import { useWeaponSkill, tickWeaponSkill } from './weaponskill3d.js';
 import { makeWeather, weatherAt } from './weather3d.js';
-import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
+import { skillStats, canRank, SKILLS, MAX_RANKS, talentMods } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain, roomFor, ilMul } from './inv.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
@@ -909,6 +909,7 @@ export function refreshGear(W) {
   const HM = heroMul(W); if (HM.crit) base.crit = (base.crit || 0) + HM.crit;
   const AG = armorGems(W.inv, W.cfg); for (const k of Object.keys(AG.stats)) base[k] = (base[k] || 0) + AG.stats[k];     // камни в броне (2026-10-18)
   W.gear = gearStats(W.inv, W.buffs, W.cfg.smith.bonus, base); W.gear.res = AG.res; W.setFx = setBonus(W.inv).fx;
+  { const TM = talentMods(W.skills || {}); for (const [k, v] of Object.entries(TM.fx)) W.setFx[k] = (W.setFx[k] || 0) + v; W.talAb = TM.ab; W.talRes = TM.res; }     // таланты (этап 2): особые эффекты, усиления умений, ресурс
   W.gfx = {}; for (const id of Object.values(W.inv.eq)) { const g = id && BY_ID[id] && BY_ID[id].gold; if (g) Object.assign(W.gfx, g); }     // механики золотых вещей (G3b)
   const p = W.player; p.maxhp = Math.max(10, W.cfg.player.hp * HM.hp + W.gear.hp); if (p.hp > p.maxhp) p.hp = p.maxhp;
 }

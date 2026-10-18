@@ -99,10 +99,11 @@ const sanePos = p => (p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.
 // прогресс героя из сохранения: уровень, опыт, очки, навыки и умения в допустимых пределах
 function progOf(pr, hero) {
     const num = (v, a, b, def) => (Number.isFinite(v) ? Math.max(a, Math.min(b, Math.floor(v))) : def);
-    const prog = { lv: num(pr.lv, 1, 99, 1), xp: num(pr.xp, 0, 1e9, 0), sp: num(pr.sp, 0, 999, 0), skills: sanitizeSkills(pr.skills), spark: pr.spark && typeof pr.spark === 'object' ? pr.spark : null, path: pr.path && typeof pr.path === 'object' ? pr.path : null };     // path — чистит main.js (sanitizePath)     // spark — чистит main.js (sanitizeSpark)
+    const prog = { lv: num(pr.lv, 1, 99, 1), xp: num(pr.xp, 0, 1e9, 0), sp: num(pr.sp, 0, 999, 0), skills: sanitizeSkills(pr.skills, hero), spark: pr.spark && typeof pr.spark === 'object' ? pr.spark : null, path: pr.path && typeof pr.path === 'object' ? pr.path : null };     // path — чистит main.js (sanitizePath)     // spark — чистит main.js (sanitizeSpark)
     // очков не может быть больше, чем уровней: иначе сбрасываем распределение (защита от испорченного сохранения)
     const spent = Object.values(prog.skills).reduce((a, b) => a + b, 0);
     if (spent + prog.sp > prog.lv - 1) { prog.skills = {}; prog.sp = prog.lv - 1; }
+    else if (spent + prog.sp < prog.lv - 1) prog.sp = prog.lv - 1 - spent;     // этап 2: старые навыки стали талантами — пропавшие очки возвращаются
     // умения: только свои id; ранг не выше открытого к уровню героя (лишнее — срезается); очки умений = данные уровнем − вложенные
     { const ids = (ABILITIES[hero] || []).map(x => x.id), ab = {}, src = pr.ab && typeof pr.ab === 'object' ? pr.ab : {};
       ids.forEach((id, i) => { const r = src[id]; if (Number.isInteger(r) && r > 0) { const m = Math.min(r, ranksOpenAt(prog.lv, CFG3, i)); if (m > 0) ab[id] = m; } });

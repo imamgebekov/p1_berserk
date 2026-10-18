@@ -87,11 +87,11 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 }
 // ---------- 8. сброс и сохранение ----------
 {
-  const W = mk(20); max(W, 'charge'); upgradeAbility(W, 'cry'); W.inv.ash = 1e5; W.skills = { hand: 2 }; W.sp = 17;
+  const W = mk(20); max(W, 'charge'); upgradeAbility(W, 'cry'); W.inv.ash = 1e5; W.skills = { th_hand: 2 }; W.sp = 17;
   const st = mem(); createSaver(W, st).write(true); const s = loadSave(30, st);
   ok(s && s.prog.ab.charge === 3 && s.prog.ab.cry === 1 && s.prog.ap === W.ap && s.prog.bar[0] === 'charge' && s.prog.bar[1] === 'cry', 'умения или панель не сохранились: ' + JSON.stringify(s && s.prog.bar));
   const d = JSON.parse(st.o['berserk3d.save']); d.prog.ap = 99; st.setItem('berserk3d.save', JSON.stringify(d));
-  const s2 = loadSave(30, st); ok(s2 && s2.prog.ab.charge === 3 && s2.prog.ap === abilityPoints(20, CFG3) - 4 && s2.prog.skills.hand === 2, 'очки умений не пересчитаны по уровню');
+  const s2 = loadSave(30, st); ok(s2 && s2.prog.ab.charge === 3 && s2.prog.ap === abilityPoints(20, CFG3) - 4 && s2.prog.skills.th_hand === 2, 'очки умений не пересчитаны по уровню');
   { const e = JSON.parse(st.o['berserk3d.save']); e.prog.lv = 9; e.prog.skills = {}; e.prog.sp = 8; st.setItem('berserk3d.save', JSON.stringify(e)); const s4 = loadSave(30, st);
     ok(s4 && s4.prog.ab.charge === 2 && s4.prog.ab.cry === 1 && s4.prog.ap === abilityPoints(9, CFG3) - 3, 'ранги выше уровня не срезаны: ' + JSON.stringify(s4 && s4.prog.ab)); st.setItem('berserk3d.save', JSON.stringify(d)); }
   const d3 = JSON.parse(st.o['berserk3d.save']); d3.v = 3; delete d3.prog.ab; delete d3.prog.ap; st.setItem('berserk3d.save', JSON.stringify(d3));

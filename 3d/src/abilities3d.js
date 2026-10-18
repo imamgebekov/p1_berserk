@@ -7,6 +7,7 @@ import { applyStatus } from './status3d.js';
 import { len } from './util3d.js';
 import { resTick, resNow, resSpend, resOf, resMax } from './resource3d.js';
 import { comboFor, boosted, noteAbility } from './combos3d.js';
+import { withTalents } from './data/skills3d.js';
 
 export const heroAbilities = W => ABILITIES[W.hero] || [];
 const cfgOf = (W, id) => (W.cfg.abilities[W.hero] || {})[id];
@@ -56,7 +57,7 @@ export function useAbility(W, i) {
   const rank = W.ab[def.id] || 0; if (!rank) return 'rank';
   if ((W.acd[def.id] || 0) > 0) return 'cd';
   if (p.dead || p.state === 'roll' || p.state === 'dash') return 'busy';
-  const A = cfgOf(W, def.id), r = rankIdx(W.cfg, i, rank), cost = A.cost || 0;
+  const A = withTalents(cfgOf(W, def.id), W.talAb && W.talAb[def.id]), r = rankIdx(W.cfg, i, rank), cost = A.cost || 0;     // таланты (этап 2)
   if (resNow(W) < cost) return 'res';
   const cb = comboFor(W, def.id);                    // связка: прошлое умение — первое в паре, окно открыто
   W.cmb = cb ? { id: cb.id, ...W.cfg.combos[cb.id] } : null;
@@ -227,7 +228,7 @@ export function tickAbilities(W, dt) {
 // для интерфейса: список умений героя с состоянием
 export function abilityView(W) {
   return heroAbilities(W).map((a, i) => {
-    const A = cfgOf(W, a.id), L = rankLvs(W.cfg, i), rank = W.ab[a.id] || 0, r = rankIdx(W.cfg, i, Math.max(1, rank));
+    const A = withTalents(cfgOf(W, a.id), W.talAb && W.talAb[a.id]), L = rankLvs(W.cfg, i), rank = W.ab[a.id] || 0, r = rankIdx(W.cfg, i, Math.max(1, rank));
     return { ...a, slot: i, lv: L[0], max: L.length, nextLv: rank < L.length ? L[rank] : 0, rank, open: W.lv >= L[0], cd: W.acd[a.id] || 0, cdMax: A.cd[r], cost: A.cost || 0, enough: resNow(W) >= (A.cost || 0), now: rank ? a.text(A, r) : '', next: rank < L.length ? a.text(A, rankIdx(W.cfg, i, rank + 1)) : '' };
   });
 }

@@ -3,7 +3,7 @@
 // было «Ритм» от ударов). Умение стоит ресурса; короткая перезарядка остаётся, чтобы сильное не жали подряд.
 // Чистые функции без случайных чисел: бой врагов и боссов не меняется. Числа — в config3d.js → abilities.res.
 
-export const resOf = W => (W.cfg.abilities.res || {})[W.hero] || null;
+export const resOf = W => { const R = (W.cfg.abilities.res || {})[W.hero] || null, T = W.talRes; return R && T && (T.regen || T.hit) ? { ...R, regen: R.regen + (T.regen || 0), hit: R.hit + (T.hit || 0) } : R; };     // таланты (этап 2) — прибавка к ресурсу
 // запас ресурса: растёт с уровнем героя (perLv за уровень)
 export const resMax = (W, R = resOf(W)) => (R ? R.max + Math.max(0, (W.lv || 1) - 1) * (R.perLv || 0) : 0);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

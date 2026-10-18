@@ -23,7 +23,7 @@ export function gainXp(W, n) {
   if (W.lv >= L.max) W.xp = 0;
 }
 export function spendSkill(W, id) {
-  const r = canRank(W.skills, id, W.sp); if (r !== 'ok') return r;
+  const r = canRank(W.skills, id, W.sp, W.hero); if (r !== 'ok') return r;
   W.skills[id] = (W.skills[id] || 0) + 1; W.sp--; refreshGear(W); return 'ok';
 }
 export const respecCost = W => W.cfg.respecBase * W.lv;

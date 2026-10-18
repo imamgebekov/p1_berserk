@@ -1,5 +1,5 @@
 // Окно навыков: три ветки, ранги, очки, сброс за пепел; вкладка «Умения» — активные умения героя со своими очками (B3).
-import { BRANCHES, TIER_STEP, spentIn, canRank } from './data/skills3d.js';
+import { branchesOf, TIER_STEP, spentIn, canRank } from './data/skills3d.js';
 import { spendSkill, respec, respecCost, xpNeed } from './sim.js';
 import { combosOf } from './combos3d.js';
 import { abilityView, upgradeAbility, canUpgrade, respecAbilities, respecAbilityCost, spentAbility, resView, barOf, setBar, BAR } from './abilities3d.js';
@@ -16,10 +16,11 @@ export function rankDiff(now, next) {
 export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('skills'), listEl = $('skillList'), tabsEl = $('skillTabs'), headEl = $('skillHead'), xpEl = $('skillXp'), flashEl = $('skillFlash'), resetBtn = $('skillReset');
-  let branch = BRANCHES[0].id, armed = false, flashT = 0;
+  let branch = branchesOf(W.hero)[0].id, armed = false, flashT = 0, tabsHero = null;
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2200); };
-  for (const b of [...BRANCHES, { id: 'abil', name: 'Умения' }]) { const t = el('button', 'tab', b.name); t.type = 'button'; t.dataset.tab = b.id; t.addEventListener('click', () => { branch = b.id; armed = false; render(); }); tabsEl.appendChild(t); }
+  // вкладки — специализации героя (этап 2), «Скиталец» и «Умения»; при смене героя строятся заново
+  const buildTabs = () => { tabsHero = W.hero; tabsEl.textContent = ''; if (!branchesOf(W.hero).some(b => b.id === branch) && branch !== 'abil') branch = branchesOf(W.hero)[0].id; for (const b of [...branchesOf(W.hero), { id: 'abil', name: 'Умения' }]) { const t = el('button', 'tab', b.name); t.type = 'button'; t.dataset.tab = b.id; t.addEventListener('click', () => { branch = b.id; armed = false; render(); }); tabsEl.appendChild(t); } };
   function renderAbil() {
     const AC = '#e8c04a', list = abilityView(W), rv = resView(W), resName = rv ? rv.name : '';
     if (!list.length) listEl.appendChild(el('div', 'emptyl', 'У этого героя умений пока нет.'));
@@ -52,14 +53,16 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !spentAbility(W.ab);
   }
   function render() {
-    headEl.textContent = `Навыки · очков: ${W.sp} · умений: ${W.ap}`;
+    if (tabsHero !== W.hero) buildTabs();
+    headEl.textContent = `Таланты · очков: ${W.sp} · умений: ${W.ap}`;
     xpEl.textContent = W.lv >= cfg.level.max ? `Уровень ${W.lv} (максимум)` : `Уровень ${W.lv} · опыт ${W.xp}/${xpNeed(W.lv, cfg)}`;
-    for (const t of tabsEl.children) { const b = BRANCHES.find(x => x.id === t.dataset.tab); t.classList.toggle('on', t.dataset.tab === branch); t.textContent = b ? `${b.name} · ${spentIn(W.skills, b.id)}` : `Умения · ${spentAbility(W.ab)}`; }
+    for (const t of tabsEl.children) { const b = branchesOf(W.hero).find(x => x.id === t.dataset.tab); t.classList.toggle('on', t.dataset.tab === branch); t.textContent = b ? `${b.name} · ${spentIn(W.skills, b.id)}` : `Умения · ${spentAbility(W.ab)}`; }
     listEl.textContent = '';
     if (branch === 'abil') { renderAbil(); return; }
-    const br = BRANCHES.find(b => b.id === branch), spent = spentIn(W.skills, branch);
+    const br = branchesOf(W.hero).find(b => b.id === branch), spent = spentIn(W.skills, branch);
+    listEl.appendChild(el('div', 'emptyl', br.common ? 'Общая ветка: польза в пути, у всех героев.' : `Специализация «${br.name}» — ${br.role}. Следующий талант открывается за каждые ${TIER_STEP} очка в ветке.`));
     br.skills.forEach((s, i) => {
-      const r = W.skills[s.id] || 0, st = canRank(W.skills, s.id, W.sp), need = i * TIER_STEP;
+      const r = W.skills[s.id] || 0, st = canRank(W.skills, s.id, W.sp, W.hero), need = (s.tier ?? i) * TIER_STEP;
       const row = el('div', 'skrow' + (spent < need ? ' lock' : '')), info = el('div', 'sinfo');
       const nm = el('span', 'nm', s.name); nm.style.color = br.color;
       const pips = el('span', 'pips'); pips.style.setProperty('--pc', br.color); for (let k = 0; k < s.max; k++) pips.appendChild(el('i', k < r ? 'on' : ''));
@@ -69,7 +72,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       row.append(info, b); listEl.appendChild(row);
     });
     const cost = respecCost(W), spentAll = Object.values(W.skills).reduce((a, b) => a + b, 0);
-    resetBtn.textContent = armed ? 'Точно? Очки вернутся, пепел спишется' : `Сбросить навыки · ${cost} пепла`;
+    resetBtn.textContent = armed ? 'Точно? Очки вернутся, пепел спишется' : `Сбросить таланты · ${cost} пепла`;
     resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !spentAll;
   }
   resetBtn.addEventListener('click', () => {
