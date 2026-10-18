@@ -474,7 +474,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const w = hero.weapon, P = cfg.player, sw = p.swingMul || W.gear.swing || 1, mx = W.wp.mix;
     if (W.wsk && W.wsk.kind === 'tempest' && !calm) for (let i = 0; i < 2; i++) { const a = W.t * 9 + i * Math.PI, el = mx ? (i ? mx.b || mx.a : mx.a) : W.wp.el; fx.emit(p.x + Math.sin(a) * 2.4, .9 + Y(p.x, p.z), p.z + Math.cos(a) * 2.4, 0, .5, 0, el ? ELEMENT_COLOR[el] : '#d8c8a8', .4, 0, .1, true); }     // «Цепная буря»
     if (w && w.tip && mx && !calm && Math.random() < dt * 5) { const t = w.tip.getWorldPosition(new THREE.Vector3()), el = Math.random() < .5 || !mx.b ? mx.a : mx.b; fx.emit(t.x, t.y, t.z, (Math.random() - .5) * .3, .4 + Math.random() * .4, (Math.random() - .5) * .3, ELEMENT_COLOR[el], .5, -.2, .06, true); }     // оружие с камнями искрит цветом стихий
-    if (w && p.state === 'atk' && hero.family !== 'bow' && trailOn(p.atkT / (P.attackTime * sw), P.attackHitAt / P.attackTime)) {
+    if (w && p.state === 'atk' && hero.family !== 'bow' && hero.family !== 'staff' && trailOn(p.atkT / (P.attackTime * sw), P.attackHitAt / P.attackTime)) {
       hero.group.updateMatrixWorld(true);
       trailS.push({ a: w.base.getWorldPosition(new THREE.Vector3()), b: w.tip.getWorldPosition(new THREE.Vector3()), age: 0 });
       if (trailS.length > TRAIL_N) trailS.shift();
@@ -656,7 +656,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // капканы и круги града стрел (умения Сойки)
   const trapMeshes = [0, 1, 2, 3].map(() => { const g = new THREE.Group(), mt = new THREE.MeshLambertMaterial({ color: '#6a6458' }); for (const s of [-1, 1]) { const j = new THREE.Mesh(new THREE.BoxGeometry(.9, .12, .12), mt); j.position.set(0, .08, s * .22); g.add(j); for (let k = -2; k <= 2; k++) { const t = new THREE.Mesh(new THREE.BoxGeometry(.06, .14, .06), mt); t.position.set(k * .18, .16, s * .16); g.add(t); } } g.add(new THREE.Mesh(new THREE.BoxGeometry(.3, .05, .3), new THREE.MeshLambertMaterial({ color: '#3a2a1a' }))); g.visible = false; scene.add(g); return g; });
   // области реакций стихий: диск цвета смеси и частицы (пар, лава, гололёд, трясина, отравленный источник)
-  const EZ = { steam: ['#e8eef2', '#ffffff', 2.2], lava: ['#e2683a', '#ffb040', 1.4], glaze: ['#bfe8ff', '#e8f8ff', .3], bog: ['#5a4a2e', '#8a7a4e', .2], spring: ['#5a9a40', '#a8f070', .8] };
+  const EZ = { cloud: ['#4a8a30', '#9ae070', .6], steam: ['#e8eef2', '#ffffff', 2.2], lava: ['#e2683a', '#ffb040', 1.4], glaze: ['#bfe8ff', '#e8f8ff', .3], bog: ['#5a4a2e', '#8a7a4e', .2], spring: ['#5a9a40', '#a8f070', .8] };
   const ezMeshes = [0, 1, 2, 3, 4, 5].map(() => { const m = new THREE.Mesh(new THREE.CircleGeometry(1, 36), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: .3, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(ovl(m)); return m; });
   const zoneMeshes = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(.92, 1, 40), new THREE.MeshBasicMaterial({ color: '#eef4ff', transparent: true, opacity: .55, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(ovl(m)); return m; });
   for (let i = 0; i < 24; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.14, .14, .9), new THREE.MeshBasicMaterial({ color: '#ffd27a' })); m.visible = false; m.userData.k = 'foe'; scene.add(m); projMeshes.push(m); }
@@ -671,7 +671,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ezMeshes.forEach((m, i) => { const zn = W.ezones && W.ezones[i]; m.visible = !!zn; if (!zn) return; const c = EZ[zn.kind] || EZ.steam; m.material.color.set(c[0]); m.material.opacity = (zn.kind === 'steam' ? .22 : .38) * Math.min(1, zn.t * 2); m.position.set(zn.x, .05 + Y(zn.x, zn.z), zn.z); m.scale.setScalar(zn.r);
       if (Math.random() < .6) { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * zn.r, px = zn.x + Math.cos(a) * r, pz = zn.z + Math.sin(a) * r; fx.emit(px, .2 + Y(px, pz), pz, 0, c[2], 0, c[1], zn.kind === 'steam' ? 1.2 : .7, zn.kind === 'steam' ? -.4 : 1, zn.kind === 'steam' ? .35 : .09, zn.kind === 'lava'); } });
     zoneMeshes.forEach((m, i) => { const zn = W.zones[i]; m.visible = !!zn; if (zn) { m.position.set(zn.x, .06 + Y(zn.x, zn.z), zn.z); m.scale.setScalar(zn.r); if (Math.random() < .5) burst(zn.x + (Math.random() - .5) * zn.r * 1.6, 3.5, zn.z + (Math.random() - .5) * zn.r * 1.6, 1, '#eef4ff', 1); } });
-    projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { const k = q.friendly ? q.kind : 'foe'; if (m.userData.k !== k) { m.userData.k = k; m.material.color.set(k === 'foe' ? '#ffd27a' : k === 'bolt' ? '#b8c4d8' : k === 'venom' ? '#7ad060' : '#eef4ff'); m.scale.set(k === 'bolt' ? 1.4 : 1, k === 'bolt' ? 1.4 : 1, k === 'bolt' ? .8 : 1); } m.position.set(q.x, 1.1 + Y(q.x, q.z), q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });     // свои стрелы светлые, болт толще
+    projMeshes.forEach((m, i) => { const q = W.proj[i]; m.visible = !!q; if (q) { const k = q.friendly ? q.kind : 'foe'; if (m.userData.k !== k) { m.userData.k = k; m.material.color.set(k === 'foe' ? '#ffd27a' : k === 'bolt' ? '#b8c4d8' : k === 'venom' ? '#7ad060' : k === 'orb' ? '#c8a8ff' : '#eef4ff'); m.scale.set(k === 'bolt' ? 1.4 : k === 'orb' ? 3.2 : 1, k === 'bolt' ? 1.4 : k === 'orb' ? 3.2 : 1, k === 'bolt' ? .8 : k === 'orb' ? .3 : 1); }
+        if (k === 'orb' && !calm && Math.random() < .7) { const c = q.fx ? FXCOL[q.fx] || '#b48aff' : '#b48aff'; fx.emit(q.x, 1.1 + Y(q.x, q.z), q.z, (Math.random() - .5) * .6, .3, (Math.random() - .5) * .6, c, .35, 0, .09, true); } m.position.set(q.x, 1.1 + Y(q.x, q.z), q.z); m.rotation.y = Math.atan2(q.vx, q.vz); } });     // свои стрелы светлые, болт толще     // сфера оставляет искры
     hazMeshes.forEach((h, i) => {
       const z = W.haz[i]; h.ring.visible = h.disc.visible = !!z; if (!z) return;
       const k = Math.min(1, z.t / z.delay), pulse = .3 + .25 * Math.sin(t * 28) + .25 * k, fire = z.by === 'elite' || z.bomber, col = fire ? '#ff7a20' : '#d060ff';      // взрыв (элита, тлеющий) — оранжевый, колдовство — фиолетовое
@@ -881,10 +882,17 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         fx.flash(v.x, 1.3, v.z, 2.4, v.gold ? '#ffe27a' : c1); if (v.id === 'shatter') W.shake = Math.max(W.shake, .5);
         hooks.onText && hooks.onText(v.x, 3.3, v.z, WSKILL[v.id].name + '!', 'crit');
       }
+      else if (v.k === 'nova') { ringFx(v.x, v.z, v.r, '#bfe8ff'); for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2; burst(v.x + Math.sin(a) * v.r * .8, .8, v.z + Math.cos(a) * v.r * .8, 2, '#e8f8ff', 3); } fx.flash(v.x, 1.2, v.z, 2.4, '#cfeeff'); }
+      else if (v.k === 'meteorMark') { ringFx(v.x, v.z, v.r, '#ff6a3a'); burst(v.x, 6, v.z, 10, '#ffb040', 2); }
+      else if (v.k === 'meteor') { ringFx(v.x, v.z, v.r, '#ff8a30'); burst(v.x, .8, v.z, 40, '#ff8a30', 7); burst(v.x, .8, v.z, 20, '#ffe27a', 5); fx.flash(v.x, 1.4, v.z, 3.4, '#ffb060'); fx.ash(v.x, .6, v.z, 14, ['#3a302a', '#5a4a40', '#2a2420']); }
+      else if (v.k === 'spear') { zap(v.x, v.z, v.x2, v.z2); burst(v.x2, 1.2, v.z2, 24, '#8a5aff', 6); fx.flash(v.x2, 1.2, v.z2, 2.4, '#b48aff'); }
+      else if (v.k === 'mshield') burst(v.x, 1.3, v.z, 6, '#7a8aff', 3)
+      else if (v.k === 'pulse') ringFx(v.x, v.z, v.r, '#c8a8ff')
+      else if (v.k === 'splash') { ringFx(v.x, v.z, v.r, '#c8a8ff'); burst(v.x, 1.1, v.z, 10, '#d8c0ff', 4); }
       else if (v.k === 'wskill2') ringFx(v.x, v.z, 3.4, '#f0d8a8')
       else if (v.k === 'eblast') { const c1 = v.el && v.el[0] ? ELEMENT_COLOR[v.el[0]] : '#f0d8a8'; ringFx(v.x, v.z, v.r, c1); burst(v.x, 1.1, v.z, 24, c1, 5); if (v.el && v.el[1]) burst(v.x, 1.1, v.z, 14, ELEMENT_COLOR[v.el[1]], 5); fx.flash(v.x, 1.2, v.z, 2.2, c1); }
       else if (v.k === 'ability') {                   // умения: вспышки и кольца
-        const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30', blink: '#c8a0ff', parry: '#fff0c0', dance: '#c8d8ff', shadow: '#2a1838', execute: '#ff3030', leap: '#c8e0b0', volley: '#eef4ff', trap: '#8a8478', venom: '#7ad060', rain: '#eef4ff' }[v.id] || '#ffe8b0';
+        const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30', blink: '#c8a0ff', parry: '#fff0c0', dance: '#c8d8ff', shadow: '#2a1838', execute: '#ff3030', leap: '#c8e0b0', volley: '#eef4ff', trap: '#8a8478', venom: '#7ad060', rain: '#eef4ff', fireball: '#ff8a30', chain: '#ffe27a', cloud: '#7ad060', meteor: '#ff6a3a', shield: '#7a8aff', blizzard: '#e8f8ff', spear: '#8a5aff' }[v.id] || '#ffe8b0';
         if (v.id === 'cry' || v.id === 'whirl') for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r = v.id === 'cry' ? 2.5 : 1.8; burst(v.x + Math.sin(a) * r, 1, v.z + Math.cos(a) * r, 2, col, 3); }
         else burst(v.x, 1.2, v.z, 18, col, 3);
         fx.flash(v.x, 1.3, v.z, v.id === 'whirl' ? 2.6 : 1.6, col);

@@ -17,7 +17,7 @@ const BAND = 1.1;   // след не шире этого, м: у длинног�
 const SPAN = {
   fists: [-.05, .2], dagger: [.25, .85], knife: [.25, .75], rapier: [.4, 2.0], sword: [.35, 1.9], greatsword: [.45, 3.1],
   sickle: [.45, 1.1], axe: [.8, 1.35], war_axe: [1.0, 1.85], halberd: [1.8, 2.9], spear: [1.9, 2.9], scythe: [1.6, 2.6],
-  bow: [.2, .4], longbow: [.2, .4], crossbow: [.2, .4],
+  bow: [.2, .4], longbow: [.2, .4], crossbow: [.2, .4], staff: [1.6, 2.1], wand: [.6, .85],
   mace: [.75, 1.15], club: [.6, 1.4], hammer: [1.2, 1.8], pick: [.9, 1.35], flail: [.9, 1.5], chain_ball: [1.0, 1.9]
 };
 const BUILD = {
@@ -25,6 +25,9 @@ const BUILD = {
   bow: (g, m) => { box(g, .1, .1, .3, lam(GRIP)); for (const s of [1, -1]) { box(g, .08, .08, .5, lam(WOOD), 0, .04, s * .38); box(g, .07, .07, .3, lam(WOOD), 0, -.06, s * .72); box(g, .06, .06, .06, m, 0, -.1, s * .88); } box(g, .02, .02, 1.75, lam('#d8d0b8'), 0, -.12, 0); },
   longbow: (g, m) => { box(g, .1, .1, .34, lam(GRIP)); for (const s of [1, -1]) { box(g, .08, .08, .7, lam(WOOD), 0, .05, s * .52); box(g, .07, .07, .45, lam(WOOD), 0, -.07, s * 1.05); box(g, .06, .06, .06, m, 0, -.12, s * 1.28); } box(g, .02, .02, 2.55, lam('#d8d0b8'), 0, -.14, 0); },
   crossbow: (g, m, e) => { box(g, .12, .3, .12, lam(GRIP)); box(g, .14, .9, .14, lam(WOOD), 0, .45, 0); box(g, 1.0, .1, .08, m, 0, .84, 0); box(g, .1, .1, .1, e, .5, .84, 0); box(g, .1, .1, .1, e, -.5, .84, 0); box(g, 1.0, .02, .02, lam('#d8d0b8'), 0, .66, 0); },
+  // посох и жезл (Ирга): древко, оковка цветом материала, светящийся камень на конце
+  staff: (g, m) => { box(g, .1, 2.0, .1, lam(WOOD), 0, .85); box(g, .16, .14, .16, m, 0, 1.8); box(g, .28, .28, .28, new THREE.MeshBasicMaterial({ color: '#b48aff' }), 0, 2.02); box(g, .08, .4, .08, m, .14, 1.98, 0, .4); box(g, .08, .4, .08, m, -.14, 1.98, 0, -.4); },
+  wand: (g, m) => { box(g, .08, .7, .08, lam(GRIP), 0, .25); box(g, .1, .12, .1, m, 0, .62); box(g, .16, .2, .16, new THREE.MeshBasicMaterial({ color: '#b48aff' }), 0, .78); },
   fists: g => { box(g, .24, .24, .24, lam('#cdb89a'), 0, .06); box(g, .26, .08, .26, lam('#4a3a35'), 0, -.08); },
   dagger: (g, m, e) => { box(g, .1, .3, .1, lam(GRIP)); box(g, .32, .07, .12, lam(GUARD), 0, .17); box(g, .14, .62, .06, m, 0, .52); box(g, .04, .62, .07, e, .06, .52); },
   knife: (g, m, e) => { box(g, .1, .3, .1, lam(GRIP)); box(g, .12, .5, .05, m, .02, .48); box(g, .04, .5, .06, e, .07, .48); },

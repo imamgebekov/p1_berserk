@@ -34,6 +34,12 @@ export const TEMPLATES = {
   bow: [
     '........bbb.....', '.......bccwb....', '......bccbwb....', '.....bccbbwb....', '....bccb.bwb....', '...bccb..bwb....', '..bccb...bwb....', '..baabbbbbwbbb..',
     '..baaddddddddrb.', '..bccbbbbbwbbb..', '...bccb..bwb....', '....bccb.bwb....', '.....bccbbwb....', '......bccbwb....', '.......bccwb....', '........bbb.....'],
+  staff: [
+    '..........bbbb..', '.........brwrrb.', '.........brrrrb.', '.........brrrrb.', '.........bbrrb..', '.........bcbb...', '........bcb.....', '.......bcb......',
+    '......bcb.......', '.....bcb........', '....bcb.........', '...bcb..........', '..bcb...........', '.bcb............', 'bcb.............', 'bb..............'],
+  wand: [
+    '................', '................', '..........bbb...', '.........bwrb...', '.........brrb...', '.........babb...', '........bab.....', '.......bab......',
+    '......bab.......', '.....bcb........', '....bcb.........', '...bcb..........', '...bb...........', '................', '................', '................'],
   crossbow: [
     '....bawb........', '.....babb....bb.', '......bawb..bccb', '.......baabbccb.', '........bawccb..', '.........baab...', '........bccawb..', '.......bccbbaab.',
     '......bccb..bawb', '.....bccb....bab', '....bccb......ba', '...bccb........b', '..bcceb.........', '.bcceb..........', '..bbb...........', '................'],
@@ -95,7 +101,7 @@ export const TEMPLATES = {
 export const TEMPLATE_CHARS = '.badecrw';
 
 const WEAPON_T = { sword: 'sword', rapier: 'sword', knife: 'dagger', dagger: 'dagger', greatsword: 'greatsword', axe: 'axe', war_axe: 'axe', sickle: 'scythe', scythe: 'scythe',
-  spear: 'polearm', halberd: 'polearm', bow: 'bow', longbow: 'bow', crossbow: 'crossbow', hammer: 'hammer', club: 'mace', mace: 'mace', pick: 'hammer', flail: 'flail', chain_ball: 'flail', fists: 'fists' };
+  spear: 'polearm', halberd: 'polearm', bow: 'bow', longbow: 'bow', crossbow: 'crossbow', staff: 'staff', wand: 'wand', hammer: 'hammer', club: 'mace', mace: 'mace', pick: 'hammer', flail: 'flail', chain_ball: 'flail', fists: 'fists' };
 const CAT_T = { food: 'food', potion: 'potion', fairy: 'potion', medic: 'medic', coin: 'coin', material: 'ingot', craftmat: 'ingot', monstermat: 'hide', trophy: 'skull', tome: 'book', bosstome: 'book', book: 'book', curio: 'gem', key: 'key' };
 export function templateOf(it) {
   if (!it) return 'gem';

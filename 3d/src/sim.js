@@ -31,7 +31,7 @@ import { lightOf, isNight } from './daynight.js';
 import { rollElite, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned, rainK } from './status3d.js';
 import { tickZones, isWet } from './elements3d.js';
-import { weaponMix, gemDropOf, weaponElement } from './stones3d.js';
+import { weaponMix, gemDropOf, weaponElement, magicDropOf } from './stones3d.js';
 import { useWeaponSkill, tickWeaponSkill } from './weaponskill3d.js';
 import { makeWeather, weatherAt } from './weather3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
@@ -268,6 +268,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   }
   if (W.abuf.iron > 0) { dmg *= W.abuf.ironTaken; knock = 0; }          // несокрушимость: меньше урона, не отбрасывает
   dmg = Math.max(1, Math.round(dmg / (1 + Math.max(0, W.gear.armor) * W.cfg.gear.armorK)));
+  if (W.abuf.mshield > 0) { const a = Math.min(Math.floor(dmg * W.abuf.mshieldK), Math.floor(W.res || 0)); if (a > 0) { W.res -= a; dmg = Math.max(0, dmg - a); W.ev.push({ k: 'mshield', x: p.x, z: p.z, n: a }); } }     // щит маны Ирги
   p.lastHurt = W.t;
   if (W.gfx.aegis && W.aegis > 0) { const a = Math.min(W.aegis, dmg); W.aegis -= a; dmg -= a; W.ev.push({ k: 'aegis', x: p.x, z: p.z, left: W.aegis }); if (W.aegis <= 0) W.aegisT = W.gfx.aegis[0]; if (dmg <= 0) { p.inv = W.cfg.player.hurtInvuln; return true; } }     // Кираса Солнца: щит берёт удар первым
   p.calm = W.cfg.player.fire.calm;
@@ -290,6 +291,7 @@ export function killEnemy(W, e, share) {
   if (e.dead) return;
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
+  { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
   { const gid = gemDropOf(W, e); if (gid) { W.drops.push({ id: gid, n: 1, x: e.x + .5, z: e.z - .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: gid }); } }     // камень силы
   if (share >= 1) mixOnDeath(W, e);
   if (share >= 1 && W.gfx.midas && !e.boss && W.rng() < W.gfx.midas) dropLoot(W, e);                         // Перстень Мидаса: добыча дважды
@@ -436,7 +438,7 @@ function shoot(W, mult = 1, echo = false) {
   const crit = W.rng() < .12 + W.gear.crit / 100 + critBonus(W);
   if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
   const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null, sx = Math.sin(p.face), sz = Math.cos(p.face);
-  W.proj.push({ friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * speed, vz: sz * speed, dmg, crit, fx, hk, fin: p.fin && !echo, knock: (tr.knock || 1) * (hk ? 1 + (H.knock - 1) * hk : 1), pierce: tr.pierce || 0, hit: [], life: range / speed, kind: tr.bolt ? 'bolt' : 'arrow' });
+  W.proj.push({ friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * speed, vz: sz * speed, dmg, crit, fx, hk, fin: p.fin && !echo, knock: (tr.knock || 1) * (hk ? 1 + (H.knock - 1) * hk : 1), pierce: tr.pierce || 0, hit: [], life: range / speed, kind: tr.magic ? 'orb' : tr.bolt ? 'bolt' : 'arrow', splash: tr.splash ? [tr.splash[0] * (1 + .3 * hk), tr.splash[1]] : null });     // посох: вспышка у цели
   W.ev.push({ k: 'shoot', x: p.x, z: p.z, face: p.face, heavy: hk > 0, bolt: !!tr.bolt });
   if (!echo && pm.echo && W.rng() < pm.echo) W.echoQ.push({ t: .2, mult: .7 });
 }
@@ -446,7 +448,7 @@ export function abilityArrow(W, ang, mult, extra = {}) {
   let dmg = Math.round((W.cfg.player.attackDamage + W.gear.dmg) * mult * rageMul(W) * rr(W, .9, 1.15));
   const crit = W.rng() < .12 + W.gear.crit / 100 + critBonus(W); if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
   const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null, sx = Math.sin(ang), sz = Math.cos(ang);
-  const q = { friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * tr.speed, vz: sz * tr.speed, dmg, crit, fx, hk: 0, fin: false, knock: tr.knock || 1, pierce: (tr.pierce || 0) + (extra.pierce || 0), hit: [], life: tr.range / tr.speed, kind: extra.kind || (tr.bolt ? 'bolt' : 'arrow'), poison: extra.poison, freeze: extra.freeze, burn: extra.burn, bleed: extra.bleed, blast: extra.blast, mixAll: !!extra.mixAll, eblast: extra.eblast };
+  const sk = extra.speedK || 1, q = { friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * tr.speed * sk, vz: sz * tr.speed * sk, dmg, crit, fx, hk: 0, fin: false, knock: tr.knock || 1, pierce: (tr.pierce || 0) + (extra.pierce || 0), hit: [], life: tr.range / (tr.speed * sk), kind: extra.kind || (tr.bolt ? 'bolt' : 'arrow'), poison: extra.poison, freeze: extra.freeze, burn: extra.burn, bleed: extra.bleed, blast: extra.blast, mixAll: !!extra.mixAll, eblast: extra.eblast, pulse: extra.pulse || null };
   W.proj.push(q); return q;
 }
 // стрелы героя: летят, бьют первых врагов на пути (арбалет — насквозь pierce врагов), гаснут о стену и по дальности
@@ -455,6 +457,8 @@ function updateArrows(W, dt) {
   for (let i = W.proj.length - 1; i >= 0; i--) {
     const q = W.proj[i]; if (!q.friendly) continue;
     q.life -= dt; q.x += q.vx * dt; q.z += q.vz * dt;
+    if (q.pulse && (q.pulse.acc += dt) >= q.pulse.every) { const U = q.pulse; U.acc = 0; W.ev.push({ k: 'pulse', x: q.x, z: q.z, r: U.r });     // сфера стихии: пульс вокруг себя
+      for (const o of W.enemies) if (!o.dead && len(o.x - q.x, o.z - q.z) < U.r + W.cfg.enemies[o.type].radius) { dealDamage(W, o, Math.max(1, Math.round(q.dmg * U.k)), q.fx); if (!o.dead) skillStrike(W, o, q.dmg * U.k); } }
     let end = q.life <= 0 || hitsWall(W.map, q.x, q.z) || lineBlocked(W.map, q.x - q.vx * dt, q.z - q.vz * dt, q.x, q.z);
     if (!end) for (const e of W.enemies) {
       if (e.dead || q.hit.includes(e.id) || len(e.x - q.x, e.z - q.z) > W.cfg.enemies[e.type].radius + S.hitR) continue;
@@ -466,6 +470,8 @@ function updateArrows(W, dt) {
       if (q.bleed && !e.dead) applyStatus(W, e, 'bleed', q.bleed[0], q.bleed[1]);                  // нож веера: кровотечение
       if (q.blast) { const B = q.blast; q.blast = null; W.ev.push({ k: 'firearrow', x: e.x, z: e.z, r: B.r });     // зажигательная: огонь вокруг цели
         for (const o of W.enemies) if (!o.dead && len(o.x - e.x, o.z - e.z) < B.r + W.cfg.enemies[o.type].radius) { if (o !== e) dealDamage(W, o, Math.max(1, Math.round(q.dmg * B.k)), 'fire'); if (!o.dead) applyStatus(W, o, 'burn', B.dps, B.t); } }
+      if (q.splash) { const [r, k] = q.splash; q.splash = null; W.ev.push({ k: 'splash', x: e.x, z: e.z, r });     // вспышка сферы посоха задевает соседей
+        for (const o of W.enemies) if (!o.dead && o !== e && len(o.x - e.x, o.z - e.z) < r + W.cfg.enemies[o.type].radius) dealDamage(W, o, Math.max(1, Math.round(q.dmg * k)), q.fx); }
       if (q.mixAll && !e.dead) skillStrike(W, e, q.dmg);                                         // стрела стихии: сплав наверняка
       if (q.eblast) { const B = q.eblast; q.eblast = null; W.ev.push({ k: 'eblast', x: e.x, z: e.z, r: B.r, el: W.wp.mix ? [W.wp.mix.a, W.wp.mix.b] : [W.wp.el] });
         for (const o of W.enemies) if (!o.dead && o !== e && len(o.x - e.x, o.z - e.z) < B.r + W.cfg.enemies[o.type].radius) { dealDamage(W, o, Math.max(1, Math.round(q.dmg * B.k)), q.fx); if (!o.dead) skillStrike(W, o, q.dmg * B.k); } }
@@ -859,11 +865,12 @@ function goalOf(W, e, dt = 1 / 60) {
 // чужое оружие и вторая рука уходят в сумку (даже сверх размера), в руку — лучшее своё из сумки или стартовое оружие героя
 export function switchHero(W, id) {
   const H = HEROES[id]; if (!H || !H.open || id === W.hero) return false;
-  W.hero = id; W.ap += Object.values(W.ab).reduce((a, b) => a + b, 0); W.ab = {}; W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.ezones = []; W.bar = []; W.wsk = null;
+  W.hero = id; W.ap += Object.values(W.ab).reduce((a, b) => a + b, 0); W.ab = {}; W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.ezones = []; W.bar = []; W.wsk = null; W.meteors = [];
   W.allies = W.allies.filter(a => !a.decoy);
   const inv = W.inv, back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot])); inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; };
   if (inv.eq.weapon && !canWield(id, BY_ID[inv.eq.weapon])) back('weapon');
   if (inv.eq.offhand && !canOff(id, BY_ID[inv.eq.offhand])) back('offhand');
+  for (const sl of ['head', 'body', 'cloak', 'boots']) if (inv.eq[sl] && !canWield(id, BY_ID[inv.eq[sl]])) back(sl);     // тяжёлая броня — в сумку (Ирге только лёгкая)
   if (!inv.eq.weapon) {
     let bi = -1, bd = -1; inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; if (it.slot === 'weapon' && canWield(id, it) && it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus) > bd) { bd = it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus); bi = i; } });
     if (bi >= 0) equipAt(inv, bi, id); else if (H.start) inv.eq.weapon = H.start;

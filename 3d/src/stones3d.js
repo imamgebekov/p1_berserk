@@ -20,6 +20,16 @@ export function gemDropOf(W, e) {
   return r < S.drop + S.danger * (e.danger || 0) ? gemId(el, 1) : null;
 }
 
+// посох или жезл с врага (или null): шанс выше, когда играет Ирга; материал — по опасности места и элите (свой генератор)
+const MAGIC_MATS = ['rust', 'iron', 'tempered', 'bone', 'steel', 'black', 'blood'];
+export function magicDropOf(W, e, depth = 0) {
+  const S = W.cfg.stones; if (!S || !S.magic || e.boss) return null;
+  const r = hash(e.id * 7 + 3, W.kills), ch = e.elite ? S.magicElite : S.magic[W.hero === 'irga' ? 0 : 1];
+  if (r >= ch) return null;
+  const q = hash(e.id * 13 + 5, W.kills * 3 + 1), d = Math.max(0, Math.min(1, depth));
+  const mi = Math.min(6, Math.floor(d * 4 + q * 2.5) + (e.elite ? 2 : 0));
+  return `w_${q < .5 ? 'staff' : 'wand'}_${MAGIC_MATS[mi]}`;
+}
 // камни в месте where: массив по числу гнёзд (null — пусто)
 export function gemsAt(W, where) {
   const inv = W.inv, id = where.slot ? inv.eq[where.slot] : inv.bag[where.idx] && inv.bag[where.idx].id, it = id && BY_ID[id], n = socketsOf(it, W.cfg);

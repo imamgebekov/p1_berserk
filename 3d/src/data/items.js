@@ -58,7 +58,12 @@ const RTYPES = [
   ['longbow', 'длинный лук', 'm', 9, 0, 6, 1.15],
   ['crossbow', 'арбалет', 'm', 12, 0, 2, 1.5]
 ];
-export const KIND_NAME = { ...Object.fromEntries([...WTYPES, ...RTYPES].map(t => [t[0], t[1]])), shield: 'щит' };     // «sword» → «меч»
+// магическое оружие (Ирга): [тип, имя, род, урон, —, крит, скорость удара]
+const MTYPES = [
+  ['staff', 'посох', 'm', 8, 0, 3, 1.2],
+  ['wand', 'жезл', 'm', 5, 0, 7, .85]
+];
+export const KIND_NAME = { ...Object.fromEntries([...WTYPES, ...RTYPES, ...MTYPES].map(t => [t[0], t[1]])), shield: 'щит' };     // «sword» → «меч»
 // материал: [id, [м, ж, ср], множитель, редкость, цена]
 const WMATS = [
   ['rust', ['Ржавый', 'Ржавая', 'Ржавое'], .6, 0, 4],
@@ -87,6 +92,16 @@ for (const [t, nm, g, base, , crit, swing] of RTYPES) for (const [m, adj, mult, 
   if (m === 'bone') stats.spd = 2;
   const perks = MATERIAL_PERKS[m] || [];
   add({ id: idOf('w', t, m), name: `${adj[GI[g]]} ${nm}`, cat: 'weapon', slot: 'weapon', pool: 'ranged', rar, stats, value: val * (base / 5 + .6), kind: t, mat: m, perks, text: weaponText(t, perks) });
+}
+// посохи и жезлы — свой пул: выпадают отдельным броском (stones3d.js → magicDropOf), в таблицы добычи не входят
+for (const [t, nm, g, base, , crit, swing] of MTYPES) for (const [m, adj, mult, rar, val] of WMATS) {
+  const stats = { dmg: Math.round(base * mult) };
+  if (crit) stats.crit = Math.round(crit * (1 + (rar > 1 ? .4 : 0)));
+  if (swing !== 1) stats.swing = swing;
+  if (m === 'blood') stats.leech = 4;
+  if (m === 'bone') stats.spd = 2;
+  const perks = MATERIAL_PERKS[m] || [];
+  add({ id: idOf('w', t, m), name: `${adj[GI[g]]} ${nm}`, cat: 'weapon', slot: 'weapon', pool: 'magic', rar, stats, value: val * (base / 5 + .6), kind: t, mat: m, perks, text: weaponText(t, perks) });
 }
 // щиты (вторая рука Торна): [форма, имя, броня, блок %, скорость %]; блок — доля урона спереди, которую щит снимает
 const SHIELDS = [['buckler', 'баклер', 3, 30, 0], ['tower', 'ростовой щит', 7, 50, -6]];

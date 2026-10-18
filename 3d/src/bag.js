@@ -1,7 +1,7 @@
 // Сумка и экипировка: окно с надетым, списком вещей, карточкой вещи и действиями.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine, KIND_NAME } from './data/items.js';
 import { betterThanWorn, equipAt, equipOff, unequip, scoreUp, nameOf, SET_OF, setCounts, bonusText, statDiff } from './inv.js';
-import { canWield, canOff, heroOf, NOT_FOR } from './data/heroes3d.js';
+import { canWield, canOff, heroOf, NOT_FOR, heavyFor } from './data/heroes3d.js';
 import { iconURL, slotIconURL } from './itemicons.js';
 import { PERKS } from './data/weapons3d.js';
 import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots } from './sim.js';
@@ -100,7 +100,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       cardEl.appendChild(g);
     }
     const mine = canWield(W.hero, it);
-    if (!mine) cardEl.appendChild(el('div', 'cmp down', `${NOT_FOR[W.hero]}: ${heroOf(W.hero).name} держит ${heroOf(W.hero).kinds.map(k => KIND_NAME[k]).join(', ')}. Можно продать торговцу.`));
+    if (!mine) cardEl.appendChild(el('div', 'cmp down', heavyFor(W.hero, it) ? `${NOT_FOR[W.hero]}: тяжёлая броня, ${heroOf(W.hero).name} носит только лёгкую. Можно продать торговцу.` : `${NOT_FOR[W.hero]}: ${heroOf(W.hero).name} держит ${heroOf(W.hero).kinds.map(k => KIND_NAME[k]).join(', ')}. Можно продать торговцу.`));
     if (it.slot && sel.from === 'bag' && mine) {
       const cur = W.inv.eq[it.slot], c = cur && BY_ID[cur];
       if (c) { const d = Math.round(scoreUp(it, up, cfg.smith.bonus) - scoreUp(c, W.inv.up[it.slot] || 0, cfg.smith.bonus)); cardEl.appendChild(el('div', 'cmp ' + (d > 0 ? 'up' : d < 0 ? 'down' : ''), `Надето: ${c.name} — в целом ${d > 0 ? 'лучше на ' + d : d < 0 ? 'хуже на ' + -d : 'так же'}`)); }

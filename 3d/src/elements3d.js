@@ -140,6 +140,7 @@ export function tickZones(W, dt, ap) {
         if (z.kind === 'steam') ap(o, 'blind', 0, .4);
         else if (z.kind === 'lava') { W.fx.deal(o, Math.max(1, Math.round(M.lava.dps * k)), 'fire'); if (!o.dead) ap(o, 'burn', M.lava.burn[0], M.lava.burn[1]); }
         else if (z.kind === 'glaze' || z.kind === 'bog') ap(o, 'slow', M[z.kind].slow, .4);
+        else if (z.kind === 'cloud' && !(o.st && o.st.poison && o.st.poison.t > 4.5)) ap(o, 'poison', z.dps, 5);     // ядовитое облако Ирги: заряд раз в tick, не чаще раза в полсекунды
         else if (z.kind === 'spring' && !(o.st && o.st.poison && o.st.poison.t > M.spring.poison[1] - k)) ap(o, 'poison', M.spring.poison[0], M.spring.poison[1]);
       }
     }

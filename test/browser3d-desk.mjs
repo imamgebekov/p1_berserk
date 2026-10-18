@@ -369,7 +369,8 @@ try {
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
     await pg.goto(url + '?shot&retro'); await pg.waitForTimeout(1200);
     const info = await pg.evaluate(() => ({ shown: !document.getElementById('heroPick').hidden, cards: [...document.querySelectorAll('.hcard')].map(c => ({ id: c.dataset.hero, shut: c.classList.contains('shut'), h: c.querySelector('button').getBoundingClientRect().height, dis: c.querySelector('button').disabled })), panel: window.__b3d.ui().panelOpen }));
-    if (!info.shown || info.cards.length !== 3 || !info.panel) bad('нет экрана выбора героя или игра не на паузе: ' + JSON.stringify(info));
+    if (!info.shown || info.cards.length !== 4 || !info.panel) bad('нет экрана выбора героя или игра не на паузе: ' + JSON.stringify(info));
+    { const row = await pg.evaluate(() => new Set([...document.querySelectorAll('.hcard')].map(c => Math.round(c.getBoundingClientRect().top))).size); if (row !== 1) bad('на компьютере 4 карточки героев не в один ряд: рядов ' + row); }     // Ирга — четвёртая
     if (!info.cards.every(c => c.h >= 44)) bad('кнопки выбора героя меньше 44 px');
     if (info.cards.some(c => c.dis)) bad('какой-то герой закрыт: ' + JSON.stringify(info.cards));
     await pg.screenshot({ path: join(out, '3d-desk-heroes.png') });

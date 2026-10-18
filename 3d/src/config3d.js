@@ -205,7 +205,8 @@ const BASE = {
     cd: 18, minRar: 4, gold: 1.3,
     cleave: { r: 3.4, mul: 1.5, gap: .3, knock: .8 }, lunge: { dist: 6, time: .26, mul: 1.6, width: 1.8 },
     shatter: { r: 4, mul: 1.9, stun: .8, crack: 6 }, reap: { r: 4.4, cone: 220, mul: 2.6, knock: 2.2 },
-    tempest: { r: 3.2, t: 2.5, tick: .25, mul: .28 }, elemshot: { mul: 2, pierce: 99, r: 3, k: .4 }
+    tempest: { r: 3.2, t: 2.5, tick: .25, mul: .28 }, elemshot: { mul: 2, pierce: 99, r: 3, k: .4 },
+    orb: { mul: .9, speed: .45, r: 2.2, every: .3, k: .35 }     // сфера стихии (посох, жезл): летит медленнее (speed ×), пульс раз в every с по всем в r м
   },
   // камни силы (2026-10-18): sockets — гнёзд у оружия по редкости (обычное … золотое); drop — шанс осколка с врага (+danger за
   // уровень опасности места), elite — шанс камня с элиты; of — стихия камня у вида врага, в дождь с любого — rain; hearts — сердце
@@ -215,6 +216,8 @@ const BASE = {
     of: { imp: 'fire', brute: 'earth', hound: 'blood', ghoul: 'venom', archer: 'storm', witch: 'fire', shield: 'earth', bomber: 'fire', lunger: 'blood', shade: 'ice' },
     hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice' },
     fuse: { n: 3, ash: [40, 150] }, unsocket: [15, 50, 150],
+    // посохи и жезлы с врагов (Ирга): magic — шанс у Ирги и у других героев, magicElite — у элиты; материал — по опасности места
+    magic: [.03, .006], magicElite: .25,
     // сплав в ударе: chance — шанс по рангу камня (тяжёлый удар и конец серии — всегда); power — сила по рангу; amp — стихия вещи
     // совпала с камнем; el — что кладёт каждая стихия при силе 1: [dps, длительность] или длительность метки; chain — молния
     // перескакивает [м, доля урона]; двойные: hellfire — Пекло, permafrost — Вечная мерзлота, flow — Поток, overload — Перегрузка
@@ -237,7 +240,8 @@ const BASE = {
     res: {
       thorn: { name: 'Ярость', color: '#d8402a', max: 100, start: 0, hit: 3.5, hurt: .3, roll: 0, regen: 0, decay: 6, idle: 4, perLv: 2 },
       jay: { name: 'Концентрация', color: '#e8c04a', max: 100, start: 100, hit: 4, hurt: 0, roll: 0, regen: 9, decay: 0, idle: 0, perLv: 2 },
-      vale: { name: 'Ритм', color: '#6ab0ff', max: 100, start: 0, hit: 3, hurt: 0, roll: 6, regen: 0, decay: 7, idle: 3, perLv: 2 }
+      vale: { name: 'Ритм', color: '#6ab0ff', max: 100, start: 0, hit: 3, hurt: 0, roll: 6, regen: 0, decay: 7, idle: 3, perLv: 2 },
+      irga: { name: 'Мана', color: '#7a8aff', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 }
     },
     thorn: {
       charge: { cd: [3, 3, 2.5], cost: 20, dist: 6, stop: .9, time: .28, width: 1.7, mul: [1.2, 1.6, 2], knock: 2.4 },   // рывок с размаха (stop — останавливается в стольких м от цели)
@@ -273,19 +277,33 @@ const BASE = {
       fan:    { cd: [5, 4.5, 4], cost: 30, n: 5, spread: 50, mul: [.6, .75, .9], dps: [4, 6, 8], t: 3 },     // веер ножей
       smoke:  { cd: [16, 14, 12], cost: 40, r: 9, hide: 1.5, t: [3, 4, 5], spd: [20, 30, 40] },     // spd — % скорости     // дымовая завеса
       bloodlet: { cd: [9, 8, 7], cost: 45, r: 3.2, mul: [.8, 1, 1.2], dps: [6, 8, 10], t: 4 }     // кровопускание
+    },
+    // Ирга (2026-10-18): почти всё по площади, копьё — по одной цели. fireball — сфера, у цели огонь в r м (splash — доля урона соседям);
+    // nova — кольцо льда r м; chain — молния прыгает jumps раз на hop м, каждый прыжок ×fall; cloud — облако яда r м на t с; meteor — через
+    // delay с падает в круг r м и поджигает; shield — t с доля absorb урона снимается с маны; blizzard — вьюга r м t с, удар раз в tick с и
+    // замедление slow; spear — копьё бездны по одной цели
+    irga: {
+      fireball: { cd: [4, 3.5, 3], cost: 25, mul: [1.2, 1.5, 1.8], r: 2.5, splash: .6, dps: [4, 6, 8], t: 3 },     // огненный шар
+      nova:     { cd: [7, 6, 5], cost: 35, r: 4, mul: [.8, 1, 1.2], freeze: [1.2, 1.6, 2] },     // ледяное кольцо
+      chain:    { cd: [5, 4.5, 4], cost: 30, range: 14, hop: 5, jumps: [3, 4, 5], mul: [1, 1.2, 1.4], fall: .85 },     // цепная молния
+      cloud:    { cd: [10, 9, 8], cost: 40, r: 3.5, t: 5, tick: .5, dps: [3, 4, 5], range: 14, ahead: 6 },     // ядовитое облако
+      meteor:   { cd: [14, 12, 10.5], cost: 60, r: 3.5, delay: 1, mul: [2, 2.6, 3.2], burn: [6, 4], range: 14, ahead: 6 },     // метеор
+      shield:   { cd: [20, 18, 16], cost: 40, t: [6, 8, 10], absorb: [.5, .6, .7] },     // щит маны
+      blizzard: { cd: [16, 14, 12], cost: 55, r: 4, t: 4, tick: .4, mul: [.3, .4, .5], slow: .6, range: 14, ahead: 6 },     // вьюга
+      spear:    { cd: [18, 16, 14], cost: 50, mul: [3.5, 4.5, 5.5], range: 16, cone: 60 }     // копьё бездны
     }
   },
   // вторая рука (B2b): block.arc — ширина щита спереди, °; block.knock — доля отброса при блоке; dual.mul — доля урона второго клинка
   // к каждому удару, dual.swing — удары с двумя клинками быстрее (×)
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
-  heroes: { thorn: { hp: 1, speed: 1, crit: 0 }, vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 } },
+  heroes: { thorn: { hp: 1, speed: 1, crit: 0 }, vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 } },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
     // rar — редкость вещи (3 — великий, фиолетовый; 4 — клеймёный, оранжевый; 5 — золотой, только здесь), mul — наценка;
     // pools — откуда вещи (только снаряжение; у уровня может быть свой список)
     rare: { tiers: [{ name: 'Редкое', rar: 3, chance: .6, n: [1, 2], mul: 1 }, { name: 'Очень редкое', rar: 4, chance: .25, n: [1, 1], mul: 1.3 }, { name: 'Супер редкое', rar: 5, chance: .06, n: [1, 1], mul: 1.6, pools: ['gold'] }],
-      pools: ['weapon', 'weapon', 'ranged', 'shield', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet'] } },   // цена покупки = цена вещи × buyMul, продажи × sellMul; витрина обновляется раз в restock секунд
+      pools: ['weapon', 'weapon', 'ranged', 'magic', 'shield', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet'] } },   // цена покупки = цена вещи × buyMul, продажи × sellMul; витрина обновляется раз в restock секунд
   // отряд: наёмники из Заставы. Идут за героем, бьют врагов, умирают насовсем. Мест в отряде: baseMax + 1 за каждые perLevels уровней, но не больше cap
   // боссы: логово (x, z), атаки с предупреждением, фазы по здоровью. attacks: kind slam (круг), charge (рывок по линии), nova (кольцо огня), summon (подмога);
   // wind — время предупреждения, mul — множитель урона, cd — перезарядка, range — с какого расстояния применяется. phases: at — доля здоровья

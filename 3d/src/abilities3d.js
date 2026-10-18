@@ -69,6 +69,8 @@ function aimAt(W, range, cone = 180) {
     if (d < bd && Math.abs(a) <= cone * Math.PI / 180 && !lineBlocked(W.map, p.x, p.z, e.x, e.z)) { bd = d; best = e; } }
   return best ? { ang: Math.atan2(best.x - p.x, best.z - p.z), e: best } : { ang: p.face, e: null };
 }
+// точка умения по площади: ближайший видимый враг в range или ahead м впереди
+const spot = (W, A) => { const p = W.player, { e } = aimAt(W, A.range); return e ? { x: e.x, z: e.z } : { x: p.x + Math.sin(p.face) * A.ahead, z: p.z + Math.cos(p.face) * A.ahead }; };
 const near = (W, r) => W.enemies.filter(e => !e.dead && len(e.x - W.player.x, e.z - W.player.z) < r + W.cfg.enemies[e.type].radius);
 
 const ACT = {
@@ -143,6 +145,27 @@ const ACT = {
     W.ev.push({ k: 'smoke', x: p.x, z: p.z, r: A.r });
   },
   bloodlet(W, A, r) { const list = near(W, A.r); if (!list.length) return false; for (const e of list) { abilityHit(W, e, A.mul[r], { knock: .4 }); if (!e.dead) applyStatus(W, e, 'bleed', A.dps[r], A.t); } },
+  // Ирга
+  fireball(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { blast: { r: A.r, k: A.splash, dps: A.dps[r], t: A.t }, kind: 'orb' }); },
+  nova(W, A, r) { const p = W.player; for (const e of near(W, A.r)) { abilityHit(W, e, A.mul[r], { knock: .8 }); if (!e.dead) applyStatus(W, e, 'freeze', 0, A.freeze[r]); } W.ev.push({ k: 'nova', x: p.x, z: p.z, r: A.r }); },
+  chain(W, A, r) {                                 // молния: цель впереди, потом прыжки к ближайшим ещё не задетым
+    const { e } = aimAt(W, A.range, 70); if (!e) return false;
+    const p = W.player; p.face = Math.atan2(e.x - p.x, e.z - p.z); let cur = e, from = p, m = A.mul[r]; const done = new Set();
+    for (let i = 0; cur && i <= A.jumps[r]; i++) {
+      done.add(cur); W.ev.push({ k: 'chain', x: from.x, z: from.z, x2: cur.x, z2: cur.z });
+      const dmg = abilityHit(W, cur, m, { knock: .3 }); if (!cur.dead) applyStatus(W, cur, 'shock', dmg, W.cfg.elements.mark.shock);
+      from = cur; m *= A.fall; let best = null, bd = A.hop; for (const o of W.enemies) { if (o.dead || done.has(o)) continue; const d = len(o.x - from.x, o.z - from.z); if (d < bd) { bd = d; best = o; } } cur = best;
+    }
+  },
+  cloud(W, A, r) { const at = spot(W, A); W.ezones.push({ kind: 'cloud', x: at.x, z: at.z, r: A.r, t: A.t, tick: A.tick, acc: 0, lvl: W.lvl, dps: A.dps[r] }); },
+  meteor(W, A, r) { const at = spot(W, A); (W.meteors = W.meteors || []).push({ x: at.x, z: at.z, t: A.delay, r: A.r, mul: A.mul[r], burn: A.burn, lvl: W.lvl }); W.ev.push({ k: 'meteorMark', x: at.x, z: at.z, r: A.r, t: A.delay }); },
+  shield(W, A, r) { W.abuf.mshield = A.t[r]; W.abuf.mshieldK = A.absorb[r]; },
+  blizzard(W, A, r) { const at = spot(W, A); W.zones.push({ x: at.x, z: at.z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl, slow: A.slow, snow: true }); },
+  spear(W, A, r) {
+    const p = W.player, { e } = aimAt(W, A.range, A.cone); if (!e) return false;
+    p.face = Math.atan2(e.x - p.x, e.z - p.z); W.ev.push({ k: 'spear', x: p.x, z: p.z, x2: e.x, z2: e.z });
+    abilityHit(W, e, A.mul[r], { knock: 1.5, heavy: true });
+  },
   execute(W, A, r) {
     const p = W.player, { e } = aimAt(W, A.reach + 1, A.cone); if (!e || len(e.x - p.x, e.z - p.z) > A.reach + W.cfg.enemies[e.type].radius) return false;
     if (!e.boss && e.hp / e.maxhp < A.kill[r]) { abilityHit(W, e, A.mul[r], { knock: 1.5 }); if (!e.dead) { e.hp = 0; W.fx.kill(e); } W.ev.push({ k: 'execute', x: e.x, z: e.z }); return; }
@@ -169,7 +192,12 @@ export function tickAbilities(W, dt) {
     if (e) { abilityHit(W, e, tp.mul, { knock: .1 }); applyStatus(W, e, 'root', 0, tp.root); W.ev.push({ k: 'trapSnap', x: tp.x, z: tp.z }); W.traps.splice(i, 1); } }
   // град стрел: удар по всем в круге каждые tick секунд
   W.zones = W.zones.filter(zn => zn.lvl === W.lvl && zn.t > 0);
-  for (const zn of W.zones) { zn.t -= dt; zn.acc += dt; while (zn.acc >= zn.tick) { zn.acc -= zn.tick; for (const e of W.enemies) if (!e.dead && len(e.x - zn.x, e.z - zn.z) < zn.r + W.cfg.enemies[e.type].radius) abilityHit(W, e, zn.mul, { knock: .15 }); } }
+  for (const zn of W.zones) { zn.t -= dt; zn.acc += dt; while (zn.acc >= zn.tick) { zn.acc -= zn.tick; for (const e of W.enemies) if (!e.dead && len(e.x - zn.x, e.z - zn.z) < zn.r + W.cfg.enemies[e.type].radius) { abilityHit(W, e, zn.mul, { knock: zn.snow ? .05 : .15 }); if (zn.slow && !e.dead) applyStatus(W, e, 'slow', zn.slow, zn.tick + .3); } } }     // вьюга ещё и замедляет
+  // метеоры Ирги: через delay с падают в круг — удар и горение (живут на своём уровне)
+  W.meteors = (W.meteors || []).filter(m => m.lvl === W.lvl);
+  for (let i = W.meteors.length - 1; i >= 0; i--) { const m = W.meteors[i]; if ((m.t -= dt) > 0) continue; W.meteors.splice(i, 1); W.ev.push({ k: 'meteor', x: m.x, z: m.z, r: m.r }); W.shake = Math.max(W.shake, W.cfg.fx.shake * 2);
+    for (const e of W.enemies) if (!e.dead && len(e.x - m.x, e.z - m.z) < m.r + W.cfg.enemies[e.type].radius) { abilityHit(W, e, m.mul, { knock: 1 }); if (!e.dead) applyStatus(W, e, 'burn', m.burn[0], m.burn[1]); } }
+  if (b.mshield > 0) b.mshield -= dt;
   if (b.iron > 0) b.iron -= dt;
   for (const k of ['blood', 'hawk', 'smoke']) if (b[k] > 0) b[k] -= dt;     // баффы новых умений
   if (b.parry > 0) b.parry -= dt;

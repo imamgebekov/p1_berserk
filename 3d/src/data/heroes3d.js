@@ -23,15 +23,24 @@ export const HEROES = {
     kinds: ['bow', 'longbow', 'crossbow'], off: [], start: 'w_bow_rust',
     look: { cloth: '#4a5a3a', cape: '#3a4a2a', hair: '#5a3a22', legs: '#3a3428', shoulder: false, hood: true, quiver: true, capeLen: .8 },
     open: true
+  },
+  irga: {
+    name: 'Ирга', role: 'Ведунья',
+    text: 'Носит только лёгкую броню, зато владеет стихиями: огонь, лёд, молния и яд по площади, одно мощное копьё по одной цели. Посохи и жезлы.',
+    kinds: ['staff', 'wand'], off: [], start: 'w_staff_rust', armorBan: ['helm', 'sallet', 'cuirass', 'mail', 'plate', 'greaves'],     // лёгкая броня: без шлемов, кирас, кольчуг, лат и поножей
+    look: { cloth: '#3e2e5e', cape: '#2a1e48', hair: '#d8d0c0', legs: '#3e2e5e', shoulder: false, hood: true, quiver: false, capeLen: 1.15 },
+    open: true
   }
 };
 export const HERO_IDS = Object.keys(HEROES);
 export const DEFAULT_HERO = 'thorn';
 export const heroOf = id => HEROES[id] || HEROES[DEFAULT_HERO];
 // можно ли герою держать вещь: ограничены оружие и вторая рука (щит)
-export const canWield = (hero, it) => !it || (it.slot === 'weapon' ? heroOf(hero).kinds.includes(it.kind) : it.slot === 'offhand' ? heroOf(hero).off.includes(it.kind) : true);
+export const canWield = (hero, it) => !it || (it.slot === 'weapon' ? heroOf(hero).kinds.includes(it.kind) : it.slot === 'offhand' ? heroOf(hero).off.includes(it.kind) : !(heroOf(hero).armorBan || []).includes(it.kind));
+// тяжёлая броня, которую герою нельзя (для подсказки в сумке)
+export const heavyFor = (hero, it) => !!it && !!it.slot && it.slot !== 'weapon' && it.slot !== 'offhand' && (heroOf(hero).armorBan || []).includes(it.kind);
 // можно ли положить во вторую руку: щит — тому, кому он разрешён; клинок — дуэлянту (off — виды второго клинка)
 export const canOff = (hero, it) => !!it && (it.slot === 'offhand' || it.slot === 'weapon') && heroOf(hero).off.includes(it.kind);
 export const dualOf = hero => heroOf(hero).off.some(k => k !== 'shield');
 // названия видов оружия героя для карточки («меч, топор, …»)
-export const NOT_FOR = { thorn: 'Не для Торна', vale: 'Не для Вейла', jay: 'Не для Сойки' };
+export const NOT_FOR = { thorn: 'Не для Торна', vale: 'Не для Вейла', jay: 'Не для Сойки', irga: 'Не для Ирги' };

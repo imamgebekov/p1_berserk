@@ -329,7 +329,7 @@ if (desk) {
   addEventListener('keydown', e => {
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
     const c = e.code;
-    if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3'].indexOf(c); if (n >= 0) pickHero(HERO_IDS[n]); else if (c === 'Escape' && heroSwitching) closeHeroPick(); return; }
+    if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(c); if (n >= 0) pickHero(HERO_IDS[n]); else if (c === 'Escape' && heroSwitching) closeHeroPick(); return; }
     if (!$('dead').hidden) { if (c === 'Enter' || c === 'KeyE') $('again').click(); return; }
     if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.close'); if (open) open.click(); else $('gear').click(); return; }
     if (c === 'KeyM') { if (!panelOpen || !mapEl.hidden) $('miniBtn').click(); return; }

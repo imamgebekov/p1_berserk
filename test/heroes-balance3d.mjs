@@ -1,4 +1,4 @@
-// Баланс героев 3D (шаг B4): бот за Торна, Сойку и Вейла — каждый со своим оружием, второй рукой и умениями —
+// Баланс героев 3D (шаг B4, Ирга — 2026-10-18): бот за Торна, Сойку, Вейла и Иргу — каждый со своим оружием, второй рукой и умениями —
 // сражается 90 секунд у костра, в середине и у границы на трёх ступенях снаряжения, бьёт Пожирателя и чистит Склеп Погоста.
 // Проверки: у каждого героя своя лестница силы; средняя смертность героя по всем клеткам поля отличается от средней по трём героям
 // не больше чем на HB_TOL (15 п. п.) — на одной клетке при 12 прогонах ошибка доли около 14 п. п., поэтому по клеткам — грубая
@@ -14,15 +14,23 @@ import { resNow } from '../3d/src/resource3d.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const SEEDS = Number(process.env.HB_SEEDS || 12), SECONDS = 90, TOL = Number(process.env.HB_TOL || .15), CELL = Number(process.env.HB_CELL || .3), QUIET = !!process.env.HB_QUIET;
-const HEROES = ['thorn', 'jay', 'vale'], NAME = { thorn: 'Торн', jay: 'Сойка', vale: 'Вейл' };
+const HEROES = ['thorn', 'jay', 'vale', 'irga'], NAME = { thorn: 'Торн', jay: 'Сойка', vale: 'Вейл', irga: 'Ирга' };
+const RANGED = h => h === 'jay' || h === 'irga';     // стрелки: держат дистанцию
 const ARMOR = {
   'железо': { body: 'a_body_jerkin_leather', head: 'a_head_cap_leather', boots: 'a_boots_boots_leather' },
   'сталь': { body: 'a_body_mail_mail', head: 'a_head_helm_mail', boots: 'a_boots_greaves_mail', ring: 'r_ring_might', amulet: 'm_amulet_ward' },
   'чёрное': { body: 'a_body_plate_black', head: 'a_head_helm_black', boots: 'a_boots_greaves_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' }
 };
+// Ирге — только лёгкая броня (стёганка, капюшон, сапоги): брони меньше, чем у остальных
+const LIGHT = {
+  'железо': ARMOR['железо'],
+  'сталь': { body: 'a_body_gambeson_mail', head: 'a_head_hood_mail', boots: 'a_boots_boots_mail', ring: 'r_ring_might', amulet: 'm_amulet_ward' },
+  'чёрное': { body: 'a_body_gambeson_black', head: 'a_head_crown_black', boots: 'a_boots_boots_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' }
+};
 const ARMS = {
   thorn: { 'железо': { weapon: 'w_sword_iron', offhand: 's_buckler_iron' }, 'сталь': { weapon: 'w_sword_steel', offhand: 's_buckler_steel' }, 'чёрное': { weapon: 'w_greatsword_black', offhand: 's_tower_black' } },
   jay:   { 'железо': { weapon: 'w_bow_iron' }, 'сталь': { weapon: 'w_longbow_steel' }, 'чёрное': { weapon: 'w_longbow_black' } },
+  irga:  { 'железо': { weapon: 'w_staff_iron' }, 'сталь': { weapon: 'w_staff_steel' }, 'чёрное': { weapon: 'w_staff_black' } },
   vale:  { 'железо': { weapon: 'w_rapier_iron', offhand: 'w_dagger_iron' }, 'сталь': { weapon: 'w_sword_steel', offhand: 'w_rapier_steel' }, 'чёрное': { weapon: 'w_rapier_black', offhand: 'w_dagger_black' } }
 };
 const LV = { 'железо': 6, 'сталь': 12, 'чёрное': 22 }, TIERS = Object.keys(LV);
@@ -32,7 +40,7 @@ const PLACES = { 'у костра': [6, 6], 'середина': [-20, -40], 'у 
 function spend(W) { const L = heroAbilities(W); for (let pass = 0; pass < 6; pass++) for (const a of L) upgradeAbility(W, a.id); }
 function setup(cfg, hero, tier, seed) {
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3)); W.hero = hero; W.lv = LV[tier]; W.ap = abilityPoints(W.lv, cfg);
-  Object.assign(W.inv.eq, ARMOR[tier], ARMS[hero][tier]); spend(W); refreshGear(W); W.player.hp = W.player.maxhp; return W;
+  Object.assign(W.inv.eq, (hero === 'irga' ? LIGHT : ARMOR)[tier], ARMS[hero][tier]); spend(W); refreshGear(W); W.player.hp = W.player.maxhp; return W;
 }
 const baseCfg = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.events.on = false; c.wanderer.on = false; c.ambient.on = false; return c; };
 
@@ -49,6 +57,11 @@ function abilities(W, hero, tgt, bd) {
   } else if (hero === 'jay') {
     if (bd < 3 && use(0)) return; if (near(W, 14) >= 2 && use(4)) return; if (bd < 7 && tgt.alert && use(2)) return;
     if (near(W, 12) >= 2 && use(1)) return; if (bd < 14 && use(3)) return;
+  } else if (hero === 'irga') {                                // Ирга: щит при беде, кольцо вплотную, по толпе — метеор, вьюга, облако; копьё — по сильным
+    if ((low || near(W, 6) >= 2) && use(5)) return; if (near(W, 3.2) >= 1 && use(1)) return;     // кольцо льда — оторваться
+    if (near(W, 14) >= 3 && (use(4) || use(6))) return; if (near(W, 14) >= 2 && use(3)) return;
+    if ((tgt.boss || tgt.elite || tgt.maxhp > 150) && bd < 16 && use(7)) return;
+    if (bd < 14 && use(2)) return; if (bd < 14 && use(0)) return;
   } else {
     if (tgt.hp < tgt.maxhp * .35 && bd < 2.6 && use(4)) return; if ((low || near(W, 6) >= 3) && use(3)) return;
     if (near(W, 3) >= 2 && use(2)) return; if (bd > 4 && bd < 8 && use(0)) return;
@@ -69,7 +82,7 @@ function bot(W, cfg, hero, en, dodge) {
   if (!tgt || bd > 30) return inp;
   const C = cfg.enemies[tgt.type], ux = (tgt.x - p.x) / bd, uz = (tgt.z - p.z) / bd, winding = tgt.state === 'wind' && bd < C.range + 1.2 && tgt.t > C.wind * .6;
   abilities(W, hero, tgt, bd);
-  if (hero === 'jay') {                                        // держит дистанцию 5–(дальность) и стреляет; вплотную — отходит
+  if (RANGED(hero)) {                                         // держит дистанцию 5–(дальность) и стреляет; вплотную — отходит
     const range = W.wp.trait.range * .85;
     const clear = !lineBlocked(W.map, p.x, p.z, tgt.x, tgt.z);
     if (bd < 4.5) { const es = escape(W, en); if (es) { inp.mx = es.mx; inp.mz = es.mz; } else { inp.mx = ux * .09; inp.mz = uz * .09; } if (bd < 2.2 && p.rollCd <= 0 && dodge() < .6) inp.roll = true; }     // отходит (в углу — стоит)
@@ -110,7 +123,7 @@ function boss(hero, tier, seed) {
   for (let i = 0; i < 60 * 150; i++) {
     const p = W.player, e = W.enemies.find(x => x.boss && !x.dead); if (!e) return { win: true, t: i / 60 };
     let inp; const d = Math.hypot(e.x - p.x, e.z - p.z) || 1, C = cfg.enemies[e.type];
-    if (hero === 'jay') {                                       // стрелок: кружит у логова, сначала снимает прислужников (они ловят стрелы)
+    if (RANGED(hero)) {                                         // стрелок: кружит у логова, сначала снимает прислужников (они ловят стрелы)
       const adds = W.enemies.filter(m => !m.boss && !m.dead && Math.hypot(m.x - p.x, m.z - p.z) < 12);
       inp = bot(W, cfg, hero, adds.length ? adds : [e], dodge);
       if (!adds.length && e.b.state === 'wind' && e.b.atk.t > e.b.atk.wind - .22 && p.rollCd <= 0 && dodge() < .5) { inp.roll = true; inp.mx = -(e.x - p.x) / d; inp.mz = -(e.z - p.z) / d; inp.attackPress = false; }
@@ -139,7 +152,7 @@ function crypt(hero, tier, seed) {
     const p = W.player, en = aliveEnemies(W); if (!en.length) return { dead: false, frac: 1 };
     let tgt = null, bd = 1e9; for (const e of en) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; tgt = e; } }
     const wp = pathStep(W.map, p.x, p.z, tgt.x, tgt.z, W.keys); let inp;
-    if (wp) { const dx = wp.x - p.x, dz = wp.z - p.z, d = Math.hypot(dx, dz) || 1; inp = { mx: dx / d, mz: dz / d, attackPress: bd < 2 || (hero === 'jay' && bd < W.wp.trait.range && !lineBlocked(W.map, p.x, p.z, tgt.x, tgt.z)) }; }     // стрелок бьёт и на ходу, если цель видна
+    if (wp) { const dx = wp.x - p.x, dz = wp.z - p.z, d = Math.hypot(dx, dz) || 1; inp = { mx: dx / d, mz: dz / d, attackPress: bd < 2 || (RANGED(hero) && bd < W.wp.trait.range && !lineBlocked(W.map, p.x, p.z, tgt.x, tgt.z)) }; }     // стрелок бьёт и на ходу, если цель видна
     else inp = bot(W, cfg, hero, en, dodge);
     step(W, 1 / 60, inp); if (p.dead) return { dead: true, frac: 1 - aliveEnemies(W).length / total };
   }

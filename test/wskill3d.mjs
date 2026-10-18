@@ -18,15 +18,15 @@ const hurt = e => e.maxhp - e.hp;
 
 // ---------- 1. у какого оружия есть умение ----------
 { const w = CATALOG.filter(i => i.slot === 'weapon');
-  const top = w.filter(i => i.rar >= S.minRar); ok(top.length === 40 && top.every(i => skillOfItem(i, CFG3)), `не у всего клеймёного и золотого оружия есть умение: ${top.filter(i => !skillOfItem(i, CFG3)).map(i => i.id)}`);
+  const top = w.filter(i => i.rar >= S.minRar); ok(top.length === 43 && top.every(i => skillOfItem(i, CFG3)), `не у всего клеймёного и золотого оружия есть умение: ${top.filter(i => !skillOfItem(i, CFG3)).map(i => i.id)}`);
   ok(w.filter(i => i.rar < S.minRar).every(i => !skillOfItem(i, CFG3)), 'умение у оружия ниже клеймёного');
-  ok(new Set(top.map(i => skillOfItem(i, CFG3).id)).size === 6 && Object.keys(WSKILL).length === 6, 'умений по типам не 6');
+  ok(new Set(top.map(i => skillOfItem(i, CFG3).id)).size === 7 && Object.keys(WSKILL).length === 7, 'умений по типам не 7');
   ok(top.filter(i => i.rar === 5).every(i => skillOfItem(i, CFG3).gold), 'золотое не отмечено');
   ok(!weaponSkillOf(mk('w_bow_blood', 'thorn')) && weaponSkillOf(mk('w_bow_blood', 'jay')), 'чужое оружие даёт умение'); }
 
 // ---------- 2. каждое умение бьёт, перезарядка общая ----------
 const CASES = [['cleave', 'w_sword_blood', 'thorn', [[0, 1.8], [1.8, 0], [-1.8, 0]]], ['lunge', 'w_spear_blood', 'thorn', [[0, 2.5], [0, 4.5]]], ['shatter', 'w_hammer_blood', 'thorn', [[0, 2], [2.5, 0], [-2.5, 0]]],
-  ['reap', 'w_greatsword_blood', 'thorn', [[0, 2], [1.5, 2], [-1.5, 2]]], ['tempest', 'w_flail_blood', 'thorn', [[0, 2], [2, 0]]], ['elemshot', 'w_longbow_blood', 'jay', [[0, 4], [0, 7], [1.5, 7]]]];
+  ['reap', 'w_greatsword_blood', 'thorn', [[0, 2], [1.5, 2], [-1.5, 2]]], ['tempest', 'w_flail_blood', 'thorn', [[0, 2], [2, 0]]], ['elemshot', 'w_longbow_blood', 'jay', [[0, 4], [0, 7], [1.5, 7]]], ['orb', 'w_staff_blood', 'irga', [[0, 4], [1.2, 6], [-1.2, 7]]]];
 for (const [id, wid, hero, spots] of CASES) {
   const W = mk(wid, hero), es = spots.map(([x, z]) => foe(W, x, z));
   ok(weaponSkillOf(W) && weaponSkillOf(W).id === id, `${wid}: не то умение`);

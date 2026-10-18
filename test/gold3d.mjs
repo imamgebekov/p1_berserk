@@ -13,7 +13,7 @@ const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const G = CATALOG.filter(i => i.rar === 5);
 
 // ---------- 1. каталог ----------
-ok(RARITY[5] && RARITY[5].name === 'Золотой' && G.length === 11 && G.every(i => i.pool === 'gold' && i.slot && i.stats), 'золотых вещей не 11 или не те');
+ok(RARITY[5] && RARITY[5].name === 'Золотой' && G.length === 12 && G.every(i => i.pool === 'gold' && i.slot && i.stats), 'золотых вещей не 12 или не те');     // 12-я — Посох Зенита (Ирга)
 ok(G.every(i => i.gold || (i.perks || []).includes('sun')), 'у золотой вещи нет своей механики');
 for (const it of G) {
   const base = CATALOG.filter(i => i.rar === 4 && i.slot === it.slot && (it.slot === 'weapon' || it.slot === 'offhand' ? i.kind === it.kind : true) && i.stats).sort((a, b) => b.value - a.value)[0];

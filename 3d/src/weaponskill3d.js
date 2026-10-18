@@ -14,7 +14,8 @@ export const WSKILL = {
   shatter: { name: 'Раскол земли', icon: '✸', fam: 'smash', text: 'Удар о землю: волна вокруг, оглушение и трещина.' },
   reap: { name: 'Жатва', icon: '☾', fam: 'spin', text: 'Огромный замах перед собой, врагов отбрасывает.' },
   tempest: { name: 'Цепная буря', icon: '❂', fam: 'flail', text: 'Цепь крутится вокруг героя и бьёт всех рядом.' },
-  elemshot: { name: 'Стрела стихии', icon: '➹', fam: 'bow', text: 'Стрела пробивает всех на линии и взрывается у первой цели.' }
+  elemshot: { name: 'Стрела стихии', icon: '➹', fam: 'bow', text: 'Стрела пробивает всех на линии и взрывается у первой цели.' },
+  orb: { name: 'Сфера стихии', icon: '◉', fam: 'staff', text: 'Медленная сфера проходит сквозь врагов и бьёт стихией всех вокруг себя.' }
 };
 const BY_FAM = Object.fromEntries(Object.entries(WSKILL).map(([id, s]) => [s.fam, id]));
 
@@ -45,6 +46,7 @@ const ACT = {
     if (!hit) return false; W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.8);
   },
   tempest(W, S, k) { if (!near(W, S.r).length) return false; W.wsk = { kind: 'tempest', t: S.t, acc: S.tick, k }; W.player.inv = Math.max(W.player.inv, .3); },
+  orb(W, S, k) { const p = W.player; faceNearest(W, 18); abilityArrow(W, p.face, S.mul * k, { pierce: 99, mixAll: true, kind: 'orb', speedK: S.speed, pulse: { r: S.r, every: S.every, k: S.k, acc: 0 } }); },
   elemshot(W, S, k) { const p = W.player, e = faceNearest(W, 18); abilityArrow(W, p.face, S.mul * k, { pierce: S.pierce, mixAll: true, eblast: { r: S.r, k: S.k }, kind: 'elem' }); void e; }
 };
 

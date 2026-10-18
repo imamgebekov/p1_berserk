@@ -123,6 +123,7 @@ export function deserialize(data, maxSlots, hero, cfg) {
   inv.ash = Number.isFinite(data.ash) && data.ash > 0 ? Math.floor(data.ash) : 0;
   const back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot])); delete inv.eq[slot]; delete inv.up[slot]; delete inv.gem[slot]; };
   if (hero && inv.eq.weapon && !canWield(hero, BY_ID[inv.eq.weapon])) back('weapon');
+  if (hero) for (const sl of ['head', 'body', 'cloak', 'boots']) if (inv.eq[sl] && !canWield(hero, BY_ID[inv.eq[sl]])) back(sl);     // запрещённая герою броня — в сумку
   if (inv.eq.offhand && (BY_ID[inv.eq.offhand].slot === 'weapon' ? !hero || !canOff(hero, BY_ID[inv.eq.offhand]) : hero && !canOff(hero, BY_ID[inv.eq.offhand]))) back('offhand');     // клинок во второй руке — только у своего героя
   return inv;
 }

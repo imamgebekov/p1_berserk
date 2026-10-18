@@ -12,10 +12,11 @@ export const FAMILY = {
   mace: 'smash', club: 'smash', hammer: 'smash', pick: 'smash',
   scythe: 'spin', greatsword: 'spin', war_axe: 'spin',
   flail: 'flail', chain_ball: 'flail',
-  bow: 'bow', longbow: 'bow', crossbow: 'bow'
+  bow: 'bow', longbow: 'bow', crossbow: 'bow',
+  staff: 'staff', wand: 'staff'
 };
 export const familyOf = kind => FAMILY[kind] || 'slash';
-export const FAMILY_NAME = { bow: 'стрелковый', slash: 'рубящий', thrust: 'колющий', smash: 'дробящий', spin: 'круговой', flail: 'цепной', fists: 'кулаки' };
+export const FAMILY_NAME = { staff: 'магический', bow: 'стрелковый', slash: 'рубящий', thrust: 'колющий', smash: 'дробящий', spin: 'круговой', flail: 'цепной', fists: 'кулаки' };
 
 // какой из трёх замахов: завершающий — каждый третий, остальные чередуются
 export const stepOf = (chain, fin) => (fin ? 'fin' : (chain % 2 === 1 ? 'a' : 'b'));
@@ -54,6 +55,12 @@ export const KEYS = {
     a: [P(-.15, 1.55, { reach: -.25, twist: -.55 }), P(-.1, 1.5, { reach: .05, twist: -.4, lean: -.06 })],
     b: [P(-.15, 1.55, { reach: -.25, twist: -.55 }), P(-.1, 1.5, { reach: .05, twist: -.4, lean: -.06 })],
     fin: [P(-.15, 1.55, { reach: -.3, twist: -.6 }), P(-.1, 1.48, { reach: .08, twist: -.4, lean: -.1 })]
+  },
+  // посох и жезл: замах вверх-назад, выброс вперёд (сфера вылетает с конца)
+  staff: {
+    a: [P(-.5, 1.2, { reach: -.2, twist: -.3 }), P(-.05, 1.6, { reach: .45, twist: -.1, lean: .06 })],
+    b: [P(-.4, 1.35, { reach: -.15, twist: .2 }), P(0, 1.55, { reach: .4, twist: .05, lean: .05 })],
+    fin: [P(-.7, 1.1, { reach: -.3, twist: -.4 }), P(.05, 1.7, { reach: .55, twist: -.1, lean: .12 })]
   },
   fists: {
     a: [P(-.2, 1.3, { reach: -.25, twist: -.25 }), P(0, 1.55, { reach: .5, twist: .25, lean: .12 })],
