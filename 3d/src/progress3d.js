@@ -2,6 +2,7 @@
 import { depthAt } from './levels3d.js';
 import { canRank } from './data/skills3d.js';
 import { refreshGear } from './sim.js';
+import { abilityPointsAt } from './data/abilities3d.js';
 
 // ---- опыт, уровни, навыки ----
 export const xpNeed = (lv, cfg) => Math.round(cfg.level.base * Math.pow(lv, cfg.level.pow));
@@ -14,7 +15,7 @@ export function gainXp(W, n) {
   n = Math.max(1, Math.round(n * W.dif.xp * (W.night ? W.cfg.daynight.night.xp : 1)));
   W.xp += n; W.ev.push({ k: 'xp', n, x: W.player.x, z: W.player.z });
   while (W.lv < L.max && W.xp >= xpNeed(W.lv, W.cfg)) {
-    W.xp -= xpNeed(W.lv, W.cfg); W.lv++; W.sp++; W.ap += W.cfg.abilities.ranks.flat().filter(l => l === W.lv).length;     // очко умений — на уровнях рангов
+    W.xp -= xpNeed(W.lv, W.cfg); W.lv++; W.sp++; W.ap += abilityPointsAt(W.lv, W.cfg) - abilityPointsAt(W.lv - 1, W.cfg);     // очко умений — каждый уровень с 3-го (2026-10-18)
     refreshGear(W); const p = W.player; p.hp = Math.min(p.maxhp, p.hp + p.maxhp * L.healOnUp);
     W.ev.push({ k: 'level', lv: W.lv, x: p.x, z: p.z });
   }

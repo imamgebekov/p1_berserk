@@ -14,7 +14,7 @@ import { trackPlace, reveal } from './places3d.js';
 import { addXp, gainXp } from './progress3d.js';
 import { restock } from './economy3d.js';
 import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
-import { useAbility, dashStep, tickAbilities } from './abilities3d.js';
+import { useSlot, dashStep, tickAbilities } from './abilities3d.js';
 import { waterDist } from './terrain3d.js';
 import { pathGoal } from './path3d.js';
 import { inCliff } from './cliffs3d.js';
@@ -37,6 +37,7 @@ import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
 import { initLevels, withLevel, depthAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 import { resGain } from './resource3d.js';
+const critBonus = W => (W.abuf && W.abuf.hawk > 0 ? W.abuf.hawkCrit : 0);     // «Ястребиный глаз» Сойки: шанс крита на время
 
 export function createWorld(cfg, rng = Math.random) {
   const W = makeWorld(cfg, rng); attachFx(W);
@@ -85,7 +86,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), fires: {}, gfx: {}, hero: DEFAULT_HERO, ap: 0, ab: {}, acd: {}, abuf: {}, traps: [], zones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), fires: {}, gfx: {}, hero: DEFAULT_HERO, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
@@ -103,6 +104,7 @@ export function spawnEnemy(W, type, x, z, mode = null) {
 // сторож стоит у поста и смотрит по сторонам; патрульный ходит по маршруту из точек вокруг места появления
 // сторож и патрульный замечают героя: глазами (конус, без стены на линии, тот же дом) или ушами — только шум боя
 function spotted(W, e, d, dx, dz, H) {
+  if (W.abuf && W.abuf.smoke > 0) return false;     // «Дымовая завеса» Вейла: враги не замечают героя
   const P = W.cfg.enemies.posts, p = W.player;
   const fight = p.state === 'atk' || p.state === 'roll' || p.state === 'charge';
   const hear = W.dif.hear * rainK(W, 'hear');                                  // в дождь хуже слышат и видят
@@ -338,7 +340,7 @@ function strike(W, e, dmg, o) {
   if (gm < 1) { dmg = Math.max(1, Math.round(dmg * gm)); o = { ...o, knock: o.knock * .3 }; }      // щит: удар спереди почти не проходит
   if (C.guard && o.heavy) applyStatus(W, e, 'stun', 0, C.guard.breakStun);                          // тяжёлый удар ломает защиту
   e.hp -= dmg; e.flash = .12; p.calm = P.fire.calm;
-  if (W.gear.leech > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * W.gear.leech / 100);
+  { const lch = W.gear.leech + (W.abuf.blood > 0 ? W.abuf.bloodLeech : 0); if (lch > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * lch / 100); }     // «Кровавый порыв» Торна добавляет вампиризм
   const heavy = C.heavy || e.aff === 'armored', k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
   if (e.state === 'wind' && !heavy && gm >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах (щит — нет)
@@ -379,7 +381,7 @@ function shoot(W, mult = 1, echo = false) {
   if (hk) m *= 1 + (H.mul - 1) * hk;
   if (W.setFx.rage && p.hp < p.maxhp * .4) m *= 1 + W.setFx.rage;
   let dmg = Math.round((P.attackDamage + W.gear.dmg) * m * rr(W, .9, 1.15));
-  const crit = W.rng() < .12 + W.gear.crit / 100;
+  const crit = W.rng() < .12 + W.gear.crit / 100 + critBonus(W);
   if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
   const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null, sx = Math.sin(p.face), sz = Math.cos(p.face);
   W.proj.push({ friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * speed, vz: sz * speed, dmg, crit, fx, hk, fin: p.fin && !echo, knock: (tr.knock || 1) * (hk ? 1 + (H.knock - 1) * hk : 1), pierce: tr.pierce || 0, hit: [], life: range / speed, kind: tr.bolt ? 'bolt' : 'arrow' });
@@ -390,9 +392,9 @@ function shoot(W, mult = 1, echo = false) {
 export function abilityArrow(W, ang, mult, extra = {}) {
   const p = W.player, S = W.cfg.shoot, tr = W.wp.trait.ranged ? W.wp.trait : TRAITS.bow, pm = W.wp.pm;
   let dmg = Math.round((W.cfg.player.attackDamage + W.gear.dmg) * mult * rageMul(W) * rr(W, .9, 1.15));
-  const crit = W.rng() < .12 + W.gear.crit / 100; if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
+  const crit = W.rng() < .12 + W.gear.crit / 100 + critBonus(W); if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
   const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null, sx = Math.sin(ang), sz = Math.cos(ang);
-  const q = { friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * tr.speed, vz: sz * tr.speed, dmg, crit, fx, hk: 0, fin: false, knock: tr.knock || 1, pierce: (tr.pierce || 0) + (extra.pierce || 0), hit: [], life: tr.range / tr.speed, kind: extra.kind || (tr.bolt ? 'bolt' : 'arrow'), poison: extra.poison };
+  const q = { friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * tr.speed, vz: sz * tr.speed, dmg, crit, fx, hk: 0, fin: false, knock: tr.knock || 1, pierce: (tr.pierce || 0) + (extra.pierce || 0), hit: [], life: tr.range / tr.speed, kind: extra.kind || (tr.bolt ? 'bolt' : 'arrow'), poison: extra.poison, freeze: extra.freeze, burn: extra.burn, bleed: extra.bleed, blast: extra.blast };
   W.proj.push(q); return q;
 }
 // стрелы героя: летят, бьют первых врагов на пути (арбалет — насквозь pierce врагов), гаснут о стену и по дальности
@@ -408,6 +410,10 @@ function updateArrows(W, dt) {
       strike(W, e, q.dmg, { crit: q.crit, dx: q.vx, dz: q.vz, d: len(q.vx, q.vz), knock: q.knock, fx: q.fx, fin: q.fin || q.hk > 0, heavy: q.hk > 0 });
       if (q.hk && !e.dead) applyStatus(W, e, 'stun', 0, W.cfg.player.heavy.stun * q.hk * S.stun);
       if (q.poison && !e.dead) applyStatus(W, e, 'poison', q.poison[0], q.poison[1]);          // ядовитая стрела умения
+      if (q.freeze && !e.dead) applyStatus(W, e, 'freeze', 0, q.freeze);                           // ледяная стрела
+      if (q.bleed && !e.dead) applyStatus(W, e, 'bleed', q.bleed[0], q.bleed[1]);                  // нож веера: кровотечение
+      if (q.blast) { const B = q.blast; q.blast = null; W.ev.push({ k: 'firearrow', x: e.x, z: e.z, r: B.r });     // зажигательная: огонь вокруг цели
+        for (const o of W.enemies) if (!o.dead && len(o.x - e.x, o.z - e.z) < B.r + W.cfg.enemies[o.type].radius) { if (o !== e) dealDamage(W, o, Math.max(1, Math.round(q.dmg * B.k)), 'fire'); if (!o.dead) applyStatus(W, o, 'burn', B.dps, B.t); } }
       goldHit(W, e, q.crit); if (q.hit.length === 1) sunCount(W, e);
       weaponStatuses(W, e, q.dmg, q.crit, W.player);
       W.combo.n = Math.min(99, W.combo.n + 1); W.combo.t = 2.2;
@@ -439,7 +445,7 @@ const rageMul = W => (W.abuf.rage > 0 ? W.abuf.rageMul : 1);
 export function abilityHit(W, e, mult, o = {}) {
   const p = W.player, P = W.cfg.player, tr = W.wp.trait, dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz) || 1;
   let dmg = Math.round((P.attackDamage + W.gear.dmg + offDmg(W)) * mult * rageMul(W) * rr(W, .9, 1.15));
-  const crit = W.rng() < .12 + W.gear.crit / 100; if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
+  const crit = W.rng() < .12 + W.gear.crit / 100 + critBonus(W); if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
   strike(W, e, dmg, { crit, dx, dz, d, knock: o.knock || 1, fx: o.fx || null, fin: true, heavy: !!o.heavy, ab: true });     // ab — удар умения: ресурса не даёт
   if (!e.dead && o.stun) applyStatus(W, e, 'stun', 0, o.stun);
   W.combo.n = Math.min(99, W.combo.n + 1); W.combo.t = 2.2;
@@ -466,7 +472,7 @@ function attackHit(W, mult = 1, echo = false) {
     if (pm.shatter && e.st && (e.st.freeze || e.st.stun)) m *= pm.shatter;
     if (W.gfx.dawn && W.t - p.lastRollEnd < W.gfx.dawn[0]) m *= 1 + W.gfx.dawn[1];          // Плащ Рассвета
     let dmg = Math.round((P.attackDamage + W.gear.dmg + offDmg(W)) * m * rr(W, .9, 1.15));
-    const crit = W.rng() < .12 + W.gear.crit / 100;
+    const crit = W.rng() < .12 + W.gear.crit / 100 + critBonus(W);
     if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
     const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null;
     strike(W, e, dmg, { crit, dx, dz, d, knock: (tr.knock || 1) * (p.fin && !echo ? 1.6 : 1) * (hk ? 1 + (H.knock - 1) * hk : 1), fx, fin: (p.fin && !echo) || hk > 0, heavy: hk > 0, roll: p.rollAtk && !echo });
@@ -511,7 +517,7 @@ function updatePlayer(W, dt, input) {
   if (pressed) { p.holdT = 0; p.atkBuf = H.buffer; } else if (held) p.holdT += dt;
 
   // перекат
-  if (input.ability) useAbility(W, input.ability - 1);          // умения: 1–5
+  if (input.ability) useSlot(W, input.ability - 1);          // умения: ячейки панели 1–5
   if (input.roll && p.state !== 'roll' && p.state !== 'dash' && p.rollCd <= 0) {
     const dl = moving ? ml : 0;
     p.rollDirX = moving ? mx / dl : Math.sin(p.face); p.rollDirZ = moving ? mz / dl : Math.cos(p.face);
@@ -787,7 +793,7 @@ function goalOf(W, e, dt = 1 / 60) {
 // чужое оружие и вторая рука уходят в сумку (даже сверх размера), в руку — лучшее своё из сумки или стартовое оружие героя
 export function switchHero(W, id) {
   const H = HEROES[id]; if (!H || !H.open || id === W.hero) return false;
-  W.hero = id; W.ap += Object.values(W.ab).reduce((a, b) => a + b, 0); W.ab = {}; W.acd = {}; W.abuf = {}; W.traps = []; W.zones = [];
+  W.hero = id; W.ap += Object.values(W.ab).reduce((a, b) => a + b, 0); W.ab = {}; W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.bar = [];
   W.allies = W.allies.filter(a => !a.decoy);
   const inv = W.inv, back = slot => { const e = { id: inv.eq[slot], n: 1 }; if (inv.up[slot]) e.up = inv.up[slot]; inv.bag.unshift(e); inv.eq[slot] = null; delete inv.up[slot]; };
   if (inv.eq.weapon && !canWield(id, BY_ID[inv.eq.weapon])) back('weapon');

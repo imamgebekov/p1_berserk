@@ -167,7 +167,7 @@ try {
   await page.keyboard.press('KeyN'); await page.waitForTimeout(250);
   await page.locator('#skillTabs .tab', { hasText: 'Умения' }).click(); await page.waitForTimeout(150);
   const rows = await ev(() => document.querySelectorAll('#skillList .skrow').length);
-  if (rows !== 5) bad('во вкладке «Умения» не 5 строк: ' + rows);
+  if (rows !== 8) bad('во вкладке «Умения» не 8 строк: ' + rows);
   for (let i = 0; i < 5; i++) await page.locator('#skillList .skrow .plus').nth(i).click();
   await page.screenshot({ path: join(out, '3d-desk-abilities.png') });
   if ((await ev(() => Object.keys(window.__b3d.W.ab).length)) !== 5) bad('«+» не вложил очки в умения');
@@ -176,8 +176,9 @@ try {
   if (vis !== 5) bad('на панели не 5 кнопок умений: ' + vis);
   // ресурс (2026-10-18): без ярости умение не срабатывает и кнопка тусклая; полоса «Ярость» над панелью; с яростью — срабатывает
   await ev(() => { const W = window.__b3d.W; W.resHero = W.hero; W.res = 0; W.resIdle = 99; });
+  await page.waitForFunction(() => document.querySelectorAll('#abil .ab.poor').length === 5, null, { timeout: 3000 }).catch(() => {});     // под нагрузкой кадры редкие — ждём перерисовки панели
   await page.keyboard.press('Digit1'); await page.waitForTimeout(300);
-  { const r = await ev(() => ({ cd: window.__b3d.W.acd.charge || 0, poor: document.querySelectorAll('#abil .ab.poor').length, bar: !document.getElementById('resBar').hidden && /Ярость 0\/100/.test(document.getElementById('resBar').textContent) }));
+  { const r = await ev(() => ({ cd: window.__b3d.W.acd.charge || 0, poor: document.querySelectorAll('#abil .ab.poor').length, bar: !document.getElementById('resBar').hidden && /Ярость 0\/\d+/.test(document.getElementById('resBar').textContent), txt: document.getElementById('resBar').textContent, hid: document.getElementById('resBar').hidden, res: window.__b3d.W.res, hero: window.__b3d.W.hero, rh: window.__b3d.W.resHero, panel: window.__b3d.ui().panelOpen }));
     if (r.cd > 0 || r.poor !== 5 || !r.bar) bad('без ярости: умение сработало, кнопки не тусклые или нет полосы: ' + JSON.stringify(r)); }
   { const L = await ev(() => { const a = document.getElementById('abil').getBoundingClientRect(), b = document.getElementById('resBar').getBoundingClientRect(); return { ab: a.bottom, bt: b.bottom, at: a.top, cx: Math.abs((a.left + a.right) / 2 - innerWidth / 2), bx: Math.abs((b.left + b.right) / 2 - innerWidth / 2), H: innerHeight }; });
     if (L.ab < L.H - 60 || L.bt > L.at + 1 || L.cx > 4 || L.bx > 4) bad('панель умений не внизу по центру или полоса не над ней: ' + JSON.stringify(L)); }
@@ -357,7 +358,7 @@ try {
     if (!hands.includes(1)) bad('Вейл не бьёт левым клинком: ' + JSON.stringify(hands));
     await pg.screenshot({ path: join(out, '3d-desk-vale-dual.png') });
     // выпад-телепорт (клавиша 1) за спину врага и тень-двойник (клавиша 4)
-    await pg.evaluate(() => { const b = window.__b3d, W = b.W; W.lv = 30; W.ab = { blink: 1, shadow: 1 }; W.acd = {}; W.resHero = W.hero; W.res = 100; W.player.face = 0; const e = b.spawn('brute', W.player.x, W.player.z + 6); e.hp = e.maxhp = 5000; e.cd = 99; });
+    await pg.evaluate(() => { const b = window.__b3d, W = b.W; W.lv = 30; W.ab = { blink: 1, shadow: 1 }; W.bar = ['blink', 'parry', 'dance', 'shadow', 'execute']; W.acd = {}; W.resHero = W.hero; W.res = 100; W.player.face = 0; const e = b.spawn('brute', W.player.x, W.player.z + 6); e.hp = e.maxhp = 5000; e.cd = 99; });
     // сначала герой доигрывает удар из проверки клинков (под нагрузкой — дольше): во время удара умение не начинается
     const idle = () => pg.waitForFunction(() => { const p = window.__b3d.W.player; p.atkBuf = 0; return p.state === 'idle' || p.state === 'run'; }, null, { timeout: 3000 }).catch(() => {});
     await idle(); await pg.keyboard.press('Digit1');
@@ -385,7 +386,7 @@ try {
     const hit = await pg.evaluate(() => window.__b3d.W.enemies.some(e => !e.dead && e.maxhp === 5000 && e.hp < 5000));
     if (!fly || !hit) bad(`стрела Сойки не вылетела (${fly}) или не попала (${hit})`);
     // град стрел (клавиша 5) встаёт над врагом
-    await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { rain: 1, trap: 1 }; W.acd = {}; W.resHero = W.hero; W.res = 100; });
+    await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { rain: 1, trap: 1 }; W.bar = ['leap', 'volley', 'trap', 'venom', 'rain']; W.acd = {}; W.resHero = W.hero; W.res = 100; });
     await pg.keyboard.press('Digit5');
     await pg.waitForFunction(() => window.__b3d.W.zones.length > 0, null, { timeout: 4000 }).catch(() => bad('клавиша 5 не вызвала град стрел'));
     await pg.keyboard.press('Digit3'); await pg.waitForTimeout(500); await pg.screenshot({ path: join(out, '3d-desk-jay-rain.png') });

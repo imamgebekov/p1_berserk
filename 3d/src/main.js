@@ -18,7 +18,7 @@ import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
 import { isNight } from './daynight.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
-import { abilityView, resView } from './abilities3d.js';
+import { abilityView, resView, barOf } from './abilities3d.js';
 import { KIND_NAME } from './data/items.js';
 import { drawMap, tickRelief } from './mapdraw.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
@@ -129,14 +129,15 @@ function drawRes() {
 }
 function drawAbil() {
   drawRes();
-  const v = abilityView(W), key = v.map(a => a.id + a.rank + Math.ceil(a.cd * 10) + (a.enough ? 1 : 0)).join() + panelOpen + landscape + W.lv;
+  const all = abilityView(W), bar = barOf(W), v = bar.map(id => all.find(a => a.id === id) || null), next = all.find(a => !a.open);
+  const key = v.map(a => (a ? a.id + a.rank + Math.ceil(a.cd * 10) + (a.enough ? 1 : 0) : '-')).join() + panelOpen + landscape + W.lv;
   if (key === abilKey) return; abilKey = key;
-  // на компьютере — панель из 5 ячеек, как в Minecraft (пустые ячейки видны); на телефоне — только вкачанные умения у кнопки удара
-  abilBtns.forEach((b, i) => { const a = v[i], show = !!a && (a.rank > 0 || desk) && !panelOpen && !landscape && !W.player.dead; if (b.hidden === show) b.hidden = !show; if (!show) return;
-    if (b.dataset.id !== a.id + a.rank) { b.dataset.id = a.id + a.rank; b.textContent = a.rank ? a.icon : ''; const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k);
-      if (a.rank) { const c = document.createElement('span'); c.className = 'c'; c.textContent = a.cost; b.append(c); } else { const l = document.createElement('span'); l.className = 'lv'; l.textContent = 'ур. ' + a.lv; b.append(l); }
-      b.setAttribute('aria-label', a.rank ? `${a.name} (${i + 1}), цена ${a.cost}` : `Пусто: умение откроется на уровне ${a.lv}`); b.title = a.rank ? `${a.name} · клавиша ${i + 1} · цена ${a.cost}` : `Умение откроется на уровне ${a.lv}`; }
-    b.classList.toggle('empty', !a.rank); b.classList.toggle('poor', !!a.rank && !a.enough);
+  // ячейки панели (выбор — в окне «Навыки»): на компьютере 5 ячеек, как в Minecraft (пустые видны); на телефоне — только занятые, у кнопки удара
+  abilBtns.forEach((b, i) => { const a = v[i], show = (!!a || desk) && !panelOpen && !landscape && !W.player.dead; if (b.hidden === show) b.hidden = !show; if (!show) return;
+    const tag = a ? a.id + a.rank : 'empty'; if (b.dataset.id !== tag) { b.dataset.id = tag; b.textContent = a ? a.icon : ''; const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k);
+      if (a) { const c = document.createElement('span'); c.className = 'c'; c.textContent = a.cost; b.append(c); } else if (next) { const l = document.createElement('span'); l.className = 'lv'; l.textContent = 'ур. ' + next.lv; b.append(l); }
+      b.setAttribute('aria-label', a ? `${a.name} (${i + 1}), цена ${a.cost}` : 'Пустая ячейка: умение ставится в окне «Навыки»'); b.title = a ? `${a.name} · клавиша ${i + 1} · цена ${a.cost}` : 'Пусто: поставьте умение в окне «Навыки» → «Умения»'; }
+    b.classList.toggle('empty', !a); b.classList.toggle('poor', !!a && !a.enough); if (!a) { b.style.setProperty('--cd', 0); return; }
     b.style.setProperty('--cd', a.cd > 0 ? (a.cd / a.cdMax).toFixed(3) : 0); });
 }
 { const q = new URLSearchParams(location.search).get('hero') || (BENCH ? 'thorn' : null); if (!saved) { openHeroPick(); if (q) pickHero(q); } }

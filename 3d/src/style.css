@@ -423,3 +423,7 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 [data-desk] #abil .ab .k{left:4px;right:auto;top:2px;bottom:auto;color:#d8c8a0}[data-desk] #abil .ab .c{left:auto;right:4px}
 [data-desk] #resBar{left:50%;transform:translateX(-50%);top:auto;bottom:calc(92px * var(--dz,1));width:calc(300px * var(--dz,1));height:calc(12px * var(--dz,1))}
 [data-desk] #resBar span{font-size:calc(9px * var(--dz,1));line-height:calc(12px * var(--dz,1))}
+/* выбор ячейки панели в окне «Навыки → Умения» (2026-10-18) */
+.skrow .slots{display:flex;align-items:center;gap:4px;margin-top:6px;flex-wrap:wrap}.skrow .sl-l{font-size:11.5px;opacity:.7;margin-right:4px}
+.skrow .slots .bslot{min-width:44px;min-height:44px;padding:0;border-radius:8px;background:var(--btn);border:2px solid var(--line);color:var(--ink);font-weight:700}
+.skrow .slots .bslot.on{border-color:var(--gold);background:var(--btn-on);color:#f6e6c8}

@@ -1,7 +1,7 @@
 // Окно навыков: три ветки, ранги, очки, сброс за пепел; вкладка «Умения» — активные умения героя со своими очками (B3).
 import { BRANCHES, TIER_STEP, spentIn, canRank } from './data/skills3d.js';
 import { spendSkill, respec, respecCost, xpNeed } from './sim.js';
-import { abilityView, upgradeAbility, canUpgrade, respecAbilities, respecAbilityCost, spentAbility, resView } from './abilities3d.js';
+import { abilityView, upgradeAbility, canUpgrade, respecAbilities, respecAbilityCost, spentAbility, resView, barOf, setBar, BAR } from './abilities3d.js';
 
 // разница рангов (шаг 10): у описаний одинаковый текст, меняются числа — показываем только их: «×1,4 → ×1,6 · 9 с → 8,5 с»;
 // если текст рангов разный — null (тогда показываем следующий ранг целиком)
@@ -28,10 +28,15 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       const pips = el('span', 'pips'); pips.style.setProperty('--pc', AC); for (let k = 0; k < a.max; k++) pips.appendChild(el('i', k < a.rank ? 'on' : ''));
       const when = a.nextLv > W.lv ? ' — с уровня ' + a.nextLv : '';
       if (!a.open) info.append(nm, pips, el('div', 'sub', `Откроется на уровне ${a.lv}. ${a.next}`));
-      else if (!a.rank) info.append(nm, pips, el('div', 'sub', `Клавиша ${a.slot + 1}. Открыть${when}: ${a.next}`));
+      else if (!a.rank) info.append(nm, pips, el('div', 'sub', `Открыть${when}: ${a.next}`));
       else info.append(nm, pips, el('div', 'sub', `Сейчас: ${a.now}${a.cost && resName ? ` Цена: ${a.cost} (${resName.toLowerCase()}).` : ''}`), el('div', 'sub nx', a.next ? `Ранг ${a.rank + 1}${when}: ${rankDiff(a.now, a.next) || a.next}` : 'Максимум.'));     // только разница (шаг 10)
       const st = canUpgrade(W, a.id), b = el('button', 'plus', '+'); b.type = 'button'; b.disabled = st !== 'ok'; b.setAttribute('aria-label', 'Улучшить: ' + a.name);
       b.addEventListener('click', () => { upgradeAbility(W, a.id); render(); onChange && onChange(); });
+      // панель (2026-10-18): в какую ячейку 1–5 поставить изученное умение; повторное нажатие убирает с панели
+      if (a.rank) { const bar = barOf(W), sl = el('div', 'slots'); sl.append(el('span', 'sl-l', 'На панель:'));
+        for (let k = 0; k < BAR; k++) { const sb = el('button', 'bslot' + (bar[k] === a.id ? ' on' : ''), String(k + 1)); sb.type = 'button'; sb.setAttribute('aria-label', `${a.name}: ячейка ${k + 1}`);
+          sb.addEventListener('click', () => { setBar(W, k, bar[k] === a.id ? null : a.id); render(); onChange && onChange(); }); sl.append(sb); }
+        info.append(sl); }
       row.append(info, b); listEl.appendChild(row);
     }
     resetBtn.textContent = armed ? 'Точно? Очки умений вернутся, пепел спишется' : `Сбросить умения · ${respecAbilityCost(W)} пепла`;

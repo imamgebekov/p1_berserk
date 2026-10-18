@@ -38,7 +38,7 @@ ok(new Set(HINTS.map(h => h.id)).size === HINTS.length && HINTS.every(h => /^[a-
   const d0 = { v: SAVE_VERSION }; ok(migrate(d0) === d0 && d0.v === SAVE_VERSION && !('keys' in d0) && !('hero' in d0) && !('prog' in d0), 'миграция текущей версии ничего не делает');
   const d1 = { v: 1 }; migrate(d1); ok(d1.v === SAVE_VERSION && Array.isArray(d1.keys) && !d1.keys.length && d1.unlocked && !Object.keys(d1.unlocked).length, 'миграция 1 → 2: пустая связка ключей');
   const d2 = { v: 2, keys: ['k'] }; migrate(d2); ok(d2.v === SAVE_VERSION && d2.hero === 'thorn' && d2.keys[0] === 'k', 'миграция 2 → 3: старое сохранение — Торн');
-  const d3 = { v: 3, prog: { lv: 10 } }; migrate(d3); ok(d3.v === SAVE_VERSION && d3.prog.ap === abilityPointsAt(10, CFG3) && d3.prog.ap === 6 && !Object.keys(d3.prog.ab).length, 'миграция 3 → 4: очки умений по уровню'); }
+  const d3 = { v: 3, prog: { lv: 10 } }; migrate(d3); ok(d3.v === SAVE_VERSION && d3.prog.ap === abilityPointsAt(10, CFG3) && d3.prog.ap === 8 && !Object.keys(d3.prog.ab).length, 'миграция 3 → 4: очки умений по уровню'); }
 
 if (fails.length) { console.error('prefs3d FAIL\n' + fails.join('\n')); process.exit(1); }
 console.log('prefs3d OK, подсказок:', HINTS.length);

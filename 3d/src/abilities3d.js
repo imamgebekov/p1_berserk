@@ -5,7 +5,7 @@ import { abilityHit, abilityArrow } from './sim.js';
 import { lineBlocked, insideOf, resolve } from './map.js';
 import { applyStatus } from './status3d.js';
 import { len } from './util3d.js';
-import { resTick, resNow, resSpend, resOf } from './resource3d.js';
+import { resTick, resNow, resSpend, resOf, resMax } from './resource3d.js';
 
 export const heroAbilities = W => ABILITIES[W.hero] || [];
 const cfgOf = (W, id) => (W.cfg.abilities[W.hero] || {})[id];
@@ -22,12 +22,31 @@ export function canUpgrade(W, id) {
   if (W.lv < L[rank]) return 'lvl';
   return W.ap > 0 ? 'ok' : 'points';
 }
-export function upgradeAbility(W, id) { const r = canUpgrade(W, id); if (r !== 'ok') return r; W.ab[id] = (W.ab[id] || 0) + 1; W.ap--; return 'ok'; }
+export function upgradeAbility(W, id) { const r = canUpgrade(W, id); if (r !== 'ok') return r; W.ab[id] = (W.ab[id] || 0) + 1; W.ap--; if (W.ab[id] === 1) autoBar(W, id); return 'ok'; }
+// панель умений (2026-10-18): 5 ячеек (клавиши 1–5), в каждой — id изученного умения или null; изученное умение само встаёт
+// в первую пустую ячейку; игрок переставляет в окне «Навыки»
+export const BAR = 5;
+export function barOf(W) {
+  const learned = heroAbilities(W).filter(a => (W.ab[a.id] || 0) > 0).map(a => a.id), own = new Set(learned);
+  if (!W.bar || !W.bar.length) return Array.from({ length: BAR }, (_, i) => learned[i] || null);     // старое сохранение: изученные по порядку
+  const bar = Array.from({ length: BAR }, (_, i) => (own.has(W.bar[i]) ? W.bar[i] : null));
+  for (let i = 0; i < BAR; i++) if (bar[i] && bar.indexOf(bar[i]) !== i) bar[i] = null;     // без повторов
+  return bar;
+}
+function autoBar(W, id) { const bar = barOf(W); if (!bar.includes(id)) { const i = bar.indexOf(null); if (i >= 0) bar[i] = id; } W.bar = bar; }
+// поставить умение id в ячейку slot (если оно уже в другой ячейке — меняются местами); null — освободить ячейку
+export function setBar(W, slot, id) {
+  const bar = barOf(W); if (slot < 0 || slot >= BAR) return false;
+  if (id && !(W.ab[id] > 0)) return false;
+  const was = id ? bar.indexOf(id) : -1; if (was >= 0) bar[was] = bar[slot]; bar[slot] = id || null; W.bar = bar; return true;
+}
+// применить умение из ячейки slot (0–4)
+export function useSlot(W, slot) { const id = barOf(W)[slot]; if (!id) return 'none'; return useAbility(W, heroAbilities(W).findIndex(a => a.id === id)); }
 export const respecAbilityCost = W => W.cfg.abilities.respec * W.lv;
 export function respecAbilities(W) {
   const spent = spentAbility(W.ab); if (!spent) return 'none';
   const cost = respecAbilityCost(W); if (W.inv.ash < cost) return 'ash';
-  W.inv.ash -= cost; W.ap += spent; W.ab = {}; W.acd = {}; return 'ok';
+  W.inv.ash -= cost; W.ap += spent; W.ab = {}; W.acd = {}; W.bar = []; return 'ok';
 }
 
 // применить умение слота i (0–4): 'ok' | 'none' | 'rank' (не вкачано) | 'cd' | 'res' (мало ресурса) | 'busy' | 'target' (некого бить — ни ресурс, ни перезарядка не тратятся)
@@ -70,6 +89,17 @@ const ACT = {
   whirl(W, A, r) { for (const e of near(W, A.r)) abilityHit(W, e, A.mul[r], { knock: A.knock }); W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.6); },
   iron(W, A, r) { W.abuf.iron = A.t[r]; W.abuf.ironTaken = A.taken; },
   rage(W, A, r) { W.abuf.rage = A.t[r]; W.abuf.rageMul = 1 + A.dmg[r] / 100; W.abuf.rageSwing = A.swing; W.abuf.rageDrain = A.drain; },
+  bash(W, A, r) {                                  // конус перед собой: удар и оглушение (доворот на ближайшего)
+    const p = W.player, { ang } = aimAt(W, A.r + 1); p.face = ang; let hit = 0;
+    for (const e of near(W, A.r)) { const d = Math.atan2(e.x - p.x, e.z - p.z) - p.face; if (Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) > A.cone / 2 * Math.PI / 180) continue;
+      abilityHit(W, e, A.mul[r], { knock: A.knock }); if (!e.dead) applyStatus(W, e, 'stun', 0, A.stun[r]); hit++; }
+    if (!hit) return false;
+  },
+  quake(W, A, r) {
+    const p = W.player; for (const e of near(W, A.r)) { abilityHit(W, e, A.mul[r], { knock: .3 }); if (!e.dead) applyStatus(W, e, 'root', 0, A.root[r]); }
+    W.shake = Math.max(W.shake, W.cfg.fx.shake * 2); W.ev.push({ k: 'quake', x: p.x, z: p.z, r: A.r });
+  },
+  blood(W, A, r) { W.abuf.blood = A.t[r]; W.abuf.bloodLeech = A.leech[r]; },
   // Сойка
   leap(W, A, r) {                                  // отскок прочь от ближайшего врага и выстрел в него
     const p = W.player, { ang } = aimAt(W, A.range);
@@ -83,6 +113,9 @@ const ACT = {
     while (W.traps.length > A.max) W.traps.shift();
   },
   venom(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { poison: [A.dps[r], A.t], pierce: A.pierce, kind: 'venom' }); },
+  frost(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { freeze: A.freeze[r] }); },
+  firearrow(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { blast: { r: A.r, k: A.splash, dps: A.dps[r], t: A.t } }); },
+  hawk(W, A, r) { W.abuf.hawk = A.t[r]; W.abuf.hawkCrit = A.crit[r] / 100; },
   rain(W, A, r) {                                  // град: на ближайшего видимого врага или вперёд
     const p = W.player, { e } = aimAt(W, A.range), x = e ? e.x : p.x + Math.sin(p.face) * A.ahead, z = e ? e.z : p.z + Math.cos(p.face) * A.ahead;
     W.zones.push({ x, z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl });
@@ -103,6 +136,13 @@ const ACT = {
     const p = W.player; for (let i = W.allies.length - 1; i >= 0; i--) if (W.allies[i].decoy) W.allies.splice(i, 1);     // одна тень за раз
     W.allies.push({ id: W.aid++, guest: true, decoy: true, type: 'guest', name: 'Тень', x: p.x + Math.sin(p.face) * 1.2, z: p.z + Math.cos(p.face) * 1.2, vx: 0, vz: 0, face: p.face, hp: A.hp[r], maxhp: A.hp[r], state: 'idle', t: A.t[r], cd: 0, gap: A.hit, r: A.r, mul: A.mul[r], dead: false, deadT: 0, flash: 0, calm: 0, tgt: 0, moving: false, lvl: W.lvl });
   },
+  fan(W, A, r) { const { ang } = aimAt(W, 12, 60); W.player.face = ang; for (let k = 0; k < A.n; k++) abilityArrow(W, ang + (k / (A.n - 1) - .5) * A.spread * Math.PI / 180, A.mul[r], { bleed: [A.dps[r], A.t] }); },
+  smoke(W, A, r) {                                 // враги рядом теряют героя; короткая «невидимость» и скорость
+    const p = W.player; for (const e of near(W, A.r)) { e.alert = false; if (e.state === 'chase' || e.state === 'wind') { e.state = 'rec'; e.t = 0; } }
+    W.abuf.smoke = A.hide; const ex = W.buffs.find(b => b.src === 'smoke'); if (ex) ex.t = A.t[r]; else W.buffs.push({ stat: 'spd', amt: A.spd[r], t: A.t[r], src: 'smoke' });
+    W.ev.push({ k: 'smoke', x: p.x, z: p.z, r: A.r });
+  },
+  bloodlet(W, A, r) { const list = near(W, A.r); if (!list.length) return false; for (const e of list) { abilityHit(W, e, A.mul[r], { knock: .4 }); if (!e.dead) applyStatus(W, e, 'bleed', A.dps[r], A.t); } },
   execute(W, A, r) {
     const p = W.player, { e } = aimAt(W, A.reach + 1, A.cone); if (!e || len(e.x - p.x, e.z - p.z) > A.reach + W.cfg.enemies[e.type].radius) return false;
     if (!e.boss && e.hp / e.maxhp < A.kill[r]) { abilityHit(W, e, A.mul[r], { knock: 1.5 }); if (!e.dead) { e.hp = 0; W.fx.kill(e); } W.ev.push({ k: 'execute', x: e.x, z: e.z }); return; }
@@ -131,6 +171,7 @@ export function tickAbilities(W, dt) {
   W.zones = W.zones.filter(zn => zn.lvl === W.lvl && zn.t > 0);
   for (const zn of W.zones) { zn.t -= dt; zn.acc += dt; while (zn.acc >= zn.tick) { zn.acc -= zn.tick; for (const e of W.enemies) if (!e.dead && len(e.x - zn.x, e.z - zn.z) < zn.r + W.cfg.enemies[e.type].radius) abilityHit(W, e, zn.mul, { knock: .15 }); } }
   if (b.iron > 0) b.iron -= dt;
+  for (const k of ['blood', 'hawk', 'smoke']) if (b[k] > 0) b[k] -= dt;     // баффы новых умений
   if (b.parry > 0) b.parry -= dt;
   // танец клинков: удар каждые danceGap секунд по ближнему врагу вокруг
   if (b.dance > 0) { b.dance -= dt; b.danceAcc += dt;
@@ -151,4 +192,4 @@ export function abilityView(W) {
   });
 }
 // ресурс героя для интерфейса: { name, color, now, max }
-export function resView(W) { const R = resOf(W); return R ? { name: R.name, color: R.color, now: resNow(W), max: R.max } : null; }
+export function resView(W) { const R = resOf(W); return R ? { name: R.name, color: R.color, now: resNow(W), max: resMax(W, R) } : null; }
