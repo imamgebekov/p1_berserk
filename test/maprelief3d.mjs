@@ -30,7 +30,7 @@ ok(at(R * .99, R * .99)[3] === 0 && at(0, 0)[3] === 255, 'за краем мир
   ok(d / n > 2 && big / n > .05, `светотени почти нет: средняя разница ${(d / n).toFixed(2)}, заметная у ${(100 * big / n).toFixed(1)}%`); }
 void lum;
 // подписи областей
-{ const L = regionLabels(CFG3); ok(L.length === 5 && L.every(l => l.name && Math.hypot(l.x, l.z) < R), 'подписи областей: ' + JSON.stringify(L)); }
+{ const L = regionLabels(CFG3); ok(L.length === 10 && L.every(l => l.name && l.sub && Math.hypot(l.x, l.z) < R), 'подписи зон: ' + JSON.stringify(L)); }     // этап 1: подписи зон (имя и пояс уровней), 10 за ядром
 ok(CFG3.bag.slots === 40, 'сумка не на 40 мест: ' + CFG3.bag.slots);
 
 if (fails.length) { console.log('maprelief3d FAIL\n' + [...new Set(fails)].join('\n')); process.exit(1); }

@@ -4,6 +4,7 @@
 // biomeAt / biomeTint — какой биом в точке (пять секторов с волнистыми границами) и его оттенок земли с плавными стыками.
 import { riverOf, waterDist } from './terrain3d.js';
 import { castleFloors } from './castle3d.js';
+import { zoneAt, allZones } from './zones3d.js';
 
 const TAU = Math.PI * 2;
 const mul = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -236,6 +237,24 @@ export function expandWorld(base) {
         const gone = cfg.map.pois.filter(p => p.t !== 'pond' && segD(p.x, p.z, lk[0], lk[1]) < p.r + 14), ids = new Set(gone.map(p => p.place).filter(Boolean));     // точки интереса на новой дороге убираются (тропа гнётся до ~12 м)
         cfg.map.pois = cfg.map.pois.filter(p => !gone.includes(p)); cfg.map.places = cfg.map.places.filter(p => !ids.has(p.id)); cfg.map.zones = cfg.map.zones.filter(zn => !(zn.poi && gone.some(p => Math.abs(p.x - zn.x) < .01 && Math.abs(p.z - zn.z) < .01))); }
     }
+    // города-узлы зон (этап 1, 2026-10-19): в каждой зоне за ядром — посёлок с торговцем и кузнецом; ближайший к внутренней границе зоны,
+    // а где посёлка нет — новый (свой генератор: всё выше не сдвигается), с дорогой к ближайшему посёлку
+    if (cfg.zones) { const rh = mul(cfg.world.seed * 6151 + 29), Z = cfg.zones;
+      for (const zone of allZones(cfg).filter(q => q.ring >= 0)) {
+        let hub = villages.map(v => ({ v, q: zoneAt(cfg, v.x, v.z) })).filter(o => o.q.id === zone.id).sort((a, b) => a.q.t - b.q.t)[0]?.v;
+        if (!hub) { let s = null; for (let k = 0; k < 900 && !s; k++) { const a = rh() * TAU, d = G.coreR + 30 + rh() * (R - G.coreR - 60), x = Math.sin(a) * d, z = Math.cos(a) * d, q = zoneAt(cfg, x, z);
+            if (q.id !== zone.id || q.t < .12 || q.t > .5 || wet2(x, z, 20) || onRoad(x, z, 14) || taken.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 20) || (cfg.map.plateaus || []).some(o => Math.hypot(o.x - x, o.z - z) < o.r + o.len + 20)) continue; s = { x, z }; }
+          if (!s) continue;
+          hub = { id: 'h_' + zone.id, name: nameOf(rh, 'village', used), type: 'hamlet', x: s.x, z: s.z, r: 21, safe: true, gen: 1 }; cfg.map.places.push(hub); taken.push({ x: s.x, z: s.z, r: 24 });
+          for (let j = 0, a0 = rh() * TAU; j < 4; j++) { const a = a0 + j * TAU / 4, bx = Math.round((s.x + Math.sin(a) * 9) * 2) / 2, bz = Math.round((s.z + Math.cos(a) * 9) * 2) / 2;
+            cfg.map.buildings.push({ x: bx, z: bz, w: 6 + (j % 2), d: 5, door: doorTo(bx - s.x, bz - s.z), kind: j < 2 ? 'house' : ['hut', 'warehouse'][j % 2], chests: j > 1 ? ['chest'] : [], vil: hub.id }); }
+          const to = [...villages, ...gates.map(g => ({ x: g.x, z: g.z }))].reduce((a, v) => (!a || Math.hypot(v.x - s.x, v.z - s.z) < Math.hypot(a.x - s.x, a.z - s.z) ? v : a), null);
+          const lk = [{ x: to.x, z: to.z }, { x: s.x, z: s.z }]; cfg.map.links.push(lk); villages.push(hub);
+          const gone = cfg.map.pois.filter(p => p.t !== 'pond' && segD(p.x, p.z, lk[0], lk[1]) < p.r + 14), ids = new Set(gone.map(p => p.place).filter(Boolean));     // точки интереса на новой дороге убираются
+          cfg.map.pois = cfg.map.pois.filter(p => !gone.includes(p)); cfg.map.places = cfg.map.places.filter(p => !ids.has(p.id)); cfg.map.zones = cfg.map.zones.filter(zn => !(zn.poi && gone.some(p => Math.abs(p.x - zn.x) < .01 && Math.abs(p.z - zn.z) < .01))); }
+        hub.hub = zone.id; const hb = cfg.map.buildings.filter(b => b.vil === hub.id && !b.npc);
+        Z.hub.npcs.forEach((k, i) => { if (hb[i]) { hb[i].npc = k; hb[i].chests = []; } });     // торговец и кузнец — в домах узла
+      } }
   }
   if (rv) {
     const extra = [], B = T.bridge;

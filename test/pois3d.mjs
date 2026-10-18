@@ -18,7 +18,7 @@ const M = CFG3.map, G = CFG3.worldgen, R = CFG3.world.radius, map = makeMap(CFG3
 
 // ---------- 1. генератор ----------
 const gen = M.places.filter(p => p.gen);
-ok(gen.filter(p => p.type === 'hamlet').length === G.villages, 'посёлков не ' + G.villages);
+ok(gen.filter(p => p.type === 'hamlet' && !p.id.startsWith('h_')).length === G.villages, 'посёлков не ' + G.villages);     // узлы зон (h_…) — сверх (этап 1)
 ok(gen.filter(p => p.type === 'danger' && !p.poi && !p.castle && !p.fort && !p.city).length === G.dangers, 'опасных мест не ' + G.dangers);
 ok(M.landmarks.length === G.landmarks, 'ориентиров не ' + G.landmarks);
 ok(M.pois.length >= G.pois.n * .95, 'точек интереса мало: ' + M.pois.length);

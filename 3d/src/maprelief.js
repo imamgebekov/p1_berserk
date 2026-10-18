@@ -3,6 +3,7 @@
 // reliefRows — чистая функция (проверяется в Node), makeRelief — холст для браузера.
 import { buildHeights, heightAt, waterDist, streamDist } from './terrain3d.js';
 import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
+import { zoneAt } from './zones3d.js';
 import { inCliff } from './cliffs3d.js';
 
 const lin = h => [1, 3, 5].map(i => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); });
@@ -37,6 +38,13 @@ export function reliefRows(S, j0, j1, out) {
 // подписи областей: середина сектора биома на среднем радиусе пояса (по пробам)
 export function regionLabels(cfg) {
   const G = cfg.worldgen; if (!G || !G.on) return [];
+  if (cfg.zones) {     // зоны по уровням (этап 1): имя и пояс уровней — в середине сектора кольца
+    const Z = cfg.zones, rings = [[(G.coreR + G.belt + Z.split) / 2, 0], [(Z.split + cfg.world.radius) / 2, 1]], out = [];
+    for (const [r, ring] of rings) { const acc = {};
+      for (let a = 0; a < 360; a += 2) { const t = a * Math.PI / 180, x = Math.sin(t) * r, z = Math.cos(t) * r, q = zoneAt(cfg, x, z); if (!q || q.ring !== ring) continue; const A = acc[q.id] = acc[q.id] || { q, sx: 0, sz: 0 }; A.sx += Math.sin(t); A.sz += Math.cos(t); }
+      for (const A of Object.values(acc)) { const l = Math.hypot(A.sx, A.sz) || 1; out.push({ b: A.q.id, name: A.q.name, sub: `ур. ${A.q.lv[0]}–${A.q.lv[1]}`, x: A.sx / l * r, z: A.sz / l * r }); } }
+    return out;
+  }
   const r = (G.coreR + G.belt + cfg.world.radius) / 2, acc = {};
   for (let a = 0; a < 360; a += 2) { const t = a * Math.PI / 180, x = Math.sin(t) * r, z = Math.cos(t) * r, b = biomeAt(cfg, x, z); if (!b) continue; (acc[b] = acc[b] || { sx: 0, sz: 0, n: 0 }); acc[b].sx += Math.sin(t); acc[b].sz += Math.cos(t); acc[b].n++; }
   return BIOMES.filter(b => acc[b]).map(b => { const A = acc[b], l = Math.hypot(A.sx, A.sz) || 1; return { b, name: cfg.mapView.regions[b], x: A.sx / l * r, z: A.sz / l * r }; });

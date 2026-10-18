@@ -3,7 +3,7 @@
 // снаряжение с врагов — уровня места, у торговца и кузнеца — уровня героя; потолок — 60-й уровень.
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, mulberry32, spawnEnemy, killEnemy, step, refreshGear, buyItem } from '../3d/src/sim.js';
-import { levelOfDepth, pointAtDepth } from '../3d/src/levels3d.js';
+import { levelOfDepth, pointAtDepth, levelAt } from '../3d/src/levels3d.js';
 import { gainXp } from '../3d/src/progress3d.js';
 import { BY_ID } from '../3d/src/data/items.js';
 import { createInv, equipAt, unequip, serialize, deserialize, gearStats, ilMul, nomIl, scoreUp } from '../3d/src/inv.js';
@@ -15,9 +15,10 @@ const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count =
 // враги: в ядре — как прежде, за ядром — крепче на grow за уровень
 { const W = mk(), E = CFG3.enemies, at = d => pointAtDepth(W.cfg, d, .3), a = at(.5), b = at(1.5);
   const e1 = spawnEnemy(W, 'brute', a.x, a.z), e2 = spawnEnemy(W, 'brute', b.x, b.z);
-  ok(e1.lvl === Math.round(levelOfDepth(CFG3, .5)) && e2.lvl === 40, `уровень врага: ${e1.lvl}, ${e2.lvl}`);
+  const l2 = levelAt(W, b.x, b.z);     // этап 1: за ядром — уровень зоны
+  ok(e1.lvl === Math.round(levelOfDepth(CFG3, .5)) && e2.lvl === Math.round(l2) && l2 > 30, `уровень врага: ${e1.lvl}, ${e2.lvl}`);
   ok(Math.abs(e1.maxhp - Math.round(E.brute.hp * (1 + E.depthHp * .5) * W.dif.hp)) <= 1, 'в ядре здоровье врага изменилось');
-  ok(Math.abs(e2.maxhp - Math.round(E.brute.hp * (1 + E.depthHp) * (1 + 20 * L.grow) * W.dif.hp)) <= 1, 'за ядром здоровье не растёт по уровню'); }
+  ok(Math.abs(e2.maxhp - Math.round(E.brute.hp * (1 + E.depthHp) * (1 + (l2 - L.core) * L.grow) * W.dif.hp)) <= 1, 'за ядром здоровье не растёт по уровню'); }
 // опыт и потолок
 { const W = mk(); for (let i = 0; i < 3000 && W.lv < 60; i++) gainXp(W, 1e5); ok(W.lv === 60 && W.xp === 0, 'потолок не 60-й уровень'); }
 // уровень вещи
@@ -32,7 +33,7 @@ const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count =
 // добыча за ядром — уровня места; у торговца — уровня героя
 { const W = mk(), b = pointAtDepth(W.cfg, 1.5, .7); W.player.x = b.x; W.player.z = b.z; let got = null;
   for (let k = 0; k < 400 && !got; k++) { const e = spawnEnemy(W, 'archer', b.x + 3, b.z); killEnemy(W, e); got = W.drops.find(q => BY_ID[q.id].slot); }
-  ok(got && got.il >= 40 && got.il <= 40 + L.il.drop, 'снаряжение с врага не уровня места: ' + (got && got.il));
+  const lb = Math.round(levelAt(W, b.x + 3, b.z)); ok(got && got.il >= lb && got.il <= lb + L.il.drop, 'снаряжение с врага не уровня места: ' + (got && got.il) + ' при ' + lb);
   const W2 = mk(); W2.lv = 33; W2.nearMerchant = true; W2.inv.ash = 1e6; const i = W2.shop.stock.findIndex(s => BY_ID[s.id].slot && BY_ID[s.id].stats);
   ok(i >= 0 && buyItem(W2, i) === 'ok' && W2.inv.bag.some(s => BY_ID[s.id].slot && s.il === Math.max(33, nomIl(BY_ID[s.id]))), 'у торговца вещь не уровня героя'); }
 

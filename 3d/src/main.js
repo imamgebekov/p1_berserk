@@ -25,6 +25,7 @@ import { comboReady } from './combos3d.js';
 import { ELEMENT_COLOR } from './elements3d.js';
 import { KIND_NAME } from './data/items.js';
 import { drawMap, tickRelief } from './mapdraw.js';
+import { zoneAt } from './zones3d.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSaveAny, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave, saveFileName } from './save3d.js';
 import { createRenderer } from './render.js';
@@ -229,6 +230,13 @@ function onEvent(v) {
   else if (v.k === 'hire') toast(`${v.name} теперь с вами`, 'sys');
   else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков` + (cfg.abilities.ranks.flat().includes(v.lv) ? ' и умений' : '') + (cfg.abilities.ranks.some(r => r[0] === v.lv) ? ' · открылось умение' : ''), '', '#e8c04a');
   else if (v.k === 'xp') onText(v.x, 3, v.z, '+' + v.n + ' оп.', 'xp');
+}
+// вход в зону (этап 1): крупная надпись с поясом уровней; на поверхности, при смене зоны
+let lastZone = null;
+function showZone() {
+  if (W.lvl !== 'surface' || !$('heroPick').hidden) return; const q = zoneAt(cfg, W.player.x, W.player.z); if (!q || q.id === lastZone) return;
+  const first = lastZone === null; lastZone = q.id; const el = $('zoneBan'); el.firstChild.textContent = q.name; el.lastChild.textContent = `уровни ${q.lv[0]}–${q.lv[1]}` + (first ? '' : ' · новая зона');
+  el.hidden = false; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
 }
 function showPlace(pl) {
   const el = $('place'); el.hidden = !pl; if (!pl) return;
@@ -578,7 +586,7 @@ function frame(now) {
       for (const k of Object.keys(W.pst)) chip(`${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`, STATUS_COLOR[k]);
       for (const b of buffs) chip(`${b[0]} ${Math.ceil(b[1])}с`, b[2]); } }
   if (hud) { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !npcLocked(near) && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); setIconText(questBtn, 'scroll', mk === 'ready' ? 'Сдать задание' : mk ? 'Есть задания!' : 'Задания'); } }
-  if (hud) drawAbil();
+  if (hud) { drawAbil(); showZone(); }
   { const sr = sparkTick(W); if (sr === 'step') sfx('questready'); else if (sr === 'done') { toast(`Первая искра зажжена: +${cfg.spark.ash} пепла`, '', '#e8c04a', 'fire'); sfx('questdone'); saver.write(); } }
   // строка цели не бывает пустой (шаг 12): событие → «Первая искра» → взятое задание → ближайший неоткрытый костёр
   if ((goalT -= real) <= 0) { goalT = .25;

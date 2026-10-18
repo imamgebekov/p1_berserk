@@ -39,7 +39,7 @@ import { skillStats, canRank, SKILLS, MAX_RANKS } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain, roomFor, ilMul } from './inv.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
-import { initLevels, withLevel, depthAt, levelOfDepth, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
+import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 import { resGain } from './resource3d.js';
 const critBonus = W => (W.abuf && W.abuf.hawk > 0 ? W.abuf.hawkCrit : 0);     // «Ястребиный глаз» Сойки: шанс крита на время
 
@@ -98,7 +98,7 @@ function makeWorld(cfg, rng) {
 
 
 export function spawnEnemy(W, type, x, z, mode = null) {
-  const C = W.cfg.enemies[type], E = W.cfg.enemies, d0 = depthAt(W, x, z), depth = Math.min(1, d0), lvl = levelOfDepth(W.cfg, d0), grow = 1 + Math.max(0, lvl - W.cfg.level.core) * W.cfg.level.grow, pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * grow * (1 + E.dangerHp * danger) * W.dif.hp);     // за ядром — по уровню места (этап 0): ×grow на уровень сверх core
+  const C = W.cfg.enemies[type], E = W.cfg.enemies, d0 = depthAt(W, x, z), depth = Math.min(1, d0), lvl = levelAt(W, x, z), grow = 1 + Math.max(0, lvl - W.cfg.level.core) * W.cfg.level.grow, pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * grow * (1 + E.dangerHp * danger) * W.dif.hp);     // за ядром — по уровню места (этап 0): ×grow на уровень сверх core
   const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, lvl: Math.round(lvl), dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * grow * W.dif.dmg * (W.night ? W.cfg.daynight.night.dmg : 1), danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
   rollElite(W, e, depth, danger);
   if (mode === 'guard' || mode === 'patrol') postEnemy(W, e, mode);
@@ -768,7 +768,7 @@ function refill(W, c) {
   const def = CONTAINERS[c.kind], depth = Math.min(1, depthAt(W, c.x, c.z));     // добыча — не выше глубины 1 и в большом мире
   const pl = placeAt(W.map, c.x, c.z);
   c.items = rollLoot(def, W.rng, depth, W.gear.luck, pl && pl.danger ? pl.danger * W.cfg.enemies.dangerLoot : 0);
-  { const lv = Math.round(levelOfDepth(W.cfg, depthAt(W, c.x, c.z))); for (const it of c.items) if (BY_ID[it.id].slot) it.il = ilRoll(W, lv, c.x * 7 + c.z); }     // уровень вещи — по месту (этап 0)
+  { const lv = Math.round(levelAt(W, c.x, c.z)); for (const it of c.items) if (BY_ID[it.id].slot) it.il = ilRoll(W, lv, c.x * 7 + c.z); }     // уровень вещи — по месту (этап 0)
   c.ready = c.items.length > 0; c.t = 0;
   c.locked = !!def.locked; c.keyTier = def.locked ? (depth < .3 ? 1 : depth < .6 ? 2 : 3) : 0;
 }

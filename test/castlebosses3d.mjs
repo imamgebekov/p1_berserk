@@ -3,7 +3,7 @@
 // этаж наполняется врагами, а босс остаётся; сохранённый мёртвый босс после загрузки мёртв. Бой: бот в лучшем снаряжении
 // на уровне тронного зала и на 6 ниже (вместе, вещи того же уровня) побеждает каждого босса замка в 40–92 % боёв.
 import { CFG3 } from '../3d/src/config3d.js';
-import { levelOfDepth } from '../3d/src/levels3d.js';
+import { dungeonLevel } from '../3d/src/levels3d.js';
 import { createWorld, step, mulberry32, killEnemy, restoreBosses, refreshGear } from '../3d/src/sim.js';
 import { travel } from '../3d/src/levels3d.js';
 import { BY_ID } from '../3d/src/data/items.js';
@@ -51,7 +51,7 @@ function fight(b, lv, seed) {
 }
 const N = Number(process.env.CB_N || 10);
 for (const b of B) { let all = 0;
-  const lvT = Math.round(levelOfDepth(CFG3, floors.find(d => d.id === b.level).depth));     // уровень тронного зала (этап 0: уровни до 60)
+  const lvT = Math.round(dungeonLevel(CFG3, floors.find(d => d.id === b.level)));     // уровень тронного зала (этап 0: уровни до 60)
   for (const lv of [lvT - 6, lvT]) {
     let w = 0, t = 0; for (let s = 0; s < N; s++) { const r = fight(b, lv, s); w += r.win ? 1 : 0; t += r.t; } all += w;
     console.log(`${CFG3.enemies[b.type].name} / ур. ${lv}`.padEnd(32), `побед ${(w / N * 100).toFixed(0)}%  среднее время ${(t / N).toFixed(0)} с`);

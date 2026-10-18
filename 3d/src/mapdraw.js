@@ -116,10 +116,13 @@ export function drawMap(ctx, W, v) {
     const SERIF = '"Iowan Old Style", Palatino, Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     // области (шаг 10б): крупно, разрядкой, видны и под дымкой
     if (!under && RL) { ctx.font = `600 ${Math.round(Math.max(14, Math.min(26, 60 * sc)))}px ${SERIF}`; ctx.fillStyle = 'rgba(52,38,24,.55)'; ctx.strokeStyle = 'rgba(240,230,205,.5)'; ctx.lineWidth = 3;
-      for (const L of RL.labels) { const t = L.name.toUpperCase().split('').join('\u2009'); ctx.strokeText(t, X(L.x), Y(L.z)); ctx.fillText(t, X(L.x), Y(L.z)); } }
+      for (const L of RL.labels) { const t = L.name.toUpperCase().split('').join('\u2009'); ctx.strokeText(t, X(L.x), Y(L.z)); ctx.fillText(t, X(L.x), Y(L.z)); }
+      if (W.cfg.zones) { const fs = Math.round(Math.max(11, Math.min(16, 34 * sc))); ctx.font = `600 ${fs}px ${SERIF}`; for (const L of RL.labels) if (L.sub) { ctx.strokeText(L.sub, X(L.x), Y(L.z) + fs * 1.3); ctx.fillText(L.sub, X(L.x), Y(L.z) + fs * 1.3); }     // пояс уровней под именем зоны
+        const Z = W.cfg.zones; ctx.save(); ctx.setLineDash([6, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(52,38,24,.45)'; ctx.beginPath();     // граница колец зон
+        for (let a = 0; a <= 360; a += 3) { const t = a * Math.PI / 180, r = Z.split + Z.wobble * Math.sin(t * 5 + 1.7), x = X(Math.sin(t) * r), y = Y(Math.cos(t) * r); a ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); ctx.restore(); } }
     // места: тёмные подписи со светлой обводкой; наползающие пропускаем
     ctx.font = `600 12px ${SERIF}`; ctx.lineWidth = 3.5; ctx.strokeStyle = under ? '#000' : 'rgba(244,236,214,.92)';
-    const put = []; if (!under) for (const pl of W.cfg.map.places || []) if (isSeen(W, pl.x, pl.z)) { const y = Y(pl.z) - pl.r * sc * .35; if (put.some(q => Math.abs(q[0] - X(pl.x)) < 90 && Math.abs(q[1] - y) < 14)) continue; put.push([X(pl.x), y]); ctx.strokeText(pl.name, X(pl.x), y); ctx.fillStyle = pl.safe ? '#2e5a26' : '#8a2418'; ctx.fillText(pl.name, X(pl.x), y); }
+    const put = []; if (!under) for (const pl of W.cfg.map.places || []) if (isSeen(W, pl.x, pl.z) && (sc >= .9 || pl.hub || pl.city || pl.castle || pl.id === (M.camp && M.camp.place))) { const y = Y(pl.z) - pl.r * sc * .35; if (put.some(q => Math.abs(q[0] - X(pl.x)) < 90 && Math.abs(q[1] - y) < 14)) continue; put.push([X(pl.x), y]); ctx.strokeText(pl.name, X(pl.x), y); ctx.fillStyle = pl.safe ? '#2e5a26' : '#8a2418'; ctx.fillText(pl.name, X(pl.x), y); }     // мелкий масштаб — только узлы зон, города и замки (этап 1)
     ctx.textBaseline = 'alphabetic';
   }
   // враги рядом (на большой карте не показываем: туман — это неизвестность)

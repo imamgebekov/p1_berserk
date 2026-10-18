@@ -131,6 +131,8 @@ button{font:inherit;color:var(--ink)}
 #mapCv{touch-action:none;cursor:grab;width:auto;height:auto;max-width:100%;max-height:calc(80vh / var(--dz,1) - 175px);margin-left:auto;margin-right:auto;aspect-ratio:1;display:block;border:2px solid var(--line);border-radius:10px;background:#0c0807;margin-top:8px;image-rendering:auto}
 #mapLegend{font-size:12px;opacity:.75;margin-top:8px;line-height:1.5}
 @media (prefers-reduced-motion:reduce){#place{animation:none}}
+#zoneBan{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 22%);transform:translateX(-50%);text-align:center;pointer-events:none;z-index:5;display:grid;gap:2px;animation:place 5s ease-out forwards;text-shadow:0 2px 0 #000,0 0 10px #000}#zoneBan b{font:700 clamp(24px,4vw,40px)/1.1 Georgia,'Palatino Linotype',serif;letter-spacing:.06em;color:#f0e2c0}#zoneBan span{font-size:14px;color:#e8c04a}     /* вход в зону (этап 1) */
+@media (prefers-reduced-motion:reduce){#zoneBan{animation:none}}
 #captainList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:5px;min-height:90px}#captainFlash{font-size:12.5px;color:#ff9a8a;min-height:0;margin-bottom:4px}.ssec{font-size:12px;opacity:.6;text-transform:uppercase;margin:6px 0 2px}.num.ally{color:#7aaaf0}
 
 #combo{position:fixed;right:calc(20px + env(safe-area-inset-right));bottom:calc(136px + 92px * var(--ui,1) + env(safe-area-inset-bottom));font-size:26px;font-weight:900;color:#ffd27a;text-shadow:0 2px 0 #000,0 0 6px #000;pointer-events:none;transform-origin:right bottom}

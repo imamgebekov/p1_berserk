@@ -3,7 +3,8 @@
 // голый герой за ядром гибнет. Генератор: места и дома не в воде и не друг в друге, у каждого посёлка путь к лагерю. Напор — прежний (кольцо и погоня, без стаек G1): меряем силу врагов по глубине.
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, aliveEnemies, refreshGear } from '../3d/src/sim.js';
-import { pointAtDepth, depthCurve } from '../3d/src/levels3d.js';
+import { pointAtDepth, depthCurve, levelOfDepth } from '../3d/src/levels3d.js';
+import { zoneLevel } from '../3d/src/zones3d.js';
 import { makeMap } from '../3d/src/map.js';
 import { waterDist } from '../3d/src/terrain3d.js';
 import { biomeAt, BIOMES } from '../3d/src/worldgen3d.js';
@@ -17,6 +18,7 @@ const SEEDS = Number(process.env.OUT_SEEDS || 8), SECONDS = 75;
 function run(tier, depth, seed, lv) {
   const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.enemies.roam.on = false; cfg.map.places = []; cfg.bosses.list = []; cfg.terrain.on = false;
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3)), pt = pointAtDepth(cfg, depth, seed * 1.37 + .4);
+  if (lv === 'зона') lv = Math.round(zoneLevel(cfg, pt.x, pt.z) ?? levelOfDepth(cfg, depth));     // этап 1: уровень героя — уровень зоны в точке
   Object.assign(W.inv.eq, TIERS[tier]); W.lv = lv; W.inv.il = Object.fromEntries(Object.keys(TIERS[tier]).map(k => [k, lv])); refreshGear(W); W.player.hp = W.player.maxhp; W.player.x = pt.x; W.player.z = pt.z;     // уровень, с которым сюда приходят
   let taken = 0; const dodge = mulberry32(seed + 99);
   for (let i = 0; i < 60 * SECONDS; i += 1) {
@@ -35,7 +37,7 @@ function run(tier, depth, seed, lv) {
   return { dead: false, kills: W.kills, taken };
 }
 // пояса уровней (этап 0, 2026-10-19): уровень места — из глубины (1 → 20, 1.25 → 30, 1.5 → 40, 1.75 → 50, 2 → 60); герой того же уровня в вещах того же уровня
-const T = {}, LV = { 1: 20, 1.25: 30, 1.5: 40, 1.75: 50, 2: 60 };
+const T = {}, LV = { 1: 'зона', 1.25: 'зона', 1.5: 'зона', 1.75: 'зона', 2: 'зона' };     // этап 1: уровень места — по зоне (под разными углами — разные зоны)
 const cell = (tier, depth, lv, key) => {
   let dead = 0, kills = 0, taken = 0; for (let s = 0; s < SEEDS; s++) { const r = run(tier, depth, s, lv); dead += r.dead ? 1 : 0; kills += r.kills; taken += r.taken; }
   T[key] = { dead: dead / SEEDS, kills: kills / SEEDS, tpk: taken / Math.max(1, kills) };
@@ -43,11 +45,11 @@ const cell = (tier, depth, lv, key) => {
 };
 for (const depth of [1, 1.25, 1.5, 1.75, 2]) cell('чёрное', depth, LV[depth], 'чёрное' + depth);
 cell('без вещей', 1.5, 40, 'без вещей1.5');
-cell('чёрное', 2, 30, 'чёрное2@30');                              // герой 30-го уровня у края мира (место 60-го) — гибнет чаще
+cell('чёрное', 2, 20, 'чёрное2@20');                              // герой 20-го уровня у края мира (зоны 42–60) — опаснее, чем у края ядра
 const band = [1, 1.25, 1.5, 1.75, 2].map(d => T['чёрное' + d].dead);
 ok(band.every(x => x <= .5), 'в каком-то поясе герой своего уровня гибнет слишком часто: ' + band.join(' / '));
 ok(Math.max(...band) - Math.min(...band) <= .4, 'пояса уровней неровные по смертям: ' + band.join(' / '));
-ok(T['чёрное2@30'].dead >= T['чёрное2'].dead + .25 || T['чёрное2@30'].tpk > T['чёрное2'].tpk * 1.5, 'у края мира герою 30-го уровня не опаснее, чем герою 60-го');
+ok(T['чёрное2@20'].dead >= T['чёрное1'].dead + .25 || T['чёрное2@20'].tpk > T['чёрное1'].tpk * 1.5, 'у края мира герою 20-го уровня не опаснее, чем у края ядра');
 ok(T['без вещей1.5'].dead >= .75, 'голый герой за ядром выживает: ' + T['без вещей1.5'].dead);     // 8 прогонов: шаг 12,5 %
 
 // ---------- генератор ----------

@@ -5,6 +5,7 @@ import { makeLevelMap, resolve } from './map.js';
 import { reveal } from './places3d.js';
 import { mulberry32, spawnEnemy } from './sim.js';
 import { bossAway } from './boss3d.js';
+import { zoneLevel } from './zones3d.js';
 
 export const SURFACE = 'surface';
 export const onSurface = W => W.lvl === SURFACE;
@@ -42,7 +43,17 @@ export function depthAt(W, x, z) {
 }
 // уровень места (этап 0): глубина 0–1 (ядро) → 1…core, 1–depthMax → core…edge; дробный, для показа — округлить
 export function levelOfDepth(cfg, d) { const L = cfg.level, M = cfg.world.depthMax || 1; return d <= 1 || M <= 1 ? 1 + (L.core - 1) * Math.min(1, d) : L.core + (L.edge - L.core) * Math.min(1, (d - 1) / (M - 1)); }
-export const levelAt = (W, x, z) => levelOfDepth(W.cfg, depthAt(W, x, z));
+// уровень подземелья: этаж замка — уровень зоны у входа + floorStep за этаж (выше трона — сильнее); прочие — по глубине
+export function dungeonLevel(cfg, def) {
+  if (def.level) return def.level;
+  const c = def.castle && (cfg.map.castles || []).find(q => q.id === def.castle), zl = c && zoneLevel(cfg, c.x, c.z);
+  return zl != null ? Math.min(cfg.level.max, zl + (def.floor || 1) * cfg.zones.floorStep) : levelOfDepth(cfg, def.depth);
+}
+// на поверхности за ядром — по зоне (этап 1); в ядре и в подземельях без своего уровня — по глубине
+export function levelAt(W, x, z) {
+  const L = W.levels && W.levels[W.lvl]; if (L && L.def) return dungeonLevel(W.cfg, L.def);
+  const zl = zoneLevel(W.cfg, x, z); return zl ?? levelOfDepth(W.cfg, depthAt(W, x, z));
+}
 export function depthCurve(cfg, d) {
   const P = cfg.world.depth || [[0, 0], [cfg.world.radius, 1]], M = cfg.world.depthMax || 1;     // за ядром большого мира глубина растёт до depthMax (C3b)
   if (d <= P[0][0]) return clamp(P[0][1], 0, M);
