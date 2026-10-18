@@ -319,9 +319,9 @@ function dropLoot(W, e) {
 function attackStart(W, heavy = 0) {
   const p = W.player, P = W.cfg.player, H = P.heavy;
   // автоприцел: ближайший враг в радиусе autoAim; у лука — ближайший видимый в пределах дальности (после переката не стрелять за спину)
-  const tr = W.wp.trait; let best = null, bd = tr.ranged ? tr.range : P.autoAim;
-  for (const e of W.enemies) { if (e.dead) continue; const d = len(e.x - p.x, e.z - p.z); if (d < bd && (!tr.ranged || !lineBlocked(W.map, p.x, p.z, e.x, e.z))) { bd = d; best = e; } }
-  if (best) p.face = Math.atan2(best.x - p.x, best.z - p.z);
+  const tr = W.wp.trait, aim = W.aimPt && len(W.aimPt.x - p.x, W.aimPt.z - p.z) > .3 ? Math.atan2(W.aimPt.x - p.x, W.aimPt.z - p.z) : null; let best = null, bd = tr.ranged ? tr.range : P.autoAim;
+  for (const e of W.enemies) { if (e.dead) continue; const d = len(e.x - p.x, e.z - p.z); if (aim !== null && Math.abs(angDiff(Math.atan2(e.x - p.x, e.z - p.z), aim)) > P.aimCone * DEG) continue; if (d < bd && (!tr.ranged || !lineBlocked(W.map, p.x, p.z, e.x, e.z))) { bd = d; best = e; } }     // курсор: только враги в конусе у курсора
+  if (best) p.face = Math.atan2(best.x - p.x, best.z - p.z); else if (aim !== null) p.face = aim;
   // цепочка: удары в пределах 0,9 с друг от друга; каждый третий — завершающий. Удар сразу после переката — рывок-удар
   // тяжёлый удар (heavy — доля заряда 0–1) цепочку не продолжает и сбрасывает
   if (heavy) { p.chain = 0; p.fin = false; } else { p.chain = W.t - p.lastAtkEnd < .9 ? p.chain + 1 : 1; p.fin = p.chain % 3 === 0; }
@@ -920,6 +920,7 @@ export function step(W, dt, input = {}) {
     if (g.aegis) { if (!(W.aegis > 0) && (W.aegisT = (W.aegisT ?? 0) - dt) <= 0) { W.aegis = g.aegis[1]; W.ev.push({ k: 'aegisUp', x: p.x, z: p.z }); } } else W.aegis = 0;
     if (g.sunheal && !p.dead && p.hp < p.maxhp && W.t - (p.lastHurt ?? -1e9) > g.sunheal[0]) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * g.sunheal[1] * dt); }
   if (W.freeze > 0) { W.freeze -= dt; if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200); return; }
+  W.aimPt = input.aimPt && Number.isFinite(input.aimPt.x) ? input.aimPt : null;     // прицел курсором (компьютер); без него — как раньше
   updatePlayer(W, dt, input);
   tickPlayer(W, dt);
   tickAbilities(W, dt);

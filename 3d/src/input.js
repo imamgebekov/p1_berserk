@@ -40,6 +40,8 @@ export function createInput(doc, win) {
   gl.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; e.preventDefault(); if (e.button === 0) { S.mouseAtk = true; S.atkQ = true; } else if (e.button === 2) S.rollQ = true; });
   win.addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) S.mouseAtk = false; });
   gl.addEventListener('contextmenu', e => e.preventDefault());
+  gl.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { S.cx = e.clientX; S.cy = e.clientY; S.cur = true; } });     // курсор — прицел (2026-10-18)
+  gl.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') S.cur = false; });
   const release = () => { keys.clear(); S.attackBtn = false; S.mouseAtk = false; S.rollQ = false; S.atkQ = false; S.abilQ = 0; endStick(); bAtk.classList.remove('on'); bRoll.classList.remove('on'); };
   win.addEventListener('blur', release);
 
@@ -51,7 +53,7 @@ export function createInput(doc, win) {
       let mx = S.mx, mz = S.mz;
       if (!mx && !mz) { mx = (keys.has('r') ? 1 : 0) - (keys.has('l') ? 1 : 0); mz = (keys.has('d') ? 1 : 0) - (keys.has('u') ? 1 : 0); }
       const roll = S.rollQ, attackPress = S.atkQ, ability = S.abilQ; S.rollQ = false; S.atkQ = false; S.abilQ = 0;
-      return { mx, mz, attack: S.attackBtn || S.mouseAtk || keys.has('atk'), attackPress, roll, ability };
+      return { mx, mz, attack: S.attackBtn || S.mouseAtk || keys.has('atk'), attackPress, roll, ability, cursor: S.cur ? { x: S.cx, y: S.cy } : null };
     },
     state: S
   };

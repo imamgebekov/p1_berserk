@@ -69,13 +69,15 @@ export function useAbility(W, i) {
 }
 // угол на ближайшего видимого врага в пределах range (cone — только в конусе ±cone° перед героем); нет — куда смотрит герой
 function aimAt(W, range, cone = 180) {
-  const p = W.player; let best = null, bd = range;
-  for (const e of W.enemies) { if (e.dead) continue; const dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz); let a = Math.atan2(dx, dz) - p.face; a = Math.atan2(Math.sin(a), Math.cos(a));
+  const p = W.player, A = W.aimPt && len(W.aimPt.x - p.x, W.aimPt.z - p.z) > .3 ? Math.atan2(W.aimPt.x - p.x, W.aimPt.z - p.z) : null, base = A ?? p.face; let best = null, bd = range;     // курсор: конус вокруг курсора
+  if (A !== null) cone = Math.min(cone, W.cfg.player.aimCone);
+  for (const e of W.enemies) { if (e.dead) continue; const dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz); let a = Math.atan2(dx, dz) - base; a = Math.atan2(Math.sin(a), Math.cos(a));
     if (d < bd && Math.abs(a) <= cone * Math.PI / 180 && !lineBlocked(W.map, p.x, p.z, e.x, e.z)) { bd = d; best = e; } }
-  return best ? { ang: Math.atan2(best.x - p.x, best.z - p.z), e: best } : { ang: p.face, e: null };
+  return best ? { ang: Math.atan2(best.x - p.x, best.z - p.z), e: best } : { ang: base, e: null };
 }
 // точка умения по площади: ближайший видимый враг в range или ahead м впереди
-const spot = (W, A) => { const p = W.player, { e } = aimAt(W, A.range); return e ? { x: e.x, z: e.z } : { x: p.x + Math.sin(p.face) * A.ahead, z: p.z + Math.cos(p.face) * A.ahead }; };
+const spot = (W, A) => { const p = W.player; if (W.aimPt) { const dx = W.aimPt.x - p.x, dz = W.aimPt.z - p.z, d = len(dx, dz), k = d > A.range ? A.range / d : 1; return { x: p.x + dx * k, z: p.z + dz * k }; }     // курсор: точка под курсором (не дальше range)
+  const { e } = aimAt(W, A.range); return e ? { x: e.x, z: e.z } : { x: p.x + Math.sin(p.face) * A.ahead, z: p.z + Math.cos(p.face) * A.ahead }; };
 const near = (W, r) => W.enemies.filter(e => !e.dead && len(e.x - W.player.x, e.z - W.player.z) < r + W.cfg.enemies[e.type].radius);
 
 const ACT = {

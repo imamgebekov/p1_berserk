@@ -556,7 +556,8 @@ function frame(now) {
   const paused = panelOpen || landscape; simK = paused ? (CALM_UI ? 0 : Math.max(0, simK - real / cfg.ui.stopT)) : 1;
   if (simK > 0) {
     const inp = paused ? {} : input.read();
-    Object.assign(inp, rotateInput(inp.mx || 0, inp.mz || 0, cfg.view.camYaw));        // «вверх» на джойстике = вверх на экране при любом повороте камеры
+    Object.assign(inp, rotateInput(inp.mx || 0, inp.mz || 0, cfg.view.camYaw));
+    if (desk && renderer && inp.cursor) inp.aimPt = renderer.groundAt(inp.cursor.x, inp.cursor.y);     // прицел курсором: удар, выстрел и умения — в сторону мыши        // «вверх» на джойстике = вверх на экране при любом повороте камеры
     if (W.player.dead) inp.attack = inp.roll = false;
     step(W, dt * simK, inp);
   }
