@@ -293,6 +293,15 @@ const BASE = {
       spear:    { cd: [18, 16, 14], cost: 50, mul: [3.5, 4.5, 5.5], range: 16, cone: 60 }     // копьё бездны
     }
   },
+  // связки умений (2026-10-18): умение a, потом b не позже window с — b сильнее. mul — множители чисел умения, add — прибавки,
+  // set — замена; прочее — числа особых эффектов (stun — множитель оглушения испуганных, k — множитель урона по условию, …)
+  combos: {
+    window: 3,
+    bladestorm: { mul: { r: 1.4, mul: 1.3 } }, dread: { mul: { cone: 1.5 }, stun: 2 }, rift: { k: 1.6 }, frenzy: { mul: { t: 1.5 } },
+    archerdance: { add: { n: 3 } }, snare: { mul: { mul: 1.4 } }, aimcold: { pierce: 99 }, icehail: { slow: .6 },
+    shadowstrike: { crit: true }, bloodfan: { k: 1.5 }, riposte: { set: { kill: .4 } }, twindance: {},
+    detonate: { k: 2, burn: [6, 4] }, frozenstorm: { add: { jumps: 2 }, slow: .6 }, icearmor: { mul: { r: 1.4 }, armor: 15, t: 6 }, breach: { k: 1.5 }
+  },
   // вторая рука (B2b): block.arc — ширина щита спереди, °; block.knock — доля отброса при блоке; dual.mul — доля урона второго клинка
   // к каждому удару, dual.swing — удары с двумя клинками быстрее (×)
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },

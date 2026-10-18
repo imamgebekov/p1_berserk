@@ -262,6 +262,9 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 #abil .ab[data-i="4"]{right:calc(182px + env(safe-area-inset-right));bottom:calc(88px + env(safe-area-inset-bottom))}
 #abil .ab.wsk{right:calc(33px + env(safe-area-inset-right));bottom:calc(58px + 160px * var(--ui,1) + env(safe-area-inset-bottom));border-color:var(--wc);box-shadow:0 0 10px -2px var(--wc)}#abil .ab.wsk.gold{background:radial-gradient(#7a5a20,#3a2a10)}
 html[data-lefty] #abil .ab.wsk{left:calc(33px + env(safe-area-inset-left))}
+#abil .ab.combo{border-color:#ffd27a;box-shadow:0 0 0 2px #ffd27a,0 0 16px 2px rgba(255,200,90,.75)}
+@media (prefers-reduced-motion:no-preference){#abil .ab.combo{animation:comboPulse .6s ease-in-out infinite alternate}}
+@keyframes comboPulse{from{box-shadow:0 0 0 2px #ffd27a,0 0 8px 0 rgba(255,200,90,.5)}to{box-shadow:0 0 0 3px #ffe8a8,0 0 20px 4px rgba(255,200,90,.85)}}
 html[data-lefty] #abil .ab{right:auto!important}
 html[data-lefty] #abil .ab[data-i="0"]{left:calc(118px + env(safe-area-inset-left))}html[data-lefty] #abil .ab[data-i="1"]{left:calc(124px + env(safe-area-inset-left))}
 html[data-lefty] #abil .ab[data-i="2"]{left:calc(100px + env(safe-area-inset-left))}html[data-lefty] #abil .ab[data-i="3"]{left:calc(176px + env(safe-area-inset-left))}

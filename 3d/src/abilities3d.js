@@ -6,6 +6,7 @@ import { lineBlocked, insideOf, resolve } from './map.js';
 import { applyStatus } from './status3d.js';
 import { len } from './util3d.js';
 import { resTick, resNow, resSpend, resOf, resMax } from './resource3d.js';
+import { comboFor, boosted, noteAbility } from './combos3d.js';
 
 export const heroAbilities = W => ABILITIES[W.hero] || [];
 const cfgOf = (W, id) => (W.cfg.abilities[W.hero] || {})[id];
@@ -57,9 +58,13 @@ export function useAbility(W, i) {
   if (p.dead || p.state === 'roll' || p.state === 'dash') return 'busy';
   const A = cfgOf(W, def.id), r = rankIdx(W.cfg, i, rank), cost = A.cost || 0;
   if (resNow(W) < cost) return 'res';
-  if (ACT[def.id](W, A, r) === false) return 'target';
-  resSpend(W, cost); W.acd[def.id] = A.cd[r];
+  const cb = comboFor(W, def.id);                    // связка: прошлое умение — первое в паре, окно открыто
+  W.cmb = cb ? { id: cb.id, ...W.cfg.combos[cb.id] } : null;
+  let res; try { res = ACT[def.id](W, cb ? boosted(A, W.cfg.combos[cb.id]) : A, r); } finally { W.cmb = null; }
+  if (res === false) return 'target';
+  resSpend(W, cost); W.acd[def.id] = A.cd[r]; noteAbility(W, def.id);
   W.ev.push({ k: 'ability', id: def.id, x: p.x, z: p.z, face: p.face });
+  if (cb) W.ev.push({ k: 'combo', id: cb.id, name: cb.name, x: p.x, z: p.z });
   return 'ok';
 }
 // угол на ближайшего видимого врага в пределах range (cone — только в конусе ±cone° перед героем); нет — куда смотрит герой
@@ -88,13 +93,14 @@ const ACT = {
     for (const e of near(W, A.r)) applyStatus(W, e, 'fear', 0, A.fear[r]);
     const ex = W.buffs.find(b => b.src === 'cry'); if (ex) ex.t = A.t; else W.buffs.push({ stat: 'armor', amt: A.armor[r], t: A.t, src: 'cry' });
   },
-  whirl(W, A, r) { for (const e of near(W, A.r)) abilityHit(W, e, A.mul[r], { knock: A.knock }); W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.6); },
+  whirl(W, A, r) { const C = W.cmb; for (const e of near(W, A.r)) abilityHit(W, e, A.mul[r] * (C && C.id === 'rift' && e.st && e.st.root ? C.k : 1), { knock: A.knock }); W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.6); },     // «Разлом»: по корням сильнее
   iron(W, A, r) { W.abuf.iron = A.t[r]; W.abuf.ironTaken = A.taken; },
   rage(W, A, r) { W.abuf.rage = A.t[r]; W.abuf.rageMul = 1 + A.dmg[r] / 100; W.abuf.rageSwing = A.swing; W.abuf.rageDrain = A.drain; },
   bash(W, A, r) {                                  // конус перед собой: удар и оглушение (доворот на ближайшего)
     const p = W.player, { ang } = aimAt(W, A.r + 1); p.face = ang; let hit = 0;
     for (const e of near(W, A.r)) { const d = Math.atan2(e.x - p.x, e.z - p.z) - p.face; if (Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) > A.cone / 2 * Math.PI / 180) continue;
-      abilityHit(W, e, A.mul[r], { knock: A.knock }); if (!e.dead) applyStatus(W, e, 'stun', 0, A.stun[r]); hit++; }
+      const fear = W.cmb && W.cmb.id === 'dread' && e.st && e.st.fear;     // «Устрашение»: испуганных оглушает дольше
+      abilityHit(W, e, A.mul[r], { knock: A.knock }); if (!e.dead) applyStatus(W, e, 'stun', 0, A.stun[r] * (fear ? W.cmb.stun : 1)); hit++; }
     if (!hit) return false;
   },
   quake(W, A, r) {
@@ -115,12 +121,13 @@ const ACT = {
     while (W.traps.length > A.max) W.traps.shift();
   },
   venom(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { poison: [A.dps[r], A.t], pierce: A.pierce, kind: 'venom' }); },
-  frost(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { freeze: A.freeze[r] }); },
+  frost(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { freeze: A.freeze[r], pierce: W.cmb && W.cmb.id === 'aimcold' ? W.cmb.pierce : 0 }); },     // «Прицельный холод» — насквозь
   firearrow(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { blast: { r: A.r, k: A.splash, dps: A.dps[r], t: A.t } }); },
   hawk(W, A, r) { W.abuf.hawk = A.t[r]; W.abuf.hawkCrit = A.crit[r] / 100; },
   rain(W, A, r) {                                  // град: на ближайшего видимого врага или вперёд
-    const p = W.player, { e } = aimAt(W, A.range), x = e ? e.x : p.x + Math.sin(p.face) * A.ahead, z = e ? e.z : p.z + Math.cos(p.face) * A.ahead;
-    W.zones.push({ x, z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl });
+    const p = W.player, C = W.cmb, held = C && C.id === 'snare' ? W.enemies.find(o => !o.dead && o.st && o.st.root && len(o.x - p.x, o.z - p.z) < A.range) : null;     // «Западня»: на пойманного
+    let { e } = aimAt(W, A.range); if (held) e = held; const x = e ? e.x : p.x + Math.sin(p.face) * A.ahead, z = e ? e.z : p.z + Math.cos(p.face) * A.ahead;
+    W.zones.push({ x, z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl, slow: C && C.id === 'icehail' ? C.slow : 0 });     // «Ледяной град» замедляет
   },
   // Вейл
   blink(W, A, r) {                                 // к врагу в конусе: встать за спину (если там стена — перед ним) и ударить
@@ -129,11 +136,11 @@ const ACT = {
     const fx = p.x, fz = p.z; let tx = e.x + ux * R, tz = e.z + uz * R;
     if (insideOf(W.map, tx, tz) >= 0 || resolve(W.map, { x: tx, z: tz }, W.cfg.player.radius) || lineBlocked(W.map, e.x, e.z, tx, tz)) { tx = e.x - ux * R; tz = e.z - uz * R; }
     p.x = tx; p.z = tz; p.vx = p.vz = 0; p.face = Math.atan2(e.x - tx, e.z - tz);
-    abilityHit(W, e, A.mul[r], { knock: .6 });
+    abilityHit(W, e, A.mul[r], { knock: .6, forceCrit: !!(W.cmb && W.cmb.id === 'shadowstrike') });     // «Удар из тени» — верный крит
     W.ev.push({ k: 'blink', x: fx, z: fz, x2: tx, z2: tz });
   },
   parry(W, A, r) { W.abuf.parry = A.t[r]; W.abuf.parryStun = A.stun[r]; W.abuf.parryMul = A.mul[r]; },
-  dance(W, A, r) { W.abuf.dance = A.t; W.abuf.danceGap = A.t / A.hits; W.abuf.danceAcc = W.abuf.danceGap; W.abuf.danceMul = A.mul[r]; W.abuf.danceR = A.r; W.player.inv = Math.max(W.player.inv, A.t * .5); },
+  dance(W, A, r) { W.abuf.twin = !!(W.cmb && W.cmb.id === 'twindance'); W.abuf.dance = A.t; W.abuf.danceGap = A.t / A.hits; W.abuf.danceAcc = W.abuf.danceGap; W.abuf.danceMul = A.mul[r]; W.abuf.danceR = A.r; W.player.inv = Math.max(W.player.inv, A.t * .5); },
   shadow(W, A, r) {
     const p = W.player; for (let i = W.allies.length - 1; i >= 0; i--) if (W.allies[i].decoy) W.allies.splice(i, 1);     // одна тень за раз
     W.allies.push({ id: W.aid++, guest: true, decoy: true, type: 'guest', name: 'Тень', x: p.x + Math.sin(p.face) * 1.2, z: p.z + Math.cos(p.face) * 1.2, vx: 0, vz: 0, face: p.face, hp: A.hp[r], maxhp: A.hp[r], state: 'idle', t: A.t[r], cd: 0, gap: A.hit, r: A.r, mul: A.mul[r], dead: false, deadT: 0, flash: 0, calm: 0, tgt: 0, moving: false, lvl: W.lvl });
@@ -144,16 +151,18 @@ const ACT = {
     W.abuf.smoke = A.hide; const ex = W.buffs.find(b => b.src === 'smoke'); if (ex) ex.t = A.t[r]; else W.buffs.push({ stat: 'spd', amt: A.spd[r], t: A.t[r], src: 'smoke' });
     W.ev.push({ k: 'smoke', x: p.x, z: p.z, r: A.r });
   },
-  bloodlet(W, A, r) { const list = near(W, A.r); if (!list.length) return false; for (const e of list) { abilityHit(W, e, A.mul[r], { knock: .4 }); if (!e.dead) applyStatus(W, e, 'bleed', A.dps[r], A.t); } },
+  bloodlet(W, A, r) { const list = near(W, A.r), C = W.cmb; if (!list.length) return false; for (const e of list) { abilityHit(W, e, A.mul[r] * (C && C.id === 'bloodfan' && e.st && e.st.bleed ? C.k : 1), { knock: .4 });     // «Кровавый веер»
+ if (!e.dead) applyStatus(W, e, 'bleed', A.dps[r], A.t); } },
   // Ирга
-  fireball(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { blast: { r: A.r, k: A.splash, dps: A.dps[r], t: A.t }, kind: 'orb' }); },
-  nova(W, A, r) { const p = W.player; for (const e of near(W, A.r)) { abilityHit(W, e, A.mul[r], { knock: .8 }); if (!e.dead) applyStatus(W, e, 'freeze', 0, A.freeze[r]); } W.ev.push({ k: 'nova', x: p.x, z: p.z, r: A.r }); },
+  fireball(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { blast: { r: A.r, k: A.splash, dps: A.dps[r], t: A.t }, kind: 'orb', detonate: W.cmb && W.cmb.id === 'detonate' ? W.cmb : null }); },     // «Взрыв облака»
+  nova(W, A, r) { const p = W.player, C = W.cmb; for (const e of near(W, A.r)) { abilityHit(W, e, A.mul[r], { knock: .8 }); if (!e.dead) applyStatus(W, e, 'freeze', 0, A.freeze[r]); } W.ev.push({ k: 'nova', x: p.x, z: p.z, r: A.r });
+    if (C && C.id === 'icearmor') { const ex = W.buffs.find(b => b.src === 'icearmor'); if (ex) ex.t = C.t; else W.buffs.push({ stat: 'armor', amt: C.armor, t: C.t, src: 'icearmor' }); } },     // «Ледяная броня»
   chain(W, A, r) {                                 // молния: цель впереди, потом прыжки к ближайшим ещё не задетым
     const { e } = aimAt(W, A.range, 70); if (!e) return false;
     const p = W.player; p.face = Math.atan2(e.x - p.x, e.z - p.z); let cur = e, from = p, m = A.mul[r]; const done = new Set();
     for (let i = 0; cur && i <= A.jumps[r]; i++) {
       done.add(cur); W.ev.push({ k: 'chain', x: from.x, z: from.z, x2: cur.x, z2: cur.z });
-      const dmg = abilityHit(W, cur, m, { knock: .3 }); if (!cur.dead) applyStatus(W, cur, 'shock', dmg, W.cfg.elements.mark.shock);
+      const dmg = abilityHit(W, cur, m, { knock: .3 }); if (!cur.dead) applyStatus(W, cur, 'shock', dmg, W.cfg.elements.mark.shock); if (!cur.dead && W.cmb && W.cmb.id === 'frozenstorm') applyStatus(W, cur, 'slow', W.cmb.slow, 2);     // «Ледяная гроза» замедляет
       from = cur; m *= A.fall; let best = null, bd = A.hop; for (const o of W.enemies) { if (o.dead || done.has(o)) continue; const d = len(o.x - from.x, o.z - from.z); if (d < bd) { bd = d; best = o; } } cur = best;
     }
   },
@@ -164,7 +173,7 @@ const ACT = {
   spear(W, A, r) {
     const p = W.player, { e } = aimAt(W, A.range, A.cone); if (!e) return false;
     p.face = Math.atan2(e.x - p.x, e.z - p.z); W.ev.push({ k: 'spear', x: p.x, z: p.z, x2: e.x, z2: e.z });
-    abilityHit(W, e, A.mul[r], { knock: 1.5, heavy: true });
+    abilityHit(W, e, A.mul[r] * (W.cmb && W.cmb.id === 'breach' && e.st && e.st.shock ? W.cmb.k : 1), { knock: 1.5, heavy: true });     // «Пробой»: по «разряду» сильнее
   },
   execute(W, A, r) {
     const p = W.player, { e } = aimAt(W, A.reach + 1, A.cone); if (!e || len(e.x - p.x, e.z - p.z) > A.reach + W.cfg.enemies[e.type].radius) return false;
@@ -203,7 +212,8 @@ export function tickAbilities(W, dt) {
   if (b.parry > 0) b.parry -= dt;
   // танец клинков: удар каждые danceGap секунд по ближнему врагу вокруг
   if (b.dance > 0) { b.dance -= dt; b.danceAcc += dt;
-    while (b.danceAcc >= b.danceGap) { b.danceAcc -= b.danceGap; const list = near(W, b.danceR); if (!list.length) break; const e = list.reduce((a, o) => (len(o.x - p.x, o.z - p.z) < len(a.x - p.x, a.z - p.z) ? o : a)); p.face = Math.atan2(e.x - p.x, e.z - p.z); abilityHit(W, e, b.danceMul, { knock: .3 }); W.ev.push({ k: 'danceHit', x: e.x, z: e.z }); } }
+    while (b.danceAcc >= b.danceGap) { b.danceAcc -= b.danceGap; const list = near(W, b.danceR); if (!list.length) break; const e = list.reduce((a, o) => (len(o.x - p.x, o.z - p.z) < len(a.x - p.x, a.z - p.z) ? o : a)); p.face = Math.atan2(e.x - p.x, e.z - p.z); abilityHit(W, e, b.danceMul, { knock: .3 }); W.ev.push({ k: 'danceHit', x: e.x, z: e.z });
+      const tw = b.twin && W.allies.find(q => q.decoy && !q.dead); if (tw) { const o = W.enemies.filter(q => !q.dead && len(q.x - tw.x, q.z - tw.z) < b.danceR + W.cfg.enemies[q.type].radius).sort((u, v) => len(u.x - tw.x, u.z - tw.z) - len(v.x - tw.x, v.z - tw.z))[0]; if (o) { tw.face = Math.atan2(o.x - tw.x, o.z - tw.z); abilityHit(W, o, b.danceMul, { knock: .3 }); W.ev.push({ k: 'danceHit', x: o.x, z: o.z }); } } } }     // «Двойной танец»: тень тоже режет
   // тень-двойник: стоит, режет ближнего, тает по времени; на другом уровне пропадает
   for (let i = W.allies.length - 1; i >= 0; i--) { const a = W.allies[i]; if (!a.decoy) continue;
     if (a.lvl !== W.lvl || a.dead || (a.t -= dt) <= 0) { if (!a.dead) W.ev.push({ k: 'shadowEnd', x: a.x, z: a.z }); W.allies.splice(i, 1); continue; }

@@ -166,7 +166,7 @@ try {
   await ev(() => { const W = window.__b3d.W; W.lv = 30; W.ap = 28; W.ab = {}; W.acd = {}; W.player.x = 0; W.player.z = 4; W.player.face = 0; W.resHero = W.hero; W.res = 100; });
   await page.keyboard.press('KeyN'); await page.waitForTimeout(250);
   await page.locator('#skillTabs .tab', { hasText: 'Умения' }).click(); await page.waitForTimeout(150);
-  const rows = await ev(() => document.querySelectorAll('#skillList .skrow').length);
+  const rows = await ev(() => document.querySelectorAll('#skillList .skrow:not(.combo)').length);
   if (rows !== 8) bad('во вкладке «Умения» не 8 строк: ' + rows);
   for (let i = 0; i < 5; i++) await page.locator('#skillList .skrow .plus').nth(i).click();
   await page.screenshot({ path: join(out, '3d-desk-abilities.png') });
@@ -363,6 +363,15 @@ try {
     const hit = await ev(() => window.__b3d.W.enemies.some(e => e.hp < e.maxhp));
     if (!(cd > 0) || !hit) bad(`F не запустило умение оружия: перезарядка ${cd}, попал ${hit}`);
     await page.screenshot({ path: join(out, '3d-desk-wskill.png') }); await ev(() => { window.__b3d.W.enemies.length = 0; }); }
+  // связки умений (2026-10-18): после «Рывка» (1) кнопка «Вихря» (2) подсвечена; в книге — вкладка «Связки» с 4 связками героя
+  { await ev(() => { const b = window.__b3d, W = b.W, p = W.player; W.hero = 'thorn'; W.lv = 30; for (const id of ['charge', 'cry', 'whirl', 'iron', 'rage', 'bash', 'quake', 'blood']) W.ab[id] = 3; W.bar = ['charge', 'whirl', 'cry', 'bash', 'rage']; W.acd = {}; W.resHero = 'thorn'; W.res = 999; W.enemies.length = 0; const e = b.spawn('brute', p.x + 4, p.z); e.hp = e.maxhp = 1e5; e.cd = 99; });
+    await page.waitForTimeout(200); await page.keyboard.press('Digit1'); let glow = false; for (let t = 0; t < 1500 && !glow; t += 100) { await page.waitForTimeout(100); glow = await ev(() => document.querySelector('#abil .ab[data-i="1"]').classList.contains('combo')); }
+    if (!glow) bad('после «Рывка» кнопка «Вихря» не подсвечена для связки');
+    await page.screenshot({ path: join(out, '3d-desk-combo.png') });
+    await page.keyboard.press('KeyR'); await page.waitForTimeout(300); await page.click('#journalTabs button[data-tab="combos"]'); await page.waitForTimeout(150);
+    const rows = await ev(() => document.getElementById('journalList').innerText);
+    if (!/Буря клинка/.test(rows) || (rows.match(/→/g) || []).length !== 4) bad('во вкладке «Связки» не 4 связки Торна: ' + rows.slice(0, 160));
+    await page.keyboard.press('KeyR'); await page.waitForTimeout(150); await ev(() => { window.__b3d.W.enemies.length = 0; }); }
   await ctx.close();
   // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
   { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);

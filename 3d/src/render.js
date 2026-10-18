@@ -887,6 +887,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'meteor') { ringFx(v.x, v.z, v.r, '#ff8a30'); burst(v.x, .8, v.z, 40, '#ff8a30', 7); burst(v.x, .8, v.z, 20, '#ffe27a', 5); fx.flash(v.x, 1.4, v.z, 3.4, '#ffb060'); fx.ash(v.x, .6, v.z, 14, ['#3a302a', '#5a4a40', '#2a2420']); }
       else if (v.k === 'spear') { zap(v.x, v.z, v.x2, v.z2); burst(v.x2, 1.2, v.z2, 24, '#8a5aff', 6); fx.flash(v.x2, 1.2, v.z2, 2.4, '#b48aff'); }
       else if (v.k === 'mshield') burst(v.x, 1.3, v.z, 6, '#7a8aff', 3)
+      else if (v.k === 'combo') { hooks.onText && hooks.onText(v.x, 3.6, v.z, 'Связка: ' + v.name + '!', 'crit'); fx.flash(v.x, 1.4, v.z, 2.6, '#ffd27a'); burst(v.x, 1.4, v.z, 18, '#ffe8a8', 4); }
       else if (v.k === 'pulse') ringFx(v.x, v.z, v.r, '#c8a8ff')
       else if (v.k === 'splash') { ringFx(v.x, v.z, v.r, '#c8a8ff'); burst(v.x, 1.1, v.z, 10, '#d8c0ff', 4); }
       else if (v.k === 'wskill2') ringFx(v.x, v.z, 3.4, '#f0d8a8')

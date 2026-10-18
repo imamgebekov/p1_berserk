@@ -1,6 +1,7 @@
 // Окно навыков: три ветки, ранги, очки, сброс за пепел; вкладка «Умения» — активные умения героя со своими очками (B3).
 import { BRANCHES, TIER_STEP, spentIn, canRank } from './data/skills3d.js';
 import { spendSkill, respec, respecCost, xpNeed } from './sim.js';
+import { combosOf } from './combos3d.js';
 import { abilityView, upgradeAbility, canUpgrade, respecAbilities, respecAbilityCost, spentAbility, resView, barOf, setBar, BAR } from './abilities3d.js';
 
 // разница рангов (шаг 10): у описаний одинаковый текст, меняются числа — показываем только их: «×1,4 → ×1,6 · 9 с → 8,5 с»;
@@ -39,6 +40,14 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
         info.append(sl); }
       row.append(info, b); listEl.appendChild(row);
     }
+    // связки (2026-10-18): умение А, потом Б не позже window с — Б сильнее; видно, изучены ли оба и стоят ли на панели
+    const cl = combosOf(W.hero); if (cl.length) {
+      listEl.appendChild(el('div', 'emptyl', `Связки: умение, потом второе не позже ${W.cfg.combos.window} с — второе сильнее. Кнопка второго подсвечивается.`));
+      const name = id => (list.find(a => a.id === id) || { name: id }).name, bar = barOf(W);
+      for (const c of cl) { const known = (W.ab[c.a] || 0) > 0 && (W.ab[c.b] || 0) > 0, onBar = bar.includes(c.a) && bar.includes(c.b);
+        const row = el('div', 'skrow combo' + (known ? '' : ' lock')), info = el('div', 'sinfo'), nm = el('span', 'nm', c.name); nm.style.color = '#ffd27a';
+        info.append(nm, el('div', 'sub', `${name(c.a)} → ${name(c.b)}: ${c.text}`), el('div', 'sub nx', !known ? 'Нужны оба умения.' : onBar ? 'Оба на панели — готово.' : 'Поставьте оба на панель.'));
+        row.append(info); listEl.appendChild(row); } }
     resetBtn.textContent = armed ? 'Точно? Очки умений вернутся, пепел спишется' : `Сбросить умения · ${respecAbilityCost(W)} пепла`;
     resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !spentAbility(W.ab);
   }

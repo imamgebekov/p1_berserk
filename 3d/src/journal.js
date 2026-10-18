@@ -8,6 +8,8 @@ import { sourcesOf, bestiaryEntry, POOL_NAME, recipeKnown, missing } from './cra
 import { ELEMENTS, ELEMENT_NAME, ELEMENT_COLOR, MIX_NAME, MIX_TEXT, mixKey } from './elements3d.js';
 import { gemSources, gemId } from './stones3d.js';
 import { unlocks } from './ashpath3d.js';
+import { combosOf } from './combos3d.js';
+import { heroAbilities } from './abilities3d.js';
 
 const TYPES = ['imp', 'brute', 'hound', 'ghoul', 'archer', 'witch', 'devourer', 'lord', 'chief'];
 export function createJournal(doc, W, cfg, { onOpen, onClose } = {}) {
@@ -17,7 +19,7 @@ export function createJournal(doc, W, cfg, { onOpen, onClose } = {}) {
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const row = (cls, html) => { const r = el('div', 'jrow ' + (cls || '')); r.innerHTML = html; return r; };
   const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  const TABS = [['recipes', 'Рецепты'], ['mixes', 'Сплавы'], ['stones', 'Камни'], ['sources', 'Источники'], ['bestiary', 'Бестиарий'], ['atlas', 'Атлас']], LOCKED = ['bestiary', 'atlas'];
+  const TABS = [['recipes', 'Рецепты'], ['mixes', 'Сплавы'], ['stones', 'Камни'], ['combos', 'Связки'], ['sources', 'Источники'], ['bestiary', 'Бестиарий'], ['atlas', 'Атлас']], LOCKED = ['bestiary', 'atlas'];
   for (const [id, label] of TABS) { const b = el('button', 'tab', label); b.type = 'button'; b.dataset.tab = id; b.addEventListener('click', () => { tab = id; sel = null; render(); }); tabsEl.appendChild(b); }
   const K = () => W.known;
   const kindName = k => (K().kinds[k] ? CONTAINERS[k].name : '???');
@@ -79,6 +81,12 @@ export function createJournal(doc, W, cfg, { onOpen, onClose } = {}) {
       t.append(tr); }
     wrap.append(t); listEl.appendChild(wrap);
   }
+  // связки умений героя: А → Б не позже window с
+  function combos() {
+    const cl = combosOf(W.hero), L = heroAbilities(W), nm = id => (L.find(a => a.id === id) || { name: id }).name;
+    listEl.appendChild(row('', `<b>Связки умений</b><div class="sub">Умение, потом второе не позже ${cfg.combos.window} с — второе срабатывает сильнее. Пока окно открыто, кнопка второго подсвечена. Умения изучаются в окне «Навыки».</div>`));
+    for (const c of cl) { const k = (W.ab[c.a] || 0) > 0 && (W.ab[c.b] || 0) > 0; listEl.appendChild(row(k ? 'ready' : 'dim', `<b style="color:#ffd27a">${esc(c.name)}</b> <span class="${k ? 'g' : 'z'}">${k ? 'доступна' : 'нужны оба умения'}</span><div class="sub">${esc(nm(c.a))} → ${esc(nm(c.b))}: ${esc(c.text)}</div>`)); }
+  }
   // камни силы: с каких врагов, ранги, гнёзда
   function stones() {
     const S = cfg.stones;
@@ -115,7 +123,7 @@ export function createJournal(doc, W, cfg, { onOpen, onClose } = {}) {
     const lock = !unlocks(W).journal; if (lock && LOCKED.includes(tab)) tab = 'recipes';
     for (const b of tabsEl.children) { b.classList.toggle('on', b.dataset.tab === tab); b.hidden = lock && LOCKED.includes(b.dataset.tab); }
     listEl.textContent = '';
-    ({ bestiary, atlas, recipes, mixes, stones, sources })[tab]();
+    ({ bestiary, atlas, recipes, mixes, stones, combos, sources })[tab]();
   }
   // open(вкладка, вещь): книга на нужной вкладке; вещь — сразу карточка «где взять»
   const open = (t, item) => { if (t) tab = t; if (item !== undefined) sel = item; else if (t) sel = null; render(); root.hidden = false; onOpen && onOpen(); };
