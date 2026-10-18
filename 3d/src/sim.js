@@ -9,7 +9,8 @@ export function mulberry32(a) {
 
 import { TAU, DEG, clamp, len, rr } from './util3d.js';
 import { biomeAt } from './worldgen3d.js';
-import { pickAlly, hurtAlly, updateAllies } from './squad3d.js';
+import { hurtAlly, updateAllies } from './squad3d.js';
+import { threatPick, addThreat } from './threat3d.js';
 import { trackPlace, reveal } from './places3d.js';
 import { addXp, gainXp } from './progress3d.js';
 import { restock } from './economy3d.js';
@@ -91,7 +92,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), story: cfg.story && cfg.story.on ? storyFresh() : null, fires: {}, gfx: {}, hero: DEFAULT_HERO, heroes: {}, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: addFires(makeMap(cfg), cfg, firesOf), story: cfg.story && cfg.story.on ? storyFresh() : null, fires: {}, gfx: {}, hero: DEFAULT_HERO, heroes: {}, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, party: { cmd: 'follow', hx: 0, hz: 0, mark: 0, last: 0 }, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
@@ -349,7 +350,7 @@ const cracked = (W, e, dmg) => (e.st && e.st.crack ? Math.max(1, Math.round(dmg 
 function dealDamage(W, e, dmg, fx) {
   if (e.dead) return;
   dmg = cracked(W, e, dmg);
-  e.hp -= dmg; e.flash = .1; e.alert = true;
+  e.hp -= dmg; e.flash = .1; e.alert = true; addThreat(W, e, 0, dmg);
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: false, id: e.id, fx });
   if (e.hp <= 0) killEnemy(W, e, 1);
 }
@@ -360,7 +361,7 @@ function strike(W, e, dmg, o) {
   if (gm < 1) { dmg = Math.max(1, Math.round(dmg * gm)); o = { ...o, knock: o.knock * .3 }; }      // щит: удар спереди почти не проходит
   if (C.guard && o.heavy) applyStatus(W, e, 'stun', 0, C.guard.breakStun);                          // тяжёлый удар ломает защиту
   dmg = cracked(W, e, dmg);
-  e.hp -= dmg; e.flash = .12; p.calm = P.fire.calm;
+  e.hp -= dmg; e.flash = .12; p.calm = P.fire.calm; addThreat(W, e, 0, dmg); W.party.last = e.id;     // угроза героя (этап 4); последняя цель — для «моей цели»
   { const thirst = W.wp.mix && W.wp.mix.a === 'blood' && W.wp.mix.b === 'blood' ? W.cfg.stones.thirst[0] : 0, lch = (W.gear.leech + thirst + (W.abuf.blood > 0 ? W.abuf.bloodLeech : 0)) * (e.st && e.st.bleed && W.cfg.elements.react && isWet(W, e) ? W.cfg.elements.mix.tide : 1); if (lch > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * lch / 100); }     // «Кровавый прилив»: мокрый и кровоточащий     // «Кровавый порыв» Торна добавляет вампиризм
   const heavy = C.heavy || e.aff === 'armored', k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
@@ -465,7 +466,7 @@ export function abilityArrow(W, ang, mult, extra = {}) {
 function updateArrows(W, dt) {
   const S = W.cfg.shoot;
   for (let i = W.proj.length - 1; i >= 0; i--) {
-    const q = W.proj[i]; if (!q.friendly) continue;
+    const q = W.proj[i]; if (!q.friendly || q.ally) continue;     // стрелы спутников летят в squad3d.js
     q.life -= dt; q.x += q.vx * dt; q.z += q.vz * dt;
     if (q.pulse && (q.pulse.acc += dt) >= q.pulse.every) { const U = q.pulse; U.acc = 0; W.ev.push({ k: 'pulse', x: q.x, z: q.z, r: U.r });     // сфера стихии: пульс вокруг себя
       for (const o of W.enemies) if (!o.dead && len(o.x - q.x, o.z - q.z) < U.r + W.cfg.enemies[o.type].radius) { dealDamage(W, o, Math.max(1, Math.round(q.dmg * U.k)), q.fx); if (!o.dead) skillStrike(W, o, q.dmg * U.k); } }
@@ -696,7 +697,7 @@ function updateEnemies(W, dt) {
       if (posted && wasAlert && !e.alert && !cool0) W.ev.push({ k: 'lost', x: e.x, z: e.z, id: e.id });
       if (posted && !e.alert) { keepPost(W, e, C, spd, dt); continue; }
       if (C.ai && foeAI(W, e, C, d, dx, dz, dt, hops === 0 && insideOf(W.map, e.x, e.z) === W.inside)) continue;   // особое поведение: щит, фитиль, рывок, тень
-      const al = pickAlly(W, e, d);                                     // союзник ближе героя: враг бьёт его
+      const al = threatPick(W, e, d, dt);                               // угроза (этап 4): бьёт опасного союзника; без угрозы — близкого
       if (al) {
         e.alert = true; e.tgt = al.id;
         const ax = al.x - e.x, az = al.z - e.z, ad = len(ax, az) || 1e-6; e.face = Math.atan2(ax, az);
@@ -893,6 +894,7 @@ export function switchHero(W, id) {
   const nx = W.heroes[id] || { lv: 1, xp: 0, sp: 0, skills: {}, ap: abilityPointsAt(1, W.cfg), ab: {}, bar: [] }; delete W.heroes[id];
   W.hero = id; Object.assign(W, { lv: nx.lv, xp: nx.xp, sp: nx.sp, skills: nx.skills, ap: nx.ap, ab: nx.ab, bar: nx.bar }); W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.ezones = []; W.wsk = null; W.meteors = [];
   W.allies = W.allies.filter(a => !a.decoy);
+  for (const a of W.allies.filter(a => (W.cfg.squad.types[a.type] || {}).hero === id)) { const T = W.cfg.squad.types[a.type]; W.inv.ash += T.cost; W.allies.splice(W.allies.indexOf(a), 1); W.ev.push({ k: 'allyleft', name: T.name, ash: T.cost }); }     // спутник-герой стал героем: уходит из отряда, найм возвращается
   const inv = W.inv, back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot], inv.il && inv.il[slot])); inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; if (inv.il) delete inv.il[slot]; };
   if (inv.eq.weapon && !canWield(id, BY_ID[inv.eq.weapon])) back('weapon');
   if (inv.eq.offhand && !canOff(id, BY_ID[inv.eq.offhand])) back('offhand');

@@ -50,7 +50,7 @@ button{font:inherit;color:var(--ink)}
 #back{display:block;margin:10px 0 2px;padding:12px 0;font-size:14px;color:var(--ink);opacity:.6;text-align:center}
 @media (prefers-reduced-motion:reduce){.num{animation-duration:.01s}#flash{transition:none}#fade{display:none}}
 
-#toasts{position:fixed;left:var(--pad);top:calc(env(safe-area-inset-top) + 128px);display:flex;flex-direction:column;gap:3px;pointer-events:none;max-width:70%}
+#toasts{position:fixed;left:var(--pad);top:calc(env(safe-area-inset-top) + 128px + var(--ph, 0px));display:flex;flex-direction:column;gap:3px;pointer-events:none;max-width:70%}
 .toast{font-size:14px;font-weight:600;text-shadow:0 1px 0 #000,0 0 4px #000;animation:toast 3.4s ease-out forwards}
 .toast.sys{color:#e8d9c0;opacity:.8}.toast.bad{color:#ff7a6a}
 @keyframes toast{0%{opacity:0;transform:translateX(-8px)}8%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
@@ -455,3 +455,10 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 #dlgOpts{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}#dlgOpts button{min-height:44px;padding:0 16px;border-radius:10px;background:#2a1b1a;border:2px solid #6a4a2a;color:#f0e6d4;font-weight:600}#dlgOpts button.main{background:#e8c04a;color:#1a1008;border-color:#e8c04a}
 #dlgOpts button:focus-visible{outline:2px solid #fff;outline-offset:2px}
 #dialog[hidden]{display:none}
+/* отряд-спутники (этап 4): рамки бойцов и команды */
+#party{position:fixed;left:calc(var(--pad) + env(safe-area-inset-left));top:calc(env(safe-area-inset-top) + 128px);width:156px;display:grid;gap:4px;z-index:4;pointer-events:none}#party[hidden]{display:none}
+#partyList{display:grid;gap:4px}.pm{display:grid;gap:2px;font-size:11px;color:#e8dcc8;text-shadow:0 1px 0 #000,0 0 3px #000}.pm .nm{display:flex;justify-content:space-between;gap:6px}.pm .nm span{color:#a89878}
+.pm .bar{height:6px;background:rgba(0,0,0,.55);border:1px solid #3a2a1c;border-radius:3px;overflow:hidden}.pm .bar i{display:block;height:100%;background:#4aa85a;transform-origin:left}.pm.low .bar i{background:#d04a3a}
+#partyCmd{display:flex;gap:4px;margin-top:2px;pointer-events:auto}#partyCmd button{flex:1;min-height:44px;min-width:44px;padding:0 4px;font-size:11px;border-radius:8px;background:rgba(30,20,14,.78);border:2px solid #5a4630;color:#e8dcc8}
+#partyCmd button.on{border-color:#e8c04a;color:#ffd27a}#partyCmd button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+[data-desk] #partyCmd button{min-height:34px}

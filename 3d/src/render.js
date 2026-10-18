@@ -496,6 +496,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       mat.customProgramCacheKey = () => key + '|rim'; mat.needsUpdate = true; } }); };
   const hero = makeHero(); scene.add(hero.group); let heroLook = null, rimKey = '';
   // тень-двойник Вейла: тёмная копия героя с его клинком
+  const MATE_W = { thorn: 'sword', vale: 'dagger', jay: 'bow', irga: 'staff' };     // спутник-герой (этап 4): облик героя и его оружие
+  const mateModel = T => { const h = makeHero(); h.setLook(heroOf(T.hero).look); h.setWeapon(MATE_W[T.hero] || 'sword', 'steel'); return h; };
   const decoyModel = () => { const h = makeHero(); h.setLook({ cloth: '#1a1824', cape: '#2a1838', hair: '#0a0810', legs: '#14121c', shoulder: false, hood: false, quiver: false, capeLen: .7 }); h.setWeapon('rapier', 'black'); h.root.rotation.x = .12; return h; };
   // кольцо заряда тяжёлого удара под героем: растёт с зарядом, при полном — оранжевое и пульсирует
   const chargeRing = new THREE.Mesh(new THREE.RingGeometry(.82, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffd9c0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -536,6 +538,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   const heroShadow = shadow(.7); scene.add(heroShadow);
   const ents = new Map(), allyEnts = new Map();
+  const markRing = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 6), new THREE.MeshBasicMaterial({ color: '#ffd27a', transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide }));
+  markRing.rotation.x = -Math.PI / 2; markRing.visible = false; scene.add(markRing);
   const bars = new Map();
   const arcMat = new THREE.MeshBasicMaterial({ color: '#ffd9c0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
   const arc = new THREE.Mesh(new THREE.CircleGeometry(1, 24), arcMat); arc.rotation.x = -Math.PI / 2; arc.position.y = .08; scene.add(ovl(arc));
@@ -926,13 +930,21 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const a of W.allies) {
       aliveA.add(a.id);
       let en = allyEnts.get(a.id);
-      if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
+      if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : cfg.squad.types[a.type] && cfg.squad.types[a.type].hero ? mateModel(cfg.squad.types[a.type]) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
       const ay = Y(a.x, a.z); en.m.group.position.set(a.x, ay, a.z); en.m.group.rotation.y = a.face;
-      if (!a.guest) animateSoldier(en.m, a, t);
+      if (en.m.setLook && !a.guest) {     // спутник-герой (этап 4): анимация героя по «подставному» игроку — бег по скорости, удар по замаху
+        const T = cfg.squad.types[a.type], AT = cfg.player.attackTime, k = dt > 0 ? 1 / dt : 0, pp = en.pp || (en.pp = { chain: 0, fin: false, heavy: 0, hand: 0, inv: 0, rollT: 0, chargeT: 0, dashT: 0, dashDur: 0 });
+        pp.vx = en.lx === undefined ? 0 : (a.x - en.lx) * k; pp.vz = en.lz === undefined ? 0 : (a.z - en.lz) * k; en.lx = a.x; en.lz = a.z;
+        pp.face = a.face; pp.dead = a.dead; pp.deadT = a.deadT; pp.state = a.state === 'wind' || a.state === 'rec' ? 'atk' : 'idle';
+        pp.atkT = a.state === 'wind' ? AT * .5 * Math.min(1, a.t / T.wind) : AT * (.5 + .5 * Math.min(1, a.t / T.recover));
+        animateHero(en.m, pp, t, dt, cfg); en.m.group.rotation.y = a.face;
+      } else if (!a.guest) animateSoldier(en.m, a, t);
       else { en.m.group.visible = !a.dead; if (en.m.root) en.m.root.position.y = calm ? 0 : Math.abs(Math.sin(t * (a.moving ? 9 : 2))) * (a.moving ? .08 : .02); } en.sh.position.set(a.x, .03 + ay, a.z); en.sh.visible = !a.dead;
       const b = bar({ id: 'a' + a.id }, a.guest ? '#d8b040' : '#3a8a4a'), show = (a.guest || a.hp < a.maxhp) && !a.dead;
       b.g.visible = show; if (show) { b.g.position.set(a.x, (a.cart ? 3.4 : 2.7) + ay, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }
     }
+    { const mk = W.party && W.party.cmd === 'assist' && W.enemies.find(e => e.id === W.party.mark && !e.dead); markRing.visible = !!mk;     // метка «моей цели»
+      if (mk) { const r = cfg.enemies[mk.type].radius + .5; markRing.position.set(mk.x, .08 + Y(mk.x, mk.z), mk.z); markRing.scale.setScalar(r); markRing.rotation.z = t * 1.5; } }
     for (const [id, en] of allyEnts) if (!aliveA.has(id)) { scene.remove(en.m.group, en.sh); disposeDeep(en.m.group); disposeDeep(en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete('a' + id); } }
     for (const [id, en] of ents) if (!alive.has(id)) dropEnt(id, en);
 
@@ -1005,6 +1017,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'cleanse') burst(v.x, 1.2, v.z, 10, '#9fe8ff', 2.5);
       else if (v.k === 'allyhurt') { burst(v.x, 1.1, v.z, 6, '#3a6aa8'); hooks.onText && hooks.onText(v.x, 2.5, v.z, '−' + v.dmg, 'ally'); }
       else if (v.k === 'allydead') burst(v.x, 1, v.z, 14, '#3a6aa8', 5);
+      else if (v.k === 'allyheal') { burst(v.x, 1.2, v.z, 8, '#7ae07a'); hooks.onText && hooks.onText(v.x, 2.5, v.z, '+' + v.amt, 'loot'); }     // лекарь отряда
+      else if (v.k === 'taunt') { ringFx(v.x, v.z, v.r, '#ffd27a'); burst(v.x, 1.6, v.z, 10, '#ffd27a', 4); hooks.onText && hooks.onText(v.x, 2.9, v.z, 'Ко мне!', 'alarm'); }     // вызов защитника
       else if (v.k === 'swing') swingFx = 1;
       else if (v.k === 'roll') burst(v.x, .2, v.z, 6, '#6a5a4a', 2.5);
       else if (v.k === 'dodge') hooks.onText && hooks.onText(v.x, 2.6, v.z, 'Уклон!', 'dodge');

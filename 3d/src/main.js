@@ -28,6 +28,7 @@ import { drawMap, tickRelief } from './mapdraw.js';
 import { zoneAt } from './zones3d.js';
 import { storyTalk, storyTalked, storyTalkable, storyGoal, storyAutoPending, storyActors } from './story3d.js';
 import { SPEAKERS } from './data/story3d.js';
+import { liveAllies, squadCommand } from './squad3d.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSaveAny, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave, saveFileName } from './save3d.js';
 import { createRenderer } from './render.js';
@@ -233,6 +234,8 @@ function onEvent(v) {
   else if (v.k === 'bossphase') toast(`${v.name}: ${v.what}`, 'bad');
   else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
   else if (v.k === 'allydead') toast(`${v.name} пал`, 'bad');
+  else if (v.k === 'allyleft') toast(`${v.name} теперь вы — спутник покинул отряд, ${v.ash} пепла вернулось`);
+  else if (v.k === 'squadCmd') toast(v.auto ? 'Отряд снова идёт за вами' : v.cmd === 'hold' ? 'Отряд: держим здесь' : v.cmd === 'assist' ? 'Отряд: бьём вашу цель' : 'Отряд: за мной');
   else if (v.k === 'hire') toast(`${v.name} теперь с вами`, 'sys');
   else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков` + (cfg.abilities.ranks.flat().includes(v.lv) ? ' и умений' : '') + (cfg.abilities.ranks.some(r => r[0] === v.lv) ? ' · открылось умение' : ''), '', '#e8c04a');
   else if (v.k === 'xp') onText(v.x, 3, v.z, '+' + v.n + ' оп.', 'xp');
@@ -350,6 +353,7 @@ if (desk) {
     if (!$('dead').hidden) { if (c === 'Enter' || c === 'KeyE') $('again').click(); return; }
     if (!$('dialog').hidden) { e.preventDefault(); const bs = [...$('dlgOpts').children], n = ['Digit1', 'Digit2', 'Digit3'].indexOf(c); if (n >= 0 && bs[n]) bs[n].click(); else if (c === 'KeyE' || c === 'Space' || c === 'Enter') bs[0] && bs[0].click(); else if (c === 'Escape') { dlg.i = dlg.lines.length; dlgClose(); } return; }     // разговор (этап 3)
     if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.close'); if (open) open.click(); else $('gear').click(); return; }
+    if ((c === 'KeyZ' || c === 'KeyX' || c === 'KeyC') && !panelOpen) { partyCmd(c === 'KeyZ' ? 'follow' : c === 'KeyX' ? 'hold' : 'assist'); return; }     // команды отряда (этап 4)
     if (c === 'KeyM') { if (!panelOpen || !mapEl.hidden) $('miniBtn').click(); return; }
     if (c === 'KeyI') { if (vis('bag')) $('bagClose').click(); else if (!panelOpen) $('bagBtn').click(); return; }
     if (c === 'KeyN') { if (vis('skills')) $('skillClose').click(); else if (!panelOpen) $('skillBtn').click(); return; }
@@ -580,6 +584,26 @@ function showEnd() {
   const mins = Math.round((W.t || 0) / 60), v = showBlocker(`Путь пепла пройден. Уровень ${W.lv} · врагов повержено ${W.kills} · в пути ${mins} мин. Дальше — замки: Кастелян Пепла и Королева Пустоши.`, 'Продолжить', () => v.remove());
   v.classList.add('ending'); const h = document.createElement('h1'); h.textContent = 'Пепел улёгся'; v.prepend(h);
 }
+// отряд-спутники (этап 4): рамки бойцов с полосками здоровья и три команды
+const partyEl = $('party'), partyList = $('partyList'), PROLE = { tank: 'защитник', heal: 'лекарь', ranged: 'стрелок', melee: 'боец' };
+let partyKey = null;
+function partyCmd(cmd) {
+  const r = squadCommand(W, cmd); if (r === 'ok') sfx('buff');
+  if (r === 'empty') toast('Отряда нет: бойцов и спутников нанимает капитан Заставы', 'bad'); else if (r === 'none') toast('Рядом нет цели: ударьте врага, потом «Цель»', 'bad');
+}
+for (const b of $('partyCmd').children) b.addEventListener('click', () => partyCmd(b.dataset.cmd));
+function drawParty() {
+  const live = liveAllies(W), key = live.map(a => a.id).join(',');
+  partyEl.hidden = !live.length; if (!live.length) { if (partyKey) document.documentElement.style.setProperty('--ph', '0px'); partyKey = key; return; }
+  if (key !== partyKey) {
+    partyKey = key; partyList.textContent = '';
+    for (const a of live) { const T = cfg.squad.types[a.type], r = document.createElement('div'), nm = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span'), bar = document.createElement('div');
+      r.className = 'pm'; nm.className = 'nm'; bar.className = 'bar'; b.textContent = T.name; b.style.color = T.tint === '#2e2e34' ? '#c8c8d8' : T.tint; sp.textContent = PROLE[T.role] || ''; nm.append(b, sp); bar.append(document.createElement('i')); r.append(nm, bar); partyList.append(r); }
+    document.documentElement.style.setProperty('--ph', partyEl.offsetHeight + 8 + 'px');     // сообщения уходят ниже рамок отряда
+  }
+  live.forEach((a, i) => { const r = partyList.children[i], k = Math.max(0, Math.min(1, a.hp / a.maxhp)); r.lastChild.firstChild.style.transform = `scaleX(${k})`; r.classList.toggle('low', k < .35); });
+  for (const b of $('partyCmd').children) b.classList.toggle('on', b.dataset.cmd === W.party.cmd);
+}
 function loop(now) { try { frame(now); if (crashN && !crashShown) crashN = Math.max(0, crashN - .02); } catch (e) { crashed(e); } finally { requestAnimationFrame(loop); } }
 function frame(now) {
   const t0 = performance.now(), real = (now - last) / 1000, dt = Math.max(0, Math.min(.05, real)); last = now;
@@ -610,7 +634,7 @@ function frame(now) {
       for (const k of Object.keys(W.pst)) chip(`${STATUS_NAME[k]}${W.pst[k].n > 1 ? ' ×' + W.pst[k].n : ''} ${Math.ceil(W.pst[k].t)}с`, STATUS_COLOR[k]);
       for (const b of buffs) chip(`${b[0]} ${Math.ceil(b[1])}с`, b[2]); } }
   if (hud) { const near = W.nearNpc, show = !!near && near !== 'wanderer' && !npcLocked(near) && !panelOpen && !landscape; if (questBtn.hidden === show) questBtn.hidden = !show; const mk = show ? questMark(W, near) || '' : ''; if (mk !== lastMark) { lastMark = mk; questBtn.classList.toggle('dot', !!mk); setIconText(questBtn, 'scroll', mk === 'ready' ? 'Сдать задание' : mk ? 'Есть задания!' : 'Задания'); } }
-  if (hud) { drawAbil(); showZone(); if (W.story && !SHOT && storyAutoPending(W) && !panelOpen && $('heroPick').hidden && $('dead').hidden) { W.story.autoShown = true; dlgOpen(storyTalk(W, null)); } }     // пролог начинается сам
+  if (hud) { drawAbil(); showZone(); drawParty(); if (W.story && !SHOT && storyAutoPending(W) && !panelOpen && $('heroPick').hidden && $('dead').hidden) { W.story.autoShown = true; dlgOpen(storyTalk(W, null)); } }     // пролог начинается сам
   { const sr = sparkTick(W); if (sr === 'step') sfx('questready'); else if (sr === 'done') { toast(`Первая искра зажжена: +${cfg.spark.ash} пепла`, '', '#e8c04a', 'fire'); sfx('questdone'); saver.write(); } }
   // строка цели не бывает пустой (шаг 12): событие → «Первая искра» → взятое задание → ближайший неоткрытый костёр
   if ((goalT -= real) <= 0) { goalT = .25;

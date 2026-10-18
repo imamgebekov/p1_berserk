@@ -7,6 +7,7 @@ import { canWield, NOT_FOR } from './data/heroes3d.js';
 import { RECIPES } from './data/recipes3d.js';
 import { TOME_BY_ID } from './data/tomes3d.js';
 import { craft, craftStatus, missing, recipeKnown } from './craft3d.js';
+import { allyHp, allyDmg, hireable, liveAllies } from './squad3d.js';
 import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, stockPrice, shopOf, priceMulOf, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
 
 export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
@@ -178,20 +179,24 @@ export function createCaptain(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2400); };
   function render() {
-    const live = W.allies.filter(a => !a.dead && !a.guest), max = squadMax(W);
+    const live = liveAllies(W), max = squadMax(W);     // герои сюжета и подопечные — не отряд
     headEl.textContent = `Застава · отряд ${live.length}/${max} · пепел ${W.inv.ash}`;
     listEl.textContent = '';
-    listEl.appendChild(el('div', 'ssec', 'Нанять'));
-    for (const [id, T] of Object.entries(cfg.squad.types)) { if (T.story) continue;     // герои сюжета не нанимаются
-      const r = el('div', 'srow'), info = el('div', 'sinfo');
-      const nm = el('span', 'nm', T.name); nm.style.color = T.tint === '#2e2e34' ? '#c8c8d8' : T.tint;
-      info.append(nm, el('div', 'sub', `${T.text} Здоровье ${T.hp}, урон ${T.dmg}.`));
-      const full = live.length >= max, b = el('button', 'buy' + (full || W.inv.ash < T.cost ? ' no' : ''), `Нанять · ${T.cost}`); b.type = 'button';
-      b.addEventListener('click', () => { const res = hireAlly(W, id); flash(res === 'ok' ? `${T.name} в отряде` : res === 'ash' ? 'Не хватает пепла' : res === 'full' ? `Отряд полон (мест: ${max}). Новые места открываются с уровнем` : 'Подойдите к капитану'); render(); onChange && onChange(); });
+    const ROLE = { tank: 'защитник', heal: 'лекарь', ranged: 'стрелок', melee: 'боец' };
+    const row = (id, T) => {
+      const r = el('div', 'srow'), info = el('div', 'sinfo'), mate = !!T.hero, own = mate && !hireable(W, id) && T.hero !== W.hero;
+      const nm = el('span', 'nm', T.name + (mate ? ' · ' + ROLE[T.role] : '')); nm.style.color = T.tint === '#2e2e34' ? '#c8c8d8' : T.tint;
+      info.append(nm, el('div', 'sub', `${T.text} Здоровье ${allyHp(W, T)}, урон ${Math.round(allyDmg(W, T))}.`));
+      const full = live.length >= max, b = el('button', 'buy' + (own || full || W.inv.ash < T.cost ? ' no' : ''), own ? 'В отряде' : `Нанять · ${T.cost}`); b.type = 'button';
+      b.addEventListener('click', () => { const res = hireAlly(W, id); flash(res === 'ok' ? `${T.name} в отряде` : res === 'ash' ? 'Не хватает пепла' : res === 'full' ? `Отряд полон (мест: ${max}). Новые места открываются с уровнем` : res === 'taken' ? `${T.name} уже в отряде` : 'Подойдите к капитану'); render(); onChange && onChange(); });
       r.append(info, b); listEl.appendChild(r);
-    }
+    };
+    listEl.appendChild(el('div', 'ssec', 'Спутники'));     // этап 4: герои, которыми вы не играете; растут с вашим уровнем
+    for (const [id, T] of Object.entries(cfg.squad.types)) if (T.hero && T.hero !== W.hero && !T.story) row(id, T);
+    listEl.appendChild(el('div', 'ssec', 'Наёмники'));
+    for (const [id, T] of Object.entries(cfg.squad.types)) if (!T.hero && !T.story) row(id, T);     // герои сюжета не нанимаются
     listEl.appendChild(el('div', 'ssec', 'Отряд'));
-    if (!live.length) listEl.appendChild(el('div', 'emptyl', 'Пока никого. Бойцы идут за вами, бьют врагов и гибнут навсегда. Лечатся сами вне боя, у костра быстрее.'));
+    if (!live.length) listEl.appendChild(el('div', 'emptyl', 'Пока никого. Бойцы идут за вами, бьют врагов и гибнут навсегда. Лечатся сами вне боя, у костра быстрее. Команды: Z — за мной, X — держать, C — бить вашу цель.'));
     for (const a of live) {
       const T = cfg.squad.types[a.type], r = el('div', 'srow'), info = el('div', 'sinfo');
       info.append(el('span', 'nm', T.name), el('div', 'sub', `Здоровье ${Math.ceil(a.hp)}/${a.maxhp}`));

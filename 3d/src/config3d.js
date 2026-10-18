@@ -409,15 +409,30 @@ const BASE = {
   },
   squad: {
     baseMax: 1, perLevels: 8, cap: 4, follow: 2.8, leash: 30, sight: 13, regen: 1.2, fireRegen: 7, xpShare: .5,
+    // отряд-спутники (этап 4): бойцы растут с уровнем героя — здоровье и урон × (1 + lvHp/lvDmg × (ур − 1))
+    lvHp: .06, lvDmg: .05,
+    // угроза: near — очков за метр ближе reach (пока угрозы нет — решает близость), decay — за сколько секунд угроза тает в e раз,
+    // stick — во сколько раз новая цель должна быть опаснее текущей, player — множитель угрозы героя, taunt — вызов: угроза защитника = лучшая × taunt,
+    // heal — угроза за лечение (доля), healR — враги в этом радиусе от вылеченного злятся на лекаря, lose — дальше этого враг союзника не выбирает
+    threat: { near: 1, reach: 8, decay: 8, stick: 1.1, player: 1, taunt: 1.3, heal: .5, healR: 14, lose: 16 },
+    // команды: «за мной» (follow), «держать» (hold — бьют врагов не дальше hold м от точки, герой дальше far — снова «за мной»), «моя цель» (assist — все бьют метку; pick — радиус выбора цели)
+    cmd: { hold: 6, far: 45, pick: 14 },
+    shot: { speed: 22, hitR: .45, life: 1 },     // стрелы и искры спутников
     types: {
-      guard:   { name: 'Стражник', hp: 130, dmg: 18,  speed: 4.8, range: 1.9, wind: .32, recover: .5,  cost: 140, tint: '#4a5a78', text: 'Быстрый и недорогой. Копьё.' },
-      soldier: { name: 'Ратник',   hp: 240, dmg: 28, speed: 4.5, range: 2.1, wind: .36, recover: .55, cost: 380, tint: '#7a3a30', text: 'Меч и щит. Держит удар.' },
+      guard:   { name: 'Стражник', role: 'melee', hp: 130, dmg: 18,  speed: 4.8, range: 1.9, wind: .32, recover: .5,  cost: 140, tint: '#4a5a78', text: 'Быстрый и недорогой. Копьё.' },
+      soldier: { name: 'Ратник',   role: 'tank', threat: 2, hp: 240, dmg: 28, speed: 4.5, range: 2.1, wind: .36, recover: .55, cost: 380, tint: '#7a3a30', text: 'Меч и щит. Держит удар.' },
+      // спутники-герои (этап 4): тот, кем играете, в найме не показывается. role: tank — держит врагов (threat — множитель угрозы, taken — доля урона,
+      // taunt — вызов: перезарядка cd, радиус r, время t); heal — лечит (amt за раз, cd, радиус r, лечит ниже доли below); ranged — стреляет издали, отходит ближе kite м
+      c_thorn: { name: 'Торн', hero: 'thorn', role: 'tank', threat: 3, taken: .7, taunt: { cd: 9, r: 7, t: 3 }, hp: 420, dmg: 22, speed: 4.7, range: 2.1, wind: .36, recover: .55, cost: 700, tint: '#c85a5a', text: 'Защитник: держит врагов на себе и вызовом забирает их у вас.' },
+      c_irga:  { name: 'Ирга', hero: 'irga', role: 'heal', heal: { amt: 34, cd: 2.4, r: 11, below: .85 }, ranged: true, kite: 5, hp: 220, dmg: 12, speed: 4.9, range: 9, wind: .5, recover: .7, cost: 850, tint: '#a88ad8', text: 'Лекарь: лечит вас и отряд, издали бьёт искрой.' },
+      c_jay:   { name: 'Сойка', hero: 'jay', role: 'ranged', ranged: true, kite: 4, hp: 200, dmg: 30, speed: 5.2, range: 10, wind: .45, recover: .5, cost: 700, tint: '#9ab86a', text: 'Стрелок: бьёт из лука и держит дистанцию.' },
+      c_vale:  { name: 'Вейл', hero: 'vale', role: 'melee', hp: 260, dmg: 34, speed: 5.4, range: 1.9, wind: .26, recover: .4, cost: 700, tint: '#8aa8e8', text: 'Боец: быстрые удары, лучше всего — по вашей цели.' },
       // герои сюжета (этап 3): идут с героем по сюжету, не нанимаются (story); Аларик — модель для поединка
       irma:    { name: 'Ирма', story: true, hp: 420, dmg: 34, speed: 5, range: 2.1, wind: .32, recover: .5, cost: 0, tint: '#4a2a30', text: 'Правая рука Аларика.' },
       timka:   { name: 'Тимка', story: true, hp: 300, dmg: 26, speed: 5.4, range: 1.9, wind: .28, recover: .45, cost: 0, tint: '#4a5a34', text: 'Разведчик отряда.' },
       kord:    { name: 'Корд', story: true, hp: 600, dmg: 40, speed: 4.4, range: 2.4, wind: .42, recover: .6, cost: 0, tint: '#5a3a2a', text: 'Здоровяк с молотом.' },
       alaric:  { name: 'Аларик Белый', story: true, hp: 500, dmg: 38, speed: 5.4, range: 2.2, wind: .3, recover: .45, cost: 0, tint: '#d8d2c6', text: 'Вожак «Пепельных Крыльев».' },
-      veteran: { name: 'Ветеран',  hp: 400, dmg: 42, speed: 4.5, range: 2.5, wind: .4,  recover: .6,  cost: 950, tint: '#2e2e34', text: 'Двуручный меч. Дорог, но страшен.' }
+      veteran: { name: 'Ветеран',  role: 'melee', hp: 400, dmg: 42, speed: 4.5, range: 2.5, wind: .4,  recover: .6,  cost: 950, tint: '#2e2e34', text: 'Двуручный меч. Дорог, но страшен.' }
     }
   },
   smith: { max: 5, base: 10, costK: .45, pow: 1.35, bonus: .1, reach: 3.4 },   // улучшение +1…+5: цена = base + цена вещи × costK × (ур+1)^pow, каждый уровень даёт +bonus к статам

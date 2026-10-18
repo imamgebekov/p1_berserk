@@ -1,5 +1,6 @@
 // Боссы: автомат атак (ожидание → предупреждение → удар → восстановление), фазы по здоровью, ярость, возврат в логово.
 // Урон и порождение врагов идут через W.fx (из sim.js). Предупреждение лежит в e.b.atk: рендер рисует его, пока оно активно.
+import { threatPick } from './threat3d.js';
 const len = (x, z) => Math.hypot(x, z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -18,7 +19,8 @@ export function bossAway(W, e, sec) {
 
 export function updateBoss(W, e, dt, spd) {
   const B = W.cfg.bosses, C = W.cfg.enemies[e.type], b = e.b, p = W.player;
-  const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6;
+  const foc = e.alert && !p.dead ? threatPick(W, e, len(p.x - e.x, p.z - e.z), dt) : null; e.tgt = foc ? foc.id : 0;     // угроза (этап 4): защитник держит босса на себе
+  const dx = (foc || p).x - e.x, dz = (foc || p).z - e.z, d = len(dx, dz) || 1e-6;
   const enr = b.enraged;
   for (const k of Object.keys(b.cds)) if ((b.cds[k] -= dt) <= 0) delete b.cds[k];
   b.minions = b.minions.filter(m => !m.dead);
