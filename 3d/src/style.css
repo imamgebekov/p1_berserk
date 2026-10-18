@@ -317,6 +317,7 @@ section:not([hidden])>.pbox{animation:sheetIn .22s cubic-bezier(.2,.8,.2,1) both
 .bstats .bkeys{grid-column:1/-1;font-size:12px;opacity:.75}
 #bag .bitems{display:flex;flex-direction:column;gap:6px;min-height:0;flex:1}
 #bagList{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));grid-auto-rows:min-content;gap:6px;align-content:start}
+.pair{aspect-ratio:1;min-height:48px;display:grid;grid-template-columns:1fr 1fr;gap:3px}.pair .tile.half{aspect-ratio:auto;min-height:0}.tile.half .ic{width:90%;height:auto}.freeh{grid-column:1/-1;font-size:12px;opacity:.7;margin-top:6px}
 .tile.empty{background:#120c0b;border:2px dashed #2e2220;pointer-events:none}
 .bfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px;padding-top:4px}
 #bagCap{position:relative;flex:1;max-width:220px;height:16px;border-radius:8px;background:#1a1211;border:1px solid var(--line);overflow:hidden}
@@ -442,3 +443,5 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 .skrow .slots{display:flex;align-items:center;gap:4px;margin-top:6px;flex-wrap:wrap}.skrow .sl-l{font-size:11.5px;opacity:.7;margin-right:4px}
 .skrow .slots .bslot{min-width:44px;min-height:44px;padding:0;border-radius:8px;background:var(--btn);border:2px solid var(--line);color:var(--ink);font-weight:700}
 .skrow .slots .bslot.on{border-color:var(--gold);background:var(--btn-on);color:#f6e6c8}
+.gempop{display:flex;flex-direction:column;gap:5px;margin-top:6px;padding:6px;border:1px solid var(--line);border-radius:10px;background:#140d0c}.gemopt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:44px;padding:6px 10px;text-align:left;background:#1e1414;border:2px solid var(--gc);border-radius:10px}.gemopt .gn{font-weight:700;color:var(--gc)}.gemopt .gf,.gemopt .gm{font-size:12px;opacity:.8}.gemopt .gm{color:#e8c04a}
+#firesMap{display:block;width:min(100%,520px,62vh);aspect-ratio:1;margin:6px auto 10px;border-radius:12px;border:2px solid var(--line);cursor:pointer;touch-action:manipulation}

@@ -20,7 +20,8 @@ const iHeal = W.shop.stock.findIndex(s => s.id === 'p_heal1'), n0 = W.shop.stock
 W.inv.ash = p - 1; ok(buyItem(W, iHeal) === 'ash' && W.inv.ash === p - 1 && W.shop.stock[iHeal].n === n0, 'покупка без денег прошла');
 W.inv.ash = p + 5; ok(buyItem(W, iHeal) === 'ok' && W.inv.ash === 5 && W.inv.bag.some(s => s.id === 'p_heal1') && W.shop.stock[iHeal].n === n0 - 1, 'покупка не сработала');
 // полная сумка
-{ const sv = W.inv.bag; W.inv.bag = []; for (let i = 0; i < cfg.bag.slots; i++) W.inv.bag.push({ id: 'w_sword_rust', n: 1 }); W.inv.ash = 999; const i2 = W.shop.stock.findIndex(s => s.id === 'key_rust'); ok(buyItem(W, i2) === 'full' && W.inv.ash === 999, 'покупка в полную сумку'); W.inv.bag = sv; }
+{ const sv = W.inv.bag; W.inv.bag = []; for (let i = 0; i < cfg.bag.slots; i++) W.inv.bag.push({ id: 'w_sword_rust', n: 1 }); W.inv.ash = 999; const i2 = W.shop.stock.findIndex(s => !['key', 'gem', 'consumable'].includes(BY_ID[s.id].cat)); ok(buyItem(W, i2) === 'full' && W.inv.ash === 999, 'покупка в полную сумку');
+  const ik = W.shop.stock.findIndex(s => s.id === 'key_rust'); ok(ik < 0 || buyItem(W, ik) === 'ok', 'ключ не покупается в полную сумку (ключи места не занимают)'); W.inv.bag = sv; }
 // распродажа позиции до нуля убирает её с витрины
 { W.inv.ash = 1e6; const i3 = W.shop.stock.findIndex(s => s.id === 'key_rust'), cnt = W.shop.stock[i3].n; for (let k = 0; k < cnt; k++) buyItem(W, W.shop.stock.findIndex(s => s.id === 'key_rust')); ok(!W.shop.stock.some(s => s.id === 'key_rust'), 'проданная позиция осталась на витрине'); }
 // продажа

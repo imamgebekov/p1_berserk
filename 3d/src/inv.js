@@ -15,11 +15,21 @@ export const socketsOf = (it, cfg) => (it && it.slot === 'weapon' && cfg && cfg.
 // камни из сохранения: только настоящие камни, не больше гнёзд
 export const cleanGems = (g, n) => { if (!Array.isArray(g) || !n) return null; const o = []; for (let i = 0; i < n; i++) { const x = g[i]; o.push(typeof x === 'string' && BY_ID[x] && BY_ID[x].cat === 'gem' ? x : null); } return hasGems(o) ? o : null; };
 
+// место в сумке (2026-10-18): ключи и камни места не занимают; два расходника (зелья, еда, лекарства) — в одной клетке
+export const freeItem = it => !!it && (it.cat === 'gem' || it.cat === 'key');
+export const halfItem = it => !!it && it.cat === 'consumable';
+export function bagUsed(inv) { let full = 0, half = 0; for (const s of inv.bag) { const it = BY_ID[s.id]; if (freeItem(it)) continue; if (halfItem(it)) half++; else full++; } return full + Math.ceil(half / 2); }
+// влезет ли ещё одна запись этой вещи
+export function roomFor(inv, id, maxSlots) {
+  const it = BY_ID[id]; if (freeItem(it)) return true;
+  if (halfItem(it) && inv.bag.filter(s => halfItem(BY_ID[s.id])).length % 2 === 1) return true;     // пара для расходника уже есть
+  return bagUsed(inv) < maxSlots;
+}
 // положить n штук; возвращает, сколько НЕ влезло
 export function addItem(inv, id, n, maxSlots) {
   const it = BY_ID[id]; if (!it) return n;
   for (const s of inv.bag) { if (n <= 0) break; if (s.id === id && isPlain(s) && s.n < it.stack) { const t = Math.min(n, it.stack - s.n); s.n += t; n -= t; } }
-  while (n > 0 && inv.bag.length < maxSlots) { const t = Math.min(n, it.stack); inv.bag.push({ id, n: t }); n -= t; }
+  while (n > 0 && roomFor(inv, id, maxSlots)) { const t = Math.min(n, it.stack); inv.bag.push({ id, n: t }); n -= t; }
   return n;
 }
 export function removeAt(inv, idx, n = 1) {
@@ -52,7 +62,7 @@ export function equipOff(inv, idx, hero) {
 }
 export function unequip(inv, slot, maxSlots) {
   const id = inv.eq[slot]; if (!id) return false;
-  if (inv.bag.length >= maxSlots) return false;
+  if (!roomFor(inv, id, maxSlots)) return false;
   inv.bag.push(entryOf(id, inv.up[slot], inv.gem[slot]));
   inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; return true;
 }

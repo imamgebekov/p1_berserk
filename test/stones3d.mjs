@@ -65,7 +65,7 @@ const RARE = 'w_sword_steel_storm', PLAIN3 = 'w_sword_black', TWO = CATALOG.find
   W2.drops[0].x = W2.player.x; W2.drops[0].z = W2.player.z; step(W2, 1 / 60, {}); ok(W2.inv.bag.some(s => s.id === RARE && s.g && s.up === 2), 'поднятая вещь потеряла камень или заточку');
   const W3 = mk(); W3.nearMerchant = true; W3.inv.bag = [{ id: RARE, n: 1, g: [gemId('earth', 2)] }]; ok(sellItem(W3, 0) === 'ok' && W3.inv.bag.length === 1 && W3.inv.bag[0].id === gemId('earth', 2), 'проданное оружие забрало камень');
   W3.inv.bag = [{ id: TWO, n: 1, g: [gemId('earth', 2), gemId('fire', 1)] }]; for (let i = 1; i < MAX; i++) W3.inv.bag.push({ id: 'm_ore', n: 20 }); W3.cfg.bag.slots = MAX; refreshGear(W3);
-  ok(sellItem(W3, 0) === 'full' && W3.inv.bag[0].g && W3.inv.bag.length === MAX, 'продажа при полной сумке съела камень');
+  ok(sellItem(W3, 0) === 'ok' && W3.inv.bag.filter(s => BY_ID[s.id].cat === 'gem').length === 2, 'продажа при полной сумке съела камень (камни места не занимают)');
   const W4 = mk(RARE); W4.inv.gem.weapon = [gemId('fire', 1)]; switchHero(W4, 'jay'); ok(W4.inv.bag.some(s => s.id === RARE && s.g), 'смена героя потеряла камень'); }
 
 // ---------- 5. правила сплава ----------

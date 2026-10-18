@@ -2,7 +2,7 @@
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, statLine } from './data/items.js';
 import { betterThanWorn, nameOf, socketsOf } from './inv.js';
 import { socketGem, unsocketGem, fuseGems, gemsAt, weaponMix, unsocketCost, gemId } from './stones3d.js';
-import { MIX_NAME, ELEMENT_NAME, ELEMENT_COLOR, mixKey } from './elements3d.js';
+import { MIX_NAME, MIX_TEXT, ELEMENT_NAME, ELEMENT_COLOR, mixKey } from './elements3d.js';
 import { canWield, NOT_FOR } from './data/heroes3d.js';
 import { RECIPES } from './data/recipes3d.js';
 import { TOME_BY_ID } from './data/tomes3d.js';
@@ -86,6 +86,20 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
   const res = r => flash({ ok: '', far: 'Подойдите к кузнецу', ash: 'Не хватает пепла', full: 'Сумка полна', busy: 'Гнездо занято', nogem: 'Нет такого камня', few: 'Нужно три одинаковых камня', max: 'Выше некуда' }[r] || '');
   const mixLine = (it, g) => { const m = weaponMix(it, g); if (!m) return 'Гнёзда пусты: вставьте камень силы.'; if (!m.b) return `Стихия удара: ${ELEMENT_NAME[m.a]}`; return `Сплав: ${MIX_NAME[mixKey(m.a, m.b)]} (${ELEMENT_NAME[m.a]} + ${ELEMENT_NAME[m.b]})${m.amp ? ' · стихия оружия усиливает' : ''}`; };
   const samePick = (where, i) => pick && pick.i === i && pick.where.slot === where.slot && pick.where.idx === where.idx;
+  // что даёт камень в ударе (числа — config3d.js → stones): шанс по рангу и метка стихии
+  const gemFx = G => { const S = cfg.stones, k = S.power[G.rank - 1], e = S.el[G.gem], ch = Math.round(S.chance[G.rank - 1] * 100), r1 = v => Math.round(v * 10) / 10;
+    const t = { fire: () => `поджигает: ${r1(e[0] * k)} урона/с, ${e[1]} с`, ice: () => `морозит и замедляет ${r1(e * k)} с`, water: () => `мочит врага на ${r1(e * k)} с`, storm: () => `разряд ${r1(e[0] * k)} урона, перескок к соседу`, venom: () => `яд ${r1(e[0] * k)} урона/с, ${e[1]} с`, blood: () => `кровотечение ${r1(e[0] * k)} урона/с, ${e[1]} с`, earth: () => `трещина на ${r1(e * k)} с` }[G.gem];
+    return `${t ? t() : ELEMENT_NAME[G.gem]} · шанс ${ch}% (тяжёлый удар — всегда)`; };
+  // список камней под пустым гнездом: название, сколько есть, что даёт и каким станет сплав
+  function gemPop(it, where, i, g) {
+    const box = el('div', 'gempop'), gems = W.inv.bag.map((s, k) => ({ s, k, it: BY_ID[s.id] })).filter(r => r.it.cat === 'gem').sort((a, b) => a.it.gem.localeCompare(b.it.gem) || b.it.rank - a.it.rank);
+    if (!gems.length) { box.append(el('div', 'emptyl', 'В сумке нет камней силы. С каких врагов они падают — в книге рецептов (R).')); return box; }
+    for (const r of gems) { const b = el('button', 'gemopt'); b.type = 'button'; b.style.setProperty('--gc', ELEMENT_COLOR[r.it.gem]);
+      const other = g.find((x, j) => j !== i && x), mix = other ? MIX_NAME[mixKey(BY_ID[other].gem, r.it.gem)] : null;
+      b.append(el('span', 'gn', `${r.it.name} ×${r.s.n}`), el('span', 'gf', gemFx(r.it)), mix ? el('span', 'gm', `Сплав с ${BY_ID[other].name.toLowerCase()}: ${mix}. ${MIX_TEXT[mixKey(BY_ID[other].gem, r.it.gem)] || ''}`) : '');
+      b.addEventListener('click', () => { res(socketGem(W, where, i, r.it.id)); pick = null; render(); onChange && onChange(); }); box.append(b); }
+    return box;
+  }
   function weaponRow(id, where, tag) {
     const it = BY_ID[id], g = gemsAt(W, where), r = el('div', 'srow gemrow'), info = el('div', 'sinfo');
     const nm = el('span', 'nm', it.name); nm.style.color = RARITY[it.rar].color; info.append(nm, el('span', 'up', tag), el('div', 'sub', mixLine(it, g)));
@@ -93,10 +107,10 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
     g.forEach((gem, i) => {
       const b = el('button', 'sock' + (gem ? ' full' : '')); b.type = 'button';
       if (gem) { const G = BY_ID[gem]; b.style.setProperty('--gc', ELEMENT_COLOR[G.gem]); b.textContent = `${G.name} · вынуть за ${unsocketCost(W, gem)}`; b.addEventListener('click', () => { res(unsocketGem(W, where, i, maxSlots())); pick = null; render(); onChange && onChange(); }); }
-      else { b.textContent = samePick(where, i) ? 'Выберите камень ниже' : 'Пустое гнездо'; b.addEventListener('click', () => { pick = { where, i }; render(); }); }
+      else { b.textContent = samePick(where, i) ? 'Пустое гнездо ▴' : 'Пустое гнездо ▾'; b.addEventListener('click', () => { pick = samePick(where, i) ? null : { where, i }; render(); }); }
       socks.append(b);
     });
-    info.append(socks); r.append(info); return r;
+    info.append(socks); g.forEach((gem, i) => { if (!gem && samePick(where, i)) info.append(gemPop(it, where, i, g)); }); r.append(info); return r;
   }
   function gemsTab() {
     noteEl.textContent = 'Камень в гнезде даёт удару стихию, две стихии сплавляются (таблица — в книге рецептов, клавиша R). Вынуть камень можно за пепел: он вернётся целым.';
@@ -105,10 +119,6 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
     W.inv.bag.forEach((s, i) => { if (socketsOf(BY_ID[s.id], cfg)) { listEl.appendChild(weaponRow(s.id, { idx: i }, 'в сумке')); n++; } });
     if (!n) listEl.appendChild(el('div', 'emptyl', 'Нет оружия с гнёздами. Гнёзда бывают у редкого оружия и выше: одно у синего и фиолетового, два у оранжевого и золотого.'));
     const gems = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).filter(r => r.it.cat === 'gem');
-    if (pick) {
-      listEl.appendChild(el('div', 'emptyl', gems.length ? 'Какой камень вставить:' : 'В сумке нет камней силы. Они падают с врагов: смотрите в книге рецептов, с каких.'));
-      for (const r of gems) { const b = el('button', 'sock pickg', `${r.it.name} ×${r.s.n}`); b.type = 'button'; b.style.setProperty('--gc', ELEMENT_COLOR[r.it.gem]); b.addEventListener('click', () => { res(socketGem(W, pick.where, pick.i, r.it.id)); pick = null; render(); onChange && onChange(); }); listEl.appendChild(b); }
-    }
     const seen = new Set(), fusable = gems.filter(r => r.it.rank < 3 && !seen.has(r.it.id) && seen.add(r.it.id));
     if (fusable.length) listEl.appendChild(el('div', 'emptyl', 'Сплавить: три одинаковых камня → один рангом выше'));
     for (const r of fusable) {

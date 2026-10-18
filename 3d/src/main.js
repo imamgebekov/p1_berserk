@@ -16,6 +16,7 @@ import { eventLine } from './events3d.js';
 import { fireNear, knownFires, fastTravel, travelBlock, sanitizeFires } from './fires3d.js';
 import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
 import { isNight } from './daynight.js';
+import { bagUsed } from './inv.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView, resView, barOf } from './abilities3d.js';
@@ -437,8 +438,26 @@ function openFires() {
     b.addEventListener('click', () => { if (fastTravel(W, f.id)) { closeFires(); sfx('travel'); } });
     list.appendChild(b);
   }
+  drawFiresMap(block, here);
   firesSec.hidden = false; panelOpen = true; input.release();
 }
+// карта костров (2026-10-18): открытые костры на карте мира, нажатие — перенос; рамка — по открытым кострам и герою
+let firesPick = null;
+function drawFiresMap(block, here) {
+  const cv = $('firesMap'), ctx = cv.getContext('2d'), p = W.player, list = knownFires(W), S = 520;
+  const xs = [p.x, ...list.map(f => f.x)], zs = [p.z, ...list.map(f => f.z)], cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+  const span = Math.max(160, (Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs))) * 1.25), sc = S / span;
+  drawMap(ctx, W, { w: S, h: S, scale: sc, cx, cz, full: true });
+  const X = x => S / 2 + (x - cx) * sc, Y = z => S / 2 + (z - cz) * sc;
+  firesPick = { list: list.map(f => ({ f, x: X(f.x), y: Y(f.z) })), block, here };
+  for (const q of firesPick.list) { const me = here && here.id === q.f.id; ctx.beginPath(); ctx.arc(q.x, q.y, 9, 0, 6.2832); ctx.fillStyle = me ? '#ffe08a' : block ? '#8a7a6a' : '#ff8a30'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#1a0e08'; ctx.stroke();
+    ctx.font = '600 12px "Iowan Old Style", Palatino, Georgia, serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(244,236,214,.95)'; ctx.fillStyle = '#3a1a08'; ctx.strokeText(q.f.name, q.x, q.y - 15); ctx.fillText(q.f.name, q.x, q.y - 15); }
+}
+$('firesMap').addEventListener('click', e => {
+  if (!firesPick || firesPick.block) return; const r = e.currentTarget.getBoundingClientRect(), k = 520 / r.width, x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
+  let best = null, bd = 22; for (const q of firesPick.list) { const d = Math.hypot(q.x - x, q.y - y); if (d < bd) { bd = d; best = q; } }
+  if (best && !(firesPick.here && firesPick.here.id === best.f.id) && fastTravel(W, best.f.id)) { closeFires(); sfx('travel'); }
+});
 function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write(); }
 fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
 // сон (G4): затемнение, ночь проживается разом, утром — полное здоровье (или «разбудили»)
@@ -541,7 +560,7 @@ function frame(now) {
     if (W.player.dead) inp.attack = inp.roll = false;
     step(W, dt * simK, inp);
   }
-  { const n = W.inv.bag.length, m = bagSlots(W), s = n + '/' + m, cls = n >= m ? 'full' : n >= m * .8 ? 'warn' : ''; if (bagFill.textContent !== s) bagFill.textContent = s; if (bagFill.className !== cls) bagFill.className = cls; }     // заполненность сумки на кнопке
+  { const n = bagUsed(W.inv), m = bagSlots(W), s = n + '/' + m, cls = n >= m ? 'full' : n >= m * .8 ? 'warn' : ''; if (bagFill.textContent !== s) bagFill.textContent = s; if (bagFill.className !== cls) bagFill.className = cls; }     // заполненность сумки на кнопке
   const t1 = performance.now();
   if (renderer) renderer.render(W, dt);
   { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }

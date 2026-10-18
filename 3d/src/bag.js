@@ -1,6 +1,6 @@
 // Сумка и экипировка: окно с надетым, списком вещей, карточкой вещи и действиями.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, STAT_NAME, statLine, KIND_NAME } from './data/items.js';
-import { betterThanWorn, equipAt, equipOff, unequip, scoreUp, nameOf, SET_OF, setCounts, bonusText, statDiff } from './inv.js';
+import { betterThanWorn, equipAt, equipOff, unequip, scoreUp, nameOf, SET_OF, setCounts, bonusText, statDiff, bagUsed, freeItem, halfItem } from './inv.js';
 import { canWield, canOff, heroOf, NOT_FOR, heavyFor } from './data/heroes3d.js';
 import { iconURL, slotIconURL } from './itemicons.js';
 import { PERKS } from './data/weapons3d.js';
@@ -150,7 +150,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
 
   function render() {
     refreshGear(W); hideTip();
-    const cap = bagSlots(W), n = W.inv.bag.length;
+    const cap = bagSlots(W), n = bagUsed(W.inv);
     headEl.textContent = 'Сумка';
     stats();
     $('bagAsh').textContent = `Пепел: ${W.inv.ash}`;
@@ -174,6 +174,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     listEl.textContent = '';
     const rows = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).filter(r => tab === 'all' || tabOf(r.it) === tab).sort((a, b) => b.it.rar - a.it.rar || a.it.name.localeCompare(b.it.name, 'ru'));
     if (!rows.length && tab !== 'all') listEl.appendChild(el('div', 'emptyl', 'В этой вкладке пусто.'));
+    const freeTiles = []; let pend = null;
     for (const r of rows) {
       const b = el('button', 'tile r' + r.it.rar + (sel && sel.from === 'bag' && sel.i === r.i ? ' sel' : '')); b.type = 'button';
       b.append(icon(r.it));
@@ -189,9 +190,12 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       b.addEventListener('dblclick', () => quick(r.i));
       { let lp = 0; b.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; lp = setTimeout(() => { lp = 0; quick(r.i); }, 450); });     // долгое касание — надеть или использовать
         for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { if (lp) clearTimeout(lp); lp = 0; }); }
+      if (freeItem(r.it)) { b.classList.add('free'); freeTiles.push(b); continue; }     // ключи и камни — отдельной полосой, места не занимают
+      if (halfItem(r.it)) { b.classList.add('half'); if (pend) { pend.append(b); pend = null; } else { pend = el('div', 'pair'); pend.append(b); listEl.appendChild(pend); } continue; }     // два расходника — в одной клетке
       listEl.appendChild(b);
     }
     if (tab === 'all') for (let k = n; k < cap; k++) listEl.appendChild(el('div', 'tile empty'));
+    if (freeTiles.length) { listEl.appendChild(el('div', 'freeh', 'Ключи и камни — не занимают места')); for (const t of freeTiles) listEl.appendChild(t); }
     card();
   }
   const open = () => { sel = null; render(); root.hidden = false; onOpen && onOpen(); };
