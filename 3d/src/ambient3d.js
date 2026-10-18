@@ -66,7 +66,8 @@ export function updateBirds(birds, px, pz, dt, A) {
 // трубы: у жилых домов, в углу крыши
 export function chimneys(map, cfg) {
   const A = cfg.ambient, H = cfg.map.wallH;
-  return map.buildings.filter(b => A.smokeKinds.includes(b.kind) || b.npc).map(b => ({ x: b.x1 - 1.1, z: b.z0 + 1.1, y: H + A.chimneyH }));
+  return map.buildings.filter(b => (A.smokeKinds.includes(b.kind) || b.npc) && !b.city).map(     // в павших городах печи не топят
+b => ({ x: b.x1 - 1.1, z: b.z0 + 1.1, y: H + A.chimneyH }));
 }
 
 // туман гуще на рассвете: множитель плотности (1 — как днём)

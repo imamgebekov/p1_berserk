@@ -171,6 +171,10 @@ export function genWorld(cfg, buildings) {
       solid('campfire', f.x, f.z, .8);
       for (let i = 0; i < f.tents; i++) { const a = i / f.tents * TAU + .3, d = f.H * .55, x = f.x + Math.cos(a) * d, z = f.z + Math.sin(a) * d; solid('tent', x, z, 1.6, { rot: a }); }
       for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + .78, x = f.x + Math.cos(a) * (f.H * .8), z = f.z + Math.sin(a) * (f.H * .8); put('banner', x, z, { rot: a }); }
+      { const a = rw() * 6.283; solid('bigtent', f.x + Math.sin(a) * 5.5, f.z + Math.cos(a) * 5.5, 2.6, { rot: a }); }     // шатёр вожака
+      for (let i = 0; i < 3; i++) { const x = f.x - f.H * .7 + i * 2.2, z = f.z + f.H * .7; if (free(x, z, .8)) solid('dummy', x, z, .4, { rot: rw() * .6 }); }
+      { const x = f.x + f.H * .7, z = f.z + f.H * .7; if (free(x, z, 1.4)) solid('cage', x, z, 1.1); }
+      for (const g of f.gates) { const [sx, sz] = { s: [0, 1], n: [0, -1], e: [1, 0], w: [-1, 0] }[g], x = f.x + sx * (f.H - 3) + (sz ? 3.6 : 0), z = f.z + sz * (f.H - 3) + (sx ? 3.6 : 0); if (free(x, z, .6)) solid('totem', x, z, .35); }     // тотемы у ворот
       for (let i = 0; i < 6; i++) { const x = f.x + (rw() - .5) * f.H * 1.4, z = f.z + (rw() - .5) * f.H * 1.4; if (free(x, z, 1)) put(rw() < .5 ? 'barrel_d' : 'crate_d', x, z, { rot: rw() * 3 }); }
       reserved.length = 0;
     }
@@ -178,8 +182,14 @@ export function genWorld(cfg, buildings) {
       square(c, c.H, 1.4, c.gate, ['s', 'n', 'e', 'w'], 'cwall', 'cgate');
       for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = c.x + sx * c.H, z = c.z + sz * c.H; solids.push({ x, z, r: 2.2 }); decor.push({ t: 'ctower', x, z }); }
       reserved.length = 0; for (const [k, lx, lz] of [['locked', 5, 5], ['locked', -5, -5], ['ironchest', 5, -5], ['altar', -5, 5]]) { spots.push({ kind: k, x: c.x + lx, z: c.z + lz }); reserved.push({ x: c.x + lx, z: c.z + lz }); }
-      for (const [lx, lz] of [[-7, 0], [7, 0], [0, -7], [0, 7]]) put('lamp', c.x + lx, c.z + lz);
-      for (const [lx, lz] of [[-9, -9], [9, 9], [9, -9], [-9, 9]]) solid('menhir', c.x + lx, c.z + lz, .6, { s: 1.6, rot: rw() });
+      // мостовая: площадь и улицы от площади к четырём воротам; жаровни по углам площади, статуя, рынок, обломки стен; башни у ворот
+      decor.push({ t: 'paving', x: c.x, z: c.z, w: 24, d: 24 });
+      for (const [sx, sz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) { const L = c.H - 12, mx = c.x + sx * (12 + L / 2), mz = c.z + sz * (12 + L / 2); decor.push({ t: 'paving', x: mx, z: mz, w: sx ? L : 4.8, d: sx ? 4.8 : L }); }
+      for (const [lx, lz] of [[-10, -10], [10, 10], [10, -10], [-10, 10]]) solid('brazier', c.x + lx, c.z + lz, .5);
+      solid('statue', c.x + 7, c.z - 7, 1.2, { rot: rw() * 6.28 });
+      for (let i = 0; i < 3; i++) { const x = c.x - 6 + i * 3, z = c.z + 9; if (free(x, z, 1.4)) solid('stall', x, z, 1.1, { rot: 0, c: ['#6a2a24', '#2a4a6a', '#5a5a2a'][i] }); }
+      for (let i = 0; i < 5; i++) { const a = rw() * 6.283, d = 14 + rw() * (c.H - 18), x = c.x + Math.cos(a) * d, z = c.z + Math.sin(a) * d; if (free(x, z, 2.2) && Math.min(Math.abs(x - c.x), Math.abs(z - c.z)) > 3.5) solid('ruinwall', x, z, 1.4, { rot: rw() * 3, s: .8 + rw() * .5 }); }     // не на улицах
+      for (const [sx, sz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) for (const sg of [-1, 1]) { const x = c.x + sx * c.H + (sz ? sg * (c.gate / 2 + 2.6) : 0), z = c.z + sz * c.H + (sx ? sg * (c.gate / 2 + 2.6) : 0); solids.push({ x, z, r: 2.2 }); decor.push({ t: 'ctower', x, z }); }     // башни по бокам ворот
       for (let i = 0; i < 18; i++) { const x = c.x + (rw() - .5) * c.H * 1.8, z = c.z + (rw() - .5) * c.H * 1.8; if (free(x, z, 1.2) && Math.hypot(x - c.x, z - c.z) > 10) put(['crate_d', 'barrel_d', 'bones', 'wheel'][(rw() * 4) | 0], x, z, { rot: rw() * 3 }); }
       reserved.length = 0;
     }
