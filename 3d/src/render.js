@@ -33,6 +33,7 @@ import { ELEMENT_COLOR } from './elements3d.js';
 import { WSKILL } from './weaponskill3d.js';
 import { groundNoise, pathMix, segsNear, contactGrid, contactShade } from './ground3d.js';
 import { initPaint, paintMat, setPaintLevel } from './paint3d.js';
+import { surfaceDetails } from './details3d.js';
 
 const FOG = '#150c0b';
 
@@ -228,7 +229,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     scene.add(riverGroup); freeze(riverGroup);     // вода и мосты неподвижны
   }
   const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
-  const decor = buildDecor(map, mulberry32(cfg.world.seed + 2), cfg.shaders && cfg.shaders.grime); scene.add(decor.group); freeze(decor.group);
+  const decor = buildDecor({ ...map, decor: map.decor.concat(surfaceDetails(map, cfg)) }, mulberry32(cfg.world.seed + 2), cfg.shaders && cfg.shaders.grime); scene.add(decor.group); freeze(decor.group);     // детали мира (T5) — только вид
   const decorCells = [...decor.group.children], CL = cfg.cull;     // клетки декора (снимаются вдали); дальности и доля травы — config3d.js → cull
   const npcs = [], storyNpcs = new Map();     // герои сюжета (этап 3)
   const markTex = Object.fromEntries(['!', '?'].map(ch => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.font = '900 54px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = '#1a0e06'; g.strokeText(ch, 32, 34); g.fillStyle = ch === '!' ? '#ffd23a' : '#d8d8e0'; g.fillText(ch, 32, 34); return [ch, new THREE.CanvasTexture(c)]; }));

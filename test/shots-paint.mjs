@@ -1,4 +1,5 @@
-// Снимки «было — стало» для материалов (T0–T2): лагерь и природа на Маке и телефоне. node test/shots-paint.mjs <папка> [flat|paint] [camp|nature]
+// Снимки «было — стало» для материалов и деталей (T0–T5) на Маке и телефоне. node test/shots-paint.mjs <папка> [flat|bare|paint] [camp|nature|built|creatures|details]
+// flat — без материалов, bare — без деталей мира
 // flat — без материалов (?flat). Не входит в test:browser: только для сравнения глазами.
 import { createServer } from 'vite';
 import { execSync } from 'node:child_process';
@@ -6,16 +7,17 @@ import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..'), out = process.argv[2] || join(root, 'test', 'out'), tag = process.argv[3] === 'flat' ? 'flat' : 'paint';
+const root = join(dirname(fileURLToPath(import.meta.url)), '..'), out = process.argv[2] || join(root, 'test', 'out'), tag = ['flat', 'bare'].includes(process.argv[3]) ? process.argv[3] : 'paint';
 mkdirSync(out, { recursive: true });
 let chromium;
 try { ({ chromium } = await import('playwright')); } catch { ({ chromium } = await import(join(execSync('npm root -g').toString().trim(), 'playwright', 'index.mjs'))); }
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const dev = await createServer({ root, server: { port: 5191, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' }); await dev.listen();
-const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html?shot&hero=thorn` + (tag === 'flat' ? '&flat' : '');
+const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html?shot&hero=thorn` + (tag === 'flat' ? '&flat' : tag === 'bare' ? '&nodetails' : '');
 const SETS = { camp: [['fire', 0, 4], ['stalls', 12, 12], ['smithy', 8, -2], ['house', -9, -1], ['wall', 18, 21]],
   nature: [['forest', 84, 206], ['rocks', 100, -168], ['river', 4, -48], ['cliff', 21, -456]],
   creatures: [['pack', 4, -48, null, ['imp', 'brute', 'hound', 'ghoul']], ['pack2', 14, -56, null, ['drowned', 'war_ghost', 'castellan', 'troll']]],
+  details: [['sign', -2, 10], ['rug', -7.5, -3.5], ['wreck', -53, -31], ['sword', 42, 42.5], ['banner', 47.5, 18.5], ['bucket', -7.5, -18], ['dungeon', -.5, 2, 'crypt_pogost']],
   built: [['stalls', 12, 12], ['castle', -250, -58], ['tents', -60, 290], ['crypt', -46, -38], ['dungeon', -.5, 2, 'crypt_pogost'], ['keep', -3.9, 17, 'castle_ash_1']] };
 const SPOTS = SETS[process.argv[4] || 'camp'], wait = process.argv[4] === 'camp' || !process.argv[4] ? 2500 : 14000;
 let code = 0;

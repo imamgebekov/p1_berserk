@@ -4,6 +4,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildContainers } from './containers.js';
 import { roomAt } from './map.js';
 import { paintMat, paintOn } from './paint3d.js';
+import { buildDecor } from './decor.js';
+import { dungeonDetails } from './details3d.js';
 
 const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
 const mat = (c, kind, opt) => (kind ? paintMat(new THREE.MeshLambertMaterial({ color: c }), kind, opt) : new THREE.MeshLambertMaterial({ color: c }));     // kind — материал (T3)
@@ -51,6 +53,8 @@ export function buildLevelView(L, cfg) {
     torches.push(box(.1, .5, .1, x + ex, D.wallH * .55, z + ez)); flames.push(box(.16, .2, .16, x + ex, D.wallH * .55 + .32, z + ez));
   }
   if (torches.length) group.add(new THREE.Mesh(mergeGeometries(torches), mat('#3a2a1a')));
+  { const salt = [...String(M.level || '')].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7), det = dungeonDetails(M, cfg, salt);     // детали подземелья (T5)
+    if (det.length) group.add(buildDecor({ decor: det }, null, null).group); }
   const fl = flames.length ? new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })) : null; if (fl) group.add(fl);
   for (const q of M.portals) { const ri = roomAt(M, q.x, q.z); group.add(stairs(q, ri >= 0 ? M.rooms[ri] : M.bounds)); }
   // двери: створка на петле у края проёма, открывается внутрь дальней комнаты

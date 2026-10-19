@@ -22,6 +22,8 @@ try {
     for (let k = 0; k < 20 && !(await ev(() => document.getElementById('dialog').hidden)); k++) { await page.keyboard.press('Escape'); await page.waitForTimeout(100); }     // пролог Акта I (этап 3) — пропустить
     await ev(() => { const W = window.__b3d.W; W.player.maxhp = W.player.hp = 1e6; W.enemies.length = 0; });
     await poll(() => ev(() => window.__b3d.perf().n >= 20), 20000);     // программная видеокарта сначала собирает шейдеры (секунды) — ждём, пока кадры пойдут
+    { const sc = await ev(() => { let decor = 0; window.__b3d.renderer.scene.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes.pkind) decor++; }); return { decor }; });     // декор и детали мира в сцене (T5: строка с декором однажды пропала)
+      ok(sc.decor > 0, 'на сцене нет уличного декора (заборы, фонари, детали мира)'); }
     const z0 = await ev(() => window.__b3d.W.player.z); await page.keyboard.down('KeyW');
     ok(await poll(async () => (await ev(() => window.__b3d.W.player.z)) < z0 - .8), 'W не ведёт героя'); await page.keyboard.up('KeyW');
     await ev(() => { const b = window.__b3d, p = b.W.player; p.face = 0; const e = b.spawn('imp', p.x, p.z + 1.6); e.hp = e.maxhp = 500; e.cd = 99; window.__imp = e; });

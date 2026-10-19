@@ -48,7 +48,8 @@ applyIcons(document);     // иконки-силуэты вместо эмодз
 $('keysMore').addEventListener('click', () => { const p = $('keysAll'); p.hidden = !p.hidden; $('keysMore').setAttribute('aria-expanded', String(!p.hidden)); });     // все клавиши по «?»
 const defaults = JSON.parse(JSON.stringify(CFG3));
 if (new URLSearchParams(location.search).has('boxy')) CFG3.shapes.volume = false;     // ?boxy — прежние модели из кубиков (сравнение)
-if (new URLSearchParams(location.search).has('flat') && CFG3.shaders.paint) CFG3.shaders.paint.on = false;     // ?flat — без материалов (сравнение «было — стало»)
+if (new URLSearchParams(location.search).has('flat') && CFG3.shaders.paint) CFG3.shaders.paint.on = false;
+if (new URLSearchParams(location.search).has('nodetails') && CFG3.details) CFG3.details.on = false;     // ?nodetails — без деталей мира (сравнение T5)     // ?flat — без материалов (сравнение «было — стало»)
 const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
