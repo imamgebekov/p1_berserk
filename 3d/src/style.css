@@ -480,3 +480,15 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 .rewl{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;margin-top:4px}
 /* телефон: пара расходников (2 к 1) — на две клетки, чтобы каждая половина была не уже 40 px под палец; места считаются как прежде */
 html:not([data-desk]) .pair{grid-column:span 2;aspect-ratio:2}
+/* ощущение боя (этап 1 «круче»): вспышка, красная кайма, серия убийств, карточка нового уровня */
+#feelFlash{position:fixed;inset:0;pointer-events:none;opacity:0;mix-blend-mode:screen;z-index:4}
+#feelVig{position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 52%,rgba(150,12,22,.9) 100%);z-index:4}
+#streak{position:fixed;right:14%;top:30%;font:900 34px/1 var(--serif);color:#ffd27a;text-shadow:0 2px 0 #000,0 0 10px rgba(0,0,0,.8);pointer-events:none;z-index:6}
+#streak.pop{animation:streakPop .35s ease-out}
+@keyframes streakPop{0%{transform:scale(1.6);opacity:.4}100%{transform:scale(1);opacity:1}}
+#lvlCard{position:fixed;left:50%;top:20%;transform:translateX(-50%);min-width:240px;max-width:min(86vw,420px);padding:12px 18px;border:1px solid var(--rim);border-radius:10px;background:linear-gradient(var(--wood-a),var(--wood-c));box-shadow:0 8px 24px rgba(0,0,0,.6);text-align:center;pointer-events:none;z-index:6;animation:lvlIn .4s ease-out}
+#lvlCard .t{font:800 24px/1.2 var(--serif);color:#ffd27a}
+#lvlCard .u{margin-top:6px;font-size:14px;color:#e8d9c0;display:grid;gap:3px}
+@keyframes lvlIn{0%{transform:translate(-50%,-12px);opacity:0}100%{transform:translate(-50%,0);opacity:1}}
+@media (prefers-reduced-motion:reduce){#streak.pop,#lvlCard{animation:none}}
+

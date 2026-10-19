@@ -600,6 +600,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     fx.spray(v.x, 1, v.z, dx, dz, Math.round(10 * s), '#6d0c14', 6, 1.1);
     fx.ash(v.x, .6, v.z, Math.round(16 * s));
     fx.decal(v.x, v.z, 1.1 * s, BLOOD);
+    if (v.boss || v.elite) { const k = v.boss ? 2.4 : 1.4; fx.flash(v.x, 1.4 * s, v.z, 2.2 * k, v.boss ? '#fff4d8' : '#ffd27a'); fx.ash(v.x, 1, v.z, Math.round(30 * k)); }     // элита и босс — ярче (этап 1 «круче»)
+  }
+  function levelFx(v) {                                              // новый уровень: кольцо по земле и столб искр вверх (только вид)
+    const gy = Y(v.x, v.z);
+    for (let i = 0; i < 36; i++) { const a = i / 36 * Math.PI * 2; fx.emit(v.x + Math.cos(a) * .4, gy + .15, v.z + Math.sin(a) * .4, Math.cos(a) * 6, .4, Math.sin(a) * 6, '#ffd27a', .5, 0, .22, true); }
+    for (let i = 0; i < 40; i++) fx.emit(v.x + (Math.random() - .5) * .6, gy + .2 + Math.random() * .6, v.z + (Math.random() - .5) * .6, (Math.random() - .5) * .6, 4 + Math.random() * 5, (Math.random() - .5) * .6, i % 3 ? '#ffd27a' : '#fff4d8', .9, -2, .2, true);
+    fx.flash(v.x, gy + 1.2, v.z, 3, '#ffd27a');
   }
 
   function shadow(r) {
@@ -818,6 +825,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
   }
 
+  let feelZoom = 0;
   function render(W, dt) {
     const t = W.t, p = W.player;
     // камера: плавно следует за героем под заданным углом
@@ -825,7 +833,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (!cam.init) { cam.x = p.x; cam.z = p.z; cam.y = Y(p.x, p.z); cam.init = true; }
     const k = 1 - Math.exp(-cfg.view.camFollow * dt);
     cam.x += (p.x - cam.x) * k; cam.z += (p.z - cam.z) * k; cam.y += (Y(p.x, p.z) - cam.y) * (cfg.view.blend ? 1 - Math.exp(-cfg.view.blend.camY * dt) : k);     // высота над холмами — медленнее (шаг 3)
-    const pitch = cfg.view.camPitch * Math.PI / 180, dist = cfg.view.camDist;
+    const pitch = cfg.view.camPitch * Math.PI / 180, dist = cfg.view.camDist * (1 - feelZoom);     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
     const FV = cfg.fx.view, sh = calm || !FV ? 0 : W.shake * FV.amp, wt = performance.now() / 1000;     // тряска — плавная (шаг 4), при «уменьшить движение» — нет
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
     const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
@@ -995,6 +1003,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (v.x !== undefined && v.z !== undefined && !inView(v.x, 1 + Y(v.x, v.z), v.z, (v.r || 2) + 4)) continue;     // событие вне кадра — без частиц, вспышек и цифр
       if (v.k === 'hit') { hitFx(v, p); hooks.onText && hooks.onText(v.x, 2, v.z, String(v.dmg) + (v.crit ? '!' : ''), v.crit ? 'crit' : v.fin ? 'fin' : ''); }
       else if (v.k === 'die') dieFx(v, p);
+      else if (v.k === 'level') levelFx(v);
       else if (v.k === 'hurt') { burst(v.x, 1.2, v.z, 10, '#c0222c'); fx.decal(v.x + (Math.random() - .5), v.z + (Math.random() - .5), .4, BLOOD); hero.hurtT = HURT_T; hooks.onText && hooks.onText(v.x, 2.4, v.z, '−' + v.dmg, 'hurt'); hooks.onHurt && hooks.onHurt(); }
       else if (v.k === 'open') burst(v.x, .9, v.z, 10, '#ffc860', 3)
       else if (v.k === 'heal') hooks.onText && hooks.onText(v.x, 2.4, v.z, '+' + v.n + ' ♥', 'loot')
@@ -1099,5 +1108,5 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function setDprMax(v) { dprMax = v; resize(); }
 
   const treesNear = (x, z) => { if (!WC) return 0; let n = 0; const r2 = WC.rustle.r * WC.rustle.r, count = A => { for (let i = 0; i < A.length; i += 2) { const dx = A[i] - x, dz = A[i + 1] - z; if (dx * dx + dz * dz < r2) n++; } }; count(treeXZ); for (const L of liveLand.values()) count(L.trees); return Math.min(1, n / WC.rustle.full); };
-  return { dbg: { scene, gl }, render, resize, project, groundAt, setAscii, setRetro, setDprMax, setQuality, setResScale: v => { resScale = v; resize(); }, quality: () => ({ ...Q, shadowsOn: gl.shadowMap.enabled, resScale }), look: () => ({ retro, ascii: asciiOn, w: canvas.width, h: canvas.height, tone: gl.toneMapping }), vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  return { dbg: { scene, gl }, render, setZoom: z => { feelZoom = Math.max(0, Math.min(.4, z || 0)); }, resize, project, groundAt, setAscii, setRetro, setDprMax, setQuality, setResScale: v => { resScale = v; resize(); }, quality: () => ({ ...Q, shadowsOn: gl.shadowMap.enabled, resScale }), look: () => ({ retro, ascii: asciiOn, w: canvas.width, h: canvas.height, tone: gl.toneMapping }), vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }

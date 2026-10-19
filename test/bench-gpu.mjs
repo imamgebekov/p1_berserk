@@ -10,7 +10,7 @@ const modes = (process.argv[2] || 'flat,nodetails,full').split(','), dpr = Numbe
 const WK = process.env.BR === 'webkit', browser = WK ? await pw.webkit.launch() : await pw.chromium.launch({ args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--disable-gpu-vsync', '--disable-frame-rate-limit'] });
 const dev = await createServer({ root, server: { port: 5197, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' }); await dev.listen();
 const SPOTS = (process.argv[5] === 'all' ? [['лагерь', 0, 4], ['лес', 84, 206], ['замок', -250, -58], ['склеп', -.5, 2, 'crypt_pogost']] : [['лагерь', 0, 4], ['лес', 84, 206]]), REP = Number(process.argv[6] || 3);
-const Q_ = { flat: '&flat', nodetails: '&nodetails', full: '' };
+const Q_ = { flat: '&flat', nodetails: '&nodetails', nofeel: '&nofeel', full: '' };
 const res = {};
 const order = []; for (let k = 0; k < REP; k++) for (const m of modes) order.push(m);
 for (const mode of order) {

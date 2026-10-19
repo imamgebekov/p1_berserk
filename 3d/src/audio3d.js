@@ -74,6 +74,11 @@ const SFX = {
   finisher: { gap: .1, f: () => { tone(90, .3, 'sawtooth', .09, 40); noise(.25, .15, 900, 150); } },
   hurt: { gap: .1, f: () => { tone(200, .22, 'sawtooth', .08, 70); noise(.12, .1, 600, 200); } },
   die: { gap: .05, f: () => tone(260, .22, 'triangle', .064, 60) },
+  eliteKill: { gap: .2, f: () => { noise(.3, .14, 1600, 200); tone(330, .3, 'triangle', .07, 165); tone(660, .35, 'triangle', .05, 0, .08); } },     // ощущение боя (этап 1)
+  bossKill: { gap: 1, f: () => { noise(.8, .2, 900, 60); tone(65, .9, 'sawtooth', .12, 33); for (let i = 0; i < 4; i++) tone([392, 523, 659, 784][i], .6, 'triangle', .07, 0, .35 + i * .12); } },
+  streak: { gap: .15, f: () => { tone(880, .07, 'triangle', .04); tone(1320, .1, 'triangle', .035, 0, .05); } },
+  hurtBig: { gap: .25, f: () => { noise(.18, .18, 500, 90); tone(90, .25, 'sawtooth', .1, 45); } },
+  heart: { gap: .3, f: () => { tone(58, .12, 'sine', .14, 40); tone(52, .14, 'sine', .11, 36, .17); } },
   dodge: { gap: .1, f: () => tone(700, .08, 'triangle', .03, 1000) },
   pickup: { gap: .05, f: () => { tone(740, .06, 'triangle', .056); tone(988, .08, 'triangle', .056, 0, .06); } },
   ash: { gap: .05, f: () => tone(1200, .05, 'triangle', .03) },

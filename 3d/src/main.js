@@ -20,6 +20,8 @@ import { bagUsed } from './inv.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView, resView, barOf } from './abilities3d.js';
+import { createFeel, unlocksAt } from './feel3d.js';
+import { ABILITIES } from './data/abilities3d.js';
 import { weaponSkillView } from './weaponskill3d.js';
 import { comboReady } from './combos3d.js';
 import { ELEMENT_COLOR } from './elements3d.js';
@@ -49,7 +51,8 @@ $('keysMore').addEventListener('click', () => { const p = $('keysAll'); p.hidden
 const defaults = JSON.parse(JSON.stringify(CFG3));
 if (new URLSearchParams(location.search).has('boxy')) CFG3.shapes.volume = false;     // ?boxy — прежние модели из кубиков (сравнение)
 if (new URLSearchParams(location.search).has('flat') && CFG3.shaders.paint) CFG3.shaders.paint.on = false;
-if (new URLSearchParams(location.search).has('nodetails') && CFG3.details) CFG3.details.on = false;     // ?nodetails — без деталей мира (сравнение T5)     // ?flat — без материалов (сравнение «было — стало»)
+if (new URLSearchParams(location.search).has('nodetails') && CFG3.details) CFG3.details.on = false;     // ?nodetails — без деталей мира (сравнение T5)
+if (new URLSearchParams(location.search).has('nofeel') && CFG3.feel) CFG3.feel.on = false;     // ?nofeel — без отклика боя (сравнение этапа 1)     // ?flat — без материалов (сравнение «было — стало»)
 const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
@@ -187,7 +190,17 @@ function toast(txt, cls = '', color, ic) {     // ic — иконка из uiico
   setTimeout(() => d.remove(), 3500);
 }
 const P = loadPrefs();
+const feel = createFeel(cfg), feelFlash = $('feelFlash'), feelVig = $('feelVig'), streakEl = $('streak'), lvlCard = $('lvlCard');     // ощущение боя (этап 1 «круче»)
+let lvlCardT = 0, lastFk = null, feelPeak = { scale: 1, flash: 0, zoom: 0 };     // feelPeak — сильнейший отклик с прошлого опроса (для тестов)
+function showLevelCard(lv) {                                                    // карточка «Новый уровень»: что открылось
+  const u = unlocksAt(lv, cfg, ABILITIES[W.hero] || []), lines = u.map(x => x.kind === 'ability' ? `Новое умение: ${x.name}` : x.kind === 'rank' ? `${x.name}: ранг ${x.rank}` : `Отряд: до ${x.n} бойцов`);
+  lines.push('Очко навыков' + (cfg.abilities.ranks.flat().includes(lv) ? ' и очко умений' : ''));
+  lvlCard.textContent = ''; const t = document.createElement('div'); t.className = 't'; t.textContent = `Уровень ${lv}`; const box = document.createElement('div'); box.className = 'u';
+  for (const l of lines) { const d = document.createElement('div'); d.textContent = l; box.append(d); }
+  lvlCard.append(t, box); lvlCard.hidden = false; lvlCard.style.animation = 'none'; void lvlCard.offsetWidth; lvlCard.style.animation = ''; lvlCardT = 3.2;
+}
 function onEvent(v) {
+  { const fs = feel.event(v, W.player.maxhp); if (fs) { sfx(fs); if (fs === 'streak') { const n = feel.state().shown; streakEl.textContent = `Серия ×${n}`; streakEl.hidden = false; streakEl.classList.remove('pop'); void streakEl.offsetWidth; streakEl.classList.add('pop'); } } }
   sparkEvent(W, v);     // «Первая искра»: враги за оградой (шаг 12)
   pathEvent(W, v);      // «Путь пепла»: первая победа над боссом-вехой (шаг 13)
   if (v.k === 'hurt') buzz(P, 35); else if (v.k === 'level' || v.k === 'questdone') buzz(P, [40, 40, 70]); else if (v.k === 'bossaggro' || v.k === 'bossblast') buzz(P, 90);
@@ -253,7 +266,7 @@ function onEvent(v) {
   else if (v.k === 'bossInterrupt') { toast(`Чтение сбито: ${v.name} оглушён`, '', '#ffd27a'); sfx('block'); }
   else if (v.k === 'squadCmd') toast(v.auto ? 'Отряд снова идёт за вами' : v.cmd === 'hold' ? 'Отряд: держим здесь' : v.cmd === 'assist' ? 'Отряд: бьём вашу цель' : 'Отряд: за мной');
   else if (v.k === 'hire') toast(`${v.name} теперь с вами`, 'sys');
-  else if (v.k === 'level') toast(`Уровень ${v.lv}! Очко навыков` + (cfg.abilities.ranks.flat().includes(v.lv) ? ' и умений' : '') + (cfg.abilities.ranks.some(r => r[0] === v.lv) ? ' · открылось умение' : ''), '', '#e8c04a');
+  else if (v.k === 'level') showLevelCard(v.lv);     // карточка вместо тоста (этап 1 «круче»)
   else if (v.k === 'xp') onText(v.x, 3, v.z, '+' + v.n + ' оп.', 'xp');
 }
 // вход в зону (этап 1): крупная надпись с поясом уровней; на поверхности, при смене зоны
@@ -648,13 +661,20 @@ function frame(now) {
   const t0 = performance.now(), real = (now - last) / 1000, dt = Math.max(0, Math.min(.05, real)); last = now;
   // под меню (шаг 5): бой останавливается плавно за UI.stopT с (при «уменьшить движение» — сразу), а картинка живёт — вода, ветер, частицы
   const paused = panelOpen || landscape; simK = paused ? (CALM_UI ? 0 : Math.max(0, simK - real / cfg.ui.stopT)) : 1;
+  const fk = lastFk = feel.tick(dt, W.player.dead ? 1 : W.player.hp / W.player.maxhp, CALM_UI);     // шаг не длиннее 0,05 с: долгий кадр не «съедает» замедление     // замедление и вспышки — только здесь, не в симуляции
   if (simK > 0) {
     const inp = paused ? {} : input.read();
     Object.assign(inp, rotateInput(inp.mx || 0, inp.mz || 0, cfg.view.camYaw));
     if (desk && renderer && inp.cursor) inp.aimPt = renderer.groundAt(inp.cursor.x, inp.cursor.y);     // прицел курсором: удар, выстрел и умения — в сторону мыши        // «вверх» на джойстике = вверх на экране при любом повороте камеры
     if (W.player.dead) inp.attack = inp.roll = false;
-    step(W, dt * simK, inp);
+    step(W, dt * simK * fk.scale, inp);
   }
+  feelPeak.scale = Math.min(feelPeak.scale, fk.scale); feelPeak.flash = Math.max(feelPeak.flash, fk.flash.a); feelPeak.zoom = Math.max(feelPeak.zoom, fk.zoom);
+  { const fa = fk.flash.a > .01, va = !paused && fk.vig > .01; if (feelFlash.hidden === fa) feelFlash.hidden = !fa; if (feelVig.hidden === va) feelVig.hidden = !va;     // скрытый слой не смешивается с кадром
+    if (fa) { feelFlash.style.opacity = fk.flash.a.toFixed(3); feelFlash.style.background = fk.flash.c; } if (va) feelVig.style.opacity = fk.vig.toFixed(3); } if (fk.beat && !paused) sfx('heart');
+  if (!fk.streak && !streakEl.hidden) streakEl.hidden = true;
+  if (lvlCardT > 0 && (lvlCardT -= real) <= 0) lvlCard.hidden = true;
+  if (renderer) renderer.setZoom(fk.zoom);
   { const n = bagUsed(W.inv), m = bagSlots(W), s = n + '/' + m, cls = n >= m ? 'full' : n >= m * .8 ? 'warn' : ''; if (bagFill.textContent !== s) bagFill.textContent = s; if (bagFill.className !== cls) bagFill.className = cls; }     // заполненность сумки на кнопке
   const t1 = performance.now();
   if (renderer) renderer.render(W, dt);
@@ -706,5 +726,5 @@ function frame(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
+window.__b3d = { emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
 if (BENCH) setTimeout(() => runBench(W, cfg, input, renderer), 1500);
