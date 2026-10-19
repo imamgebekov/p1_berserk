@@ -17,7 +17,8 @@
     "balance:heroes": "HB_SEEDS=30 node test/heroes-balance3d.mjs",
     "test:slow": "node test/world3d.mjs && node test/wanderer3d.mjs && node test/heroes-balance3d.mjs && node test/outer3d.mjs && node test/headless.mjs && node test/roam3d.mjs && node test/instances3d.mjs",
     "test:smoke": "node test/smoke3d.mjs",
-    "check": "npm test && npm run build && npm run test:smoke"
+    "check": "npm test && npm run build && npm run test:smoke",
+    "bench:gpu": "node test/bench-gpu.mjs"
   },
   "devDependencies": {
     "vite": "8.3.1"

@@ -2,9 +2,17 @@
 // поверхности (трава, тропа, песок, скала) считаются в шейдере по мировым координатам — без картинок и развёртки. Деталь крупная и плавная (курс «мягко и просто»). Сила — cfg.shaders.paint, на «Низком» выключено (uPK = 0).
 import * as THREE from 'three';
 let P = null;
-const PU = { uPK: { value: 1 } };     // общий множитель силы: качество «Низкое» — 0
+const PU = { uPK: { value: 1 }, uNoise: { value: null } };     // общий множитель силы (качество «Низкое» — 0) и таблица шума
 
-export function initPaint(cfgPaint) { P = cfgPaint && cfgPaint.on ? cfgPaint : null; }
+// таблица шума 128×128 (T6): одна выборка вместо четырёх синусов; мип-уровни сами сглаживают узор вдали
+function noiseTex() {
+  const n = 128, d = new Uint8Array(n * n); let x = 0x9e3779b9;
+  for (let i = 0; i < d.length; i++) { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; d[i] = (x >>> 0) & 255; }
+  const t = new THREE.DataTexture(d, n, n, THREE.RedFormat, THREE.UnsignedByteType);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.needsUpdate = true;
+  return t;
+}
+export function initPaint(cfgPaint) { P = cfgPaint && cfgPaint.on ? cfgPaint : null; if (P && !PU.uNoise.value) PU.uNoise.value = noiseTex(); }
 export function setPaintLevel(k) { PU.uPK.value = k; }
 export const paintOn = () => !!P;
 
@@ -29,9 +37,9 @@ const VERT = `vec4 pw4 = vec4(transformed, 1.);
 #endif
   vPKo = pkind;`;
 
-const FUNCS = `uniform float uPK, uPS, uPlank, uTile; varying vec3 vPW; varying vec3 vPN; varying float vPKo;
-float pH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float pN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(pH(i), pH(i + vec2(1., 0.)), f.x), mix(pH(i + vec2(0., 1.)), pH(i + vec2(1., 1.)), f.x), f.y); }
+const FUNCS = `uniform float uPK, uPS, uPlank, uTile; uniform sampler2D uNoise; varying vec3 vPW; varying vec3 vPN; varying float vPKo;
+float pH(vec2 p) { return textureLod(uNoise, (floor(p) + .5) / 128., 0.).r; }     // случайное число клетки (без мипов: на стыках клеток нет швов)
+float pN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return texture(uNoise, (i + f + .5) / 128.).r; }     // плавный шум по таблице без угловатых пятен; вдали — мип-уровни
 float pWood(vec3 an) {
   bool top = an.y > .7;
   float across = top ? vPW.z : vPW.y, along = top ? vPW.x : (an.x > an.z ? vPW.z : vPW.x);
@@ -75,7 +83,7 @@ float pRoof(vec3 an, bool straw) {
   return (pH(vec2(row, floor(u))) - .5) * .2 - (1. - lap) * .3 - smoothstep(.82, .97, abs(fract(u) - .5) * 2.) * .18;
 }`;
 
-const FRAG = `if (uPK > 0.) {
+const FRAG = `if (uPK * uPS > 0.) {     // сила 0 у вида — шейдер узор не считает
     float pk = uPK * uPS; vec3 an = abs(vPN), c = diffuseColor.rgb;
     vec2 q = an.y > .7 ? vPW.xz : (an.x > an.z ? vPW.zy : vPW.xy);
     float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), rel = (mx - mn) / max(mx, 1e-4), d = 0.;
