@@ -46,10 +46,19 @@ export const ABILITIES = {
 };
 
 // ---- правила рангов (чистые, для боя, сохранения и окна навыков) ----
-export const rankLvs = (cfg, i) => cfg.abilities.ranks[i] || [];
+// мастерство (этап 3 «круче»): 4-й ранг умения слота i на уровне mastery.lv[i] (после 30-го — каждые 3 уровня)
+const mast = cfg => (cfg.abilities.mastery && cfg.abilities.mastery.on ? cfg.abilities.mastery.lv : null);
+export const rankLvs = (cfg, i) => { const r = cfg.abilities.ranks[i] || [], m = mast(cfg); return m && r.length && m[i] ? r.concat(m[i]) : r; };
 // очков умений к уровню lv: по одному за каждый уровень с 3-го (решение владельца 2026-10-18)
-export const abilityPointsAt = (lv, cfg) => Math.max(0, Math.min(lv - (cfg.abilities.firstLv || 3) + 1, cfg.abilities.ranks.length * 3));     // не больше, чем всех рангов (уровни до 60: лишние очки не копятся)
+export const abilityPointsAt = (lv, cfg) => Math.max(0, Math.min(lv - (cfg.abilities.firstLv || 3) + 1, cfg.abilities.ranks.length * 3)) + ((mast(cfg) || []).filter(l => l <= lv).length);     // + очко за каждое мастерство     // не больше, чем всех рангов (уровни до 60: лишние очки не копятся)
 // сколько рангов умения слота i доступно на уровне lv
 export const ranksOpenAt = (lv, cfg, i) => rankLvs(cfg, i).filter(l => l <= lv).length;
 // индекс в списках силы (3 числа) для ранга 1–3
-export const rankIdx = (cfg, i, rank) => Math.max(0, Math.min(2, rank - 1));
+export const rankIdx = (cfg, i, rank) => Math.max(0, Math.min(mast(cfg) ? 3 : 2, rank - 1));     // 3 — мастерство
+// сила 4-го ранга: списки из 3 чисел продолжают рост на тот же шаг (перезарядка короче, не меньше 80% от 3-го ранга)
+const EXT = new WeakMap();
+export function withMastery(A) {
+  if (!A || typeof A !== 'object') return A; let o = EXT.get(A); if (o) return o; o = { ...A };
+  for (const [k, v] of Object.entries(A)) if (Array.isArray(v) && v.length === 3 && v.every(x => typeof x === 'number')) { const d = v[2] - v[1]; o[k] = [...v, k === 'cd' ? Math.max(v[2] * .8, v[2] + d) : Math.round((v[2] + d) * 1000) / 1000]; }
+  EXT.set(A, o); return o;
+}

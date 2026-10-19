@@ -2,6 +2,7 @@
 // Только вид и звук: читает события симуляции и выдаёт для цикла main.js замедление времени, наезд камеры, вспышку,
 // красную кайму при низком здоровье, удары сердца и счётчик серии. Симуляция и боты тестов этого не видят.
 // Время — настоящее (секунды экрана), не игровое. Числа — cfg.feel. Чистая логика (проверяется в Node).
+import { rankLvs } from './data/abilities3d.js';
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 export function createFeel(cfg) {
@@ -47,7 +48,7 @@ export function createFeel(cfg) {
 
 // что открылось на уровне lv: первые ранги умений героя, новый ранг, место в отряде (для карточки «Новый уровень»)
 export function unlocksAt(lv, cfg, abilities) {
-  const out = [], R = cfg.abilities.ranks;
+  const out = [], R = cfg.abilities.ranks.map((_, i) => rankLvs(cfg, i));
   R.forEach((ranks, i) => { const a = abilities[i]; if (!a) return; const k = ranks.indexOf(lv); if (k === 0) out.push({ kind: 'ability', name: a.name, icon: a.icon }); else if (k > 0) out.push({ kind: 'rank', name: a.name, rank: k + 1, icon: a.icon }); });
   const S = cfg.squad; if (lv > 1 && lv % S.perLevels === 0 && S.baseMax + lv / S.perLevels <= S.cap) out.push({ kind: 'squad', n: S.baseMax + lv / S.perLevels });
   return out;

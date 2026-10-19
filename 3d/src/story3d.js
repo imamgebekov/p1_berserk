@@ -7,7 +7,7 @@ import { spawnAlly } from './squad3d.js';
 import { resolve } from './map.js';
 import { addItem, entryOf, roomFor, nomIl, countOf, removeAt } from './inv.js';
 import { BY_ID } from './data/items.js';
-import { gainXp } from './progress3d.js';
+import { gainXp, paceXp } from './progress3d.js';
 import { len } from './util3d.js';
 
 export const ACT = ACT_ALL;
@@ -109,7 +109,7 @@ function finish(W) {
   const S = W.story, c = sc(W), R = c.reward || {};
   if (c.goal.type === 'bring') for (const [id, n] of c.goal.items) { let left = n; for (let i = W.inv.bag.length - 1; i >= 0 && left > 0; i--) { const sl = W.inv.bag[i]; if (sl.id !== id) continue; const t = Math.min(left, sl.n); removeAt(W.inv, i, t); left -= t; } }     // Гедеон берёт материалы
   const items = [...(R.items || []), ...(R.heroItems && R.heroItems[W.hero] ? [[R.heroItems[W.hero], 1]] : [])];     // своё оружие герою (Акт IV)
-  if (R.xp) gainXp(W, R.xp);
+  if (R.xp) gainXp(W, paceXp(W, R.xp, 'scene'));     // темп (этап 3 «круче»)
   if (R.ash) W.inv.ash += R.ash;
   for (const [id, n] of items) { const it = BY_ID[id]; if (!it) continue; const mx = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
     if (it.slot && roomFor(W.inv, id, mx)) W.inv.bag.push(entryOf(id, 0, null, Math.max(nomIl(it), W.lv))); else if (addItem(W.inv, id, n, mx) > 0) W.drops.push({ id, n, x: W.player.x + 1, z: W.player.z, t: 0, cd: 0 });

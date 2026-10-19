@@ -1,6 +1,6 @@
 // Окно навыков: три ветки, ранги, очки, сброс за пепел; вкладка «Умения» — активные умения героя со своими очками (B3).
 import { branchesOf, TIER_STEP, spentIn, canRank } from './data/skills3d.js';
-import { spendSkill, respec, respecCost, xpNeed } from './sim.js';
+import { spendSkill, respec, respecCost, xpNeed, rankNeed } from './sim.js';
 import { combosOf } from './combos3d.js';
 import { abilityView, upgradeAbility, canUpgrade, respecAbilities, respecAbilityCost, spentAbility, resView, barOf, setBar, BAR } from './abilities3d.js';
 
@@ -55,7 +55,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   function render() {
     if (tabsHero !== W.hero) buildTabs();
     headEl.textContent = `Таланты · очков: ${W.sp} · умений: ${W.ap}`;
-    xpEl.textContent = W.lv >= cfg.level.max ? `Уровень ${W.lv} (максимум)` : `Уровень ${W.lv} · опыт ${W.xp}/${xpNeed(W.lv, cfg)}`;
+    xpEl.textContent = W.lv >= cfg.level.max ? (cfg.level.ranks && cfg.level.ranks.on ? `Уровень ${W.lv} · пепельный ранг ${W.prank || 0}` + ((W.prank || 0) < cfg.level.ranks.cap ? ` · опыт ${W.pxp || 0}/${rankNeed(cfg)}` : ' (максимум)') : `Уровень ${W.lv} (максимум)`) : `Уровень ${W.lv} · опыт ${W.xp}/${xpNeed(W.lv, cfg)}`;
     for (const t of tabsEl.children) { const b = branchesOf(W.hero).find(x => x.id === t.dataset.tab); t.classList.toggle('on', t.dataset.tab === branch); t.textContent = b ? `${b.name} · ${spentIn(W.skills, b.id)}` : `Умения · ${spentAbility(W.ab)}`; }
     listEl.textContent = '';
     if (branch === 'abil') { renderAbil(); return; }

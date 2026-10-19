@@ -14,7 +14,7 @@ import { threatPick, addThreat } from './threat3d.js';
 import { zoneAt } from './zones3d.js';
 import { lifeFresh, nodesOf, coachesOf, mountMul, mountInput, dismount, repEvents, discoverCoaches } from './life3d.js';
 import { trackPlace, reveal } from './places3d.js';
-import { addXp, gainXp } from './progress3d.js';
+import { addXp, gainXp, paceXp } from './progress3d.js';
 import { restock } from './economy3d.js';
 import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
 import { useSlot, dashStep, tickAbilities } from './abilities3d.js';
@@ -74,7 +74,7 @@ function attachFx(W) {
     slide: (e, dx, dz, r) => slide(W.map, e, dx, dz, r),
     reveal: (x, z, r) => reveal(W, x, z, r),
     quest: (type, d) => questEvent(W, type, d),
-    xp: n => gainXp(W, n),
+    xp: (n, kind) => gainXp(W, kind ? paceXp(W, n, kind) : n),     // kind 'quest' — темп (этап 3 «круче»)
     hurtP: (dmg, x, z, on, e) => hurtPlayer(W, dmg, x, z, on, e),
     hurtA: (a, dmg, e) => hurtAlly(W, a, dmg, e),
     spawn: (type, x, z) => spawnEnemy(W, type, x, z),
@@ -949,7 +949,8 @@ export function refreshGear(W) {
   W.gear = gearStats(W.inv, W.buffs, W.cfg.smith.bonus, base); W.gear.res = AG.res; W.setFx = setBonus(W.inv).fx;
   { const TM = talentMods(W.skills || {}); for (const [k, v] of Object.entries(TM.fx)) W.setFx[k] = (W.setFx[k] || 0) + v; W.talAb = TM.ab; W.talRes = TM.res; }     // таланты (этап 2): особые эффекты, усиления умений, ресурс
   W.gfx = {}; for (const id of Object.values(W.inv.eq)) { const g = id && BY_ID[id] && BY_ID[id].gold; if (g) Object.assign(W.gfx, g); }     // механики золотых вещей (G3b)
-  const p = W.player; p.maxhp = Math.max(10, W.cfg.player.hp * HM.hp + W.gear.hp); if (p.hp > p.maxhp) p.hp = p.maxhp;
+  const PR = W.cfg.level.ranks && W.cfg.level.ranks.on ? (W.prank || 0) * W.cfg.level.ranks.per : 0; if (PR) W.gear.dmg *= 1 + PR;     // пепельные ранги (этап 3 «круче»)
+  const p = W.player; p.maxhp = Math.max(10, (W.cfg.player.hp * HM.hp + W.gear.hp) * (1 + PR)); if (p.hp > p.maxhp) p.hp = p.maxhp;
 }
 
 export function step(W, dt, input = {}) {

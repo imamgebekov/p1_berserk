@@ -38,9 +38,17 @@ R('alch_rage', 'p_rage', 1, [['m_tallow', 1], ['m_amber', 1], ['m_ash_salt', 2]]
 R('alch_skin', 'p_skin', 1, [['m_ore', 2], ['m_grave_moss', 2], ['m_amber', 1]], 22, null, 'Рудная пыль ложится на кожу камнем.');
 R('lt_sinew', 'm_tempered_sinew', 1, [['m_sinew', 2], ['m_tallow', 1]], 4, null, 'Жила, вываренная в жиру, тянется и не рвётся.');
 R('lt_pelt', 'a_cloak_pelt_black', 1, [['m_beast_hide', 4], ['m_black_resin', 1], ['m_tempered_sinew', 1]], 60, null, 'Плащ из шкур, пропитанных чёрной смолой.');
+// мастера ремесла (этап 3 «круче»): навык 110–140 — дело для высоких уровней (раньше после 100 нечего было учить)
+R('smith_bigalloy', 'm_ash_alloy', 3, [['m_steel_ingot', 5], ['m_ash_salt', 5], ['m_soot', 2]], 70, null, 'Большая плавка: три слитка сплава за раз.');
+R('smith_ashcloak', 'a_cloak_cloak_ash', 1, [['m_ash_alloy', 3], ['m_silver_thread', 2], ['m_black_resin', 2]], 400, null, 'Плащ, сплетённый с пепельным сплавом.');
+R('alch_elixir2', 'p_elixir', 2, [['m_amber', 2], ['m_grave_moss', 5], ['m_ash_salt', 3]], 90, null, 'Двойной эликсир жизни — рука мастера.');
+R('alch_stone', 'p_skin', 3, [['m_ore', 4], ['m_grave_moss', 3], ['m_amber', 2]], 70, null, 'Каменная кожа впрок: три склянки.');
+R('lt_ashpelt', 'a_cloak_pelt_ash', 1, [['m_beast_hide', 6], ['m_black_resin', 2], ['m_tempered_sinew', 2], ['m_ash_salt', 2]], 300, null, 'Шкура, вымоченная в пепле и смоле.');
+R('lt_ashcape', 'a_cloak_cape_ash', 1, [['m_beast_hide', 5], ['m_silver_thread', 2], ['m_tempered_sinew', 3]], 360, null, 'Лёгкая накидка мастера-кожевника.');
 // ремесло prof и требование навыка skill (этап 6): по виду рецепта
 const SKILL = [[/^ingot$/, 0], [/^steel$/, 10], [/_tempered$/, 20], [/^w_.*_steel$/, 35], [/^alloy$/, 45], [/_black$/, 55], [/^wu_/, 70], [/^as_/, 70], [/^gild_/, 100],
   [/^antidote$/, 10], [/^salve$/, 25], [/^elixir$/, 100], [/^alch_heal1$/, 0], [/^alch_heal2$/, 30], [/^alch_haste$/, 45], [/^alch_heal3$/, 65], [/^alch_rage$/, 70], [/^alch_skin$/, 85],
+  [/^smith_bigalloy$/, 120], [/^smith_ashcloak$/, 140], [/^alch_elixir2$/, 110], [/^alch_stone$/, 130], [/^lt_ashpelt$/, 110], [/^lt_ashcape$/, 140],
   [/hood_leather$/, 0], [/shoes_leather$/, 5], [/cape_leather$/, 10], [/^lt_sinew$/, 15], [/jerkin_leather$/, 20], [/^lt_pelt$/, 70]];
 for (const r of RECIPES) {
   r.prof = /^(antidote|salve|elixir|alch_)/.test(r.id) ? 'alch' : /(_leather$|^lt_)/.test(r.id) ? 'leather' : 'smith';

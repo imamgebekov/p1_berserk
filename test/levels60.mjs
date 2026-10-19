@@ -4,7 +4,9 @@
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, mulberry32, spawnEnemy, killEnemy, step, refreshGear, buyItem } from '../3d/src/sim.js';
 import { levelOfDepth, pointAtDepth, levelAt } from '../3d/src/levels3d.js';
-import { gainXp } from '../3d/src/progress3d.js';
+import { gainXp, paceXp, greyMul, xpNeed, rankNeed } from '../3d/src/progress3d.js';
+import { QUESTS } from '../3d/src/data/quests3d.js';
+import { ACT1, ACT2, ACT3, ACT4 } from '../3d/src/data/story3d.js';
 import { BY_ID } from '../3d/src/data/items.js';
 import { createInv, equipAt, unequip, serialize, deserialize, gearStats, ilMul, nomIl, scoreUp } from '../3d/src/inv.js';
 
@@ -37,5 +39,27 @@ const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count =
   const W2 = mk(); W2.lv = 33; W2.nearMerchant = true; W2.inv.ash = 1e6; const i = W2.shop.stock.findIndex(s => BY_ID[s.id].slot && BY_ID[s.id].stats);
   ok(i >= 0 && buyItem(W2, i) === 'ok' && W2.inv.bag.some(s => BY_ID[s.id].slot && s.il === Math.max(33, nomIl(BY_ID[s.id]))), 'у торговца вещь не уровня героя'); }
 
+// темп (этап 3 «круче»): 60-й уровень — к концу Акта IV. Модель прохождения: сцены по порядку, разовые задания поровну между
+// ними, 10/25/40 убийств врагов уровня сцены на сцену (по 3,5% нужного опыта, «серые» — меньше). Уровень к концу акта — в коридоре.
+{ const A = [ACT1, ACT2, ACT3, ACT4].flat(), Q = QUESTS.filter(q => !q.repeat), L = CFG3.level;
+  const play = (kills, cfg = CFG3) => { const W = { cfg, lv: 1, story: { i: 0 } }; let xp = 0, qi = 0; const ends = {};
+    const gain = n => { if (W.lv >= L.max) return; xp += n; while (W.lv < L.max && xp >= xpNeed(W.lv, cfg)) { xp -= xpNeed(W.lv, cfg); W.lv++; } };
+    A.forEach((c, i) => { W.story.i = i; while (qi < Math.round((i + 1) * Q.length / A.length)) gain(paceXp(W, (Q[qi++].reward || {}).xp || 0, 'quest'));
+      for (let k = 0; k < kills; k++) gain(Math.round(.035 * xpNeed(c.lv, cfg) * greyMul(W, c.lv)));
+      gain(paceXp(W, (c.reward || {}).xp || 0, 'scene')); ends[c.act] = W.lv; });
+    return ends; };
+  for (const k of [10, 25, 40]) { const e = play(k); console.log(`темп (${k} убийств на сцену): к концу актов уровни ${[1, 2, 3, 4].map(a => e[a]).join(' / ')}`);
+    ok(e[1] >= 16 && e[1] <= 26 && e[2] >= 32 && e[2] <= 42 && e[3] >= 43 && e[3] <= 52 && e[4] === 60, `темп при ${k} убийствах: ${JSON.stringify(e)}`); }
+  const old = play(25, { ...CFG3, level: { ...L, pace: { ...L.pace, on: false } } }); ok(old[2] === 60, 'выключено — темп не как раньше (60 к Акту II): ' + JSON.stringify(old));
+  const W = { cfg: CFG3, lv: 40, story: { i: A.findIndex(c => c.lv >= 40) } }; ok(paceXp(W, 9000, 'quest') <= Math.round(L.pace.fq * xpNeed(40, CFG3)) && paceXp(W, 30, 'quest') === 30, 'потолок награды за задание не работает');
+  const ahead = { ...W, lv: 40, story: { i: A.findIndex(c => c.lv >= 30) } }; ok(paceXp(ahead, 9000, 'quest') < paceXp(W, 9000, 'quest') * .5, 'обогнал сюжет — награда не меньше');
+  ok(greyMul(W, 40) === 1 && greyMul(W, 39) === 1 && greyMul(W, 38) < 1 && greyMul(W, 10) === L.pace.min, '«серые» враги: ' + [40, 39, 38, 10].map(x => greyMul(W, x).toFixed(2))); }
+// пепельные ранги (этап 3 «круче»): опыт на 60-м — в ранги до cap; ранг даёт урон и здоровье; ранг сохраняется
+{ const W = createWorld(JSON.parse(JSON.stringify(CFG3)), mulberry32(3)), R = CFG3.level.ranks; W.lv = CFG3.level.max; refreshGear(W); const hp0 = W.player.maxhp, d0 = W.gear.dmg;
+  gainXp(W, rankNeed(CFG3) * 2 + 5); ok(W.prank === 2 && W.ev.filter(v => v.k === 'prank').length === 2, 'нет пепельных рангов: ' + W.prank);
+  ok(Math.abs(W.player.maxhp - hp0 * (1 + 2 * R.per)) < .01 && W.gear.dmg > d0, `ранги не дают силы: здоровье ${hp0}→${W.player.maxhp}, урон ${d0}→${W.gear.dmg}`);
+  gainXp(W, rankNeed(CFG3) * (R.cap + 10)); ok(W.prank === R.cap, 'ранг выше предела: ' + W.prank);
+  const { createSaver, loadSave } = await import('../3d/src/save3d.js'), st = { o: {}, getItem(k) { return this.o[k] ?? null; }, setItem(k, v) { this.o[k] = v; }, removeItem(k) { delete this.o[k]; } };
+  createSaver(W, st).write(true); const back = loadSave(['thorn'], st); ok(back && back.prog.prank === R.cap, 'пепельный ранг не сохранился'); }
 if (fails.length) { console.error('Уровни до 60: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
 console.log('Уровни до 60 3D: OK');

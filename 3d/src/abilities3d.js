@@ -1,6 +1,6 @@
 // Активные умения (B3): очки умений, ранги, перезарядки и действия. Действия собраны из того, что уже есть в бою:
 // удар по врагу (abilityHit), статусы (страх, оглушение), баффы (броня), рывок (состояние героя 'dash').
-import { ABILITIES, rankLvs, abilityPointsAt, rankIdx } from './data/abilities3d.js';
+import { ABILITIES, rankLvs, abilityPointsAt, rankIdx, withMastery } from './data/abilities3d.js';
 import { abilityHit, abilityArrow } from './sim.js';
 import { lineBlocked, insideOf, resolve } from './map.js';
 import { applyStatus } from './status3d.js';
@@ -10,7 +10,7 @@ import { comboFor, boosted, noteAbility } from './combos3d.js';
 import { withTalents } from './data/skills3d.js';
 
 export const heroAbilities = W => ABILITIES[W.hero] || [];
-const cfgOf = (W, id) => (W.cfg.abilities[W.hero] || {})[id];
+const cfgOf = (W, id) => withMastery((W.cfg.abilities[W.hero] || {})[id]);     // 4-й ранг — мастерство (этап 3 «круче»)
 export const unlockLv = (W, i) => rankLvs(W.cfg, i)[0];
 // очков умений к уровню lv: по одному за каждый наступивший уровень ранга (abilities.ranks)
 export const abilityPoints = (lv, cfg) => abilityPointsAt(lv, cfg);

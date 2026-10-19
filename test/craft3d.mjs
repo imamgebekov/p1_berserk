@@ -29,7 +29,7 @@ for (const r of RECIPES) { ok(obtainable(r.result.id), 'результат не�
 for (const i of CATALOG.filter(i => /^(as_|wu_)/.test(i.id))) { const s = sourcesOf(i.id); ok(!s.containers.length && !s.drops.length && !s.bosses.length && !s.shop && s.craft.length === 1, `именная вещь ${i.id} добывается не только крафтом: ` + JSON.stringify(s)); }
 for (const t of ['m_devourer_heart', 'm_eclipse_cloak', 'm_chief_fang']) { const s = sourcesOf(t); ok(s.bosses.length === 1 && !s.containers.length && !s.shop, 'трофей только с одного босса: ' + t); }
 for (const t of TOMES.filter(t => /^(set|blades)_/.test(t.id))) { const s = sourcesOf('tome_' + t.id); ok(s.bosses.length === 1 && !s.containers.length && !s.shop, 'книга босса только с него: ' + t.id); }
-ok(sourcesOf('m_ash_alloy').craft.length === 1 && !direct('m_ash_alloy'), 'сплав только крафтом');
+ok(sourcesOf('m_ash_alloy').craft.length >= 1 && !direct('m_ash_alloy'), 'сплав только крафтом');     // этап 3 «круче»: и большая плавка мастера
 // порядок и цены: трофеи в рецептах не дороже 2 на вещь; на сет нужно разумное число убийств
 for (const r of RECIPES) for (const [m, n] of r.mats) if (/devourer_heart|eclipse_cloak|chief_fang/.test(m)) ok(n <= 2, 'слишком много трофеев в ' + r.id);
 const need = t => RECIPES.filter(r => r.needs === t).reduce((a, r) => a + r.mats.filter(([m]) => /heart|cloak|fang/.test(m)).reduce((x, [, n]) => x + n, 0), 0);

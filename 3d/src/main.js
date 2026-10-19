@@ -21,7 +21,7 @@ import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal,
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView, resView, barOf } from './abilities3d.js';
 import { createFeel, unlocksAt } from './feel3d.js';
-import { ABILITIES } from './data/abilities3d.js';
+import { ABILITIES, abilityPointsAt } from './data/abilities3d.js';
 import { weaponSkillView } from './weaponskill3d.js';
 import { comboReady } from './combos3d.js';
 import { ELEMENT_COLOR } from './elements3d.js';
@@ -193,8 +193,8 @@ const P = loadPrefs();
 const feel = createFeel(cfg), feelFlash = $('feelFlash'), feelVig = $('feelVig'), streakEl = $('streak'), lvlCard = $('lvlCard');     // ощущение боя (этап 1 «круче»)
 let lvlCardT = 0, lastFk = null, feelPeak = { scale: 1, flash: 0, zoom: 0 };     // feelPeak — сильнейший отклик с прошлого опроса (для тестов)
 function showLevelCard(lv) {                                                    // карточка «Новый уровень»: что открылось
-  const u = unlocksAt(lv, cfg, ABILITIES[W.hero] || []), lines = u.map(x => x.kind === 'ability' ? `Новое умение: ${x.name}` : x.kind === 'rank' ? `${x.name}: ранг ${x.rank}` : `Отряд: до ${x.n} бойцов`);
-  lines.push('Очко навыков' + (cfg.abilities.ranks.flat().includes(lv) ? ' и очко умений' : ''));
+  const u = unlocksAt(lv, cfg, ABILITIES[W.hero] || []), lines = u.map(x => x.kind === 'ability' ? `Новое умение: ${x.name}` : x.kind === 'rank' ? (x.rank === 4 ? `Мастерство: ${x.name}` : `${x.name}: ранг ${x.rank}`) : `Отряд: до ${x.n} бойцов`);
+  lines.push('Очко навыков' + (abilityPointsAt(lv, cfg) > abilityPointsAt(lv - 1, cfg) ? ' и очко умений' : ''));
   lvlCard.textContent = ''; const t = document.createElement('div'); t.className = 't'; t.textContent = `Уровень ${lv}`; const box = document.createElement('div'); box.className = 'u';
   for (const l of lines) { const d = document.createElement('div'); d.textContent = l; box.append(d); }
   lvlCard.append(t, box); lvlCard.hidden = false; lvlCard.style.animation = 'none'; void lvlCard.offsetWidth; lvlCard.style.animation = ''; lvlCardT = 3.2;
@@ -266,7 +266,8 @@ function onEvent(v) {
   else if (v.k === 'bossInterrupt') { toast(`Чтение сбито: ${v.name} оглушён`, '', '#ffd27a'); sfx('block'); }
   else if (v.k === 'squadCmd') toast(v.auto ? 'Отряд снова идёт за вами' : v.cmd === 'hold' ? 'Отряд: держим здесь' : v.cmd === 'assist' ? 'Отряд: бьём вашу цель' : 'Отряд: за мной');
   else if (v.k === 'hire') toast(`${v.name} теперь с вами`, 'sys');
-  else if (v.k === 'level') showLevelCard(v.lv);     // карточка вместо тоста (этап 1 «круче»)
+  else if (v.k === 'level') showLevelCard(v.lv);
+  else if (v.k === 'prank') toast(`Пепельный ранг ${v.n}: +${(v.n * cfg.level.ranks.per * 100).toFixed(1)}% к урону и здоровью`, '', '#ffb060', 'fire');     // этап 3 «круче»     // карточка вместо тоста (этап 1 «круче»)
   else if (v.k === 'xp') onText(v.x, 3, v.z, '+' + v.n + ' оп.', 'xp');
 }
 // вход в зону (этап 1): крупная надпись с поясом уровней; на поверхности, при смене зоны

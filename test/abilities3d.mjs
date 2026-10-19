@@ -31,7 +31,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   const c = clone(); c.enemies.count = 0; c.map.places = []; const W = createWorld(c, mulberry32(2)); W.hero = 'thorn';
   gainXp(W, 1e3); const lv = W.lv; ok(W.ap === abilityPoints(lv, c) && abilityPoints(2, c) === 0 && abilityPoints(3, c) === 1 && abilityPoints(4, c) === 2, `очков умений ${W.ap} на уровне ${lv}`);
   for (let i = 0; i < 2000 && W.lv < 60; i++) gainXp(W, 1e5);
-  ok(W.lv === 60 && W.ap === 24 && W.sp === 59, `на 60-м уровне умений ${W.ap} (все ранги — 24), навыков ${W.sp}`);     // уровни до 60 (этап 0): очков умений не больше всех рангов
+  ok(W.lv === 60 && W.ap === 24 + CFG3.abilities.mastery.lv.length && W.sp === 59, `на 60-м уровне умений ${W.ap} (все ранги — 24 + мастерство 8), навыков ${W.sp}`);     // уровни до 60 (этап 0): очков умений не больше всех рангов
 }
 // ---------- 2. открытие, ранги, перезарядка ----------
 {
@@ -39,12 +39,13 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   const W = mk(7);
   ok(useAbility(W, 0) === 'rank', 'невкачанное умение сработало');
   max(W, 'charge'); ok(W.ab.charge === 2 && canUpgrade(W, 'charge') === 'lvl' && W.ap === abilityPoints(7, CFG3) - 2, `на 7-м уровне рывок ранга ${W.ab.charge} (нужно 2: уровни 3, 7)`);
-  { const N = mk(11); max(N, 'charge'); ok(N.ab.charge === 3 && canUpgrade(N, 'charge') === 'max' && upgradeAbility(N, 'cry') === 'ok', `на 11-м уровне рывок ${N.ab.charge} (уровни рангов 3, 7, 11), очко — в клич`); }
-  { const M = mk(30); max(M, 'charge'); max(M, 'blood'); ok(M.ab.charge === 3 && canUpgrade(M, 'charge') === 'max' && M.ab.blood === 3 && canUpgrade(M, 'blood') === 'max', 'ранги не 3 у первого или последнего умения'); }
+  { const N = mk(11); max(N, 'charge'); ok(N.ab.charge === 3 && canUpgrade(N, 'charge') === 'lvl' && upgradeAbility(N, 'cry') === 'ok', `на 11-м уровне рывок ${N.ab.charge} (уровни рангов 3, 7, 11), очко — в клич`); }
+  { const M = mk(30); max(M, 'charge'); max(M, 'blood'); ok(M.ab.charge === 3 && canUpgrade(M, 'charge') === 'lvl' && M.ab.blood === 3 && canUpgrade(M, 'blood') === 'lvl', 'на 30-м не 3 ранга или мастерство уже доступно'); }
+  { const M = mk(54); max(M, 'charge'); max(M, 'blood'); ok(M.ab.charge === 4 && canUpgrade(M, 'charge') === 'max' && M.ab.blood === 4 && canUpgrade(M, 'blood') === 'max', 'на 54-м нет мастерства (4-го ранга)'); }     // этап 3 «круче»
   ok(useAbility(W, 0) === 'ok' && useAbility(W, 0) !== 'ok', 'рывок сработал дважды подряд');
   { const V = mk(); upgradeAbility(V, 'whirl'); ok(useAbility(V, 2) === 'ok' && useAbility(V, 2) === 'cd' && V.acd.whirl === T.whirl.cd[0], 'нет перезарядки'); }
   run(W, T.charge.cd[1] + .3); ok(useAbility(W, 0) === 'ok', 'перезарядка не прошла');     // ранг 2 — перезарядка второго ранга
-  const v = abilityView(W); ok(v.length === 8 && v[0].rank === 2 && v[0].nextLv === 11 && !v[2].open && v[0].cdMax === T.charge.cd[1] && v[7].max === 3, 'вид умений для интерфейса не тот');
+  const v = abilityView(W); ok(v.length === 8 && v[0].rank === 2 && v[0].nextLv === 11 && !v[2].open && v[0].cdMax === T.charge.cd[1] && v[7].max === 4, 'вид умений для интерфейса не тот');
 }
 // ---------- 3. рывок ----------
 {
@@ -170,5 +171,9 @@ const st = (e, k) => !!(e.st && e.st[k] && e.st[k].t > 0);
 { const W = mkV(); max(W, 'fan'); const e = foe(W, 0, 5); W.player.face = 0; still(W); useAbility(W, 5); run(W, .8); ok(st(e, 'bleed') && e.hp < e.maxhp, 'веер ножей: нет кровотечения'); }
 { const W = mkV(); max(W, 'smoke'); const e = foe(W, 0, 4); e.alert = true; e.cd = 0; useAbility(W, 6); ok(!e.alert && W.abuf.smoke > 0 && W.buffs.some(b => b.src === 'smoke'), 'дымовая завеса: враг не потерял героя или нет скорости'); }
 { const W = mkV(); max(W, 'bloodlet'); const a = foe(W, 1.5, 0), c = foe(W, 9, 0); still(W); ok(useAbility(W, 7) === 'ok' && st(a, 'bleed') && !st(c, 'bleed'), 'кровопускание: не по кругу'); ok(useAbility(mkV(), 7) !== 'ok', 'кровопускание без врагов сработало'); }
+{ const { withMastery, abilityPointsAt } = await import('../3d/src/data/abilities3d.js'); const A = withMastery(CFG3.abilities.thorn.charge);
+  ok(A.cd.length === 4 && A.cd[3] < A.cd[2] && A.cd[3] >= A.cd[2] * .8 - 1e-9, 'мастерство: перезарядка не короче: ' + A.cd);
+  const num = Object.entries(CFG3.abilities.thorn.charge).find(([k, v]) => k !== 'cd' && Array.isArray(v) && v.length === 3 && v[2] > v[1]); ok(!num || A[num[0]][3] > A[num[0]][2], 'мастерство: сила не растёт');
+  ok(abilityPointsAt(33, CFG3) === abilityPointsAt(32, CFG3) + 1 && abilityPointsAt(31, CFG3) === abilityPointsAt(30, CFG3), 'очко мастерства не на 33-м'); }
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Умения 3D: OK');
