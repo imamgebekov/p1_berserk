@@ -193,7 +193,9 @@ try {
     // удержание: заряд (кольцо под героем), отпускание — тяжёлый удар
     { const b = await (await page.$('#bAtk')).boundingBox(); const cdp3 = await ctx.newCDPSession(page);
       const hp0 = await page.evaluate(() => window.__b3d.W.__foe.hp);
-      await cdp3.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + 20, y: b.y + 20, id: 3 }] }); await page.waitForTimeout(1500);
+      const t0 = await page.evaluate(() => window.__b3d.W.t);
+      await cdp3.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + 20, y: b.y + 20, id: 3 }] });
+      await page.waitForFunction(t0 => window.__b3d.W.t - t0 > 1.6, t0, { timeout: 8000 }).catch(() => {});     // заряд — в игровом времени: при 12 кадр/с 1,5 с реальных — меньше секунды игры
       const st = await page.evaluate(() => window.__b3d.W.player.state); await page.screenshot({ path: join(out, '3d-charge.png') });
       await cdp3.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(150);
       const hv = await page.evaluate(() => window.__b3d.W.player.heavy); await page.waitForTimeout(700);
@@ -364,7 +366,7 @@ try {
 
   // смерть и возрождение
   await page.evaluate(() => { const p = window.__b3d.W.player; p.inv = 0; p.hp = 1; window.__b3d.W.inv.eq = { weapon: null, head: null, body: null, cloak: null, boots: null, ring: null, amulet: null }; window.__b3d.W.inv.up = {}; window.__b3d.W.enemies.push({ id: 1000, type: 'brute', x: p.x + .5, z: p.z, vx: 0, vz: 0, hp: 50, maxhp: 50, face: 0, state: 'wind', t: .99, cd: 0, flash: 0, dead: false, deadT: 0, hitMe: false }); });
-  await page.waitForTimeout(2200);
+  await page.waitForFunction(() => !document.getElementById('dead').hidden, null, { timeout: 8000 }).catch(() => {});     // экран ждёт 0,9 с игры — при 12 кадр/с дольше
   if (await page.evaluate(() => document.getElementById('dead').hidden)) bad('экран смерти не показан');
   else { await page.screenshot({ path: join(out, '3d-dead.png') }); await page.tap('#again'); if (await page.evaluate(() => window.__b3d.W.player.dead)) bad('не возродился'); }
 

@@ -116,13 +116,13 @@ function fieldFight(def, seed, party) {
 { const W = mk(30, c => { c.bosses.list = []; }); W.player.inv = 1e9; W.player.x = 60; W.player.z = 40;
   const t = spawnEnemy(W, 'troll', 80, 40); t.hp = t.maxhp * .5; t.cd = 99; t.alert = false; for (let i = 0; i < 300; i++) step(W, 1 / 60, {}); ok(t.hp > t.maxhp * .55, 'тролль не зарастает');
   const s2 = spawnEnemy(W, 'shrieker', 90, 60), g = spawnEnemy(W, 'brute', 92, 60); s2.alert = true; g.hp = g.maxhp * .3; g.cd = 99; const h0 = g.hp; for (let i = 0; i < 300; i++) step(W, 1 / 60, {}); ok(g.hp > h0 + g.maxhp * .1, 'кликуша не лечит своих'); }
-const N = Number(process.env.INST_N || 4);
-for (const d of SCENE) {
+const N = Number(process.env.INST_N ?? 4);     // INST_N=0 — без боёв ботом (быстрый набор npm test); бои — в test:slow
+for (const d of N ? SCENE : []) {
   let wp = 0, ws = 0; for (let s2 = 0; s2 < N; s2++) { wp += fieldFight(d, s2, true).win ? 1 : 0; ws += fieldFight(d, s2, false).win ? 1 : 0; }
   console.log(`${CFG3.enemies[d.type].name} (сцена)`.padEnd(24), `с отрядом побед ${(wp / N * 100).toFixed(0)}%, в одиночку ${(ws / N * 100).toFixed(0)}%`);
   ok(wp / N >= .5, `${d.type}: отряд побеждает босса сцены реже половины боёв`);
 }
-for (const b of BL) {
+for (const b of N ? BL : []) {
   let wp = 0, ws = 0, tp = 0; for (let s = 0; s < N; s++) { const r = fight(b, s, true); wp += r.win ? 1 : 0; tp += r.t; const q = fight(b, s, false); ws += q.win ? 1 : 0; }
   console.log(`${CFG3.enemies[b.type].name}`.padEnd(24), `с отрядом побед ${(wp / N * 100).toFixed(0)}% (${(tp / N).toFixed(0)} с), в одиночку ${(ws / N * 100).toFixed(0)}%`);
   ok(wp / N >= .5, `${b.type}: отряд уровня подземелья побеждает реже половины боёв`); ok(ws <= wp, `${b.type}: в одиночку легче, чем с отрядом`);

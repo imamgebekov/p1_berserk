@@ -478,3 +478,5 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 .craftb{min-height:40px;margin-top:6px;padding:0 14px;border-radius:8px;border:2px solid #6a4a2a;background:#2a1b1a;color:#f0e6d4;font-weight:700}.craftb:disabled{opacity:.5}
 .repbar{height:8px;margin:6px 0;border-radius:4px;background:rgba(0,0,0,.5);overflow:hidden}.repbar i{display:block;height:100%;background:linear-gradient(90deg,#a8822a,#ffd27a);transform-origin:left}
 .rewl{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;margin-top:4px}
+/* телефон: пара расходников (2 к 1) — на две клетки, чтобы каждая половина была не уже 40 px под палец; места считаются как прежде */
+html:not([data-desk]) .pair{grid-column:span 2;aspect-ratio:2}

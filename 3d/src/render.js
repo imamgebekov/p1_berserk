@@ -988,8 +988,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
     // события боя → эффекты и подписи (подписи отдаёт hooks.onText)
     for (const v of W.ev) {
+      hooks.onEvent && hooks.onEvent(v);     // интерфейс (сообщения, звук, экран смерти) — всегда, даже вне кадра
       if (v.x !== undefined && v.z !== undefined && !inView(v.x, 1 + Y(v.x, v.z), v.z, (v.r || 2) + 4)) continue;     // событие вне кадра — без частиц, вспышек и цифр
-      hooks.onEvent && hooks.onEvent(v);
       if (v.k === 'hit') { hitFx(v, p); hooks.onText && hooks.onText(v.x, 2, v.z, String(v.dmg) + (v.crit ? '!' : ''), v.crit ? 'crit' : v.fin ? 'fin' : ''); }
       else if (v.k === 'die') dieFx(v, p);
       else if (v.k === 'hurt') { burst(v.x, 1.2, v.z, 10, '#c0222c'); fx.decal(v.x + (Math.random() - .5), v.z + (Math.random() - .5), .4, BLOOD); hero.hurtT = HURT_T; hooks.onText && hooks.onText(v.x, 2.4, v.z, '−' + v.dmg, 'hurt'); hooks.onHurt && hooks.onHurt(); }

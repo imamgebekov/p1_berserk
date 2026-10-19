@@ -42,8 +42,10 @@ try {
     await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 12; W.inv.ash = 555; });
     await pg.keyboard.press('Escape'); await pg.waitForTimeout(300); await pg.click('#heroSwitch'); await pg.waitForTimeout(300);
     await pg.keyboard.press('Digit1'); await pg.waitForTimeout(300);
-    const sw = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash }));
-    if (sw.hero !== 'thorn' || sw.lv !== 12 || sw.ash !== 555) bad('Мак: смена героя потеряла прогресс: ' + JSON.stringify(sw));
+    const sw = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash }));     // у каждого героя свой уровень (решение владельца 2026-10-18), пепел общий
+    if (sw.hero !== 'thorn' || sw.lv !== 1 || sw.ash !== 555) bad('Мак: смена героя — у нового героя не свой уровень или пропал пепел: ' + JSON.stringify(sw));
+    const kept = await pg.evaluate(() => (window.__b3d.W.heroes.jay || {}).lv);
+    if (kept !== 12) bad('Мак: уровень Сойки не сохранился за ней: ' + kept);
     // умение по клавише 1
     await pg.evaluate(() => { const W = window.__b3d.W; W.ap = 3; W.ab = { charge: 1 }; W.acd = {}; W.resHero = W.hero; W.res = 100; });
     await pg.keyboard.press('Digit1');

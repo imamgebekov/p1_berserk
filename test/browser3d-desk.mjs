@@ -103,7 +103,7 @@ try {
     await ev(k => { const W = window.__b3d.W; W.event = null; W.allies = W.allies.filter(a => !a.guest); W.cfg.events.kinds = { [k]: 1 }; W.evT = 0; }, kind);
     await page.waitForFunction(() => !!window.__b3d.W.event, null, { timeout: 4000 }).catch(() => bad('не стартовало событие ' + kind));
     await ev(() => { const W = window.__b3d.W, g = W.allies.find(a => a.id === W.event.guest); W.player.x = g.x + 6; W.player.z = g.z + 6; });
-    await page.waitForTimeout(600);
+    await page.waitForFunction(re => new RegExp(re, 'i').test(document.getElementById('tracker').textContent), kind === 'caravan' ? 'обоз' : 'путник', { timeout: 4000 }).catch(() => {});     // строка обновляется по кадрам
     const line = await ev(() => document.getElementById('tracker').textContent);
     if (!(kind === 'caravan' ? /обоз/i : /путник/i).test(line)) bad(`нет строки события ${kind}: ${line}`);
     const ov = await ev(() => { const a = document.getElementById('tracker').getBoundingClientRect(), b = document.getElementById('miniBtn').getBoundingClientRect(); return a.top < b.bottom && a.bottom > b.top && a.left < b.right && a.right > b.left; });
@@ -198,7 +198,8 @@ try {
   await page.keyboard.press('Escape'); await page.waitForTimeout(200); await page.locator('#heroSwitch').click(); await page.waitForTimeout(200);
   await page.keyboard.press('Digit2'); await page.waitForTimeout(300);
   const sw = await ev(() => ({ hero: window.__b3d.W.hero, lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash, panel: window.__b3d.ui().panelOpen }));
-  if (sw.hero !== 'vale' || sw.lv !== 30 || sw.ash !== 4321 || sw.panel) bad('смена героя потеряла прогресс: ' + JSON.stringify(sw));
+  if (sw.hero !== 'vale' || sw.lv !== 1 || sw.ash !== 4321 || sw.panel || (await ev(() => (window.__b3d.W.heroes.thorn || {}).lv)) !== 30) bad('смена героя: у Вейла не свой уровень, пропал пепел или уровень Торна не сохранён: ' + JSON.stringify(sw));     // у каждого героя свой уровень (2026-10-18)
+  await ev(() => { window.__b3d.W.lv = 30; });     // дальше проверки умений Вейла на 30-м уровне
   // окна не выходят за экран (высота в пикселях под zoom)
   await page.keyboard.press('KeyI'); await page.waitForTimeout(250);
   const fitBag = await ev(() => { const r = document.querySelector('#bag .pbox').getBoundingClientRect(); return r.bottom <= innerHeight + 1 && r.top >= 0; });
@@ -226,10 +227,10 @@ try {
   { const s = await ev(() => window.__b3d.renderer.sun()); if (!s || !s.on || !(s.op > 0)) bad('нет света сквозь облака: ' + JSON.stringify(s)); else console.log('  свет: ' + JSON.stringify(s)); }
   // ветер (F2): при сильном ветре трава и кроны двигаются — между кадрами меняется заметно больше точек, чем в тишь
   { const grab = () => ev(() => { const c = document.getElementById('gl'), g = document.createElement('canvas'); g.width = c.width; g.height = c.height; const x = g.getContext('2d'); x.drawImage(c, 0, 0); return Array.from(x.getImageData(0, 0, g.width, g.height).data.filter((_, i) => i % 4 === 1)); });
-    await ev(() => { const b = window.__b3d, W = b.W; b.cfg.sunlight.wind = [0, 0]; W.enemies.length = 0; W.player.x = 20; W.player.z = 40; }); await page.waitForTimeout(2500);     // камера доехала
+    await ev(() => { const b = window.__b3d, W = b.W; b.cfg.sunlight.wind = [0, 0]; W.enemies.length = 0; W.player.x = 20; W.player.z = 40; }); await page.waitForTimeout(5000);     // камера доехала (при 12 кадр/с — дольше)
     const moved = async (s) => { await ev(s => { const C = window.__b3d.cfg.wind; C.calm = C.breeze = s; C.gust = 0; window.__b3d.W.enemies.length = 0; }, s);
       await page.waitForTimeout(600); const a = await grab(); await page.waitForTimeout(450); const b2 = await grab(); let n = 0; for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b2[i]) > 6) n++; return n / a.length; };
-    const still = await moved(0), windy = await moved(1);
+    const still = Math.min(await moved(0), await moved(0)), windy = await moved(1);     // тишь — меньшее из двух: камера могла ещё доезжать
     if (!(windy > still + .004)) bad(`ветер не двигает траву и кроны: ${windy.toFixed(4)} против ${still.toFixed(4)} в тишь`);
     console.log('  ветер: ' + JSON.stringify({ still: still.toFixed(4), windy: windy.toFixed(4), rustle: (await ev(() => window.__b3d.renderer.treesNear(20, 40))).toFixed(2) }));
     await ev(c => { Object.assign(window.__b3d.cfg.wind, c.w); window.__b3d.cfg.sunlight.wind = c.s; }, { w: { calm: .06, breeze: .55, gust: .45 }, s: [.6, .25] }); }
@@ -343,7 +344,7 @@ try {
     await page.keyboard.press('KeyR'); await page.waitForTimeout(200); if (await shown('journal')) bad('R не закрыл книгу');
     await ev(() => { const { W, smith } = window.__b3d; W.nearNpc = 'smith'; W.path.slain.devourer = true; smith.open(); });
     await page.click('#smithTabs button[data-tab="gems"]'); await page.waitForTimeout(150);
-    await page.locator('#smithList .sock').first().click(); await page.waitForTimeout(100); await page.locator('#smithList .pickg').first().click(); await page.waitForTimeout(150);
+    await page.locator('#smithList .sock').first().click(); await page.waitForTimeout(100); await page.locator('#smithList .gemopt').first().click(); await page.waitForTimeout(150);
     const g = await ev(() => ({ gem: (window.__b3d.W.inv.gem.weapon || [])[0], mix: window.__b3d.W.wp.mix, line: document.querySelector('#smithList .gemrow .sub').textContent }));
     if (g.gem !== 'gem_water_1' || !/Грозовой поток/.test(g.line)) bad('камень не встал в гнездо у кузнеца: ' + JSON.stringify(g));
     await page.screenshot({ path: join(out, '3d-desk-smith-gems.png') });
@@ -425,7 +426,8 @@ try {
     const j = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, w: window.__b3d.W.inv.eq.weapon }));
     if (j.hero !== 'jay' || j.w !== 'w_bow_rust') bad('Сойка не выбрана или без лука: ' + JSON.stringify(j));
     const hp = await pg.evaluate(() => { const b = window.__b3d, W = b.W, p = W.player; p.inv = 1e9; p.x = 0; p.z = 4; p.face = 0; W.enemies.forEach(e => { e.dead = true; }); const e = b.spawn('brute', 0, 13); e.hp = e.maxhp = 5000; e.cd = 99; return e.hp; });
-    await pg.mouse.click(720, 450);
+    await pg.waitForTimeout(600); const at = await pg.evaluate(() => { const b = window.__b3d, e = b.W.enemies.find(q => !q.dead && q.maxhp === 5000); return b.renderer.project(e.x, 1, e.z); });     // прицел курсором (шаг 4): кликаем по врагу
+    await pg.mouse.click(at.x, at.y);
     const fly = await pg.waitForFunction(() => window.__b3d.W.proj.some(q => q.friendly) || window.__b3d.W.enemies.some(e => !e.dead && e.maxhp === 5000 && e.hp < 5000), null, { timeout: 3000 }).then(() => true, () => false);     // быстрая стрела может долететь раньше проверки
     await pg.screenshot({ path: join(out, '3d-desk-jay-shot.png') });
     await pg.waitForTimeout(900);
@@ -496,7 +498,7 @@ try {
     await until('опыт|навыки', 'костёр не засчитан');
     await pf.evaluate(() => { const W = window.__b3d.W; W.skills = { ...W.skills, warcry: 1 }; });
     const toast = await pf.waitForFunction(() => [...document.querySelectorAll('.toast')].some(e => /Первая искра зажжена/.test(e.textContent)), null, { timeout: 3000 }).then(() => true, () => false);
-    await until('Путь пепла 1/5', 'после цепочки цель не первая веха «Пути пепла»');
+    await until('Акт I', 'после цепочки цель — не сюжет Акта I');     // с этапа 3 сюжет главнее «Пути пепла»
     const s1 = await pf.evaluate(() => ({ ash: window.__b3d.W.inv.ash, done: window.__b3d.W.spark.done })); s1.toast = toast;
     if (!s1.done || !s1.toast || s1.ash < s0.ash + 50) bad('цепочка не завершилась наградой: ' + JSON.stringify(s1));
     await pf.screenshot({ path: join(out, '3d-spark.png') });
