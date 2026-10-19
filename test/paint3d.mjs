@@ -2,7 +2,10 @@
 // (ветер, сквозное окно) и различают виды; на «Низком» сила 0.
 import * as THREE from 'three';
 import { CFG3 } from '../3d/src/config3d.js';
-import { initPaint, paintMat, paintOn, PAINT_KINDS } from '../3d/src/paint3d.js';
+import { initPaint, paintMat, paintOn, PAINT_KINDS, PART, tagKind } from '../3d/src/paint3d.js';
+import { makeMap } from '../3d/src/map.js';
+import { buildDecor } from '../3d/src/decor.js';
+import { mulberry32 } from '../3d/src/sim.js';
 import { qualityOf } from '../3d/src/quality3d.js';
 
 const fail = []; const ok = (c, m) => { if (!c) fail.push(m); };
@@ -31,5 +34,12 @@ for (const k of PAINT_KINDS) ok(k === 'auto' || k === 'nature' || typeof CFG3.sh
 { const m = paintMat(new THREE.MeshLambertMaterial(), 'auto', { plank: .16 }), sh = fake(); m.onBeforeCompile(sh); ok(sh.uniforms.uPlank.value === .16, 'своя ширина доски (сундуки)'); }
 ok(qualityOf(CFG3, 'low', true).paint === 0 && qualityOf(CFG3, 'mid', true).paint === 1 && qualityOf(CFG3, 'auto', false).paint === 1, 'на «Низком» материалы выключены, на «Среднем» и «Авто» — включены');
 
+// вид детали (T3): атрибут на слитой геометрии; декор — каменные постройки кладкой, навесы тканью, всё слито с атрибутом
+{ const g = tagKind(new THREE.BoxGeometry(1, 1, 1), 'cloth'); ok([...g.attributes.pkind.array].every(v => v === PART.cloth), 'метка вида — на всех вершинах'); }
+{ const sh = fake(), m = paintMat(new THREE.MeshLambertMaterial(), 'auto'); m.onBeforeCompile(sh); ok(sh.vertexShader.includes('attribute float pkind') && sh.fragmentShader.includes('pMasonry(an, q) : pStone(q)'), 'шейдер «auto» читает вид детали'); }
+{ const map = makeMap(CFG3), D = buildDecor(map, mulberry32(CFG3.world.seed + 2), null), seen = new Set(); let meshes = 0, untagged = 0;
+  D.group.traverse(o => { if (!o.isMesh || !o.material.isMeshLambertMaterial) return; meshes++; const a = o.geometry.attributes.pkind; if (!a) { untagged++; return; } for (const v of a.array) seen.add(v); });
+  ok(meshes > 0 && untagged === 0, `декор: все слитые меши с видом детали (без вида ${untagged} из ${meshes})`);
+  for (const k of ['masonry', 'cloth', 'metal']) ok(seen.has(PART[k]), `декор: есть детали вида ${k}`); }
 if (fail.length) { console.log('ПРОВАЛ:\n' + fail.join('\n')); process.exit(1); }
 console.log('Материалы 3D: OK (виды: ' + Object.keys(kinds).join(', ') + ')');

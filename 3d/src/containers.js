@@ -5,7 +5,10 @@ import { CONTAINERS } from './data/loot.js';
 import { paintMat } from './paint3d.js';
 
 const mats = new Map(), geos = new Map();
-const mat = c => { let m = mats.get(c); if (!m) mats.set(c, m = paintMat(new THREE.MeshLambertMaterial({ color: c }), 'auto', { plank: .16 })); return m; };
+// вид детали по цвету (T3): обручи, оковки, замки, клинки и доспехи — металл; мешки и одежда — ткань; прочее — по цвету (доски, камень)
+const METAL = new Set(['#2a1c12', '#1e1c1a', '#1a1816', '#8a6a3a', '#8a8478', '#7a746a', '#c8a24a', '#2a2220', '#a8a294', '#6a6258', '#7a7468', '#6a645c', '#3a3632', '#34302d', '#3a3633']);
+const CLOTH = new Set(['#8a7a5a', '#7a6a4a', '#3e342e']);
+const mat = c => { let m = mats.get(c); if (!m) mats.set(c, m = paintMat(new THREE.MeshLambertMaterial({ color: c }), METAL.has(c) ? 'metal' : CLOTH.has(c) ? 'cloth' : 'auto', { plank: .16 })); return m; };
 const bm = c => { const k = 'b' + c; let m = mats.get(k); if (!m) mats.set(k, m = new THREE.MeshBasicMaterial({ color: c })); return m; };
 const geo = (w, h, d) => { const k = w + ',' + h + ',' + d; let g = geos.get(k); if (!g) geos.set(k, g = new THREE.BoxGeometry(w, h, d)); return g; };
 const B = (g, w, h, d, c, x, y, z, basic) => { const m = new THREE.Mesh(geo(w, h, d), basic ? bm(c) : mat(c)); m.position.set(x, y, z); g.add(m); return m; };

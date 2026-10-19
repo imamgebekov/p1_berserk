@@ -189,7 +189,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); wg.setIndex(idx); wg.computeVertexNormals();
     wg.setAttribute('bank', new THREE.Float32BufferAttribute(bank, 2)); wg.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2));
     riverGroup.add(new THREE.Mesh(wg, waterMat));
-    const wood = new THREE.MeshLambertMaterial({ color: '#5a3e26' }), dark = new THREE.MeshLambertMaterial({ color: '#3a2818' }), dk = cfg.terrain.bridge.deck;
+    const wood = paintMat(new THREE.MeshLambertMaterial({ color: '#5a3e26' }), 'nature'), dark = paintMat(new THREE.MeshLambertMaterial({ color: '#3a2818' }), 'nature'), dk = cfg.terrain.bridge.deck;     // мосты: волокно и тон досок (T3)
     for (const b of river.bridges) {
       const g = new THREE.Group(); g.position.set(b.x, 0, b.z); g.rotation.y = b.ang;
       // дуга (F4): настил и перила — отрезками по профилю, к середине выше на arch
@@ -279,7 +279,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const OH = overheadOf(map, cfg), crnd = mulberry32(cfg.world.seed + 31);
   for (const c of OH.canopy) { const k0 = parts.length; addCanopyTree(parts, crnd, c, cfg.look); const gy = Y(c.x, c.z); for (let k = k0; k < parts.length; k++) parts[k].translate(0, gy, 0); treeXZ.push(c.x + c.toX * c.reach, c.z + c.toZ * c.reach); }
   const ohGroup = new THREE.Group();
-  { const stone = new THREE.MeshLambertMaterial({ color: '#8a857a' }), stoneD = new THREE.MeshLambertMaterial({ color: '#6e6a60' }), wood = new THREE.MeshLambertMaterial({ color: '#5a3e26' }), vine = new THREE.MeshLambertMaterial({ color: cfg.look.leaf[1] });
+  { const stone = paintMat(new THREE.MeshLambertMaterial({ color: '#8a857a' }), 'masonry'), stoneD = paintMat(new THREE.MeshLambertMaterial({ color: '#6e6a60' }), 'masonry'), wood = paintMat(new THREE.MeshLambertMaterial({ color: '#5a3e26' }), 'log'), vine = new THREE.MeshLambertMaterial({ color: cfg.look.leaf[1] });
     const box = (g, w, h, d, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); return b; };
     for (const a of OH.arches) {
       const g = new THREE.Group(); g.position.set(a.x, Y(a.x, a.z), a.z); g.rotation.y = a.ang; const hs = a.span / 2;

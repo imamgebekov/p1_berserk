@@ -1,5 +1,6 @@
 // Мягкие «рисованные» материалы (T0–T2): доски, брёвна, кора, камень с мхом, кладка, черепица, ткань, металл и земля по виду
 // поверхности (трава, тропа, песок, скала) считаются в шейдере по мировым координатам — без картинок и развёртки. Деталь крупная и плавная (курс «мягко и просто»). Сила — cfg.shaders.paint, на «Низком» выключено (uPK = 0).
+import * as THREE from 'three';
 let P = null;
 const PU = { uPK: { value: 1 } };     // общий множитель силы: качество «Низкое» — 0
 
@@ -9,14 +10,21 @@ export const paintOn = () => !!P;
 
 const KIND = { ground: 0, auto: 1, roof: 2, log: 3, nature: 4, masonry: 5, cloth: 6, metal: 7 };
 export const PAINT_KINDS = Object.keys(KIND);
+// вид детали на слитой геометрии (T3): атрибут pkind уточняет «auto» и «roof» — masonry: серое кладкой (дерево — деревом),
+// cloth — ткань, metal — металл, wood — доски, plain — без узора; без атрибута — 0 (по цвету)
+export const PART = { auto: 0, masonry: 1, cloth: 2, metal: 3, wood: 4, plain: 5 };
+export function tagKind(geo, part) {
+  const v = PART[part] ?? 0, n = geo.attributes.position.count, a = new Float32Array(n).fill(v);
+  geo.setAttribute('pkind', new THREE.BufferAttribute(a, 1)); return geo;
+}
 
 const VERT = `vec4 pw4 = vec4(transformed, 1.);
 #ifdef USE_INSTANCING
   pw4 = instanceMatrix * pw4;
 #endif
-  vPW = (modelMatrix * pw4).xyz; vPN = normalize(mat3(modelMatrix) * objectNormal);`;
+  vPW = (modelMatrix * pw4).xyz; vPN = normalize(mat3(modelMatrix) * objectNormal); vPKo = pkind;`;
 
-const FUNCS = `uniform float uPK, uPS, uPlank, uTile; varying vec3 vPW; varying vec3 vPN;
+const FUNCS = `uniform float uPK, uPS, uPlank, uTile; varying vec3 vPW; varying vec3 vPN; varying float vPKo;
 float pH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float pN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(pH(i), pH(i + vec2(1., 0.)), f.x), mix(pH(i + vec2(0., 1.)), pH(i + vec2(1., 1.)), f.x), f.y); }
 float pWood(vec3 an) {
@@ -76,10 +84,12 @@ const FRAG = `if (uPK > 0.) {
 #elif PAINT_KIND == 7
     d = pMetal(q);
 #else
+    int ov = int(vPKo + .5);
+    if (ov == 2) d = pCloth(an, q); else if (ov == 3) d = pMetal(q); else if (ov == 4) d = pWood(an); else if (ov == 5) d = 0.; else
   #if PAINT_KIND == 2
     if (an.y > .3 && an.y < .97) d = pRoof(an, straw); else
   #endif
-    if (rel < .32) d = pStone(q); else if (wood) d = pWood(an); else d = (pN(q * .9) - .5) * .2;
+    if (rel < .32) d = ov == 1 ? pMasonry(an, q) : pStone(q); else if (wood) d = pWood(an); else d = (pN(q * .9) - .5) * .2;
 #endif
     diffuseColor.rgb *= 1. + pk * d;
   }`;
@@ -95,7 +105,7 @@ export function paintMat(mat, kind = 'auto', opt = {}) {
   mat.onBeforeCompile = (sh, r) => {
     if (prev) prev(sh, r);
     Object.assign(sh.uniforms, PU, own);
-    sh.vertexShader = 'varying vec3 vPW; varying vec3 vPN;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + VERT);
+    sh.vertexShader = 'attribute float pkind; varying vec3 vPW; varying vec3 vPN; varying float vPKo;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + VERT);
     sh.fragmentShader = `#define PAINT_KIND ${KIND[kind]}\n` + FUNCS + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  ' + FRAG);
   };
   mat.customProgramCacheKey = () => key + '-paint' + kind;

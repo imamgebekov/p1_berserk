@@ -14,8 +14,9 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const dev = await createServer({ root, server: { port: 5191, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' }); await dev.listen();
 const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html?shot&hero=thorn` + (tag === 'flat' ? '&flat' : '');
 const SETS = { camp: [['fire', 0, 4], ['stalls', 12, 12], ['smithy', 8, -2], ['house', -9, -1], ['wall', 18, 21]],
-  nature: [['forest', 84, 206], ['rocks', 100, -168], ['river', 4, -48], ['cliff', 21, -456]] };
-const SPOTS = SETS[process.argv[4] || 'camp'], wait = process.argv[4] === 'nature' ? 14000 : 2500;
+  nature: [['forest', 84, 206], ['rocks', 100, -168], ['river', 4, -48], ['cliff', 21, -456]],
+  built: [['stalls', 12, 12], ['castle', -250, -58], ['tents', -60, 290], ['crypt', -46, -38], ['dungeon', -.5, 2, 'crypt_pogost'], ['keep', -3.9, 17, 'castle_ash_1']] };
+const SPOTS = SETS[process.argv[4] || 'camp'], wait = process.argv[4] === 'camp' || !process.argv[4] ? 2500 : 14000;
 let code = 0;
 try {
   for (const [dev_, vp] of [['mac', { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }], ['phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }]]) {
@@ -34,8 +35,8 @@ try {
       });
       if (bad.length) { console.log('шейдер не собран:', bad.join(', ')); code = 1; } else console.log('все виды материалов собраны');
     }
-    for (const [name, x, z] of SPOTS) {
-      await page.evaluate(([x, z]) => { const b = window.__b3d, W = b.W; W.player.maxhp = W.player.hp = 1e6; W.enemies.forEach(e => { e.dead = true; }); W.player.x = x; W.player.z = z; }, [x, z]);
+    for (const [name, x, z, lvl] of SPOTS) {
+      await page.evaluate(([x, z, lvl]) => { const b = window.__b3d, W = b.W; W.player.maxhp = W.player.hp = 1e6; if (lvl) b.travel(lvl, x, z); W.enemies.forEach(e => { e.dead = true; }); W.player.x = x; W.player.z = z; }, [x, z, lvl]);
       await page.waitForTimeout(wait); await page.evaluate(() => window.__b3d.W.enemies.forEach(e => { e.dead = true; }));
       await page.screenshot({ path: join(out, `${tag}-${dev_}-${name}.png`) });
       if (dev_ === 'mac') await page.screenshot({ path: join(out, `${tag}-close-${name}.png`), clip: { x: 400, y: 200, width: 640, height: 440 } });     // крупный план у героя

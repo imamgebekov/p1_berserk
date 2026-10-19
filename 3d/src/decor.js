@@ -2,19 +2,22 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { pushBox, addTree } from './models.js';
-import { paintMat } from './paint3d.js';
+import { paintMat, tagKind } from './paint3d.js';
+
+// вид деталей (T3): серое у построек из камня — кладкой; шатры — тканью; клетка и жаровня — металлом
+const PART_OF = { cwall: 'masonry', ctower: 'masonry', cgate: 'masonry', tower: 'masonry', fort: 'masonry', wallfrag: 'masonry', ruinwall: 'masonry', mausoleum: 'masonry', shrine: 'masonry', well: 'masonry', paving: 'masonry', mill: 'masonry', tent: 'cloth', bigtent: 'cloth', cage: 'metal', brazier: 'metal', lamp: 'metal' };
 
 export function buildDecor(map, rnd, grime = null) {
   // клетки 64 м (C3b): каждая — свои меши, поэтому дальний и невидимый декор отсекается
   const glowList = () => Object.assign([], { glow: true });     // светящееся — без градиента (шаг 7)
   let L = [], G = glowList(); const cells = new Map(), use = (x, z) => { const k = Math.floor(x / 64) + ',' + Math.floor(z / 64); if (!cells.has(k)) cells.set(k, { L: [], G: glowList() }); ({ L, G } = cells.get(k)); };
   // коробка в локальных координатах предмета (поворот по оси y вокруг его центра)
-  const mk = (x, z, rot) => { const c = Math.cos(rot), s = Math.sin(rot); return (lx, ly, lz, w, h, d, color, glow) => pushBox(glow ? G : L, w, h, d, x + lx * c + lz * s, ly + h / 2, z - lx * s + lz * c, 0, rot, 0, color); };
+  const mk = (x, z, rot) => { const c = Math.cos(rot), s = Math.sin(rot); return (lx, ly, lz, w, h, d, color, glow) => { const T = glow === true ? G : L; pushBox(T, w, h, d, x + lx * c + lz * s, ly + h / 2, z - lx * s + lz * c, 0, rot, 0, color); if (typeof glow === 'string') tagKind(T[T.length - 1], glow); }; };     // glow-строка — вид детали (ткань, металл…)
 
   // дороги нарисованы цветом земли (шаг 6 аудита, render.js → hillsGeo), плит больше нет
   for (const d of map.decor) {
     use(d.x, d.z);
-    const f = mk(d.x, d.z, d.rot || 0), s = d.s || 1;
+    const f = mk(d.x, d.z, d.rot || 0), s = d.s || 1, n0 = L.length;
     switch (d.t) {
       case 'lamp': f(0, 0, 0, .14, 3.2, .14, '#2a2220'); f(0, 3.0, 0, .6, .1, .1, '#2a2220'); f(.28, 2.55, 0, .3, .42, .3, '#ffb35a', true); f(.28, 2.8, 0, .4, .08, .4, '#2a2220'); break;
       case 'fence': { const w = d.w; const f2 = mk(d.x, d.z, d.rot ? Math.PI / 2 : 0); f2(-w / 2, 0, 0, .16, 1.15, .16, '#4a4440'); f2(0, 0, 0, .16, 1.0, .16, '#4a4440'); f2(0, .75, 0, w, .08, .08, '#4a4440'); f2(0, .35, 0, w, .08, .08, '#4a4440'); f2(-w / 2, 1.15, 0, .1, .22, .1, '#3a3532'); break; }
@@ -27,7 +30,7 @@ export function buildDecor(map, rnd, grime = null) {
       case 'furrow': f(0, 0, 0, d.w, .22, .55, '#2a1e14'); f(0, .22, 0, d.w - .4, .06, .22, ['#3a4a2a', '#4a3a22', '#2a3a22'][((d.z * 7) | 0) % 3]); break;
       case 'haystack': f(0, 0, 0, 2.0 * s, 1.0 * s, 2.0 * s, '#8a7234'); f(0, 1.0 * s, 0, 1.5 * s, .7 * s, 1.5 * s, '#9a8240'); f(0, 1.7 * s, 0, .8 * s, .5 * s, .8 * s, '#a8924a'); break;
       case 'scarecrow': f(0, 0, 0, .1, 2.0, .1, '#3a2a1e'); f(0, 1.4, 0, 1.3, .1, .1, '#3a2a1e'); f(0, 1.9, 0, .34, .34, .34, '#b8a283'); f(0, 2.2, 0, .6, .1, .6, '#2a2220'); f(0, 2.25, 0, .3, .3, .3, '#2a2220'); f(0, .9, 0, .5, .8, .2, '#5a3a26'); break;
-      case 'stall': { f(0, .7, 0, 2.2, .1, 1.0, '#4a3524'); f(0, 0, 0, 2.0, .7, .8, '#3a281a'); for (const x of [-1.05, 1.05]) for (const z of [-.45, .45]) f(x, 0, z, .1, 2.2, .1, '#3a281a'); f(0, 2.2, 0, 2.6, .12, 1.4, d.c); f(0, 2.12, .75, 2.6, .12, .1, d.c); f(-.5, .8, 0, .4, .3, .4, '#8a7a62'); f(.2, .8, 0, .3, .2, .3, '#a89a82'); f(.7, .8, 0, .3, .35, .3, '#6a2a2a'); break; }
+      case 'stall': { f(0, .7, 0, 2.2, .1, 1.0, '#4a3524'); f(0, 0, 0, 2.0, .7, .8, '#3a281a'); for (const x of [-1.05, 1.05]) for (const z of [-.45, .45]) f(x, 0, z, .1, 2.2, .1, '#3a281a'); f(0, 2.2, 0, 2.6, .12, 1.4, d.c, 'cloth'); f(0, 2.12, .75, 2.6, .12, .1, d.c, 'cloth'); f(-.5, .8, 0, .4, .3, .4, '#8a7a62'); f(.2, .8, 0, .3, .2, .3, '#a89a82'); f(.7, .8, 0, .3, .35, .3, '#6a2a2a'); break; }
       // ориентиры большого мира (C3b): башня, ветряная мельница, развалины крепости
       // замок (C4c): участок стены с зубцами, угловая башня, ворота-арка
       case 'cwall': { const g = mk(d.x, d.z, 0); g(0, 0, 0, d.w, 4.2, d.d, '#6e6a62'); const along = d.w > d.d, L = Math.max(d.w, d.d); for (let k = -L / 2 + .6; k < L / 2; k += 1.6) g(along ? k : 0, 4.2, along ? 0 : k, along ? .8 : d.w, .6, along ? d.d : .8, '#5e5a52'); break; }
@@ -52,7 +55,7 @@ export function buildDecor(map, rnd, grime = null) {
         g(0, 1.9, 0, along ? Lg : .2, .16, along ? .2 : Lg, '#2e2216'); break; }     // брёвна с острыми верхушками и поперечина
       case 'palgate': { const g = mk(d.x, d.z, d.rot || 0); for (const sg of [-1, 1]) g(sg * (d.w / 2 + .35), 0, 0, .7, 4, .7, '#3e2c1c'); g(0, 3.6, 0, d.w + 1.4, .4, .5, '#3e2c1c'); g(0, 4, 0, .9, .7, .1, '#8a2a1a'); break; }
       case 'wtower': f(0, 0, 0, .35, 4.6, .35, '#3e2c1c'); for (const [x, z] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) f(x, 0, z, .3, 4.4, .3, '#4a3622'); f(0, 4.4, 0, 2.8, .25, 2.8, '#4a3622'); for (const [x, z, w, dd] of [[0, -1.35, 2.8, .12], [0, 1.35, 2.8, .12], [-1.35, 0, .12, 2.8], [1.35, 0, .12, 2.8]]) f(x, 4.65, z, w, .8, dd, '#3e2c1c'); f(0, 5.5, 0, 3.2, .2, 3.2, '#5a4030'); f(0, 5.7, 0, 2, .6, 2, '#6a4a34'); break;
-      case 'banner': f(0, 0, 0, .14, 3.4, .14, '#2e2216'); f(.45, 2.3, 0, .9, 1.1, .05, d.c || '#8a2a1a'); break;
+      case 'banner': f(0, 0, 0, .14, 3.4, .14, '#2e2216'); f(.45, 2.3, 0, .9, 1.1, .05, d.c || '#8a2a1a', 'cloth'); break;
       // города и лагеря (2026-10-18): мостовая плитами w×d, жаровня, обломок стены, разбитая статуя; шатёр вожака, чучело, клетка, тотем
       case 'paving': { const g = mk(d.x, d.z, 0), T = 1.6; for (let a = -d.w / 2 + T / 2; a < d.w / 2; a += T) for (let b = -d.d / 2 + T / 2; b < d.d / 2; b += T) { const k = (Math.abs(Math.round(a * 7 + b * 13)) % 3); g(a, 0, b, T - .12, .07, T - .12, ['#6e685e', '#787266', '#645e56'][k]); } break; }
       case 'brazier': f(0, 0, 0, .3, .9, .3, '#2a2420'); f(0, .9, 0, .9, .3, .9, '#3a322c'); f(0, 1.2, 0, .6, .35, .6, '#ff8a30', true); f(0, 1.5, 0, .3, .3, .3, '#ffd060', true); break;
@@ -76,6 +79,7 @@ export function buildDecor(map, rnd, grime = null) {
       case 'reed': f(0, 0, 0, .06, 1.1 * s, .06, '#5a6a2e'); f(.12, 0, .05, .06, .9 * s, .06, '#6a7a36'); f(0, 1.1 * s, 0, .1, .26, .1, '#5a3a22'); break;
       default: break;
     }
+    if (PART_OF[d.t]) for (let i = n0; i < L.length; i++) if (!L[i].attributes.pkind) tagKind(L[i], PART_OF[d.t]);
   }
   const group = new THREE.Group(), lam = paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto', { plank: .22 }), bas = new THREE.MeshBasicMaterial({ vertexColors: true }); let glow = 0;
   if (grime && grime.on) {                                                    // потёртости (V2b): пятна по мировым координатам, низ темнее
@@ -91,7 +95,7 @@ export function buildDecor(map, rnd, grime = null) {
   }
   for (const [k, c] of cells) {
     const [cx, cz] = k.split(',').map(Number), g = new THREE.Group(); g.userData.cx = (cx + .5) * 64; g.userData.cz = (cz + .5) * 64;
-    if (c.L.length) g.add(new THREE.Mesh(mergeGeometries(c.L, false), lam));
+    if (c.L.length) { for (const q of c.L) if (!q.attributes.pkind) tagKind(q, 'auto'); g.add(new THREE.Mesh(mergeGeometries(c.L, false), lam)); }     // слияние требует одинаковых атрибутов
     if (c.G.length) { g.add(new THREE.Mesh(mergeGeometries(c.G, false), bas)); glow += c.G.length; }
     group.add(g);
   }
