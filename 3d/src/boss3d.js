@@ -23,7 +23,7 @@ export function updateBoss(W, e, dt, spd) {
   const dx = (foc || p).x - e.x, dz = (foc || p).z - e.z, d = len(dx, dz) || 1e-6;
   const enr = b.enraged;
   for (const k of Object.keys(b.cds)) if ((b.cds[k] -= dt) <= 0) delete b.cds[k];
-  b.minions = b.minions.filter(m => !m.dead);
+  b.minions = b.minions.filter(m => !m.dead && W.enemies.includes(m));     // ушедший с уровня призванный — больше не подмога (щит не залипает)
 
   // фазы по доле здоровья
   const frac = e.hp / e.maxhp;

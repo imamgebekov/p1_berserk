@@ -96,7 +96,30 @@ export const QUESTS = [
   { id: 'x_resin', giver: 'masked', story: 'a3_brand', name: 'Смола для клинка', text: 'Чёрная смола. Четыре куска. Клинок, смазанный ею, режет тени.', type: 'bring', item: 'm_black_resin', n: 4, reward: { ash: 900, xp: 4800 } },
   { id: 'x_banner', giver: 'masked', story: 'a3_brand', name: 'Знамя в кургане', text: 'Кровавый знаменосец держит первый зал кургана. Пройди его.', type: 'boss', boss: 'bloodbanner', reward: { ash: 1200, xp: 6000 } },
   { id: 'x_king', giver: 'masked', story: 'a3_brand', name: 'Безымянный', text: 'Король без имени ещё правит своими мёртвыми. Дай ему уснуть.', type: 'boss', boss: 'namelessking', reward: { ash: 1200, xp: 6000 } },
+  // ---- Акт IV (этап 7): вдова с болот, кузнец Гедеон, человек в маске ----
+  { id: 'w_drowned', giver: 'widow', story: 'a3_vow', name: 'Утопленники у мостков', text: 'Двенадцать утопленников у мостков. Дети боятся ходить за водой.', type: 'kill', enemy: 'drowned', n: 12, reward: { ash: 1000, xp: 6000 } },
+  { id: 'w_ghouls', giver: 'widow', story: 'a3_vow', name: 'Упыри на погосте', text: 'На нашем погосте упыри. Двенадцать.', type: 'kill', enemy: 'ghoul', n: 12, reward: { ash: 1000, xp: 6000 } },
+  { id: 'w_shriek', giver: 'widow', story: 'a3_vow', name: 'Кликуши', text: 'Кликуши лечат тварей. Восемь — и твари станут смертными.', type: 'kill', enemy: 'shrieker', n: 8, reward: { ash: 1100, xp: 6400 } },
+  { id: 'w_fiends', giver: 'widow', story: 'a3_vow', name: 'Твари из тумана', text: 'Десять тварей Затмения. Они приходят, когда туман.', type: 'kill', enemy: 'eclipse_fiend', n: 10, reward: { ash: 1100, xp: 6400 } },
+  { id: 'w_moss', giver: 'widow', story: 'a3_vow', name: 'Мох на раны', text: 'Двенадцать пучков мха. Раны на болоте гниют.', type: 'bring', item: 'm_grave_moss', n: 12, reward: { ash: 900, xp: 5400 } },
+  { id: 'w_feeder', giver: 'widow', story: 'a4_elder', name: 'Кормилец', text: 'В Гнезде кто-то кормил тварей нашими. Найди его.', type: 'boss', boss: 'feeder', reward: { ash: 1400, xp: 8000 } },
+  { id: 'w_swarm', giver: 'widow', story: 'a4_elder', name: 'Рой', text: 'В Гнезде гудит. Сделай так, чтобы перестало.', type: 'boss', boss: 'swarm', reward: { ash: 1400, xp: 8000 } },
+  { id: 'g_ore', giver: 'gedeon', story: 'a4_nest', name: 'Горная руда', text: 'Двадцать пять кусков руды. Для работы, не для тебя.', type: 'bring', item: 'm_ore', n: 25, reward: { ash: 1000, xp: 6000 } },
+  { id: 'g_coal', giver: 'gedeon', story: 'a4_nest', name: 'Уголь для горна', text: 'Пятнадцать угля. Горн голодный.', type: 'bring', item: 'm_coal', n: 15, reward: { ash: 1000, xp: 6000 } },
+  { id: 'g_soot', giver: 'gedeon', story: 'a4_nest', name: 'Сажа', text: 'Четыре мешочка сажи. Для закалки.', type: 'bring', item: 'm_soot', n: 4, reward: { ash: 1100, xp: 6400 } },
+  { id: 'g_trolls', giver: 'gedeon', story: 'a4_nest', name: 'Тролли на тропе', text: 'Тролли перекрыли тропу к руднику. Восемь. Бей быстро — они зарастают.', type: 'kill', enemy: 'troll', n: 8, reward: { ash: 1300, xp: 7200 } },
+  { id: 'g_shriek', giver: 'gedeon', story: 'a4_nest', name: 'Нела боится', text: 'Кликуши поют у дома по ночам. Нела не спит. Десять.', type: 'kill', enemy: 'shrieker', n: 10, reward: { ash: 1300, xp: 7200 } },
+  { id: 'g_choir', giver: 'gedeon', story: 'a4_gedeon', name: 'Хор', text: 'В монастыре поёт хор, который не поёт. Заставь его замолчать совсем.', type: 'boss', boss: 'choir', reward: { ash: 1500, xp: 8600 } },
+  { id: 'g_shriekmother', giver: 'gedeon', story: 'a4_gedeon', name: 'Старшая', text: 'Старшая кликуша водит остальных. Найди её в монастыре.', type: 'boss', boss: 'abbeyshriek', reward: { ash: 1500, xp: 8600 } },
+  { id: 'x_demons', giver: 'masked', story: 'a4_masked', name: 'Стража Длани', text: 'Демоны-стражи у Сердца Затмения. Десять.', type: 'kill', enemy: 'demon_guard', n: 10, reward: { ash: 1600, xp: 9000 } },
+  { id: 'x_brand12', giver: 'masked', story: 'a4_masked', name: 'Ночь длинная', text: 'Двенадцать теней клейма. Они станут злее у Врат.', type: 'kill', enemy: 'brandshade', n: 12, reward: { ash: 1500, xp: 8600 } },
+  { id: 'x_trolls', giver: 'masked', story: 'a4_masked', name: 'Тролли Сердца', text: 'Десять троллей. Их вскормила тьма.', type: 'kill', enemy: 'troll', n: 10, reward: { ash: 1600, xp: 9000 } },
+  { id: 'x_fiends14', giver: 'masked', story: 'a4_masked', name: 'Свита', text: 'Четырнадцать тварей Затмения. Свита Пятого не должна дойти до деревень.', type: 'kill', enemy: 'eclipse_fiend', n: 14, reward: { ash: 1600, xp: 9000 } },
+  { id: 'x_amber', giver: 'masked', story: 'a4_masked', name: 'Свет в янтаре', text: 'Пять кусков янтаря. Свет в нём держит тени на шаг дальше.', type: 'bring', item: 'm_amber', n: 5, reward: { ash: 1400, xp: 8000 } },
+  { id: 'x_nest', giver: 'masked', story: 'a4_masked', name: 'Хозяин Гнезда', text: 'Хозяин Гнезда вернулся. Отступники всегда возвращаются.', type: 'boss', boss: 'nestlord', reward: { ash: 1800, xp: 10000 } },
+  { id: 'x_abbot', giver: 'masked', story: 'a4_alaric', name: 'Настоятель', text: 'Настоятель снова читает молитвы Длани. Заставь замолчать.', type: 'boss', boss: 'abbot', reward: { ash: 1800, xp: 10000 } },
+  { id: 'x_resin5', giver: 'masked', story: 'a4_alaric', name: 'Смола для Врат', text: 'Пять кусков чёрной смолы. У Врат нам понадобится огонь, который не гаснет.', type: 'bring', item: 'm_black_resin', n: 5, reward: { ash: 1500, xp: 8600 } },
 ];
 export const QUEST_BY_ID = Object.fromEntries(QUESTS.map(q => [q.id, q]));
-export const GIVER_NAME = { merchant: 'Торговец', smith: 'Кузнец', captain: 'Капитан Заставы', timka: 'Тимка', kord: 'Корд', irma: 'Ирма', alaric: 'Аларик Белый', quarter: 'Интендант Ставки', smuggler: 'Контрабандист с пристани', masked: 'Человек в маске' };
+export const GIVER_NAME = { merchant: 'Торговец', smith: 'Кузнец', captain: 'Капитан Заставы', timka: 'Тимка', kord: 'Корд', irma: 'Ирма', alaric: 'Аларик Белый', quarter: 'Интендант Ставки', smuggler: 'Контрабандист с пристани', masked: 'Человек в маске', widow: 'Вдова с болот', gedeon: 'Кузнец Гедеон' };
 export const questLine = q => ({ kill: `Убить: ${q.n}`, boss: 'Победить босса', visit: 'Дойти до места', bring: `Принести: ${q.n}`, craft: 'Скрафтить', tome: 'Прочитать книгу', open: `Вскрыть контейнеров: ${q.n}`, hire: 'Нанять бойца' }[q.type]);

@@ -23,6 +23,8 @@ function solve(W, c, opt = {}) {
   if (G.type === 'battle') { W.player.inv = 1e9; for (let k = 0; k < 40 && S.st === 'goal'; k++) { const b = W.enemies.find(e => !e.dead && e.type === G.banner && S.foes.includes(e.id)); if (b) killEnemy(W, b); else storyTick(W, G.every); } }
   if (G.type === 'siege') { const a = W.allies.find(q => q.ram), to = storyGoal(W).at; a.x = to.x; a.z = to.z; }
   if (G.type === 'talk') for (const k of G.talk) talk(W, k);
+  if (G.type === 'bring') for (const [id, n] of G.items) W.inv.bag.push({ id, n });
+  if (G.type === 'hunt') for (const h of G.hunt) { const e = W.enemies.find(q => q.boss && q.type === h.type && !q.dead); if (e) killEnemy(W, e); }
   if (G.type === 'sneak') { const to = storyGoal(W).at; W.player.x = to.x; W.player.z = to.z; }
   if (G.type === 'eclipse') { for (let i = 0; i < G.t * 2 + 10 && S.st === 'goal'; i++) storyTick(W, .5); }
   if (G.type === 'escape') { const e = W.enemies.find(q => q.escapee && !q.dead); e.hp = e.maxhp * (G.yieldFoe - .05); }
@@ -37,7 +39,7 @@ function solve(W, c, opt = {}) {
     if (S.st === 'outro') { const ok2 = talk(W, c.outroAt || c.giver); ok(ok2, `${c.id}: разговор в конце не открылся`); }
     ok(W.story.i === k + 1 && !W.allies.some(a => a.story) && !W.duelOn, `${c.id}: сцена не закрылась (${W.story.i}/${W.story.st})`);
     if (k === 3) r0 = W.story; }
-  ok(W.story.st === 'end' && W.inv.bag.some(s => s.id === 'a_cloak_wings') && W.inv.bag.some(s => s.id === 'r_seal_veligrad') && W.inv.bag.some(s => s.id === 'm_ember_irma'), 'акты не пройдены или нет наград'); }
+  ok(W.story.st === 'end' && W.inv.bag.some(s => s.id === 'a_cloak_wings') && W.inv.bag.some(s => s.id === 'r_seal_veligrad') && W.inv.bag.some(s => s.id === 'm_ember_irma') && W.inv.bag.some(s => s.id === 'l_slab') && !W.inv.bag.some(s => s.id === 'm_apostle_heart'), 'акты не пройдены, нет наград или Гедеон не взял материалы'); }
 // 2. поединок: проигрыш без смерти, победа — свои реплики
 for (const lose of [true, false]) { const W = mk(5); W.story.i = ACT.findIndex(c => c.id === 'duel'); W.player.maxhp = 300; W.player.hp = 300; talk(W, 'alaric');
   const e = W.enemies.find(q => q.duel); ok(e && W.duelOn, 'поединок не начался');
@@ -71,4 +73,4 @@ for (const lose of [true, false]) { const W = mk(5); W.story.i = ACT.findIndex(c
   ok(n > 0 && W.enemies.some(e => e.type === 'brandshade' && !e.dead), 'ночью тени клейма не пришли');
   const W2 = mk(12); W2.story.i = ACT.findIndex(c => c.id === 'a3_eclipse'); ok(!brandOn(W2), 'клеймо до Затмения'); }
 if (fails.length) { console.error('Сюжет: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
-console.log(`Сюжет Актов I–III 3D: OK (${ACT.length} сцен)`);
+console.log(`Сюжет Актов I–IV 3D: OK (${ACT.length} сцен)`);

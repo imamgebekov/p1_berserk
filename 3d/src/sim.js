@@ -102,6 +102,18 @@ function makeWorld(cfg, rng) {
 }
 
 
+// поддержка врагов (этап 7, Акт IV): тролль восстанавливается, если 3 с не били; кликуша лечит самого раненого своего (не босса) рядом
+function foeSupport(W, dt) {
+  for (const e of W.enemies) {
+    if (e.dead) continue; const C = W.cfg.enemies[e.type];
+    if (C.regen) { if (e.flash > 0) e.regT = 3; else if ((e.regT = (e.regT || 0) - dt) <= 0 && e.hp < e.maxhp) e.hp = Math.min(e.maxhp, e.hp + e.maxhp * C.regen * dt); }
+    if (C.heal && (e.hcd = (e.hcd ?? C.heal.cd) - dt) <= 0) {
+      e.hcd = C.heal.cd; let best = null, br = .8;
+      for (const o of W.enemies) { if (o.dead || o === e || o.boss) continue; const r = o.hp / o.maxhp; if (r < br && len(o.x - e.x, o.z - e.z) < C.heal.r) { br = r; best = o; } }
+      if (best) { best.hp = Math.min(best.maxhp, best.hp + best.maxhp * C.heal.amt); W.ev.push({ k: 'foeheal', x: best.x, z: best.z }); }
+    }
+  }
+}
 // знаменосец (этап 7): враги рядом с живым знаменосцем бьют сильнее (aura.dmg), сам знаменосец — нет
 function auraMul(W, e) {
   let k = 1; for (const o of W.enemies) { const A = !o.dead && o !== e && W.cfg.enemies[o.type].aura; if (A && len(o.x - e.x, o.z - e.z) < A.r) k = Math.max(k, 1 + A.dmg); }
@@ -965,6 +977,7 @@ export function step(W, dt, input = {}) {
   touchShrine(W);
   discoverFires(W);
   updateEnemies(W, dt);
+  foeSupport(W, dt);
   updateAllies(W, dt);
   updateArrows(W, dt);
   updateFoes(W, dt);

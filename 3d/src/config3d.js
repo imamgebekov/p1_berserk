@@ -239,7 +239,7 @@ const BASE = {
   stones: {
     sockets: [0, 0, 1, 1, 2, 2], drop: .05, danger: .02, elite: .5, rain: 'water',
     of: { imp: 'fire', brute: 'earth', hound: 'blood', ghoul: 'venom', archer: 'storm', witch: 'fire', shield: 'earth', bomber: 'fire', lunger: 'blood', shade: 'ice' },
-    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', garm_beast: 'blood', towerwarden: 'earth', keymaster: 'storm', towerhound: 'blood', bloodbanner: 'blood', namelessking: 'ice', gravewight: 'venom', sapper: 'fire', drownedmaid: 'water', silt: 'venom', gatewarden: 'earth', gneis: 'storm', borot: 'blood', armorer: 'earth', firegolem: 'fire', smelter: 'fire', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
+    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', swampelder: 'venom', feeder: 'venom', swarm: 'blood', nestlord: 'venom', abbeyshriek: 'fire', choir: 'storm', abbot: 'fire', ap_serpent: 'venom', ap_boar: 'earth', ap_moth: 'fire', garm_beast: 'blood', towerwarden: 'earth', keymaster: 'storm', towerhound: 'blood', bloodbanner: 'blood', namelessking: 'ice', gravewight: 'venom', sapper: 'fire', drownedmaid: 'water', silt: 'venom', gatewarden: 'earth', gneis: 'storm', borot: 'blood', armorer: 'earth', firegolem: 'fire', smelter: 'fire', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
     fuse: { n: 3, ash: [40, 150] }, unsocket: [15, 50, 150],
     // гнёзда в броне (2026-10-18): шлем, доспех, плащ, сапоги; гнёзд по редкости sockets; камень даёт характеристику стихии по рангу (stat),
     // огонь, яд и кровь ещё ослабляют на герое горение, яд и кровотечение (res по рангу, сумма не больше resMax)
@@ -435,7 +435,7 @@ const BASE = {
         { id: 'band', name: 'Пепельные Крылья', text: 'Отряд Аларика.' }, { id: 'olkh', name: 'Ольховые общины', text: 'Посёлки за ядром.' }],
       tiers: [[0, 'Нейтралитет'], [500, 'Дружелюбие'], [1500, 'Уважение'], [3500, 'Почтение'], [7500, 'Восхищение']],
       quest: 250, scene: 300, kill: 2, elite: 6, boss: 150, dungeon: 200, brodDiscount: .05,
-      givers: { merchant: 'brod', smith: 'brod', captain: 'zastava', irma: 'band', timka: 'band', kord: 'band', alaric: 'band', quarter: 'zastava', smuggler: 'brod', masked: 'band' },
+      givers: { merchant: 'brod', smith: 'brod', captain: 'zastava', irma: 'band', timka: 'band', kord: 'band', alaric: 'band', quarter: 'zastava', smuggler: 'brod', masked: 'band', widow: 'olkh', gedeon: 'brod' },
       dungeons: { inst_brod: 'zastava', inst_olkh: 'olkh' },
       rewards: [
         { f: 'zastava', tier: 1, mount: true, name: 'Конь Заставы', ash: 600, text: 'Быстрее в пути. Удар или перекат — спешиться.' },
@@ -549,7 +549,7 @@ const BASE = {
             phases: [{ at: .5, summon: { type: 'golem', n: 1 }, shield: true }, { at: .25, enrage: true }] },
           { type: 'smelter', room: 'b3', loot: ['d_greatsword_smelt', 'd_plate_smelt', 'd_bow_smelt'],
             attacks: [{ kind: 'cast', name: 'Литьё', wind: 2.8, r: 99, mul: 3.4, cd: 13, range: 99 }, { kind: 'pools', wind: .8, n: 4, r: 2.4, dur: 8, mul: .55, cd: 9, range: 99 }, { kind: 'slam', wind: .9, r: 4.8, mul: 1.1, cd: 3, range: 5.2 }],
-            phases: [{ at: .7, summon: { type: 'golem', n: 2 }, shield: true }, { at: .3, enrage: true }] }
+            phases: [{ at: .7, summon: { type: 'golem', n: 1 }, shield: true }, { at: .3, enrage: true }] }
         ] },
       // Акт III (этап 7)
       { id: 'inst_tower', name: 'Башня Велиграда', zone: 'grey', lv: 37, level: 37, base: 37, depth: 1.45, danger: 3,
@@ -587,6 +587,43 @@ const BASE = {
           { type: 'gravewight', room: 'b3', loot: ['d_scythe_wight', 'd_robe_wight', 'd_ring_wight'],
             attacks: [{ kind: 'pools', wind: .8, n: 4, r: 2.6, dur: 8, mul: .55, cd: 9, range: 99 }, { kind: 'charge', wind: .9, len: 14, width: 3, mul: 1.2, cd: 6, range: 16 }, { kind: 'cast', name: 'Могильный зов', wind: 3, r: 99, mul: 2.6, cd: 15, range: 99 }, { kind: 'slam', wind: .9, r: 4.8, mul: 1.1, cd: 3, range: 5.2 }],
             phases: [{ at: .7, summon: { type: 'ghoul', n: 2 }, shield: true }, { at: .3, enrage: true }] }
+        ] },
+      // Акт IV (этап 7)
+      { id: 'inst_nest', name: 'Гнездо Отступника', zone: 'rot', lv: 48, level: 48, base: 48, depth: 1.9, danger: 3,
+        rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
+          { id: 'b1', x: 36, z: 0, w: 14, d: 14 }, { id: 'c3', x: 36, z: -11, w: 2.4, d: 8 }, { id: 'niches', x: 36, z: -21, w: 12, d: 12 }, { id: 'c4', x: 36, z: -31, w: 2.4, d: 8 },
+          { id: 'b2', x: 36, z: -42, w: 14, d: 14 }, { id: 'c5', x: 47, z: -42, w: 8, d: 2.4 }, { id: 'b3', x: 61, z: -42, w: 20, d: 20 }],
+        doors: [], entry: { x: -2.5, z: 0 }, exit: { x: -4, z: 1.6 },
+        foes: [['eclipse_fiend', 3], ['drowned', 2], ['shrieker', 1], ['ghoul', 2]], spawns: [{ room: 'gallery', n: 4 }, { room: 'niches', n: 4 }, { room: 'c5', n: 1, type: 'shrieker' }],
+        chests: [{ kind: 'coffer', x: 21, z: 3.5 }, { kind: 'grave', x: 40, z: -25 }, { kind: 'altar', x: 69, z: -42 }],
+        bosses: [
+          { type: 'feeder', room: 'b1', loot: ['d_cleaver_feeder', 'd_apron_feeder'],
+            attacks: [{ kind: 'slam', wind: .8, r: 4.2, mul: 1, cd: 3, range: 4.8 }, { kind: 'pools', wind: .8, n: 3, r: 2.5, dur: 8, mul: .55, cd: 9, range: 99 }],
+            phases: [{ at: .5, summon: { type: 'ghoul', n: 2 } }, { at: .3, enrage: true }] },
+          { type: 'swarm', room: 'b2', loot: ['d_wand_swarm', 'd_hood_swarm'],
+            attacks: [{ kind: 'charge', wind: .7, len: 13, width: 2.6, mul: 1.1, cd: 5, range: 15 }, { kind: 'nova', wind: 1, r: 7, inner: 2.4, mul: 1, cd: 8, range: 99 }],
+            phases: [{ at: .7, summon: { type: 'eclipse_fiend', n: 2 }, shield: true }, { at: .3, enrage: true }] },
+          { type: 'nestlord', room: 'b3', loot: ['d_greataxe_nest', 'd_crown_nest', 'd_ring_nest'],
+            attacks: [{ kind: 'beam', wind: 1.2, len: 15, width: 1.8, dur: 4.5, sweep: .8, mul: .9, cd: 12, range: 99 }, { kind: 'slam', wind: .9, r: 4.8, mul: 1.1, cd: 3, range: 5.2 }, { kind: 'pools', wind: .8, n: 3, r: 2.6, dur: 8, mul: .55, cd: 10, range: 99 }],
+            phases: [{ at: .6, summon: { type: 'eclipse_fiend', n: 2 }, shield: true }, { at: .3, enrage: true }] }
+        ] },
+      { id: 'inst_abbey', name: 'Монастырь Безмолвия', zone: 'mute', lv: 52, level: 52, base: 52, depth: 2.05, danger: 3,
+        rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
+          { id: 'b1', x: 36, z: 0, w: 14, d: 14 }, { id: 'c3', x: 36, z: -11, w: 2.4, d: 8 }, { id: 'niches', x: 36, z: -21, w: 12, d: 12 }, { id: 'c4', x: 36, z: -31, w: 2.4, d: 8 },
+          { id: 'b2', x: 36, z: -42, w: 14, d: 14 }, { id: 'c5', x: 47, z: -42, w: 8, d: 2.4 }, { id: 'b3', x: 61, z: -42, w: 20, d: 20 }],
+        doors: [], entry: { x: -2.5, z: 0 }, exit: { x: -4, z: 1.6 },
+        foes: [['shrieker', 2], ['troll', 1], ['war_ghost', 2], ['lunger', 2]], spawns: [{ room: 'gallery', n: 4 }, { room: 'niches', n: 4 }, { room: 'c5', n: 1, type: 'troll' }],
+        chests: [{ kind: 'altar', x: 21, z: 3.5 }, { kind: 'coffer', x: 40, z: -25 }, { kind: 'altar', x: 69, z: -42 }],
+        bosses: [
+          { type: 'abbeyshriek', room: 'b1', loot: ['d_staff_shriek', 'd_veil_shriek'],
+            attacks: [{ kind: 'cast', name: 'Вопль', wind: 2.6, r: 99, mul: 2.8, cd: 12, range: 99 }, { kind: 'nova', wind: 1, r: 7, inner: 2.4, mul: 1, cd: 8, range: 99 }, { kind: 'slam', wind: .6, r: 3.4, mul: .9, cd: 3, range: 4 }],
+            phases: [{ at: .5, summon: { type: 'shrieker', n: 1 } }, { at: .3, enrage: true }] },
+          { type: 'choir', room: 'b2', loot: ['d_bell_choir', 'd_robe_choir'],
+            attacks: [{ kind: 'beam', wind: 1.2, len: 15, width: 1.8, dur: 4.5, sweep: .9, mul: .9, cd: 11, range: 99 }, { kind: 'nova', wind: 1.1, r: 7.5, inner: 2.6, mul: 1, cd: 8, range: 99 }],
+            phases: [{ at: .6, summon: { type: 'war_ghost', n: 2 }, shield: true }, { at: .3, enrage: true }] },
+          { type: 'abbot', room: 'b3', loot: ['d_mace_abbot', 'd_plate_abbot', 'd_amulet_abbot'],
+            attacks: [{ kind: 'cast', name: 'Тишина', wind: 2.8, r: 99, mul: 2.6, cd: 14, range: 99 }, { kind: 'pools', wind: .8, n: 3, r: 2.6, dur: 8, mul: .55, cd: 10, range: 99 }, { kind: 'slam', wind: .9, r: 4.8, mul: 1.1, cd: 3, range: 5.2 }, { kind: 'charge', wind: .9, len: 14, width: 3, mul: 1.1, cd: 7, range: 16 }],
+            phases: [{ at: .7, summon: { type: 'shrieker', n: 2 }, shield: true }, { at: .3, enrage: true }] }
         ] }
     ]
   },
@@ -621,6 +658,7 @@ const BASE = {
       kad_xbow: { name: 'Арбалетчик Кадмии', story: true, look: 'guard', hp: 200, dmg: 15, speed: 4, range: 2, wind: .4, recover: .6, cost: 0, tint: '#3a5a8a', text: '' },
       kad_spear: { name: 'Копейщик Кадмии', story: true, look: 'guard', hp: 260, dmg: 18, speed: 4, range: 2, wind: .4, recover: .6, cost: 0, tint: '#24406a', text: '' },
       kad_banner: { name: 'Знаменосец Кадмии', story: true, look: 'veteran', hp: 400, dmg: 20, speed: 4, range: 2, wind: .4, recover: .6, cost: 0, tint: '#1c3a6a', text: '' },
+      masked_k: { name: 'Человек в маске', story: true, look: 'veteran', hp: 500, dmg: 30, speed: 4, range: 2, wind: .4, recover: .6, cost: 0, tint: '#1c161a', text: '' },
       royal_guard: { name: 'Стража Велиграда', story: true, look: 'soldier', hp: 500, dmg: 30, speed: 4, range: 2, wind: .4, recover: .6, cost: 0, tint: '#7a1a1a', text: '' },
       wagon: { name: 'Повозка с Алариком', story: true, hp: 3000, dmg: 0, speed: 1.6, range: 0, wind: 1, recover: 1, cost: 0, tint: '#5a3e26', text: '' },
       kingsman: { name: 'Латник Велиграда', story: true, look: 'soldier', hp: 700, dmg: 34, speed: 4.4, range: 2.1, wind: .38, recover: .55, cost: 0, tint: '#8a6a20', text: 'Королевский солдат.' },
@@ -637,7 +675,7 @@ const BASE = {
         waste: { id: 'rust', name: 'Ржавые пустоши', lv: [31, 35] }, coast: { id: 'grey', name: 'Серый берег', lv: [35, 38] } },
       { coast: { id: 'dusk', name: 'Затмённое побережье', lv: [38, 42] }, forest: { id: 'war', name: 'Поля Великой войны', lv: [42, 46] }, swamp: { id: 'rot', name: 'Гнилые топи', lv: [46, 50] },
         mountains: { id: 'mute', name: 'Горы Безмолвия', lv: [50, 55] }, waste: { id: 'heart', name: 'Сердце Затмения', lv: [55, 60] } }
-    ], hub: { npcs: ['merchant', 'smith'], names: { moss: 'Ставка короля', grey: 'Велиград', dusk: 'Приют у скал', war: 'Стан у курганов' } }, floorStep: 2 },     // names — свои имена узлов (Акт II: Ставка в Мшистых топях)     // floorStep — этаж замка выше зоны у входа на столько уровней
+    ], hub: { npcs: ['merchant', 'smith'], names: { moss: 'Ставка короля', grey: 'Велиград', dusk: 'Приют у скал', war: 'Стан у курганов', rot: 'Топкая Деревня', mute: 'Кузня под перевалом', heart: 'Последний Стан' } }, floorStep: 2 },     // names — свои имена узлов (Акт II: Ставка в Мшистых топях)     // floorStep — этаж замка выше зоны у входа на столько уровней
   level: { max: 60, base: 28, pow: 1.3, hpPer: 6, dmgPer: .6, healOnUp: .3,
     // уровни до 60 (этап 0, 2026-10-19): уровень места — из глубины: ядро 1–core, за ядром до edge у края мира; за ядром враги крепче
     // на grow за уровень (здоровье и урон), опыт за убийство — на xp за уровень; il — уровень вещи: стат × (1 + g·ур)/(1 + g·родной),
@@ -853,7 +891,10 @@ const BASE = {
       rust: [['golem', 2], ['blackdog', 3], ['kad_soldier', 2], ['kad_xbow', 2], ['bomber', 1]],
       grey: [['blackdog', 3], ['royal_guard', 2], ['archer', 2], ['shield', 1], ['hound', 2]],     // Акт III: Серый берег, Затмённое побережье, Поля Великой войны
       dusk: [['eclipse_fiend', 3], ['shade', 2], ['blackdog', 2], ['witch', 1], ['brandshade', 1, 'night']],
-      war: [['war_ghost', 3], ['lunger', 2], ['ghoul', 2], ['shade', 2], ['eclipse_fiend', 1]]
+      war: [['war_ghost', 3], ['lunger', 2], ['ghoul', 2], ['shade', 2], ['eclipse_fiend', 1]],
+      rot: [['drowned', 3], ['ghoul', 2], ['shrieker', 2], ['eclipse_fiend', 2], ['brandshade', 1, 'night']],     // Акт IV: Гнилые топи, Горы Безмолвия, Сердце Затмения
+      mute: [['troll', 2], ['shrieker', 2], ['war_ghost', 2], ['lunger', 2], ['brute', 1]],
+      heart: [['demon_guard', 2], ['eclipse_fiend', 3], ['brandshade', 2], ['troll', 1], ['shade', 1]]
     },
     // outerK (C3b) заменён уровнем места: config3d.js → level.core/edge/grow (этап 0)
     depthHp: 1.6,          // враги вдали от костра крепче: здоровье × (1 + depthHp × глубина), глубина 0 у костра, 1 у границы
@@ -896,7 +937,7 @@ const BASE = {
     borot:       { boss: true, name: 'Борот Синий',       xp: 3800, hp: 17000, speed: 3.0, damage: 66, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .8, 5, 5] },
     armorer:     { boss: true, name: 'Мастер-оружейник',  xp: 2600, hp: 13000, speed: 3.0, damage: 60, range: 3.2, wind: .7, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun'], on: ['burn', .7, 4, 4] },
     firegolem:   { boss: true, name: 'Сердце Горна',      xp: 2600, hp: 12500, speed: 2.4, damage: 68, range: 3.4, wind: .8, recover: 1, radius: 1.8, scale: 2.8, heavy: true, immune: ['stun', 'fear', 'burn'], on: ['burn', 1, 5, 5] },
-    smelter:     { boss: true, name: 'Плавильщик',        xp: 4200, hp: 16000, speed: 3.0, damage: 70, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear', 'burn'], on: ['burn', .9, 5, 5] },
+    smelter:     { boss: true, name: 'Плавильщик',        xp: 4200, hp: 14500, speed: 3.0, damage: 70, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear', 'burn'], on: ['burn', .9, 5, 5] },
     // Акт III (этап 7): стража Велиграда, тени клейма, твари Затмения, призраки Великой войны; Гарм-зверь — босс сцены; боссы Башни и Курганов
     royal_guard: { name: 'Стража Велиграда', ai: 'shield', soldier: 'royal_guard', xp: 70, hp: 560, speed: 2.8, damage: 42, range: 2, wind: .55, recover: .85, radius: .6, scale: 1.1, guard: { arc: 100, mul: .2, turn: 2.6, breakStun: .9 } },
     brandshade:  { name: 'Тень клейма', g: 'f', ai: 'blink', xp: 45, hp: 280, speed: 4, damage: 44, range: 1.6, wind: .6, recover: .7, radius: .45, scale: 1.1, blink: { min: 4, max: 11, cd: 4, behind: 1.6, extra: .25 }, immune: ['bleed', 'poison', 'fear'] },
@@ -909,6 +950,22 @@ const BASE = {
     bloodbanner: { boss: true, name: 'Кровавый знаменосец', xp: 4000, hp: 18000, speed: 3.0, damage: 86, range: 3.2, wind: .7, recover: .9, radius: 1.5, scale: 2.6, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .8, 5, 5] },
     namelessking: { boss: true, name: 'Безымянный король', xp: 4000, hp: 17000, speed: 2.8, damage: 82, range: 3.4, wind: .7, recover: .9, radius: 1.5, scale: 2.6, heavy: true, immune: ['stun', 'fear', 'poison'], on: ['bleed', .7, 4, 4] },
     gravewight:  { boss: true, name: 'Отступник-могильщик', xp: 6000, hp: 15000, speed: 3.0, damage: 86, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear', 'poison'], on: ['poison', .9, 5, 6] },
+    // Акт IV (этап 7): кликуша (heal — лечит раненых своих: доля здоровья amt раз в cd с в радиусе r), горный тролль (regen — доля здоровья в секунду,
+    // если 3 с не били), демон-страж; человек в маске — испытание; боссы Гнезда и Монастыря; Отступники — боссы сцен
+    shrieker:    { name: 'Кликуша', g: 'f', xp: 95, hp: 480, speed: 2.8, damage: 50, range: 14, wind: 1.1, recover: 2.2, radius: .5, scale: 1.1, on: ['burn', .5, 4, 4], ranged: { kind: 'hex', r: 2.4, delay: 1, keep: [7, 11] }, heal: { r: 9, amt: .12, cd: 4 } },
+    troll:       { name: 'Горный тролль', xp: 150, hp: 1500, speed: 2.4, damage: 80, range: 2.6, wind: .85, recover: 1.2, radius: 1.1, scale: 2.1, heavy: true, regen: .015 },
+    demon_guard: { name: 'Демон-страж', xp: 160, hp: 1200, speed: 3.2, damage: 86, range: 2.4, wind: .6, recover: .8, radius: .9, scale: 1.9, heavy: true, immune: ['fear', 'stun'], on: ['burn', .7, 5, 4] },
+    masked_knight: { name: 'Человек в маске', ai: 'lunge', soldier: 'masked_k', xp: 0, hp: 6000, speed: 5, damage: 70, range: 2.3, wind: .34, recover: .45, radius: .55, scale: 1.15, immune: ['stun', 'fear'], lunge: { min: 3, max: 8, aim: .45, speed: 17, len: 7, w: 1, cd: 2.2, mul: 1.4 } },
+    swampelder:  { boss: true, name: 'Староста-Отступник', xp: 5000, hp: 16000, speed: 3.0, damage: 94, range: 3.2, wind: .7, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun', 'fear'], on: ['poison', .8, 6, 5] },
+    feeder:      { boss: true, name: 'Кормилец',          xp: 5000, hp: 16000, speed: 2.8, damage: 96, range: 3.2, wind: .7, recover: .9, radius: 1.6, scale: 2.6, heavy: true, immune: ['stun'], on: ['poison', .8, 6, 5] },
+    swarm:       { boss: true, name: 'Рой',               xp: 5000, hp: 14000, speed: 4.0, damage: 88, range: 2.6, wind: .5, recover: .7, radius: 1.2, scale: 2.2, heavy: true, immune: ['stun', 'fear', 'poison'], on: ['bleed', .8, 5, 4] },
+    nestlord:    { boss: true, name: 'Хозяин Гнезда',     xp: 7000, hp: 18000, speed: 3.0, damage: 104, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear', 'poison'], on: ['poison', .9, 7, 6] },
+    abbeyshriek: { boss: true, name: 'Старшая кликуша', g: 'f', xp: 5400, hp: 15000, speed: 3.4, damage: 98, range: 2.6, wind: .55, recover: .8, radius: 1.0, scale: 2.0, heavy: true, immune: ['stun', 'fear'], on: ['burn', .8, 6, 4] },
+    choir:       { boss: true, name: 'Безмолвный хор',    xp: 5400, hp: 16000, speed: 2.6, damage: 100, range: 3.4, wind: .7, recover: .9, radius: 1.6, scale: 2.6, heavy: true, immune: ['stun', 'fear', 'bleed'] },
+    abbot:       { boss: true, name: 'Настоятель-Отступник', xp: 7600, hp: 18000, speed: 3.0, damage: 112, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear', 'poison'], on: ['burn', .9, 7, 5] },
+    ap_serpent:  { boss: true, name: 'Отступник-Змей',    xp: 7000, hp: 17000, speed: 3.6, damage: 112, range: 3.2, wind: .6, recover: .8, radius: 1.5, scale: 2.6, heavy: true, immune: ['stun', 'fear', 'poison'], on: ['poison', .9, 8, 5] },
+    ap_boar:     { boss: true, name: 'Отступник-Вепрь',   xp: 7000, hp: 19000, speed: 3.4, damage: 118, range: 3.4, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .9, 8, 5] },
+    ap_moth:     { boss: true, name: 'Отступница-Моль', g: 'f', xp: 7000, hp: 16000, speed: 3.8, damage: 108, range: 2.8, wind: .55, recover: .8, radius: 1.3, scale: 2.4, heavy: true, immune: ['stun', 'fear'], on: ['burn', .9, 7, 4] },
     bonetyrant: { boss: true, name: 'Костяной Тиран', xp: 3300, hp: 13500, speed: 4, damage: 58, range: 3.3, wind: .6, recover: .8, radius: 1.5, scale: 2.7, heavy: true, immune: ['stun', 'poison'], on: ['bleed', .7, 4, 6] },
     chief:    { boss: true, name: 'Вожак Ржавых',       xp: 1400, hp: 11500, speed: 3.2, damage: 62, range: 3.4, wind: .7, recover: .9, radius: 1.7, scale: 2.7, heavy: true, immune: ['stun'], on: ['bleed', .8, 4, 5] },
     // слух: чем громче герой, тем дальше его слышат. Услышавший идёт к герою, пока тот не уйдёт дальше `lose`

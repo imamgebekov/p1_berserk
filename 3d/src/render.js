@@ -1055,6 +1055,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'cleanse') burst(v.x, 1.2, v.z, 10, '#9fe8ff', 2.5);
       else if (v.k === 'allyhurt') { burst(v.x, 1.1, v.z, 6, '#3a6aa8'); hooks.onText && hooks.onText(v.x, 2.5, v.z, '−' + v.dmg, 'ally'); }
       else if (v.k === 'allydead') burst(v.x, 1, v.z, 14, '#3a6aa8', 5);
+      else if (v.k === 'foeheal') burst(v.x, 1.4, v.z, 8, '#8ae08a');     // кликуша лечит своих (Акт IV)
       else if (v.k === 'allyheal') { burst(v.x, 1.2, v.z, 8, '#7ae07a'); hooks.onText && hooks.onText(v.x, 2.5, v.z, '+' + v.amt, 'loot'); }     // лекарь отряда
       else if (v.k === 'taunt') { ringFx(v.x, v.z, v.r, '#ffd27a'); burst(v.x, 1.6, v.z, 10, '#ffd27a', 4); hooks.onText && hooks.onText(v.x, 2.9, v.z, 'Ко мне!', 'alarm'); }     // вызов защитника
       else if (v.k === 'swing') swingFx = 1;

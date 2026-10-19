@@ -33,7 +33,10 @@ export const BOSS_DROPS = {
   castellan: { trophy: 'm_castellan_seal', n: [2, .6], tomes: [] },     // замки (C4)
   queen: { trophy: 'm_queen_veil', n: [2, .6], tomes: [] },
   ashking: { trophy: 'm_ashking_crown', n: [2, .7], tomes: [], gold: .35 },     // павшие города (2026-10-18): gold — шанс золотой вещи
-  bonetyrant: { trophy: 'm_tyrant_skull', n: [2, .7], tomes: [], gold: .35 }
+  bonetyrant: { trophy: 'm_tyrant_skull', n: [2, .7], tomes: [], gold: .35 },
+  // Акт IV (этап 7): Отступники отдают сердце — его просит кузнец Гедеон
+  swampelder: { trophy: 'm_apostle_heart', n: [1, 0], tomes: [] }, nestlord: { trophy: 'm_apostle_heart', n: [1, .3], tomes: [] }, abbot: { trophy: 'm_apostle_heart', n: [1, .3], tomes: [] },
+  ap_serpent: { trophy: 'm_apostle_heart', n: [1, .5], tomes: [] }, ap_boar: { trophy: 'm_apostle_heart', n: [1, .5], tomes: [] }, ap_moth: { trophy: 'm_apostle_heart', n: [1, .5], tomes: [] }
 };
 // добыча боссов (кроме гарантированного уникального клинка)
 export const BOSS_LOOT = { name: 'Добыча босса', q: 3, slots: [3, 3], pools: [['weapon', 1], ['body', 1], ['head', 1], ['boots', 1], ['ring', 2], ['amulet', 2], ['potion', 2], ['key', 1]] };

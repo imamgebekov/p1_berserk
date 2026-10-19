@@ -26,6 +26,11 @@ export const SPEAKERS = {
   // Акт III (этап 7)
   smuggler: { name: 'Контрабандист с пристани', tint: '#3a4a4a' },
   garm: { name: 'Гарм Безглазый', tint: '#2a1414' },
+  // Акт IV (этап 7)
+  widow: { name: 'Вдова с болот', tint: '#4a4a3a' },
+  elder: { name: 'Староста Топкой Деревни', tint: '#3a4a2a' },
+  gedeon: { name: 'Кузнец Гедеон', tint: '#5a3a2a' },
+  nela: { name: 'Нела', tint: '#8a6a4a' },
   hero: { name: 'Вы', tint: '#a1121f' }
 };
 const H = 'hero';
@@ -208,5 +213,63 @@ export const ACT3 = [
     goal: { type: 'none' }, goalText: 'оставьте Ирму у огня', outro: [], reward: { xp: 18000, ash: 1500, items: [['m_ember_irma', 1]] }, end: true }
 ];
 ACT3.forEach(c => { c.act = 3; });
-export const ACTS = [{ n: 1, name: 'Наёмник' }, { n: 2, name: 'Война' }, { n: 3, name: 'Затмение' }];
-export const ACT_ALL = [...ACT1, ...ACT2, ...ACT3];
+// Акт IV «Месть» (этап 7): Гнилые топи (Топкая Деревня), Горы Безмолвия (Кузня под перевалом), Сердце Затмения (Последний Стан).
+// Герой с клеймом охотится на Отступников; Гедеон куёт ему оружие; тот, кто был Алариком, проходит мимо; финал — Врата рейда (этап 8)
+const WD = ['widow', 'hub:rot', [4, 3]], GD = ['gedeon', 'hub:mute', [0, -4]], NL = ['nela', 'hub:mute', [3, -3]], MK = at => ['masked', at, [-4, 2]];
+export const ACT4 = [
+  { id: 'a4_guests', name: 'Ночные гости', lv: 46, giver: 'widow', actors: [WD, ['elder', 'hub:rot', [-3, -5]]],
+    intro: [['widow', 'Ещё один с клеймом. Тебя тени тоже по ночам навещают?'], ['widow', 'У нас пропадают люди. Каждую неделю — один.'], ['elder', 'Не слушай её. Болото берёт своё. Всегда брало.'],
+      ['widow', 'Помоги нам — может, и узнаешь, куда они уходят.']],
+    goal: { type: 'quests', n: 3, list: ['w_drowned', 'w_ghouls', 'w_shriek', 'w_fiends', 'w_moss'] }, goalText: 'помогите Топкой Деревне — три дела',
+    outro: [['widow', 'Тех, кто пропал, видели у дома старосты. Ночью.'], ['widow', 'Мы платим ему. Иначе он берёт сам.'], [H, 'Он — Отступник.']], reward: { xp: 16000, ash: 1200 } },
+  { id: 'a4_elder', name: 'Староста', lv: 47, giver: 'widow', actors: [WD],
+    intro: [[H, 'Где он?'], ['widow', 'Ушёл на болото, когда ты пришёл. Ты пахнешь Дланью — он это чует.'], ['elder', '(из тумана) Ты один из нас? Нет... ты тот, кого они не доели.']],
+    goal: { type: 'boss', boss: 'swampelder', at: 'hub:rot', off: [0, 60],
+      spawnBoss: { base: 47, loot: ['d_scythe_elder', 'd_amulet_elder'], attacks: [{ kind: 'slam', wind: .8, r: 4.4, mul: 1, cd: 3, range: 5 }, { kind: 'pools', wind: .8, n: 3, r: 2.5, dur: 8, mul: .55, cd: 9, range: 99 }, { kind: 'charge', wind: .9, len: 13, width: 2.8, mul: 1.1, cd: 7, range: 15 }],
+        phases: [{ at: .5, summon: { type: 'drowned', n: 2 } }, { at: .3, enrage: true }] } },
+    goalText: 'найдите старосту на болоте и одолейте его', outroAt: 'widow',
+    outro: [['widow', 'Он кормил кого-то. Там, в старой мельнице. Гнездо.'], [H, 'Значит, Гнездо.']], reward: { xp: 18000, ash: 1400 } },
+  { id: 'a4_nest', name: 'Гнездо Отступника', lv: 48, giver: 'widow', actors: [WD],
+    intro: [['widow', 'Мельница над топью. Туда ходили все, кто пропал.'], [H, 'Больше не будут.']],
+    goal: { type: 'boss', boss: 'nestlord' }, goalText: 'пройдите Гнездо Отступника и одолейте Хозяина Гнезда',
+    outro: [['widow', 'Ты вернулся. Один вернулся оттуда.'], ['widow', 'В горах, говорят, живёт старый кузнец. Он куёт то, что режет демонов.']], reward: { xp: 22000, ash: 1800 } },
+  { id: 'a4_gedeon', name: 'Кузнец Гедеон', lv: 50, giver: 'gedeon', actors: [GD, NL],
+    intro: [['nela', 'Дядя Гедеон, к нам гость! С клеймом!'], ['gedeon', 'Вижу. Сядь, мечник. Твоё железо тени не берёт, да?'], ['gedeon', 'Я выкую тебе то, что их берёт. Слишком тяжёлое для человека. Для тебя — в самый раз.'],
+      ['gedeon', 'Принеси руды двадцать, угля пятнадцать, чёрной смолы пять — и сердце Отступника. Без сердца не выйдет.']],
+    goal: { type: 'bring', items: [['m_ore', 20], ['m_coal', 15], ['m_black_resin', 5], ['m_apostle_heart', 1]] }, goalText: 'принесите Гедеону руду, уголь, смолу и сердце Отступника',
+    outro: [['gedeon', 'Готово. Это не меч. Это кусок железа.'], ['nela', 'Он три ночи не спал!'], ['gedeon', 'Бери. И не благодари — возвращайся живым.']],
+    reward: { xp: 20000, ash: 600, heroItems: { thorn: 'l_slab', jay: 'l_nightbow', vale: 'l_brandblades', irga: 'l_dawnstaff' } } },
+  { id: 'a4_abbey', name: 'Монастырь Безмолвия', lv: 52, giver: 'nela', actors: [GD, NL],
+    intro: [['nela', 'Монахи с горы приходили за мной. Сказали — Длани нужны тихие.'], ['gedeon', 'Они не монахи давно. Настоятель кормит Длань верой.'], [H, 'Значит, накормлю его железом.']],
+    goal: { type: 'boss', boss: 'abbot' }, goalText: 'пройдите Монастырь Безмолвия и одолейте Настоятеля-Отступника',
+    outro: [['nela', 'Ты пришёл! А дядя говорил, что монахи не отпускают.'], ['gedeon', 'Не отпускают. Он не спрашивал.']], reward: { xp: 24000, ash: 2000 } },
+  { id: 'a4_masked', name: 'Человек в маске', lv: 53, giver: 'masked', actors: [MK('hub:mute'), GD, NL],
+    intro: [['masked', 'Ты стал сильнее. Покажи.'], [H, 'Зачем?'], ['masked', 'Затем, что я уже дрался с ними. Поэтому и живу в доспехе. Проверим, готов ли ты.']],
+    goal: { type: 'duel', foe: 'masked_knight', actor: 'masked', at: 'hub:mute', off: [-4, 2], yieldHero: .3, yieldFoe: .35 }, goalText: 'выдержите испытание человека в маске',
+    outro: [['masked', 'Рано. Но времени у нас нет.'], ['masked', 'Когда-то я был королём. В прошлое Затмение я потерял всё. Тело — тоже.']],
+    outroWin: [['masked', 'Хорошо. Ты бьёшь, как бил я, когда ещё был живым.'], ['masked', 'Когда-то я был королём. В прошлое Затмение я потерял всё. Тело — тоже.']], reward: { xp: 18000, ash: 1200 } },
+  { id: 'a4_alaric', name: 'Тот, кто был Алариком', lv: 54, giver: 'masked', actors: [MK('hub:mute'), ['alaric', 'hub:mute', [0, 44]]],
+    intro: [['masked', 'На перевале. Он ждёт тебя.'], ['alaric', 'Ты всё ещё держишь меч. Это хорошо.'], [H, 'Я пришёл за тобой.'], ['alaric', '(клинок останавливается в воздухе, не дойдя до него) Держи меч крепче. Мы ещё встретимся — у Врат.'],
+      ['masked', 'Его не взять железом. Пока. Бей тех, кто пришёл с ним.']],
+    goal: { type: 'kill', n: 8, at: 'hub:mute', off: [0, 40], r: 30, spawn: [['eclipse_fiend', 5], ['brandshade', 3]] }, goalText: 'отбейтесь от свиты Длани на перевале',
+    outro: [[H, 'Он не постарел. Ни шрама.'], ['masked', 'Он теперь Пятый. Длань дала ему всё, что он хотел. Кроме того, что ему было нужно.']], reward: { xp: 18000, ash: 1200 } },
+  { id: 'a4_irma', name: 'Ирма', lv: 55, giver: 'hostess', actors: [['hostess', 'band', [0, 0]], ['irma', 'band', [2, 1]]],
+    intro: [['hostess', 'Хорошо, что ты здесь. Тени ходят у таверны каждую ночь. Ищут её.'], ['irma', '...'], [H, 'Пусть ищут. Я здесь.']],
+    goal: { type: 'defend', at: 'gate', t: 100, waves: 5, n: 7, types: [['brandshade', 3], ['eclipse_fiend', 2], ['shade', 1]] }, goalText: 'не пустите тени к воротам лагеря до рассвета', failText: 'Тени прорвались. Поговорите с хозяйкой',
+    outroAt: 'irma', outro: [['irma', '...Ты.'], ['irma', 'Ты вернулся.'], ['hostess', 'Первое слово за год. Ну, мечник, иди. Теперь ты знаешь, ради чего.']], reward: { xp: 20000, ash: 1500 } },
+  { id: 'a4_generals', name: 'Сердце Затмения', lv: 56, giver: 'masked', actors: [MK('hub:heart')],
+    intro: [['masked', 'Здесь солнце не встаёт. Здесь его ждут.'], ['masked', 'Три Отступника держат дорогу к Вратам: Змей, Вепрь и Моль. Пока они живы, Врата не открыть.']],
+    goal: { type: 'hunt', at: 'hub:heart', hunt: [
+      { type: 'ap_serpent', off: [0, 70], base: 57, loot: ['d_fang_serpent', 'd_scale_serpent'], attacks: [{ kind: 'charge', wind: .7, len: 14, width: 2.6, mul: 1.1, cd: 5, range: 16 }, { kind: 'pools', wind: .8, n: 3, r: 2.5, dur: 8, mul: .55, cd: 9, range: 99 }, { kind: 'slam', wind: .7, r: 3.8, mul: 1, cd: 3, range: 4.4 }], phases: [{ at: .3, enrage: true }] },
+      { type: 'ap_boar', off: [70, 0], base: 57, loot: ['d_tusk_boar', 'd_hide_boar'], attacks: [{ kind: 'charge', wind: .9, len: 15, width: 3.2, mul: 1.2, cd: 6, range: 17 }, { kind: 'slam', wind: .9, r: 5, mul: 1.2, cd: 3, range: 5.5 }, { kind: 'nova', wind: 1.2, r: 8, inner: 2.8, mul: 1, cd: 9, range: 99 }], phases: [{ at: .5, summon: { type: 'demon_guard', n: 1 } }, { at: .3, enrage: true }] },
+      { type: 'ap_moth', off: [-70, 0], base: 57, loot: ['d_wing_moth', 'd_dust_moth'], attacks: [{ kind: 'beam', wind: 1.1, len: 15, width: 1.8, dur: 4, sweep: .9, mul: .9, cd: 11, range: 99 }, { kind: 'cast', name: 'Пыль забвения', wind: 2.6, r: 99, mul: 2.6, cd: 13, range: 99 }, { kind: 'nova', wind: 1, r: 7, inner: 2.4, mul: 1, cd: 8, range: 99 }], phases: [{ at: .3, enrage: true }] }
+    ] }, goalText: 'одолейте трёх Отступников у дороги к Вратам',
+    outro: [['masked', 'Трое. Дорога к Вратам открыта.'], ['masked', 'Дальше — Длань. И он.']], reward: { xp: 30000, ash: 2500 } },
+  { id: 'a4_gate', name: 'Врата', lv: 58, giver: 'masked', actors: [MK('hub:heart'), ['gedeon', 'hub:heart', [4, 2]], ['irma', 'hub:heart', [6, -1]]],
+    intro: [['gedeon', 'Старый я для таких дорог. Но железо твоё проверю в последний раз.'], ['irma', 'Я пойду. Не спорь.'], ['masked', 'За Вратами — Длань и тот, кто был Алариком. Его не добить, помни. Бей Длань.'],
+      { choose: [['Дальше — вместе.', [H, 'Дальше — только вместе.']], ['Я долго шёл сюда.', [H, 'Я долго шёл сюда. Не остановлюсь у порога.']]] }, ['masked', 'Тогда собирай отряд. Врата откроются, когда будешь готов.']],
+    goal: { type: 'none' }, goalText: 'соберитесь у Врат', outro: [], reward: { xp: 30000, ash: 3000 }, end: true }
+];
+ACT4.forEach(c => { c.act = 4; });
+export const ACTS = [{ n: 1, name: 'Наёмник' }, { n: 2, name: 'Война' }, { n: 3, name: 'Затмение' }, { n: 4, name: 'Месть' }];
+export const ACT_ALL = [...ACT1, ...ACT2, ...ACT3, ...ACT4];

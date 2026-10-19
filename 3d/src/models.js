@@ -189,6 +189,13 @@ const LOOKS = {
   keymaster: { shape: 'imp', body: '#4a3a2a', dark: '#140c08', eye: '#ffe080', crown: '#a89060' }, towerhound: { shape: 'hound', body: '#3a2a20', dark: '#100804', eye: '#ffb030', crown: '#8a7a60' },
   bloodbanner: { shape: 'bones', body: '#8a4a3a', dark: '#3a1410', eye: '#ff3a2a', crown: '#a02020' }, namelessking: { shape: 'bones', body: '#a8b0c0', dark: '#3a4050', eye: '#a8e8ff', crown: '#d8c890' },
   gravewight: { shape: 'ghoul', body: '#4a4a3a', dark: '#14140c', eye: '#c8ff60', crown: '#7a6a4a' },
+  shrieker: { shape: 'imp', body: '#4a3a3a', dark: '#140c0c', eye: '#ffe0a0', ghost: true }, troll: { shape: 'brute', body: '#5a6a5a', dark: '#1e241e', eye: '#ffd040' },     // Акт IV (этап 7)
+  demon_guard: { shape: 'brute', body: '#3a1414', dark: '#100404', eye: '#ff5020', crown: '#c03a1a' }, masked_knight: { soldier: 'masked_k' },
+  swampelder: { shape: 'ghoul', body: '#3a4a2a', dark: '#141c0a', eye: '#ff5030', crown: '#8a7a50' }, feeder: { shape: 'brute', body: '#5a4a3a', dark: '#1c140c', eye: '#c8ff60', crown: '#7a5a3a' },
+  swarm: { shape: 'hound', body: '#2a2034', dark: '#0c0814', eye: '#ff3aff', crown: '#6a4a8a' }, nestlord: { shape: 'brute', body: '#2a3a20', dark: '#0c140a', eye: '#ff3a2a', crown: '#a0c060', prop: 'shield' },
+  abbeyshriek: { shape: 'imp', body: '#5a4a4a', dark: '#1c1414', eye: '#ffe0a0', crown: '#e8d8c0', ghost: true }, choir: { shape: 'bones', body: '#c8c0b0', dark: '#4a4438', eye: '#a8e8ff', crown: '#e8e0d0' },
+  abbot: { shape: 'brute', body: '#4a3a2a', dark: '#140c08', eye: '#ffd040', crown: '#e8c040', prop: 'shield' }, ap_serpent: { shape: 'hound', body: '#2a4a2a', dark: '#0a1a0a', eye: '#ffe040', crown: '#4a8a3a' },
+  ap_boar: { shape: 'brute', body: '#4a2a1a', dark: '#140804', eye: '#ff3a1a', crown: '#d8c8a8' }, ap_moth: { shape: 'imp', body: '#6a5a3a', dark: '#1c1408', eye: '#ffb040', crown: '#c8a060', ghost: true },
   gravekeeper: { shape: 'ghoul', body: '#4a4436', dark: '#1e1a12', eye: '#c8ff60', crown: '#8a7a5a' },     // боссы подземелий (этап 5)
   ashsister: { shape: 'imp', body: '#4a4440', dark: '#1a1614', eye: '#ffb060', crown: '#d8d0c0', ghost: true },
   boneshepherd: { shape: 'bones', body: '#b8ae96', dark: '#4a4234', eye: '#ff5030', crown: '#e8e0c8' },

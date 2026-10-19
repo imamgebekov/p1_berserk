@@ -230,6 +230,7 @@ add({ id: 'm_ashking_crown', name: 'Венец Пепельного Короля
 add({ id: 'm_tyrant_skull', name: 'Череп Тирана', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 400, text: 'Череп в трещинах, в глазницах тлеет. Трофей павшего города.' });
 add({ id: 'a_cloak_wings', name: 'Плащ Пепельных Крыльев', cat: 'armor', slot: 'cloak', kind: 'cloak', mat: 'wings', tint: '#6a625c', pool: 'story', rar: 3, stats: { armor: 9, hp: 22, spd: 3 }, value: 420, text: 'Серый плащ с выжженным крылом. Награда отряда тем, кто держал брод.' });     // награда Акта I
 add({ id: 'm_queen_veil', name: 'Вуаль Королевы', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 360, text: 'Ткань из пыли, что не оседает. Трофей Чертога Пустоши.' });
+add({ id: 'm_apostle_heart', name: 'Сердце Отступника', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 400, text: 'Тёплое, будто ещё бьётся. Кузнец Гедеон знает, что из него сделать.' });     // Акт IV (этап 7)
 add({ id: 'm_ash_alloy', name: 'Пепельный сплав', cat: 'material', pool: 'craftmat', rar: 3, stack: 20, value: 150, text: 'Сталь, пепел и огонь. Делается в кузне, рецепт в книге.' });
 add({ id: 'm_tempered_sinew', name: 'Жила упыря', cat: 'material', pool: 'monstermat', rar: 2, stack: 20, value: 26, text: 'Крепкая закалённая жила: нужна для закалки оружия.' });
 add({ id: 'm_beast_hide', name: 'Звериная шкура', cat: 'material', pool: 'monstermat', rar: 1, stack: 20, value: 12, text: 'Шкура гончей. Нужна для кожи и чёрной брони.' });
@@ -355,9 +356,39 @@ const DUN = [
   ['d_bow_nameless', 'w_longbow_black', 'Лук королевской охоты', 'namelessking', { dmg: 28, crit: 9, swing: 1.15 }, 'Охота кончилась сотни лет назад.'],
   ['d_scythe_wight', 'w_scythe_black', 'Коса могильщика', 'gravewight', { dmg: 24, reach: .6, crit: 7, swing: 1.15, leech: 3 }, 'Ею он копал. Потом — косил.'],
   ['d_robe_wight', 'a_body_robe_black', 'Саван Отступника', 'gravewight', { armor: 10, hp: 42 }, 'Внутри холоднее, чем снаружи.'],
-  ['d_ring_wight', 'r_ring_blood', 'Перстень с могильной землёй', 'gravewight', { hp: 36, leech: 3 }, 'Под камнем — щепоть земли. Чьей — лучше не знать.', '#6a5a3a']
+  ['d_ring_wight', 'r_ring_blood', 'Перстень с могильной землёй', 'gravewight', { hp: 36, leech: 3 }, 'Под камнем — щепоть земли. Чьей — лучше не знать.', '#6a5a3a'],
+  // Акт IV (этап 7)
+  ['d_scythe_elder', 'w_scythe_black', 'Серп старосты', 'swampelder', { dmg: 25, reach: .6, crit: 8, swing: 1.15 }, 'Им жали не хлеб.'],
+  ['d_amulet_elder', 'm_talisman_blood', 'Оберег Топкой Деревни', 'swampelder', { hp: 44, armor: 5 }, 'Деревня вешала его на дверь старосты. Не помогло.', '#5a6a3a'],
+  ['d_cleaver_feeder', 'w_axe_black', 'Тесак Кормильца', 'feeder', { dmg: 26, crit: 7 }, 'Тупой с одной стороны. Острый — с другой.'],
+  ['d_apron_feeder', 'a_body_robe_black', 'Фартук Кормильца', 'feeder', { armor: 11, hp: 46 }, 'Лучше не спрашивать, отчего он такой тёмный.'],
+  ['d_wand_swarm', 'w_wand_black', 'Жезл Роя', 'swarm', { dmg: 17, crit: 14, swing: .85 }, 'Гудит, если поднести к уху.'],
+  ['d_hood_swarm', 'a_head_hood_black', 'Капюшон из крыльев', 'swarm', { armor: 9, crit: 7, hp: 22 }, 'Шуршит при каждом шаге.'],
+  ['d_greataxe_nest', 'w_war_axe_black', 'Секира Хозяина Гнезда', 'nestlord', { dmg: 32, crit: 7, swing: 1.3 }, 'Тяжёлая, как вина.'],
+  ['d_crown_nest', 'a_head_helm_black', 'Венец из корней', 'nestlord', { armor: 13, hp: 40, crit: 3 }, 'Корни ещё шевелятся.'],
+  ['d_ring_nest', 'r_ring_blood', 'Кольцо Гнезда', 'nestlord', { hp: 40, leech: 3 }, 'Внутри — засохшая капля смолы.', '#6a5a2a'],
+  ['d_staff_shriek', 'w_staff_black', 'Посох Вопля', 'abbeyshriek', { dmg: 30, crit: 7, swing: 1.2 }, 'Когда им бьют, кто-то вдалеке кричит.'],
+  ['d_veil_shriek', 'a_head_hood_black', 'Покров кликуши', 'abbeyshriek', { armor: 9, crit: 8, hp: 24 }, 'Ткань глушит любой звук. Почти любой.'],
+  ['d_bell_choir', 'w_mace_black', 'Немой колокол', 'choir', { dmg: 24, reach: -.2, crit: 3, swing: 1.05 }, 'Язык вырван. Бьёт всё равно гулко.'],
+  ['d_robe_choir', 'a_body_robe_black', 'Ряса хора', 'choir', { armor: 12, hp: 50 }, 'Те, кто её носил, не говорили сорок лет.'],
+  ['d_mace_abbot', 'w_hammer_black', 'Посох-булава Настоятеля', 'abbot', { dmg: 33, reach: -.1, crit: 4, swing: 1.25 }, 'Им благословляли. Потом — нет.'],
+  ['d_plate_abbot', 'a_body_plate_black', 'Литургический доспех', 'abbot', { armor: 30, hp: 44, spd: -3 }, 'Под золотом — чёрная сталь.'],
+  ['d_amulet_abbot', 'm_talisman_blood', 'Чётки Настоятеля', 'abbot', { hp: 48, crit: 5 }, 'Сорок бусин. Одна — из кости.', '#c8a860'],
+  ['d_fang_serpent', 'w_rapier_black', 'Жало Змея', 'ap_serpent', { dmg: 24, crit: 15 }, 'Тонкое и злое.'],
+  ['d_scale_serpent', 'a_cloak_pelt_black', 'Чешуйчатый плащ', 'ap_serpent', { armor: 12, hp: 46, spd: 3 }, 'Сбрасывает воду, как кожа змеи.'],
+  ['d_tusk_boar', 'w_greatsword_black', 'Бивень Вепря', 'ap_boar', { dmg: 36, reach: .6, crit: 7, swing: 1.3 }, 'Не клинок — клык, обмотанный кожей.'],
+  ['d_hide_boar', 'a_body_plate_black', 'Шкура Вепря', 'ap_boar', { armor: 30, hp: 48, spd: -3 }, 'Её не берёт ни копьё, ни огонь.'],
+  ['d_wing_moth', 'w_longbow_black', 'Крыло Моли', 'ap_moth', { dmg: 34, crit: 11, swing: 1.1 }, 'Лук лёгкий, как пыльца.'],
+  ['d_dust_moth', 'm_talisman_blood', 'Пыльца Моли', 'ap_moth', { hp: 42, crit: 6 }, 'Светится в темноте. Тени её не любят.', '#d8c890']
 ];
 { const B = ITEMS.find(i => i.id === 'r_ring_blood'); add({ ...ITEMS.find(i => i.id === 'm_talisman_blood'), id: 'm_ember_irma', name: 'Уголёк Ирмы', pool: 'story', rar: 3, stats: { hp: 48, armor: 5, crit: 3 }, value: 800, tint: '#c86a3a', text: 'Ирма носила его с первого дня в отряде. Теперь он у тебя.' }); add({ ...B, id: 'r_seal_veligrad', name: 'Перстень Велиграда', pool: 'story', rar: 3, stats: { hp: 40, crit: 4, armor: 4 }, value: 600, tint: '#d8b860', text: 'Королевский перстень графа Пепельного. Его оставили на столе, уходя.' }); }     // награда Акта II
+// легендарное оружие героя (Акт IV, кузнец Гедеон): только из сюжета
+for (const [id, b, name, stats, text] of [
+  ['l_slab', 'w_greatsword_black', 'Глыба', { dmg: 40, reach: .8, crit: 6, swing: 1.35, leech: 3 }, 'Это не меч. Это кусок железа. Но для них — в самый раз.'],
+  ['l_nightbow', 'w_longbow_black', 'Тетива Ночи', { dmg: 38, crit: 14, swing: 1.1 }, 'Стрелы из неё не видят, а находят.'],
+  ['l_brandblades', 'w_rapier_black', 'Клинки Клейма', { dmg: 28, crit: 18, swing: .85, leech: 4 }, 'Клеймо на шее отзывается на каждый удар.'],
+  ['l_dawnstaff', 'w_staff_black', 'Посох Рассвета', { dmg: 38, crit: 9, swing: 1.15, hp: 40 }, 'В навершии — свет, которого боятся тени.']
+]) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'story', rar: 3, stats, value: B.value * 4, text }); }     // «Великая»: клеймёные — мерило золотых
 for (const [id, b, name, boss, stats, text, tint] of DUN) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'dungeon', rar: 3, boss, stats, value: B.value * 2.2, text, ...(tint ? { tint } : {}) }); }     // tint — свой цвет значка у кольца и амулета
 export const CATALOG = ITEMS;
 export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));

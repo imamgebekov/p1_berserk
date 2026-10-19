@@ -2,7 +2,7 @@
 // библиотека механик (лужи, луч, чтение и его сбивание, щит подмоги), своя добыча босса, героическая сложность с 60 уровня,
 // бот отряда (герой + спутники уровня подземелья) побеждает каждого босса, а в одиночку — заметно реже.
 import { CFG3 } from '../3d/src/config3d.js';
-import { createWorld, step, mulberry32, killEnemy, refreshGear, spawnBoss } from '../3d/src/sim.js';
+import { createWorld, step, mulberry32, killEnemy, refreshGear, spawnBoss, spawnEnemy } from '../3d/src/sim.js';
 import { travel, setHeroic, levelAt } from '../3d/src/levels3d.js';
 import { pathStep } from '../3d/src/map.js';
 import { zoneAt, zoneLevel } from '../3d/src/zones3d.js';
@@ -16,7 +16,7 @@ const enter = (W, id) => { const d = W.cfg.dungeons.list.find(q => q.id === id);
 const bossIn = (W, type) => W.enemies.find(e => e.boss && e.type === type);
 
 // ---------- 1. данные ----------
-const WANT = { inst_brod: 3, inst_olkh: 4, inst_moss: 3, inst_pass: 3, inst_forge: 3, inst_tower: 3, inst_barrow: 3 };     // Акт I — два, Акт II — три, Акт III — два (этап 7)
+const WANT = { inst_brod: 3, inst_olkh: 4, inst_moss: 3, inst_pass: 3, inst_forge: 3, inst_tower: 3, inst_barrow: 3, inst_nest: 3, inst_abbey: 3 };     // Акт I — два, Акт II — три, Акт III и IV — по два (этап 7)
 ok(I.length === Object.keys(WANT).length && Object.entries(WANT).every(([id, n]) => I.some(d => d.id === id) && BL.filter(b => b.inst === id).length === n), 'подземелья или число боссов не те');
 for (const d of I.filter(q => q.id !== 'inst_brod')) { const T = CFG3.instances.list.find(q => q.id === d.id), z = zoneAt(CFG3, d.at.x, d.at.z), lv = zoneLevel(CFG3, d.at.x, d.at.z); ok(z && z.id === T.zone && Math.abs(lv - T.lv) <= 1.5, `${d.id}: вход не в зоне ${T.zone} ур. ${T.lv} (${z && z.id}, ${lv && lv.toFixed(1)})`); }
 for (const b of BL) { ok(b.loot && b.loot.length >= 2 && b.loot.every(id => BY_ID[id] && BY_ID[id].boss === b.type && BY_ID[id].pool === 'dungeon'), `${b.type}: своей добычи нет`); ok(CFG3.enemies[b.type] && CFG3.enemies[b.type].boss, `${b.type}: нет врага-босса`); }
@@ -92,7 +92,36 @@ function fight(b, seed, party) {
   }
   return { win: false, t: 180 };
 }
+// боссы сцен (Акт III–IV): бой на открытом месте ядра — уровень места ниже base, сила босса ровно base
+const { ACT } = await import('../3d/src/story3d.js');
+const SCENE = ACT.flatMap(c => c.goal.spawnBoss ? [{ type: c.goal.boss, ...c.goal.spawnBoss }] : c.goal.hunt ? c.goal.hunt : []);
+function fieldFight(def, seed, party) {
+  const W = mk(seed * 97 + 3, c => { c.bosses.list = []; }); W.hero = 'vale'; const lv = def.base; W.lv = lv;
+  Object.assign(W.inv.eq, KIT); W.inv.il = Object.fromEntries(Object.keys(KIT).map(k => [k, lv])); refreshGear(W); W.player.hp = W.player.maxhp;
+  const p = W.player; p.x = 60; p.z = 40; const e0 = spawnBoss(W, { ...def, x: 66, z: 40 }); e0.alert = true;
+  if (party) for (const t of ['c_thorn', 'c_irga', 'c_jay']) { const a = spawnAlly(W, t); a.x = p.x - 1; a.z = p.z + 1; }
+  const dodge = mulberry32(seed + 5);
+  for (let i = 0; i < 60 * 180; i++) {
+    const e = W.enemies.find(x => x.boss && !x.dead); if (!e) return { win: true, t: i / 60 }; const dx = e.x - p.x, dz = e.z - p.z, dd = Math.hypot(dx, dz) || 1, C = CFG3.enemies[e.type], B = e.b;
+    const inp = { mx: 0, mz: 0 }; if (dd > (party ? 2.6 : 3.2)) { inp.mx = dx / dd; inp.mz = dz / dd; } inp.attackPress = dd < CFG3.player.attackRange + W.gear.reach + C.radius * .5 + .3;
+    if (B.state === 'wind' && B.atk.kind !== 'cast' && B.atk.t > B.atk.wind - .22 && p.rollCd <= 0 && dodge() < .5) { inp.roll = true; inp.mx = -dx / dd; inp.mz = -dz / dd; inp.attackPress = false; }
+    const z = (W.bzones || []).find(q => Math.hypot(q.x - p.x, q.z - p.z) < q.r + .8); if (z) { const zx = p.x - z.x, zz = p.z - z.z, zd = Math.hypot(zx, zz) || 1; inp.mx = zx / zd; inp.mz = zz / zd; inp.attackPress = false; }
+    if (B.state === 'beam' || (B.state === 'wind' && B.atk.kind === 'beam')) { const a = B.atk, side = (p.x - e.x) * a.dz - (p.z - e.z) * a.dx, ahead = (p.x - e.x) * a.dx + (p.z - e.z) * a.dz; if (ahead > 0 && Math.abs(side) < a.width / 2 + 1.5) { const sg = side >= 0 ? 1 : -1; inp.mx = a.dz * sg; inp.mz = -a.dx * sg; inp.attackPress = false; } }
+    for (const m of W.enemies) if (!m.boss && !m.dead && Math.hypot(m.x - p.x, m.z - p.z) < 4 && !z) { inp.mx = m.x - p.x; inp.mz = m.z - p.z; inp.attackPress = true; }
+    step(W, 1 / 60, inp); if (p.dead) return { win: false, t: i / 60 };
+  }
+  return { win: false, t: 180 };
+}
+// поддержка врагов Акта IV: тролль зарастает, если его не бьют; кликуша лечит раненых своих
+{ const W = mk(30, c => { c.bosses.list = []; }); W.player.inv = 1e9; W.player.x = 60; W.player.z = 40;
+  const t = spawnEnemy(W, 'troll', 80, 40); t.hp = t.maxhp * .5; t.cd = 99; t.alert = false; for (let i = 0; i < 300; i++) step(W, 1 / 60, {}); ok(t.hp > t.maxhp * .55, 'тролль не зарастает');
+  const s2 = spawnEnemy(W, 'shrieker', 90, 60), g = spawnEnemy(W, 'brute', 92, 60); s2.alert = true; g.hp = g.maxhp * .3; g.cd = 99; const h0 = g.hp; for (let i = 0; i < 300; i++) step(W, 1 / 60, {}); ok(g.hp > h0 + g.maxhp * .1, 'кликуша не лечит своих'); }
 const N = Number(process.env.INST_N || 4);
+for (const d of SCENE) {
+  let wp = 0, ws = 0; for (let s2 = 0; s2 < N; s2++) { wp += fieldFight(d, s2, true).win ? 1 : 0; ws += fieldFight(d, s2, false).win ? 1 : 0; }
+  console.log(`${CFG3.enemies[d.type].name} (сцена)`.padEnd(24), `с отрядом побед ${(wp / N * 100).toFixed(0)}%, в одиночку ${(ws / N * 100).toFixed(0)}%`);
+  ok(wp / N >= .5, `${d.type}: отряд побеждает босса сцены реже половины боёв`);
+}
 for (const b of BL) {
   let wp = 0, ws = 0, tp = 0; for (let s = 0; s < N; s++) { const r = fight(b, s, true); wp += r.win ? 1 : 0; tp += r.t; const q = fight(b, s, false); ws += q.win ? 1 : 0; }
   console.log(`${CFG3.enemies[b.type].name}`.padEnd(24), `с отрядом побед ${(wp / N * 100).toFixed(0)}% (${(tp / N).toFixed(0)} с), в одиночку ${(ws / N * 100).toFixed(0)}%`);

@@ -5,7 +5,7 @@ import { ACT_ALL, ACTS, SPEAKERS } from './data/story3d.js';
 import { spawnEnemy, killEnemy, spawnBoss } from './sim.js';
 import { spawnAlly } from './squad3d.js';
 import { resolve } from './map.js';
-import { addItem, entryOf, roomFor, nomIl } from './inv.js';
+import { addItem, entryOf, roomFor, nomIl, countOf, removeAt } from './inv.js';
 import { BY_ID } from './data/items.js';
 import { gainXp } from './progress3d.js';
 import { len } from './util3d.js';
@@ -80,6 +80,7 @@ function startGoal(W) {
   for (const [kind, n] of G.army || []) for (let k = 0; k < n; k++) S.allies.push(storyAlly(W, kind).id);     // битва строем: королевское войско
   if (G.type === 'siege') { const a = storyAlly(W, G.who); a.guest = true; a.cart = true; a.ram = true; const st = place(W, G.from, G.fromOff); a.x = st.x; a.z = st.z; S.allies.push(a.id); }     // таран идёт сам
   if (G.spawnBoss) { const q = place(W, G.at, G.off), e = spawnBoss(W, { type: G.boss, x: q.x, z: q.z, ...G.spawnBoss }); e.alert = true; e.storyFoe = true; S.foes.push(e.id); }     // босс сцены (этап 7: Гарм)
+  if (G.type === 'hunt') for (const H of G.hunt) { const q = place(W, G.at, H.off), e = spawnBoss(W, { x: q.x, z: q.z, ...H }); e.alert = false; e.storyFoe = true; S.foes.push(e.id); }     // охота (Акт IV): несколько боссов сцены по местам
   if (G.type === 'sneak') {     // скрытность: герой у начала пути, сторожа вдоль него смотрят поперёк, видят узким конусом
     const a = place(W, G.from, G.fromOff), b = place(W, G.to, G.toOff), dx = b.x - a.x, dz = b.z - a.z, L = len(dx, dz) || 1, nx = -dz / L, nz = dx / L;
     Object.assign(W.player, { x: a.x, z: a.z, vx: 0, vz: 0 });
@@ -105,9 +106,11 @@ function clearScene(W) {
 function toOutro(W) { const c = sc(W); clearScene(W); if (c.outro && c.outro.length) W.story.st = 'outro'; else finish(W); }
 function finish(W) {
   const S = W.story, c = sc(W), R = c.reward || {};
+  if (c.goal.type === 'bring') for (const [id, n] of c.goal.items) { let left = n; for (let i = W.inv.bag.length - 1; i >= 0 && left > 0; i--) { const sl = W.inv.bag[i]; if (sl.id !== id) continue; const t = Math.min(left, sl.n); removeAt(W.inv, i, t); left -= t; } }     // Гедеон берёт материалы
+  const items = [...(R.items || []), ...(R.heroItems && R.heroItems[W.hero] ? [[R.heroItems[W.hero], 1]] : [])];     // своё оружие герою (Акт IV)
   if (R.xp) gainXp(W, R.xp);
   if (R.ash) W.inv.ash += R.ash;
-  for (const [id, n] of R.items || []) { const it = BY_ID[id]; if (!it) continue; const mx = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
+  for (const [id, n] of items) { const it = BY_ID[id]; if (!it) continue; const mx = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
     if (it.slot && roomFor(W.inv, id, mx)) W.inv.bag.push(entryOf(id, 0, null, Math.max(nomIl(it), W.lv))); else if (addItem(W.inv, id, n, mx) > 0) W.drops.push({ id, n, x: W.player.x + 1, z: W.player.z, t: 0, cd: 0 });
     W.known.items[id] = 1; }
   clearScene(W);
@@ -123,7 +126,11 @@ export function storyKill(W, e) {
   const G = c.goal, at = place(W, G.at, G.off); if (G.enemy && e.type !== G.enemy) return; if (len(e.x - at.x, e.z - at.z) > G.r) return;
   S.n++; if (S.n >= G.n) toOutro(W);
 }
-export function storyBoss(W, type) { const S = W.story, c = S && sc(W); if (c && S.st === 'goal' && c.goal.type === 'boss' && c.goal.boss === type) toOutro(W); }
+export function storyBoss(W, type) {
+  const S = W.story, c = S && sc(W); if (!c || S.st !== 'goal') return;
+  if (c.goal.type === 'boss' && c.goal.boss === type) toOutro(W);
+  if (c.goal.type === 'hunt' && c.goal.hunt.some(h => h.type === type)) { S.n++; if (S.n >= c.goal.hunt.length) toOutro(W); }
+}
 // поединок: герой не гибнет — бой кончается на доле здоровья
 export function duelGuard(W, dmg) { const p = W.player; return W.duelOn && p.hp - dmg < 1 ? Math.max(0, p.hp - 1) : dmg; }
 
@@ -152,6 +159,7 @@ export function storyTick(W, dt) {
     if (!W.enemies.some(e => !e.dead && e.alert && len(e.x - a.x, e.z - a.z) < 3)) { a.x += dx / d * G.speed * dt; a.z += dz / d * G.speed * dt; a.face = Math.atan2(dx, dz); a.moving = true; } else a.moving = false;     // враги у тарана — стоит
     if (S.t >= S.wave * G.every && W.enemies.filter(e => !e.dead && S.foes.includes(e.id)).length < (G.cap || 14)) { S.wave++; wave(W, a, G, rng, null); }
     return; }
+  if (G.type === 'bring') { S.n = G.items.filter(([id, n]) => countOf(W.inv, id) >= n).length; if (S.n >= G.items.length) toOutro(W); return; }     // принести (Гедеон): всё в сумке — к разговору
   if (G.type === 'sneak') {     // заметили — заново; дошёл — дальше
     if (p.dead || W.enemies.some(e => e.alert && !e.dead && S.foes.includes(e.id))) { fail(W, c); return; }
     const b = place(W, G.to, G.toOff); if (len(p.x - b.x, p.z - b.z) < G.r) toOutro(W);
@@ -191,7 +199,7 @@ export function storyGoal(W) {
   if (G.type === 'eclipse') return { text: head + c.goalText + ` — ${Math.max(0, Math.ceil(G.t - S.t))} с`, at: place(W, G.at, G.off) };
   if (G.type === 'siege') { const a = W.allies.find(q => q.ram), to = place(W, G.to, G.toOff); return { text: head + c.goalText + (a ? ` — ${Math.round(len(a.x - to.x, a.z - to.z))} м до ворот` : ''), at: to }; }
   const at = G.at ? place(W, G.at, G.off) : G.to ? place(W, G.to, G.toOff) : G.boss ? (() => { const d = W.cfg.bosses.list.find(b => b.type === G.boss), dn = d && d.level && W.cfg.dungeons.list.find(q => q.id === d.level); return dn && dn.at ? { x: dn.at.x, z: dn.at.z } : d && !d.level ? { x: d.x, z: d.z } : null; })() : null;     // босс в подземелье — метка на входе
-  const prog = G.type === 'battle' ? ` — знаменосцы ${S.n}/${G.need}` : G.type === 'kill' ? ` — ${S.n}/${G.n}` : G.type === 'quests' ? ` — ${S.n}/${G.n}` : G.type === 'defend' ? ` — ${Math.max(0, Math.ceil(G.t - S.t))} с, волна ${S.wave}/${G.waves}` : '';
+  const prog = G.type === 'hunt' ? ` — ${S.n}/${G.hunt.length}` : G.type === 'bring' ? ` — ${S.n}/${G.items.length}` : G.type === 'battle' ? ` — знаменосцы ${S.n}/${G.need}` : G.type === 'kill' ? ` — ${S.n}/${G.n}` : G.type === 'quests' ? ` — ${S.n}/${G.n}` : G.type === 'defend' ? ` — ${Math.max(0, Math.ceil(G.t - S.t))} с, волна ${S.wave}/${G.waves}` : '';
   return { text: head + c.goalText + prog + lv, at };
 }
 // клеймо (этап 7, после Затмения): ночью наверху к герою приходят тени клейма; в безопасных местах — нет
@@ -208,7 +216,7 @@ export function brandTick(W, dt, safe) {
 export const sceneIndex = id => ACT.findIndex(c => c.id === id);
 
 // ---- сохранение: бой в разгаре (поединок, оборона, проводы, бой с отрядом) не сохраняется — сцена снова ждёт разговора ----
-export const serializeStory = S => (S ? { i: S.i, st: S.st === 'goal' && ['kill', 'quests', 'boss', 'spark'].includes((ACT[S.i] || {}).goal?.type) && !(ACT[S.i].goal.party) && !(ACT[S.i].goal.spawnBoss) ? 'goal' : S.st === 'goal' ? 'wait' : S.st, n: S.n | 0 } : null);
+export const serializeStory = S => (S ? { i: S.i, st: S.st === 'goal' && ['kill', 'quests', 'boss', 'spark', 'bring'].includes((ACT[S.i] || {}).goal?.type) && !(ACT[S.i].goal.party) && !(ACT[S.i].goal.spawnBoss) ? 'goal' : S.st === 'goal' ? 'wait' : S.st, n: S.n | 0 } : null);
 export function sanitizeStory(d) {
   const S = storyFresh(); if (!d || typeof d !== 'object') return S;
   S.i = Number.isInteger(d.i) && d.i >= 0 ? Math.min(ACT.length, d.i) : 0;
