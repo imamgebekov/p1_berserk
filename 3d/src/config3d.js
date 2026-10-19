@@ -336,7 +336,8 @@ const BASE = {
   // к каждому удару, dual.swing — удары с двумя клинками быстрее (×)
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
-  heroes: { thorn: { hp: 1, speed: 1, crit: 0 }, vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 } },
+  heroes: { thorn: { hp: 1.15, speed: 1, crit: 0 },     // Торн — защитник: здоровья больше (этап 2 «круче»: на «железе» гиб чаще всех)
+  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 } },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
     // rar — редкость вещи (3 — великий, фиолетовый; 4 — клеймёный, оранжевый; 5 — золотой, только здесь), mul — наценка;
@@ -349,6 +350,9 @@ const BASE = {
   bosses: {
     homeHeal: .12,        // доля здоровья в секунду, которую босс лечит, вернувшись в логово (и пока герой в подземелье)
     respawn: 600, aggro: 28, leash: 70, enrageSpeed: 1.25, enrageCd: .7, enrageDmg: 1.2, minionCap: 6,
+    // новый приём на первой фазе (этап 2 «круче»): образцы; null — выключено (база боя)
+    phaseMoves: { beam: { kind: 'beam', wind: 1.3, len: 13, width: 1.6, dur: 3.5, sweep: .7, mul: .8, cd: 13, range: 99 }, pools: { kind: 'pools', wind: .9, n: 1, r: 2.2, dur: 7, mul: .4, cd: 12, range: 99 },
+      nova: { kind: 'nova', wind: 1.2, r: 7, inner: 2.6, mul: .8, cd: 10, range: 99 }, charge: { kind: 'charge', wind: 1, len: 12, width: 2.4, mul: 1, cd: 7, range: 15 } },
     // механики (этап 5): tick — шаг урона луча и луж, с (дольше неуязвимости героя после удара); brk — доля здоровья босса, которую надо снять,
     // чтобы сбить чтение без тяжёлого удара; stun — сколько босс стоит, когда чтение сбито, с
     mech: { tick: .6, brk: .15, stun: 2.2 },
@@ -727,6 +731,14 @@ const BASE = {
       vampiric:  { name: 'Кровопийца',    nameF: 'Кровопийца',    heal: .6, color: '#d03060' },
       explosive: { name: 'Взрывной',      nameF: 'Взрывная',      r: 3.2, delay: .9, dmg: 38, color: '#ff9a30' },
       burning:   { name: 'Пылающий',      nameF: 'Пылающая',      on: ['burn', .8, 3, 5], immune: ['burn'], color: '#ff6a20' }
+    },
+    // новые свойства (этап 2 «круче»): extra — включены; с глубины dual — второе свойство; chill — скорость героя после удара ледяного
+    extra: true, dual: 1.5, chill: .75,
+    affixes2: {
+      frost:    { name: 'Ледяной',     nameF: 'Ледяная',      t: 1.5, color: '#9ad8ff' },
+      mirror:   { name: 'Зеркальный',  nameF: 'Зеркальная',   k: .06, color: '#e8e8ff' },
+      blink:    { name: 'Блуждающий',  nameF: 'Блуждающая',   cd: 9, color: '#b08aff' },
+      summoner: { name: 'Призыватель', nameF: 'Призывательница', at: .5, n: 1, type: 'imp', color: '#8ad07a' }
     }
   },
   // сутки: len — секунд на полный круг; start — на какой фазе начинается игра (0.3 — полдень, 0.0 — рассвет);
@@ -871,6 +883,7 @@ const BASE = {
   },
 
   enemies: {
+    moves: true,     // приёмы «числовых» врагов (этап 2 «круче»): ai 'move' + move у вида; false — как раньше (база боя)
     count: 6,             // сколько врагов держим на поле
     respawn: 1.6,         // пауза до появления нового
     ring: [14, 19],       // на каком расстоянии от героя появляются
@@ -880,10 +893,10 @@ const BASE = {
       firstPack: { lv: 3, hp: .5, r: 90 } },     // шаг 12: пока герой ниже lv, стайки ближе r м к лагерю — «молодые» (здоровье ×hp)
     sleep: { r: 80, drop: 110 },   // дальше r от героя враг «спит» (не обновляется и не считается в числе живых вокруг), дальше drop бродячий — забывается
     brutePart: .3,        // доля рогачей среди врагов
-    imp:   { name: 'Бес', xp: 14, hp: 126, speed: 3.4, damage: 11,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1 },
-    brute: { name: 'Рогач', xp: 45, hp: 390, speed: 2.2, damage: 28, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6 },
-    hound: { name: 'Гончая', g: 'f', on: ['bleed', .6, 2.5, 4], xp: 10, hp: 90, speed: 5.6, damage: 10,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85 },   // быстрая, хрупкая; рыщет у руин и лагеря
-    ghoul: { name: 'Упырь', on: ['poison', .7, 2, 6], xp: 33, hp: 270, speed: 2.8, damage: 20, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2 },   // упырь: у кладбища и в часовне
+    imp:   { name: 'Бес', xp: 14, hp: 126, speed: 3.4, damage: 11,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1, ai: 'move', move: { kind: 'leap', min: 3.5, max: 7, cd: 7, first: 2 }, lunge: { min: 3.5, max: 7, aim: .5, speed: 14, len: 5.5, w: .8, cd: 7, mul: .7 } },
+    brute: { name: 'Рогач', xp: 45, hp: 390, speed: 2.2, damage: 28, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6, ai: 'move', move: { kind: 'slam', r: 2.6, wind: .7, mul: .55, cd: 9, first: 3 } },
+    hound: { name: 'Гончая', g: 'f', on: ['bleed', .6, 2.5, 4], xp: 10, hp: 90, speed: 5.6, damage: 10,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85, ai: 'move', move: { kind: 'howl', r: 12, t: 5, spd: 1.2, cd: 20, first: .5 } },   // быстрая, хрупкая; рыщет у руин и лагеря
+    ghoul: { name: 'Упырь', on: ['poison', .7, 2, 6], xp: 33, hp: 270, speed: 2.8, damage: 20, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2, ai: 'move', move: { kind: 'spit', min: 4, max: 9, wind: .15, delay: 1, r: 1.6, mul: .45, cd: 8, first: 2 } },   // упырь: у кладбища и в часовне
     // дальний бой: ranged.keep — на каком расстоянии держится от героя; стрела летит со speed, колдовство накрывает пятно r через delay секунд
     archer: { name: 'Лучник Ржавых', xp: 22, hp: 150, speed: 3.2, damage: 14, range: 13, wind: .9, recover: 1.3, radius: .45, scale: 1, ranged: { kind: 'arrow', speed: 14, keep: [6, 10] } },
     witch: { name: 'Колдун Затмения', xp: 38, hp: 200, speed: 2.8, damage: 26, range: 14, wind: 1.1, recover: 2.4, radius: .5, scale: 1.05, on: ['burn', .5, 3, 5], ranged: { kind: 'hex', r: 2.4, delay: 1.0, keep: [7, 11] } },
@@ -960,9 +973,9 @@ const BASE = {
     kad_xbow:    { name: 'Арбалетчик Кадмии', soldier: 'kad_xbow', xp: 32, hp: 190, speed: 3, damage: 24, range: 14, wind: 1, recover: 1.4, radius: .45, scale: 1, ranged: { kind: 'arrow', speed: 18, keep: [7, 11] } },
     kad_spear:   { name: 'Копейщик Кадмии', ai: 'lunge', soldier: 'kad_spear', xp: 42, hp: 270, speed: 2.9, damage: 32, range: 1.9, wind: .6, recover: 1, radius: .5, scale: 1.05, lunge: { min: 4, max: 9, aim: .7, speed: 15, len: 8, w: .9, cd: 3.2, mul: 1.3 }, on: ['bleed', .5, 2.5, 4] },
     kad_banner:  { name: 'Знаменосец Кадмии', soldier: 'kad_banner', xp: 80, hp: 520, speed: 2.4, damage: 26, range: 2, wind: .7, recover: 1, radius: .6, scale: 1.15, aura: { r: 7, dmg: .25 } },
-    drowned:     { name: 'Утопленник', xp: 40, hp: 320, speed: 2.2, damage: 26, range: 1.8, wind: .6, recover: .9, radius: .55, scale: 1.2, on: ['poison', .7, 3, 5] },
-    golem:       { name: 'Огненный голем', xp: 90, hp: 720, speed: 1.8, damage: 40, range: 2.2, wind: .8, recover: 1.1, radius: .9, scale: 1.8, heavy: true, immune: ['burn'], on: ['burn', .8, 4, 4] },
-    blackdog:    { name: 'Чёрный пёс', xp: 55, hp: 300, speed: 4.6, damage: 30, range: 1.6, wind: .4, recover: .6, radius: .55, scale: 1.15, on: ['bleed', .8, 3, 4] },
+    drowned:     { name: 'Утопленник', xp: 40, hp: 320, speed: 2.2, damage: 26, range: 1.8, wind: .6, recover: .9, radius: .55, scale: 1.2, on: ['poison', .7, 3, 5], ai: 'move', move: { kind: 'pull', min: 3, max: 8, wind: .6, mul: .4, force: 12, cd: 9, first: 2 } },
+    golem:       { name: 'Огненный голем', xp: 90, hp: 720, speed: 1.8, damage: 40, range: 2.2, wind: .8, recover: 1.1, radius: .9, scale: 1.8, heavy: true, immune: ['burn'], on: ['burn', .8, 4, 4], ai: 'move', move: { kind: 'skin', at: .5, t: 5, mul: .5 } },
+    blackdog:    { name: 'Чёрный пёс', xp: 55, hp: 300, speed: 4.6, damage: 30, range: 1.6, wind: .4, recover: .6, radius: .55, scale: 1.15, on: ['bleed', .8, 3, 4], ai: 'move', move: { kind: 'ambush', min: 5, max: 12, cd: 7, behind: 1.6, extra: .25, first: 2 } },
     garm:        { name: 'Гарм Безглазый', ai: 'lunge', xp: 0, hp: 4200, speed: 4.2, damage: 44, range: 2.2, wind: .5, recover: .6, radius: .8, scale: 1.6, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .9, 4, 5], lunge: { min: 3, max: 10, aim: .6, speed: 18, len: 9, w: 1.2, cd: 3, mul: 1.4 } },
     alaric2:     { name: 'Аларик Белый', ai: 'lunge', soldier: 'alaric', xp: 0, hp: 2600, speed: 5, damage: 44, range: 2.1, wind: .34, recover: .42, radius: .5, scale: 1.05, immune: ['stun'], lunge: { min: 3, max: 8, aim: .45, speed: 17, len: 7, w: .9, cd: 2, mul: 1.4 } },
     // боссы подземелий Акта II
@@ -978,8 +991,8 @@ const BASE = {
     // Акт III (этап 7): стража Велиграда, тени клейма, твари Затмения, призраки Великой войны; Гарм-зверь — босс сцены; боссы Башни и Курганов
     royal_guard: { name: 'Стража Велиграда', ai: 'shield', soldier: 'royal_guard', xp: 70, hp: 560, speed: 2.8, damage: 42, range: 2, wind: .55, recover: .85, radius: .6, scale: 1.1, guard: { arc: 100, mul: .2, turn: 2.6, breakStun: .9 } },
     brandshade:  { name: 'Тень клейма', g: 'f', ai: 'blink', xp: 45, hp: 280, speed: 4, damage: 44, range: 1.6, wind: .6, recover: .7, radius: .45, scale: 1.1, blink: { min: 4, max: 11, cd: 4, behind: 1.6, extra: .25 }, immune: ['bleed', 'poison', 'fear'] },
-    eclipse_fiend: { name: 'Тварь Затмения', xp: 65, hp: 400, speed: 5, damage: 46, range: 1.7, wind: .4, recover: .6, radius: .55, scale: 1.2, on: ['bleed', .7, 3, 4], immune: ['fear'] },
-    war_ghost:   { name: 'Призрак Великой войны', xp: 85, hp: 560, speed: 2.6, damage: 54, range: 2.2, wind: .65, recover: .9, radius: .6, scale: 1.3, immune: ['poison', 'bleed'], on: ['bleed', .5, 3, 3] },
+    eclipse_fiend: { name: 'Тварь Затмения', xp: 65, hp: 400, speed: 5, damage: 46, range: 1.7, wind: .4, recover: .6, radius: .55, scale: 1.2, on: ['bleed', .7, 3, 4], immune: ['fear'], ai: 'move', move: { kind: 'slam', r: 3.5, wind: .5, mul: 1, on: ['burn', .7, 3, 4], cd: 6, first: 2 } },
+    war_ghost:   { name: 'Призрак Великой войны', xp: 85, hp: 560, speed: 2.6, damage: 54, range: 2.2, wind: .65, recover: .9, radius: .6, scale: 1.3, immune: ['poison', 'bleed'], on: ['bleed', .5, 3, 3], ai: 'move', move: { kind: 'phase', min: 4, max: 12, t: 1.5, mul: .15, spd: 1.6, cd: 8, first: 2 } },
     garm_beast:  { boss: true, name: 'Гарм-зверь',        xp: 4400, hp: 16000, speed: 4.2, damage: 76, range: 3, wind: .55, recover: .7, radius: 1.4, scale: 2.4, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .9, 5, 5] },
     towerwarden: { boss: true, name: 'Страж Башни',       xp: 3000, hp: 15000, speed: 3.0, damage: 74, range: 3.2, wind: .7, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun'] },
     keymaster:   { boss: true, name: 'Ключник',           xp: 3000, hp: 11500, speed: 3.4, damage: 66, range: 2.6, wind: .55, recover: .8, radius: 1.0, scale: 1.9, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .7, 4, 4] },
@@ -991,7 +1004,7 @@ const BASE = {
     // если 3 с не били), демон-страж; человек в маске — испытание; боссы Гнезда и Монастыря; Отступники — боссы сцен
     shrieker:    { name: 'Кликуша', g: 'f', xp: 95, hp: 480, speed: 2.8, damage: 50, range: 14, wind: 1.1, recover: 2.2, radius: .5, scale: 1.1, on: ['burn', .5, 4, 4], ranged: { kind: 'hex', r: 2.4, delay: 1, keep: [7, 11] }, heal: { r: 9, amt: .12, cd: 4 } },
     troll:       { name: 'Горный тролль', xp: 150, hp: 1500, speed: 2.4, damage: 80, range: 2.6, wind: .85, recover: 1.2, radius: 1.1, scale: 2.1, heavy: true, regen: .015 },
-    demon_guard: { name: 'Демон-страж', xp: 160, hp: 1200, speed: 3.2, damage: 86, range: 2.4, wind: .6, recover: .8, radius: .9, scale: 1.9, heavy: true, immune: ['fear', 'stun'], on: ['burn', .7, 5, 4] },
+    demon_guard: { name: 'Демон-страж', xp: 160, hp: 1200, speed: 3.2, damage: 86, range: 2.4, wind: .6, recover: .8, radius: .9, scale: 1.9, heavy: true, immune: ['fear', 'stun'], on: ['burn', .7, 5, 4], ai: 'move', move: { kind: 'leap', min: 4, max: 9, cd: 6, first: 2 }, lunge: { min: 4, max: 9, aim: .7, speed: 16, len: 7, w: 1.2, cd: 6, mul: 1.2 } },
     masked_knight: { name: 'Человек в маске', ai: 'lunge', soldier: 'masked_k', xp: 0, hp: 6000, speed: 5, damage: 70, range: 2.3, wind: .34, recover: .45, radius: .55, scale: 1.15, immune: ['stun', 'fear'], lunge: { min: 3, max: 8, aim: .45, speed: 17, len: 7, w: 1, cd: 2.2, mul: 1.4 } },
     swampelder:  { boss: true, name: 'Староста-Отступник', xp: 5000, hp: 16000, speed: 3.0, damage: 94, range: 3.2, wind: .7, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun', 'fear'], on: ['poison', .8, 6, 5] },
     feeder:      { boss: true, name: 'Кормилец',          xp: 5000, hp: 16000, speed: 2.8, damage: 96, range: 3.2, wind: .7, recover: .9, radius: 1.6, scale: 2.6, heavy: true, immune: ['stun'], on: ['poison', .8, 6, 5] },

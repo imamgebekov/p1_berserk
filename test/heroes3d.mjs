@@ -25,7 +25,7 @@ const weapon = kind => CATALOG.find(i => i.slot === 'weapon' && i.kind === kind 
   ok(!canWield('jay', BY_ID[weapon('sword')]) && !canWield('thorn', BY_ID[HEROES.jay.start]) && !canWield('vale', BY_ID[HEROES.jay.start]), 'луки не только у Сойки');
   ok(canWield('vale', BY_ID[weapon('rapier')]) && !canWield('vale', BY_ID[weapon('hammer')]) && !canWield('thorn', BY_ID[weapon('dagger')]), 'запреты оружия не те');
   ok(canWield('vale', BY_ID[CATALOG.find(i => i.slot === 'body').id]), 'броня запрещена');
-  const c = CFG3.heroes.thorn; ok(c.hp === 1 && c.speed === 1 && !c.crit, 'Торн не как прежний герой');
+  const c = CFG3.heroes.thorn; ok(c.hp >= 1 && c.hp <= 1.2 && c.speed === 1 && !c.crit, 'Торн не как прежний герой (здоровье — до ×1,2, этап 2 «круче»)');
 }
 // ---------- 2. надеть: чужое не надевается, своё — да ----------
 {
@@ -40,7 +40,7 @@ const weapon = kind => CATALOG.find(i => i.slot === 'weapon' && i.kind === kind 
 // ---------- 3. множители героя ----------
 {
   const T = mk('thorn'), V = mk('vale');
-  ok(T.player.maxhp === CFG3.player.hp && V.player.maxhp === Math.round(CFG3.player.hp * CFG3.heroes.vale.hp), `здоровье: Торн ${T.player.maxhp}, Вейл ${V.player.maxhp}`);
+  ok(Math.abs(T.player.maxhp - CFG3.player.hp * CFG3.heroes.thorn.hp) < 1e-6 && V.player.maxhp === Math.round(CFG3.player.hp * CFG3.heroes.vale.hp), `здоровье: Торн ${T.player.maxhp}, Вейл ${V.player.maxhp}`);
   ok(V.gear.crit - T.gear.crit === CFG3.heroes.vale.crit, 'нет прибавки крита у Вейла');
   const run = W => { W.player.x = 40; W.player.z = 40; const x0 = W.player.x; for (let i = 0; i < 60; i++) step(W, 1 / 60, { mx: 1, mz: 0 }); return W.player.x - x0; };
   const dt = run(mk('thorn', 3)), dv = run(mk('vale', 3));

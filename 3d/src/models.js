@@ -357,7 +357,8 @@ export function animateMonster(m, e, time, cfg, hx, hz) {
       [m.root, 'position', 'x'], [m.root, 'position', 'y'], [m.root, 'position', 'z'], [m.root, 'rotation', 'x'], [m.root, 'rotation', 'z'], [m.root, 'scale', 'x'], [m.root, 'scale', 'y'], [m.root, 'scale', 'z']]);
     smoothPose(m, ch, e.flash > 0 || e.state === 'dash' || e.state === 'fuse' ? cfg.view.blend.hit : cfg.view.blend.pose, m.dt || 0);
   }
-  m.flash(Math.max(red, e.flash > 0 ? .9 : 0), tint);
+  { const ph = e.phaseT > 0 && !e.dead; if (ph !== !!m.phased && m.mats && !m.ghost) { m.phased = ph; for (const q of m.mats) { q.transparent = ph; q.depthWrite = !ph; q.opacity = ph ? .35 : 1; q.needsUpdate = true; } } }     // «сквозь тьму» — полупрозрачный (этап 2 «круче»)
+  m.flash(Math.max(red, e.flash > 0 ? .9 : 0), e.skinT > 0 && !(e.flash > 0) ? [.16, .16, .19] : tint);     // каменная кожа — серый отлив
 }
 
 // ---------- мир ----------

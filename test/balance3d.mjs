@@ -5,6 +5,7 @@ import { CORE3 as CFG3 } from '../3d/src/config3d.js';     // ручное яд�
 CFG3.terrain.on = false;      // эталон боя — плоское поле без реки (C2): цифры сравнимы с прошлыми версиями
 import { createWorld, step, mulberry32, aliveEnemies, setDifficulty, travel } from '../3d/src/sim.js';
 import { pathStep } from '../3d/src/map.js';
+import { telegraphDodge } from './botsense.mjs';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const TIERS = {
   'без вещей': {},
@@ -33,6 +34,7 @@ function run(tier, place, seed) {
       inp.attackPress = bd < reach + .4;                    // бот жмёт, а не держит: удержание — это заряд тяжёлого удара
       if (tgt.state === 'wind' && bd < C.range + 1.2 && tgt.t > C.wind * .6 && p.rollCd <= 0 && dodge() < .5) inp.roll = true;       // бот умеет кататься от замаха
     }
+    telegraphDodge(W, inp, dodge);     // и отходит от подсветки на земле и полосы рывка (этап 2 «круче»)
     const h = p.hp; step(W, 1 / 60, inp); if (p.hp < h) taken += h - p.hp;
     if (p.dead) return { dead: true, t: i / 60, kills: W.kills, taken };
   }
@@ -68,6 +70,7 @@ function bossFight(tier, seed) {
     if (d > 3.2) { inp.mx = (e.x - p.x) / d; inp.mz = (e.z - p.z) / d; } inp.attackPress = d < cfg.player.attackRange + W.gear.reach + C.radius * .5 + .3;
     if (e.b.state === 'wind' && e.b.atk.t > e.b.atk.wind - .22 && p.rollCd <= 0 && dodge() < .5) { inp.roll = true; inp.mx = -(e.x - p.x) / d; inp.mz = -(e.z - p.z) / d; inp.attackPress = false; }
     for (const m of W.enemies) if (!m.boss && !m.dead && Math.hypot(m.x - p.x, m.z - p.z) < 4 && d > 6) { inp.mx = (m.x - p.x); inp.mz = (m.z - p.z); inp.attackPress = true; }
+    telegraphDodge(W, inp, dodge);     // лужи нового приёма босса (этап 2 «круче»)
     step(W, 1 / 60, inp); if (p.dead) return { win: false, t: i / 60 };
   }
   return { win: false, t: 150 };
@@ -93,6 +96,7 @@ function delve(tier, id, seed) {
       inp.attackPress = bd < reach + .4;                    // бот жмёт, а не держит: удержание — это заряд тяжёлого удара
       if (tgt.state === 'wind' && bd < C.range + 1.2 && tgt.t > C.wind * .6 && p.rollCd <= 0 && dodge() < .5) inp.roll = true;
     }
+    telegraphDodge(W, inp, dodge);
     step(W, 1 / 60, inp);
     if (p.dead) return { dead: true, t: i / 60, frac: 1 - aliveEnemies(W).length / total };
   }

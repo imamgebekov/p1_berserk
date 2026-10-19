@@ -16,7 +16,7 @@ ok(MAX_RANKS > (CFG3.level.max - 1), 'не все навыки можно взя
 { let prev = 0; for (let lv = 1; lv < CFG3.level.max; lv++) { const n = xpNeed(lv, CFG3); ok(n > prev, 'кривая опыта не растёт на ' + lv); prev = n; } }
 // уровень: опыт → очки → здоровье
 { const W = mk(); const need = xpNeed(1, W.cfg); gainXp(W, need - 1); ok(W.lv === 1 && W.sp === 0, 'уровень раньше времени'); gainXp(W, 1); ok(W.lv === 2 && W.sp === 1 && W.xp === 0, 'уровень не взят');
-  refreshGear(W); ok(W.player.maxhp === W.cfg.player.hp + W.cfg.level.hpPer, 'здоровье за уровень');
+  refreshGear(W); ok(Math.abs(W.player.maxhp - (W.cfg.player.hp * W.cfg.heroes[W.hero].hp + W.cfg.level.hpPer)) < 1e-9, 'здоровье за уровень');     // множитель героя (Торн ×1,15)
   gainXp(W, xpNeed(2, W.cfg) + xpNeed(3, W.cfg) + 5); ok(W.lv === 4 && W.sp === 3 && W.xp === 5, `несколько уровней разом: ${W.lv}/${W.sp}/${W.xp}`);
   W.lv = W.cfg.level.max; W.xp = 0; W.sp = 0; gainXp(W, 1e6); ok(W.lv === W.cfg.level.max && W.sp === 0 && W.xp === 0, 'выше максимума'); }
 // опыт за убийство растёт с глубиной
@@ -35,7 +35,7 @@ ok(MAX_RANKS > (CFG3.level.max - 1), 'не все навыки можно взя
   for (const id of ['th_charge', 'th_bloodrush']) { for (let i = 0; i < 3; i++) spendSkill(W, id); }
   refreshGear(W); ok(W.gear.crit >= 6 && W.talAb.bash && W.talAb.charge && W.talAb.blood, 'эффекты Палача: ' + JSON.stringify([W.gear.crit, W.talAb]));
 }
-{ const W = mk(5); W.lv = 30; W.skills = { th_skin: 5, th_temper: 5 }; refreshGear(W); ok(W.gear.armor === 15 && W.player.maxhp === 100 + 60 + 29 * CFG3.level.hpPer, 'стойкость: ' + JSON.stringify([W.gear.armor, W.player.maxhp]));
+{ const W = mk(5); W.lv = 30; W.skills = { th_skin: 5, th_temper: 5 }; refreshGear(W); ok(W.gear.armor === 15 && Math.abs(W.player.maxhp - (100 * CFG3.heroes[W.hero].hp + 60 + 29 * CFG3.level.hpPer)) < 1e-9, 'стойкость: ' + JSON.stringify([W.gear.armor, W.player.maxhp]));
   W.skills = { th_skin: 5, th_temper: 5, jy_breath: 4 }; W.player.hp = 50; W.player.calm = 99; refreshGear(W); const h = W.player.hp; for (let i = 0; i < 120; i++) step(W, 1 / 60, {}); ok(W.player.hp - h > 3.5, 'регенерация не работает: ' + (W.player.hp - h));
   W.skills = { th_skin: 5, th_temper: 5, jy_breath: 4, jy_tumble: 4 }; refreshGear(W); step(W, 1 / 60, { mx: 1, roll: true }); ok(Math.abs(W.player.rollCd - (W.cfg.player.rollCooldown - .32)) < .02, 'перекат не быстрее: ' + W.player.rollCd); }
 { const W = mk(6); W.skills = { step: 5, nose: 5, eye: 3, sneak: 3, haggle: 3 }; W.lv = 30; refreshGear(W); ok(W.gear.spd === 10 && W.gear.luck === 20 && Math.abs(W.gear.reach - .6) < 1e-9 && W.gear.stealth === 18 && W.gear.trade === 15, 'ветка скитальца: ' + JSON.stringify(W.gear));

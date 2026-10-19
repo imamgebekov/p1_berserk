@@ -4,6 +4,7 @@ CFG3.terrain.on = false;      // эталон боя — плоское поле
 import { createWorld, step, mulberry32, spawnEnemy, setDifficulty, buyPrice, gainXp, aliveEnemies, xpNeed } from '../3d/src/sim.js';
 import { BY_ID } from '../3d/src/data/items.js';
 import { createSaver, loadSave } from '../3d/src/save3d.js';
+import { telegraphDodge } from './botsense.mjs';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const IDS = ['wanderer', 'berserk', 'ashen', 'eclipse'], L = CFG3.difficulty.levels;
 const mk = (dif, seed = 1, f) => { const cfg = JSON.parse(JSON.stringify(CFG3)); if (process.env.BAL_BUF) cfg.player.heavy.buffer = Number(process.env.BAL_BUF); cfg.enemies.count = 0; cfg.map.places = []; cfg.player.autoAim = 0; if (f) f(cfg); const W = createWorld(cfg, mulberry32(seed)); setDifficulty(W, dif); return W; };
@@ -54,6 +55,7 @@ for (const d of IDS) { const W = mk(d); W.player.x = 20; W.player.z = 20; W.inv.
   const surv = d => { let dead = 0, kills = 0; const N = Number(process.env.DIF_SEEDS || 6); /* DIF_SEEDS — больше прогонов для точной оценки */ for (let sd = 0; sd < N; sd++) { const W = mk(d, 50 + sd, c => { c.enemies.count = 5; c.bosses.list = []; }); Object.assign(W.inv.eq, TIER); W.player.x = -20; W.player.z = -40; const dod = mulberry32(sd);
       for (let i = 0; i < 60 * 80; i++) { const p = W.player, en = aliveEnemies(W); let t = null, bd = 1e9; for (const e of en) { const dd = Math.hypot(e.x - p.x, e.z - p.z); if (dd < bd) { bd = dd; t = e; } } const inp = { mx: 0, mz: 0, attack: false, roll: false };
         if (t && bd < 30) { const C = W.cfg.enemies[t.type], reach = W.cfg.player.attackRange + W.gear.reach + C.radius * .5; if (bd > reach * .8) { inp.mx = (t.x - p.x) / bd; inp.mz = (t.z - p.z) / bd; } inp.attackPress = bd < reach + .4; if (t.state === 'wind' && bd < C.range + 1.2 && t.t > C.wind * .6 && p.rollCd <= 0 && dod() < .5) inp.roll = true; }
+        telegraphDodge(W, inp, dod);     // подсветка на земле и полоса рывка (этап 2 «круче»)
         step(W, 1 / 60, inp); if (p.dead) { dead++; break; } } kills += W.kills; } return { dead: dead / N, kills: kills / N }; };
   const r = IDS.map(surv); console.log('выживаемость по сложностям (смертей, убийств):', r.map((x, i) => `${IDS[i]} ${(x.dead * 100).toFixed(0)}% / ${x.kills.toFixed(0)}`).join(' | '));
   for (let i = 1; i < r.length; i++) ok(r[i].dead >= r[i - 1].dead - .18 && r[i].kills <= r[i - 1].kills + 3, `выживаемость не падает с ростом сложности на ${IDS[i]}`); ok(r[3].dead > r[0].dead + .3, '«Затмение» должно быть заметно смертельнее «Странника»'); }

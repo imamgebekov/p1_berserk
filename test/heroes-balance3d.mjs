@@ -11,6 +11,7 @@ import { createWorld, step, mulberry32, aliveEnemies, travel, refreshGear } from
 import { pathStep, lineBlocked, resolve, insideOf } from '../3d/src/map.js';
 import { abilityPoints, upgradeAbility, useAbility, heroAbilities } from '../3d/src/abilities3d.js';
 import { resNow } from '../3d/src/resource3d.js';
+import { telegraphDodge } from './botsense.mjs';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const SEEDS = Number(process.env.HB_SEEDS || 12), SECONDS = 90, TOL = Number(process.env.HB_TOL || .15), CELL = Number(process.env.HB_CELL || .3), QUIET = !!process.env.HB_QUIET;
@@ -110,7 +111,7 @@ function field(hero, tier, place, seed) {
   const W = setup(cfg, hero, tier, seed); W.player.x = PLACES[place][0]; W.player.z = PLACES[place][1];
   let taken = 0; const dodge = mulberry32(seed + 99);
   for (let i = 0; i < 60 * SECONDS; i++) {
-    const h = W.player.hp; step(W, 1 / 60, bot(W, cfg, hero, aliveEnemies(W), dodge)); if (W.player.hp < h) taken += h - W.player.hp;
+    const h = W.player.hp, inp = bot(W, cfg, hero, aliveEnemies(W), dodge); telegraphDodge(W, inp, dodge); step(W, 1 / 60, inp); if (W.player.hp < h) taken += h - W.player.hp;     // подсветка и полоса рывка (этап 2 «круче»)
     if (W.player.dead) return { dead: true, kills: W.kills, taken };
   }
   return { dead: false, kills: W.kills, taken };
@@ -154,6 +155,7 @@ function crypt(hero, tier, seed) {
     const wp = pathStep(W.map, p.x, p.z, tgt.x, tgt.z, W.keys); let inp;
     if (wp) { const dx = wp.x - p.x, dz = wp.z - p.z, d = Math.hypot(dx, dz) || 1; inp = { mx: dx / d, mz: dz / d, attackPress: bd < 2 || (RANGED(hero) && bd < W.wp.trait.range && !lineBlocked(W.map, p.x, p.z, tgt.x, tgt.z)) }; }     // стрелок бьёт и на ходу, если цель видна
     else inp = bot(W, cfg, hero, en, dodge);
+    telegraphDodge(W, inp, dodge);
     step(W, 1 / 60, inp); if (p.dead) return { dead: true, frac: 1 - aliveEnemies(W).length / total };
   }
   return { dead: false, frac: 1 - aliveEnemies(W).length / total };

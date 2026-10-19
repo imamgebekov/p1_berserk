@@ -10,6 +10,7 @@ import { equipAt, betterThanWorn } from '../3d/src/inv.js';
 import { BY_ID } from '../3d/src/data/items.js';
 import { HEROES } from '../3d/src/data/heroes3d.js';
 import { insideCamp, campGates } from '../3d/src/map.js';
+import { telegraphDodge } from './botsense.mjs';
 
 const MIN = Number(process.env.FUN_MIN || 20), LIST = (process.env.FUN_HEROES || 'thorn,jay,vale,irga').split(','), SEED = Number(process.env.FUN_SEED || 1);
 const DT = 1 / 60, CALM = 3, PAUSE = 60, RCORE = 170;     // RCORE — ядро (уровни 1–20)     // новая стычка — после CALM с покоя; «длинная пауза» — без боя дольше PAUSE с
@@ -52,6 +53,7 @@ function play(hero, seed) {
       if (d < 1.5) { cur.seen++; const nb = [...cur.nb].filter(n => !(C && insideCamp(C, n.x, n.z))); const least = Math.min(...nb.map(n => n.seen)); const pick = nb.filter(n => n.seen === least); cur = pick.length ? pick[(rnd() * pick.length) | 0] : nearest(); }     // чаще — туда, где не был
       else { inp.mx = (cur.x - p.x) / d; inp.mz = (cur.z - p.z) / d; }
     }
+    telegraphDodge(W, inp, rnd);     // подсветка на земле и полоса рывка — как живой игрок
     step(W, DT, inp);
     if (process.env.FUN_DEBUG && i % 600 === 0) console.log(hero, (t | 0) + 'с', 'xz', p.x | 0, p.z | 0, 'hp', p.hp | 0, fight ? `бой ${tgt.type} d${bd.toFixed(1)} ehp${tgt.hp | 0} alert${!!tgt.alert}` : 'дорога', 'убито', W.kills);
     if (i % 180 === 0) { if (!fight && Math.hypot(p.x - lastX, p.z - lastZ) < .5) { stuck++; const a = rnd() * Math.PI * 2; side = 1.2; sideX = Math.cos(a); sideZ = Math.sin(a); if (process.env.FUN_DEBUG) console.log('застрял', t | 0, p.x | 0, p.z | 0, boss ? 'бежит от босса ' + boss.type : 'дорога', inC ? 'в лагере' : ''); if (stuck % 3 === 0) cur = null; } lastX = p.x; lastZ = p.z; }

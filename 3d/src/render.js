@@ -1059,6 +1059,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'block') { const p0 = W.player; let dx = p0.x - v.x, dz = p0.z - v.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; fx.spray(v.x + dx * .6, 1.1, v.z + dz * .6, dx, dz, 8, '#ffe8b0', 6, .9, { life: .25, g: 8, s: .07 }); fx.flash(v.x + dx * .6, 1.1, v.z + dz * .6, 1.1, '#ffffff'); hooks.onText && hooks.onText(v.x, 2.2, v.z, 'щит', 'dodge'); }
       else if (v.k === 'blink') { fx.ash(v.x, .4, v.z, 10, ['#2a2a3a', '#4a4a60', '#101018']); fx.ash(v.x2, .4, v.z2, 10, ['#2a2a3a', '#4a4a60', '#c0d0ff']); }
       else if (v.k === 'lunge') burst(v.x, .3, v.z, 6, '#6a5a4a', 3);
+      else if (v.k === 'slam') burst(v.x, .3, v.z, 10, '#6a5a4a', 4);
+      else if (v.k === 'mirror') hooks.onText && hooks.onText(v.x, 2.2, v.z, '−' + v.dmg, 'hurt');
+      else if (v.k === 'chill') burst(v.x, 1, v.z, 10, '#9ad8ff', 2);     // приёмы врагов (этап 2 «круче»): подсказка над врагом
+      else if (v.k === 'spit') burst(v.x, 1.4, v.z, 8, '#7ac04a', 3);
+      else if (v.k === 'howl' || v.k === 'skin' || v.k === 'phase' || v.k === 'pullStart') hooks.onText && hooks.onText(v.x, 2.6, v.z, { howl: 'Вой стаи', skin: 'Каменная кожа', phase: 'Сквозь тьму', pullStart: 'Тянет!' }[v.k], 'sys');
       else if (v.k === 'chargeFull') fx.flash(v.x, 1.6, v.z, 1.4, '#ff8a30');
       else if (v.k === 'heavy') { ringFx(v.x + Math.sin(v.face) * 1.6, v.z + Math.cos(v.face) * 1.6, 2.5 + 1.5 * v.power, '#ff9a50'); }
       else if (v.k === 'finisher') { ringFx(v.x, v.z, 3, '#ffd9c0'); burst(v.x, .6, v.z, 10, '#ffd9c0', 5); fx.flash(v.x + Math.sin(v.face) * 1.5, .8, v.z + Math.cos(v.face) * 1.5, 2.2, '#ffd9c0'); }

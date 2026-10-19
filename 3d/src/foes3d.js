@@ -6,15 +6,31 @@ import { slide, resolve, roomAt, insideOf } from './map.js';
 
 // ---- элитные враги: шанс по глубине, опасности и ночи; считается от номера врага, без расхода генератора случайных чисел ----
 const hash01 = (id, seed) => { const s = Math.sin(id * 12.9898 + seed * 78.233) * 43758.5453; return s - Math.floor(s); };
+export const affOf = (W, id) => W.cfg.elite.affixes[id] || (W.cfg.elite.affixes2 || {})[id];
+export const hasAff = (e, id) => e.aff === id || e.aff2 === id;     // второе свойство элиты (этап 2 «круче»)
 export function rollElite(W, e, depth, danger) {
   const K = W.cfg.elite, C = W.cfg.enemies[e.type]; if (!K || C.boss) return false;
   const p = K.chance + K.depthK * depth + K.dangerK * danger + (W.night ? K.nightK : 0);
   if (hash01(e.id, W.cfg.world.seed) >= p) return false;
-  const ids = Object.keys(K.affixes), id = ids[Math.floor(hash01(e.id + .5, W.cfg.world.seed) * ids.length) % ids.length], A = K.affixes[id];
+  const ids = Object.keys(K.affixes).concat(K.extra && K.affixes2 ? Object.keys(K.affixes2) : []), id = ids[Math.floor(hash01(e.id + .5, W.cfg.world.seed) * ids.length) % ids.length], A = affOf(W, id);     // extra — новые свойства (этап 2 «круче»)
   e.elite = true; e.aff = id; e.affName = C.g === 'f' && A.nameF ? A.nameF : A.name; e.affColor = A.color;      // «Пылающая Гончая», а не «Пылающий»
   e.hp = e.maxhp = Math.round(e.maxhp * K.hp * (A.hp || 1)); e.dmgMul *= K.dmg; e.scaleMul = K.scale; e.spdMul = A.speed || 1;
   if (A.on) e.onx = A.on; if (A.immune) e.imm = A.immune;
+  if (K.extra && depth >= K.dual) {                                           // глубоко — второе свойство: «Быстрый и ледяной Бес»
+    const rest = ids.filter(x => x !== id), id2 = rest[Math.floor(hash01(e.id + .25, W.cfg.world.seed) * rest.length) % rest.length], B = affOf(W, id2);
+    e.aff2 = id2; e.affName += ' и ' + (C.g === 'f' && B.nameF ? B.nameF : B.name).toLowerCase(); e.hp = e.maxhp = Math.round(e.maxhp * (B.hp || 1)); e.spdMul *= B.speed || 1;
+    if (B.on && !e.onx) e.onx = B.on; if (B.immune) e.imm = (e.imm || []).concat(B.immune);
+  }
   return true;
+}
+// свойства элиты в бою (этап 2 «круче»): блуждающий прыгает к герою, призыватель на половине здоровья зовёт подмогу
+export function eliteTick(W, e, dt) {
+  const p = W.player, d = len(p.x - e.x, p.z - e.z), C = W.cfg.enemies[e.type];
+  if (hasAff(e, 'blink') && (e.ebcd = (e.ebcd ?? 2) - dt) <= 0 && d > 3.5 && d < 14 && e.state === 'chase') { const B = affOf(W, 'blink'); e.ebcd = blinkTo(W, e, C, { behind: 1.4, extra: .2, cd: e.bcd || 0 }) ? B.cd : .5; }
+  if (hasAff(e, 'summoner') && !e.summoned && e.hp < e.maxhp * affOf(W, 'summoner').at) {
+    const S = affOf(W, 'summoner'); e.summoned = true; W.ev.push({ k: 'eliteCall', x: e.x, z: e.z });
+    for (let i = 0; i < S.n; i++) { const a = e.id + i * 2.1, m = W.fx.spawn(S.type, e.x + Math.sin(a) * 2.5, e.z + Math.cos(a) * 2.5); if (m) { m.alert = true; m.minion = true; } }
+  }
 }
 // вожак (мини-босс места, 2026-10-18): всегда элита со свойством, крепче в k раз, со званием; метка на карте — как у элиты
 export function makeChief(W, e, title, k) {
@@ -24,10 +40,10 @@ export function makeChief(W, e, title, k) {
 }
 export const eliteName = (W, e) => (e.chief ? `${e.chief} · ${e.affName.toLowerCase()}` : e.elite ? `${e.affName} ${W.cfg.enemies[e.type].name || ''}`.trim() : '');
 // вампир лечится от нанесённого урона; вызывается после удара по герою
-export function eliteOnHit(W, e, dmg) { if (e.aff === 'vampiric') e.hp = Math.min(e.maxhp, e.hp + dmg * W.cfg.elite.affixes.vampiric.heal); }
+export function eliteOnHit(W, e, dmg) { if (hasAff(e, 'vampiric')) e.hp = Math.min(e.maxhp, e.hp + dmg * W.cfg.elite.affixes.vampiric.heal); if (hasAff(e, 'frost')) { W.chillT = affOf(W, 'frost').t; W.ev.push({ k: 'chill', x: W.player.x, z: W.player.z }); } }     // ледяной — герой медленнее
 // взрывной оставляет пятно: через пару мгновений рванёт и заденет всех рядом
 export function eliteOnDeath(W, e) {
-  if (e.aff !== 'explosive') return;
+  if (!hasAff(e, 'explosive')) return;
   const A = W.cfg.elite.affixes.explosive;
   W.haz.push({ x: e.x, z: e.z, r: A.r, t: 0, delay: A.delay, dmg: Math.round(A.dmg * (e.dmgMul || 1)), on: ['burn', 1, 3, 4], by: 'elite' });
 }
@@ -107,7 +123,8 @@ export function foeAI(W, e, C, d, dx, dz, dt, see) {
   const p = W.player;
   if (e.state === 'aim') {                             // копейщик целится: лицо зафиксировано, полоса на земле
     e.t += dt;
-    if (e.t >= C.lunge.aim) { e.state = 'dash'; e.t = 0; e.dashLeft = C.lunge.len; e.hitDone = false; W.ev.push({ k: 'lunge', x: e.x, z: e.z }); }
+    if (e.t >= C.lunge.aim) { e.state = 'dash'; e.t = 0; e.dashLeft = e.tele && e.tele.mv ? Math.min(C.lunge.len, len(p.x - e.x, p.z - e.z) + .3) : C.lunge.len;     // прыжок-наскок (этап 2 «круче») — до героя, без перелёта
+      e.hitDone = false; W.ev.push({ k: 'lunge', x: e.x, z: e.z }); }
     return true;
   }
   if (e.state === 'dash') {                            // рывок по прямой; стена останавливает
@@ -130,8 +147,15 @@ export function foeAI(W, e, C, d, dx, dz, dt, see) {
     e.state = 'aim'; e.t = 0; e.face = Math.atan2(dx, dz); e.tele = { len: C.lunge.len, w: C.lunge.w, aim: C.lunge.aim };
     return true;
   }
-  if (C.ai === 'blink' && (e.bcd = (e.bcd || 0) - dt) <= 0 && d >= C.blink.min && d <= C.blink.max) {
-    const B = C.blink, tx = p.x - Math.sin(p.face) * B.behind, tz = p.z - Math.cos(p.face) * B.behind, o = { x: tx, z: tz };
+  if (C.ai === 'move') return moveAI(W, e, C, d, dx, dz, dt);
+  if (C.ai === 'blink' && (e.bcd = (e.bcd || 0) - dt) <= 0 && d >= C.blink.min && d <= C.blink.max) { if (blinkTo(W, e, C, C.blink)) return true; e.bcd = .5; }     // места нет — попробует позже
+  return false;
+}
+// прыжок тенью за спину героя; false — места нет
+function blinkTo(W, e, C, B) {
+  const p = W.player;
+  {
+    const tx = p.x - Math.sin(p.face) * B.behind, tz = p.z - Math.cos(p.face) * B.behind, o = { x: tx, z: tz };
     resolve(W.map, o, C.radius);
     const okLevel = W.map.rooms ? roomAt(W.map, o.x, o.z) >= 0 : len(o.x, o.z) < W.cfg.world.radius - 2;
     if (okLevel && len(o.x - tx, o.z - tz) < .6 && insideOf(W.map, o.x, o.z) === W.inside) {
@@ -140,7 +164,33 @@ export function foeAI(W, e, C, d, dx, dz, dt, see) {
       e.state = 'wind'; e.t = -B.extra; e.bcd = B.cd;
       return true;
     }
-    e.bcd = .5;                                        // места нет — попробует позже
+  }
+  return false;
+}
+
+// приёмы «числовых» врагов (этап 2 «круче»; cfg.enemies.moves — общий выключатель): leap — прыжок-наскок (механизм рывка),
+// slam — удар по земле волной вокруг себя, spit — плевок лужей под героя (зоны W.haz с задержкой — их видно на земле),
+// howl — вой: стая рядом быстрее, pull — притягивает героя, skin — каменная кожа на половине здоровья, phase — сквозь тьму
+// (почти неуязвим и быстрее), ambush — прыжок за спину. true — кадр обработан здесь
+export function moveAI(W, e, C, d, dx, dz, dt) {
+  const M = C.move, p = W.player; if (!M || !W.cfg.enemies.moves || e.minion) return false;
+  if (e.state === 'mcast') {
+    e.t += dt; e.vx = e.vz = 0;
+    if (e.t >= M.wind) { e.state = 'rec'; e.t = 0;
+      if (M.kind === 'pull' && !p.dead && len(p.x - e.x, p.z - e.z) <= M.max + 1) { W.ev.push({ k: 'pull', x: e.x, z: e.z, x2: p.x, z2: p.z }); const dd = len(p.x - e.x, p.z - e.z) || 1; if (hurtPlayer(W, Math.round(C.damage * M.mul * (e.dmgMul || 1)), p.x + (p.x - e.x), p.z + (p.z - e.z), null, e) !== false) { p.vx -= (p.x - e.x) / dd * M.force; p.vz -= (p.z - e.z) / dd * M.force; } } }     // увернулся — не тянет     // удар «из-за спины» героя толкает его к врагу
+    return true;
+  }
+  e.mcd = (e.mcd ?? (M.first ?? 1.5)) - dt; if (e.mcd > 0) return false;
+  const dmg = Math.round(C.damage * (M.mul || 1) * (e.dmgMul || 1));
+  switch (M.kind) {
+    case 'leap': if (d < M.min || d > M.max) return false; e.state = 'aim'; e.t = 0; e.face = Math.atan2(dx, dz); e.tele = { len: C.lunge.len, w: C.lunge.w, aim: C.lunge.aim, mv: true }; e.lcd = C.lunge.cd; e.mcd = M.cd; return true;
+    case 'slam': if (d > M.r * .8) return false; W.haz.push({ x: e.x, z: e.z, r: M.r, t: 0, delay: M.wind, dmg, on: M.on || C.on, by: e.id, mv: true }); W.ev.push({ k: 'slam', x: e.x, z: e.z }); e.state = 'mcast'; e.t = 0; e.mcd = M.cd; return true;
+    case 'spit': if (d < M.min || d > M.max) return false; W.haz.push({ x: p.x, z: p.z, r: M.r, t: 0, delay: M.delay, dmg, on: M.on || C.on, by: e.id, mv: true }); W.ev.push({ k: 'spit', x: e.x, z: e.z }); e.state = 'mcast'; e.t = 0; e.mcd = M.cd; return true;
+    case 'pull': if (d < M.min || d > M.max) return false; W.ev.push({ k: 'pullStart', x: e.x, z: e.z }); e.state = 'mcast'; e.t = 0; e.face = Math.atan2(dx, dz); e.mcd = M.cd; return true;
+    case 'howl': e.mcd = M.cd; for (const o of W.enemies) if (!o.dead && o.type === e.type && len(o.x - e.x, o.z - e.z) < M.r) { o.hasteT = M.t; o.haste = M.spd; o.alert = true; } W.ev.push({ k: 'howl', x: e.x, z: e.z }); return false;
+    case 'skin': if (e.skinUsed || e.hp > e.maxhp * M.at) { e.mcd = .3; return false; } e.skinUsed = true; e.skinT = M.t; e.skinMul = M.mul; W.ev.push({ k: 'skin', x: e.x, z: e.z, id: e.id }); return false;
+    case 'phase': if (d < M.min || d > M.max) return false; e.phaseT = M.t; e.skinMul = M.mul; e.hasteT = M.t; e.haste = M.spd; e.mcd = M.cd; W.ev.push({ k: 'phase', x: e.x, z: e.z, id: e.id }); return false;
+    case 'ambush': if (d < M.min || d > M.max) return false; e.mcd = blinkTo(W, e, C, M) ? M.cd : .5; return e.state === 'wind';
   }
   return false;
 }

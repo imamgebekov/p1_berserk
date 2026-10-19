@@ -6,8 +6,12 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export function initBoss(W, e, def) {
   e.boss = true; e.alert = false;
-  e.b = { def, home: { x: e.x, z: e.z }, t: 0, cd: 1.5, atk: null, state: 'idle', done: new Set(), enraged: false, cds: {}, last: -1, dash: null, minions: [] };
+  e.b = { def, extra: [], home: { x: e.x, z: e.z }, t: 0, cd: 1.5, atk: null, state: 'idle', done: new Set(), enraged: false, cds: {}, last: -1, dash: null, minions: [] };
 }
+// новый приём на первой фазе (этап 2 «круче», cfg.bosses.phaseMoves): первый из луж, кольца, рывка и луча, которого у босса нет (луч долгий — последним)
+const PHASE_MOVES = ['pools', 'nova', 'charge', 'beam'], MOVE_NAME = { beam: 'луч', pools: 'огненные лужи', nova: 'кольцо', charge: 'рывок' };
+const atkList = b => (b.extra && b.extra.length ? b.def.attacks.concat(b.extra) : b.def.attacks);     // свои атаки + добавленные фазой
+export function phaseMove(def, T) { const has = new Set(def.attacks.map(a => a.kind)), k = PHASE_MOVES.find(m => !has.has(m) && T[m]); return k ? { ...T[k], mv: true } : null; }     // mv — метка нового приёма
 
 // герой sec секунд был на другом уровне (в подземелье): босс уже вернулся в логово и лечился, как после ухода за поводок
 export function bossAway(W, e, sec) {
@@ -30,6 +34,7 @@ export function updateBoss(W, e, dt, spd) {
   b.def.phases.forEach((ph, i) => {
     if (b.done.has(i) || frac > ph.at) return;
     b.done.add(i);
+    if (B.phaseMoves && b.done.size === 1 && !b.newMove) { const a = phaseMove(b.def, B.phaseMoves); if (a) { b.newMove = a.kind; (b.extra || (b.extra = [])).push(a); W.ev.push({ k: 'bossphase', name: C.name, what: 'новый приём: ' + MOVE_NAME[a.kind], x: e.x, z: e.z }); } }
     if (ph.enrage) { b.enraged = true; W.ev.push({ k: 'bossphase', name: C.name, what: 'ярость', x: e.x, z: e.z }); }
     if (ph.summon) summon(W, e, ph.summon.type, ph.summon.n);
     if (ph.say) W.ev.push({ k: 'bossSay', who: ph.who || C.name, text: ph.say });     // реплика в бою (рейд: Пятый)
@@ -74,11 +79,11 @@ export function updateBoss(W, e, dt, spd) {
   // idle: идти к герою, выбирать атаку
   b.cd -= dt * (enr ? 1 / B.enrageCd : 1);
   const sp = spd * (enr ? B.enrageSpeed : 1);
-  const melee = b.def.attacks.find(a => a.kind === 'slam');
+  const melee = atkList(b).find(a => a.kind === 'slam');
   if (d > C.range * .8) { W.fx.slide(e, dx / d * sp * dt, dz / d * sp * dt, C.radius); e.face = Math.atan2(dx, dz); }
   if (b.cd > 0) return;
-  const opts = b.def.attacks.map((a, i) => ({ a, i })).filter(o => !b.cds[o.i] && d <= o.a.range && o.i !== b.last);
-  if (!opts.length) { const m = b.def.attacks.map((a, i) => ({ a, i })).filter(o => !b.cds[o.i] && d <= o.a.range); if (!m.length) return; opts.push(m[0]); }
+  const opts = atkList(b).map((a, i) => ({ a, i })).filter(o => !b.cds[o.i] && d <= o.a.range && o.i !== b.last);
+  if (!opts.length) { const m = atkList(b).map((a, i) => ({ a, i })).filter(o => !b.cds[o.i] && d <= o.a.range); if (!m.length) return; opts.push(m[0]); }
   const pick = opts[Math.floor(W.rng() * opts.length)];
   beginAttack(W, e, pick.a, pick.i, dx, dz, d);
 }
@@ -91,7 +96,7 @@ function beginAttack(W, e, a, i, dx, dz, d) {
   if (a.kind === 'charge') { at.dx = dx / d; at.dz = dz / d; at.len = a.len; at.width = a.width; at.x0 = e.x; at.z0 = e.z; at.speed = 17; at.run = 0; at.hitAllies = new Set(); }
   if (a.kind === 'beam') Object.assign(at, { dx: dx / d, dz: dz / d, len: a.len, width: a.width, dur: a.dur, sweep: a.sweep * (W.rng() < .5 ? -1 : 1), on: 0, tick: 0 });
   if (a.kind === 'cast') { Object.assign(at, { name: a.name, hp0: e.hp, brk: a.brk ?? W.cfg.bosses.mech.brk, stun: a.stun ?? W.cfg.bosses.mech.stun }); b.kick = false; W.ev.push({ k: 'bossCast', name: W.cfg.enemies[e.type].name, what: a.name, x: e.x, z: e.z }); }
-  if (a.kind === 'pools') Object.assign(at, { n: a.n, r: a.r, dur: a.dur, spread: a.spread || 1.5 });
+  if (a.kind === 'pools') Object.assign(at, { n: a.n, r: a.r, dur: a.dur, spread: a.spread || 1.5, mv: a.mv });
   b.atk = at; b.state = 'wind';
 }
 
@@ -126,7 +131,7 @@ function dropPools(W, e, a, dmgMul, C) {
   const p = W.player, at = [...(p.dead ? [] : [p]), ...W.allies.filter(x => !x.dead && !x.guest)].slice(0, a.n);
   while (at.length < a.n) { const g = W.rng() * Math.PI * 2, r = 2 + W.rng() * 5; at.push({ x: e.x + Math.sin(g) * r, z: e.z + Math.cos(g) * r }); }
   W.bzones = W.bzones || [];
-  for (const q of at) { const g = W.rng() * Math.PI * 2, r = W.rng() * a.spread; W.bzones.push({ x: q.x + Math.sin(g) * r, z: q.z + Math.cos(g) * r, r: a.r, t: a.dur, dps: C.damage * a.mul * dmgMul, tick: 0, by: e.id, lvl: W.lvl }); }
+  for (const q of at) { const g = W.rng() * Math.PI * 2, r = W.rng() * a.spread; W.bzones.push({ x: q.x + Math.sin(g) * r, z: q.z + Math.cos(g) * r, r: a.r, t: a.dur, dps: C.damage * a.mul * dmgMul, tick: 0, by: e.id, lvl: W.lvl, mv: a.mv }); }
   W.ev.push({ k: 'bossPools', x: e.x, z: e.z, n: at.length });
 }
 // тики луж (зовёт sim.js каждый шаг): урон стоящим внутри, лужи гаснут по времени и при уходе с уровня
@@ -148,7 +153,7 @@ function summon(W, e, type, n) {
   for (let i = 0; i < n && b.minions.length < cap; i++) {
     let a = W.rng() * Math.PI * 2; for (let k = 0; k < 8 && W.fx.blocked && W.fx.blocked(e.x, e.z, e.x + Math.sin(a) * 3.5, e.z + Math.cos(a) * 3.5); k++) a += Math.PI / 4;     // точка за стеной — поворот на 45°
     const m = W.fx.spawn(type, e.x + Math.sin(a) * 3.5, e.z + Math.cos(a) * 3.5);
-    if (m) { m.alert = true; b.minions.push(m); }
+    if (m) { m.alert = true; m.minion = true; b.minions.push(m); }     // помощник босса: без своих приёмов (этап 2 «круче»)
   }
 }
 

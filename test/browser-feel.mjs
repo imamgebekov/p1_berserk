@@ -13,7 +13,7 @@ catch { try { ({ chromium } = await import(join(execSync('npm root -g').toString
 const problems = [], bad = m => problems.push(m), tag = process.argv[2] || 'feel';
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const dev = await createServer({ root, server: { port: 5187, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' }); await dev.listen();
-const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html?shot&hero=thorn&retro` + (tag === 'nofeel' ? '&nofeel' : '');
+const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html?shot&hero=thorn` + (process.env.FEEL_SMOOTH ? '' : '&retro') + (tag === 'nofeel' ? '&nofeel' : '');
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage(); page.setDefaultTimeout(20000);
   page.on('pageerror', e => bad('pageerror: ' + e.message));

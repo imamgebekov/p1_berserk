@@ -20,7 +20,7 @@ ok(readFileSync(new URL('../3d/src/journal.js', import.meta.url), 'utf8').includ
 for (const t of ['archer', 'witch']) { const b = bestiaryEntry(t, CFG3); ok(b && b.name === E[t].name && b.where.length && !b.where.includes('везде'), 'запись бестиария ' + t + ': ' + JSON.stringify(b && b.where)); }
 
 // ---- мир ----
-const mk = (seed = 1, tweak) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.bosses.list = []; cfg.map.places = []; cfg.elite.chance = 0; cfg.elite.depthK = cfg.elite.dangerK = cfg.elite.nightK = 0; if (tweak) tweak(cfg); const W = createWorld(cfg, mulberry32(seed)); W.player.x = 30; W.player.z = -30; return W; };
+const mk = (seed = 1, tweak) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.bosses.list = []; cfg.map.places = []; cfg.elite.chance = 0; cfg.elite.depthK = cfg.elite.dangerK = cfg.elite.nightK = 0; cfg.elite.extra = false;     /* прежние 5 свойств; новые проверяет moves3d.mjs (этап 2 «круче») */ if (tweak) tweak(cfg); const W = createWorld(cfg, mulberry32(seed)); W.player.x = 30; W.player.z = -30; return W; };
 const run = (W, sec, inp = {}) => { for (let i = 0; i < sec * 60; i++) step(W, 1 / 60, inp); };
 const foe = (W, type, dx, dz = 0) => { const e = spawnEnemy(W, type, W.player.x + dx, W.player.z + dz); e.alert = true; e.cd = .01; return e; };
 
@@ -55,7 +55,7 @@ const foe = (W, type, dx, dz = 0) => { const e = spawnEnemy(W, type, W.player.x 
 { // доля элиты при обычных числах
   const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.bosses.list = []; const W = createWorld(cfg, mulberry32(12)); let n = 0, el = 0; const kinds = {};
   for (let i = 0; i < 600; i++) { const e = spawnEnemy(W, 'imp', 30, -30); n++; if (e.elite) { el++; kinds[e.aff] = (kinds[e.aff] || 0) + 1; } } W.enemies.length = 0;
-  const f = el / n; ok(f > .015 && f < .09, 'доля элиты ' + f.toFixed(3)); ok(Object.keys(kinds).length === Object.keys(K.affixes).length, 'встречаются все свойства: ' + JSON.stringify(kinds)); }
+  const f = el / n; ok(f > .015 && f < .09, 'доля элиты ' + f.toFixed(3)); ok(Object.keys(kinds).length === Object.keys(K.affixes).length + (K.extra ? Object.keys(K.affixes2).length : 0), 'встречаются все свойства: ' + JSON.stringify(kinds)); }
 { // свойства
   const mkAff = aff => { const W = mk(13, c => { c.elite.chance = 1; c.elite.affixes = { [aff]: c.elite.affixes[aff] }; }); const e = spawnEnemy(W, 'imp', W.player.x + 1.2, W.player.z); e.alert = true; return { W, e }; };
   { const { e } = mkAff('swift'); ok(e.spdMul > 1.3, 'быстрый'); }

@@ -78,6 +78,16 @@ const SFX = {
   bossKill: { gap: 1, f: () => { noise(.8, .2, 900, 60); tone(65, .9, 'sawtooth', .12, 33); for (let i = 0; i < 4; i++) tone([392, 523, 659, 784][i], .6, 'triangle', .07, 0, .35 + i * .12); } },
   streak: { gap: .15, f: () => { tone(880, .07, 'triangle', .04); tone(1320, .1, 'triangle', .035, 0, .05); } },
   hurtBig: { gap: .25, f: () => { noise(.18, .18, 500, 90); tone(90, .25, 'sawtooth', .1, 45); } },
+  slam: { gap: .2, f: () => { noise(.35, .16, 400, 60); tone(55, .4, 'sine', .12, 30); } },     // приёмы врагов (этап 2 «круче»)
+  spit: { gap: .2, f: () => { noise(.18, .08, 1800, 600, 'bandpass'); tone(320, .12, 'triangle', .03, 180); } },
+  howl: { gap: .5, f: () => { tone(330, .9, 'sawtooth', .04, 520); tone(495, .9, 'sawtooth', .03, 780, .05); } },
+  pullStart: { gap: .3, f: () => noise(.5, .06, 300, 1200, 'bandpass') },
+  pull: { gap: .3, f: () => { noise(.2, .12, 900, 200); tone(140, .2, 'triangle', .06, 90); } },
+  skin: { gap: .5, f: () => { noise(.4, .12, 250, 120); tone(90, .4, 'triangle', .06, 70); } },
+  phase: { gap: .5, f: () => { noise(.5, .07, 3000, 600, 'highpass'); tone(880, .4, 'sine', .03, 440); } },
+  chill: { gap: .4, f: () => { noise(.3, .06, 4000, 1500, 'highpass'); tone(1200, .25, 'sine', .03, 900); } },     // свойства элиты (этап 2 «круче»)
+  mirror: { gap: .2, f: () => { tone(1568, .12, 'triangle', .04); tone(1175, .15, 'triangle', .03, 0, .05); } },
+  eliteCall: { gap: .5, f: () => { tone(220, .5, 'sawtooth', .04, 330); noise(.3, .06, 800, 300); } },
   heart: { gap: .3, f: () => { tone(58, .12, 'sine', .14, 40); tone(52, .14, 'sine', .11, 36, .17); } },
   dodge: { gap: .1, f: () => tone(700, .08, 'triangle', .03, 1000) },
   pickup: { gap: .05, f: () => { tone(740, .06, 'triangle', .056); tone(988, .08, 'triangle', .056, 0, .06); } },

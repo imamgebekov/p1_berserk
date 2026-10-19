@@ -33,7 +33,7 @@ import { storyFresh, storyTick, storyKill, storyBoss, storyActors, duelGuard, br
 import { newKnown } from './craft3d.js';
 import { questEvent } from './quests3d.js';
 import { lightOf, isNight } from './daynight.js';
-import { rollElite, makeChief, eliteOnHit, eliteOnDeath, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
+import { rollElite, makeChief, eliteOnHit, eliteOnDeath, eliteTick, hasAff, affOf, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned, rainK } from './status3d.js';
 import { tickZones, isWet } from './elements3d.js';
 import { weaponMix, gemDropOf, weaponElement, magicDropOf, armorGems } from './stones3d.js';
@@ -54,6 +54,7 @@ export function createWorld(cfg, rng = Math.random) {
   for (const id of Object.keys(W.levels)) withLevel(W, id, () => { for (const c of W.map.containers) if (c.far) c.t = cfg.map.containerRespawn; else refill(W, c); });     // дальние — когда герой подойдёт
   restock(W);
   for (const def of cfg.bosses.list) if (!def.city && (!def.level || W.levels[def.level])) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def));     // босс города — когда герой подойдёт (garrisons)     // босс замка — в своём тронном зале (C4); нет уровня — нет босса
+  refreshGear(W); W.player.hp = W.player.maxhp;     // запас здоровья героя (Торн ×1,15) — сразу полный
   return W;
 }
 // контекст оружия: умение типа и объединённые параметры свойств
@@ -370,7 +371,7 @@ function attackStart(W, heavy = 0) {
 }
 
 // «Трещина» (земля): треснувший враг получает больше урона
-const cracked = (W, e, dmg) => (e.st && e.st.crack ? Math.max(1, Math.round(dmg * (e.st.crack.k || W.cfg.elements.crack))) : dmg);
+const cracked = (W, e, dmg) => { if ((e.skinT > 0 || e.phaseT > 0) && e.skinMul) dmg = Math.max(1, Math.round(dmg * e.skinMul)); return e.st && e.st.crack ? Math.max(1, Math.round(dmg * (e.st.crack.k || W.cfg.elements.crack))) : dmg; };     // каменная кожа и «сквозь тьму» (этап 2 «круче») режут урон
 // прямой урон без попадания оружием: реакции, молнии, раскаты, дальние эффекты
 function dealDamage(W, e, dmg, fx) {
   if (e.dead) return;
@@ -387,9 +388,10 @@ function strike(W, e, dmg, o) {
   if (C.guard && o.heavy) applyStatus(W, e, 'stun', 0, C.guard.breakStun);                          // тяжёлый удар ломает защиту
   dmg = cracked(W, e, dmg);
   e.hp -= dmg; e.flash = .12; p.calm = P.fire.calm; addThreat(W, e, 0, dmg); W.party.last = e.id;
+  if (hasAff(e, 'mirror') && dmg > 0 && !p.dead) { const r = Math.max(1, Math.round(dmg * affOf(W, 'mirror').k)); p.hp -= r; W.ev.push({ k: 'mirror', x: p.x, z: p.z, dmg: r }); }     // зеркальная элита возвращает часть удара (этап 2 «круче»)
   if (e.b && (o.heavy || o.ab)) e.b.kick = true;     // тяжёлый удар или умение сбивает чтение босса (этап 5)     // угроза героя (этап 4); последняя цель — для «моей цели»
   { const thirst = W.wp.mix && W.wp.mix.a === 'blood' && W.wp.mix.b === 'blood' ? W.cfg.stones.thirst[0] : 0, lch = (W.gear.leech + thirst + (W.abuf.blood > 0 ? W.abuf.bloodLeech : 0)) * (e.st && e.st.bleed && W.cfg.elements.react && isWet(W, e) ? W.cfg.elements.mix.tide : 1); if (lch > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * lch / 100); }     // «Кровавый прилив»: мокрый и кровоточащий     // «Кровавый порыв» Торна добавляет вампиризм
-  const heavy = C.heavy || e.aff === 'armored', k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
+  const heavy = C.heavy || hasAff(e, 'armored'), k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
   if (e.state === 'wind' && !heavy && gm >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах (щит — нет)
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: o.crit, fin: !!o.fin, id: e.id, fx: o.fx || null });
@@ -669,7 +671,7 @@ function updatePlayer(W, dt, input) {
     // бег с разгоном; при ударе медленнее
     const wet = W.map.river && inStream(W.map.river, p.x, p.z);     // ручей (2026-10-18): медленнее, горение гаснет
     if (wet && W.pst.burn) { delete W.pst.burn; W.ev.push({ k: 'douse', x: p.x, z: p.z }); }
-    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd, -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1);
+    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd, -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
     const tx = moving ? mx * sp : 0, tz = moving ? mz * sp : 0;
     const a = P.accel * dt;
     const dvx = tx - p.vx, dvz = tz - p.vz, dl = len(dvx, dvz);
@@ -694,15 +696,17 @@ function updateEnemies(W, dt) {
     if (!e.boss && W.lvl === SURFACE && len(p.x - e.x, p.z - e.z) > E.sleep.r) { e.sleep = true; continue; }     // далеко от героя — спит (C1)
     e.sleep = false;
     tickEnemy(W, e, dt); if (e.dead) continue;
+    if (e.hasteT > 0) e.hasteT -= dt; if (e.skinT > 0) e.skinT -= dt; if (e.phaseT > 0) e.phaseT -= dt;     // приёмы врагов (этап 2 «круче»)
+    if (e.elite && e.alert && (hasAff(e, 'blink') || hasAff(e, 'summoner'))) eliteTick(W, e, dt);
     const ws = W.map.river && W.map.river.streams && W.map.river.streams.length && inStream(W.map.river, e.x, e.z);     // враг в ручье: медленнее и мокрый
     if (ws && W.cfg.elements.react && !(e.st && e.st.wet && e.st.wet.t > 1)) applyStatus(W, e, 'wet', 0, W.cfg.elements.mark.wet);
-    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1) * (ws ? W.cfg.water.slow : 1);
+    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1) * (e.hasteT > 0 ? e.haste || 1 : 1) * (ws ? W.cfg.water.slow : 1);
     slide(W.map, e, e.vx * dt, e.vz * dt, C.radius);
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
     if (e.boss) { updateBoss(W, e, dt, spd); continue; }
     if (isStunned(e)) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); continue; }        // оглушённый не двигается и не бьёт
     if (e.st && e.st.fear) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); e.face = Math.atan2(-dx, -dz); slide(W.map, e, -dx / d * spd * W.cfg.abilities.fearSpeed * dt, -dz / d * spd * W.cfg.abilities.fearSpeed * dt, C.radius); continue; }     // в страхе бежит от героя и не бьёт
-    if (C.ai && (e.state === 'aim' || e.state === 'dash' || e.state === 'fuse')) { foeAI(W, e, C, d, dx, dz, dt, true); continue; }    // прицел, рывок, фитиль
+    if (C.ai && (e.state === 'aim' || e.state === 'dash' || e.state === 'fuse' || e.state === 'mcast')) { foeAI(W, e, C, d, dx, dz, dt, true); continue; }    // прицел, рывок, фитиль
     if (e.state === 'chase') {
       const posted = e.mode === 'guard' || e.mode === 'patrol';      // сторож или патрульный: пока не заметил — своими делами
       if (!posted || e.alert) turnTo(e, C, Math.atan2(dx, dz), dt);
@@ -964,6 +968,7 @@ export function step(W, dt, input = {}) {
   { const g = W.gfx, p = W.player;                                             // золото: щит кирасы заряжается, знак лечит вне боя
     if (g.aegis) { if (!(W.aegis > 0) && (W.aegisT = (W.aegisT ?? 0) - dt) <= 0) { W.aegis = g.aegis[1]; W.ev.push({ k: 'aegisUp', x: p.x, z: p.z }); } } else W.aegis = 0;
     if (g.sunheal && !p.dead && p.hp < p.maxhp && W.t - (p.lastHurt ?? -1e9) > g.sunheal[0]) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * g.sunheal[1] * dt); }
+  if (W.chillT > 0) W.chillT -= dt;
   if (W.freeze > 0) { W.freeze -= dt; if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200); return; }
   W.aimPt = input.aimPt && Number.isFinite(input.aimPt.x) ? input.aimPt : null;     // прицел курсором (компьютер); без него — как раньше
   mountInput(W, input);     // удар, перекат, умение верхом — спешиться (этап 6)
