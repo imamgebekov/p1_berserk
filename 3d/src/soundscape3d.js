@@ -21,7 +21,9 @@ export function mixOf(W, A, env) {
   const music = under || p.dead ? 0 : (1 - combat) * (W.night ? A.music.nightVol : 1);
   const rustle = under || !env ? 0 : Math.pow(clamp01(env.wind), 1.5) * clamp01(env.trees);     // шелест: ветер и деревья рядом
   const frog = under || !A.birds.frogNear ? 0 : (1 - day) * Math.max(0, 1 - d / A.birds.frogNear) * (1 - combat) * (1 - wetK * .5);     // лягушки у воды в сумерках и ночью
-  return { water, birds, owl, frog, music, combat, night: !!W.night, under, rustle, rain: under ? 0 : wetK };
+  let boss = false; for (const e of W.enemies) if (e.boss && !e.dead && e.alert && Math.hypot(e.x - p.x, e.z - p.z) < A.combat.r * 2.5) boss = true;     // босс в бою — своя тема (этап 1 «круче»)
+  const fight = A.fight && A.fight.on && !p.dead ? Math.max(combat, boss ? 1 : 0) : 0;
+  return { water, birds, owl, frog, music, combat, fight, boss: boss && !p.dead, night: !!W.night, under, rustle, rain: under ? 0 : wetK };
 }
 
 // ---- музыка ----
@@ -80,6 +82,24 @@ export function composePiece(seed, night = false, M = { dayBpm: 84, nightBpm: 70
   });
   notes.sort((a, b) => a.t - b.t);
   return { bpm, beat, bars: bar, dur: bar * barT, night, scale, notes };
+}
+
+// ---- боевая музыка (этап 1 «круче»): такт 4/4 поверх стихшего вальса. Ре минор; бочка и том — всегда, бас-остинато,
+// при сильном бою (intensity > .5) — удары струнных, с боссом — хор и медь. Ноты { part, t (доли такта в секундах), d, m, v } ----
+const FIGHT_PROG = [[0, 0, 5, 4], [0, 3, 5, 4], [0, 5, 3, 4]];
+export function fightBar(seed, bar, intensity = 1, boss = false, F = { bpm: 128, bossBpm: 138 }) {
+  const r = mulberry32((seed * 7919 + bar * 104729) >>> 0), beat = 60 / (boss ? F.bossBpm : F.bpm), prog = FIGHT_PROG[seed % FIGHT_PROG.length], root = prog[bar % 4], notes = [];
+  for (let b = 0; b < 4; b++) {
+    notes.push({ part: 'kick', t: b * beat, d: .18, v: b % 2 ? .7 : 1 });
+    if (b % 2) notes.push({ part: 'tom', t: b * beat + beat / 2, d: .16, v: .6 + .2 * r() });
+    for (const h of [0, .5]) notes.push({ part: 'fbass', t: (b + h) * beat, d: beat * .45, m: midiOf(root - 14 + (h ? 4 : 0), MINOR), v: h ? .6 : .85 });
+  }
+  if (intensity > .5) for (const b of [0, 2.5]) for (const k of [0, 2, 4]) notes.push({ part: 'stab', t: b * beat, d: beat * .4, m: midiOf(root + k - 7, MINOR), v: .6 });
+  if (boss) {
+    for (const k of [0, 4]) notes.push({ part: 'choir', t: 0, d: beat * 4, m: midiOf(root + k, MINOR), v: .55 });
+    for (const [b, k] of [[0, 7], [1.5, 6], [3, 4]]) notes.push({ part: 'brass', t: b * beat, d: beat * .9, m: midiOf(root + k - 7, MINOR), v: .7 });
+  }
+  return { beat, dur: beat * 4, notes };
 }
 
 // ---- птицы и сова: слоги { t, d, f0, f1, v } ----

@@ -4,7 +4,7 @@
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, mulberry32, spawnEnemy } from '../3d/src/sim.js';
 import { waterDist } from '../3d/src/terrain3d.js';
-import { mixOf, composePiece, birdSong, owlCall } from '../3d/src/soundscape3d.js';
+import { mixOf, composePiece, birdSong, owlCall, fightBar } from '../3d/src/soundscape3d.js';
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
@@ -28,7 +28,9 @@ const mk = (c = clone()) => { c.enemies.count = 0; c.bosses.list = []; c.events.
   W.light = 1; W.night = false;
   for (let i = 0; i < A.combat.n; i++) { const e = spawnEnemy(W, 'brute', p.x + 3 + i, p.z); e.alert = true; }
   const fight = mixOf(W, A); ok(fight.combat === 1 && fight.music === 0 && fight.birds === 0, 'бой не глушит музыку и птиц: ' + JSON.stringify(fight));
-  W.enemies.forEach(e => { e.alert = false; }); ok(mixOf(W, A).combat === 0, 'спокойные враги считаются боем');
+  ok(fight.fight === 1 && !fight.boss, 'в бою нет боевой музыки или ложный босс: ' + JSON.stringify(fight));     // этап 1 «круче»
+  W.enemies.forEach(e => { e.alert = false; }); ok(mixOf(W, A).combat === 0 && mixOf(W, A).fight === 0, 'спокойные враги считаются боем');
+  { const b = spawnEnemy(W, 'brute', p.x + 20, p.z); b.boss = true; b.alert = true; const m = mixOf(W, A); ok(m.boss && m.fight === 1, 'босс в бою без своей темы: ' + JSON.stringify(m)); b.dead = true; }
   W.enemies.length = 0;
   W.place = { danger: 3 }; ok(mixOf(W, A).birds < .25, 'в опасном месте птицы поют как в лагере'); W.place = null;
   W.lvl = 'crypt'; const und = mixOf(W, A); ok(und.under && !und.water && !und.birds && !und.owl && !und.music, 'под землёй слышна природа или музыка'); W.lvl = 'surface';
@@ -112,6 +114,14 @@ const mk = (c = clone()) => { c.enemies.count = 0; c.bosses.list = []; c.events.
   // старые звуки на месте
   ok(au.SFX_NAMES.length > 40 && au.SFX_NAMES.includes('hit') && au.SFX_NAMES.includes('dusk'), 'пропали звуки событий');
 }
+
+// боевая музыка (этап 1 «круче»): такт 4/4, ноты внутри такта; лёгкий бой — ударные и бас; сильный — и струнные; босс — хор, медь, темп выше
+{ const F = CFG3.audio.fight, lo = fightBar(3, 0, .3, false, F), hi = fightBar(3, 0, 1, false, F), bo = fightBar(3, 0, 1, true, F), parts = b => new Set(b.notes.map(n => n.part));
+  ok(JSON.stringify(fightBar(3, 1, 1, false, F)) === JSON.stringify(fightBar(3, 1, 1, false, F)), 'такт боя не повторяется при том же зерне');
+  ok(['kick', 'tom', 'fbass'].every(k => parts(lo).has(k)) && !parts(lo).has('stab'), 'лёгкий бой: не ударные и бас: ' + [...parts(lo)]);
+  ok(parts(hi).has('stab') && !parts(hi).has('brass'), 'сильный бой без струнных или с медью');
+  ok(parts(bo).has('choir') && parts(bo).has('brass') && bo.beat < hi.beat, 'босс без хора, меди или того же темпа');
+  ok([lo, hi, bo].every(b => b.notes.every(n => n.t >= 0 && n.t < b.dur && n.d > 0)) && Math.abs(hi.dur - 4 * 60 / F.bpm) < 1e-9, 'ноты вне такта или такт не 4 доли'); }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Атмосфера звука 3D: OK');

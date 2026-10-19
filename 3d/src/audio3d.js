@@ -1,5 +1,5 @@
 // Звук 3D: всё синтезируется (осцилляторы и шум), файлов нет. Контекст создаётся по первому касанию (правило iOS).
-import { composePiece, birdSong, owlCall, frogCall } from './soundscape3d.js';
+import { composePiece, birdSong, owlCall, frogCall, fightBar } from './soundscape3d.js';
 import { CFG3 } from './config3d.js';
 let ac = null, master = null, sfxBus = null, out = null, noiseBuf = null, amb = null, volume = .7, muted = false, lastT = {}, vp = 1;
 const FX = () => ((A && A.fx) || CFG3.audio.fx);     // числа сведения: из cfg.audio (setScene) или по умолчанию
@@ -159,7 +159,7 @@ export function setAtmoVolumes(music, nature) { vol = { music: Number(music) || 
 export const setAtmoRandom = f => { rnd = f; };     // для тестов
 function buildAtmo() {
   const bus = v => { const g = ac.createGain(); g.gain.value = v; g.connect(master); return g; };     // шины природы и музыки — в общую громкость (и компрессор)
-  const nature = bus(0), music = bus(0);
+  const nature = bus(0), music = bus(0), fight = bus(0);     // fight — боевая музыка (этап 1 «круче»)
   // эхо для музыки: задержка с обратной связью через мягкий фильтр (дешевле свёртки)
   const send = ac.createGain(), dl = ac.createDelay(1), fb = ac.createGain(), lp = ac.createBiquadFilter(), wet = ac.createGain();
   send.gain.value = .35; dl.delayTime.value = .27; fb.gain.value = .38; lp.type = 'lowpass'; lp.frequency.value = 2400; wet.gain.value = .6;
@@ -179,12 +179,14 @@ function buildAtmo() {
   // шум дождя (F3): глухой шорох и светлое шипение капель; громкость — rainG
   const rainG = ac.createGain(); rainG.gain.value = 0; rainG.connect(nature);
   for (const [type, fc, q, v] of [['lowpass', 1400, .7, .7], ['highpass', 5200, .5, .35]]) { const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); src.buffer = noiseBuf; src.loop = true; src.playbackRate.value = type === 'lowpass' ? .79 : 1.13; f.type = type; f.frequency.value = fc; f.Q.value = q; g.gain.value = v; src.connect(f).connect(g).connect(rainG); src.start(); }
-  atmo = { nature, music, waterG, rustleG, rainG, mix: { water: 0, birds: 0, owl: 0, music: 0, combat: 0 }, piece: null, pieceT: 0, idx: 0, restUntil: 0, nextBird: 0, nextOwl: 0, nextPlip: 0, seed: 1 };
+  fight.connect(send);
+  atmo = { fight, fightT: 0, fightBar: 0, fightSeed: 0, fightUntil: 0, nature, music, waterG, rustleG, rainG, mix: { water: 0, birds: 0, owl: 0, music: 0, combat: 0 }, piece: null, pieceT: 0, idx: 0, restUntil: 0, nextBird: 0, nextOwl: 0, nextPlip: 0, seed: 1 };
 }
 function applyMix() {
   const t = ac.currentTime, m = atmo.mix, tau = A ? A.combat.fade / 3 : .5;
   atmo.nature.gain.setTargetAtTime(vol.nature, t, .3);
   atmo.music.gain.setTargetAtTime(vol.music * (A ? A.music.vol : .07) * m.music, t, tau);
+  { const FG = A && A.fight; atmo.fight.gain.setTargetAtTime(FG && FG.on ? vol.music * FG.vol * (m.fight > 0 ? 1 : 0) : 0, t, m.fight > 0 ? .4 : (FG ? FG.hold / 3 : 1)); }     // после боя затихает за hold с
   atmo.waterG.gain.setTargetAtTime((A ? A.water.vol : .09) * m.water, t, .6);
   atmo.rainG.gain.setTargetAtTime((A && A.rain ? A.rain.vol : .08) * (m.rain || 0), t, 1.2);
   atmo.rustleG.gain.setTargetAtTime((A && A.rustle ? A.rustle.vol : .06) * (m.rustle || 0), t, .4);
@@ -223,6 +225,14 @@ const PART = {
   bass: (n, t) => voice(atmo.music, { t, d: n.d, f0: hz(n.m), type: 'sine', v: .35 * n.v, att: .2, rel: .6 }),
   choir: (n, t) => voice(atmo.music, { t, d: n.d, f0: hz(n.m), type: 'sawtooth', det: [-5, 6], formants: [[720, 7], [1150, 8]], v: .5 * n.v, att: .5, rel: 1, vib: 4.6 })
 };
+const FPART = {     // боевая музыка (этап 1 «круче»): своя шина, ударные — короткий свист частоты вниз
+  kick: (n, t) => voice(atmo.fight, { t, d: n.d, f0: 95, f1: 42, type: 'sine', v: .9 * n.v, att: .004, rel: .06 }),
+  tom: (n, t) => voice(atmo.fight, { t, d: n.d, f0: 170, f1: 105, type: 'sine', v: .5 * n.v, att: .004, rel: .06 }),
+  fbass: (n, t) => voice(atmo.fight, { t, d: n.d, f0: hz(n.m), type: 'sawtooth', lp: 520, v: .32 * n.v, att: .01, rel: .08 }),
+  stab: (n, t) => voice(atmo.fight, { t, d: n.d, f0: hz(n.m), type: 'sawtooth', det: [-6, 6], lp: 1800, v: .14 * n.v, att: .01, rel: .12 }),
+  brass: (n, t) => voice(atmo.fight, { t, d: n.d, f0: hz(n.m), type: 'sawtooth', det: [-4, 5], lp: 1400, v: .2 * n.v, att: .04, rel: .2 }),
+  choir: (n, t) => voice(atmo.fight, { t, d: n.d, f0: hz(n.m), type: 'sawtooth', det: [-5, 6], formants: [[720, 7], [1150, 8]], v: .45 * n.v, att: .4, rel: .8, vib: 4.6 })
+};
 // планировщик: вызывать часто (каждые ~0,2 с); ставит ноты, трели и бульки на A.look секунд вперёд
 export function tickAudio() {
   if (!ac || !atmo || !A || muted || ac.state !== 'running') return;
@@ -237,6 +247,15 @@ export function tickAudio() {
     }
     if (atmo.idx >= P.notes.length && now > atmo.pieceT + P.dur) { atmo.piece = null; atmo.restUntil = now + M.rest[0] + rnd() * (M.rest[1] - M.rest[0]); }
   }
+  // боевая музыка: такты подряд, пока идёт бой и ещё hold с после; новый бой — новое зерно
+  { const FG = A.fight;
+    if (FG && FG.on) {
+      if (m.fight > 0) atmo.fightUntil = now + FG.hold;
+      if (now < atmo.fightUntil) {
+        if (atmo.fightT < now) { atmo.fightT = now + .05; atmo.fightBar = 0; atmo.fightSeed++; }
+        while (atmo.fightT < ahead) { const B = fightBar(atmo.fightSeed, atmo.fightBar++, m.fight, !!m.boss, FG); for (const n of B.notes) { const t = atmo.fightT + n.t; if (t >= now && FPART[n.part](n, t)) stats.fightNotes = (stats.fightNotes || 0) + 1; } atmo.fightT += B.dur; }
+      } else atmo.fightT = 0;
+    } }
   // птицы днём, сова ночью
   if (m.birds > .05 && now >= atmo.nextBird) {
     const s = birdSong(rnd), t0 = now + .1 + rnd() * .5, v = A.birds.vol * m.birds * (.4 + .6 * rnd());

@@ -44,6 +44,15 @@ try {
   const v1 = await op('feelVig'); await page.screenshot({ path: join(out, `${tag}-lowhp.png`) });
   await ev(() => { const p = window.__b3d.W.player; p.hp = p.maxhp; }); await page.waitForTimeout(400); const v2 = await op('feelVig');
   if (tag === 'feel') { if (!(v1 > .2)) bad('нет красной каймы при 8% здоровья: ' + v1); if (!(v2 < .01)) bad('кайма не ушла при полном здоровье: ' + v2); }
+  // боевая музыка: звук включается после нажатия клавиши; два встревоженных врага рядом — играют боевые такты
+  if (tag === 'feel') {
+    await page.keyboard.press('KeyM'); await page.keyboard.press('KeyM'); await page.waitForTimeout(300);
+    await ev(() => { const p = window.__b3d.W.player; p.x = 0; p.z = 48; }); await page.waitForTimeout(800);     // за воротами: в лагере враги не живут
+    await ev(() => { const b = window.__b3d, W = b.W, p = W.player; p.hp = p.maxhp; for (let i = 0; i < 2; i++) { const e = b.spawn('brute', p.x + 4 + i, p.z); e.alert = true; e.hp = e.maxhp = 1e7; } b.cfg.enemies.brute.damage = 0; });
+    let n = 0; for (let k = 0; k < 40 && !n; k++) { await page.waitForTimeout(250); n = await ev(() => window.__b3d.audioStats().fightNotes || 0); }
+    const st = await ev(() => window.__b3d.audioStats().state);
+    if (st === 'running' && !(n > 0)) bad('в бою нет боевой музыки (нот ' + n + ')'); else if (st !== 'running') console.log('  звук не запустился в этом браузере (' + st + ') — музыку не проверить');
+  }
   await ctx.close();
 } finally { await browser.close(); await dev.close(); }
 if (problems.length) { console.log('Ощущение боя в браузере: ПРОВАЛ\n- ' + problems.join('\n- ')); process.exit(1); }
