@@ -798,7 +798,7 @@ const BASE = {
     // ободок силуэта (V2c): край фигуры светлее — днём day, ночью night; ореолы ночью у фонарей и костров: размер, м, и цвет; max — сколько сразу
     // материалы (T0–T2): мягкие доски, брёвна, кора, камень с мхом, кладка, ткань, металл, черепица и земля по виду поверхности в шейдере;
     // сила по видам (wood — и доски, и кора с камнем природы); plank — ширина доски, tile — ряд черепицы, м
-    paint: { on: true, ground: .8, wood: 1, roof: 1, log: 1, masonry: 1, cloth: 1, metal: 1, plank: .3, tile: .3 },
+    paint: { on: true, ground: .8, wood: 1, roof: 1, log: 1, masonry: 1, cloth: 1, metal: 1, leather: 1, hide: 1, fur: 1, bone: 1, scale: 1, model: 1.7, plank: .3, tile: .3 },     // model — множитель у героев, врагов и зверей: они мелкие     // кожа, шкура, шерсть, кость, чешуя — герои и враги (T4)
     rim: { on: true, day: .08, night: .45, pow: 5, hero: '#ffd8a8', foe: '#ff9078' }, halo: { on: true, lamp: [2.6, '#ffb35a'], fire: [4.4, '#ff8a3a'], near: 70, max: 96 } },
   weather: { on: true, kinds: { clear: [.55, 150, 360], cloudy: [.25, 80, 200], rain: [.2, 70, 160] }, ramp: 14, fog: .6, wet: .7,
     drops: 900, fall: 16, box: [34, 18], splash: 26, ripples: 24, force: null,

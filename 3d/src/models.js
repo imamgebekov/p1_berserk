@@ -3,11 +3,13 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { makeWeapon } from './weaponview.js';
 import { CFG3 } from './config3d.js';
+import { paintMat } from './paint3d.js';
 import { barrelGeo, blobGeo, coneGeo, panelGeo, mesh, limbV, bakeDeep } from './parts3d.js';
 import { familyOf, stepOf, swingPose, chargePose, REST, gait, bank, strikeBody, rollLand, hitLean, heroDeath, foeDeath, dampK, smoothPose, poseLambda } from './anim3d.js';
 
 const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
 const basic = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, ...extra });
+const P = (mat, kind) => paintMat(mat, kind, { local: true, k: CFG3.shaders.paint ? CFG3.shaders.paint.model : 1 });     // материал героев, врагов и зверей (T4): узор в координатах детали
 
 // скруглённый кубик для героя, врагов и жителей (шаг 7 аудита): общий на одинаковые размеры, модели геометрию не освобождают
 const roundGeo = new Map();
@@ -39,7 +41,7 @@ export function makeHero() {
   const mats = [];
   const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
-  const cloth = M('#6a5148'), skin = M('#cdb89a'), dark = M('#3a2c28'), cape = M('#7a1e26'), legs = M('#4a3a35');
+  const cloth = P(M('#6a5148'), 'cloth'), skin = M('#cdb89a'), dark = P(M('#3a2c28'), 'fur'), cape = P(M('#7a1e26'), 'cloth'), legs = P(M('#4a3a35'), 'cloth');
   if (VOL()) return heroVolume(M, mats, g, root, cloth, skin, dark, cape, legs);     // объёмный вид (2026-10-18); ?boxy — прежние кубики
   const legL = limb(.28, .8, .32, legs, .2, .8, 0), legR = limb(.28, .8, .32, legs, -.2, .8, 0);
   const torso = box(.78, .85, .45, cloth, 0, 1.25, 0);
@@ -63,7 +65,7 @@ export function makeHero() {
 // объёмный герой: те же шарниры и точки (ноги от бедра 0,8, левая рука от плеча, правая — в группе удара), детали — грани
 const VOL = () => !(CFG3.shapes && CFG3.shapes.volume === false);
 function heroVolume(M, mats, g, root, cloth, skin, dark, cape, legs) {
-  const boot = M('#2e2420'), metalS = M('#5a564e'), leather = M('#4a3626');
+  const boot = P(M('#2e2420'), 'leather'), metalS = P(M('#5a564e'), 'metal'), leather = P(M('#4a3626'), 'leather');
   const foot = () => mesh(blobGeo(.13, .09, .2, 0), boot, 0, .06, .05);
   const legL = limbV(legs, .19, .8, 0, .8, .15, .12, .1, foot()), legR = limbV(legs, -.19, .8, 0, .8, .15, .12, .1, foot());
   const torso = new THREE.Group();
@@ -84,7 +86,7 @@ function heroVolume(M, mats, g, root, cloth, skin, dark, cape, legs) {
   const armL = limbV(cloth, .5, 1.62, 0, .75, .1, .085, .075, mesh(blobGeo(.085, .085, .085, 0), skin, 0, -.02, 0));
   const hood = new THREE.Group(); hood.add(mesh(blobGeo(.3, .3, .3, 1), cape, 0, 1.97, -.02), mesh(panelGeo(.32, .5, 2.2), cape, 0, 1.78, 0)); hood.visible = false;
   const quiver = new THREE.Group(); quiver.position.set(-.18, 1.35, -.34); quiver.rotation.z = .35;
-  quiver.add(mesh(barrelGeo(.1, .09, .7, 6), M('#6a4a2a')), mesh(barrelGeo(.02, .02, .3, 4), M('#d8c8a0'), .04, .45, 0), mesh(barrelGeo(.02, .02, .34, 4), M('#d8c8a0'), -.03, .47, .03), mesh(coneGeo(.05, .12, 3), M('#e8e0d0'), .04, .62, 0));
+  quiver.add(mesh(barrelGeo(.1, .09, .7, 6), P(M('#6a4a2a'), 'leather')), mesh(barrelGeo(.02, .02, .3, 4), M('#d8c8a0'), .04, .45, 0), mesh(barrelGeo(.02, .02, .34, 4), M('#d8c8a0'), -.03, .47, .03), mesh(coneGeo(.05, .12, 3), M('#e8e0d0'), .04, .62, 0));
   const robe = new THREE.Group(); robe.add(mesh(barrelGeo(.36, .5, .8, 8, .8), cloth, 0, .6, 0), mesh(barrelGeo(.5, .52, .06, 8, .8), M('#2a1e40'), 0, .22, 0)); robe.visible = false;     // мантия (Ирга)
   root.add(legL, legR, torso, belt, shoulder, head, cloak, swing, armL, hood, quiver, robe);
   bakeDeep(root);
@@ -161,6 +163,7 @@ const CALM = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-mo
 
 // ---------- враги ----------
 // облик по виду: цвета и особенности
+const SCALY = new Set(['drowned', 'drownedmaid', 'silt', 'swampelder']);     // чешуя (T4)
 const LOOKS = {
   imp: { body: '#3b3345', dark: '#1a121a', eye: '#ff3030' },
   brute: { body: '#4a3430', dark: '#2a1c1a', eye: '#ff3030' },
@@ -216,9 +219,10 @@ export function makeMonster(kind, cfg) {
   const mats = [], L = LOOKS[kind] || LOOKS.imp;
   if (L.soldier) { const s = makeSoldier(L.soldier, cfg); return { ...s, head: s.root, kind, ember: null, ghost: false, mats: [] }; }     // человек-противник (Аларик)
   const M = (c, o) => { const m = lam(c, o); mats.push(m); return m; };
-  const body = M(L.body), dark = M(L.dark), bone = M('#d8cfbd');
-  const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const shape = L.shape || kind, hound = shape === 'hound', ghoul = shape === 'ghoul', bones = shape === 'bones';
+  const skinK = bones ? 'bone' : hound ? 'fur' : SCALY.has(kind) ? 'scale' : 'hide';     // шкура врага (T4)
+  const body = P(M(L.body), skinK), dark = P(M(L.dark), hound ? 'fur' : 'hide'), bone = P(M('#d8cfbd'), 'bone');
+  const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   if (VOL()) return monsterVolume(kind, cfg, L, shape, M, mats, body, dark, bone, g, root);     // объёмные (2026-10-18); ?boxy — прежние кубики
   root.add(box(hound ? .6 : bones ? .5 : .8, hound ? .7 : .85, hound ? .8 : bones ? .3 : .55, body, 0, .95, 0));
   if (bones) for (let i = 0; i < 3; i++) root.add(box(.62, .06, .36, dark, 0, .8 + i * .16, 0));     // рёбра
@@ -231,7 +235,7 @@ export function makeMonster(kind, cfg) {
   if (L.crown) { const cm = basic(L.crown); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; root.add(box(.1, .42, .1, cm, Math.cos(a) * .3, 2.25 + (i % 2) * .12, Math.sin(a) * .3 + .05)); } root.add(box(.3, .4, .3, cm, .62, 1.7, 0), box(.3, .4, .3, cm, -.62, 1.7, 0)); }
   // предметы видов: щит спереди, тлеющее пузо, копьё
   let ember = null;
-  if (L.prop === 'shield') { const sm = M('#6a645a'), rim = M('#3a342c'); root.add(box(1.0, 1.15, .14, sm, 0, 1.05, .5)); root.add(box(1.08, .12, .16, rim, 0, 1.6, .5)); root.add(box(1.08, .12, .16, rim, 0, .5, .5)); root.add(box(.22, .22, .2, M('#a89a70'), 0, 1.05, .6)); }
+  if (L.prop === 'shield') { const sm = P(M('#6a645a'), 'metal'), rim = P(M('#3a342c'), 'metal'); root.add(box(1.0, 1.15, .14, sm, 0, 1.05, .5)); root.add(box(1.08, .12, .16, rim, 0, 1.6, .5)); root.add(box(1.08, .12, .16, rim, 0, .5, .5)); root.add(box(.22, .22, .2, M('#a89a70'), 0, 1.05, .6)); }
   if (L.prop === 'ember') { ember = basic('#ff7a20'); root.add(new THREE.Mesh(new THREE.BoxGeometry(.6, .5, .1), ember).translateY(.95).translateZ(.29)); }
   const al = ghoul ? 1.05 : bones ? .95 : .75;
   const armL = limb(.22, al, .24, body, .55, 1.3, 0), armR = limb(.22, al, .24, body, -.55, 1.3, 0);
@@ -247,7 +251,7 @@ export function makeMonster(kind, cfg) {
 // объёмные враги (2026-10-18): шарниры те же (руки, ноги, корень), детали — грани. Бес — сутулый с рогами и хвостом,
 // рогач — горбатая громада с рогами и бивнями, гончая — на четырёх лапах (руки — передние лапы)
 function monsterVolume(kind, cfg, L, shape, M, mats, body, dark, bone, g, root) {
-  const eye = basic(L.eye), claw = M('#d8cfbd');
+  const eye = basic(L.eye), claw = P(M('#d8cfbd'), 'bone');
   let head, armL, armR, legL, legR, ember = null;
   const eyes = (y, z, dx) => [mesh(blobGeo(.05, .04, .03, 0), eye, dx, y, z), mesh(blobGeo(.05, .04, .03, 0), eye, -dx, y, z)];
   const hand = s => { const h = new THREE.Group(); h.add(mesh(blobGeo(.1 * s, .09 * s, .1 * s, 0), body)); for (const x of [-.05, 0, .05]) h.add(mesh(coneGeo(.025 * s, .12 * s, 3), claw, x * s, -.1 * s, .05 * s, Math.PI * .85)); return h; };
@@ -305,7 +309,7 @@ function monsterVolume(kind, cfg, L, shape, M, mats, body, dark, bone, g, root) 
     legL = limbV(dark, .17, .62, 0, .62, .11, .08, .065, mesh(blobGeo(.08, .06, .13, 0), dark, 0, .04, .05), -.2); legR = limbV(dark, -.17, .62, 0, .62, .11, .08, .065, mesh(blobGeo(.08, .06, .13, 0), dark, 0, .04, .05), -.2);
   }
   if (L.crown) { const cm = basic(L.crown); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; head.add(mesh(coneGeo(.05, .3 + (i % 2) * .1, 4), cm, Math.cos(a) * .2, .28, Math.sin(a) * .2)); } head.add(mesh(barrelGeo(.24, .24, .08, 8), cm, 0, .2, 0)); }     // корона босса
-  if (L.prop === 'shield') { const sm = M('#6a645a'), rim = M('#3a342c'); root.add(mesh(barrelGeo(.55, .55, .12, 8), sm, 0, 1.05, .62, Math.PI / 2), mesh(barrelGeo(.58, .58, .06, 8), rim, 0, 1.05, .56, Math.PI / 2), mesh(blobGeo(.12, .12, .08, 0), rim, 0, 1.05, .7)); }
+  if (L.prop === 'shield') { const sm = P(M('#6a645a'), 'metal'), rim = P(M('#3a342c'), 'metal'); root.add(mesh(barrelGeo(.55, .55, .12, 8), sm, 0, 1.05, .62, Math.PI / 2), mesh(barrelGeo(.58, .58, .06, 8), rim, 0, 1.05, .56, Math.PI / 2), mesh(blobGeo(.12, .12, .08, 0), rim, 0, 1.05, .7)); }
   if (L.prop === 'ember') { ember = basic('#ff7a20'); root.add(mesh(blobGeo(.2, .17, .08, 1), ember, 0, .82, .22)); }     // тлеющее пузо
   if (L.prop === 'spear') { const al = .95, wood = M('#5a3e26'), tip = M('#b8b4a8'); armR.add(mesh(barrelGeo(.035, .035, 2.6, 5), wood, 0, -al, .6, Math.PI / 2), mesh(coneGeo(.07, .4, 4), tip, 0, -al, 1.95, Math.PI / 2)); }     // копьё скелета
   root.add(armL, armR, legL, legR);
@@ -455,7 +459,7 @@ export function makeNpc(kind = 'merchant', tint = '#5a4a3a') {
 function npcVolume(kind, tint) {
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const smith = kind === 'smith', cap = kind === 'captain', wand = kind === 'wanderer', trav = kind === 'traveler', m = c => lam(c);
-  const coat = m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : trav ? '#4a5a34' : tint), legs = m(smith ? '#2a2420' : '#4a3a2c'), skin = m(smith ? '#b89a7a' : '#cdb89a'), dark = m('#2a1c12');
+  const coat = P(m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : trav ? '#4a5a34' : tint), 'cloth'), legs = P(m(smith ? '#2a2420' : '#4a3a2c'), 'cloth'), skin = m(smith ? '#b89a7a' : '#cdb89a'), dark = P(m('#2a1c12'), 'leather');
   const leg = s => limbV(legs, s * .14, .78, 0, .78, .11, .09, .08, mesh(blobGeo(.1, .07, .15, 0), legs, 0, .05, .04));     // сапог того же цвета — одна деталь на ногу (кадры в лагере)
   root.add(leg(1), leg(-1), mesh(barrelGeo(.36, .4, .82, 8, .72), coat, 0, 1.22, 0), mesh(barrelGeo(.34, .44, .5, 8, .74), coat, 0, .82, 0),     // туловище и полы
     mesh(barrelGeo(.37, .37, .08, 8, .72), dark, 0, 1.0, 0), mesh(barrelGeo(.09, .1, .14, 6), skin, 0, 1.68, 0));     // пояс, шея
@@ -478,21 +482,22 @@ function npcVolume(kind, tint) {
 
 // объёмные звери (2026-10-18): голова — своя группа (олень наклоняет её к траве), ноги — шарниры для шага
 function beastVolume(kind) {
+  const furM = c => P(lam(c), 'fur');     // шерсть зверей (T4)
   const g = new THREE.Group(), legs = [], head = new THREE.Group();
   const leg = (mat, x, y, z, r, end) => { const l = limbV(mat, x, y, z, y, r, r * .8, r * .7, end); g.add(l); legs.push(l); };
   if (kind === 'deer') {
-    const fur = lam('#8a5a32'), pale = lam('#d8c8a8'), dark = lam('#3a2616');
+    const fur = furM('#8a5a32'), pale = lam('#d8c8a8'), dark = lam('#3a2616');
     g.add(mesh(blobGeo(.27, .27, .6, 1), fur, 0, 1.02, 0), mesh(barrelGeo(.12, .17, .5, 6), fur, 0, 1.38, .5, -.5), mesh(blobGeo(.12, .1, .07, 0), pale, 0, 1.06, -.6));     // туловище, шея, хвост
     head.position.set(0, 1.62, .66); head.add(mesh(blobGeo(.13, .13, .17, 1), fur), mesh(barrelGeo(.06, .09, .2, 5), fur, 0, -.04, .17, Math.PI / 2), mesh(blobGeo(.03, .03, .03, 0), dark, 0, -.03, .28),
       ...[1, -1].flatMap(s => [mesh(barrelGeo(.02, .025, .38, 4), dark, s * .08, .25, -.02, 0, 0, -s * .3), mesh(barrelGeo(.015, .02, .2, 4), dark, s * .17, .38, -.02, 0, 0, -s * 1.1), mesh(coneGeo(.04, .12, 3), fur, s * .12, .08, -.06, 0, 0, -s * 1.2)]));     // рога и уши
     for (const [x, z] of [[-.15, -.4], [.15, -.4], [-.15, .4], [.15, .4]]) leg(fur, x, .82, z, .06, mesh(blobGeo(.05, .04, .06, 0), dark, 0, .03, .02));
   } else if (kind === 'fox') {
-    const fur = lam('#c8642a'), pale = lam('#f0e4d0'), dark = lam('#2a1a12');
+    const fur = furM('#c8642a'), pale = lam('#f0e4d0'), dark = lam('#2a1a12');
     g.add(mesh(blobGeo(.15, .15, .34, 1), fur, 0, .44, 0), mesh(barrelGeo(.02, .1, .5, 6), fur, 0, .5, -.48, -Math.PI / 2.3), mesh(blobGeo(.07, .07, .1, 0), pale, 0, .58, -.74));     // туловище, пушистый хвост
     head.position.set(0, .58, .36); head.add(mesh(blobGeo(.11, .1, .11, 1), fur), mesh(coneGeo(.06, .18, 4), pale, 0, -.03, .13, Math.PI / 2), mesh(blobGeo(.025, .025, .025, 0), dark, 0, -.03, .23), mesh(coneGeo(.04, .12, 3), dark, .07, .12, -.02), mesh(coneGeo(.04, .12, 3), dark, -.07, .12, -.02));
     for (const [x, z] of [[-.08, -.2], [.08, -.2], [-.08, .2], [.08, .2]]) leg(dark, x, .32, z, .035, null);
   } else if (kind === 'goat') {
-    const fur = lam('#d8d0c0'), dark = lam('#5a4a3a'), horn = lam('#8a7a62');
+    const fur = furM('#d8d0c0'), dark = lam('#5a4a3a'), horn = lam('#8a7a62');
     g.add(mesh(blobGeo(.22, .22, .42, 1), fur, 0, .8, 0), mesh(barrelGeo(.09, .12, .3, 6), fur, 0, 1.02, .38, -.6));
     head.position.set(0, 1.12, .55); head.add(mesh(blobGeo(.1, .11, .14, 1), fur), mesh(blobGeo(.04, .1, .04, 0), dark, 0, -.12, .07), mesh(coneGeo(.04, .3, 4), horn, .06, .17, -.08, -.6), mesh(coneGeo(.04, .3, 4), horn, -.06, .17, -.08, -.6));     // борода, рога назад
     for (const [x, z] of [[-.12, -.28], [.12, -.28], [-.12, .28], [.12, .28]]) leg(dark, x, .62, z, .05, null);
@@ -506,7 +511,7 @@ function beastVolume(kind) {
     g.add(mesh(blobGeo(.15, .09, .22, 1), body, 0, .08, 0), mesh(blobGeo(.14, .03, .06, 0), pale, 0, .13, .04), mesh(coneGeo(.05, .1, 3), body, 0, .12, -.22, -Math.PI / 2.4));
     head.position.set(0, .24, .14); head.add(mesh(blobGeo(.07, .07, .08, 0), green), mesh(blobGeo(.04, .02, .06, 0), beak, 0, -.01, .09));
   } else {     // заяц
-    const fur = lam('#9a8a6a'), pale = lam('#e8e0d0');
+    const fur = furM('#9a8a6a'), pale = lam('#e8e0d0');
     g.add(mesh(blobGeo(.14, .14, .22, 1), fur, 0, .3, 0), mesh(blobGeo(.06, .06, .05, 0), pale, 0, .34, -.22));
     head.position.set(0, .44, .2); head.add(mesh(blobGeo(.09, .09, .1, 1), fur), mesh(blobGeo(.03, .14, .05, 0), fur, .04, .17, -.03), mesh(blobGeo(.03, .14, .05, 0), fur, -.04, .17, -.03));
     for (const [x, z] of [[-.08, -.12], [.08, -.12], [-.06, .12], [.06, .12]]) leg(fur, x, .2, z, .04, null);
@@ -565,7 +570,7 @@ export function makeBeast(kind) {
 // повозка сказочного торговца: кузов, колёса, полог, светящийся фонарь и сам торговец в остроконечной шляпе
 // ездовой конь (этап 6): тело, шея, голова, хвост, седло; ноги качаются по скорости
 export function makeHorse() {
-  const g = new THREE.Group(), hide = lam('#4a3020'), dark = lam('#2a1a10'), legs = [];
+  const g = new THREE.Group(), hide = P(lam('#4a3020'), 'fur'), dark = P(lam('#2a1a10'), 'fur'), legs = [];
   g.add(box(.7, .7, 1.7, hide, 0, 1.2, 0), box(.4, .7, .5, hide, 0, 1.75, .95), box(.2, .25, .4, dark, 0, 1.95, 1.3), box(.12, .55, .3, dark, 0, 1.35, -.95), box(.76, .12, .8, lam('#6a2a20'), 0, 1.6, -.05), box(.06, .45, .3, dark, 0, 2.0, .85));
   for (const [x, z] of [[-.25, -.6], [.25, -.6], [-.25, .6], [.25, .6]]) { const L = new THREE.Group(); L.position.set(x, .85, z); L.add(box(.16, .85, .16, hide, 0, -.42, 0)); g.add(L); legs.push(L); }
   return { group: g, step: (t, sp) => { const k = Math.min(1, sp / 6), ph = t * 13; legs.forEach((L, i) => { L.rotation.x = Math.sin(ph + (i % 2 ? Math.PI : 0) + (i > 1 ? .6 : 0)) * .65 * k; }); } };
@@ -588,7 +593,7 @@ export function makeSoldier(type0, cfg) {
   const T = cfg.squad.types[type0], type = T.look || type0, mats = [];     // look — вид оружия (этап 7: войско Кадмии и короля)
   const M = c => { const m = lam(c); mats.push(m); return m; };
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
-  const tint = M(T.tint), metal = M('#8a8f98'), skin = M('#cdb89a'), dark = M('#2a2420'), cloth = M('#4a3a2c');
+  const tint = P(M(T.tint), 'cloth'), metal = P(M('#8a8f98'), 'metal'), skin = M('#cdb89a'), dark = P(M('#2a2420'), 'leather'), cloth = P(M('#4a3a2c'), 'cloth');
   if (VOL()) {     // объёмный боец (2026-10-18): страж с алебардой, солдат с мечом и щитом, ветеран с двуручником и плюмажем
     root.add(mesh(barrelGeo(.36, .3, .7, 8, .7), tint, 0, 1.28, 0), mesh(barrelGeo(.32, .32, .1, 8, .7), dark, 0, .92, 0), mesh(barrelGeo(.3, .32, .2, 8, .7), cloth, 0, .8, 0),
       mesh(blobGeo(.17, .12, .2, 0), metal, .36, 1.55, 0), mesh(blobGeo(.17, .12, .2, 0), metal, -.36, 1.55, 0), mesh(blobGeo(.2, .22, .2, 1), skin, 0, 1.86, 0));

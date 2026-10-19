@@ -2,6 +2,7 @@
 // Рукоять в начале координат, оружие смотрит вверх (+y). base и tip — точки начала и конца рабочей части: по ним рисуется след удара.
 import * as THREE from 'three';
 import { CFG3 } from './config3d.js';
+import { paintMat } from './paint3d.js';
 
 const METAL = { gold: '#e8c050', rust: '#8a5a3a', iron: '#9a9890', tempered: '#b8b4a8', bone: '#d8ccb0', steel: '#cfc9bb', black: '#3e3a46', blood: '#8a1e22', unique: '#e2d2a2' };
 const EDGE = { gold: '#b8902a', rust: '#5e3a24', iron: '#72706a', tempered: '#8c887e', bone: '#a89a80', steel: '#8d877b', black: '#26222c', blood: '#5a1014', unique: '#b89a5a' };
@@ -9,7 +10,7 @@ const WOOD = '#5a3e26', GRIP = '#2a1a12', GUARD = '#8a7a62';
 const lam = c => new THREE.MeshLambertMaterial({ color: c });
 // металл (V2b): блик бежит по клинку при повороте; ржавчина и кость почти не блестят
 const MS = CFG3.shaders && CFG3.shaders.metal, DULL = { rust: .25, bone: .3, black: .7 };
-const metal = (c, m) => (MS && MS.on ? new THREE.MeshPhongMaterial({ color: c, shininess: MS.shine * (DULL[m] ?? 1), specular: new THREE.Color(MS.spec).multiplyScalar(DULL[m] ?? 1) }) : lam(c));
+const metal = (c, m) => paintMat(MS && MS.on ? new THREE.MeshPhongMaterial({ color: c, shininess: MS.shine * (DULL[m] ?? 1), specular: new THREE.Color(MS.spec).multiplyScalar(DULL[m] ?? 1) }) : lam(c), 'metal', { local: true });     // шлифовка клинка (T4)
 const box = (g, w, h, d, m, x = 0, y = 0, z = 0, rz = 0) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.rotation.z = rz; g.add(b); return b; };
 
 const BAND = 1.1;   // след не шире этого, м: у длинного оружия — серп у края, а не веер от рукояти

@@ -8,7 +8,7 @@ export function initPaint(cfgPaint) { P = cfgPaint && cfgPaint.on ? cfgPaint : n
 export function setPaintLevel(k) { PU.uPK.value = k; }
 export const paintOn = () => !!P;
 
-const KIND = { ground: 0, auto: 1, roof: 2, log: 3, nature: 4, masonry: 5, cloth: 6, metal: 7 };
+const KIND = { ground: 0, auto: 1, roof: 2, log: 3, nature: 4, masonry: 5, cloth: 6, metal: 7, leather: 8, hide: 9, fur: 10, bone: 11, scale: 12 };
 export const PAINT_KINDS = Object.keys(KIND);
 // вид детали на слитой геометрии (T3): атрибут pkind уточняет «auto» и «roof» — masonry: серое кладкой (дерево — деревом),
 // cloth — ткань, metal — металл, wood — доски, plain — без узора; без атрибута — 0 (по цвету)
@@ -22,7 +22,12 @@ const VERT = `vec4 pw4 = vec4(transformed, 1.);
 #ifdef USE_INSTANCING
   pw4 = instanceMatrix * pw4;
 #endif
-  vPW = (modelMatrix * pw4).xyz; vPN = normalize(mat3(modelMatrix) * objectNormal); vPKo = pkind;`;
+#ifdef PAINT_LOCAL
+  vPW = pw4.xyz * 2.6; vPN = normalize(objectNormal);     // детали моделей мелкие: узор в 2,6 раза чаще
+#else
+  vPW = (modelMatrix * pw4).xyz; vPN = normalize(mat3(modelMatrix) * objectNormal);
+#endif
+  vPKo = pkind;`;
 
 const FUNCS = `uniform float uPK, uPS, uPlank, uTile; varying vec3 vPW; varying vec3 vPN; varying float vPKo;
 float pH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -51,6 +56,15 @@ float pMasonry(vec3 an, vec2 q) {
 float pCloth(vec3 an, vec2 q) {
   float along = an.y > .7 ? vPW.x : (an.x > an.z ? vPW.z : vPW.x);
   return sin(along * 7. + pN(q * 1.4) * 4.) * .07 + (pN(q * 1.1) - .5) * .16;
+}
+float pLeather(vec2 q) { return (pN(q * 3.) - .5) * .22 - smoothstep(.7, .9, pN(q * 6. + 2.)) * .1; }
+float pHide(vec2 q) { float b = pN(q * 2.2); return (b - .5) * .3 - smoothstep(.66, .86, pN(q * 4.5 + 7.)) * .16; }
+float pFur(vec3 an) { float along = an.y > .7 ? vPW.x : (an.x > an.z ? vPW.z : vPW.x); return (pN(vec2(along * 9., vPW.y * 2.2)) - .5) * .3 + (pN(vPW.xz * 2.) - .5) * .12; }
+float pBone(vec2 q) { return (pN(q * 2.5) - .5) * .16 - smoothstep(.8, .95, pN(q * 7.)) * .14; }
+float pScale(vec3 an) {
+  float along = an.y > .7 ? vPW.x : (an.x > an.z ? vPW.z : vPW.x);
+  vec2 t = vec2(along, vPW.y) / .22; t.x += floor(t.y) * .5; vec2 f = fract(t) - vec2(.5, 0.);
+  return -smoothstep(.25, .5, length(f * vec2(1., .9))) * .26 + (pH(floor(t)) - .5) * .12;
 }
 float pMetal(vec2 q) { return (pN(vec2(q.x * 1.2, q.y * 14.)) - .5) * .14 - smoothstep(.62, .85, pN(q * 1.7 + 9.)) * .16; }
 float pRoof(vec3 an, bool straw) {
@@ -83,6 +97,16 @@ const FRAG = `if (uPK > 0.) {
     d = pCloth(an, q);
 #elif PAINT_KIND == 7
     d = pMetal(q);
+#elif PAINT_KIND == 8
+    d = pLeather(q);
+#elif PAINT_KIND == 9
+    d = pHide(q);
+#elif PAINT_KIND == 10
+    d = pFur(an);
+#elif PAINT_KIND == 11
+    d = pBone(q);
+#elif PAINT_KIND == 12
+    d = pScale(an) + (pN(q * 2.) - .5) * .1;
 #else
     int ov = int(vPKo + .5);
     if (ov == 2) d = pCloth(an, q); else if (ov == 3) d = pMetal(q); else if (ov == 4) d = pWood(an); else if (ov == 5) d = 0.; else
@@ -96,18 +120,22 @@ const FRAG = `if (uPK > 0.) {
 
 // kind: ground (трава, тропа, песок, скала — по цвету) | auto (серое — камень, бурое — доски, прочее — лёгкие пятна) |
 // roof (скаты — черепица или солома) | log (стоячие брёвна) | nature (кора, камень с мхом сверху; листву не трогает) |
-// masonry (кладка рядами, на полу — плиты) | cloth (мягкие складки) | metal (шлифовка и потемнения)
+// masonry (кладка рядами, на полу — плиты) | cloth (мягкие складки) | metal (шлифовка и потемнения) |
+// leather, hide, fur, bone, scale — кожа, шкура, шерсть, кость, чешуя (T4). opt.local — узор в координатах детали: не плывёт на движущихся моделях;
+// opt.k — множитель силы (мелкие модели), opt.plank — ширина доски
 export function paintMat(mat, kind = 'auto', opt = {}) {
   if (!P || !mat || mat.userData.paint) return mat;
   mat.userData.paint = kind;
   const prev = mat.onBeforeCompile, key = mat.customProgramCacheKey ? mat.customProgramCacheKey() : '';
-  const own = { uPS: { value: P[kind === 'auto' || kind === 'nature' ? 'wood' : kind] ?? 1 }, uPlank: { value: opt.plank || P.plank }, uTile: { value: P.tile } };
+  const own = { uPS: { value: (P[kind === 'auto' || kind === 'nature' ? 'wood' : kind] ?? 1) * (opt.k ?? 1) }, uPlank: { value: opt.plank || P.plank }, uTile: { value: P.tile } };
   mat.onBeforeCompile = (sh, r) => {
     if (prev) prev(sh, r);
     Object.assign(sh.uniforms, PU, own);
     sh.vertexShader = 'attribute float pkind; varying vec3 vPW; varying vec3 vPN; varying float vPKo;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + VERT);
-    sh.fragmentShader = `#define PAINT_KIND ${KIND[kind]}\n` + FUNCS + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  ' + FRAG);
+    const loc = opt.local ? '#define PAINT_LOCAL\n' : '';
+    sh.vertexShader = loc + sh.vertexShader;
+    sh.fragmentShader = loc + `#define PAINT_KIND ${KIND[kind]}\n` + FUNCS + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  ' + FRAG);
   };
-  mat.customProgramCacheKey = () => key + '-paint' + kind;
+  mat.customProgramCacheKey = () => key + '-paint' + kind + (opt.local ? 'L' : '');
   return mat;
 }

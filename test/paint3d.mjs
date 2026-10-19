@@ -27,7 +27,7 @@ for (const k of PAINT_KINDS) {
   ok(sh.vertexShader.includes('vPW = (modelMatrix') && sh.fragmentShader.includes('diffuseColor.rgb *= 1. + pk * d;'), `${k}: вершинная и пиксельная части на месте`);
   ok(sh.uniforms.uPK && sh.uniforms.uPS && sh.uniforms.uPlank.value > 0 && sh.uniforms.uTile.value > 0, `${k}: параметры переданы`);
   ok(m.customProgramCacheKey() === 'wind-paint' + k, `${k}: ключ программы учитывает и ветер, и материал`);
-  kinds[k] = sh.fragmentShader.match(/#define PAINT_KIND (\d)/)[1];
+  kinds[k] = sh.fragmentShader.match(/#define PAINT_KIND (\d+)/)[1];
 }
 ok(new Set(Object.values(kinds)).size === PAINT_KINDS.length && PAINT_KINDS.length >= 8, 'каждый вид — свой вариант шейдера');
 for (const k of PAINT_KINDS) ok(k === 'auto' || k === 'nature' || typeof CFG3.shaders.paint[k] === 'number', `сила вида ${k} — в конфиге`);
@@ -41,5 +41,13 @@ ok(qualityOf(CFG3, 'low', true).paint === 0 && qualityOf(CFG3, 'mid', true).pain
   D.group.traverse(o => { if (!o.isMesh || !o.material.isMeshLambertMaterial) return; meshes++; const a = o.geometry.attributes.pkind; if (!a) { untagged++; return; } for (const v of a.array) seen.add(v); });
   ok(meshes > 0 && untagged === 0, `декор: все слитые меши с видом детали (без вида ${untagged} из ${meshes})`);
   for (const k of ['masonry', 'cloth', 'metal']) ok(seen.has(PART[k]), `декор: есть детали вида ${k}`); }
+// T4: узор в координатах детали — не плывёт на движущихся моделях; герой, враги, бойцы и звери получают свои виды
+{ const sh = fake(), m = paintMat(new THREE.MeshLambertMaterial(), 'fur', { local: true }); m.onBeforeCompile(sh);
+  ok(sh.vertexShader.startsWith('#define PAINT_LOCAL') && m.customProgramCacheKey().endsWith('furL'), 'локальный узор: свой define и ключ программы'); }
+{ const { makeHero, makeMonster, makeSoldier, makeBeast } = await import('../3d/src/models.js'), kinds = o => { const k = new Set(); o.traverse(q => { if (q.isMesh && q.material.userData && q.material.userData.paint) k.add(q.material.userData.paint); }); return k; };
+  const h = kinds(makeHero().group), imp = kinds(makeMonster('imp', CFG3).group), hound = kinds(makeMonster('hound', CFG3).group), drowned = kinds(makeMonster('drowned', CFG3).group), sol = kinds(makeSoldier(Object.keys(CFG3.squad.types)[0], CFG3).group), deer = kinds(makeBeast('deer').group);
+  ok(h.has('cloth') && h.has('leather') && h.has('metal'), `герой: ткань, кожа, металл (${[...h]})`);
+  ok(imp.has('hide') && imp.has('bone'), `бес: шкура и кость (${[...imp]})`); ok(hound.has('fur'), 'гончая: шерсть'); ok(drowned.has('scale'), 'утопленник: чешуя');
+  ok(sol.has('cloth') && sol.has('metal'), `боец: ткань и металл (${[...sol]})`); ok(deer.has('fur'), 'олень: шерсть'); }
 if (fail.length) { console.log('ПРОВАЛ:\n' + fail.join('\n')); process.exit(1); }
 console.log('Материалы 3D: OK (виды: ' + Object.keys(kinds).join(', ') + ')');
