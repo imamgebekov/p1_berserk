@@ -29,7 +29,7 @@ import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDr
 import { TRAITS, PERKS } from './data/weapons3d.js';
 import { SETS } from './data/sets3d.js';
 import { initBoss, updateBoss, tickBossZones } from './boss3d.js';
-import { storyFresh, storyTick, storyKill, storyBoss, storyActors, duelGuard } from './story3d.js';
+import { storyFresh, storyTick, storyKill, storyBoss, storyActors, duelGuard, brandTick } from './story3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent } from './quests3d.js';
 import { lightOf, isNight } from './daynight.js';
@@ -127,7 +127,7 @@ function spotted(W, e, d, dx, dz, H) {
   const hear = W.dif.hear * rainK(W, 'hear');                                  // в дождь хуже слышат и видят
   if (fight && d < H.fight * P.fightHear * hear) return true;
   if (e.pack && !p.dead && d < W.cfg.enemies.roam.hear * (p.state === 'run' ? 1 : .55) * hear * (1 - clamp(W.gear.stealth || 0, 0, 60) / 100)) return true;     // стайка слышит вблизи (G1)
-  return d < P.range * rainK(W, 'sight') && Math.abs(angDiff(Math.atan2(dx, dz), e.face)) < P.angle * DEG / 2 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z);
+  return d < (e.sight ? e.sight.r : P.range) * rainK(W, 'sight') && Math.abs(angDiff(Math.atan2(dx, dz), e.face)) < (e.sight ? e.sight.angle : P.angle) * DEG / 2 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z);
 }
 // заметил — кричит: встают все рядом (и сторожа, и бродячие)
 function raiseAlarm(W, e) {
@@ -828,7 +828,7 @@ function updateHouses(W, dt) {
   if ((W.shop.t += dt) > W.cfg.shop.restock) restock(W);
   updateWanderer(W, dt);
   updateEvents(W, dt);
-  if (W.story) storyTick(W, dt);     // сюжет (этап 3)
+  if (W.story) { storyTick(W, dt); const pl = placeAt(W.map, W.player.x, W.player.z); brandTick(W, dt, !!(pl && pl.safe) || (!!W.map.camp && insideCamp(W.map.camp, W.player.x, W.player.z))); }     // сюжет (этап 3); клеймо ночью (этап 7)
   if (W.tomb && (W.tomb.lvl || SURFACE) === W.lvl && !p.dead && len(p.x - W.tomb.x, p.z - W.tomb.z) < 1.6) { W.inv.ash += W.tomb.ash; W.ev.push({ k: 'tomb', ash: W.tomb.ash, x: W.tomb.x, z: W.tomb.z }); W.tomb = null; }
   W.nearPortal = portalNear(W);
   // контейнеры других уровней тоже наполняются со временем
@@ -940,6 +940,7 @@ export function step(W, dt, input = {}) {
   if (!(dt > 0)) return;                                          // нулевой или отрицательный шаг (первый кадр rAF) ничего не двигает
   W.t += dt; const ev0 = W.ev.length;
   { const D = W.cfg.daynight, n = isNight(W.t, D); W.light = lightOf(W.t, D); if (n !== W.night) { W.night = n; W.ev.push({ k: n ? 'dusk' : 'dawn' }); } }
+  if (W.storyDark) W.light = Math.min(W.light, .06);     // Затмение (этап 7): солнце чернеет
   for (let i = W.buffs.length - 1; i >= 0; i--) { W.buffs[i].t -= dt; if (W.buffs[i].t <= 0) W.buffs.splice(i, 1); }
   for (const k of ['reap', 'bul']) { const o = W[k]; if (o.n && (o.t -= dt) <= 0) { o.n = 0; o.t = 0; } }
   if (W.combo.n && (W.combo.t -= dt) <= 0) W.combo.n = 0;

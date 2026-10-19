@@ -337,9 +337,27 @@ const DUN = [
   ['d_staff_golem', 'w_staff_black', 'Посох Горна', 'firegolem', { dmg: 25, crit: 6, swing: 1.2 }, 'В навершии ещё тлеет угль.'],
   ['d_greatsword_smelt', 'w_greatsword_black', 'Литой двуручник', 'smelter', { dmg: 29, reach: .6, crit: 7, swing: 1.25 }, 'Отлит целиком. Ни одного шва.'],
   ['d_plate_smelt', 'a_body_plate_black', 'Литая кираса', 'smelter', { armor: 28, hp: 30, spd: -3 }, 'Тяжела, но удар по ней звенит и уходит.'],
-  ['d_bow_smelt', 'w_bow_black', 'Лук из пружинной стали', 'smelter', { dmg: 17, crit: 8, swing: .9 }, 'Сталь вместо рога. Бьёт зло и быстро.']
+  ['d_bow_smelt', 'w_bow_black', 'Лук из пружинной стали', 'smelter', { dmg: 17, crit: 8, swing: .9 }, 'Сталь вместо рога. Бьёт зло и быстро.'],
+  // Акт III (этап 7)
+  ['d_halberd_tower', 'w_halberd_black', 'Алебарда Стража Башни', 'towerwarden', { dmg: 25, reach: .9, crit: 5, swing: 1.25 }, 'Ею отгоняли от ворот тех, кто искал ответа.'],
+  ['d_boots_tower', 'a_boots_greaves_black', 'Сапоги часового', 'towerwarden', { armor: 11, spd: 3 }, 'Ступени Башни стёрты именно такими.'],
+  ['d_ring_keys', 'r_ring_blood', 'Кольцо Ключника', 'keymaster', { hp: 34, crit: 4 }, 'На нём висел ключ от нижней камеры.', '#a89060'],
+  ['d_dagger_keys', 'w_dagger_black', 'Отмычка Ключника', 'keymaster', { dmg: 11, reach: -.7, crit: 13, swing: .72 }, 'Тонкий клинок. Им открывали не только замки.'],
+  ['d_cloak_hound', 'a_cloak_pelt_black', 'Шкура Пса Башни', 'towerhound', { armor: 10, hp: 38, spd: 2 }, 'Тяжёлая и тёплая. Пахнет псиной и железом.'],
+  ['d_axe_hound', 'w_axe_black', 'Топор псаря', 'towerhound', { dmg: 22, crit: 6 }, 'Им рубили цепи. И не только.'],
+  ['d_bow_hound', 'w_longbow_black', 'Лук загонщика', 'towerhound', { dmg: 26, crit: 9, swing: 1.15 }, 'С ним загоняли беглецов к морю.'],
+  ['d_fang_garm', 'w_sword_black', 'Клык Гарма', 'garm_beast', { dmg: 20, crit: 9, leech: 3 }, 'Он отдал за силу мать. Клык отдал даром.'],
+  ['d_collar_garm', 'm_talisman_blood', 'Ошейник Чёрного Пса', 'garm_beast', { hp: 40, crit: 4 }, 'Знак Чёрных Псов. Теперь ничей.', '#3a2a2a'],
+  ['d_spear_banner', 'w_spear_black', 'Копьё Кровавого знамени', 'bloodbanner', { dmg: 22, reach: .8, crit: 6 }, 'Знамя истлело. Копьё — нет.'],
+  ['d_plate_banner', 'a_body_plate_black', 'Броня знаменосца', 'bloodbanner', { armor: 30, hp: 32, spd: -3 }, 'Ржавая, но её не пробил ни один из тех, кто лежит в кургане.'],
+  ['d_crown_nameless', 'a_head_helm_black', 'Венец Безымянного', 'namelessking', { armor: 12, hp: 36, crit: 3 }, 'Имя короля стёрто. Корона осталась.'],
+  ['d_staff_nameless', 'w_staff_black', 'Скипетр без имени', 'namelessking', { dmg: 27, crit: 6, swing: 1.2 }, 'Им правили мёртвым войском.'],
+  ['d_bow_nameless', 'w_longbow_black', 'Лук королевской охоты', 'namelessking', { dmg: 28, crit: 9, swing: 1.15 }, 'Охота кончилась сотни лет назад.'],
+  ['d_scythe_wight', 'w_scythe_black', 'Коса могильщика', 'gravewight', { dmg: 24, reach: .6, crit: 7, swing: 1.15, leech: 3 }, 'Ею он копал. Потом — косил.'],
+  ['d_robe_wight', 'a_body_robe_black', 'Саван Отступника', 'gravewight', { armor: 10, hp: 42 }, 'Внутри холоднее, чем снаружи.'],
+  ['d_ring_wight', 'r_ring_blood', 'Перстень с могильной землёй', 'gravewight', { hp: 36, leech: 3 }, 'Под камнем — щепоть земли. Чьей — лучше не знать.', '#6a5a3a']
 ];
-{ const B = ITEMS.find(i => i.id === 'r_ring_blood'); add({ ...B, id: 'r_seal_veligrad', name: 'Перстень Велиграда', pool: 'story', rar: 3, stats: { hp: 40, crit: 4, armor: 4 }, value: 600, tint: '#d8b860', text: 'Королевский перстень графа Пепельного. Его оставили на столе, уходя.' }); }     // награда Акта II
+{ const B = ITEMS.find(i => i.id === 'r_ring_blood'); add({ ...ITEMS.find(i => i.id === 'm_talisman_blood'), id: 'm_ember_irma', name: 'Уголёк Ирмы', pool: 'story', rar: 3, stats: { hp: 48, armor: 5, crit: 3 }, value: 800, tint: '#c86a3a', text: 'Ирма носила его с первого дня в отряде. Теперь он у тебя.' }); add({ ...B, id: 'r_seal_veligrad', name: 'Перстень Велиграда', pool: 'story', rar: 3, stats: { hp: 40, crit: 4, armor: 4 }, value: 600, tint: '#d8b860', text: 'Королевский перстень графа Пепельного. Его оставили на столе, уходя.' }); }     // награда Акта II
 for (const [id, b, name, boss, stats, text, tint] of DUN) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'dungeon', rar: 3, boss, stats, value: B.value * 2.2, text, ...(tint ? { tint } : {}) }); }     // tint — свой цвет значка у кольца и амулета
 export const CATALOG = ITEMS;
 export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));

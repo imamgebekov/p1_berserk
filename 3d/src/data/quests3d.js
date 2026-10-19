@@ -73,7 +73,30 @@ export const QUESTS = [
   { id: 'k_a2_coal', giver: 'kord', story: 'a2_night', name: 'Угли', text: 'Угля. Восемь.', type: 'bring', item: 'm_coal', n: 8, reward: { ash: 420, xp: 2000 } },
   { id: 'k_a2_brutes', giver: 'kord', story: 'a2_battle', name: 'Рогачи в горах', text: 'Рогачи. Десять. Мешают.', type: 'kill', enemy: 'brute', n: 10, reward: { ash: 420, xp: 2000 } },
   { id: 'k_a2_golems', giver: 'kord', story: 'a2_forge', name: 'Железные', text: 'Големы. Шесть. Молотом лучше.', type: 'kill', enemy: 'golem', n: 6, reward: { ash: 700, xp: 3400 } },
+  // ---- Акт III (этап 7): контрабандист Велиграда, остатки отряда, человек в маске ----
+  { id: 's_dogs', giver: 'smuggler', story: 'a2_leave', name: 'Псы на пристани', text: 'Чёрные псы шарят по пристани. Десяток — и я разговорюсь.', type: 'kill', enemy: 'blackdog', n: 10, reward: { ash: 700, xp: 3600 } },
+  { id: 's_guards', giver: 'smuggler', story: 'a2_leave', name: 'Лишние глаза', text: 'Королевская стража трясёт мои лодки. Шестерых — тихо и подальше от города.', type: 'kill', enemy: 'royal_guard', n: 6, reward: { ash: 750, xp: 3800 } },
+  { id: 's_salt', giver: 'smuggler', story: 'a2_leave', name: 'Соль на продажу', text: 'Соль пепла нынче в цене. Восемь горстей — и мы в расчёте.', type: 'bring', item: 'm_ash_salt', n: 8, reward: { ash: 650, xp: 3200 } },
+  { id: 's_shades', giver: 'smuggler', story: 'a2_leave', name: 'Ночные гости', text: 'По ночам у складов бродят тени. Восемь — и мои люди перестанут бояться.', type: 'kill', enemy: 'shade', n: 8, reward: { ash: 700, xp: 3600 } },
+  { id: 's_warden', giver: 'smuggler', story: 'a3_year', name: 'Страж у ворот', text: 'Страж Башни стоит у входа, как скала. Уберёшь — проведу кого скажешь.', type: 'boss', boss: 'towerwarden', reward: { ash: 900, xp: 4400 } },
+  { id: 's_keys', giver: 'smuggler', story: 'a3_year', name: 'Ключи от камер', text: 'У Ключника ключи от всех камер Башни. Мне нужен один. Тебе — остальные.', type: 'boss', boss: 'keymaster', reward: { ash: 900, xp: 4400 } },
+  { id: 'i_a3_dogs', giver: 'irma', story: 'a3_remnants', name: 'Должок Псам', text: 'Двенадцать чёрных псов. За каждого из наших, кого они достали.', type: 'kill', enemy: 'blackdog', n: 12, reward: { ash: 800, xp: 4200 } },
+  { id: 'i_a3_fiends', giver: 'irma', story: 'a3_chase', name: 'Твари у берега', text: 'У берега ходят твари. Таких раньше не было. Восемь.', type: 'kill', enemy: 'eclipse_fiend', n: 8, reward: { ash: 850, xp: 4600 } },
+  { id: 'i_a3_hides', giver: 'irma', story: 'a3_chase', name: 'Одеяла', text: 'Ему холодно. Восемь шкур.', type: 'bring', item: 'm_beast_hide', n: 8, reward: { ash: 700, xp: 3800 } },
+  { id: 'i_a3_hound', giver: 'irma', story: 'a3_city', name: 'Пёс в подвале', text: 'Пёс Башни сторожит нижнюю камеру. Без него не пройти.', type: 'boss', boss: 'towerhound', reward: { ash: 1000, xp: 5000 } },
+  { id: 't_a3_archers', giver: 'timka', story: 'a3_chase', name: 'Стрелки в дюнах', text: 'Десять стрелков в дюнах. Ставлю... ладно, ставить уже нечего. Просто десять.', type: 'kill', enemy: 'archer', n: 10, reward: { ash: 750, xp: 4000 } },
+  { id: 't_a3_amber', giver: 'timka', story: 'a3_chase', name: 'Янтарь', text: 'Ирма говорит, янтарь на шее отгоняет дурное. Три куска. Для Аларика.', type: 'bring', item: 'm_amber', n: 3, reward: { ash: 700, xp: 3800 } },
+  { id: 't_a3_fiends', giver: 'timka', story: 'a3_garm', name: 'Кто воет у скал', text: 'Десять тварей у скал. Посмотрим, кто кого.', type: 'kill', enemy: 'eclipse_fiend', n: 10, reward: { ash: 900, xp: 4800 } },
+  { id: 'k_a3_ore', giver: 'kord', story: 'a3_chase', name: 'Подкова', text: 'Руды. Двенадцать. Колесо.', type: 'bring', item: 'm_ore', n: 12, reward: { ash: 650, xp: 3400 } },
+  { id: 'k_a3_brutes', giver: 'kord', story: 'a3_chase', name: 'Рогачи', text: 'Рогачи. Двенадцать.', type: 'kill', enemy: 'brute', n: 12, reward: { ash: 700, xp: 3800 } },
+  { id: 'k_a3_coal', giver: 'kord', story: 'a3_garm', name: 'Огонь', text: 'Угля. Десять. Ночи холодные.', type: 'bring', item: 'm_coal', n: 10, reward: { ash: 650, xp: 3400 } },
+  { id: 'x_ghosts', giver: 'masked', story: 'a3_eclipse', name: 'Мёртвые не спят', text: 'Призраки Великой войны встают по ночам. Десять. Учись бить тех, кого нельзя убить дважды.', type: 'kill', enemy: 'war_ghost', n: 10, reward: { ash: 1000, xp: 5600 } },
+  { id: 'x_shades', giver: 'masked', story: 'a3_eclipse', name: 'Тени клейма', text: 'Они будут приходить. Убей восемь — и поймёшь, как они ходят.', type: 'kill', enemy: 'brandshade', n: 8, reward: { ash: 900, xp: 5000 } },
+  { id: 'x_lungers', giver: 'masked', story: 'a3_eclipse', name: 'Копья мёртвых', text: 'Десять копейщиков у курганов. Береги ноги.', type: 'kill', enemy: 'lunger', n: 10, reward: { ash: 900, xp: 5000 } },
+  { id: 'x_resin', giver: 'masked', story: 'a3_brand', name: 'Смола для клинка', text: 'Чёрная смола. Четыре куска. Клинок, смазанный ею, режет тени.', type: 'bring', item: 'm_black_resin', n: 4, reward: { ash: 900, xp: 4800 } },
+  { id: 'x_banner', giver: 'masked', story: 'a3_brand', name: 'Знамя в кургане', text: 'Кровавый знаменосец держит первый зал кургана. Пройди его.', type: 'boss', boss: 'bloodbanner', reward: { ash: 1200, xp: 6000 } },
+  { id: 'x_king', giver: 'masked', story: 'a3_brand', name: 'Безымянный', text: 'Король без имени ещё правит своими мёртвыми. Дай ему уснуть.', type: 'boss', boss: 'namelessking', reward: { ash: 1200, xp: 6000 } },
 ];
 export const QUEST_BY_ID = Object.fromEntries(QUESTS.map(q => [q.id, q]));
-export const GIVER_NAME = { merchant: 'Торговец', smith: 'Кузнец', captain: 'Капитан Заставы', timka: 'Тимка', kord: 'Корд', irma: 'Ирма', alaric: 'Аларик Белый', quarter: 'Интендант Ставки' };
+export const GIVER_NAME = { merchant: 'Торговец', smith: 'Кузнец', captain: 'Капитан Заставы', timka: 'Тимка', kord: 'Корд', irma: 'Ирма', alaric: 'Аларик Белый', quarter: 'Интендант Ставки', smuggler: 'Контрабандист с пристани', masked: 'Человек в маске' };
 export const questLine = q => ({ kill: `Убить: ${q.n}`, boss: 'Победить босса', visit: 'Дойти до места', bring: `Принести: ${q.n}`, craft: 'Скрафтить', tome: 'Прочитать книгу', open: `Вскрыть контейнеров: ${q.n}`, hire: 'Нанять бойца' }[q.type]);

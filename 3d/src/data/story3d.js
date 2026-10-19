@@ -23,6 +23,9 @@ export const SPEAKERS = {
   servant: { name: 'Служанка', tint: '#8a6a5a' },
   guardsman: { name: 'Стражник у шатра', tint: '#5a4a30' },
   cupbearer: { name: 'Виночерпий', tint: '#4a3a4a' },
+  // Акт III (этап 7)
+  smuggler: { name: 'Контрабандист с пристани', tint: '#3a4a4a' },
+  garm: { name: 'Гарм Безглазый', tint: '#2a1414' },
   hero: { name: 'Вы', tint: '#a1121f' }
 };
 const H = 'hero';
@@ -148,5 +151,62 @@ export const ACT2 = [
     reward: { xp: 14000, ash: 1500, items: [['r_seal_veligrad', 1]] }, end: true }
 ];
 ACT2.forEach(c => { c.act = 2; });
-export const ACTS = [{ n: 1, name: 'Наёмник' }, { n: 2, name: 'Война' }];
-export const ACT_ALL = [...ACT1, ...ACT2];
+// Акт III «Затмение» (этап 7): Серый берег (Велиград), Затмённое побережье (Приют у скал), Поля Великой войны (Стан у курганов).
+// Год спустя; отряд в бегах, Аларик в Башне. Затмение — за кадром: товарищи уходят во тьму, крови и мук не показываем; Ирма выживает и молчит
+const SM = ['smuggler', 'hub:grey', [5, 3]];
+const REM = (at, off = [0, 0]) => [['irma', at, [off[0] + 2, off[1] - 2]], ['timka', at, [off[0] - 2, off[1] - 2]], ['kord', at, [off[0], off[1] + 1]]];
+export const ACT3 = [
+  { id: 'a3_year', name: 'Год спустя', lv: 35, giver: 'masked', actors: [['masked', 'hub:grey', [0, -5]], SM],
+    intro: [[H, '(Год в одиночку. Чужие войны, чужой пепел.)'], ['smuggler', 'Слыхал? «Пепельных Крыльев» травят по всему берегу. Чёрные Псы режут их, как кур.'],
+      ['masked', 'Ты вернёшься к ним.'], [H, 'Кто ты?'], ['masked', 'Тот, кто видел, чем кончаются такие мечты. Ты вернёшься. Это решил не ты.']],
+    goal: { type: 'quests', n: 3, list: ['s_dogs', 's_guards', 's_salt', 's_shades', 's_warden', 's_keys'] }, goalText: 'возьмите три заказа у контрабандиста — он знает, где отряд',
+    outroAt: 'smuggler', outro: [['smuggler', 'Ладно. Твои «Крылья» прячутся в пещерах у моря, к востоку от Велиграда. Там их и ищи.']], reward: { xp: 9000, ash: 800 } },
+  { id: 'a3_remnants', name: 'Остатки крыльев', lv: 36, giver: 'irma', actors: [...REM('hub:grey', [0, 34]), SM],
+    intro: [['timka', 'Гляньте, кто пришёл. Год шлялся — и пришёл.'], ['irma', 'Ты ушёл. А мы остались.'], ['kord', 'Псы. Близко.'], ['irma', 'Потом поговорим. Сначала держим пещеры.']],
+    goal: { type: 'defend', at: 'hub:grey', off: [0, 34], t: 120, waves: 5, n: 8, party: ['irma', 'timka', 'kord'], types: [['blackdog', 4], ['archer', 2], ['shield', 1], ['royal_guard', 1]] }, goalText: 'отбейте налёт на убежище', failText: 'Убежище пало. Поговорите с Ирмой',
+    outro: [['irma', '...Помоги нам вытащить его.'], ['irma', 'Он в Башне Велиграда. Год. Говорят, он больше не говорит.']], reward: { xp: 9000, ash: 800 } },
+  { id: 'a3_city', name: 'Велиград', lv: 37, giver: 'irma', actors: [...REM('hub:grey', [0, 34]), ['liora', 'hub:grey', [22, 34]], SM],
+    intro: [['irma', 'В город не войти: стража ищет нас по лицам.'], ['timka', 'Принцесса Лиора обещала встретить у старой стены. Пройди мимо стражи — тихо.'], ['irma', 'Если заметят — уходи. Попробуем ещё раз.']],
+    goal: { type: 'sneak', from: 'hub:grey', fromOff: [-34, 34], to: 'hub:grey', toOff: [22, 34], r: 3, guards: 5, side: 6, guard: 'royal_guard', sightR: 8, angle: 70 }, goalText: 'проберитесь к принцессе мимо стражи', failText: 'Стража заметила. Поговорите с Ирмой и попробуйте снова',
+    outroAt: 'liora', outro: [['liora', 'Он верил, что его мечту можно взять мечом. Её взяли у него.'], ['liora', 'Вот схема Башни. Нижняя камера. Ключи — у Ключника.'], [H, 'Почему вы помогаете?'], ['liora', 'Потому что я его позвала тогда. А он пришёл.']], reward: { xp: 8000, ash: 600 } },
+  { id: 'a3_tower', name: 'Башня', lv: 37, giver: 'liora', actors: [['liora', 'hub:grey', [22, 34]], ...REM('hub:grey', [0, 34]), SM],
+    intro: [['liora', 'Стража сменяется на рассвете. У вас ночь.'], ['irma', 'Идём.']],
+    goal: { type: 'boss', boss: 'towerhound' }, goalText: 'пройдите Башню Велиграда до нижней камеры', outroAt: 'irma',
+    outro: [['irma', '...Аларик.'], ['alaric', '...'], ['timka', 'Он не идёт. И не говорит. Что они с ним сделали?'], ['irma', 'Не спрашивай. Неси.']], reward: { xp: 12000, ash: 1000 } },
+  { id: 'a3_chase', name: 'Погоня', lv: 38, giver: 'irma', actors: [...REM('hub:grey'), SM],
+    intro: [['kord', 'Повозка. Готова.'], ['irma', 'Псы пойдут следом. Довези его — живым.']],
+    goal: { type: 'siege', who: 'wagon', from: 'hub:grey', fromOff: [0, -12], to: 'hub:grey', toOff: [0, -70], r: 6, speed: 2.2, every: 14, n: 5, cap: 14, party: ['irma', 'timka', 'kord'], types: [['blackdog', 4], ['royal_guard', 1], ['archer', 1]] },
+    goalText: 'доведите повозку с Алариком до дороги на юг', failText: 'Повозку отбили. Поговорите с Ирмой',
+    outro: [['timka', 'Оторвались. Кажется.'], ['kord', 'Нет.']], reward: { xp: 8000, ash: 700 } },
+  { id: 'a3_garm', name: 'Гарм', lv: 39, giver: 'kord', actors: [...REM('hub:grey'), SM],
+    intro: [['garm', 'Сладкий у вас запах, Крылья. Я же говорил — приду.'], ['garm', 'Я отдал за эту силу свою мать. А ты что отдал, мечник?'], ['timka', 'Он... он не человек!']],
+    goal: { type: 'boss', boss: 'garm_beast', at: 'hub:grey', off: [0, -78], party: ['irma', 'timka', 'kord'],
+      spawnBoss: { base: 39, loot: ['d_fang_garm', 'd_collar_garm'], attacks: [{ kind: 'charge', wind: .7, len: 14, width: 2.8, mul: 1.1, cd: 5, range: 16 }, { kind: 'slam', wind: .7, r: 4, mul: 1, cd: 3, range: 4.6 }, { kind: 'nova', wind: 1, r: 7.5, inner: 2.5, mul: 1, cd: 9, range: 99 }],
+        phases: [{ at: .6, summon: { type: 'blackdog', n: 3 } }, { at: .3, enrage: true }] } },
+    goalText: 'одолейте Гарма-зверя', outro: [['irma', 'Отступник. Так их зовут те, кто выжил. Люди, что продали себя за силу.'], ['masked', '(издалека) Он был не последним.']], reward: { xp: 12000, ash: 1000 } },
+  { id: 'a3_road', name: 'Дорога к морю', lv: 39, giver: 'irma', actors: [...REM('hub:dusk'), ['masked', 'hub:dusk', [8, 6]]],
+    intro: [['irma', 'Здесь переждём. Ему нужен покой.'], ['timka', 'Он смотрит на солнце так, будто хочет его погасить.'], ['irma', 'Займись делом. Нам нужна еда, шкуры и тишина вокруг.']],
+    goal: { type: 'quests', n: 3, list: ['i_a3_fiends', 'i_a3_hides', 't_a3_archers', 't_a3_amber', 'k_a3_ore', 'k_a3_brutes'] }, goalText: 'выполните три дела для отряда',
+    outro: [['irma', 'Он ушёл. Ночью. Уполз от костра.'], ['irma', 'Камень у него на шее — тот, с Погоста — светился.'], ['masked', 'Он у скал. Спешите. Или не спешите вовсе.']], reward: { xp: 9000, ash: 800 } },
+  { id: 'a3_eclipse', name: 'Затмение', lv: 42, giver: 'irma', actors: [...REM('hub:dusk', [0, 40]), ['alaric', 'hub:dusk', [0, 46]]],
+    intro: [['alaric', '...'], ['irma', 'Аларик! Вернись к огню.'], ['alaric', 'Я видел их. Четверо. Они говорят, что мечта ещё может сбыться.'], ['timka', 'Солнце... что с солнцем?!'],
+      ['alaric', 'Простите. Я отдаю их.'], ['alaric', 'Всех.']],
+    goal: { type: 'eclipse', at: 'hub:dusk', off: [0, 40], t: 120, every: 9, n: 6, cap: 16, party: ['irma', 'timka', 'kord'], falls: [[40, 'timka'], [80, 'kord']], types: [['brandshade', 3], ['eclipse_fiend', 3]] },
+    goalText: 'выстойте до рассвета', outroAt: 'masked',
+    outro: [['masked', 'Держись за седло. Её — тоже.'], [H, 'Тимка... Корд...'], ['masked', 'Их нет. Их унесла тьма. Ты жив, и она жива. Пока этого хватит.']], reward: { xp: 14000, ash: 600 } },
+  { id: 'a3_brand', name: 'Клеймо', lv: 42, giver: 'masked', actors: [['masked', 'hub:dusk', [6, 0]], ['irma', 'hub:dusk', [9, 2]]],
+    intro: [['masked', 'Ты проснулся. Хорошо.'], [H, 'Шея горит.'], ['masked', 'Клеймо. Тебя пометили как жертву. Они будут приходить каждую ночь, пока ты жив.'], [H, 'Ирма?'], ['irma', '...'], ['masked', 'Не говорит. Не узнаёт. Береги её — это всё, что сейчас можно.'], ['masked', 'Ночью они придут. Покажи им, что ты ещё стоишь.']],
+    goal: { type: 'kill', n: 4, enemy: 'brandshade', at: 'hub:dusk', off: [0, 24], r: 30, spawn: [['brandshade', 4]] }, goalText: 'отбейтесь от теней клейма',
+    outro: [['masked', 'Ночи станут твоей войной. Не спи в чистом поле.'], ['masked', 'Ищи Поля Великой войны. Там лежат те, кто бился с Дланью до тебя.']], reward: { xp: 10000, ash: 600 } },
+  { id: 'a3_barrow', name: 'Курганы Великой войны', lv: 44, giver: 'masked', actors: [['masked', 'hub:war', [0, -4]], ['irma', 'hub:war', [3, -2]]],
+    intro: [['masked', 'Под этими курганами — полководцы, что пришли сюда мстить. Как ты.'], ['masked', 'Узнай, как они бились с Отступниками. И чем это кончилось.']],
+    goal: { type: 'boss', boss: 'gravewight' }, goalText: 'пройдите Курганы Великой войны и одолейте Отступника-могильщика',
+    outro: [['masked', 'Ну?'], [H, 'Надпись на кургане: «Мы тоже когда-то пришли сюда мстить».'], ['masked', 'И они проиграли. Но их было больше одного. Запомни.']], reward: { xp: 16000, ash: 1200 } },
+  { id: 'a3_vow', name: 'Клятва', lv: 46, giver: 'hostess', actors: [['hostess', 'band', [0, 0]], ['irma', 'band', [2, 1]], ['masked', 'band', [-3, 2]]],
+    intro: [['hostess', 'Ещё одна, кого война выплюнула. Пусть сидит у огня.'], [H, 'Её зовут Ирма. Она не говорит. Береги её.'], ['irma', '...'],
+      { choose: [['Я вернусь.', [H, 'Я вернусь, Ирма.']], ['Прости.', [H, 'Прости. Я ушёл, когда был нужен.']]] }, ['hostess', 'А ты куда?'], [H, 'Я найду каждого из них. И его тоже.']],
+    goal: { type: 'none' }, goalText: 'оставьте Ирму у огня', outro: [], reward: { xp: 18000, ash: 1500, items: [['m_ember_irma', 1]] }, end: true }
+];
+ACT3.forEach(c => { c.act = 3; });
+export const ACTS = [{ n: 1, name: 'Наёмник' }, { n: 2, name: 'Война' }, { n: 3, name: 'Затмение' }];
+export const ACT_ALL = [...ACT1, ...ACT2, ...ACT3];

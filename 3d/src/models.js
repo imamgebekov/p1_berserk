@@ -183,6 +183,12 @@ const LOOKS = {
   gneis: { shape: 'imp', body: '#2c3e64', dark: '#0c1424', eye: '#ffe080', crown: '#d8c060' }, borot: { shape: 'brute', body: '#24427a', dark: '#0c1830', eye: '#ffd040', crown: '#8aa8e8', prop: 'shield' },
   armorer: { shape: 'brute', body: '#4a3a30', dark: '#1c140e', eye: '#ffa040', crown: '#a0a0a0' }, firegolem: { shape: 'brute', body: '#3a2016', dark: '#100604', eye: '#ffd040', crown: '#ff6a10' },
   smelter: { shape: 'brute', body: '#5a3a24', dark: '#1e120a', eye: '#ffe060', crown: '#ff8a20', prop: 'shield' },
+  royal_guard: { soldier: 'royal_guard' }, brandshade: { shape: 'imp', body: '#1a0a10', dark: '#000000', eye: '#ff2030', ghost: true },     // Акт III (этап 7)
+  eclipse_fiend: { shape: 'hound', body: '#2a1a34', dark: '#0e0614', eye: '#ff3aff' }, war_ghost: { shape: 'bones', body: '#8a96a8', dark: '#3a4250', eye: '#a8d8ff' },
+  garm_beast: { shape: 'hound', body: '#2a1414', dark: '#0c0404', eye: '#ff2a1a', crown: '#5a3a30' }, towerwarden: { shape: 'brute', body: '#6a1a1a', dark: '#200808', eye: '#ffd040', crown: '#a8a8b0', prop: 'shield' },
+  keymaster: { shape: 'imp', body: '#4a3a2a', dark: '#140c08', eye: '#ffe080', crown: '#a89060' }, towerhound: { shape: 'hound', body: '#3a2a20', dark: '#100804', eye: '#ffb030', crown: '#8a7a60' },
+  bloodbanner: { shape: 'bones', body: '#8a4a3a', dark: '#3a1410', eye: '#ff3a2a', crown: '#a02020' }, namelessking: { shape: 'bones', body: '#a8b0c0', dark: '#3a4050', eye: '#a8e8ff', crown: '#d8c890' },
+  gravewight: { shape: 'ghoul', body: '#4a4a3a', dark: '#14140c', eye: '#c8ff60', crown: '#7a6a4a' },
   gravekeeper: { shape: 'ghoul', body: '#4a4436', dark: '#1e1a12', eye: '#c8ff60', crown: '#8a7a5a' },     // боссы подземелий (этап 5)
   ashsister: { shape: 'imp', body: '#4a4440', dark: '#1a1614', eye: '#ffb060', crown: '#d8d0c0', ghost: true },
   boneshepherd: { shape: 'bones', body: '#b8ae96', dark: '#4a4234', eye: '#ff5030', crown: '#e8e0c8' },

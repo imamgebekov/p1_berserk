@@ -3,8 +3,9 @@
 // и уходят после сцены; бой и добыча (W.rng) не сдвигаются от сюжета; прогресс сохраняется (бой в разгаре — заново с разговора).
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, mulberry32, step, killEnemy, spawnEnemy } from '../3d/src/sim.js';
-import { ACT, storyTalk, storyTalked, storyActors, storyGoal, storyTick, serializeStory, sanitizeStory } from '../3d/src/story3d.js';
+import { ACT, storyTalk, storyTalked, storyActors, storyGoal, storyTick, serializeStory, sanitizeStory, brandOn } from '../3d/src/story3d.js';
 import { createSaver, loadSave } from '../3d/src/save3d.js';
+import { isNight } from '../3d/src/daynight.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const mk = (seed = 4) => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; const W = createWorld(c, mulberry32(seed)); W.player.maxhp = W.player.hp = 1e6; W.lv = 25; return W; };
@@ -22,6 +23,8 @@ function solve(W, c, opt = {}) {
   if (G.type === 'battle') { W.player.inv = 1e9; for (let k = 0; k < 40 && S.st === 'goal'; k++) { const b = W.enemies.find(e => !e.dead && e.type === G.banner && S.foes.includes(e.id)); if (b) killEnemy(W, b); else storyTick(W, G.every); } }
   if (G.type === 'siege') { const a = W.allies.find(q => q.ram), to = storyGoal(W).at; a.x = to.x; a.z = to.z; }
   if (G.type === 'talk') for (const k of G.talk) talk(W, k);
+  if (G.type === 'sneak') { const to = storyGoal(W).at; W.player.x = to.x; W.player.z = to.z; }
+  if (G.type === 'eclipse') { for (let i = 0; i < G.t * 2 + 10 && S.st === 'goal'; i++) storyTick(W, .5); }
   if (G.type === 'escape') { const e = W.enemies.find(q => q.escapee && !q.dead); e.hp = e.maxhp * (G.yieldFoe - .05); }
   storyTick(W, 1 / 60);
 }
@@ -34,7 +37,7 @@ function solve(W, c, opt = {}) {
     if (S.st === 'outro') { const ok2 = talk(W, c.outroAt || c.giver); ok(ok2, `${c.id}: разговор в конце не открылся`); }
     ok(W.story.i === k + 1 && !W.allies.some(a => a.story) && !W.duelOn, `${c.id}: сцена не закрылась (${W.story.i}/${W.story.st})`);
     if (k === 3) r0 = W.story; }
-  ok(W.story.st === 'end' && W.inv.bag.some(s => s.id === 'a_cloak_wings') && W.inv.bag.some(s => s.id === 'r_seal_veligrad'), 'акты не пройдены или нет наград'); }
+  ok(W.story.st === 'end' && W.inv.bag.some(s => s.id === 'a_cloak_wings') && W.inv.bag.some(s => s.id === 'r_seal_veligrad') && W.inv.bag.some(s => s.id === 'm_ember_irma'), 'акты не пройдены или нет наград'); }
 // 2. поединок: проигрыш без смерти, победа — свои реплики
 for (const lose of [true, false]) { const W = mk(5); W.story.i = ACT.findIndex(c => c.id === 'duel'); W.player.maxhp = 300; W.player.hp = 300; talk(W, 'alaric');
   const e = W.enemies.find(q => q.duel); ok(e && W.duelOn, 'поединок не начался');
@@ -55,5 +58,17 @@ for (const lose of [true, false]) { const W = mk(5); W.story.i = ACT.findIndex(c
   W.story.i = ACT.findIndex(c => c.id === 'hundred'); W.story.st = 'goal'; createSaver(W, S).write(true); ok(loadSave(40, S).story.st === 'wait', 'оборона в разгаре сохранилась как бой');
   ok(sanitizeStory({ i: 99, st: 'goal' }).st === 'end' && sanitizeStory(null).i === 0, 'чистка сюжета'); }
 
+// 6. Акт III: Затмение — товарищи уходят во тьму, герой не гибнет, небо чёрное; скрытность — заметили, заново; клеймо — тени ночью
+{ const W = mk(9); W.player.maxhp = W.player.hp = 300; W.story.i = ACT.findIndex(c => c.id === 'a3_eclipse'); talk(W, 'irma'); step(W, 1 / 60, {});
+  ok(W.storyDark && W.light <= .06 && W.allies.filter(a => a.story).length === 3, 'Затмение не началось');
+  let fell = 0; for (let i = 0; i < 125 * 10 && W.story.st === 'goal'; i++) { W.player.inv = 0; step(W, .1, {}); fell += W.ev.filter(v => v.k === 'storyFall').length; W.ev.length = 0; }
+  ok(fell === 2 && !W.player.dead && W.story.st === 'outro' && !W.storyDark, `Затмение: ушло ${fell}, герой ${W.player.dead ? 'погиб' : 'жив'}, ${W.story.st}`); }
+{ const W = mk(10); W.story.i = ACT.findIndex(c => c.id === 'a3_city'); talk(W, 'irma'); const g = W.enemies.filter(e => e.storyFoe && !e.dead);
+  ok(g.length === 5 && g.every(e => e.mode === 'guard' && e.sight), 'стража скрытности не встала'); g[2].alert = true; storyTick(W, .1);
+  ok(W.story.st === 'wait' && !W.enemies.some(e => e.storyFoe && !e.dead), 'заметили — а сцена идёт дальше'); }
+{ const W = mk(11); W.story.i = ACT.findIndex(c => c.id === 'a3_brand'); ok(brandOn(W), 'клеймо не включилось после Затмения'); W.night = true; W.player.x = 300; W.player.z = 300; W.player.inv = 1e9;
+  for (let t = 0; t < 4000; t += 5) if (isNight(t, W.cfg.daynight)) { W.t = t + 2; break; } let n = 0; for (let i = 0; i < 600; i++) { step(W, .1, {}); n += W.ev.filter(v => v.k === 'brand').length; W.ev.length = 0; if (n) break; }
+  ok(n > 0 && W.enemies.some(e => e.type === 'brandshade' && !e.dead), 'ночью тени клейма не пришли');
+  const W2 = mk(12); W2.story.i = ACT.findIndex(c => c.id === 'a3_eclipse'); ok(!brandOn(W2), 'клеймо до Затмения'); }
 if (fails.length) { console.error('Сюжет: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
-console.log(`Сюжет Актов I–II 3D: OK (${ACT.length} сцен)`);
+console.log(`Сюжет Актов I–III 3D: OK (${ACT.length} сцен)`);
