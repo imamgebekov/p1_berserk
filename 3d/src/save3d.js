@@ -143,16 +143,16 @@ export function loadSaveAny(slots, storage = globalThis.localStorage) {
 export const saveFileName = (d = new Date()) => `berserk3d-save-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.txt`;
 // onFail(err) — запись не удалась (кончилось место и т. п.); now — часы в мс (для тестов)
 export function createSaver(W, storage = globalThis.localStorage, { onFail = null, now = () => Date.now(), bakEvery = (CFG3.save ? CFG3.save.bakEvery : 300) * 1000 } = {}) {
-  let last = '', lastBak = now();
+  let last = '', lastBak = now(), off = false;     // off — после сброса: автосохранение при уходе со страницы не вернёт старый прогресс
   const snap = () => JSON.stringify({ v: VERSION, hero: W.hero, heroes: W.heroes || {}, life: W.life ? serializeLife(W) : null, story: serializeStory(W.story), inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab, bar: W.bar, spark: W.spark, path: W.path }, seen: W.levels ? packSeenChunks(W.levels.surface.seen, W.levels.surface.seenN) : packSeenChunks(W.seen, W.seenN), pos: W.lvl === 'surface' && !W.player.dead ? { x: Math.round(W.player.x * 100) / 100, z: Math.round(W.player.z * 100) / 100 } : null, gen: W.cfg.world.gen, dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest && !a.story).map(a => ({ type: a.type, hp: Math.round(a.hp) })), fires: Object.keys(W.fires || {}), shrines: Object.fromEntries(Object.entries(W.shrines || {}).filter(([, v]) => v > W.t).map(([k, v]) => [k, Math.round(v)])) });
   return {
     write(force) {
-      if (W.ironDead) return false; const s = snap(); if (!force && s === last) return false;
+      if (W.ironDead || off) return false; const s = snap(); if (!force && s === last) return false;
       try {
         if (now() - lastBak >= bakEvery) { const prev = storage.getItem(KEY); if (prev && prev !== s) { const b1 = storage.getItem(BAK[0]); if (b1) storage.setItem(BAK[1], b1); storage.setItem(BAK[0], prev); } lastBak = now(); }
         storage.setItem(KEY, s); last = s; return true;
       } catch (e) { if (onFail) onFail(e); return false; }
     },
-    reset() { try { storage.removeItem(KEY); for (const k of BAK) storage.removeItem(k); } catch (e) { /* ок */ } last = ''; }
+    reset() { off = true; try { storage.removeItem(KEY); for (const k of BAK) storage.removeItem(k); } catch (e) { /* ок */ } last = ''; }
   };
 }

@@ -35,7 +35,8 @@ const slots = 60, KEY = 'berserk3d.save';
   ok(!threw && fail && fail.name === 'QuotaExceededError', 'ошибка записи не дошла до onFail или уронила игру'); }
 // сброс стирает и копии
 { const W = mk(), st = mem(); let t = 0; const sv = createSaver(W, st, { now: () => t, bakEvery: 1 }); W.kills = 1; sv.write(true); t = 5; W.kills = 2; sv.write(true); t = 10; W.kills = 3; sv.write(true);
-  ok(st.o[BAK[0]] && st.o[BAK[1]], 'копий нет перед сбросом'); sv.reset(); ok(!st.o[KEY] && !st.o[BAK[0]] && !st.o[BAK[1]], 'сброс оставил копии'); }
+  ok(st.o[BAK[0]] && st.o[BAK[1]], 'копий нет перед сбросом'); sv.reset(); ok(!st.o[KEY] && !st.o[BAK[0]] && !st.o[BAK[1]], 'сброс оставил копии');
+  ok(!sv.write() && !sv.write(true) && !st.o[KEY], 'после сброса автосохранение (уход со страницы) вернуло старый прогресс'); }
 // файл: имя и код туда-обратно
 { ok(saveFileName(new Date(2026, 9, 7)) === 'berserk3d-save-2026-10-07.txt', 'имя файла: ' + saveFileName(new Date(2026, 9, 7)));
   const W = mk(), st = mem(); W.kills = 9; createSaver(W, st).write(true); const code = exportSave(st), st2 = mem();

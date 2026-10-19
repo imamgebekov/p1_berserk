@@ -474,7 +474,7 @@ try {
     if (sm.retro || sm.w !== Math.floor(sm.cw * 1.5) || /pixelated|crisp/.test(sm.ir) || !sm.tone) bad('гладкий вид на Маке по умолчанию: холст не в плотность 1,5, пиксели или без тональной кривой ' + JSON.stringify(sm));
     console.log('  гладкий вид: ' + JSON.stringify({ w: sm.w, h: sm.h, tone: sm.tone }));
     const mn = await ps.evaluate(() => ({ tweak: !document.getElementById('tweakBox').hidden, back: !document.getElementById('back').hidden, bagReset: !!document.getElementById('bagReset'), saveReset: !!document.getElementById('saveReset') }));     // шаг 4 «Минус»
-    if (mn.tweak || mn.back || mn.bagReset || !mn.saveReset) bad('меню: служебное видно без ?dev или сброс прогресса не в «Сохранении» ' + JSON.stringify(mn));
+    if (mn.tweak || mn.back || mn.bagReset || !mn.saveReset) bad('меню: служебное видно без ?dev или нет кнопки «Новая игра» ' + JSON.stringify(mn));
     await cs.close(); }
   // первые минуты (шаг 12): чистое сохранение — Торн с мечом, цепочка «Первая искра» проходит до награды, строка цели не пустая
   { const cf = await browser.newContext({ viewport: { width: 1280, height: 800 } }), pf = await cf.newPage(); pf.setDefaultTimeout(8000);
