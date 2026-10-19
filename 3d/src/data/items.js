@@ -19,7 +19,7 @@ export const SLOTS = ['weapon', 'offhand', 'head', 'body', 'cloak', 'boots', 'ri
 export const SLOT_NAME = { weapon: 'Оружие', offhand: 'Вторая рука', head: 'Голова', body: 'Тело', cloak: 'Плащ', boots: 'Ноги', ring: 'Кольцо', amulet: 'Амулет' };
 export const STAT_NAME = { dmg: 'урон', armor: 'броня', block: 'блок %', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
 
-import { NAMED_ARMOR } from './sets3d.js';
+import { NAMED_ARMOR, RAID_ARMOR } from './sets3d.js';
 import { GOLD, GOLD_K, goldText } from './gold3d.js';
 import { TOMES } from './tomes3d.js';
 import { TRAITS, PERKS, MATERIAL_PERKS, ELEMENTS, ENCHANTED_KINDS, UNIQUES, weaponText } from './weapons3d.js';
@@ -379,7 +379,14 @@ const DUN = [
   ['d_tusk_boar', 'w_greatsword_black', 'Бивень Вепря', 'ap_boar', { dmg: 36, reach: .6, crit: 7, swing: 1.3 }, 'Не клинок — клык, обмотанный кожей.'],
   ['d_hide_boar', 'a_body_plate_black', 'Шкура Вепря', 'ap_boar', { armor: 30, hp: 48, spd: -3 }, 'Её не берёт ни копьё, ни огонь.'],
   ['d_wing_moth', 'w_longbow_black', 'Крыло Моли', 'ap_moth', { dmg: 34, crit: 11, swing: 1.1 }, 'Лук лёгкий, как пыльца.'],
-  ['d_dust_moth', 'm_talisman_blood', 'Пыльца Моли', 'ap_moth', { hp: 42, crit: 6 }, 'Светится в темноте. Тени её не любят.', '#d8c890']
+  ['d_dust_moth', 'm_talisman_blood', 'Пыльца Моли', 'ap_moth', { hp: 42, crit: 6 }, 'Светится в темноте. Тени её не любят.', '#d8c890'],
+  // рейд (этап 8)
+  ['d_axe_gate', 'w_war_axe_black', 'Секира Привратника', 'gatebeast', { dmg: 36, crit: 8, swing: 1.3 }, 'Ею рубили тех, кто стучался во Врата.'],
+  ['d_wand_womb', 'w_wand_black', 'Жезл Утробы', 'hand_womb', { dmg: 20, crit: 15, swing: .85 }, 'Тёплый и влажный. Лучше не смотреть на него долго.'],
+  ['d_staff_whisper', 'w_staff_black', 'Посох Шёпота', 'hand_whisper', { dmg: 38, crit: 9, swing: 1.2 }, 'Если прислушаться, он говорит твоим голосом.'],
+  ['d_bow_net', 'w_longbow_black', 'Лук Сети', 'hand_net', { dmg: 38, crit: 12, swing: 1.1 }, 'Тетива из нити, что держала мир.'],
+  ['d_greatsword_lord', 'w_greatsword_black', 'Меч Владыки Длани', 'hand_lord', { dmg: 40, reach: .7, crit: 8, swing: 1.3, leech: 3 }, 'Он резал не тела — судьбы.'],
+  ['d_sigil_lord', 'm_talisman_blood', 'Печать Длани', 'hand_lord', { hp: 56, crit: 6, armor: 6 }, 'Знак тех, кто отдавал других. Теперь — знак того, кто не отдал.', '#a01a2a']
 ];
 { const B = ITEMS.find(i => i.id === 'r_ring_blood'); add({ ...ITEMS.find(i => i.id === 'm_talisman_blood'), id: 'm_ember_irma', name: 'Уголёк Ирмы', pool: 'story', rar: 3, stats: { hp: 48, armor: 5, crit: 3 }, value: 800, tint: '#c86a3a', text: 'Ирма носила его с первого дня в отряде. Теперь он у тебя.' }); add({ ...B, id: 'r_seal_veligrad', name: 'Перстень Велиграда', pool: 'story', rar: 3, stats: { hp: 40, crit: 4, armor: 4 }, value: 600, tint: '#d8b860', text: 'Королевский перстень графа Пепельного. Его оставили на столе, уходя.' }); }     // награда Акта II
 // легендарное оружие героя (Акт IV, кузнец Гедеон): только из сюжета
@@ -389,6 +396,7 @@ for (const [id, b, name, stats, text] of [
   ['l_brandblades', 'w_rapier_black', 'Клинки Клейма', { dmg: 28, crit: 18, swing: .85, leech: 4 }, 'Клеймо на шее отзывается на каждый удар.'],
   ['l_dawnstaff', 'w_staff_black', 'Посох Рассвета', { dmg: 38, crit: 9, swing: 1.15, hp: 40 }, 'В навершии — свет, которого боятся тени.']
 ]) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'story', rar: 3, stats, value: B.value * 4, text }); }     // «Великая»: клеймёные — мерило золотых
+for (const [slot, name, stats] of RAID_ARMOR) add({ id: 'rs_hand_' + slot, name, cat: 'armor', slot, pool: 'raid', rar: 3, stats: { ...stats }, value: 900 + (stats.armor || 0) * 20, kind: 'set', mat: 'set_hand', tint: '#4a1a2a', raidBosses: ['gatebeast', 'hand_womb', 'hand_whisper', 'hand_net', 'hand_lord'], text: 'Часть «Доспеха Затмения». Падает с боссов Врат Длани.' });     // рейд (этап 8)
 for (const [id, b, name, boss, stats, text, tint] of DUN) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'dungeon', rar: 3, boss, stats, value: B.value * 2.2, text, ...(tint ? { tint } : {}) }); }     // tint — свой цвет значка у кольца и амулета
 export const CATALOG = ITEMS;
 export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));

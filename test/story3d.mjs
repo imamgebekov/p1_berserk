@@ -72,5 +72,7 @@ for (const lose of [true, false]) { const W = mk(5); W.story.i = ACT.findIndex(c
   for (let t = 0; t < 4000; t += 5) if (isNight(t, W.cfg.daynight)) { W.t = t + 2; break; } let n = 0; for (let i = 0; i < 600; i++) { step(W, .1, {}); n += W.ev.filter(v => v.k === 'brand').length; W.ev.length = 0; if (n) break; }
   ok(n > 0 && W.enemies.some(e => e.type === 'brandshade' && !e.dead), 'ночью тени клейма не пришли');
   const W2 = mk(12); W2.story.i = ACT.findIndex(c => c.id === 'a3_eclipse'); ok(!brandOn(W2), 'клеймо до Затмения'); }
+// 7. после финала: в мире стоят человек в маске (ежедневные дела), Ирма и хозяйка у огня
+{ const W = mk(13); W.story.i = ACT.length; W.story.st = 'end'; const a = storyActors(W).map(q => q.kind); ok(['masked', 'irma', 'hostess'].every(k => a.includes(k)) && storyActors(W).every(q => !q.mark), 'после финала никого нет'); }
 if (fails.length) { console.error('Сюжет: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
-console.log(`Сюжет Актов I–IV 3D: OK (${ACT.length} сцен)`);
+console.log(`Сюжет Актов I–IV и финал 3D: OK (${ACT.length} сцен)`);

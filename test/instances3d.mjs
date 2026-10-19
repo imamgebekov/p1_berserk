@@ -16,10 +16,10 @@ const enter = (W, id) => { const d = W.cfg.dungeons.list.find(q => q.id === id);
 const bossIn = (W, type) => W.enemies.find(e => e.boss && e.type === type);
 
 // ---------- 1. данные ----------
-const WANT = { inst_brod: 3, inst_olkh: 4, inst_moss: 3, inst_pass: 3, inst_forge: 3, inst_tower: 3, inst_barrow: 3, inst_nest: 3, inst_abbey: 3 };     // Акт I — два, Акт II — три, Акт III и IV — по два (этап 7)
+const WANT = { inst_brod: 3, inst_olkh: 4, inst_moss: 3, inst_pass: 3, inst_forge: 3, inst_tower: 3, inst_barrow: 3, inst_nest: 3, inst_abbey: 3, raid_hand: 5 };     // и рейд (этап 8)     // Акт I — два, Акт II — три, Акт III и IV — по два (этап 7)
 ok(I.length === Object.keys(WANT).length && Object.entries(WANT).every(([id, n]) => I.some(d => d.id === id) && BL.filter(b => b.inst === id).length === n), 'подземелья или число боссов не те');
 for (const d of I.filter(q => q.id !== 'inst_brod')) { const T = CFG3.instances.list.find(q => q.id === d.id), z = zoneAt(CFG3, d.at.x, d.at.z), lv = zoneLevel(CFG3, d.at.x, d.at.z); ok(z && z.id === T.zone && Math.abs(lv - T.lv) <= 1.5, `${d.id}: вход не в зоне ${T.zone} ур. ${T.lv} (${z && z.id}, ${lv && lv.toFixed(1)})`); }
-for (const b of BL) { ok(b.loot && b.loot.length >= 2 && b.loot.every(id => BY_ID[id] && BY_ID[id].boss === b.type && BY_ID[id].pool === 'dungeon'), `${b.type}: своей добычи нет`); ok(CFG3.enemies[b.type] && CFG3.enemies[b.type].boss, `${b.type}: нет врага-босса`); }
+for (const b of BL) { ok(b.loot && b.loot.length >= 2 && b.loot.every(id => BY_ID[id] && ((BY_ID[id].boss === b.type && BY_ID[id].pool === 'dungeon') || (BY_ID[id].pool === 'raid' && BY_ID[id].raidBosses.includes(b.type)))), `${b.type}: своей добычи нет`); ok(CFG3.enemies[b.type] && CFG3.enemies[b.type].boss, `${b.type}: нет врага-босса`); }
 { const kinds = new Set(BL.flatMap(b => b.attacks.map(a => a.kind))), ph = BL.flatMap(b => b.phases);
   for (const k of ['slam', 'nova', 'charge', 'beam', 'pools', 'cast']) ok(kinds.has(k), 'механика не используется: ' + k);
   ok(ph.some(p => p.shield) && ph.some(p => p.summon) && ph.some(p => p.enrage), 'фазы: щит, подмога, ярость'); }
@@ -75,7 +75,7 @@ function fight(b, seed, party) {
   Object.assign(W.inv.eq, KIT); W.inv.il = Object.fromEntries(Object.keys(KIT).map(k => [k, lv])); refreshGear(W); W.player.hp = W.player.maxhp;
   enter(W, d.id); W.enemies = W.levels[d.id].enemies = W.enemies.filter(e => e.boss && e.type === b.type);
   const e0 = W.enemies[0], room = d.rooms.find(r => r.id === b.room), p = W.player; p.x = room.x - room.w * .35; p.z = room.z;
-  if (party) for (const t of ['c_thorn', 'c_irga', 'c_jay'].slice(0, squadMax(W))) { const a = spawnAlly(W, t); a.x = p.x - 1; a.z = p.z + 1; }
+  if (party) for (const t of ['c_thorn', 'c_irga', 'c_jay', 'veteran'].slice(0, d.raid ? 4 : Math.min(3, squadMax(W)))) { const a = spawnAlly(W, t); a.x = p.x - 1; a.z = p.z + 1; }     // рейд — четыре бойца
   const dodge = mulberry32(seed + 5);
   for (let i = 0; i < 60 * 180; i++) {
     const e = W.enemies.find(x => x.boss && !x.dead); if (!e) return { win: true, t: i / 60 }; const dx = e.x - p.x, dz = e.z - p.z, dd = Math.hypot(dx, dz) || 1, C = CFG3.enemies[e.type];

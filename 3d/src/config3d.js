@@ -239,7 +239,7 @@ const BASE = {
   stones: {
     sockets: [0, 0, 1, 1, 2, 2], drop: .05, danger: .02, elite: .5, rain: 'water',
     of: { imp: 'fire', brute: 'earth', hound: 'blood', ghoul: 'venom', archer: 'storm', witch: 'fire', shield: 'earth', bomber: 'fire', lunger: 'blood', shade: 'ice' },
-    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', swampelder: 'venom', feeder: 'venom', swarm: 'blood', nestlord: 'venom', abbeyshriek: 'fire', choir: 'storm', abbot: 'fire', ap_serpent: 'venom', ap_boar: 'earth', ap_moth: 'fire', garm_beast: 'blood', towerwarden: 'earth', keymaster: 'storm', towerhound: 'blood', bloodbanner: 'blood', namelessking: 'ice', gravewight: 'venom', sapper: 'fire', drownedmaid: 'water', silt: 'venom', gatewarden: 'earth', gneis: 'storm', borot: 'blood', armorer: 'earth', firegolem: 'fire', smelter: 'fire', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
+    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', gatebeast: 'fire', hand_womb: 'venom', hand_whisper: 'storm', hand_net: 'blood', hand_lord: 'fire', swampelder: 'venom', feeder: 'venom', swarm: 'blood', nestlord: 'venom', abbeyshriek: 'fire', choir: 'storm', abbot: 'fire', ap_serpent: 'venom', ap_boar: 'earth', ap_moth: 'fire', garm_beast: 'blood', towerwarden: 'earth', keymaster: 'storm', towerhound: 'blood', bloodbanner: 'blood', namelessking: 'ice', gravewight: 'venom', sapper: 'fire', drownedmaid: 'water', silt: 'venom', gatewarden: 'earth', gneis: 'storm', borot: 'blood', armorer: 'earth', firegolem: 'fire', smelter: 'fire', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
     fuse: { n: 3, ash: [40, 150] }, unsocket: [15, 50, 150],
     // гнёзда в броне (2026-10-18): шлем, доспех, плащ, сапоги; гнёзд по редкости sockets; камень даёт характеристику стихии по рангу (stat),
     // огонь, яд и кровь ещё ослабляют на герое горение, яд и кровотечение (res по рангу, сумма не больше resMax)
@@ -624,6 +624,34 @@ const BASE = {
           { type: 'abbot', room: 'b3', loot: ['d_mace_abbot', 'd_plate_abbot', 'd_amulet_abbot'],
             attacks: [{ kind: 'cast', name: 'Тишина', wind: 2.8, r: 99, mul: 2.6, cd: 14, range: 99 }, { kind: 'pools', wind: .8, n: 3, r: 2.6, dur: 8, mul: .55, cd: 10, range: 99 }, { kind: 'slam', wind: .9, r: 4.8, mul: 1.1, cd: 3, range: 5.2 }, { kind: 'charge', wind: .9, len: 14, width: 3, mul: 1.1, cd: 7, range: 16 }],
             phases: [{ at: .7, summon: { type: 'shrieker', n: 2 }, shield: true }, { at: .3, enrage: true }] }
+        ] },
+      // рейд (этап 8): пять залов боссов, герой и четыре бойца; добыча — «Доспех Затмения» (комплект) и своё оружие
+      { id: 'raid_hand', name: 'Врата Длани', raid: true, zone: 'heart', lv: 58, level: 60, base: 60, depth: 2.4, danger: 3,
+        rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
+          { id: 'b1', x: 36, z: 0, w: 14, d: 14 }, { id: 'c3', x: 36, z: -11, w: 2.4, d: 8 }, { id: 'niches', x: 36, z: -21, w: 12, d: 12 }, { id: 'c4', x: 36, z: -31, w: 2.4, d: 8 },
+          { id: 'b2', x: 36, z: -42, w: 14, d: 14 }, { id: 'c5', x: 47, z: -42, w: 8, d: 2.4 }, { id: 'b3', x: 61, z: -42, w: 20, d: 20 }, { id: 'c6', x: 61, z: -58, w: 2.4, d: 12 },
+          { id: 'b4', x: 61, z: -72, w: 16, d: 16 }, { id: 'c7', x: 72, z: -72, w: 6, d: 2.4 }, { id: 'b5', x: 89, z: -72, w: 28, d: 28 }],
+        doors: [], entry: { x: -2.5, z: 0 }, exit: { x: -4, z: 1.6 },
+        foes: [['demon_guard', 3], ['eclipse_fiend', 3], ['brandshade', 2], ['troll', 1]], spawns: [{ room: 'gallery', n: 5 }, { room: 'niches', n: 5 }, { room: 'c6', n: 2, type: 'demon_guard' }],
+        chests: [{ kind: 'altar', x: 21, z: 3.5 }, { kind: 'ironchest', x: 40, z: -25 }, { kind: 'altar', x: 100, z: -72 }],
+        bosses: [
+          { type: 'gatebeast', room: 'b1', loot: ['rs_hand_head', 'rs_hand_body', 'rs_hand_cloak', 'rs_hand_boots', 'd_axe_gate'],
+            attacks: [{ kind: 'charge', wind: .8, len: 14, width: 3, mul: 1.1, cd: 6, range: 16 }, { kind: 'slam', wind: .8, r: 4.8, mul: 1.1, cd: 3, range: 5.2 }, { kind: 'nova', wind: 1.1, r: 8, inner: 2.8, mul: 1, cd: 9, range: 99 }],
+            phases: [{ at: .3, enrage: true }] },
+          { type: 'hand_womb', room: 'b2', loot: ['rs_hand_head', 'rs_hand_body', 'rs_hand_cloak', 'rs_hand_boots', 'd_wand_womb'],
+            attacks: [{ kind: 'pools', wind: .8, n: 3, r: 2.6, dur: 7, mul: .55, cd: 11, range: 99 }, { kind: 'slam', wind: .8, r: 4.6, mul: 1.1, cd: 3, range: 5 }],
+            phases: [{ at: .6, summon: { type: 'eclipse_fiend', n: 2 }, shield: true }, { at: .3, enrage: true }] },
+          { type: 'hand_whisper', room: 'b3', loot: ['rs_hand_head', 'rs_hand_body', 'rs_hand_cloak', 'rs_hand_boots', 'd_staff_whisper'],
+            attacks: [{ kind: 'cast', name: 'Шёпот бездны', wind: 2.8, r: 99, mul: 2.6, cd: 13, range: 99 }, { kind: 'beam', wind: 1.1, len: 16, width: 1.8, dur: 4.5, sweep: .9, mul: .9, cd: 11, range: 99 }, { kind: 'nova', wind: 1, r: 7.5, inner: 2.6, mul: 1, cd: 8, range: 99 }],
+            phases: [{ at: .3, enrage: true }] },
+          { type: 'hand_net', room: 'b4', loot: ['rs_hand_head', 'rs_hand_body', 'rs_hand_cloak', 'rs_hand_boots', 'd_bow_net'],
+            attacks: [{ kind: 'beam', wind: 1.1, len: 15, width: 2, dur: 4.5, sweep: 1, mul: .75, cd: 11, range: 99 }, { kind: 'charge', wind: .8, len: 14, width: 2.8, mul: 1.1, cd: 6, range: 16 }, { kind: 'slam', wind: .8, r: 4.4, mul: 1, cd: 3, range: 5 }],
+            phases: [{ at: .6, summon: { type: 'brandshade', n: 2 }, shield: true }, { at: .3, enrage: true }] },
+          { type: 'hand_lord', room: 'b5', loot: ['rs_hand_head', 'rs_hand_body', 'rs_hand_cloak', 'rs_hand_boots', 'd_greatsword_lord', 'd_sigil_lord'],
+            attacks: [{ kind: 'slam', wind: .9, r: 5.2, mul: 1.2, cd: 3, range: 5.8 }, { kind: 'beam', wind: 1.2, len: 18, width: 2, dur: 5, sweep: .8, mul: .7, cd: 13, range: 99 }, { kind: 'pools', wind: .8, n: 3, r: 2.6, dur: 8, mul: .5, cd: 11, range: 99 },
+              { kind: 'cast', name: 'Жатва', wind: 3, r: 99, mul: 2.2, cd: 16, range: 99 }],
+            phases: [{ at: .7, summon: { type: 'eclipse_fiend', n: 2 }, shield: true, who: 'Пятый', say: 'Ты дошёл. Я знал, что дойдёшь.' },
+              { at: .4, who: 'Пятый', say: 'Мне больше не нужна их сила. Бей, если хочешь. Меня ты уже не догонишь.' }, { at: .25, enrage: true, who: 'Пятый', say: '(уходит во тьму) До встречи, мой меч.' }] }
         ] }
     ]
   },
@@ -966,6 +994,12 @@ const BASE = {
     ap_serpent:  { boss: true, name: 'Отступник-Змей',    xp: 7000, hp: 17000, speed: 3.6, damage: 112, range: 3.2, wind: .6, recover: .8, radius: 1.5, scale: 2.6, heavy: true, immune: ['stun', 'fear', 'poison'], on: ['poison', .9, 8, 5] },
     ap_boar:     { boss: true, name: 'Отступник-Вепрь',   xp: 7000, hp: 19000, speed: 3.4, damage: 118, range: 3.4, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .9, 8, 5] },
     ap_moth:     { boss: true, name: 'Отступница-Моль', g: 'f', xp: 7000, hp: 16000, speed: 3.8, damage: 108, range: 2.8, wind: .55, recover: .8, radius: 1.3, scale: 2.4, heavy: true, immune: ['stun', 'fear'], on: ['burn', .9, 7, 4] },
+    // рейд «Врата Длани» (этап 8): привратник и четверо Длани; Пятый (Аларик) появляется в бою с Владыкой и уходит — его не добить
+    gatebeast:   { boss: true, name: 'Привратник Врат',   xp: 9000, hp: 30000, speed: 3.2, damage: 120, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 3.0, heavy: true, immune: ['stun', 'fear'], on: ['burn', .8, 8, 5] },
+    hand_womb:   { boss: true, name: 'Длань: Утроба',     xp: 9000, hp: 24000, speed: 2.8, damage: 118, range: 3.4, wind: .7, recover: .9, radius: 1.7, scale: 2.9, heavy: true, immune: ['stun', 'fear', 'poison'], on: ['poison', .9, 9, 6] },
+    hand_whisper: { boss: true, name: 'Длань: Шёпот', g: 'f', xp: 9000, hp: 28000, speed: 3.4, damage: 124, range: 2.8, wind: .6, recover: .8, radius: 1.2, scale: 2.5, heavy: true, immune: ['stun', 'fear'], on: ['burn', .8, 8, 4] },
+    hand_net:    { boss: true, name: 'Длань: Сеть',       xp: 9000, hp: 24000, speed: 3.0, damage: 120, range: 3.4, wind: .7, recover: .9, radius: 1.6, scale: 2.8, heavy: true, immune: ['stun', 'fear', 'bleed'], on: ['bleed', .8, 8, 5] },
+    hand_lord:   { boss: true, name: 'Длань: Владыка',    xp: 16000, hp: 34000, speed: 3.0, damage: 130, range: 3.8, wind: .7, recover: .9, radius: 2.0, scale: 3.3, heavy: true, immune: ['stun', 'fear', 'poison', 'bleed'], on: ['burn', .9, 10, 5] },
     bonetyrant: { boss: true, name: 'Костяной Тиран', xp: 3300, hp: 13500, speed: 4, damage: 58, range: 3.3, wind: .6, recover: .8, radius: 1.5, scale: 2.7, heavy: true, immune: ['stun', 'poison'], on: ['bleed', .7, 4, 6] },
     chief:    { boss: true, name: 'Вожак Ржавых',       xp: 1400, hp: 11500, speed: 3.2, damage: 62, range: 3.4, wind: .7, recover: .9, radius: 1.7, scale: 2.7, heavy: true, immune: ['stun'], on: ['bleed', .8, 4, 5] },
     // слух: чем громче герой, тем дальше его слышат. Услышавший идёт к герою, пока тот не уйдёт дальше `lose`

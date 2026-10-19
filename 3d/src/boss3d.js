@@ -32,6 +32,7 @@ export function updateBoss(W, e, dt, spd) {
     b.done.add(i);
     if (ph.enrage) { b.enraged = true; W.ev.push({ k: 'bossphase', name: C.name, what: 'ярость', x: e.x, z: e.z }); }
     if (ph.summon) summon(W, e, ph.summon.type, ph.summon.n);
+    if (ph.say) W.ev.push({ k: 'bossSay', who: ph.who || C.name, text: ph.say });     // реплика в бою (рейд: Пятый)
     if (ph.shield && b.minions.length) { b.shield = true; b.shieldHp = e.hp; W.ev.push({ k: 'bossphase', name: C.name, what: 'щит: сперва убейте подмогу', x: e.x, z: e.z }); }     // этап 5: неуязвим, пока жива подмога
   });
   if (b.shield) { if (!b.minions.length) { b.shield = false; W.ev.push({ k: 'bossphase', name: C.name, what: 'щит пал', x: e.x, z: e.z }); } else e.hp = Math.max(e.hp, b.shieldHp); }

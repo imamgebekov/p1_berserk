@@ -119,6 +119,13 @@ export const QUESTS = [
   { id: 'x_nest', giver: 'masked', story: 'a4_masked', name: 'Хозяин Гнезда', text: 'Хозяин Гнезда вернулся. Отступники всегда возвращаются.', type: 'boss', boss: 'nestlord', reward: { ash: 1800, xp: 10000 } },
   { id: 'x_abbot', giver: 'masked', story: 'a4_alaric', name: 'Настоятель', text: 'Настоятель снова читает молитвы Длани. Заставь замолчать.', type: 'boss', boss: 'abbot', reward: { ash: 1800, xp: 10000 } },
   { id: 'x_resin5', giver: 'masked', story: 'a4_alaric', name: 'Смола для Врат', text: 'Пять кусков чёрной смолы. У Врат нам понадобится огонь, который не гаснет.', type: 'bring', item: 'm_black_resin', n: 5, reward: { ash: 1500, xp: 8600 } },
+  // ---- эндгейм (этап 8): ежедневные дела у человека в маске — снова через сутки игры (480 с) ----
+  { id: 'd_demons', giver: 'masked', story: 'a4_finale', name: 'Стража без Длани', text: 'Демоны-стражи всё ещё бродят. Восемь — и деревням спать спокойнее.', type: 'kill', enemy: 'demon_guard', n: 8, repeat: 480, reward: { ash: 1800 } },
+  { id: 'd_trolls', giver: 'masked', story: 'a4_finale', name: 'Тролли у дороги', text: 'Шесть троллей у дороги. Бей быстро.', type: 'kill', enemy: 'troll', n: 6, repeat: 480, reward: { ash: 1600 } },
+  { id: 'd_shades', giver: 'masked', story: 'a4_finale', name: 'Ночной обход', text: 'Десять теней клейма. Их меньше, чем было, но они есть.', type: 'kill', enemy: 'brandshade', n: 10, repeat: 480, reward: { ash: 1600, items: [['m_amber', 2]] } },
+  { id: 'd_fiends', giver: 'masked', story: 'a4_finale', name: 'Остатки свиты', text: 'Двенадцать тварей Затмения. Добьём свиту.', type: 'kill', enemy: 'eclipse_fiend', n: 12, repeat: 480, reward: { ash: 1800 } },
+  { id: 'd_heart', giver: 'masked', story: 'a4_finale', name: 'Сердце для кузни', text: 'Гедеону нужно сердце Отступника. Отступники возвращаются — найди одного.', type: 'bring', item: 'm_apostle_heart', n: 1, repeat: 480, reward: { ash: 2500, items: [['m_black_resin', 3]] } },
+  { id: 'd_lord', giver: 'masked', story: 'a4_finale', name: 'Врата снова', text: 'Длань пытается собраться снова. Владыку — ещё раз. Раз в три дня.', type: 'boss', boss: 'hand_lord', repeat: 1440, reward: { ash: 6000 } },
 ];
 export const QUEST_BY_ID = Object.fromEntries(QUESTS.map(q => [q.id, q]));
 export const GIVER_NAME = { merchant: 'Торговец', smith: 'Кузнец', captain: 'Капитан Заставы', timka: 'Тимка', kord: 'Корд', irma: 'Ирма', alaric: 'Аларик Белый', quarter: 'Интендант Ставки', smuggler: 'Контрабандист с пристани', masked: 'Человек в маске', widow: 'Вдова с болот', gedeon: 'Кузнец Гедеон' };

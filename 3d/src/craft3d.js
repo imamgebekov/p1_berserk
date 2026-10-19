@@ -61,7 +61,8 @@ export function sourcesOf(id) {
   for (const [k, d] of Object.entries(CONTAINERS)) if (d.pools.some(p => p[1] > 0 && p[0] === it.pool)) out.containers.push(k);
   for (const [t, d] of Object.entries(DROPS)) if (it.pool === 'magic' || d.pools.some(p => p[1] > 0 && p[0] === it.pool)) out.drops.push(t);     // посохи и жезлы — свой бросок с любого врага (stones3d → magicDropOf)
   for (const [t, b] of Object.entries(BOSS_DROPS)) if (b.trophy === id || b.tomes.some(x => 'tome_' + x === id) || id === 'key_black' || BOSS_LOOT.pools.some(p => p[0] === it.pool)) out.bosses.push(t);
-  if (it.boss && !out.bosses.includes(it.boss)) out.bosses.push(it.boss);     // своя добыча босса подземелья (этап 5)
+  if (it.boss && !out.bosses.includes(it.boss)) out.bosses.push(it.boss);
+  for (const b of it.raidBosses || []) if (!out.bosses.includes(b)) out.bosses.push(b);     // комплект рейда — со всех его боссов     // своя добыча босса подземелья (этап 5)
   out.shop = SHOP.pools.some(p => p[1] > 0 && p[0] === it.pool) || SHOP_STAPLES.some(([sid]) => sid === id);
   for (const r of RECIPES) { if (r.result.id === id) out.craft.push(r.id); if (r.mats.some(([m]) => m === id)) out.uses.push(r.id); }
   return out;

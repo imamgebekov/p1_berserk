@@ -8,7 +8,7 @@ import { createWorld, step, spawnEnemy, mulberry32, refreshGear } from '../3d/sr
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 
 // ---- данные ----
-ok(SETS.length === 12 && new Set(SETS.map(s => s.id)).size === 12, 'сетов должно быть 12 (с двумя золотыми)');
+ok(SETS.length === 13 && new Set(SETS.map(s => s.id)).size === 13, 'сетов должно быть 13 (с двумя золотыми и рейдовым)');
 // золотые комплекты (2026-10-18): все 4 части — золотые вещи; лёгкий годится Ирге целиком
 for (const id of ['sun', 'dawn']) { const st = SETS.find(s => s.id === id); ok(st && st.pieces.length === 4 && st.pieces.every(p => BY_ID[p] && BY_ID[p].pool === 'gold'), 'золотой комплект ' + id); }
 ok(SETS.find(s => s.id === 'dawn').pieces.every(p => canWield('irga', BY_ID[p])), 'Ирга не может надеть лёгкий золотой комплект');

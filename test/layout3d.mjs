@@ -70,7 +70,7 @@ for (const def of D.list) {
     ok(W.allies.every(a => Math.hypot(a.x - W.player.x, a.z - W.player.z) < 7), `${def.id}: отряд отстал в ${r.id}: ` + W.allies.map(a => `${a.x.toFixed(1)},${a.z.toFixed(1)}`).join(' | '));
     ok(pr >= 0, `${def.id}: герой вне комнат в ${r.id}`);
   }
-  ok(walkTo(W, def.exit.x + .5, def.exit.z), `${def.id}: не вернулся к лестнице`);
+  ok(walkTo(W, def.exit.x + .5, def.exit.z, 60), `${def.id}: не вернулся к лестнице`);
   ok(M.doors.every(d => d.open >= 0 && d.open <= 1), `${def.id}: двери в пределах 0–1`);
 }
 

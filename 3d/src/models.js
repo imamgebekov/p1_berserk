@@ -196,6 +196,9 @@ const LOOKS = {
   abbeyshriek: { shape: 'imp', body: '#5a4a4a', dark: '#1c1414', eye: '#ffe0a0', crown: '#e8d8c0', ghost: true }, choir: { shape: 'bones', body: '#c8c0b0', dark: '#4a4438', eye: '#a8e8ff', crown: '#e8e0d0' },
   abbot: { shape: 'brute', body: '#4a3a2a', dark: '#140c08', eye: '#ffd040', crown: '#e8c040', prop: 'shield' }, ap_serpent: { shape: 'hound', body: '#2a4a2a', dark: '#0a1a0a', eye: '#ffe040', crown: '#4a8a3a' },
   ap_boar: { shape: 'brute', body: '#4a2a1a', dark: '#140804', eye: '#ff3a1a', crown: '#d8c8a8' }, ap_moth: { shape: 'imp', body: '#6a5a3a', dark: '#1c1408', eye: '#ffb040', crown: '#c8a060', ghost: true },
+  gatebeast: { shape: 'brute', body: '#2a1018', dark: '#0c0408', eye: '#ff3a1a', crown: '#d82a1a', prop: 'shield' }, hand_womb: { shape: 'ghoul', body: '#4a1a2a', dark: '#14040a', eye: '#ff6ad8', crown: '#8a2a4a' },     // рейд (этап 8)
+  hand_whisper: { shape: 'imp', body: '#2a1a3a', dark: '#0a0414', eye: '#c08aff', crown: '#e8d8ff', ghost: true }, hand_net: { shape: 'bones', body: '#3a2a3a', dark: '#100810', eye: '#ff3aff', crown: '#a87ac8' },
+  hand_lord: { shape: 'brute', body: '#1a0c14', dark: '#040004', eye: '#ff2030', crown: '#c8a0ff', prop: 'shield' },
   gravekeeper: { shape: 'ghoul', body: '#4a4436', dark: '#1e1a12', eye: '#c8ff60', crown: '#8a7a5a' },     // боссы подземелий (этап 5)
   ashsister: { shape: 'imp', body: '#4a4440', dark: '#1a1614', eye: '#ffb060', crown: '#d8d0c0', ghost: true },
   boneshepherd: { shape: 'bones', body: '#b8ae96', dark: '#4a4234', eye: '#ff5030', crown: '#e8e0c8' },

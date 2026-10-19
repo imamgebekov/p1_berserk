@@ -1,7 +1,7 @@
 // Движок сюжета (этап 3, 2026-10-19; акты подряд — этап 7): сцены всех актов по порядку. Состояние — W.story { i, st, n, t, won, wave, foes, allies }:
 // st — 'wait' (ждёт разговора с тем, кто начинает), 'goal' (идёт цель), 'outro' (ждёт разговора в конце), 'end' (акт пройден).
 // Разговор показывает интерфейс: storyTalk(W, kind) отдаёт реплики, storyTalked(W) — разговор окончен. Чистая логика (Node-тесты).
-import { ACT_ALL, ACTS, SPEAKERS } from './data/story3d.js';
+import { ACT_ALL, ACTS, SPEAKERS, END_ACTORS } from './data/story3d.js';
 import { spawnEnemy, killEnemy, spawnBoss } from './sim.js';
 import { spawnAlly } from './squad3d.js';
 import { resolve } from './map.js';
@@ -34,7 +34,8 @@ const place = (W, at, off) => { const s = spotOf(W, at), o = { x: s.x + (off ? o
 
 // ---- кто стоит в мире: [{ kind, name, tint, x, z, mark: '!' | '?' | null }] ----
 export function storyActors(W) {
-  const S = W.story, c = S && sc(W); if (!c || S.st === 'end' || W.lvl !== 'surface') return [];
+  const S = W.story; if (S && S.st === 'end' && W.lvl === 'surface') return END_ACTORS.map(([kind, at, off]) => { const q = place(W, at, off); return { kind, name: SPEAKERS[kind].name, tint: SPEAKERS[kind].tint, x: q.x, z: q.z, mark: null }; });     // после финала (этап 8)
+  const c = S && sc(W); if (!c || S.st === 'end' || W.lvl !== 'surface') return [];
   const duel = S.st === 'goal' && c.goal.type === 'duel', esc = S.st === 'goal' && c.goal.type === 'escort';
   const out = [];
   for (const [kind, at, off] of c.actors) {

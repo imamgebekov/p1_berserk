@@ -277,7 +277,7 @@ export function expandWorld(base) {
         at = { x, z };
       }
       if (!at) continue;
-      cfg.dungeons.list.push({ id: I.id, name: I.name, inst: true, at, back: I.back || { x: at.x, z: at.z + 3 }, level: I.level, depth: I.depth, danger: I.danger, rooms: I.rooms, doors: I.doors, foes: I.foes, spawns: I.spawns, entry: I.entry, exit: I.exit, chests: I.chests });
+      cfg.dungeons.list.push({ id: I.id, name: I.name, inst: true, raid: !!I.raid, at, back: I.back || { x: at.x, z: at.z + 3 }, level: I.level, depth: I.depth, danger: I.danger, rooms: I.rooms, doors: I.doors, foes: I.foes, spawns: I.spawns, entry: I.entry, exit: I.exit, chests: I.chests });
       taken.push({ x: at.x, z: at.z, r: 10 });
       for (const B of I.bosses) { const rm = I.rooms.find(q => q.id === B.room); cfg.bosses.list.push({ ...B, x: rm.x, z: rm.z, level: I.id, base: I.base, inst: I.id }); }
     }

@@ -28,6 +28,8 @@ export const SETS = [
   // золотые комплекты (2026-10-18): тяжёлый — из золотых вещей торговца, лёгкий — для всех героев (и для Ирги)
   { id: 'sun', name: 'Солнечный доспех', pieces: ['g_nooncrown', 'g_sunplate', 'g_dawncloak', 'g_galeboots'], b2: { stats: { armor: 8, hp: 25 } }, b4: { stats: { hp: 40, dmg: 6 }, fx: { ignite: .3 } } },
   { id: 'dawn', name: 'Облачение Зари', pieces: ['g_dawnhood', 'g_dawnrobe', 'g_dawnmantle', 'g_dawnsteps'], b2: { stats: { crit: 5, spd: 4 } }, b4: { stats: { dmg: 6, hp: 30 }, fx: { killHeal: 6 } } },
+  // рейд «Врата Длани» (этап 8): падает со всех боссов рейда
+  { id: 'hand', name: 'Доспех Затмения', pieces: ['rs_hand_head', 'rs_hand_body', 'rs_hand_cloak', 'rs_hand_boots'], b2: { stats: { dmg: 6, hp: 30 } }, b4: { stats: { armor: 6, hp: 40 }, fx: { killHeal: 10, lastStand: .2 } } },
   { id: 'rust', name: 'Доспех Ржавых', pieces: ['as_rust_head', 'as_rust_body', 'as_rust_cloak', 'as_rust_boots'], b2: { stats: { armor: 6, dmg: 4 } }, b4: { stats: { hp: 30 }, fx: { killHeal: 8, rage: .25 } } }
 ];
 
@@ -39,4 +41,9 @@ export const NAMED_ARMOR = [
   ['eclipse', 'cloak', 'Плащ тёмного круга', { armor: 6, crit: 4, spd: 3 }], ['eclipse', 'boots', 'Сапоги угля', { armor: 8, spd: 5, dmg: 2 }],
   ['rust', 'head', 'Шлем вожака', { armor: 13, hp: 14, dmg: 2 }], ['rust', 'body', 'Панцирь Ржавых', { armor: 20, hp: 22 }],
   ['rust', 'cloak', 'Шкура вожака', { armor: 8, hp: 18, leech: 2 }], ['rust', 'boots', 'Поножи лагеря', { armor: 10, hp: 10, spd: 2 }]
+];
+// рейд (этап 8): вещи «Доспеха Затмения» — [слот, название, статы]; создаются в items.js после золотых
+export const RAID_ARMOR = [
+  ['head', 'Венец Врат', { armor: 14, hp: 22, crit: 4 }], ['body', 'Латы Длани', { armor: 26, hp: 32, dmg: 3 }],
+  ['cloak', 'Плащ без тени', { armor: 9, hp: 24, spd: 3 }], ['boots', 'Шаг сквозь тьму', { armor: 11, spd: 4, hp: 16 }]
 ];
