@@ -291,7 +291,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     scene.add(ohGroup); }
   for (const g of parts) if (!g.attributes.sway) g.setAttribute('sway', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count), 1));     // камни не качаются
-  const propsMat = WC && WC.on ? windy(new THREE.MeshLambertMaterial({ vertexColors: true }), 'tree') : new THREE.MeshLambertMaterial({ vertexColors: true });
+  const propsMat = paintMat(WC && WC.on ? windy(new THREE.MeshLambertMaterial({ vertexColors: true }), 'tree') : new THREE.MeshLambertMaterial({ vertexColors: true }), 'nature');     // кора и камень с мхом (T2)
   const props = new THREE.Mesh(mergeGeometries(parts, false), propsMat);     // край мира и деревья над тропой; остальные деревья — по участкам
   // трава (F2): пучок из трёх травинок; строится по участкам вокруг героя, качается по ветру
   const flowerMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
