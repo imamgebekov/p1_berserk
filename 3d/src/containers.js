@@ -2,9 +2,10 @@
 import * as THREE from 'three';
 import { RARITY, BY_ID } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
+import { paintMat } from './paint3d.js';
 
 const mats = new Map(), geos = new Map();
-const mat = c => { let m = mats.get(c); if (!m) mats.set(c, m = new THREE.MeshLambertMaterial({ color: c })); return m; };
+const mat = c => { let m = mats.get(c); if (!m) mats.set(c, m = paintMat(new THREE.MeshLambertMaterial({ color: c }), 'auto', { plank: .16 })); return m; };
 const bm = c => { const k = 'b' + c; let m = mats.get(k); if (!m) mats.set(k, m = new THREE.MeshBasicMaterial({ color: c })); return m; };
 const geo = (w, h, d) => { const k = w + ',' + h + ',' + d; let g = geos.get(k); if (!g) geos.set(k, g = new THREE.BoxGeometry(w, h, d)); return g; };
 const B = (g, w, h, d, c, x, y, z, basic) => { const m = new THREE.Mesh(geo(w, h, d), basic ? bm(c) : mat(c)); m.position.set(x, y, z); g.add(m); return m; };

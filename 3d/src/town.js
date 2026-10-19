@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { pushBox, paint } from './models.js';
 import { furnish } from './furniture.js';
+import { paintMat } from './paint3d.js';
 
 const WALL = ['#5a463a', '#654d3f', '#50403a', '#5d4a3e'];
 const ROOF = ['#6a2428', '#5e2124', '#74292c'];
@@ -20,7 +21,7 @@ const STRAW = '#a88a4a', BEAM = '#2a1d16', SOOT = ['#3a302a', '#40342c', '#352c2
 export function buildTown(map, cfg, rnd) {
   const M = cfg.map, H = M.wallH, t = M.wall, hw = M.doorW / 2;
   const group = new THREE.Group();
-  const lamb = vertexColors => new THREE.MeshLambertMaterial({ vertexColors });
+  const lamb = (vertexColors, kind) => paintMat(new THREE.MeshLambertMaterial({ vertexColors }), kind);
   const merged = list => mergeGeometries(list, false);
   const items = [];
 
@@ -72,10 +73,10 @@ export function buildTown(map, cfg, rnd) {
     walls.add(new THREE.Mesh(merged(wallL), lamb(true)));
     if (winL.length) walls.add(new THREE.Mesh(merged(winL), new THREE.MeshBasicMaterial({ vertexColors: true })));
     const floor = new THREE.Mesh(merged(flat(floorL)), lamb(true));
-    const roofMat = lamb(true); roofMat.transparent = true;
+    const roofMat = lamb(true, 'roof'); roofMat.transparent = true;
     const roof = new THREE.Mesh(merged(flat(roofL)), roofMat);
     // дверь: створка на петле, открывается внутрь
-    const hinge = new THREE.Group(), pan = new THREE.Mesh(new THREE.BoxGeometry(vert ? .12 : hw * 2 - .05, 2.15, vert ? hw * 2 - .05 : .12), new THREE.MeshLambertMaterial({ color: '#5a3d26' }));
+    const hinge = new THREE.Group(), pan = new THREE.Mesh(new THREE.BoxGeometry(vert ? .12 : hw * 2 - .05, 2.15, vert ? hw * 2 - .05 : .12), paintMat(new THREE.MeshLambertMaterial({ color: '#5a3d26' }), 'auto', { plank: .2 }));
     pan.position.set(vert ? 0 : hw - .02, 1.08, vert ? hw - .02 : 0);
     hinge.add(pan); hinge.position.set(vert ? d.x : d.x - hw, 0, vert ? d.z - hw : d.z);
     walls.add(hinge);

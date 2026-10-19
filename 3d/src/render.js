@@ -32,6 +32,7 @@ import { RATE, statusPart, emitCount, lightning, stunStar } from './vfx3d.js';
 import { ELEMENT_COLOR } from './elements3d.js';
 import { WSKILL } from './weaponskill3d.js';
 import { groundNoise, pathMix, segsNear, contactGrid, contactShade } from './ground3d.js';
+import { initPaint, paintMat, setPaintLevel } from './paint3d.js';
 
 const FOG = '#150c0b';
 
@@ -73,6 +74,7 @@ const angDiffTo = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) 
 const FXCOL = { fire: '#ff8a30', frost: '#9fdcff', venom: '#7ad060', storm: '#ffe27a', bleed: '#d03030' };
 
 export function createRenderer(canvas, cfg, hooks = {}) {
+  initPaint(cfg.shaders && cfg.shaders.paint);     // материалы (T0) — до постройки домов, декора и сундуков
   const gl = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: !!hooks.preserve });     // сглаживание краёв (шаг 2)
   gl.setPixelRatio(1);
   const scene = new THREE.Scene();
@@ -104,7 +106,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 
   const gtex = groundTexture(cfg.look);
   const GW = (cfg.world.radius + 200) * 2, gtex2 = gtex.clone(); gtex2.repeat.set(70 * GW / 500, 70 * GW / 500); gtex2.needsUpdate = true;
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(GW, GW), new THREE.MeshLambertMaterial({ map: gtex2 }));     // под всем миром, тот же масштаб травы
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(GW, GW), paintMat(new THREE.MeshLambertMaterial({ map: gtex2 }), 'ground'));     // под всем миром, тот же масштаб травы
   ground.rotation.x = -Math.PI / 2; ground.position.y = -1.2; scene.add(ground);     // ниже дна реки: внутри мира землю рисуют холмы
 
   const map = addFires(makeMap(cfg), cfg, firesOf);     // костры вне лагеря — та же карта, что у мира (раньше рендер строил её без костров)
@@ -113,7 +115,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const Y = (x, z) => (groundOn ? heightAt(hf, x, z) : 0);
   if (hooks.onText) { const f = hooks.onText; hooks.onText = (x, y, z, ...a) => f(x, y + Y(x, z), z, ...a); }
   // земля с холмами (C3a): участками CHUNK м вокруг героя; светлее на буграх и темнее в низинах, у воды — песок
-  const hillsMat = new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true }), sandC = new THREE.Color(cfg.look.sand), rel = h => { const t = new THREE.Color(h), g = gtex.mean; return new THREE.Color(t.r / g.r, t.g / g.g, t.b / g.b); }, rockC = rel('#6e6a60'), PATH = cfg.look.path, pathC = PATH ? rel(PATH.color) : null, roadSegs = pathSegs(map);     // скала и тропа: текстура травы × множитель ≈ нужный цвет (линейный)     // цвет материала — мокрость (F3)
+  const hillsMat = paintMat(new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true }), 'ground'), sandC = new THREE.Color(cfg.look.sand), rel = h => { const t = new THREE.Color(h), g = gtex.mean; return new THREE.Color(t.r / g.r, t.g / g.g, t.b / g.b); }, rockC = rel('#6e6a60'), PATH = cfg.look.path, pathC = PATH ? rel(PATH.color) : null, roadSegs = pathSegs(map);     // скала и тропа: текстура травы × множитель ≈ нужный цвет (линейный)     // цвет материала — мокрость (F3)
   // деревья и камни участка: один раз на участок, нужны и земле (тень у стволов), и самим деревьям; старые забываются
   const propsMemo = new Map(), propsAt = (ci, cj) => { const k = ci + ',' + cj; let P = propsMemo.get(k); if (!P) { P = propsIn(map, cfg, ci, cj); propsMemo.set(k, P); if (propsMemo.size > 160) propsMemo.delete(propsMemo.keys().next().value); } return P; };
   const FL = cfg.flora && cfg.flora.on ? cfg.flora : null;
@@ -395,14 +397,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       tops.push(new THREE.ConeGeometry(.24, .4, 4).translate(0, h + .2, 0).rotateY(a).translate(x, 0, z));
     }
     const ring = []; for (const y of [.6, 1.6]) for (let i = 0; i < n; i += 2) { const a = i / n * 2 * Math.PI; if (C.gates.some(g => { let d = Math.abs(a - g * Math.PI / 180) % (2 * Math.PI); if (d > Math.PI) d = 2 * Math.PI - d; return d < gapA + .05; })) continue; ring.push(new THREE.BoxGeometry(.9, .1, .44).translate(0, y, 0).rotateY(a + Math.PI / 2).translate(C.x + Math.sin(a) * C.r, 0, C.z + Math.cos(a) * C.r)); }
-    palisade.add(new THREE.Mesh(mergeGeometries(logs), new THREE.MeshLambertMaterial({ color: '#5a3e26' })), new THREE.Mesh(mergeGeometries(tops), new THREE.MeshLambertMaterial({ color: '#3e2a18' })), new THREE.Mesh(mergeGeometries(ring), new THREE.MeshLambertMaterial({ color: '#2e2016' })));
+    palisade.add(new THREE.Mesh(mergeGeometries(logs), paintMat(new THREE.MeshLambertMaterial({ color: '#5a3e26' }), 'log')), new THREE.Mesh(mergeGeometries(tops), new THREE.MeshLambertMaterial({ color: '#3e2a18' })), new THREE.Mesh(mergeGeometries(ring), paintMat(new THREE.MeshLambertMaterial({ color: '#2e2016' }))));
     const posts = [], beams = [], flames = [];
     for (const g of campGates(C)) {
       const a = g.a * Math.PI / 180, w = C.gateW / 2 + .2, tx = Math.cos(a), tz = -Math.sin(a);       // вдоль частокола
       for (const s of [-1, 1]) { const px = g.x + tx * w * s, pz = g.z + tz * w * s; posts.push(new THREE.BoxGeometry(.6, C.h + 1.2, .6).translate(px, (C.h + 1.2) / 2, pz)); flames.push(new THREE.BoxGeometry(.22, .3, .22).translate(px, C.h + 1.45, pz)); }
       beams.push(new THREE.BoxGeometry(C.gateW + 1.2, .4, .5).rotateY(a + Math.PI / 2).translate(g.x, C.h + .9, g.z));
     }
-    palisade.add(new THREE.Mesh(mergeGeometries(posts), new THREE.MeshLambertMaterial({ color: '#4a3220' })), new THREE.Mesh(mergeGeometries(beams), new THREE.MeshLambertMaterial({ color: '#3a2618' })), new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })));
+    palisade.add(new THREE.Mesh(mergeGeometries(posts), paintMat(new THREE.MeshLambertMaterial({ color: '#4a3220' }), 'log')), new THREE.Mesh(mergeGeometries(beams), paintMat(new THREE.MeshLambertMaterial({ color: '#3a2618' }))), new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })));
     scene.add(palisade); freeze(palisade);
   }
   const cart = makeCart(); cart.group.visible = false; scene.add(cart.group);   // повозка сказочного торговца
@@ -666,7 +668,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });     // шейдеры с тенями и без — разные
   }
   function setQuality(id, desk) {
-    const nq = qualityOf(cfg, id, desk), regrow = nq.grass !== Q.grass; Q = nq; resScale = nq.scale; shadowsOn = nq.shadows;
+    const nq = qualityOf(cfg, id, desk), regrow = nq.grass !== Q.grass; Q = nq; resScale = nq.scale; shadowsOn = nq.shadows; setPaintLevel(nq.paint ?? 1);
     if (regrow) for (const k of [...liveLand.keys()]) dropLand(k);     // густота травы — при постройке участка: перестроить
     applyShadows(); resize();
   }

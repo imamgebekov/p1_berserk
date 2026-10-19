@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { pushBox, addTree } from './models.js';
+import { paintMat } from './paint3d.js';
 
 export function buildDecor(map, rnd, grime = null) {
   // клетки 64 м (C3b): каждая — свои меши, поэтому дальний и невидимый декор отсекается
@@ -76,16 +77,17 @@ export function buildDecor(map, rnd, grime = null) {
       default: break;
     }
   }
-  const group = new THREE.Group(), lam = new THREE.MeshLambertMaterial({ vertexColors: true }), bas = new THREE.MeshBasicMaterial({ vertexColors: true }); let glow = 0;
+  const group = new THREE.Group(), lam = paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto', { plank: .22 }), bas = new THREE.MeshBasicMaterial({ vertexColors: true }); let glow = 0;
   if (grime && grime.on) {                                                    // потёртости (V2b): пятна по мировым координатам, низ темнее
-    lam.onBeforeCompile = sh => {
-      sh.uniforms.uGrime = { value: grime.k };
+    const gp = lam.onBeforeCompile, gk = lam.customProgramCacheKey ? lam.customProgramCacheKey() : '';     // поверх материалов (T0)
+    lam.onBeforeCompile = (sh, r) => {
+      if (gp) gp(sh, r); sh.uniforms.uGrime = { value: grime.k };
       sh.vertexShader = 'varying vec3 vGW;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vGW = (modelMatrix * vec4(transformed, 1.)).xyz;');
       sh.fragmentShader = 'uniform float uGrime; varying vec3 vGW;\nfloat lh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat lvn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(lh(i), lh(i + vec2(1., 0.)), f.x), mix(lh(i + vec2(0., 1.)), lh(i + vec2(1., 1.)), f.x), f.y); }\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
   float gn = lvn(vGW.xz * 1.7 + vGW.y * 1.3) * .6 + lvn(vGW.xz * 5.1 - vGW.y * 3.7) * .4;
   diffuseColor.rgb *= 1. - uGrime * (gn - .35) - uGrime * .6 * (1. - smoothstep(0., .5, vGW.y));`);
     };
-    lam.customProgramCacheKey = () => 'grime';
+    lam.customProgramCacheKey = () => gk + 'grime';
   }
   for (const [k, c] of cells) {
     const [cx, cz] = k.split(',').map(Number), g = new THREE.Group(); g.userData.cx = (cx + .5) * 64; g.userData.cz = (cz + .5) * 64;

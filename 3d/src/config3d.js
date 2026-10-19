@@ -15,7 +15,7 @@ const BASE = {
     // ниже up мс — выше) раз в every с, после warm с от старта, кадры дольше stall мс не считаются; shadow — карта теней:
     // size точек (на телефоне phone), охват ±span м вокруг героя, радиус размытия radius, смещения bias / normalBias
     quality: {
-      low: { scale: .75, grass: .5, shafts: false, shadows: false, life: .5 }, mid: { scale: 1, grass: 1, shafts: true, shadows: false, life: 1 }, high: { scale: 1, grass: 1, shafts: true, shadows: true, life: 1 },     // life — доля живности
+      low: { scale: .75, grass: .5, shafts: false, shadows: false, life: .5, paint: 0 }, mid: { scale: 1, grass: 1, shafts: true, shadows: false, life: 1, paint: 1 }, high: { scale: 1, grass: 1, shafts: true, shadows: true, life: 1, paint: 1 },     // life — доля живности, paint — сила материалов
       auto: { lo: .6, hi: 1, step: .1, up: 12, down: 18, every: 2, warm: 5, stall: 100 },
       shadow: { size: 2048, span: 25, radius: 3, bias: -.0006, normalBias: .03, dist: 80 } },
     // сглаживание движения (шаг 3 аудита), скорость затухания 1/с: pose — позы героя и врагов, hit — в окне удара (резко),
@@ -796,6 +796,8 @@ const BASE = {
   shaders: { water: { on: true, ripple: 1, glint: .9, shallow: '#3f7c78', shoreW: 1.8, foam: '#d6e6dc', foamW: .6, flow: .7 },
     leaf: { on: true, vary: 1, lit: .22 }, metal: { on: true, shine: 60, spec: '#8c8c8c' }, grime: { on: false, k: .18 },     // потёртости выключены (шаг 4 «Минус»: мелкая деталь против «мягко»)
     // ободок силуэта (V2c): край фигуры светлее — днём day, ночью night; ореолы ночью у фонарей и костров: размер, м, и цвет; max — сколько сразу
+    // материалы (T0): мягкие доски, брёвна, камень, черепица и пятна земли в шейдере; сила по видам; plank — ширина доски, tile — ряд черепицы, м
+    paint: { on: true, ground: .8, wood: 1, roof: 1, log: 1, plank: .3, tile: .3 },
     rim: { on: true, day: .08, night: .45, pow: 5, hero: '#ffd8a8', foe: '#ff9078' }, halo: { on: true, lamp: [2.6, '#ffb35a'], fire: [4.4, '#ff8a3a'], near: 70, max: 96 } },
   weather: { on: true, kinds: { clear: [.55, 150, 360], cloudy: [.25, 80, 200], rain: [.2, 70, 160] }, ramp: 14, fog: .6, wet: .7,
     drops: 900, fall: 16, box: [34, 18], splash: 26, ripples: 24, force: null,
