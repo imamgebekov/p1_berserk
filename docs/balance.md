@@ -1,5 +1,7 @@
 # Баланс экономики
 
+> Этот файл — про 2D-версию (`src/`). Для 3D (`3d/`) баланс меряют `test/balance3d.mjs`, `test/difficulty3d.mjs`, `npm run balance:heroes` и бот интереса `npm run fun`.
+
 Файл сгенерирован командой `npm run balance` из реальных `src/config.js` и таблиц дропа. После правок конфига перегенерируйте: `npm run balance > docs/balance.txt`. Целевые диапазоны проверяет `test/economy.mjs`.
 
 ```

@@ -74,5 +74,9 @@ for (const lose of [true, false]) { const W = mk(5); W.story.i = ACT.findIndex(c
   const W2 = mk(12); W2.story.i = ACT.findIndex(c => c.id === 'a3_eclipse'); ok(!brandOn(W2), 'клеймо до Затмения'); }
 // 7. после финала: в мире стоят человек в маске (ежедневные дела), Ирма и хозяйка у огня
 { const W = mk(13); W.story.i = ACT.length; W.story.st = 'end'; const a = storyActors(W).map(q => q.kind); ok(['masked', 'irma', 'hostess'].every(k => a.includes(k)) && storyActors(W).every(q => !q.mark), 'после финала никого нет'); }
+// 8. разговор знает свой акт: заголовок «Акт N · сцена» (раньше всегда «Акт I»)
+{ ok(ACT.every(c => [1, 2, 3, 4].includes(c.act)), 'у сцены нет номера акта');
+  for (const n of [1, 2, 3, 4]) { const i = ACT.findIndex(c => c.act === n && c.intro && c.intro.length), c = ACT[i]; if (i < 0) { ok(false, `в акте ${n} нет сцены с началом`); continue; }
+    const W = mk(20 + n); W.story.i = i; W.story.st = 'wait'; const t = storyTalk(W, c.auto ? 'any' : c.giver); ok(t && t.act === n, `разговор акта ${n} подписан актом ${t && t.act}`); } }
 if (fails.length) { console.error('Сюжет: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
 console.log(`Сюжет Актов I–IV и финал 3D: OK (${ACT.length} сцен)`);

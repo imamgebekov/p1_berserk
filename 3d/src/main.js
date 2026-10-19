@@ -535,11 +535,11 @@ const heroicBtn = $('heroicBtn'); heroicBtn.addEventListener('click', e => { e.s
 const SHOT = new URLSearchParams(location.search).has('shot');     // режим тестов и снимков: пролог сам не открывается
 // разговор (этап 3): реплики по одной; у реплики-выбора — кнопки ответов; конец — сюжет идёт дальше
 const HAIR = { alaric: '#ece6da', irma: '#2a1a14', timka: '#7a4a24', kord: '#1a1412', masked: '#0a0808', hostess: '#5a3020', captain: '#4a4440', herald: '#6a5030' };
-const dlg = { lines: null, i: 0, part: null, scene: '' };
+const dlg = { lines: null, i: 0, part: null, scene: '', act: 1 };
 function dlgFace(who) { const cv = $('dlgFace'); if (who === 'hero') { drawPortrait(cv, HEROES[W.hero].look); return; } const S = SPEAKERS[who] || SPEAKERS.hostess;
   drawPortrait(cv, { cape: S.tint, cloth: S.tint, hair: HAIR[who] || '#3a2a1a', capeLen: .8, hood: who === 'masked' }); if (who === 'masked') { const g = cv.getContext('2d'); g.fillStyle = '#d8d0c0'; g.fillRect(5, 3, 6, 4); g.fillStyle = '#000'; g.fillRect(6, 4, 1, 1); g.fillRect(9, 4, 1, 1); } }
 function dlgShow() {
-  const L = dlg.lines[dlg.i], opts = $('dlgOpts'); opts.textContent = ''; $('dlgScene').textContent = 'Акт I · ' + dlg.scene;
+  const L = dlg.lines[dlg.i], opts = $('dlgOpts'); opts.textContent = ''; $('dlgScene').textContent = `Акт ${['I', 'II', 'III', 'IV'][dlg.act - 1] || 'I'} · ` + dlg.scene;     // акт сцены (раньше всегда «Акт I»)
   const say = (who, text) => { const S = SPEAKERS[who] || SPEAKERS.hostess; $('dlgWho').textContent = S.name; $('dlgWho').style.color = who === 'hero' ? '#e8c04a' : S.tint === '#1c161a' ? '#b0a8b8' : S.tint; $('dlgLine').textContent = text; dlgFace(who); };
   const btn = (label, fn, main) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; if (main) b.className = 'main'; b.addEventListener('click', fn); opts.append(b); return b; };
   if (Array.isArray(L)) { say(L[0], L[1]); btn(dlg.i < dlg.lines.length - 1 ? 'Далее' + (desk ? ' · E' : '') : 'Закончить' + (desk ? ' · E' : ''), dlgNext, true).focus(); return; }
@@ -547,7 +547,7 @@ function dlgShow() {
 }
 function dlgNext() { dlg.i++; if (dlg.i >= dlg.lines.length) dlgClose(); else dlgShow(); }
 function dlgClose() { $('dialog').hidden = true; panelOpen = false; const part = dlg.part; dlg.lines = null; storyTalked(W, part); saver.write(true); }
-function dlgOpen(t) { if (!t || !t.lines || !t.lines.length) { if (t) storyTalked(W, t.part); return; } dlg.lines = t.lines.slice(); dlg.i = 0; dlg.part = t.part; dlg.scene = t.scene; $('dialog').hidden = false; panelOpen = true; input.release(); dlgShow(); }
+function dlgOpen(t) { if (!t || !t.lines || !t.lines.length) { if (t) storyTalked(W, t.part); return; } dlg.lines = t.lines.slice(); dlg.i = 0; dlg.part = t.part; dlg.scene = t.scene; dlg.act = t.act || 1; $('dialog').hidden = false; panelOpen = true; input.release(); dlgShow(); }
 // карта: миникарта в углу, большая карта по касанию
 const miniCtx = $('mini').getContext('2d'), mapCv = $('mapCv'), mapCtx = mapCv.getContext('2d'), mapEl = $('map');
 let miniT = 0;

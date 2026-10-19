@@ -55,9 +55,9 @@ export function storyTalkable(W, kind) {
 // реплики разговора: { lines, part: 'intro' | 'outro' } или null
 export function storyTalk(W, kind) {
   const S = W.story, c = S && sc(W); if (!c) return null;
-  if (S.st === 'wait' && (c.auto || c.giver === kind)) return { lines: c.intro, part: 'intro', scene: c.name };
-  if (S.st === 'outro' && (c.outroAt || c.giver) === kind) return { lines: S.won && c.outroWin ? c.outroWin : c.outro, part: 'outro', scene: c.name };
-  if (talkOpen(S, c, kind)) return { lines: c.talks[kind], part: 'talk:' + kind, scene: c.name };
+  if (S.st === 'wait' && (c.auto || c.giver === kind)) return { lines: c.intro, part: 'intro', scene: c.name, act: c.act || 1 };
+  if (S.st === 'outro' && (c.outroAt || c.giver) === kind) return { lines: S.won && c.outroWin ? c.outroWin : c.outro, part: 'outro', scene: c.name, act: c.act || 1 };
+  if (talkOpen(S, c, kind)) return { lines: c.talks[kind], part: 'talk:' + kind, scene: c.name, act: c.act || 1 };
   return null;
 }
 // разговор окончен: intro → цель; outro → награда и следующая сцена
