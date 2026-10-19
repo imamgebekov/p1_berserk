@@ -145,7 +145,8 @@ function summon(W, e, type, n) {
   const b = e.b, cap = W.cfg.bosses.minionCap;
   W.ev.push({ k: 'bossphase', name: W.cfg.enemies[e.type].name, what: 'зовёт подмогу', x: e.x, z: e.z });
   for (let i = 0; i < n && b.minions.length < cap; i++) {
-    const a = W.rng() * Math.PI * 2, m = W.fx.spawn(type, e.x + Math.sin(a) * 3.5, e.z + Math.cos(a) * 3.5);
+    let a = W.rng() * Math.PI * 2; for (let k = 0; k < 8 && W.fx.blocked && W.fx.blocked(e.x, e.z, e.x + Math.sin(a) * 3.5, e.z + Math.cos(a) * 3.5); k++) a += Math.PI / 4;     // точка за стеной — поворот на 45°
+    const m = W.fx.spawn(type, e.x + Math.sin(a) * 3.5, e.z + Math.cos(a) * 3.5);
     if (m) { m.alert = true; b.minions.push(m); }
   }
 }

@@ -252,7 +252,8 @@ export function expandWorld(base) {
           const lk = [{ x: to.x, z: to.z }, { x: s.x, z: s.z }]; cfg.map.links.push(lk); villages.push(hub);
           const gone = cfg.map.pois.filter(p => p.t !== 'pond' && segD(p.x, p.z, lk[0], lk[1]) < p.r + 14), ids = new Set(gone.map(p => p.place).filter(Boolean));     // точки интереса на новой дороге убираются
           cfg.map.pois = cfg.map.pois.filter(p => !gone.includes(p)); cfg.map.places = cfg.map.places.filter(p => !ids.has(p.id)); cfg.map.zones = cfg.map.zones.filter(zn => !(zn.poi && gone.some(p => Math.abs(p.x - zn.x) < .01 && Math.abs(p.z - zn.z) < .01))); }
-        hub.hub = zone.id; const hb = cfg.map.buildings.filter(b => b.vil === hub.id && !b.npc);
+        hub.hub = zone.id; if (Z.hub.names && Z.hub.names[zone.id]) hub.name = Z.hub.names[zone.id];     // своё имя узла (Ставка короля — Акт II)
+        const hb = cfg.map.buildings.filter(b => b.vil === hub.id && !b.npc);
         Z.hub.npcs.forEach((k, i) => { if (hb[i]) { hb[i].npc = k; hb[i].chests = []; } });     // торговец и кузнец — в домах узла
       } }
   }

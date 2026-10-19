@@ -11,6 +11,7 @@ import { TAU, DEG, clamp, len, rr } from './util3d.js';
 import { biomeAt } from './worldgen3d.js';
 import { hurtAlly, updateAllies } from './squad3d.js';
 import { threatPick, addThreat } from './threat3d.js';
+import { zoneAt } from './zones3d.js';
 import { lifeFresh, nodesOf, coachesOf, mountMul, mountInput, dismount, repEvents, discoverCoaches } from './life3d.js';
 import { trackPlace, reveal } from './places3d.js';
 import { addXp, gainXp } from './progress3d.js';
@@ -76,6 +77,7 @@ function attachFx(W) {
     hurtP: (dmg, x, z, on, e) => hurtPlayer(W, dmg, x, z, on, e),
     hurtA: (a, dmg, e) => hurtAlly(W, a, dmg, e),
     spawn: (type, x, z) => spawnEnemy(W, type, x, z),
+    blocked: (x0, z0, x1, z1) => lineBlocked(W.map, x0, z0, x1, z1) || hitsWall(W.map, x1, z1),     // этап 7: подмога босса — не за стеной
     react: (e, name, dmg, area) => {
       W.ev.push({ k: 'react', name, x: e.x, z: e.z });
       if (area) { for (const o of W.enemies) if (!o.dead && len(o.x - e.x, o.z - e.z) < area.r) dealDamage(W, o, Math.round(area.d), 'venom'); }
@@ -100,6 +102,11 @@ function makeWorld(cfg, rng) {
 }
 
 
+// знаменосец (этап 7): враги рядом с живым знаменосцем бьют сильнее (aura.dmg), сам знаменосец — нет
+function auraMul(W, e) {
+  let k = 1; for (const o of W.enemies) { const A = !o.dead && o !== e && W.cfg.enemies[o.type].aura; if (A && len(o.x - e.x, o.z - e.z) < A.r) k = Math.max(k, 1 + A.dmg); }
+  return k;
+}
 // точки сбора и повозки (этап 6) — на карте поверхности
 function withLife(map, cfg) { map.nodes = nodesOf(map, cfg); map.coaches = coachesOf(map, cfg); return map; }
 export function spawnEnemy(W, type, x, z, mode = null) {
@@ -164,7 +171,7 @@ function spawnRing(W) {
   { const pl = placeAt(W.map, x, z); if (pl && pl.safe) return false; }   // и в безопасных местах
   if (W.map.river && waterDist(W.map.river, x, z) < 1) return false;      // и в реке
   if (inCliff(W.map.plateaus, x, z, 1)) return false;                     // и в стене обрыва
-  const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)] || (W.cfg.enemies.biomes || {})[biomeAt(W.cfg, x, z)], posts = W.cfg.enemies.posts.modes;     // вне областей — по биому большого мира
+  const reg = W.cfg.enemies.regions[regionOf(W.map, x, z)] || (W.cfg.enemies.zones || {})[(zoneAt(W.cfg, x, z) || {}).id] || (W.cfg.enemies.biomes || {})[biomeAt(W.cfg, x, z)], posts = W.cfg.enemies.posts.modes;     // вне областей — по биому большого мира
   const pick = reg ? pickEntry(reg.filter(a => (a[2] !== 'night' || W.night) && (!a[3] || posts)), W.rng) : null;      // 'night' — только ночью; сторожа и патрули — если включены
   const type = pick ? pick[0] : W.rng() < W.cfg.enemies.brutePart ? 'brute' : 'imp';
   if (!RM || (pick && pick[3])) { spawnEnemy(W, type, x, z, pick && pick[3] || null); return; }
@@ -728,9 +735,9 @@ function updateEnemies(W, dt) {
       if (e.t >= C.wind) {
         e.state = 'rec'; e.t = 0;
         const ta = e.tgt && W.allies.find(a => a.id === e.tgt && !a.dead);
-        if (ta) { if (len(ta.x - e.x, ta.z - e.z) <= C.range + .9) hurtAlly(W, ta, Math.round(C.damage * (e.dmgMul || 1)), e); }
+        if (ta) { if (len(ta.x - e.x, ta.z - e.z) <= C.range + .9) hurtAlly(W, ta, Math.round(C.damage * (e.dmgMul || 1) * auraMul(W, e)), e); }
         else if (C.ranged) { if (!p.dead) rangedFire(W, e, C); }
-        else if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z)) { const dm = Math.round(C.damage * (e.dmgMul || 1)); if (hurtPlayer(W, dm, e.x, e.z, e.onx || C.on, e)) eliteOnHit(W, e, dm); }
+        else if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z)) { const dm = Math.round(C.damage * (e.dmgMul || 1) * auraMul(W, e)); if (hurtPlayer(W, dm, e.x, e.z, e.onx || C.on, e)) eliteOnHit(W, e, dm); }
         W.ev.push({ k: 'strike', x: e.x, z: e.z, id: e.id });
       }
     } else if (e.state === 'rec') {

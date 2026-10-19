@@ -16,8 +16,9 @@ const enter = (W, id) => { const d = W.cfg.dungeons.list.find(q => q.id === id);
 const bossIn = (W, type) => W.enemies.find(e => e.boss && e.type === type);
 
 // ---------- 1. данные ----------
-ok(I.length === 2 && I.find(d => d.id === 'inst_brod') && I.find(d => d.id === 'inst_olkh'), 'нет двух подземелий Акта I');
-ok(BL.filter(b => b.inst === 'inst_brod').length === 3 && BL.filter(b => b.inst === 'inst_olkh').length === 4, 'боссов не 3 и 4');
+const WANT = { inst_brod: 3, inst_olkh: 4, inst_moss: 3, inst_pass: 3, inst_forge: 3 };     // Акт I — два, Акт II (этап 7) — три
+ok(I.length === Object.keys(WANT).length && Object.entries(WANT).every(([id, n]) => I.some(d => d.id === id) && BL.filter(b => b.inst === id).length === n), 'подземелья или число боссов не те');
+for (const d of I.filter(q => q.id !== 'inst_brod')) { const T = CFG3.instances.list.find(q => q.id === d.id), z = zoneAt(CFG3, d.at.x, d.at.z), lv = zoneLevel(CFG3, d.at.x, d.at.z); ok(z && z.id === T.zone && Math.abs(lv - T.lv) <= 1.5, `${d.id}: вход не в зоне ${T.zone} ур. ${T.lv} (${z && z.id}, ${lv && lv.toFixed(1)})`); }
 for (const b of BL) { ok(b.loot && b.loot.length >= 2 && b.loot.every(id => BY_ID[id] && BY_ID[id].boss === b.type && BY_ID[id].pool === 'dungeon'), `${b.type}: своей добычи нет`); ok(CFG3.enemies[b.type] && CFG3.enemies[b.type].boss, `${b.type}: нет врага-босса`); }
 { const kinds = new Set(BL.flatMap(b => b.attacks.map(a => a.kind))), ph = BL.flatMap(b => b.phases);
   for (const k of ['slam', 'nova', 'charge', 'beam', 'pools', 'cast']) ok(kinds.has(k), 'механика не используется: ' + k);
@@ -84,6 +85,8 @@ function fight(b, seed, party) {
     const z = (W.bzones || []).find(q => Math.hypot(q.x - p.x, q.z - p.z) < q.r + .8); if (z) { const zx = p.x - z.x, zz = p.z - z.z, zd = Math.hypot(zx, zz) || 1; inp.mx = zx / zd; inp.mz = zz / zd; inp.attackPress = false; }     // «не стой в огне»
     if (B.state === 'beam' || (B.state === 'wind' && B.atk.kind === 'beam')) { const a = B.atk, side = (p.x - e.x) * a.dz - (p.z - e.z) * a.dx, ahead = (p.x - e.x) * a.dx + (p.z - e.z) * a.dz; if (ahead > 0 && Math.abs(side) < a.width / 2 + 1.5) { const s = side >= 0 ? 1 : -1; inp.mx = a.dz * s; inp.mz = -a.dx * s; inp.attackPress = false; } }     // с линии луча — вбок
     for (const m of W.enemies) if (!m.boss && !m.dead && Math.hypot(m.x - p.x, m.z - p.z) < 4 && !z) { inp.mx = m.x - p.x; inp.mz = m.z - p.z; inp.attackPress = true; }
+    if (B.shield && !z) { const m = B.minions.filter(q => !q.dead).sort((u, v) => Math.hypot(u.x - p.x, u.z - p.z) - Math.hypot(v.x - p.x, v.z - p.z))[0];     // щит: сперва подмога
+      if (m) { const md = Math.hypot(m.x - p.x, m.z - p.z) || 1; inp.mx = (m.x - p.x) / md; inp.mz = (m.z - p.z) / md; inp.attackPress = md < CFG3.player.attackRange + W.gear.reach + CFG3.enemies[m.type].radius * .5 + .3; } }
     step(W, 1 / 60, inp); if (p.dead) return { win: false, t: i / 60 };
     void e0;
   }

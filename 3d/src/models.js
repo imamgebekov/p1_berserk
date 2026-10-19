@@ -175,6 +175,14 @@ const LOOKS = {
   alaric: { soldier: 'alaric' },     // поединок Акта I: модель бойца в белом
   chief: { shape: 'brute', body: '#5a2c24', dark: '#2a1210', eye: '#ffc030', crown: '#d8c8a8' },
   ashking: { shape: 'brute', body: '#3a302c', dark: '#140e0c', eye: '#ffd040', crown: '#f0c040', prop: 'shield' },     // павшие города (2026-10-18)
+  kad_soldier: { soldier: 'kad_soldier' }, kad_xbow: { soldier: 'kad_xbow' }, kad_spear: { soldier: 'kad_spear' }, kad_banner: { soldier: 'kad_banner' }, alaric2: { soldier: 'alaric' },     // Акт II (этап 7): люди — облик бойца
+  drowned: { shape: 'ghoul', body: '#3a5a5a', dark: '#14262a', eye: '#a8ffe0' }, golem: { shape: 'brute', body: '#3a2a22', dark: '#140c08', eye: '#ffa030', crown: '#ff7a20' },
+  blackdog: { shape: 'hound', body: '#1e1a1c', dark: '#0a0808', eye: '#ff3a2a' }, garm: { shape: 'hound', body: '#2a1e1e', dark: '#0c0606', eye: '#ff2a1a', crown: '#4a3a30' },
+  sapper: { shape: 'brute', body: '#3a4a6a', dark: '#141c2a', eye: '#ffb040', crown: '#c87a30' }, drownedmaid: { shape: 'imp', body: '#3a5a5a', dark: '#102020', eye: '#a8ffe0', crown: '#8ac8c0', ghost: true },
+  silt: { shape: 'ghoul', body: '#3a4a30', dark: '#141a0c', eye: '#d8ff60', crown: '#6a7a40' }, gatewarden: { shape: 'brute', body: '#2c3e64', dark: '#101828', eye: '#ffd040', crown: '#a8b0c0', prop: 'shield' },
+  gneis: { shape: 'imp', body: '#2c3e64', dark: '#0c1424', eye: '#ffe080', crown: '#d8c060' }, borot: { shape: 'brute', body: '#24427a', dark: '#0c1830', eye: '#ffd040', crown: '#8aa8e8', prop: 'shield' },
+  armorer: { shape: 'brute', body: '#4a3a30', dark: '#1c140e', eye: '#ffa040', crown: '#a0a0a0' }, firegolem: { shape: 'brute', body: '#3a2016', dark: '#100604', eye: '#ffd040', crown: '#ff6a10' },
+  smelter: { shape: 'brute', body: '#5a3a24', dark: '#1e120a', eye: '#ffe060', crown: '#ff8a20', prop: 'shield' },
   gravekeeper: { shape: 'ghoul', body: '#4a4436', dark: '#1e1a12', eye: '#c8ff60', crown: '#8a7a5a' },     // боссы подземелий (этап 5)
   ashsister: { shape: 'imp', body: '#4a4440', dark: '#1a1614', eye: '#ffb060', crown: '#d8d0c0', ghost: true },
   boneshepherd: { shape: 'bones', body: '#b8ae96', dark: '#4a4234', eye: '#ff5030', crown: '#e8e0c8' },
@@ -560,8 +568,8 @@ export function makeCart(wanderer = true) {
 }
 
 // боец отряда: цвет накидки и оружие зависят от вида
-export function makeSoldier(type, cfg) {
-  const T = cfg.squad.types[type], mats = [];
+export function makeSoldier(type0, cfg) {
+  const T = cfg.squad.types[type0], type = T.look || type0, mats = [];     // look — вид оружия (этап 7: войско Кадмии и короля)
   const M = c => { const m = lam(c); mats.push(m); return m; };
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const tint = M(T.tint), metal = M('#8a8f98'), skin = M('#cdb89a'), dark = M('#2a2420'), cloth = M('#4a3a2c');

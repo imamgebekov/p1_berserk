@@ -201,9 +201,10 @@ function onEvent(v) {
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
   else if (v.k === 'place') showPlace(v.place);
   else if (v.k === 'storyGoal') { toast(`${v.name}: ${v.text}`, '', '#e8c04a', 'scroll'); sfx('questready'); }     // сюжет (этап 3)
-  else if (v.k === 'storyDone') { toast(v.end ? 'Акт I «Наёмник» пройден. Отряд идёт на войну' : `Сцена пройдена: ${v.name}`, '', '#ffd27a', 'scroll'); sfx('questdone'); }
+  else if (v.k === 'storyDone') { toast(v.end ? ({ 1: 'Акт I «Наёмник» пройден. Отряд идёт на войну', 2: 'Акт II «Война» пройден. Вы ушли из отряда' })[v.act] || 'Акт пройден' : `Сцена пройдена: ${v.name}`, '', '#ffd27a', 'scroll'); sfx('questdone'); }
   else if (v.k === 'storyWave') toast(`Волна ${v.n} из ${v.of}`, 'bad', '#ff9a6a', 'warn');
-  else if (v.k === 'storyFail') toast(`Брод не удержан. Поговорите с Алариком снова`, 'bad', '#ff8a6a', 'warn');
+  else if (v.k === 'storyFail') toast(v.text || 'Не вышло. Поговорите снова', 'bad', '#ff8a6a', 'warn');
+  else if (v.k === 'storyEscape') toast(`${v.name} уходит, раненый`, '', '#ffd27a', 'warn');     // этап 7
   else if (v.k === 'drop') { const it = BY_ID[v.id]; if (it && it.rar >= 3) { toast(`Выпало: ${it.name}`, '', RARITY[it.rar].color, 'gem'); sfx(it.rar >= 4 ? 'brand' : 'rare'); } }
   else if (v.k === 'key') toast(`Ключ на связке: ${cfg.dungeons.keys[v.key] || 'ключ'}`, '', '#e8c04a', 'key');
   else if (v.k === 'doorLocked') toast(`Заперто: нужен ${cfg.dungeons.keys[v.key] || 'ключ'}`, 'bad');

@@ -315,8 +315,31 @@ const DUN = [
   ['d_boots_wolf', 'a_boots_greaves_black', 'Поступь Серых', 'greywolf', { armor: 8, spd: 5 }, 'Шаг становится тише и шире.'],
   ['d_crown_oak', 'a_head_helm_black', 'Ольховая Корона', 'oakking', { armor: 10, hp: 28, crit: 3 }, 'Корона короля, которого лес короновал сам.'],
   ['d_greatsword_oak', 'w_greatsword_black', 'Меч Ольхового Короля', 'oakking', { dmg: 26, reach: .6, crit: 7, swing: 1.25 }, 'Клинок с прожилками, как у листа. Тяжёл и честен.'],
-  ['d_amulet_oak', 'm_talisman_blood', 'Жёлудь Кургана', 'oakking', { hp: 34, armor: 4 }, 'Тёплый жёлудь в оправе. Говорят, из него вырастет новый лес.', '#9ab050']
+  ['d_amulet_oak', 'm_talisman_blood', 'Жёлудь Кургана', 'oakking', { hp: 34, armor: 4 }, 'Тёплый жёлудь в оправе. Говорят, из него вырастет новый лес.', '#9ab050'],
+  // Акт II (этап 7)
+  ['d_fuse_sapper', 'w_dagger_black', 'Фитильный нож', 'sapper', { dmg: 10, reach: -.7, crit: 12, swing: .75 }, 'Им минёр резал запалы. Пахнет порохом.'],
+  ['d_apron_sapper', 'a_body_robe_black', 'Фартук минёра', 'sapper', { armor: 9, hp: 32 }, 'Кожа в подпалинах. Держит искру и осколок.'],
+  ['d_veil_drowned', 'a_head_hood_black', 'Мокрый покров', 'drownedmaid', { armor: 7, crit: 6, hp: 16 }, 'Никогда не высыхает.'],
+  ['d_wand_drowned', 'w_wand_black', 'Жезл Глубины', 'drownedmaid', { dmg: 14, crit: 12, swing: .85 }, 'Холодный, как вода в колодце.'],
+  ['d_staff_silt', 'w_staff_black', 'Посох Ила', 'silt', { dmg: 23, crit: 5, swing: 1.2, hp: 16 }, 'Сквозь дерево сочится ил. Тяжёл и терпелив.'],
+  ['d_ring_silt', 'r_ring_blood', 'Илистое кольцо', 'silt', { hp: 30, leech: 2 }, 'Тусклое, будто со дна.', '#7a8a6a'],
+  ['d_bow_silt', 'w_longbow_black', 'Лук Затонувших', 'silt', { dmg: 24, crit: 9, swing: 1.15 }, 'Тетива из водорослей. Странно, но держит.'],
+  ['d_plate_gate', 'a_body_plate_black', 'Латы Привратника', 'gatewarden', { armor: 26, hp: 24, spd: -3 }, 'Тяжёлые, как сами ворота.'],
+  ['d_mace_gate', 'w_mace_black', 'Ключ Ворот', 'gatewarden', { dmg: 18, reach: -.2, crit: 2, swing: 1.05 }, 'Булава, которой отпирали чужие головы.'],
+  ['d_cloak_gneis', 'a_cloak_pelt_black', 'Плащ коменданта', 'gneis', { armor: 9, hp: 34, spd: 2 }, 'Тёплый и ни разу не видавший боя.'],
+  ['d_xbow_gneis', 'w_crossbow_black', 'Арбалет Гнейса', 'gneis', { dmg: 28, crit: 4 }, 'Гнейс берёг его для охоты. Стрелял редко.'],
+  ['d_maul_borot', 'w_hammer_black', 'Синяя булава Борота', 'borot', { dmg: 27, reach: -.1, crit: 3, swing: 1.25 }, 'Честный враг — честное оружие.'],
+  ['d_helm_borot', 'a_head_helm_black', 'Шлем Синих', 'borot', { armor: 12, hp: 30 }, 'Вмятина на виске — от твоего удара.'],
+  ['d_amulet_borot', 'm_talisman_blood', 'Знак Синего Клинка', 'borot', { hp: 38, armor: 5 }, 'Синий камень в железе. Так метят лучших в Кадмии.', '#4a6aa8'],
+  ['d_sword_armorer', 'w_sword_black', 'Клинок пробы', 'armorer', { dmg: 18, crit: 7 }, 'Этим мечом проверяли, крепка ли броня. Броня проигрывала.'],
+  ['d_boots_armorer', 'a_boots_greaves_black', 'Кованые сапоги', 'armorer', { armor: 10, spd: 2 }, 'Сделаны под марш, а не под парад.'],
+  ['d_core_golem', 'm_talisman_blood', 'Тлеющее ядро', 'firegolem', { hp: 30, crit: 4 }, 'Тёплое в любой мороз.', '#e86a2a'],
+  ['d_staff_golem', 'w_staff_black', 'Посох Горна', 'firegolem', { dmg: 25, crit: 6, swing: 1.2 }, 'В навершии ещё тлеет угль.'],
+  ['d_greatsword_smelt', 'w_greatsword_black', 'Литой двуручник', 'smelter', { dmg: 29, reach: .6, crit: 7, swing: 1.25 }, 'Отлит целиком. Ни одного шва.'],
+  ['d_plate_smelt', 'a_body_plate_black', 'Литая кираса', 'smelter', { armor: 28, hp: 30, spd: -3 }, 'Тяжела, но удар по ней звенит и уходит.'],
+  ['d_bow_smelt', 'w_bow_black', 'Лук из пружинной стали', 'smelter', { dmg: 17, crit: 8, swing: .9 }, 'Сталь вместо рога. Бьёт зло и быстро.']
 ];
+{ const B = ITEMS.find(i => i.id === 'r_ring_blood'); add({ ...B, id: 'r_seal_veligrad', name: 'Перстень Велиграда', pool: 'story', rar: 3, stats: { hp: 40, crit: 4, armor: 4 }, value: 600, tint: '#d8b860', text: 'Королевский перстень графа Пепельного. Его оставили на столе, уходя.' }); }     // награда Акта II
 for (const [id, b, name, boss, stats, text, tint] of DUN) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'dungeon', rar: 3, boss, stats, value: B.value * 2.2, text, ...(tint ? { tint } : {}) }); }     // tint — свой цвет значка у кольца и амулета
 export const CATALOG = ITEMS;
 export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));

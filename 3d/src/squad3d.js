@@ -166,11 +166,11 @@ function pickTarget(W, a, T, P, enemies) {
   return tgt;
 }
 export function updateAllies(W, dt) {
-  const S = W.cfg.squad, p = W.player, P = partyOf(W), live = liveAllies(W), enemies = W.enemies.filter(e => !e.dead);
+  const S = W.cfg.squad, p = W.player, P = partyOf(W), live = W.allies.filter(a => !a.dead && !a.guest), enemies = W.enemies.filter(e => !e.dead);     // в бою и строю — и герои сюжета (этап 7: раньше они стояли)
   for (let i = W.allies.length - 1; i >= 0; i--) { const a = W.allies[i]; if (a.dead) { a.deadT += dt; if (a.deadT > 1.4) W.allies.splice(i, 1); } }
   const back = () => { P.cmd = 'follow'; P.mark = 0; W.ev.push({ k: 'squadCmd', cmd: 'follow', auto: true }); };
   if (P.cmd === 'assist' && !enemies.some(e => e.id === P.mark)) back();                 // метка пала — снова за героем
-  else if (P.cmd === 'hold' && (!live.length || len(p.x - P.hx, p.z - P.hz) > S.cmd.far)) back();     // герой ушёл далеко — догоняют
+  else if (P.cmd === 'hold' && (!liveAllies(W).length || len(p.x - P.hx, p.z - P.hz) > S.cmd.far)) back();     // герой ушёл далеко — догоняют
   updateShots(W, dt);
   live.forEach((a, idx) => {
     const T = S.types[a.type];

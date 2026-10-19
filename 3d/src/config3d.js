@@ -239,7 +239,7 @@ const BASE = {
   stones: {
     sockets: [0, 0, 1, 1, 2, 2], drop: .05, danger: .02, elite: .5, rain: 'water',
     of: { imp: 'fire', brute: 'earth', hound: 'blood', ghoul: 'venom', archer: 'storm', witch: 'fire', shield: 'earth', bomber: 'fire', lunger: 'blood', shade: 'ice' },
-    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
+    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', sapper: 'fire', drownedmaid: 'water', silt: 'venom', gatewarden: 'earth', gneis: 'storm', borot: 'blood', armorer: 'earth', firegolem: 'fire', smelter: 'fire', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
     fuse: { n: 3, ash: [40, 150] }, unsocket: [15, 50, 150],
     // гнёзда в броне (2026-10-18): шлем, доспех, плащ, сапоги; гнёзд по редкости sockets; камень даёт характеристику стихии по рангу (stat),
     // огонь, яд и кровь ещё ослабляют на герое горение, яд и кровотечение (res по рангу, сумма не больше resMax)
@@ -435,7 +435,7 @@ const BASE = {
         { id: 'band', name: 'Пепельные Крылья', text: 'Отряд Аларика.' }, { id: 'olkh', name: 'Ольховые общины', text: 'Посёлки за ядром.' }],
       tiers: [[0, 'Нейтралитет'], [500, 'Дружелюбие'], [1500, 'Уважение'], [3500, 'Почтение'], [7500, 'Восхищение']],
       quest: 250, scene: 300, kill: 2, elite: 6, boss: 150, dungeon: 200, brodDiscount: .05,
-      givers: { merchant: 'brod', smith: 'brod', captain: 'zastava', irma: 'band', timka: 'band', kord: 'band', alaric: 'band' },
+      givers: { merchant: 'brod', smith: 'brod', captain: 'zastava', irma: 'band', timka: 'band', kord: 'band', alaric: 'band', quarter: 'zastava' },
       dungeons: { inst_brod: 'zastava', inst_olkh: 'olkh' },
       rewards: [
         { f: 'zastava', tier: 1, mount: true, name: 'Конь Заставы', ash: 600, text: 'Быстрее в пути. Удар или перекат — спешиться.' },
@@ -493,9 +493,65 @@ const BASE = {
             attacks: [{ kind: 'beam', wind: 1.2, len: 16, width: 1.8, dur: 4.5, sweep: .8, mul: .9, cd: 11, range: 99 }, { kind: 'slam', wind: .9, r: 4.8, mul: 1.1, cd: 3, range: 5.2 },
               { kind: 'cast', name: 'Гнев леса', wind: 2.8, r: 99, mul: 2.2, cd: 15, range: 99 }, { kind: 'pools', wind: .8, n: 3, r: 2.6, dur: 9, mul: .5, cd: 10, range: 99 }],
             phases: [{ at: .7, summon: { type: 'brute', n: 2 }, shield: true }, { at: .4, summon: { type: 'hound', n: 3 } }, { at: .25, enrage: true }] }
+        ] },
+      // Акт II (этап 7): по подземелью на зону — та же раскладка залов, что у Катакомб (b1–b3 — залы боссов)
+      { id: 'inst_moss', name: 'Затонувшая часовня', zone: 'moss', lv: 26, level: 26, base: 26, depth: 1.15, danger: 3,
+        rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
+          { id: 'b1', x: 36, z: 0, w: 14, d: 14 }, { id: 'c3', x: 36, z: -11, w: 2.4, d: 8 }, { id: 'niches', x: 36, z: -21, w: 12, d: 12 }, { id: 'c4', x: 36, z: -31, w: 2.4, d: 8 },
+          { id: 'b2', x: 36, z: -42, w: 14, d: 14 }, { id: 'c5', x: 47, z: -42, w: 8, d: 2.4 }, { id: 'b3', x: 61, z: -42, w: 20, d: 20 }],
+        doors: [], entry: { x: -2.5, z: 0 }, exit: { x: -4, z: 1.6 },
+        foes: [['drowned', 4], ['kad_soldier', 2], ['kad_xbow', 1], ['ghoul', 1]], spawns: [{ room: 'gallery', n: 4 }, { room: 'niches', n: 4 }, { room: 'c5', n: 1, type: 'drowned' }],
+        chests: [{ kind: 'coffer', x: 21, z: 3.5 }, { kind: 'grave', x: 40, z: -25 }, { kind: 'altar', x: 69, z: -42 }],
+        bosses: [
+          { type: 'sapper', room: 'b1', loot: ['d_fuse_sapper', 'd_apron_sapper'],
+            attacks: [{ kind: 'slam', wind: .8, r: 3.8, mul: 1, cd: 3, range: 4.5 }, { kind: 'charge', wind: .8, len: 12, width: 2.6, mul: 1.1, cd: 6, range: 14 }, { kind: 'pools', wind: .8, n: 3, r: 2.4, dur: 8, mul: .55, cd: 9, range: 99 }],
+            phases: [{ at: .3, enrage: true }] },
+          { type: 'drownedmaid', room: 'b2', loot: ['d_veil_drowned', 'd_wand_drowned'],
+            attacks: [{ kind: 'cast', name: 'Зов глубины', wind: 2.8, r: 99, mul: 3.2, cd: 12, range: 99 }, { kind: 'nova', wind: 1.1, r: 7.5, inner: 2.5, mul: 1, cd: 8, range: 99 }, { kind: 'slam', wind: .7, r: 3.4, mul: .9, cd: 3, range: 4 }],
+            phases: [{ at: .5, summon: { type: 'drowned', n: 3 } }, { at: .25, enrage: true }] },
+          { type: 'silt', room: 'b3', loot: ['d_staff_silt', 'd_ring_silt', 'd_bow_silt'],
+            attacks: [{ kind: 'beam', wind: 1.2, len: 14, width: 1.8, dur: 4, sweep: .7, mul: .9, cd: 12, range: 99 }, { kind: 'slam', wind: .9, r: 4.5, mul: 1.1, cd: 3, range: 5 }, { kind: 'pools', wind: .8, n: 3, r: 2.5, dur: 8, mul: .5, cd: 10, range: 99 }],
+            phases: [{ at: .6, summon: { type: 'drowned', n: 3 }, shield: true }, { at: .3, enrage: true }] }
+        ] },
+      { id: 'inst_pass', name: 'Твердыня Перевала', zone: 'foot', lv: 30, level: 30, base: 30, depth: 1.25, danger: 3,
+        rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
+          { id: 'b1', x: 36, z: 0, w: 14, d: 14 }, { id: 'c3', x: 36, z: -11, w: 2.4, d: 8 }, { id: 'niches', x: 36, z: -21, w: 12, d: 12 }, { id: 'c4', x: 36, z: -31, w: 2.4, d: 8 },
+          { id: 'b2', x: 36, z: -42, w: 14, d: 14 }, { id: 'c5', x: 47, z: -42, w: 8, d: 2.4 }, { id: 'b3', x: 61, z: -42, w: 20, d: 20 }],
+        doors: [], entry: { x: -2.5, z: 0 }, exit: { x: -4, z: 1.6 },
+        foes: [['kad_soldier', 3], ['kad_xbow', 2], ['kad_spear', 2], ['kad_banner', 1]], spawns: [{ room: 'gallery', n: 4 }, { room: 'niches', n: 4 }, { room: 'c5', n: 1, type: 'kad_banner' }],
+        chests: [{ kind: 'ironchest', x: 21, z: 3.5 }, { kind: 'chest', x: 40, z: -25 }, { kind: 'ironchest', x: 69, z: -42 }],
+        bosses: [
+          { type: 'gatewarden', room: 'b1', loot: ['d_plate_gate', 'd_mace_gate'],
+            attacks: [{ kind: 'charge', wind: .9, len: 13, width: 2.8, mul: 1.1, cd: 6, range: 15 }, { kind: 'slam', wind: .8, r: 4.2, mul: 1, cd: 3, range: 4.8 }],
+            phases: [{ at: .5, summon: { type: 'kad_soldier', n: 2 } }, { at: .3, enrage: true }] },
+          { type: 'gneis', room: 'b2', loot: ['d_cloak_gneis', 'd_xbow_gneis'],
+            attacks: [{ kind: 'cast', name: 'Приказ стрелкам', wind: 2.5, r: 99, mul: 3, cd: 11, range: 99 }, { kind: 'nova', wind: 1, r: 7, inner: 2.4, mul: 1, cd: 8, range: 99 }, { kind: 'slam', wind: .6, r: 3.2, mul: .9, cd: 2.5, range: 3.6 }],
+            phases: [{ at: .7, summon: { type: 'kad_xbow', n: 2 }, shield: true }, { at: .3, enrage: true }] },
+          { type: 'borot', room: 'b3', loot: ['d_maul_borot', 'd_helm_borot', 'd_amulet_borot'],
+            attacks: [{ kind: 'slam', wind: .9, r: 5, mul: 1.2, cd: 3, range: 5.5 }, { kind: 'charge', wind: .9, len: 14, width: 3, mul: 1.2, cd: 6, range: 16 }, { kind: 'nova', wind: 1.2, r: 8, inner: 2.8, mul: 1, cd: 9, range: 99 }],
+            phases: [{ at: .5, summon: { type: 'kad_soldier', n: 2 } }, { at: .3, enrage: true }] }
+        ] },
+      { id: 'inst_forge', name: 'Ржавая кузня', zone: 'rust', lv: 33, level: 33, base: 33, depth: 1.35, danger: 3,
+        rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
+          { id: 'b1', x: 36, z: 0, w: 14, d: 14 }, { id: 'c3', x: 36, z: -11, w: 2.4, d: 8 }, { id: 'niches', x: 36, z: -21, w: 12, d: 12 }, { id: 'c4', x: 36, z: -31, w: 2.4, d: 8 },
+          { id: 'b2', x: 36, z: -42, w: 14, d: 14 }, { id: 'c5', x: 47, z: -42, w: 8, d: 2.4 }, { id: 'b3', x: 61, z: -42, w: 20, d: 20 }],
+        doors: [], entry: { x: -2.5, z: 0 }, exit: { x: -4, z: 1.6 },
+        foes: [['golem', 2], ['blackdog', 2], ['kad_soldier', 2], ['bomber', 2]], spawns: [{ room: 'gallery', n: 4 }, { room: 'niches', n: 4 }, { room: 'c5', n: 1, type: 'golem' }],
+        chests: [{ kind: 'ironchest', x: 21, z: 3.5 }, { kind: 'coffer', x: 40, z: -25 }, { kind: 'ironchest', x: 69, z: -42 }],
+        bosses: [
+          { type: 'armorer', room: 'b1', loot: ['d_sword_armorer', 'd_boots_armorer'],
+            attacks: [{ kind: 'slam', wind: .8, r: 4.2, mul: 1, cd: 3, range: 4.8 }, { kind: 'pools', wind: .8, n: 3, r: 2.4, dur: 8, mul: .55, cd: 9, range: 99 }, { kind: 'charge', wind: .9, len: 12, width: 2.6, mul: 1.1, cd: 7, range: 14 }],
+            phases: [{ at: .3, enrage: true }] },
+          { type: 'firegolem', room: 'b2', loot: ['d_core_golem', 'd_staff_golem'],
+            attacks: [{ kind: 'beam', wind: 1.1, len: 14, width: 1.8, dur: 4, sweep: .9, mul: .9, cd: 11, range: 99 }, { kind: 'nova', wind: 1.1, r: 7.5, inner: 2.6, mul: 1, cd: 8, range: 99 }, { kind: 'slam', wind: .8, r: 4, mul: 1, cd: 3, range: 4.6 }],
+            phases: [{ at: .5, summon: { type: 'golem', n: 1 }, shield: true }, { at: .25, enrage: true }] },
+          { type: 'smelter', room: 'b3', loot: ['d_greatsword_smelt', 'd_plate_smelt', 'd_bow_smelt'],
+            attacks: [{ kind: 'cast', name: 'Литьё', wind: 2.8, r: 99, mul: 3.4, cd: 13, range: 99 }, { kind: 'pools', wind: .8, n: 4, r: 2.4, dur: 8, mul: .55, cd: 9, range: 99 }, { kind: 'slam', wind: .9, r: 4.8, mul: 1.1, cd: 3, range: 5.2 }],
+            phases: [{ at: .7, summon: { type: 'golem', n: 2 }, shield: true }, { at: .3, enrage: true }] }
         ] }
     ]
   },
+
   squad: {
     baseMax: 1, perLevels: 8, cap: 4, follow: 2.8, leash: 30, sight: 13, regen: 1.2, fireRegen: 7, xpShare: .5,
     // отряд-спутники (этап 4): бойцы растут с уровнем героя — здоровье и урон × (1 + lvHp/lvDmg × (ур − 1))
@@ -521,6 +577,13 @@ const BASE = {
       timka:   { name: 'Тимка', story: true, hp: 300, dmg: 26, speed: 5.4, range: 1.9, wind: .28, recover: .45, cost: 0, tint: '#4a5a34', text: 'Разведчик отряда.' },
       kord:    { name: 'Корд', story: true, hp: 600, dmg: 40, speed: 4.4, range: 2.4, wind: .42, recover: .6, cost: 0, tint: '#5a3a2a', text: 'Здоровяк с молотом.' },
       alaric:  { name: 'Аларик Белый', story: true, hp: 500, dmg: 38, speed: 5.4, range: 2.2, wind: .3, recover: .45, cost: 0, tint: '#d8d2c6', text: 'Вожак «Пепельных Крыльев».' },
+      // Акт II (этап 7): облики войска Кадмии (только модель: look — вид оружия бойца), королевские латники в битвах строем, таран осады
+      kad_soldier: { name: 'Латник Кадмии', story: true, look: 'soldier', hp: 300, dmg: 20, speed: 4, range: 2, wind: .4, recover: .6, cost: 0, tint: '#2c4a7a', text: '' },
+      kad_xbow: { name: 'Арбалетчик Кадмии', story: true, look: 'guard', hp: 200, dmg: 15, speed: 4, range: 2, wind: .4, recover: .6, cost: 0, tint: '#3a5a8a', text: '' },
+      kad_spear: { name: 'Копейщик Кадмии', story: true, look: 'guard', hp: 260, dmg: 18, speed: 4, range: 2, wind: .4, recover: .6, cost: 0, tint: '#24406a', text: '' },
+      kad_banner: { name: 'Знаменосец Кадмии', story: true, look: 'veteran', hp: 400, dmg: 20, speed: 4, range: 2, wind: .4, recover: .6, cost: 0, tint: '#1c3a6a', text: '' },
+      kingsman: { name: 'Латник Велиграда', story: true, look: 'soldier', hp: 700, dmg: 34, speed: 4.4, range: 2.1, wind: .38, recover: .55, cost: 0, tint: '#8a6a20', text: 'Королевский солдат.' },
+      ram: { name: 'Таран', story: true, hp: 2400, dmg: 0, speed: 1.6, range: 0, wind: 1, recover: 1, cost: 0, tint: '#5a3e26', text: 'Осадный таран.' },
       veteran: { name: 'Ветеран',  role: 'melee', hp: 400, dmg: 42, speed: 4.5, range: 2.5, wind: .4,  recover: .6,  cost: 950, tint: '#2e2e34', text: 'Двуручный меч. Дорог, но страшен.' }
     }
   },
@@ -533,7 +596,7 @@ const BASE = {
         waste: { id: 'rust', name: 'Ржавые пустоши', lv: [31, 35] }, coast: { id: 'grey', name: 'Серый берег', lv: [35, 38] } },
       { coast: { id: 'dusk', name: 'Затмённое побережье', lv: [38, 42] }, forest: { id: 'war', name: 'Поля Великой войны', lv: [42, 46] }, swamp: { id: 'rot', name: 'Гнилые топи', lv: [46, 50] },
         mountains: { id: 'mute', name: 'Горы Безмолвия', lv: [50, 55] }, waste: { id: 'heart', name: 'Сердце Затмения', lv: [55, 60] } }
-    ], hub: { npcs: ['merchant', 'smith'] }, floorStep: 2 },     // floorStep — этаж замка выше зоны у входа на столько уровней
+    ], hub: { npcs: ['merchant', 'smith'], names: { moss: 'Ставка короля' } }, floorStep: 2 },     // names — свои имена узлов (Акт II: Ставка в Мшистых топях)     // floorStep — этаж замка выше зоны у входа на столько уровней
   level: { max: 60, base: 28, pow: 1.3, hpPer: 6, dmgPer: .6, healOnUp: .3,
     // уровни до 60 (этап 0, 2026-10-19): уровень места — из глубины: ядро 1–core, за ядром до edge у края мира; за ядром враги крепче
     // на grow за уровень (здоровье и урон), опыт за убийство — на xp за уровень; il — уровень вещи: стат × (1 + g·ур)/(1 + g·родной),
@@ -742,6 +805,12 @@ const BASE = {
       waste: [['imp', 5], ['brute', 3], ['bomber', 1]],
       coast: [['imp', 4], ['brute', 3], ['archer', 1], ['hound', 1]]
     },
+    // кто бродит по зонам Акта II (этап 7) — важнее биома: Мшистые топи, Предгорья, Ржавые пустоши
+    zones: {
+      moss: [['drowned', 3], ['kad_soldier', 2], ['kad_xbow', 2], ['kad_spear', 1], ['ghoul', 1], ['shade', 1, 'night']],
+      foot: [['kad_soldier', 3], ['kad_xbow', 3], ['kad_spear', 2], ['kad_banner', 1], ['brute', 1]],
+      rust: [['golem', 2], ['blackdog', 3], ['kad_soldier', 2], ['kad_xbow', 2], ['bomber', 1]]
+    },
     // outerK (C3b) заменён уровнем места: config3d.js → level.core/edge/grow (этап 0)
     depthHp: 1.6,          // враги вдали от костра крепче: здоровье × (1 + depthHp × глубина), глубина 0 у костра, 1 у границы
     depthDmg: 1.0,         // и бьют сильнее: урон × (1 + depthDmg × глубина)
@@ -764,6 +833,26 @@ const BASE = {
     thornwitch:   { boss: true, name: 'Терновая Ведьма', g: 'f', xp: 1800, hp: 11000, speed: 3.6, damage: 46, range: 2.6, wind: .55, recover: .8, radius: 1.0, scale: 2.0, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .7, 4, 5] },
     greywolf:     { boss: true, name: 'Вожак Серых',        xp: 1800, hp: 9500,  speed: 5.0, damage: 50, range: 2.4, wind: .45, recover: .7, radius: 1.1, scale: 2.0, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .8, 4, 4] },
     oakking:      { boss: true, name: 'Ольховый Король',    xp: 3200, hp: 15000, speed: 3.0, damage: 60, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear', 'freeze'], on: ['poison', .8, 5, 5] },
+    // Акт II (этап 7): войско Кадмии (soldier — облик бойца, aura — знаменосец: враги рядом бьют сильнее на dmg), твари топей и кузни, Чёрные Псы
+    kad_soldier: { name: 'Латник Кадмии', ai: 'shield', soldier: 'kad_soldier', xp: 50, hp: 380, speed: 2.6, damage: 30, range: 2, wind: .6, recover: .9, radius: .6, scale: 1.1, guard: { arc: 100, mul: .2, turn: 2.4, breakStun: .9 } },
+    kad_xbow:    { name: 'Арбалетчик Кадмии', soldier: 'kad_xbow', xp: 32, hp: 190, speed: 3, damage: 24, range: 14, wind: 1, recover: 1.4, radius: .45, scale: 1, ranged: { kind: 'arrow', speed: 18, keep: [7, 11] } },
+    kad_spear:   { name: 'Копейщик Кадмии', ai: 'lunge', soldier: 'kad_spear', xp: 42, hp: 270, speed: 2.9, damage: 32, range: 1.9, wind: .6, recover: 1, radius: .5, scale: 1.05, lunge: { min: 4, max: 9, aim: .7, speed: 15, len: 8, w: .9, cd: 3.2, mul: 1.3 }, on: ['bleed', .5, 2.5, 4] },
+    kad_banner:  { name: 'Знаменосец Кадмии', soldier: 'kad_banner', xp: 80, hp: 520, speed: 2.4, damage: 26, range: 2, wind: .7, recover: 1, radius: .6, scale: 1.15, aura: { r: 7, dmg: .25 } },
+    drowned:     { name: 'Утопленник', xp: 40, hp: 320, speed: 2.2, damage: 26, range: 1.8, wind: .6, recover: .9, radius: .55, scale: 1.2, on: ['poison', .7, 3, 5] },
+    golem:       { name: 'Огненный голем', xp: 90, hp: 720, speed: 1.8, damage: 40, range: 2.2, wind: .8, recover: 1.1, radius: .9, scale: 1.8, heavy: true, immune: ['burn'], on: ['burn', .8, 4, 4] },
+    blackdog:    { name: 'Чёрный пёс', xp: 55, hp: 300, speed: 4.6, damage: 30, range: 1.6, wind: .4, recover: .6, radius: .55, scale: 1.15, on: ['bleed', .8, 3, 4] },
+    garm:        { name: 'Гарм Безглазый', ai: 'lunge', xp: 0, hp: 4200, speed: 4.2, damage: 44, range: 2.2, wind: .5, recover: .6, radius: .8, scale: 1.6, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .9, 4, 5], lunge: { min: 3, max: 10, aim: .6, speed: 18, len: 9, w: 1.2, cd: 3, mul: 1.4 } },
+    alaric2:     { name: 'Аларик Белый', ai: 'lunge', soldier: 'alaric', xp: 0, hp: 2600, speed: 5, damage: 44, range: 2.1, wind: .34, recover: .42, radius: .5, scale: 1.05, immune: ['stun'], lunge: { min: 3, max: 8, aim: .45, speed: 17, len: 7, w: .9, cd: 2, mul: 1.4 } },
+    // боссы подземелий Акта II
+    sapper:      { boss: true, name: 'Кадмийский минёр',  xp: 2000, hp: 11500, speed: 3.2, damage: 56, range: 2.8, wind: .6, recover: .85, radius: 1.1, scale: 2.0, heavy: true, immune: ['stun'], on: ['burn', .7, 4, 4] },
+    drownedmaid: { boss: true, name: 'Утопленница', g: 'f', xp: 2000, hp: 9000, speed: 3.4, damage: 46, range: 2.6, wind: .55, recover: .8, radius: 1.0, scale: 2.0, heavy: true, immune: ['stun', 'fear'], on: ['poison', .7, 4, 5] },
+    silt:        { boss: true, name: 'Хозяин Ила',        xp: 3200, hp: 14000, speed: 2.8, damage: 56, range: 3.4, wind: .7, recover: .9, radius: 1.7, scale: 2.8, heavy: true, immune: ['stun', 'fear'], on: ['poison', .8, 5, 5] },
+    gatewarden:  { boss: true, name: 'Привратник Твердыни', xp: 2400, hp: 12000, speed: 3.0, damage: 58, range: 3.2, wind: .7, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun'], on: ['bleed', .7, 4, 4] },
+    gneis:       { boss: true, name: 'Комендант Гнейс',    xp: 2400, hp: 8500, speed: 3.6, damage: 50, range: 2.6, wind: .55, recover: .8, radius: 1.0, scale: 1.9, heavy: true, immune: ['stun', 'fear'] },
+    borot:       { boss: true, name: 'Борот Синий',       xp: 3800, hp: 17000, speed: 3.0, damage: 66, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .8, 5, 5] },
+    armorer:     { boss: true, name: 'Мастер-оружейник',  xp: 2600, hp: 13000, speed: 3.0, damage: 60, range: 3.2, wind: .7, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun'], on: ['burn', .7, 4, 4] },
+    firegolem:   { boss: true, name: 'Сердце Горна',      xp: 2600, hp: 12500, speed: 2.4, damage: 68, range: 3.4, wind: .8, recover: 1, radius: 1.8, scale: 2.8, heavy: true, immune: ['stun', 'fear', 'burn'], on: ['burn', 1, 5, 5] },
+    smelter:     { boss: true, name: 'Плавильщик',        xp: 4200, hp: 16000, speed: 3.0, damage: 70, range: 3.6, wind: .7, recover: .9, radius: 1.8, scale: 2.9, heavy: true, immune: ['stun', 'fear', 'burn'], on: ['burn', .9, 5, 5] },
     bonetyrant: { boss: true, name: 'Костяной Тиран', xp: 3300, hp: 13500, speed: 4, damage: 58, range: 3.3, wind: .6, recover: .8, radius: 1.5, scale: 2.7, heavy: true, immune: ['stun', 'poison'], on: ['bleed', .7, 4, 6] },
     chief:    { boss: true, name: 'Вожак Ржавых',       xp: 1400, hp: 11500, speed: 3.2, damage: 62, range: 3.4, wind: .7, recover: .9, radius: 1.7, scale: 2.7, heavy: true, immune: ['stun'], on: ['bleed', .8, 4, 5] },
     // слух: чем громче герой, тем дальше его слышат. Услышавший идёт к герою, пока тот не уйдёт дальше `lose`

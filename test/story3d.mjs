@@ -16,9 +16,13 @@ function solve(W, c, opt = {}) {
   if (G.type === 'quests') for (const id of G.list.slice(0, G.n)) W.quests[id] = { s: 'done', n: 0, ok: false, t: 0 };
   if (G.type === 'kill') { for (const id of [...S.foes]) { const e = W.enemies.find(q => q.id === id); if (e) killEnemy(W, e); } }
   if (G.type === 'boss') { const d = W.cfg.bosses.list.find(b => b.type === G.boss), e = W.enemies.find(q => q.boss && q.type === G.boss && !q.dead) || spawnEnemy(W, G.boss, d.x, d.z); e.boss = true; e.b = e.b || { minions: [] }; killEnemy(W, e); }
-  if (G.type === 'duel') { const e = W.enemies.find(q => q.duel); if (opt.lose) { W.player.hp = W.player.maxhp * .2; } else e.hp = e.maxhp * .2; }
+  if (G.type === 'duel') { const e = W.enemies.find(q => q.duel && !q.dead); if (!e) { fails.push(c.id + ': нет противника поединка'); return; } if (opt.lose) { W.player.hp = W.player.maxhp * .2; } else e.hp = e.maxhp * .2; }
   if (G.type === 'defend') { W.player.inv = 1e9; for (let i = 0; i < G.t * 10 + 20 && S.st === 'goal'; i++) step(W, .1, {}); }
   if (G.type === 'escort') { const a = W.allies.find(q => q.story), to = storyGoal(W).at; a.x = to.x; a.z = to.z; W.player.x = to.x + 1; W.player.z = to.z; }
+  if (G.type === 'battle') { W.player.inv = 1e9; for (let k = 0; k < 40 && S.st === 'goal'; k++) { const b = W.enemies.find(e => !e.dead && e.type === G.banner && S.foes.includes(e.id)); if (b) killEnemy(W, b); else storyTick(W, G.every); } }
+  if (G.type === 'siege') { const a = W.allies.find(q => q.ram), to = storyGoal(W).at; a.x = to.x; a.z = to.z; }
+  if (G.type === 'talk') for (const k of G.talk) talk(W, k);
+  if (G.type === 'escape') { const e = W.enemies.find(q => q.escapee && !q.dead); e.hp = e.maxhp * (G.yieldFoe - .05); }
   storyTick(W, 1 / 60);
 }
 // 1. полный проход
@@ -26,11 +30,11 @@ function solve(W, c, opt = {}) {
   for (let k = 0; k < ACT.length; k++) { const c = ACT[k], S = W.story; ok(S.i === k && S.st === 'wait', `${c.id}: сцена не ждёт разговора (${S.i}/${S.st})`);
     const g = giverOf(c); if (g) ok(storyActors(W).some(a => a.kind === g && a.mark === '!') || g === 'captain', `${c.id}: у ${g} нет «!»`);
     ok(talk(W, g || 'hostess'), `${c.id}: разговор в начале не открылся`);
-    if (c.goal.type !== 'none') { ok(S.st === 'goal' && storyGoal(W).text.includes(c.name), `${c.id}: цель не началась`); if (c.goal.party) ok(W.allies.filter(a => a.story).length === c.goal.party.length, `${c.id}: отряд не пришёл`); solve(W, c); }
+    if (c.goal.type !== 'none') { ok(S.st === 'goal' && storyGoal(W).text.includes(c.name), `${c.id}: цель не началась`); if (c.goal.party) { const want = c.goal.party.length + (c.goal.army || []).reduce((t, [, n]) => t + n, 0) + (c.goal.type === 'siege' ? 1 : 0); ok(W.allies.filter(a => a.story).length === want, `${c.id}: отряд не пришёл`); } solve(W, c); }
     if (S.st === 'outro') { const ok2 = talk(W, c.outroAt || c.giver); ok(ok2, `${c.id}: разговор в конце не открылся`); }
     ok(W.story.i === k + 1 && !W.allies.some(a => a.story) && !W.duelOn, `${c.id}: сцена не закрылась (${W.story.i}/${W.story.st})`);
     if (k === 3) r0 = W.story; }
-  ok(W.story.st === 'end' && W.inv.bag.some(s => s.id === 'a_cloak_wings'), 'акт не пройден или нет награды'); }
+  ok(W.story.st === 'end' && W.inv.bag.some(s => s.id === 'a_cloak_wings') && W.inv.bag.some(s => s.id === 'r_seal_veligrad'), 'акты не пройдены или нет наград'); }
 // 2. поединок: проигрыш без смерти, победа — свои реплики
 for (const lose of [true, false]) { const W = mk(5); W.story.i = ACT.findIndex(c => c.id === 'duel'); W.player.maxhp = 300; W.player.hp = 300; talk(W, 'alaric');
   const e = W.enemies.find(q => q.duel); ok(e && W.duelOn, 'поединок не начался');
@@ -51,5 +55,5 @@ for (const lose of [true, false]) { const W = mk(5); W.story.i = ACT.findIndex(c
   W.story.i = ACT.findIndex(c => c.id === 'hundred'); W.story.st = 'goal'; createSaver(W, S).write(true); ok(loadSave(40, S).story.st === 'wait', 'оборона в разгаре сохранилась как бой');
   ok(sanitizeStory({ i: 99, st: 'goal' }).st === 'end' && sanitizeStory(null).i === 0, 'чистка сюжета'); }
 
-if (fails.length) { console.error('Сюжет Акта I: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
-console.log(`Сюжет Акта I 3D: OK (${ACT.length} сцен)`);
+if (fails.length) { console.error('Сюжет: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
+console.log(`Сюжет Актов I–II 3D: OK (${ACT.length} сцен)`);
