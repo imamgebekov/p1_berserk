@@ -23,12 +23,16 @@ const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html`;
 
 try {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false });
-  const page = await ctx.newPage(); page.setDefaultTimeout(8000);
+  const page = await ctx.newPage(); page.setDefaultTimeout(30000);
   page.on('console', m => { if (['error', 'warning'].includes(m.type()) && !/GPU stall due to ReadPixels/.test(m.text())) logs.push(m.type() + ': ' + m.text()); });   // ReadPixels — от скриншотов большого окна
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
+  // под нагрузкой кадры редкие и неровные: после действия ждём условия в игре (с запасом), а не фиксированную паузу
+  const waitFor = (f, arg, ms = 10000, pg = page) => pg.waitForFunction(f, arg, { timeout: ms }).then(() => true, () => false);
+  const frames = (n = 3, pg = page) => pg.evaluate(n => new Promise(r => { let k = 0; const f = () => ++k >= n ? r() : requestAnimationFrame(f); requestAnimationFrame(f); }), n);     // n кадров: игра прочитала ввод
+  const booted = (pg, run = true) => waitFor(run => !!window.__b3d && !!window.__b3d.W && (!run || window.__b3d.W.t > 0), run, 30000, pg);     // run — ждать и первых кадров (без выбора героя)
   // «Ретро»: Chromium без видеокарты на полном разрешении Мака рисует медленно, а проверки меряют время и делают снимки;
   // гладкий вид (шаг 2 аудита) проверяется ниже размером холста, тональной кривой и в тестах Safari и прогулки
-  await page.goto(url + '?shot&hero=thorn&retro'); await page.waitForTimeout(1500);
+  await page.goto(url + '?shot&hero=thorn&retro'); await booted(page);
   const ev = (f, arg) => page.evaluate(f, arg);
   const shown = id => ev(id => { const el = document.getElementById(id); return !!el && !el.hidden && getComputedStyle(el).display !== 'none'; }, id);
   const safe = () => ev(() => { const W = window.__b3d.W; W.player.maxhp = W.player.hp = 1e6; W.player.inv = 99; W.enemies.forEach(e => { if (!e.boss) e.dead = true; }); });
@@ -45,42 +49,45 @@ try {
 
   // WASD: вверх = вперёд (−z); на русской раскладке та же физическая клавиша
   const z0 = await ev(() => window.__b3d.W.player.z);
-  // держим W, пока герой не пройдёт метр, но не дольше 2 с: в начале страницы Chromium без видеокарты ещё собирает шейдеры, кадры редкие
-  await page.keyboard.down('KeyW'); let z1 = z0;
-  for (let t = 0; t < 2000 && !(z1 < z0 - 1); t += 100) { await page.waitForTimeout(100); z1 = await ev(() => window.__b3d.W.player.z); }
-  await page.keyboard.up('KeyW');
+  // держим W, пока герой не пройдёт метр: в начале страницы Chromium без видеокарты ещё собирает шейдеры, кадры редкие
+  await page.keyboard.down('KeyW');
+  await waitFor(z0 => window.__b3d.W.player.z < z0 - 1, z0);
+  await page.keyboard.up('KeyW'); const z1 = await ev(() => window.__b3d.W.player.z);
   if (!(z1 < z0 - 1)) bad(`W не ведёт героя вперёд: ${z0.toFixed(2)} → ${z1.toFixed(2)}`);
   await ev(() => dispatchEvent(new KeyboardEvent('keydown', { key: 'ф', code: 'KeyA' })));
-  const x0 = await ev(() => window.__b3d.W.player.x); let x1 = x0;
-  for (let t = 0; t < 2000 && !(x1 < x0 - .8); t += 100) { await page.waitForTimeout(100); x1 = await ev(() => window.__b3d.W.player.x); }
-  await ev(() => dispatchEvent(new KeyboardEvent('keyup', { key: 'ф', code: 'KeyA' })));
+  const x0 = await ev(() => window.__b3d.W.player.x);
+  await waitFor(x0 => window.__b3d.W.player.x < x0 - .8, x0);
+  await ev(() => dispatchEvent(new KeyboardEvent('keyup', { key: 'ф', code: 'KeyA' }))); const x1 = await ev(() => window.__b3d.W.player.x);
   if (!(x1 < x0 - .8)) bad(`на русской раскладке A («ф») не ведёт влево: ${x0.toFixed(2)} → ${x1.toFixed(2)}`);
 
   // мышь: левая — удар по врагу перед героем, правая — перекат
   // смотрим только на этого беса: за 0,9 с рядом могут появиться стайки (G1), и сумма здоровья всех врагов вырастет
   const hp0 = await ev(() => { const b = window.__b3d, p = b.W.player; p.face = Math.PI; window.__imp = b.spawn('imp', p.x, p.z - 1.6); return window.__imp.hp; });
-  await page.mouse.move(720, 450); await page.mouse.down(); await page.waitForTimeout(900); await page.mouse.up();
+  await page.mouse.move(720, 450); await page.mouse.down(); await page.waitForTimeout(900);
+  await waitFor(hp0 => window.__imp.hp < hp0, hp0); await page.mouse.up();     // удар доходит до беса через несколько кадров
   const hp1 = await ev(() => Math.max(0, window.__imp.hp));
   if (!(hp1 < hp0)) bad(`левая кнопка мыши не бьёт: ${hp0} → ${hp1}`);
-  await ev(() => { window.__b3d.W.player.rollCd = 0; });
+  await waitFor(() => { const W = window.__b3d.W, p = W.player; p.atkBuf = 0; return !(W.freeze > 0) && (p.state === 'idle' || p.state === 'run'); });     // в стоп-кадре удара шаг игры пропускается, а ввод уже прочитан — клик пропал бы
+  const tr = await ev(() => { const p = window.__b3d.W.player; p.rollCd = 0; return p.lastRollEnd; });
   await page.mouse.click(720, 450, { button: 'right' });
-  { let rolled = false; for (let i = 0; i < 12 && !rolled; i++) { await page.waitForTimeout(50); rolled = (await ev(() => window.__b3d.W.player.state)) === 'roll'; }     // перекат может встать в очередь за ударом
+  { const rolled = await waitFor(tr => { const p = window.__b3d.W.player; return p.state === 'roll' || p.lastRollEnd > tr; }, tr);     // перекат мог закончиться между проверками: его конец ставит lastRollEnd
     if (!rolled) bad('правая кнопка мыши не катит'); }
-  await page.waitForTimeout(600); await safe();
+  await waitFor(() => window.__b3d.W.player.state !== 'roll'); await safe();
 
   // E у люка: спуск и подъём; на кнопке подписана клавиша
   await ev(() => { const b = window.__b3d, d = b.cfg.dungeons.list.find(q => !q.hidden); b.W.player.x = d.at.x + .6; b.W.player.z = d.at.z; });
-  await page.waitForTimeout(400);
+  await waitFor(() => !document.getElementById('portalBtn').hidden);     // E жмёт кнопку люка, только когда кадр её показал
   const lbl = await ev(() => document.getElementById('portalBtn').textContent);
   if (!/· E$/.test(lbl)) bad('на кнопке люка нет подсказки клавиши: ' + lbl);
   const pr = await ev(() => { const r = document.getElementById('portalBtn').getBoundingClientRect(); return { cx: (r.left + r.right) / 2, b: r.bottom, h: r.height }; });
   if (Math.abs(pr.cx - 720) > 60 || pr.b > 900 || pr.h < 44) bad('кнопка люка не по центру, за экраном или мелкая: ' + JSON.stringify(pr));
   await page.screenshot({ path: join(out, '3d-desk-hatch.png') });
-  await page.keyboard.press('KeyE'); await page.waitForTimeout(800);
+  await page.keyboard.press('KeyE'); await waitFor(() => window.__b3d.W.lvl !== 'surface');
   if ((await ev(() => window.__b3d.W.lvl)) === 'surface') bad('E у люка не спускает');
   await safe(); await page.screenshot({ path: join(out, '3d-desk-cellar.png') });
   await ev(() => { const b = window.__b3d, d = b.cfg.dungeons.list.find(q => q.id === b.W.lvl); if (!d) return; b.W.player.x = d.exit.x + .3; b.W.player.z = d.exit.z; });
-  await page.waitForTimeout(300); await page.keyboard.press('KeyE'); await page.waitForTimeout(800);
+  await waitFor(() => { const q = window.__b3d.W.nearPortal; return !!q && q.up && !document.getElementById('portalBtn').hidden; });
+  await page.keyboard.press('KeyE'); await waitFor(() => window.__b3d.W.lvl === 'surface');
   if ((await ev(() => window.__b3d.W.lvl)) !== 'surface') bad('E у лестницы не поднимает');
   await ev(() => { const p = window.__b3d.W.player; p.x = 0; p.z = 4; }); await safe();
 
@@ -92,8 +99,8 @@ try {
   // сказочный торговец: повозка видна, E открывает его витрину с заголовком и таймером
   await ev(() => { const W = window.__b3d.W, p = W.player; W.wanderer = { x: p.x + 2.8, z: p.z, face: 1, t: 120, stock: [{ id: 'p_fairy_elixir', n: 2 }, { id: 'u_recall', n: 1 }] }; W.wandT = 1e9; });
   await page.waitForFunction(() => window.__b3d.W.nearNpc === 'wanderer', null, { timeout: 4000 }).catch(() => bad('у повозки нет торговца'));
-  await page.waitForTimeout(300); await page.screenshot({ path: join(out, '3d-desk-wanderer.png') });
-  await page.keyboard.press('KeyE'); await page.waitForTimeout(250);
+  await waitFor(() => !document.getElementById('talk').hidden); await page.screenshot({ path: join(out, '3d-desk-wanderer.png') });     // E жмёт «Говорить», только когда кадр её показал
+  await page.keyboard.press('KeyE'); await waitFor(() => !document.getElementById('shop').hidden);
   if (!(await shown('shop'))) bad('E не открыла витрину сказочного торговца');
   else { const h = await ev(() => document.getElementById('shopHead').textContent + ' | ' + document.getElementById('shopList').textContent); if (!/Сказочный торговец/.test(h) || !/Эликсир феи/.test(h)) bad('витрина не сказочная: ' + h.slice(0, 120)); await page.screenshot({ path: join(out, '3d-desk-wanderer-shop.png') }); }
   await page.keyboard.press('Escape'); await page.waitForTimeout(150);
@@ -112,7 +119,9 @@ try {
   }
   await ev(() => { const W = window.__b3d.W; W.event = null; W.allies = W.allies.filter(a => !a.guest); W.enemies = W.enemies.filter(e => !e.evId); W.evT = 1e9; W.player.x = 0; W.player.z = 4; });
   // оживление: жители ходят по лагерю, дым идёт, ворона взлетает от героя
-  { const l0 = await ev(() => window.__b3d.life()); await page.waitForTimeout(2500); const l1 = await ev(() => window.__b3d.life());
+  { const l0 = await ev(() => window.__b3d.life());
+    if (l0) await waitFor(v0 => { const l = window.__b3d.life(); return l.puffs > 0 && l.villagers.some((v, i) => v0[i] && Math.hypot(v.x - v0[i].x, v.z - v0[i].z) > .5); }, l0.villagers);     // при редких кадрах жители проходят полметра дольше
+    const l1 = await ev(() => window.__b3d.life());
     if (!l0 || l0.villagers.length < 3) bad('нет жителей в лагере: ' + JSON.stringify(l0 && l0.villagers.length));
     else if (!l1.villagers.some((v, i) => Math.hypot(v.x - l0.villagers[i].x, v.z - l0.villagers[i].z) > .5)) bad('жители стоят на месте');
     if (!(l1 && l1.puffs > 0)) bad('нет дыма из труб');
@@ -148,7 +157,7 @@ try {
   await page.setViewportSize({ width: 1000, height: 480 }); await page.waitForTimeout(400);
   const ta = await ev(() => window.__b3d.W.t); await page.waitForTimeout(400);
   if (await shown('rotate')) bad('в низком окне просит повернуть телефон');
-  { let moved = false; for (let i = 0; i < 15 && !moved; i++) { moved = (await ev(() => window.__b3d.W.t)) > ta; if (!moved) await page.waitForTimeout(200); }     // после смены размера кадры могут встать на миг (пересборка целей отрисовки)
+  { const moved = await waitFor(ta => window.__b3d.W.t > ta, ta);     // после смены размера кадры могут встать на миг (пересборка целей отрисовки)
     if (!moved) bad('в низком окне игра стоит'); }
   await page.screenshot({ path: join(out, '3d-desk-low.png') });
   // Торн со щитом: в сумке 8 слотов, щит во второй руке и даёт блок
@@ -158,7 +167,7 @@ try {
   const slots = await ev(() => document.querySelectorAll('#bag .slot').length);
   if (slots !== 8) bad('в сумке не 8 слотов: ' + slots);
   await page.screenshot({ path: join(out, '3d-desk-shield-bag.png') });
-  await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+  await page.keyboard.press('Escape'); await waitFor(() => window.__b3d.W.gear.block > 0);     // снаряжение пересчитывается в кадре
   const blk = await ev(() => { const W = window.__b3d.W, p = W.player; return W.gear.block; });
   if (!(blk > 0)) bad('щит не дал блока');
   await page.waitForTimeout(400); await page.screenshot({ path: join(out, '3d-desk-shield.png') });
@@ -171,20 +180,20 @@ try {
   for (let i = 0; i < 5; i++) await page.locator('#skillList .skrow .plus').nth(i).click();
   await page.screenshot({ path: join(out, '3d-desk-abilities.png') });
   if ((await ev(() => Object.keys(window.__b3d.W.ab).length)) !== 5) bad('«+» не вложил очки в умения');
-  await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+  await page.keyboard.press('Escape'); await waitFor(() => [...document.querySelectorAll('#abil .ab')].filter(b => !b.hidden).length === 5);     // панель перерисовывает кадр
   const vis = await ev(() => [...document.querySelectorAll('#abil .ab')].filter(b => !b.hidden).length);
   if (vis !== 5) bad('на панели не 5 кнопок умений: ' + vis);
   // ресурс (2026-10-18): без ярости умение не срабатывает и кнопка тусклая; полоса «Ярость» над панелью; с яростью — срабатывает
   await ev(() => { const W = window.__b3d.W; W.resHero = W.hero; W.res = 0; W.resIdle = 99; });
-  await page.waitForFunction(() => document.querySelectorAll('#abil .ab.poor').length === 5, null, { timeout: 3000 }).catch(() => {});     // под нагрузкой кадры редкие — ждём перерисовки панели
-  await page.keyboard.press('Digit1'); await page.waitForTimeout(300);
+  await waitFor(() => document.querySelectorAll('#abil .ab.poor').length === 5 && /Ярость 0\/\d+/.test(document.getElementById('resBar').textContent));     // под нагрузкой кадры редкие — ждём перерисовки панели
+  await page.keyboard.press('Digit1'); await frames(4);     // кадры прошли — нажатие прочитано, рывка быть не должно
   { const r = await ev(() => ({ cd: window.__b3d.W.acd.charge || 0, poor: document.querySelectorAll('#abil .ab.poor').length, bar: !document.getElementById('resBar').hidden && /Ярость 0\/\d+/.test(document.getElementById('resBar').textContent), txt: document.getElementById('resBar').textContent, hid: document.getElementById('resBar').hidden, res: window.__b3d.W.res, hero: window.__b3d.W.hero, rh: window.__b3d.W.resHero, panel: window.__b3d.ui().panelOpen }));
     if (r.cd > 0 || r.poor !== 5 || !r.bar) bad('без ярости: умение сработало, кнопки не тусклые или нет полосы: ' + JSON.stringify(r)); }
   { const L = await ev(() => { const a = document.getElementById('abil').getBoundingClientRect(), b = document.getElementById('resBar').getBoundingClientRect(); return { ab: a.bottom, bt: b.bottom, at: a.top, cx: Math.abs((a.left + a.right) / 2 - innerWidth / 2), bx: Math.abs((b.left + b.right) / 2 - innerWidth / 2), H: innerHeight }; });
     if (L.ab < L.H - 60 || L.bt > L.at + 1 || L.cx > 4 || L.bx > 4) bad('панель умений не внизу по центру или полоса не над ней: ' + JSON.stringify(L)); }
   await ev(() => { window.__b3d.W.res = 100; });
   await page.keyboard.press('Digit1');
-  await page.waitForFunction(() => window.__b3d.W.acd.charge > 0, null, { timeout: 4000 }).catch(() => bad('клавиша 1 не запустила рывок'));
+  if (!(await waitFor(() => window.__b3d.W.acd.charge > 0))) bad('клавиша 1 не запустила рывок');
   await page.keyboard.press('Digit3'); await page.waitForTimeout(400); await page.screenshot({ path: join(out, '3d-desk-ability-bar.png') });
   // смена героя из меню: уровень и пепел остаются, Esc отменяет, 2 — Вейл
   await ev(() => { window.__b3d.W.inv.ash = 4321; });
@@ -196,7 +205,7 @@ try {
   await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   if ((await shown('heroPick')) || (await ev(() => window.__b3d.W.hero)) !== 'thorn') bad('Esc не отменил смену героя');
   await page.keyboard.press('Escape'); await page.waitForTimeout(200); await page.locator('#heroSwitch').click(); await page.waitForTimeout(200);
-  await page.keyboard.press('Digit2'); await page.waitForTimeout(300);
+  await page.keyboard.press('Digit2'); await waitFor(() => window.__b3d.W.hero === 'vale' && !window.__b3d.ui().panelOpen);
   const sw = await ev(() => ({ hero: window.__b3d.W.hero, lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash, panel: window.__b3d.ui().panelOpen }));
   if (sw.hero !== 'vale' || sw.lv !== 1 || sw.ash !== 4321 || sw.panel || (await ev(() => (window.__b3d.W.heroes.thorn || {}).lv)) !== 30) bad('смена героя: у Вейла не свой уровень, пропал пепел или уровень Торна не сохранён: ' + JSON.stringify(sw));     // у каждого героя свой уровень (2026-10-18)
   await ev(() => { window.__b3d.W.lv = 30; });     // дальше проверки умений Вейла на 30-м уровне
@@ -213,12 +222,12 @@ try {
   // атмосфера звука (D1): после нажатия звук работает; у реки слышно воду и ставятся бульки, в лагере воды не слышно
   { await page.keyboard.press('KeyW');
     await ev(() => { const W = window.__b3d.W, P = W.map.river.bridges[0], s = Math.sin(P.ang), c = Math.cos(P.ang); W.enemies.length = 0; W.player.x = P.x - s * (P.len / 2 + 1); W.player.z = P.z - c * (P.len / 2 + 1); });
-    await page.waitForTimeout(1500);
+    await waitFor(() => { const a = window.__b3d.audioStats(); return a.state === 'running' && !!a.mix && a.mix.water >= .5 && a.plips >= 1; });     // громкость воды нарастает по кадрам
     const a1 = await ev(() => window.__b3d.audioStats());
     if (a1.state !== 'running') console.log('  звук в браузере не запущен (' + a1.state + ') — проверка атмосферы пропущена');
     else {
       if (!a1.mix || a1.mix.water < .5 || a1.plips < 1) bad('у реки не слышно воды: ' + JSON.stringify(a1));
-      await ev(() => { const W = window.__b3d.W; W.player.x = 0; W.player.z = 3; }); await page.waitForTimeout(800);
+      await ev(() => { const W = window.__b3d.W; W.player.x = 0; W.player.z = 3; }); await waitFor(() => window.__b3d.audioStats().mix.water <= .01);
       const a2 = await ev(() => window.__b3d.audioStats());
       if (a2.mix.water > .01) bad('у костра слышно реку: ' + JSON.stringify(a2.mix));
       console.log('  звук: ' + JSON.stringify({ water: a1.mix.water.toFixed(2), birds: a1.mix.birds.toFixed(2), notes: a2.notes, plips: a2.plips, voices: a2.maxVoices }));
@@ -235,19 +244,20 @@ try {
     console.log('  ветер: ' + JSON.stringify({ still: still.toFixed(4), windy: windy.toFixed(4), rustle: (await ev(() => window.__b3d.renderer.treesNear(20, 40))).toFixed(2) }));
     await ev(c => { Object.assign(window.__b3d.cfg.wind, c.w); window.__b3d.cfg.sunlight.wind = c.s; }, { w: { calm: .06, breeze: .55, gust: .45 }, s: [.6, .25] }); }
   // участки земли (C3a): вокруг героя подгружаются, дальние выгружаются; после переноса участок героя есть сразу
-  { const go = async (x, z) => { await ev(q => { const W = window.__b3d.W; W.enemies.length = 0; W.player.x = q.x; W.player.z = q.z; }, { x, z }); await page.waitForTimeout(1500); return ev(() => window.__b3d.renderer.land()); };
-    const a = await go(-60, -50), b = await go(60, 50), key = `${Math.floor(60 / 64)},${Math.floor(50 / 64)}`;
+  { const go = async (x, z, want) => { await ev(q => { const W = window.__b3d.W; W.enemies.length = 0; W.player.x = q.x; W.player.z = q.z; }, { x, z });
+      await waitFor(q => { const L = window.__b3d.renderer.land(); return L.keys.includes(q.has) && !(q.not && L.keys.includes(q.not)) && L.live <= q.max; }, want); return ev(() => window.__b3d.renderer.land()); };     // участки строятся и выгружаются по кадрам
+    const key = `${Math.floor(60 / 64)},${Math.floor(50 / 64)}`, a = await go(-60, -50, { has: '-2,-2', max: 1e9 }), b = await go(60, 50, { has: key, not: '-2,-2', max: 30 });
     if (!b.keys.includes(key) || b.live > 30 || !a.keys.includes('-2,-2') || b.keys.includes('-2,-2')) bad('участки земли не подгружаются: ' + JSON.stringify({ a: a.live, b }));
     console.log('  участки: ' + JSON.stringify({ live: [a.live, b.live], built: b.built })); }
   // большая карта (C3e): открывается у героя, колесо приближает, перетаскивание двигает, «Весь мир» — весь мир, окно в экране
   { await ev(() => { const W = window.__b3d.W; W.enemies.length = 0; W.player.x = 40; W.player.z = -20; }); await page.waitForTimeout(200);
-    await page.keyboard.press('KeyM'); await page.waitForTimeout(300);
+    await page.keyboard.press('KeyM'); await waitFor(() => !document.getElementById('map').hidden && Math.abs(window.__b3d.mapView().cx - 40) <= 1);
     const v0 = await ev(() => window.__b3d.mapView()), box = await page.locator('#mapCv').boundingBox();
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, -400); await page.waitForTimeout(200);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, -400); await waitFor(s => window.__b3d.mapView().span < s, v0.span);
     const v1 = await ev(() => window.__b3d.mapView());
-    await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2, { steps: 5 }); await page.mouse.up(); await page.waitForTimeout(200);
+    await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2, { steps: 5 }); await page.mouse.up(); await waitFor(cx => window.__b3d.mapView().cx < cx - 5, v1.cx);
     const v2 = await ev(() => window.__b3d.mapView());
-    await page.locator('#mapAll').click(); await page.waitForTimeout(200); const v3 = await ev(() => window.__b3d.mapView());
+    await page.locator('#mapAll').click(); await waitFor(() => window.__b3d.mapView().span >= 1000); const v3 = await ev(() => window.__b3d.mapView());
     const fit = await ev(() => { const r = document.querySelector('#map .pbox').getBoundingClientRect(), c = document.getElementById('mapCv').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight + 1 && c.bottom <= r.bottom + 1 && c.height > 300; });     // и холст целиком в окне
     await page.screenshot({ path: join(out, '3d-desk-bigmap.png') });
     if (Math.abs(v0.cx - 40) > 1 || !(v1.span < v0.span) || !(v2.cx < v1.cx - 5) || v3.span < 1000 || !fit) bad('большая карта: масштаб или прокрутка не работают: ' + JSON.stringify({ v0, v1, v2, v3, fit }));
@@ -255,12 +265,13 @@ try {
     await page.keyboard.press('KeyM'); await page.waitForTimeout(200); }
   // костры (C3d): у костра кнопка, E открывает список, перенос к лагерю
   { const f = await ev(() => { const W = window.__b3d.W, f = W.map.fires.find(q => !q.home && !q.danger); W.enemies.length = 0; W.player.x = f.x + 5; W.player.z = f.z; return { x: f.x, z: f.z, id: f.id }; });
-    await page.waitForTimeout(300); await ev(f => { const W = window.__b3d.W; W.player.x = f.x + 2; W.player.z = f.z; }, f); await page.waitForTimeout(400);
-    const btn = await ev(() => !document.getElementById('fireBtn').hidden);
-    await page.keyboard.press('KeyE'); await page.waitForTimeout(300);
+    await waitFor(id => !!window.__b3d.W.fires[id], f.id);     // в 5 м костёр открывается (cfg.fires.open = 8)
+    await ev(f => { const W = window.__b3d.W; W.player.x = f.x + 2; W.player.z = f.z; }, f);
+    const btn = await waitFor(() => !document.getElementById('fireBtn').hidden);     // E жмёт «Костёр», только когда кадр показал кнопку
+    await page.keyboard.press('KeyE'); await waitFor(() => !document.getElementById('fires').hidden && !!document.querySelector('#firesList button[data-id="camp"]'));
     const list = await ev(() => [...document.querySelectorAll('#firesList button')].map(b => ({ id: b.dataset.id, dis: b.disabled, h: b.getBoundingClientRect().height })));
     await page.screenshot({ path: join(out, '3d-desk-fires.png') });
-    await page.locator('#firesList button[data-id="camp"]').click(); await page.waitForTimeout(600);
+    if (list.some(b => b.id === 'camp')) { await page.locator('#firesList button[data-id="camp"]').click(); await waitFor(() => Math.hypot(window.__b3d.W.player.x, window.__b3d.W.player.z) <= 4 && document.getElementById('fires').hidden); }
     const at = await ev(() => ({ d: Math.hypot(window.__b3d.W.player.x, window.__b3d.W.player.z), open: !document.getElementById('fires').hidden }));
     if (!btn || list.length < 2 || !list.every(b => b.h >= 44) || !list.some(b => b.id === f.id && b.dis) || at.d > 4 || at.open) bad('костры не работают: ' + JSON.stringify({ btn, list, at }));
     console.log('  костры: ' + JSON.stringify({ list: list.length, d: at.d.toFixed(1) })); }
@@ -289,25 +300,33 @@ try {
   // эффекты стихий (V1): молния рисуется, горящий враг выпускает частицы
   { const r = await ev(async () => { const { applyStatus } = await import('/3d/src/status3d.js'); const b = window.__b3d, W = b.W, p = W.player; W.enemies.length = 0;
       const e = b.spawn('brute', p.x + 2, p.z + 2); e.hp = e.maxhp = 1e6; e.cd = 99; e.mode = 'guard'; e.home = { x: e.x, z: e.z }; applyStatus(W, e, 'burn', 1, 5);
-      const p0 = b.renderer.vfx().parts; W.ev.push({ k: 'chain', x: p.x - 2, z: p.z + 1, x2: p.x + 2, z2: p.z + 2 }); await new Promise(q => setTimeout(q, 150)); const v = b.renderer.vfx(); W.enemies.length = 0; return { p0, ...v }; });
+      const p0 = b.renderer.vfx().parts; W.ev.push({ k: 'chain', x: p.x - 2, z: p.z + 1, x2: p.x + 2, z2: p.z + 2 });
+      let v = b.renderer.vfx(); for (const t0 = performance.now(); !(v.bolts >= 3 && v.parts > p0 + 5) && performance.now() - t0 < 10000;) { await new Promise(q => requestAnimationFrame(q)); v = b.renderer.vfx(); }     // смотрим каждый кадр: молния живёт недолго
+      W.enemies.length = 0; return { p0, ...v }; });
     if (!(r.bolts >= 3 && r.parts > r.p0 + 5)) bad('эффекты стихий не рисуются: ' + JSON.stringify(r));
     console.log('  эффекты: ' + JSON.stringify(r)); }
   // погода (F3): в дождь — капли, туман гуще, птицы молчат, слышен дождь; в ясную — капель нет
-  { const wx = async f => { await ev(f => { window.__b3d.cfg.weather.force = f; }, f); await page.waitForTimeout(1600); return ev(() => ({ w: window.__b3d.renderer.weather(), a: window.__b3d.audioStats() })); };
-    const dry = await wx('clear'), wet = await wx('rain');
+  { const wx = async (f, fog) => { await ev(f => { window.__b3d.cfg.weather.force = f; }, f); await frames(3);     // погода по force встаёт в первом же кадре, звук дождя нарастает дольше
+      await waitFor(q => { const w = window.__b3d.renderer.weather(), a = window.__b3d.audioStats(); return q.f === 'clear' ? w.drops === 0 : w.drops > 100 && w.fog > q.fog * 1.3 && (a.state !== 'running' || (!!a.mix && a.mix.rain > .9 && a.mix.birds === 0)); }, { f, fog });
+      return ev(() => ({ w: window.__b3d.renderer.weather(), a: window.__b3d.audioStats() })); };
+    const dry = await wx('clear'), wet = await wx('rain', dry.w.fog);
     if (dry.w.drops !== 0 || !(wet.w.drops > 100) || !(wet.w.fog > dry.w.fog * 1.3)) bad('дождь не идёт или туман не гуще: ' + JSON.stringify({ dry: dry.w, wet: wet.w }));
     if (wet.a.state === 'running' && !(wet.a.mix && wet.a.mix.rain > .9 && wet.a.mix.birds === 0)) bad('в дождь поют птицы или не слышно дождя: ' + JSON.stringify(wet.a.mix));
     await page.screenshot({ path: join(out, '3d-desk-rain.png') });
     console.log('  погода: ' + JSON.stringify({ drops: wet.w.drops, fog: [dry.w.fog.toFixed(4), wet.w.fog.toFixed(4)], rain: wet.a.mix && wet.a.mix.rain }));
     await ev(() => { window.__b3d.cfg.weather.force = 'clear'; }); }
   // фильтр ASCII (E1): включается в меню, холст в полный размер, кадр из символов на тёмном фоне, полоса здоровья чёткая; выключается
-  { const toggle = async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(200); await page.locator('#asciiBtn').click(); await page.waitForTimeout(150); const t = await ev(() => document.getElementById('asciiBtn').textContent); await page.keyboard.press('Escape'); await page.waitForTimeout(400); return t; };
-    const t1 = await toggle();
+  { const toggle = async on => { await page.keyboard.press('Escape'); await waitFor(() => !document.getElementById('panel').hidden); await page.locator('#asciiBtn').click({ timeout: 30000 });     // меню выезжает: клик ждёт, пока кнопка встанет
+      await waitFor(on => /ASCII/.test(document.getElementById('asciiBtn').textContent) === on, on); const t = await ev(() => document.getElementById('asciiBtn').textContent); await page.keyboard.press('Escape');
+      await waitFor(on => { const b = window.__b3d, c = document.getElementById('gl'), d = Math.min(b.cfg.view.ascii.dpr, devicePixelRatio || 1);     // холст пересобирается в кадре
+        return on ? !!b.renderer.ascii() && Math.abs(c.width - Math.floor(innerWidth * d)) <= 2 && Math.abs(c.height - Math.floor(innerHeight * d)) <= 2 : !b.renderer.ascii() && Math.abs(c.width - Math.floor(innerWidth / Math.round(b.cfg.view.pixelScale))) <= 1; }, on);
+      await frames(3); return t; };     // и кадр уже нарисован в новом виде
+    const t1 = await toggle(true);
     const st = await ev(() => { const r = window.__b3d.renderer, a = r.ascii(), c = document.getElementById('gl'), d = Math.min(window.__b3d.cfg.view.ascii.dpr, devicePixelRatio || 1); return { on: !!a, w: c.width, h: c.height, iw: Math.floor(innerWidth * d), ih: Math.floor(innerHeight * d), dpr: d, rows: a && a.atlas.rows.length }; });
     if (!/ASCII/.test(t1) || !st.on || Math.abs(st.w - st.iw) > 2 || Math.abs(st.h - st.ih) > 2 || st.rows !== 4) bad('ASCII не включился или холст не в плотности экрана: ' + JSON.stringify({ t1, ...st }));
     const bar = await ev(() => { const b = window.__b3d, W = b.W, C = W.map.camp, p = W.player; W.enemies.length = 0; p.x = C.x; p.z = C.z + 2; p.inv = 1e9;
       const e = b.spawn('brute', p.x + 3, p.z); e.elite = false; e.affColor = undefined; e.hp = e.maxhp * .5; e.cd = 99; e.alert = false; e.st = null; return e.id; });
-    await page.waitForTimeout(700);
+    await frames(3);
     const read = () => ev(() => { const b = window.__b3d, W = b.W, e = W.enemies.find(q => !q.dead), c = document.getElementById('gl'), g = document.createElement('canvas'); g.width = c.width; g.height = c.height;
       const x = g.getContext('2d'); x.drawImage(c, 0, 0); const d = x.getImageData(0, 0, g.width, g.height).data; let dark = 0, n = 0;
       for (let i = 0; i < d.length - 8; i += 4 * 7) { n++; if (Math.abs(d[i] + d[i + 1] + d[i + 2] - d[i + 4] - d[i + 5] - d[i + 6]) > 90) dark++; }     // резкий перепад с соседней точкой — штрих символа
@@ -316,11 +335,11 @@ try {
       const R = k => d[k] > 60 && d[k] > 2.5 * d[k + 1] && d[k] > 2 * d[k + 2], W2 = g.width, runs = new Int32Array(W2);
       for (let yy = 0; yy < g.height; yy++) { let run = 0; for (let xx = 0; xx < W2; xx++) { const k = (yy * W2 + xx) * 4; if (R(k) && R(k + W2 * 4) && R(k + W2 * 8)) { if (++run >= 24) red = Math.max(red, run); } else run = 0; } }
       return { dark: dark / n, red }; });
-    let px = await read(); for (let i = 0; i < 6 && px.red < 24; i++) { await page.waitForTimeout(500); px = await read(); }     // кадр со свежим врагом может прийти не сразу
+    let px = await read(); for (const t0 = Date.now(); px.red < 24 && Date.now() - t0 < 10000;) { await frames(2); px = await read(); }     // кадр со свежим врагом может прийти не сразу
     if (px.dark < .08) bad('в ASCII мало штрихов символов: ' + px.dark.toFixed(2));
     if (px.red < 20) bad('в ASCII не видно полосы здоровья врага: ' + px.red);
     await page.screenshot({ path: join(out, '3d-desk-ascii.png') });
-    const t2 = await toggle();
+    const t2 = await toggle(false);
     const st2 = await ev(() => { const c = document.getElementById('gl'), g = document.createElement('canvas'); g.width = c.width; g.height = c.height; const x = g.getContext('2d'); x.drawImage(c, 0, 0); const d = x.getImageData(0, 0, g.width, g.height).data; let e = 0, n = 0;
       for (let i = 0; i < d.length - 8; i += 4 * 7) { n++; if (Math.abs(d[i] + d[i + 1] + d[i + 2] - d[i + 4] - d[i + 5] - d[i + 6]) > 90) e++; }
       return { on: !!window.__b3d.renderer.ascii(), w: c.width, iw: innerWidth, ps: window.__b3d.cfg.view.pixelScale, edges: e / n }; });
@@ -333,7 +352,7 @@ try {
   { await ev(() => { const W = window.__b3d.W; W.inv.eq.weapon = 'w_sword_steel_storm'; delete W.inv.gem.weapon; W.inv.bag.push({ id: 'gem_water_1', n: 2 }); });
     const hb = await ev(() => { const r = document.getElementById('bookBtn').getBoundingClientRect(), s = getComputedStyle(document.getElementById('bookBtn')); return { w: r.width, h: r.height, bg: s.backgroundColor }; });
     if (hb.w < 44 || hb.h < 44 || /255, 255, 255/.test(hb.bg)) bad('кнопка книги на HUD мелкая или без стиля: ' + JSON.stringify(hb));
-    await page.keyboard.press('KeyR'); let open = false; for (let t = 0; t < 2000 && !open; t += 100) { await page.waitForTimeout(100); open = await shown('journal'); }
+    await page.keyboard.press('KeyR'); await waitFor(() => !document.getElementById('journal').hidden); const open = await shown('journal');
     const tab = await ev(() => (document.querySelector('#journalTabs button.on') || {}).dataset.tab);
     if (!open || tab !== 'recipes') bad(`R не открыл книгу на «Рецептах»: ${open} ${tab}`);
     await page.click('#journalTabs button[data-tab="mixes"]'); await page.waitForTimeout(150);
@@ -350,23 +369,23 @@ try {
     await page.screenshot({ path: join(out, '3d-desk-smith-gems.png') });
     await page.click('#smithTabs button[data-tab="craft"]'); await page.waitForTimeout(150);
     const mid = await ev(() => (document.querySelector('#smithList .mat') || {}).dataset?.item);
-    if (mid) { await page.locator('#smithList .mat').first().hover(); await page.keyboard.press('KeyG'); await page.waitForTimeout(300);
+    if (mid) { await page.locator('#smithList .mat').first().hover(); await page.keyboard.press('KeyG'); await waitFor(() => !document.getElementById('journal').hidden && document.getElementById('smith').hidden);
       const src = await ev(() => ({ open: !document.getElementById('journal').hidden, smith: !document.getElementById('smith').hidden, text: document.getElementById('journalList').innerText }));
       if (!src.open || src.smith || !/С врагов|Контейнеры|Продаётся|Куётся|Источник/.test(src.text)) bad('G над материалом не открыл «где взять»: ' + JSON.stringify({ ...src, text: src.text.slice(0, 120) }));
     } else bad('у кузнеца в «Ковке» нет кнопок материалов');
     await page.keyboard.press('Escape'); await page.waitForTimeout(150); await ev(() => { window.__b3d.W.nearNpc = null; }); }
   // умение оружия (2026-10-18): у клеймёного меча — шестая ячейка «F»; F бьёт врага рядом и запускает перезарядку
   { await ev(() => { const b = window.__b3d, W = b.W, p = W.player; W.inv.eq.weapon = 'w_sword_blood'; W.wcd = 0; W.enemies.length = 0; const e = b.spawn('brute', p.x + 1.6, p.z); e.hp = e.maxhp = 1e5; e.cd = 99; });
-    await page.waitForTimeout(300);
+    await waitFor(() => { const b = document.querySelector('#abil .ab.wsk'); return !!b && !b.hidden; });     // ячейку показывает кадр
     const cell = await ev(() => { const b = document.querySelector('#abil .ab.wsk'), r = b.getBoundingClientRect(); return { shown: !b.hidden, k: b.querySelector('.k') && b.querySelector('.k').textContent, w: r.width }; });
     if (!cell.shown || cell.k !== 'F' || cell.w < 44) bad('ячейка умения оружия: ' + JSON.stringify(cell));
-    await page.keyboard.press('KeyF'); let cd = 0; for (let t = 0; t < 1500 && !(cd > 0); t += 100) { await page.waitForTimeout(100); cd = await ev(() => window.__b3d.W.wcd); }
+    await page.keyboard.press('KeyF'); await waitFor(() => window.__b3d.W.wcd > 0 && window.__b3d.W.enemies.some(e => e.hp < e.maxhp)); const cd = await ev(() => window.__b3d.W.wcd);
     const hit = await ev(() => window.__b3d.W.enemies.some(e => e.hp < e.maxhp));
     if (!(cd > 0) || !hit) bad(`F не запустило умение оружия: перезарядка ${cd}, попал ${hit}`);
     await page.screenshot({ path: join(out, '3d-desk-wskill.png') }); await ev(() => { window.__b3d.W.enemies.length = 0; }); }
   // связки умений (2026-10-18): после «Рывка» (1) кнопка «Вихря» (2) подсвечена; в книге — вкладка «Связки» с 4 связками героя
   { await ev(() => { const b = window.__b3d, W = b.W, p = W.player; W.hero = 'thorn'; W.lv = 30; for (const id of ['charge', 'cry', 'whirl', 'iron', 'rage', 'bash', 'quake', 'blood']) W.ab[id] = 3; W.bar = ['charge', 'whirl', 'cry', 'bash', 'rage']; W.acd = {}; W.resHero = 'thorn'; W.res = 999; W.enemies.length = 0; const e = b.spawn('brute', p.x + 4, p.z); e.hp = e.maxhp = 1e5; e.cd = 99; });
-    await page.waitForTimeout(200); await page.keyboard.press('Digit1'); let glow = false; for (let t = 0; t < 1500 && !glow; t += 100) { await page.waitForTimeout(100); glow = await ev(() => document.querySelector('#abil .ab[data-i="1"]').classList.contains('combo')); }
+    await frames(3); await page.keyboard.press('Digit1'); const glow = await waitFor(() => document.querySelector('#abil .ab[data-i="1"]').classList.contains('combo'));
     if (!glow) bad('после «Рывка» кнопка «Вихря» не подсвечена для связки');
     await page.screenshot({ path: join(out, '3d-desk-combo.png') });
     await page.keyboard.press('KeyR'); await page.waitForTimeout(300); await page.click('#journalTabs button[data-tab="combos"]'); await page.waitForTimeout(150);
@@ -375,22 +394,22 @@ try {
     await page.keyboard.press('KeyR'); await page.waitForTimeout(150); await ev(() => { window.__b3d.W.enemies.length = 0; }); }
   await ctx.close();
   // выбор героя при новой игре: три карточки, Сойка закрыта, кнопки не меньше 44 px; 2 — Вейл, сохраняется; после перезагрузки экрана нет
-  { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(8000);
+  { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c2.newPage(); pg.setDefaultTimeout(30000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await pg.goto(url + '?shot&retro'); await pg.waitForTimeout(1200);
+    await pg.goto(url + '?shot&retro'); await booted(pg, false); await waitFor(() => !document.getElementById('heroPick').hidden && document.querySelectorAll('.hcard').length > 0, null, 10000, pg);
     const info = await pg.evaluate(() => ({ shown: !document.getElementById('heroPick').hidden, cards: [...document.querySelectorAll('.hcard')].map(c => ({ id: c.dataset.hero, shut: c.classList.contains('shut'), h: c.querySelector('button').getBoundingClientRect().height, dis: c.querySelector('button').disabled })), panel: window.__b3d.ui().panelOpen }));
     if (!info.shown || info.cards.length !== 4 || !info.panel) bad('нет экрана выбора героя или игра не на паузе: ' + JSON.stringify(info));
     { const row = await pg.evaluate(() => new Set([...document.querySelectorAll('.hcard')].map(c => Math.round(c.getBoundingClientRect().top))).size); if (row !== 1) bad('на компьютере 4 карточки героев не в один ряд: рядов ' + row); }     // Ирга — четвёртая
     if (!info.cards.every(c => c.h >= 44)) bad('кнопки выбора героя меньше 44 px');
     if (info.cards.some(c => c.dis)) bad('какой-то герой закрыт: ' + JSON.stringify(info.cards));
     await pg.screenshot({ path: join(out, '3d-desk-heroes.png') });
-    await pg.keyboard.press('Digit2'); await pg.waitForTimeout(300);
+    await pg.keyboard.press('Digit2'); await waitFor(() => window.__b3d.W.hero === 'vale' && document.getElementById('heroPick').hidden && !window.__b3d.ui().panelOpen, null, 10000, pg);
     const r = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, hidden: document.getElementById('heroPick').hidden, panel: window.__b3d.ui().panelOpen, hp: window.__b3d.W.player.maxhp }));
     if (r.hero !== 'vale' || !r.hidden || r.panel) bad('2 не выбрала Вейла: ' + JSON.stringify(r));
     await pg.waitForTimeout(600); await pg.screenshot({ path: join(out, '3d-desk-vale.png') });
     // чужое оружие в сумке помечено и не надевается
     await pg.evaluate(() => { window.__b3d.W.inv.bag.push({ id: 'w_axe_iron', n: 1 }); });
-    await pg.keyboard.press('KeyI'); await pg.waitForTimeout(300);
+    await pg.keyboard.press('KeyI'); await waitFor(() => !document.getElementById('bag').hidden && !!document.querySelector('#bag .tile'), null, 10000, pg);
     const nw = pg.locator('#bag .tile.nw'); if ((await nw.count()) !== 1) bad('топор в сумке Вейла не помечен');
     else { await nw.first().click(); await pg.waitForTimeout(200);
       const card = await pg.evaluate(() => ({ txt: document.getElementById('bag').textContent, wear: [...document.querySelectorAll('#bag .acts button')].some(b => /Надеть/.test(b.textContent)) }));
@@ -398,10 +417,11 @@ try {
       await pg.screenshot({ path: join(out, '3d-desk-vale-bag.png') }); }
     await pg.keyboard.press('Escape'); await pg.waitForTimeout(150);
     // два клинка: рапира и кинжал во второй руке, удары чередуют руки
-    const hands = await pg.evaluate(async () => { const b = window.__b3d, W = b.W, p = W.player; W.inv.eq.weapon = 'w_rapier_iron'; W.inv.eq.offhand = 'w_dagger_iron'; p.inv = 1e9; p.x = 0; p.z = 4; p.face = 0;
-      const e = b.spawn('brute', 0, 5.4); e.hp = e.maxhp = 5000; e.cd = 99; const seen = new Set();
-      for (let i = 0; i < 6; i++) { p.atkBuf = .2; await new Promise(r => setTimeout(r, 420)); seen.add(p.hand); }
-      return [...seen]; });
+    await pg.evaluate(() => { const b = window.__b3d, W = b.W, p = W.player; W.inv.eq.weapon = 'w_rapier_iron'; W.inv.eq.offhand = 'w_dagger_iron'; p.inv = 1e9; p.x = 0; p.z = 4; p.face = 0;
+      const e = b.spawn('brute', 0, 5.4); e.hp = e.maxhp = 5000; e.cd = 99; window.__hands = []; });
+    // нажатие удара держим в буфере каждый кадр: следующий удар идёт сразу за предыдущим, серия не рвётся и руки чередуются
+    await waitFor(() => { const p = window.__b3d.W.player, s = window.__hands; if (!s.includes(p.hand)) s.push(p.hand); p.atkBuf = .2; return p.hand === 1; }, null, 15000, pg);
+    const hands = await pg.evaluate(() => window.__hands);
     if (!hands.includes(1)) bad('Вейл не бьёт левым клинком: ' + JSON.stringify(hands));
     await pg.screenshot({ path: join(out, '3d-desk-vale-dual.png') });
     // выпад-телепорт (клавиша 1) за спину врага и тень-двойник (клавиша 4)
@@ -414,23 +434,24 @@ try {
     await pg.keyboard.press('Digit4');
     await pg.waitForFunction(() => window.__b3d.W.allies.some(a => a.decoy), null, { timeout: 4000 }).catch(() => bad('клавиша 4 не вызвала тень'));
     await pg.waitForTimeout(400); await pg.screenshot({ path: join(out, '3d-desk-vale-shadow.png') });
-    await pg.reload(); await pg.waitForTimeout(1200);
+    await pg.reload(); await booted(pg);     // без выбора героя игра идёт сразу
     const r2 = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, shown: !document.getElementById('heroPick').hidden }));
     if (r2.hero !== 'vale' || r2.shown) bad('после перезагрузки герой не Вейл или снова выбор: ' + JSON.stringify(r2));
     await c2.close(); }
   // Сойка: 3 — выбрать, в руке ржавый лук; выстрел по врагу — своя стрела летит и попадает
-  { const c4 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c4.newPage(); pg.setDefaultTimeout(8000);
+  { const c4 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c4.newPage(); pg.setDefaultTimeout(30000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await pg.goto(url + '?shot&retro'); await pg.waitForTimeout(1200);
-    await pg.keyboard.press('Digit3'); await pg.waitForTimeout(300);
+    await pg.goto(url + '?shot&retro'); await booted(pg, false); await waitFor(() => !document.getElementById('heroPick').hidden, null, 10000, pg);
+    await pg.keyboard.press('Digit3'); await waitFor(() => window.__b3d.W.hero === 'jay', null, 10000, pg);
     const j = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, w: window.__b3d.W.inv.eq.weapon }));
     if (j.hero !== 'jay' || j.w !== 'w_bow_rust') bad('Сойка не выбрана или без лука: ' + JSON.stringify(j));
     const hp = await pg.evaluate(() => { const b = window.__b3d, W = b.W, p = W.player; p.inv = 1e9; p.x = 0; p.z = 4; p.face = 0; W.enemies.forEach(e => { e.dead = true; }); const e = b.spawn('brute', 0, 13); e.hp = e.maxhp = 5000; e.cd = 99; return e.hp; });
-    await pg.waitForTimeout(600); const at = await pg.evaluate(() => { const b = window.__b3d, e = b.W.enemies.find(q => !q.dead && q.maxhp === 5000); return b.renderer.project(e.x, 1, e.z); });     // прицел курсором (шаг 4): кликаем по врагу
+    await waitFor(() => { const b = window.__b3d, e = b.W.enemies.find(q => !q.dead && q.maxhp === 5000), a = b.renderer.project(e.x, 1, e.z), o = window.__at0; window.__at0 = a; return !!o && Math.hypot(a.x - o.x, a.y - o.y) < .5; }, null, 10000, pg);     // камера встала: враг на экране не сдвигается между кадрами
+    const at = await pg.evaluate(() => { const b = window.__b3d, e = b.W.enemies.find(q => !q.dead && q.maxhp === 5000); return b.renderer.project(e.x, 1, e.z); });     // прицел курсором (шаг 4): кликаем по врагу
     await pg.mouse.click(at.x, at.y);
     const fly = await pg.waitForFunction(() => window.__b3d.W.proj.some(q => q.friendly) || window.__b3d.W.enemies.some(e => !e.dead && e.maxhp === 5000 && e.hp < 5000), null, { timeout: 3000 }).then(() => true, () => false);     // быстрая стрела может долететь раньше проверки
     await pg.screenshot({ path: join(out, '3d-desk-jay-shot.png') });
-    await pg.waitForTimeout(900);
+    await waitFor(() => window.__b3d.W.enemies.some(e => !e.dead && e.maxhp === 5000 && e.hp < 5000), null, 10000, pg);
     const hit = await pg.evaluate(() => window.__b3d.W.enemies.some(e => !e.dead && e.maxhp === 5000 && e.hp < 5000));
     if (!fly || !hit) bad(`стрела Сойки не вылетела (${fly}) или не попала (${hit})`);
     // град стрел (клавиша 5) встаёт над врагом
@@ -440,11 +461,11 @@ try {
     await pg.keyboard.press('Digit3'); await pg.waitForTimeout(500); await pg.screenshot({ path: join(out, '3d-desk-jay-rain.png') });
     await c4.close(); }
   // телефон: веер кнопок умений не налезает на «Удар», «Перекат» и друг на друга, кнопки не меньше 44 px, касание запускает умение
-  { const c5 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c5.newPage(); pg.setDefaultTimeout(8000);
+  { const c5 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c5.newPage(); pg.setDefaultTimeout(30000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await pg.goto(url + '?shot&hero=thorn'); await pg.waitForTimeout(1200);
+    await pg.goto(url + '?shot&hero=thorn'); await booted(pg);
     await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { charge: 1, cry: 1, whirl: 1, iron: 1, rage: 1 }; W.resHero = W.hero; W.res = 100; W.inv.eq.weapon = 'w_sword_blood'; });     // клеймёный меч — кнопка умения оружия
-    await pg.waitForTimeout(400);
+    await waitFor(() => [...document.querySelectorAll('#abil .ab')].filter(b => !b.hidden).length === 6 && !document.getElementById('resBar').hidden, null, 10000, pg);     // панель перерисовывает кадр
     const r = await pg.evaluate(() => { const box = el => el.getBoundingClientRect(), list = [...document.querySelectorAll('#abil .ab')].filter(b => !b.hidden).map(box), atk = box(document.getElementById('bAtk')), roll = box(document.getElementById('bRoll'));
       const over = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; let bad = 0;
       list.forEach((a, i) => { if (over(a, atk) || over(a, roll) || a.left < 0 || a.right > innerWidth) bad++; list.forEach((b, j) => { if (j > i && over(a, b)) bad++; }); });
@@ -457,19 +478,19 @@ try {
     await pg.waitForFunction(() => window.__b3d.W.acd.whirl > 0, null, { timeout: 4000 }).catch(() => bad('касание кнопки не запустило вихрь'));
     await c5.close(); }
   // на телефоне карточки идут столбиком и прокручиваются; кнопка Вейла достижима и выбирает его
-  { const c3 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c3.newPage(); pg.setDefaultTimeout(8000);
+  { const c3 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }), pg = await c3.newPage(); pg.setDefaultTimeout(30000);
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await pg.goto(url + '?shot&retro'); await pg.waitForTimeout(1200);
+    await pg.goto(url + '?shot&retro'); await booted(pg, false); await waitFor(() => !document.getElementById('heroPick').hidden && document.querySelectorAll('.hcard').length > 0, null, 10000, pg);
     const wide = await pg.evaluate(() => [...document.querySelectorAll('.hcard')].every(c => { const r = c.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }));
     if (!wide) bad('карточки героев шире экрана телефона');
     await pg.screenshot({ path: join(out, '3d-phone-heroes.png') });
-    await pg.locator('.hcard[data-hero="vale"] button').tap();
+    await pg.locator('.hcard[data-hero="vale"] button').tap(); await waitFor(() => window.__b3d.W.hero === 'vale', null, 10000, pg);
     if ((await pg.evaluate(() => window.__b3d.W.hero)) !== 'vale') bad('на телефоне Вейл не выбирается касанием');
     await c3.close(); }
   // гладкий вид (шаг 2 аудита) — в конце: переключение тональной кривой перекомпилирует все шейдеры, в Chromium без видеокарты это секунды
   { const cs = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }), ps = await cs.newPage();     // вид по умолчанию — гладкий
     ps.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await ps.goto(url + '?shot&hero=thorn'); await ps.waitForTimeout(1500);
+    await ps.goto(url + '?shot&hero=thorn'); await booted(ps);
     const sm = await ps.evaluate(() => { const r = window.__b3d.renderer, c = document.getElementById('gl'); return { w: c.width, cw: c.clientWidth, ir: getComputedStyle(c).imageRendering, ...r.look() }; });
     if (sm.retro || sm.w !== Math.floor(sm.cw * 1.5) || /pixelated|crisp/.test(sm.ir) || !sm.tone) bad('гладкий вид на Маке по умолчанию: холст не в плотность 1,5, пиксели или без тональной кривой ' + JSON.stringify(sm));
     console.log('  гладкий вид: ' + JSON.stringify({ w: sm.w, h: sm.h, tone: sm.tone }));
@@ -477,16 +498,16 @@ try {
     if (mn.tweak || mn.back || mn.bagReset || !mn.saveReset) bad('меню: служебное видно без ?dev или нет кнопки «Новая игра» ' + JSON.stringify(mn));
     await cs.close(); }
   // первые минуты (шаг 12): чистое сохранение — Торн с мечом, цепочка «Первая искра» проходит до награды, строка цели не пустая
-  { const cf = await browser.newContext({ viewport: { width: 1280, height: 800 } }), pf = await cf.newPage(); pf.setDefaultTimeout(8000);
+  { const cf = await browser.newContext({ viewport: { width: 1280, height: 800 } }), pf = await cf.newPage(); pf.setDefaultTimeout(30000);
     pf.on('pageerror', e => logs.push('pageerror (искра): ' + e.message));
-    await pf.goto(url + '?shot&hero=thorn&retro'); await pf.waitForTimeout(1500);
+    await pf.goto(url + '?shot&hero=thorn&retro'); await booted(pf); await waitFor(() => !document.getElementById('tracker').hidden && !!window.__b3d.W.goal, null, 10000, pf);     // первую цель ставит кадр
     const line = () => pf.evaluate(() => ({ t: document.getElementById('tracker').textContent, shown: !document.getElementById('tracker').hidden, goal: !!window.__b3d.W.goal }));
     const s0 = await pf.evaluate(() => ({ w: window.__b3d.W.inv.eq.weapon, ash: window.__b3d.W.inv.ash })), l0 = await line();
     if (s0.w !== 'w_sword_rust') bad('Торн начинает не с ржавым мечом: ' + s0.w);
     if (!l0.shown || !/торговцу/.test(l0.t) || !l0.goal) bad('нет первой цели «к торговцу» или точки на миникарте: ' + JSON.stringify(l0));
     // «Путь пепла» (шаг 13): кузнец закрыт до первого босса — у него нет кнопки, но есть подсказка
     await pf.evaluate(() => { const W = window.__b3d.W, b = W.map.buildings.find(q => q.npc && q.npc.kind === 'smith'); W.player.x = b.npc.x + 1; W.player.z = b.npc.z + 1; });
-    await pf.waitForTimeout(700);
+    await waitFor(() => window.__b3d.W.nearNpc === 'smith' && [...document.querySelectorAll('.toast')].some(e => /Пожиратель/.test(e.textContent)), null, 10000, pf);
     { const k = await pf.evaluate(() => ({ near: window.__b3d.W.nearNpc, talk: !document.getElementById('talk').hidden, hint: [...document.querySelectorAll('.toast')].some(e => /Пожиратель/.test(e.textContent)), journal: !document.getElementById('bagJournal').hidden }));
       if (k.near !== 'smith' || k.talk || !k.hint || !k.journal) bad('закрытый кузнец (книга рецептов при этом открыта): ' + JSON.stringify(k)); }
     const until = async (re, what) => { await pf.waitForFunction(r => new RegExp(r).test(document.getElementById('tracker').textContent), re, { timeout: 4000 }).catch(async () => bad(what + ': ' + (await line()).t)); };
@@ -509,21 +530,21 @@ try {
     await cf.close(); }
   // защита от сбоев (шаг 11): ошибка в кадре не останавливает игру; «Сохранить в файл» отдаёт код; потеря WebGL — плашка
   // и сохранение; испорченное сохранение поднимается из резервной копии с сообщением
-  { const cx = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true }), pz = await cx.newPage(); pz.setDefaultTimeout(8000);
+  { const cx = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true }), pz = await cx.newPage(); pz.setDefaultTimeout(30000);
     pz.on('pageerror', e => logs.push('pageerror (сбои): ' + e.message));
-    await pz.goto(url + '?shot&hero=thorn&retro'); await pz.waitForTimeout(1500);
+    await pz.goto(url + '?shot&hero=thorn&retro'); await booted(pz);
     const t0 = await pz.evaluate(() => { const r = window.__b3d.renderer, orig = r.render; let n = 0; r.render = (...a) => { if (n++ < 3) throw new Error('проверка сбоя'); return orig.apply(r, a); }; return window.__b3d.W.t; });
-    await pz.waitForTimeout(900);
+    await waitFor(t0 => window.__b3d.W.t > t0 && [...document.querySelectorAll('.toast')].some(e => /Сбой в игре/.test(e.textContent)) && /проверка сбоя/.test(localStorage.getItem('berserk3d.lastError') || ''), t0, 10000, pz);
     const c1 = await pz.evaluate(() => ({ t: window.__b3d.W.t, toast: [...document.querySelectorAll('.toast')].some(e => /Сбой в игре/.test(e.textContent)), err: localStorage.getItem('berserk3d.lastError') || '' }));
     if (!(c1.t > t0) || !c1.toast || !/проверка сбоя/.test(c1.err)) bad('сбой в кадре остановил игру или не сообщён: ' + JSON.stringify({ t0, t: c1.t, toast: c1.toast, err: c1.err.slice(0, 40) }));
     const [dl] = await Promise.all([pz.waitForEvent('download'), pz.evaluate(() => document.getElementById('fileSave').click())]);
     const txt = readFileSync(await dl.path(), 'utf8');
     if (!/^berserk3d-save-\d{4}-\d\d-\d\d\.txt$/.test(dl.suggestedFilename()) || !txt.startsWith('B3D1:')) bad('файл сохранения: ' + dl.suggestedFilename() + ' ' + txt.slice(0, 12));
     await pz.evaluate(() => { const gl = window.__b3d.renderer.gl.getContext(), x = gl.getExtension('WEBGL_lose_context'); x.loseContext(); });
-    await pz.waitForTimeout(400);
+    await waitFor(() => !!document.getElementById('glLost') && !!localStorage.getItem('berserk3d.save'), null, 10000, pz);
     if (!(await pz.evaluate(() => !!document.getElementById('glLost') && !!localStorage.getItem('berserk3d.save')))) bad('потеря WebGL: нет плашки или сохранения');
     await pz.evaluate(() => { window.__b3d.W.ironDead = true; const k = 'berserk3d.save'; localStorage.setItem(k + '.bak1', localStorage.getItem(k)); localStorage.setItem(k, '{"v":6,'); });
-    await pz.reload(); await pz.waitForTimeout(2600);
+    await pz.reload(); await booted(pz); await waitFor(() => [...document.querySelectorAll('.toast')].some(e => /резервная копия/.test(e.textContent)), null, 10000, pz);
     const c2 = await pz.evaluate(() => { let ok = false; try { ok = !!JSON.parse(localStorage.getItem('berserk3d.save')).v; } catch (e) { /* испорчено */ } return { ok, toast: [...document.querySelectorAll('.toast')].some(e => /резервная копия/.test(e.textContent)) }; });
     if (!c2.ok || !c2.toast) bad('испорченное сохранение не поднялось из копии: ' + JSON.stringify(c2));
     await cx.close(); }
