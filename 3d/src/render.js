@@ -14,7 +14,7 @@ import { overheadOf } from './overhead3d.js';
 import { propsIn, grassIn, chunksAround, CHUNK } from './chunks3d.js';
 import { pathSegs, distSeg } from './world3d.js';
 import { groundMix, grassHSL, flowersIn, bushesIn } from './flora3d.js';
-import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
+import { biomeTint, biomeAt, BIOMES, biomeWeights } from './worldgen3d.js';
 import { inCliff } from './cliffs3d.js';
 import * as THREE from 'three';
 import { dressedLook, lookKey } from './look3d.js';
@@ -123,12 +123,49 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   if (hooks.onText) { const f = hooks.onText; hooks.onText = (x, y, z, ...a) => f(x, y + Y(x, z), z, ...a); }
   // земля с холмами (C3a): участками CHUNK м вокруг героя; светлее на буграх и темнее в низинах, у воды — песок
   const hillsMat = paintMat(new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true }), 'ground'), sandC = new THREE.Color(cfg.look.sand), rel = h => { const t = new THREE.Color(h), g = gtex.mean; return new THREE.Color(t.r / g.r, t.g / g.g, t.b / g.b); }, rockC = rel('#6e6a60'), PATH = cfg.look.path, pathC = PATH ? rel(PATH.color) : null, roadSegs = pathSegs(map);     // скала и тропа: текстура травы × множитель ≈ нужный цвет (линейный)     // цвет материала — мокрость (F3)
+  // текстуры земли (2026-10-20, выбор владельца): 8 слоёв — трава, тропа, камень, болото, грязь, снежная трава, снег, песок; смесь по долям в вершинах
+  const GT = cfg.groundTex && cfg.groundTex.on ? cfg.groundTex : null, GU = { uGT: { value: null }, uGTK: { value: 0 }, uGTile: { value: GT ? GT.tile : 4 }, uGTGain: { value: GT ? GT.gain : 1 }, uGL0: { value: new THREE.Vector4(...(GT ? GT.layer.slice(0, 4) : [1, 1, 1, 1])) }, uGL1: { value: new THREE.Vector4(...(GT ? GT.layer.slice(4) : [1, 1, 1, 1])) } };
+  if (GT) { const prev = hillsMat.onBeforeCompile, key0 = hillsMat.customProgramCacheKey ? hillsMat.customProgramCacheKey() : '';
+    hillsMat.onBeforeCompile = (sh, r) => { if (prev) prev(sh, r); Object.assign(sh.uniforms, GU);
+      sh.vertexShader = 'attribute vec4 tw0; attribute vec4 tw1; varying vec4 vTW0; varying vec4 vTW1; varying vec2 vGXZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vTW0 = tw0; vTW1 = tw1; vGXZ = (modelMatrix * vec4(transformed, 1.)).xz;');
+      sh.fragmentShader = 'uniform highp sampler2DArray uGT; uniform float uGTK, uGTile, uGTGain; uniform vec4 uGL0, uGL1; varying vec4 vTW0; varying vec4 vTW1; varying vec2 vGXZ;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+        `#include <map_fragment>
+  if (uGTK > 0.) { vec2 tu = vGXZ / uGTile; vec4 a = vTW0 * uGL0, b = vTW1 * uGL1; vec3 tc = texture(uGT, vec3(tu, 0.)).rgb * a.x + texture(uGT, vec3(tu, 1.)).rgb * a.y + texture(uGT, vec3(tu, 2.)).rgb * a.z + texture(uGT, vec3(tu, 3.)).rgb * a.w
+      + texture(uGT, vec3(tu, 4.)).rgb * b.x + texture(uGT, vec3(tu, 5.)).rgb * b.y + texture(uGT, vec3(tu, 6.)).rgb * b.z + texture(uGT, vec3(tu, 7.)).rgb * b.w;
+    vec4 base = vec4(1.);
+#ifdef USE_MAP
+    base = texture2D(map, vMapUv);
+#endif
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb / max(base.rgb, vec3(.02)) * tc * uGTGain, uGTK); }`); };
+    hillsMat.customProgramCacheKey = () => key0 + '-gtex';
+    new THREE.ImageLoader().load(new URL('../models/ground.webp', import.meta.url).href, img => {
+      const N = img.width, L = Math.round(img.height / N), c = document.createElement('canvas'); c.width = N; c.height = N * L; const g2 = c.getContext('2d'); g2.drawImage(img, 0, 0);
+      const t = new THREE.DataArrayTexture(new Uint8Array(g2.getImageData(0, 0, N, N * L).data.buffer), N, N, L); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 4; t.needsUpdate = true;
+      GU.uGT.value = t; GU.uGTK.value = 1; gtexOn = true; for (const k of [...liveLand.keys()]) dropLand(k);     // участки пересобираются с долями текстур
+    }, undefined, e => console.warn('текстуры земли не загрузились', e)); }
+  let gtexOn = false;
+  // доли слоёв в точке: биом, тропа, берег, обрыв, верх плато; пятна внутри биома — по шуму
+  const gnoise = (x, z) => { const s = Math.sin(x * .113 + Math.sin(z * .071) * 2.1) * Math.sin(z * .097 + Math.sin(x * .053) * 1.7); return .5 + .5 * s; };
+  function groundW(x, z, h, pk) {
+    const B = biomeWeights(cfg, x, z), n = gnoise(x, z), W = [0, 0, 0, 0, 0, 0, 0, 0];     // трава, тропа, камень, болото, грязь, снежная трава, снег, песок
+    const add = (i, v) => { W[i] += v; };
+    for (const [b, v] of Object.entries(B)) { if (!v) continue;
+      if (b === 'core' || b === 'forest') { add(0, v * (1 - n * .25)); add(1, v * n * .25); }
+      else if (b === 'swamp') { add(3, v * (1 - n * .45)); add(4, v * n * .45); }
+      else if (b === 'mountains') { add(5, v * (1 - n * .5)); add(2, v * n * .5); }
+      else if (b === 'waste') { add(1, v * (.55 + n * .25)); add(4, v * (.45 - n * .25)); }
+      else if (b === 'coast') { add(7, v * (.6 + n * .3)); add(0, v * (.4 - n * .3)); } }
+    if (map.river && h < -.15) { const k = Math.min(1, -h / .8) * .85; for (let i = 0; i < 8; i++) W[i] *= 1 - k; W[(B.swamp || 0) > .5 ? 4 : 7] += k; }     // у воды — песок, в болоте — грязь
+    else if (pk > 0) { for (let i = 0; i < 8; i++) W[i] *= 1 - pk; W[1] += pk; }     // тропа
+    if (map.plateaus.length) { if (inCliff(map.plateaus, x, z, .9)) { W.fill(0); W[2] = 1; } else for (const P of map.plateaus) if (Math.hypot(x - P.x, z - P.z) < P.r - 1.5) { const k = .75; for (let i = 0; i < 8; i++) W[i] *= 1 - k; W[6] += k; break; } }     // обрыв — камень, верх плато — снег
+    const sum = W.reduce((a, b) => a + b, 0) || 1; return W.map(v => v / sum);
+  }
   // деревья и камни участка: один раз на участок, нужны и земле (тень у стволов), и самим деревьям; старые забываются
   const propsMemo = new Map(), propsAt = (ci, cj) => { const k = ci + ',' + cj; let P = propsMemo.get(k); if (!P) { P = propsIn(map, cfg, ci, cj); propsMemo.set(k, P); if (propsMemo.size > 160) propsMemo.delete(propsMemo.keys().next().value); } return P; };
   const FL = cfg.flora && cfg.flora.on ? cfg.flora : null;
   const hillsGeo = (ci, cj) => {
     const g = new THREE.PlaneGeometry(CHUNK, CHUNK, CHUNK, CHUNK); g.rotateX(-Math.PI / 2); g.translate((ci + .5) * CHUNK, 0, (cj + .5) * CHUNK);
-    const pos = g.attributes.position, uv = g.attributes.uv, col = new Float32Array(pos.count * 3), c = new THREE.Color();
+    const pos = g.attributes.position, uv = g.attributes.uv, col = new Float32Array(pos.count * 3), c = new THREE.Color(), tw0 = new Float32Array(pos.count * 4), tw1 = new Float32Array(pos.count * 4);
     const near = pathC ? segsNear(roadSegs, ci * CHUNK, (ci + 1) * CHUNK, cj * CHUNK, (cj + 1) * CHUNK, PATH.w[1] + PATH.edge + 1) : [];     // тропы рядом с участком
     const CS = cfg.shapes && cfg.shapes.contact, m = CS ? CS.r + .5 : 0, X0 = ci * CHUNK - m, X1 = (ci + 1) * CHUNK + m, Z0 = cj * CHUNK - m, Z1 = (cj + 1) * CHUNK + m;     // тень у домов и стволов (шаг 7)
     const blds = CS ? map.buildings.filter(b => b.x1 > X0 && b.x0 < X1 && b.z1 > Z0 && b.z0 < Z1) : [], trunks = [];
@@ -139,13 +176,15 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       uv.setXY(i, (x + 250) / 500, 1 - (z + 250) / 500);                // та же текстура и масштаб, что у плоской земли
       const k = 1 + h * .12, tn = biomeTint(cfg, x, z); c.setRGB(k * tn[0], k * tn[1], k * tn[2]);     // оттенок биома (C3b)
       if (FL) { const gm = groundMix(x, z, FL); c.setRGB(c.r * gm[0], c.g * gm[1], c.b * gm[2]); }     // пятна сочной и сухой травы, проплешины (зелень)
+      if (gtexOn) { const pk = near.length ? pathMix(near, x, z, PATH) : 0, Wt = groundW(x, z, h, pk); tw0.set(Wt.slice(0, 4), i * 4); tw1.set(Wt.slice(4), i * 4); c.setRGB(1 + (c.r - 1) * GT.tint, 1 + (c.g - 1) * GT.tint, 1 + (c.b - 1) * GT.tint).multiplyScalar(k); }     // текстуры: цвет вершины — только свет и лёгкий оттенок биома
+      else {
       if (map.river && h < -.15) c.lerp(sandC, Math.min(1, -h / .8) * .7);
       else if (near.length) { const pk = pathMix(near, x, z, PATH); if (pk > 0) c.lerp(pathC, pk); }     // тропа — цвет земли с мягким краем (шаг 6)
-      if (map.plateaus.length && inCliff(map.plateaus, x, z, .9)) c.copy(rockC).multiplyScalar(k);     // отвесный край — камень (C3c)
+      if (map.plateaus.length && inCliff(map.plateaus, x, z, .9)) c.copy(rockC).multiplyScalar(k); }     // отвесный край — камень (C3c)
       if (shade) c.multiplyScalar(contactShade(shade[Math.round(z - cj * CHUNK) * (CHUNK + 1) + Math.round(x - ci * CHUNK)], CS));
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
-    g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('tw0', new THREE.BufferAttribute(tw0, 4)); g.setAttribute('tw1', new THREE.BufferAttribute(tw1, 4)); g.computeVertexNormals(); return g;
   };
   // свет сквозь облака (E2): пятна света на холмах (та же сетка, текстура поля плывёт по ветру) и столбы света над яркими
   const SL = cfg.sunlight, field = SL && SL.on ? makeField(cfg.world.seed) : null, sunGroup = new THREE.Group();

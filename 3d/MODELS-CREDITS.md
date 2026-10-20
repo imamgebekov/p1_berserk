@@ -24,3 +24,8 @@
 
 Изменения: сжатие, лишние клипы убраны, материалы переведены в Lambert, у «Skeleton Dragon» — specular-glossiness в metal-rough.
 Внимание: у «fishman» нет описания, у «Skeleton Dragon» имя меша похоже на модель из чужой игры — владелец решил брать.
+
+## Текстуры земли (CC0)
+- **Tiny Texture Pack 1 и 2** — Screaming Brain Studios, https://opengameart.org/content/tiny-texture-pack — Grass 12, Dirt 02, Stone 11.
+- **Texture Pack** — Lynocs, https://lynocs.itch.io/texture-pack — Swamp 1, Mud 1, Snowy Grass 3, Snow 2 (автор пишет, что сделаны с помощью ИИ).
+- **Simple Seamless tiles of dirt and sand** — LuminousDragonGames, https://opengameart.org/node/69941 — Sand 1.

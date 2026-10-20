@@ -33,6 +33,17 @@ export function biomeTint(cfg, x, z) {
   return t.map(v => 1 + (v - 1) * kc);
 }
 
+// доли биомов в точке (для текстур земли, 2026-10-20): те же сектора и мягкие стыки, что у biomeTint; core — ядро без биома
+export function biomeWeights(cfg, x, z) {
+  const G = cfg.worldgen, w = { core: 1 }; if (!G || !G.on || cfg.world.radius <= G.coreR) return w;
+  const d = Math.hypot(x, z), kc = Math.max(0, Math.min(1, (d - G.coreR) / G.belt)); if (kc <= 0) return w;
+  const n = BIOMES.length, f = turnOf(G, x, z) * n, i = Math.floor(f) % n, fr = f - Math.floor(f), edge = .12, a = BIOMES[i];
+  w.core = 1 - kc; let o = null, k = 0;
+  if (fr > 1 - edge) { k = (fr - (1 - edge)) / (2 * edge); o = BIOMES[(i + 1) % n]; } else if (fr < edge) { k = (edge - fr) / (2 * edge); o = BIOMES[(i + n - 1) % n]; }
+  w[a] = (w[a] || 0) + kc * (1 - k); if (o) w[o] = (w[o] || 0) + kc * k;
+  return w;
+}
+
 const NAMES = {
   village: [['Тихий', 'Сырой', 'Мшистый', 'Каменный', 'Серый', 'Ясный', 'Горький', 'Ветреный', 'Ольховый', 'Дальний', 'Нижний', 'Кривой'], ['Яр', 'Лог', 'Хутор', 'Двор', 'Ключ', 'Мыс', 'Бор', 'Затон', 'Выселок', 'Починок']],
   camp: [['Стоянка', 'Лагерь', 'Логово'], ['Волчья', 'Ржавых', 'Чёрных', 'Беглых', 'Серых', 'Дымная']],
