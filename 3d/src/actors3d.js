@@ -34,7 +34,8 @@ const ACT = {
   bow: ['Ranged_Bow_Release', 'Ranged_2H_Shoot', 'Spell1', 'Attack'], aim: ['Ranged_Bow_Draw', 'Ranged_Bow_Aiming_Idle', 'Ranged_Magic_Raise', 'Spell2', 'Idle_Attacking', 'Idle'],
   cast: ['Ranged_Magic_Shoot', 'Spell1', 'Ranged_Magic_Spellcasting', 'Staff_Attack', 'Punch'], spell: ['Ranged_Magic_Spellcasting', 'Spell2', 'Spell1', 'Ranged_Magic_Shoot'],
   block: ['Melee_Blocking', 'Melee_Block', 'Idle_Attacking', 'Idle'], charge: ['Melee_2H_Idle', 'Melee_Blocking', 'Idle_Attacking', 'Idle'],
-  spawn: ['Skeletons_Awaken_Standing', 'Spawn_Ground', 'Idle']
+  spawn: ['Skeletons_Awaken_Standing', 'Spawn_Ground', 'Idle'],
+  graze: ['Eating', 'Bite_Front', 'Idle_2', 'Idle'], fly: ['Fast_Flying', 'Flying_Idle', 'Jump', 'Walk'], peck: ['Bite_Front', 'Eating', 'Idle'], work: ['Interact', 'Idle_Neutral', 'Idle']
 };
 // семейство оружия → три удара цепочки (прямой, обратный, завершающий)
 const CHAIN = { slash: ['a1', 'a2', 'a3'], thrust: ['p1', 'a1', 'p1'], smash: ['h1', 'h2', 'h2'], spin: ['h1', 'h3', 'h3'], flail: ['h2', 'h1', 'h2'], dual: ['d1', 'd2', 'd3'], fists: ['fist', 'fist', 'a3'], bow: ['bow', 'bow', 'bow'], staff: ['cast', 'cast', 'spell'] };
@@ -65,7 +66,7 @@ export function preloadActors(cfg) { const A = cfg.actors; if (!A || !A.on) retu
 const byName = (o, n) => o.getObjectByName(n) || o.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(n));     // загрузчик убирает точки из имён (handslot.r → handslotr)
 export function makeActor(key, kit, kind = 'actor') {
   const src = actorReady(key); if (!src) return null;
-  const obj = cloneSkinned(src.scene), g = new THREE.Group(), root = new THREE.Group(); g.add(root); root.add(obj);
+  const obj = cloneSkinned(src.scene), g = new THREE.Group(), root = new THREE.Group(); g.add(root); root.add(obj); g.userData.actor = key;     // для тестов: какая модель
   const s = kit.height / src.h; obj.scale.setScalar(s); obj.position.y = -src.minY * s; if (kit.yaw) obj.rotation.y = kit.yaw;
   const mats = []; obj.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); mats.push(o.material); if (kit.tint) o.material.color.multiply(new THREE.Color(kit.tint)); } });
   for (const n of kit.hide || []) { const o = byName(obj, n); if (o) o.visible = false; }
@@ -105,6 +106,12 @@ export function makeActor(key, kit, kind = 'actor') {
   };
   // облик по броне: шлем/шляпа видны, если надето на голову; цвет плаща
   A.setLook = L => { for (const n of kit.helm || []) { const o = byName(obj, n); if (o) o.visible = !!(L && L.helm); } for (const n of kit.cape || []) { const o = byName(obj, n); if (o && L && L.cape && o.material) o.material.color.set(L.cape).lerp(new THREE.Color('#ffffff'), .45); } };
+  // заглушки под код своих моделей (руки, ноги, голова, крылья): рендер может их крутить — на готовую модель это не влияет
+  const dummy = () => new THREE.Object3D(); Object.assign(A, { armL: dummy(), armR: dummy(), head: dummy(), legs: [], wl: dummy(), wr: dummy() });
+  // житель или зверь: действие (idle, walk, run, graze, fly…) и шаг анимации
+  A.tick = (dt, act = 'idle', speed = 1) => { if (!A.play(act, { fade: .25, speed })) A.play('idle', { fade: .25 }); A.mixer.update(dt); };
+  // конь: шаг по скорости, как у своей модели
+  A.step = (t, sp) => { const d = Math.min(.1, Math.max(0, t - (A.lt ?? t))); A.lt = t; A.tick(d, sp > 5 ? 'run' : sp > .5 ? 'walk' : 'idle', sp > 5 ? sp / 9 : sp > .5 ? Math.max(.6, sp / 3) : 1); };
   A.play('idle', { fade: 0 });
   return A;
 }
@@ -152,7 +159,7 @@ export function disposeActor(A) { if (!A) return; A.mixer.stopAllAction(); A.mix
 // ключ готовой модели героя (hero) или врага (foe) по виду; null — модели нет или готовые модели выключены
 export function actorKey(cfg, kind, id) {
   const A = cfg.actors; if (!A || !A.on || OFF) return null;
-  const k = kind === 'hero' ? A.heroes[id] : A.foes[id]; return k && A.kits[k] ? k : null;
+  const k = kind === 'hero' ? A.heroes[id] : kind === 'npc' ? (A.npcs || {})[id] : kind === 'beast' ? (A.beasts || {})[id] : A.foes[id]; return k && A.kits[k] ? k : null;
 }
 // ?models=0 — только свои модели; в автотестах (webdriver) готовые модели включает только ?models=1
 const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('models') : null;

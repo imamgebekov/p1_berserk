@@ -7,7 +7,8 @@
 - **KayKit Skeletons 1.1** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-skeletons — Skeleton Warrior, Minion, Rogue, Mage.
 - **KayKit Character Animations 1.1** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-character-animations — клипы Rig_Medium.
 - **Quaternius RPG Characters (Nov 2020)** — Quaternius, https://quaternius.com — Wizard, Cleric (из FBX в glTF).
-- **Quaternius Ultimate Monsters / Animated Animals / Modular Men** — Quaternius, через https://poly.pizza — Demon (flying), Ghost Skull, Yeti, Wolf, King.
+- **Quaternius Ultimate Monsters / Animated Animals / Modular Men / Modular Women** — Quaternius, через https://poly.pizza — Demon (flying), Ghost Skull, Yeti, Wolf, King, Farmer, Adventurer (женщина), Hooded Adventurer, Stag, Fox, Cow, Chicken, Pigeon, Horse.
+- **KayKit Adventurers** — Barbarian (кузнец); **Quaternius RPG Characters** — Warrior (капитан).
 
 ## CC BY 4.0 (автор в титрах)
 Со Sketchfab, https://sketchfab.com:

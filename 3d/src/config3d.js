@@ -834,7 +834,10 @@ const BASE = {
       royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'q_yeti', castellan: 'q_king', ashking: 'q_king', oakking: 'q_king',
       brute: 'sf_mino', ghoul: 'sf_ghoul', devourer: 'sf_ghoul', golem: 'sf_drugdor', firegolem: 'sf_drugdor', drowned: 'sf_fish', drownedmaid: 'sf_fish', silt: 'sf_fish', swampelder: 'sf_fish',
       demon_guard: 'sf_minob', lord: 'sf_minob', gatebeast: 'sf_minob', hand_lord: 'sf_minob', chief: 'sf_minob', tidewyrm: 'sf_skdragon', bonetyrant: 'sf_sklord', namelessking: 'sf_sklord', gravewight: 'sf_sklord', abbot: 'sf_sklord' },
-    tints: { bomber: '#ffb070', ash_thief: '#e8d080', blackdog: '#404048', garm: '#a06050', eclipse_fiend: '#b080ff', garm_beast: '#c04838', greywolf: '#c8c8c0', towerhound: '#c09060',
+    npcs: { merchant: 'q_farmer', smith: 'kk_barbarian', captain: 'q_warrior', villager: 'q_farmer', villagerF: 'q_adv_f', traveler: 'q_hooded' },     // жители (выбор владельца 2026-10-20)
+    beasts: { deer: 'q_stag', fox: 'q_fox', goat: 'q_cow', duck: 'q_chicken', heron: 'q_pigeon', crow: 'q_pigeon', horse: 'q_horse' },     // живность
+    sizes: { heron: 1.3 },     // свой рост модели для вида (голубь в роли цапли)
+    tints: { heron: '#c8d0d8', crow: '#3a3438', bomber: '#ffb070', ash_thief: '#e8d080', blackdog: '#404048', garm: '#a06050', eclipse_fiend: '#b080ff', garm_beast: '#c04838', greywolf: '#c8c8c0', towerhound: '#c09060',
       kad_soldier: '#8aa0ff', kad_spear: '#8aa0ff', kad_banner: '#a0b0ff', kad_xbow: '#a0b8ff', royal_guard: '#ff8a8a', masked_knight: '#605870', brandshade: '#ff6a6a', shrieker: '#ffe0b0', ashking: '#c0a080', oakking: '#a0d080', devourer: '#c0ffa0', firegolem: '#ff9a60', drownedmaid: '#a0e0d0', silt: '#b0c080', swampelder: '#c0a070', lord: '#ff9070', gatebeast: '#ff7060', hand_lord: '#c090ff', chief: '#ffc0a0', gravewight: '#c0d080', abbot: '#ffe0a0' },
     kits: {
       kk_knight: { anims: 'kk', height: 2.25, helm: ['Knight_Helmet', 'Knight_HelmetVisor'], cape: ['Knight_Cape'] },
@@ -845,6 +848,8 @@ const BASE = {
       kk_skel_warrior: { anims: 'kk', height: 2.2, atk: 'p1' }, kk_skel_minion: { anims: 'kk', height: 2.0 }, kk_skel_mage: { anims: 'kk', height: 2.2, atk: 'cast', aim: 'spell' },
       q_wizard: { height: 2.2, hand: 'WeaponR', handL: 'FistL', hide: ['Wizard_Staff'], wRot: [Math.PI, 0, 0] }, q_demonfly: { height: 1.8, atk: 'a1' }, q_wolf: { height: 1.3, atk: 'a1' }, q_ghostskull: { height: 1.8, atk: 'a1' },
       q_yeti: { height: 2.1, atk: 'a1' }, q_king: { height: 2.0, atk: 'a1' },
+      q_farmer: { height: 2.05 }, q_adv_f: { height: 1.95 }, q_hooded: { height: 1.95 }, kk_barbarian: { anims: 'kk', height: 2.3 }, q_warrior: { height: 2.15, hand: 'WeaponR', handL: 'FistL' },
+      q_stag: { height: 2.2 }, q_fox: { height: .75 }, q_cow: { height: 1.35 }, q_chicken: { height: .45 }, q_pigeon: { height: .42 }, q_horse: { height: 2.7 },
       sf_mino: { height: 2.1 }, sf_ghoul: { height: 1.9 }, sf_drugdor: { height: 2.0 }, sf_fish: { height: 2.4 }, sf_minob: { height: 2.1 }, sf_skdragon: { height: 1.8 }, sf_sklord: { height: 2.1, split: { idle: [.1, 2.5], walk: [2.95, 4.33] } } } },
   shapes: { grad: [.7, 1.08], contact: { r: 1.5, k: .25 }, round: { on: true, k: .2, max: .06, seg: 1 },
     roof: { colors: ['#8f7e5e', '#6e5e50', '#56606a'], top: 1.15 } },
