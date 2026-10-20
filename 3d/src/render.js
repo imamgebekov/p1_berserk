@@ -22,7 +22,8 @@ import { qualityOf } from './quality3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeBladeFx, bladeEls, hasBladeStyle } from './bladefx3d.js';
 import { weaponMix, weaponElement } from './stones3d.js';
-import { loadNature } from './actors3d.js';
+import { loadNature, loadBaked, modelsOff } from './actors3d.js';
+import { setDecorLib } from './decor.js';
 import { setNature } from './models.js';
 import { makeActor, actorKey, actorReady, preloadActors, driveHero, driveFoe, disposeActor } from './actors3d.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeHorse, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
@@ -124,7 +125,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // земля с холмами (C3a): участками CHUNK м вокруг героя; светлее на буграх и темнее в низинах, у воды — песок
   const hillsMat = paintMat(new THREE.MeshLambertMaterial({ map: gtex, vertexColors: true }), 'ground'), sandC = new THREE.Color(cfg.look.sand), rel = h => { const t = new THREE.Color(h), g = gtex.mean; return new THREE.Color(t.r / g.r, t.g / g.g, t.b / g.b); }, rockC = rel('#6e6a60'), PATH = cfg.look.path, pathC = PATH ? rel(PATH.color) : null, roadSegs = pathSegs(map);     // скала и тропа: текстура травы × множитель ≈ нужный цвет (линейный)     // цвет материала — мокрость (F3)
   // текстуры земли (2026-10-20, выбор владельца): 8 слоёв — трава, тропа, камень, болото, грязь, снежная трава, снег, песок; смесь по долям в вершинах
-  const GT = cfg.groundTex && cfg.groundTex.on ? cfg.groundTex : null, GU = { uGT: { value: null }, uGTK: { value: 0 }, uGTile: { value: GT ? GT.tile : 4 }, uGTGain: { value: GT ? GT.gain : 1 }, uGL0: { value: new THREE.Vector4(...(GT ? GT.layer.slice(0, 4) : [1, 1, 1, 1])) }, uGL1: { value: new THREE.Vector4(...(GT ? GT.layer.slice(4) : [1, 1, 1, 1])) } };
+  const GT = cfg.groundTex && cfg.groundTex.on && !modelsOff() ? cfg.groundTex : null, GU = { uGT: { value: null }, uGTK: { value: 0 }, uGTile: { value: GT ? GT.tile : 4 }, uGTGain: { value: GT ? GT.gain : 1 }, uGL0: { value: new THREE.Vector4(...(GT ? GT.layer.slice(0, 4) : [1, 1, 1, 1])) }, uGL1: { value: new THREE.Vector4(...(GT ? GT.layer.slice(4) : [1, 1, 1, 1])) } };
   if (GT) { const prev = hillsMat.onBeforeCompile, key0 = hillsMat.customProgramCacheKey ? hillsMat.customProgramCacheKey() : '';
     hillsMat.onBeforeCompile = (sh, r) => { if (prev) prev(sh, r); Object.assign(sh.uniforms, GU);
       sh.vertexShader = 'attribute vec4 tw0; attribute vec4 tw1; varying vec4 vTW0; varying vec4 vTW1; varying vec2 vGXZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vTW0 = tw0; vTW1 = tw1; vGXZ = (modelMatrix * vec4(transformed, 1.)).xz;');
@@ -274,7 +275,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     scene.add(riverGroup); freeze(riverGroup);     // вода и мосты неподвижны
   }
   const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
-  const decor = buildDecor({ ...map, decor: map.decor.concat(surfaceDetails(map, cfg)) }, mulberry32(cfg.world.seed + 2), cfg.shaders && cfg.shaders.grime); scene.add(decor.group); freeze(decor.group);     // детали мира (T5) — только вид
+  const mkDecor = () => buildDecor({ ...map, decor: map.decor.concat(surfaceDetails(map, cfg)) }, mulberry32(cfg.world.seed + 2), cfg.shaders && cfg.shaders.grime);
+  const decor = mkDecor(); scene.add(decor.group); freeze(decor.group);     // детали мира (T5) — только вид
   const decorCells = [...decor.group.children], CL = cfg.cull;     // клетки декора (снимаются вдали); дальности и доля травы — config3d.js → cull
   const npcs = [], storyNpcs = new Map();     // герои сюжета (этап 3)
   const markTex = Object.fromEntries(['!', '?'].map(ch => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.font = '900 54px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = '#1a0e06'; g.strokeText(ch, 32, 34); g.fillStyle = ch === '!' ? '#ffd23a' : '#d8d8e0'; g.fillText(ch, 32, 34); return [ch, new THREE.CanvasTexture(c)]; }));
@@ -548,6 +550,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const heroBlade = makeBladeFx(scene), bladeOn = () => !!(cfg.bladeFx && cfg.bladeFx.on);     // стихия на клинке (2026-10-20)
   if (actorKey(cfg, 'hero', 'thorn') !== null || Object.keys((cfg.actors && cfg.actors.foes) || {}).length) preloadActors(cfg);     // готовые модели (2026-10-20): грузятся в фоне
   const kitOf = k => cfg.actors.kits[k];
+  loadBaked('buildings').then(lib => { if (!lib) return; setDecorLib(lib); town.setShells(lib);     // постройки KayKit: декор пересобирается, у домов — наружный вид
+    const nd = mkDecor(); for (const c of decorCells) { if (c.parent) c.parent.remove(c); c.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); } decorCells.length = 0;
+    for (const c of [...nd.group.children]) { decor.group.add(c); decorCells.push(c); c.traverse(m => { if (m.material) [].concat(m.material).forEach(xray); if (m.isMesh && shadowsOn) m.castShadow = true; }); } freeze(decor.group); }).catch(e => console.warn('постройки не загрузились:', e && e.message));
   loadNature().then(lib => { if (!lib) return; setNature(lib); for (const k of [...liveLand.keys()]) dropLand(k); }).catch(e => console.warn('природа не загрузилась:', e && e.message));     // готовые деревья и камни: участки пересобираются
   // жители и звери (2026-10-20): готовая модель по виду, если пришла; tint и рост — по виду
   const ambMake = (g, id, tint) => { const k = actorKey(cfg, g, id); if (!k || !actorReady(k)) return null; const A0 = cfg.actors, h = (A0.sizes || {})[id]; return makeActor(k, { ...kitOf(k), ...(h ? { height: h } : {}), tint: tint || A0.tints[id] }, id); };

@@ -83,16 +83,33 @@ export function buildTown(map, cfg, rnd) {
     const doorDir = { n: -1, s: 1, e: -1, w: 1 }[d.side];
     group.add(walls, floor, roof);
     const glowM = glowL.length ? new THREE.Mesh(merged(glowL), new THREE.MeshBasicMaterial({ vertexColors: true })) : null; if (glowM) group.add(glowM);
-    items.push({ b, walls, roof, floor, glow: glowM, a: 1, cut: 1, hinge, doorDir, vert, far: false });
+    items.push({ b, walls, roof, floor, glow: glowM, a: 1, cut: 1, hinge, doorDir, vert, far: false, ruin, tall });
   }
 
+  // наружный вид KayKit (2026-10-20, выбор владельца): модель по назначению дома, растянута по плану, вход — к двери.
+  // Снаружи видна модель; внутри — прежние стены (срез), пол и мебель. Столкновения — прежние стены
+  const SHELL = { hut: 'home_A_red', house: 'home_B_red', warehouse: 'lumbermill_red', smithy: 'blacksmith_red', shop: 'market_red', barracks: 'barracks_red', tavern: 'tavern_red', chapel: 'church_red' };
+  const NPC_SHELL = { smith: 'blacksmith_red', merchant: 'market_red', captain: 'barracks_red' };
+  const YAW = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 };
+  function setShells(lib) {
+    const mat = paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto', { plank: .2 });
+    for (const it of items) {
+      const b = it.b, name = it.ruin ? 'destroyed' : (b.npc && NPC_SHELL[b.npc.kind]) || SHELL[b.kind] || 'home_B_red', src = lib[name]; if (!src || it.shell) continue;
+      const side = b.door.side, yaw = YAW[side] ?? 0, swap = side === 'e' || side === 'w', W0 = src.userData.w, D0 = src.userData.d;
+      const sx = (swap ? b.d : b.w) / W0 * 1.04, sz = (swap ? b.w : b.d) / D0 * 1.04, sy = Math.max(H * 1.25 / src.userData.h, (sx + sz) / 2 * (it.tall ? .95 : .8));
+      const g = src.clone(); g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(b.x, 0, b.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), new THREE.Vector3(sx, sy, sz)));
+      const c = g.attributes.color; for (let i = 0; i < c.count; i++) { const r = c.getX(i), gg = c.getY(i), bb = c.getZ(i), red = r > gg * 1.6 && r > bb * 1.6; c.setXYZ(i, r * (red ? .55 : .85), gg * (red ? .5 : .85), bb * (red ? .5 : .85)); }     // крыши KayKit темнее (мрачная палитра)
+      it.shell = new THREE.Mesh(g, mat); it.shell.visible = !it.far; group.add(it.shell);
+    }
+  }
   function update(inside, dt, wmap = map) {
     const k = Math.min(1, dt * 9);
     for (const it of items) {
-      if (it.far) continue;                                          // дальний дом (C3b) — скрыт, не обновляем
+      if (it.far) { if (it.shell) it.shell.visible = false; continue; }                                          // дальний дом (C3b) — скрыт, не обновляем
       const on = it.b.id === inside;
       it.a += ((on ? 0 : 1) - it.a) * k;
       it.cut += ((on ? M.cutH : 1) - it.cut) * k;
+      if (it.shell) { const out = it.a > .5; it.shell.visible = out; it.walls.visible = it.floor.visible = !out; if (it.glow) it.glow.visible = !out; it.roof.visible = false; if (!out) { it.walls.scale.y = Math.max(.01, it.cut); const sb0 = wmap.buildings[it.b.id]; it.hinge.rotation.y = sb0.door.open * Math.PI / 2 * it.doorDir; } continue; }     // снаружи — модель, внутри — стены срезом
       it.roof.material.opacity = it.a; it.roof.visible = it.a > .03;
       it.walls.scale.y = Math.max(.01, it.cut);
       const sb = wmap.buildings[it.b.id];
@@ -102,5 +119,5 @@ export function buildTown(map, cfg, rnd) {
     if (cur) light.position.set(cur.x, 2.4, cur.z);
     light.intensity += ((cur ? 26 : 0) - light.intensity) * k;
   }
-  return { group, update, items, light };
+  return { group, update, items, light, setShells };
 }

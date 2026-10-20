@@ -55,8 +55,8 @@ export function genWorld(cfg, buildings) {
     if (zn.type === 'graveyard') {
       const x0 = zn.x - zn.w / 2, x1 = zn.x + zn.w / 2, z0 = zn.z - zn.d / 2, z1 = zn.z + zn.d / 2;
       // ограда с воротами на юге (к часовне)
-      for (let x = x0; x < x1; x += 2) { put('fence', x + 1, z0, { rot: 0, w: 2 }); if (Math.abs(x + 1 - zn.x) > 2.4) put('fence', x + 1, z1, { rot: 0, w: 2 }); }
-      for (let z = z0; z < z1; z += 2) { put('fence', x0, z + 1, { rot: 1, w: 2 }); put('fence', x1, z + 1, { rot: 1, w: 2 }); }
+      for (let x = x0; x < x1; x += 2) { put('fence', x + 1, z0, { rot: 0, w: 2, grave: 1 }); if (Math.abs(x + 1 - zn.x) > 2.4) put('fence', x + 1, z1, { rot: 0, w: 2, grave: 1 }); }     // grave — кованая ограда кладбища (вид)
+      for (let z = z0; z < z1; z += 2) { put('fence', x0, z + 1, { rot: 1, w: 2, grave: 1 }); put('fence', x1, z + 1, { rot: 1, w: 2, grave: 1 }); }
       put('gate', zn.x, z1, {});
       // могилы рядами: часть из них — контейнеры
       let g = 0;

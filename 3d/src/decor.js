@@ -7,6 +7,45 @@ import { paintMat, tagKind } from './paint3d.js';
 // вид деталей (T3): серое у построек из камня — кладкой; шатры — тканью; клетка и жаровня — металлом
 const PART_OF = { cwall: 'masonry', ctower: 'masonry', cgate: 'masonry', tower: 'masonry', fort: 'masonry', wallfrag: 'masonry', ruinwall: 'masonry', mausoleum: 'masonry', shrine: 'masonry', well: 'masonry', paving: 'masonry', mill: 'masonry', tent: 'cloth', bigtent: 'cloth', cage: 'metal', brazier: 'metal', lamp: 'metal' };
 
+// готовые постройки KayKit (2026-10-20, выбор владельца): геометрии с цветом в вершинах (buildings.glb); пока нет — свои кубики
+let BLD = null;
+export function setDecorLib(lib) { BLD = lib; }
+const TM = new THREE.Matrix4(), TQ = new THREE.Quaternion(), TE = new THREE.Euler(), TP = new THREE.Vector3(), TS = new THREE.Vector3();
+// модель name: центр в (x, z), поворот rot, масштаб по осям модели; dim — тёмнее/светлее
+function putModel(L, name, x, z, rot, sx, sy, sz, dim = 1) {
+  const src = BLD && BLD[name]; if (!src) return false;
+  const g = src.clone(); TE.set(0, rot, 0); TQ.setFromEuler(TE); TP.set(x, 0, z); TS.set(sx, sy, sz); TM.compose(TP, TQ, TS); g.applyMatrix4(TM);
+  if (dim !== 1) { const c = g.attributes.color; for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * dim, c.getY(i) * dim, c.getZ(i) * dim); }
+  L.push(g); return true;
+}
+// замена своего декора: true — заменили. Ряды (стены, частокол, ограды) — отрезками модели вдоль длинной стороны
+function swapDecor(d, L, rnd) {
+  const s = d.s || 1, r = d.rot || 0;
+  // ряд отрезков длиной около seg м вдоль длинной стороны; h — масштаб высоты, depth — масштаб толщины; длинная ось модели — x или z
+  const tile = (name, len, seg, h, alongX, depth) => { const M = BLD[name]; if (!M) return false; const mx = M.userData.w >= M.userData.d, Ls = mx ? M.userData.w : M.userData.d, n = Math.max(1, Math.round(len / seg)), k = len / n;
+    for (let i = 0; i < n; i++) { const o = -len / 2 + k * (i + .5), rot = mx === alongX ? 0 : Math.PI / 2, sl = k / Ls; putModel(L, name, d.x + (alongX ? o : 0), d.z + (alongX ? 0 : o), rot, mx ? sl : depth, h, mx ? depth : sl, .85); } return true; };
+  switch (d.t) {
+    case 'tomb': return putModel(L, rnd() < .5 ? 'gravestone' : 'grave_B', d.x, d.z, r, .55 * s, .55 * s, .55 * s, .8);
+    case 'cross': return putModel(L, rnd() < .5 ? 'gravemarker_A' : 'gravemarker_B', d.x, d.z, r, .9 * s, .9 * s, .9 * s, .8);
+    case 'mausoleum': return putModel(L, 'crypt', d.x, d.z, r, .7, .5, .55, .85);
+    case 'well': return putModel(L, 'well_red', d.x, d.z, r, 2.4, 2.4, 2.4, .9);
+    case 'tent': return putModel(L, 'tent', d.x, d.z, r, 5, 5, 5, .85);
+    case 'bigtent': return putModel(L, 'tent', d.x, d.z, r, 8.5, 8.5, 8.5, .85);
+    case 'shrine': return putModel(L, 'shrine_candles', d.x, d.z, r, 1.4, 1.4, 1.4, .9);
+    case 'lamp': return putModel(L, 'post_lantern', d.x, d.z, r, 1, 1, 1, .9);
+    case 'fence': return d.grave ? putModel(L, 'fence', d.x, d.z, d.rot ? Math.PI / 2 : 0, (d.w || 2) / 4, .5, .6, .85) : putModel(L, 'fence_wood_straight', d.x, d.z, d.rot ? 0 : Math.PI / 2, 2.2, 2.2, (d.w || 2) / 1.15, .85);
+    case 'gate': return putModel(L, 'arch_gate', d.x, d.z, r, .7, .6, .7, .85);
+    case 'cwall': { const ax = d.w >= d.d; return tile('wall_straight', Math.max(d.w, d.d), 7.8, 3.9, ax, Math.min(d.w, d.d) / .8 * 1.1); }
+    case 'ctower': return putModel(L, 'tower_A_red', d.x, d.z, 0, 4.4, 3.8, 4.4, .85);
+    case 'cgate': return putModel(L, 'wall_straight_gate', d.x, d.z, r, ((d.w || 4) + 2.4) / 2, 3.9, 2, .85);
+    case 'palwall': { const ax = d.w >= d.d; return tile('fence_wood_straight', Math.max(d.w, d.d), 6.3, 5.5, ax, 5.5); }
+    case 'palgate': return putModel(L, 'fence_wood_straight_gate', d.x, d.z, r + Math.PI / 2, 5.5, 5.5, ((d.w || 3) + 1.4) / 1.15, .9);
+    case 'ruinwall': case 'wallfrag': return putModel(L, 'destroyed', d.x, d.z, r, 2.2 * s, 2.2 * s, 2.2 * s, .7);
+    case 'mill': return putModel(L, 'windmill_red', d.x, d.z, r, 3.4, 3.4, 3.4, .85);
+    case 'tower': return putModel(L, 'tower_B_red', d.x, d.z, r, 3.2, 3.6, 3.2, .85);
+    default: return false;
+  }
+}
 export function buildDecor(map, rnd, grime = null) {
   // клетки 64 м (C3b): каждая — свои меши, поэтому дальний и невидимый декор отсекается
   const glowList = () => Object.assign([], { glow: true });     // светящееся — без градиента (шаг 7)
@@ -18,6 +57,7 @@ export function buildDecor(map, rnd, grime = null) {
   for (const d of map.decor) {
     use(d.x, d.z);
     const f = mk(d.x, d.z, d.rot || 0), s = d.s || 1, n0 = L.length;
+    if (BLD && swapDecor(d, L, rnd)) { for (let i = n0; i < L.length; i++) if (!L[i].attributes.pkind) tagKind(L[i], PART_OF[d.t] || 'auto'); continue; }
     switch (d.t) {
       case 'lamp': f(0, 0, 0, .14, 3.2, .14, '#2a2220'); f(0, 3.0, 0, .6, .1, .1, '#2a2220'); f(.28, 2.55, 0, .3, .42, .3, '#ffb35a', true); f(.28, 2.8, 0, .4, .08, .4, '#2a2220'); break;
       case 'fence': { const w = d.w; const f2 = mk(d.x, d.z, d.rot ? Math.PI / 2 : 0); f2(-w / 2, 0, 0, .16, 1.15, .16, '#4a4440'); f2(0, 0, 0, .16, 1.0, .16, '#4a4440'); f2(0, .75, 0, w, .08, .08, '#4a4440'); f2(0, .35, 0, w, .08, .08, '#4a4440'); f2(-w / 2, 1.15, 0, .1, .22, .1, '#3a3532'); break; }

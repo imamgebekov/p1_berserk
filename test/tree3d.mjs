@@ -25,9 +25,10 @@ for (const h of Object.keys(HEROES)) {
 // правила покупки
 const mk = lv => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; const W = createWorld(c, mulberry32(2)); W.hero = 'thorn'; W.lv = lv; W.ap = abilityPoints(lv, c); W.sp = lv - 1; W.ab = {}; W.skills = {}; refreshGear(W); return W; };
 {
-  const W = mk(3); ok(canBuy(W, 'a:charge') === 'row', 'рывок без очков в ветке: ' + canBuy(W, 'a:charge'));
+  const W = mk(3); ok(canBuy(W, 'a:charge') === 'ok', 'первое умение — сразу, без очков в ветке: ' + canBuy(W, 'a:charge'));     // 3.85: на старте нет очков талантов
+  ok(canBuy(W, 'a:bash') === 'row', 'умение третьего ряда без очков в ветке: ' + canBuy(W, 'a:bash'));
   ok(buy(W, 't:th_hand', refreshGear) === 'ok' && buy(W, 't:th_hand', refreshGear) === 'ok' && W.sp === 0, 'талант первого ряда');
-  ok(buy(W, 'a:charge', refreshGear) === 'ok' && W.ab.charge === 1 && W.ap === 0, 'рывок после двух очков в ветке');
+  ok(buy(W, 'a:charge', refreshGear) === 'ok' && W.ab.charge === 1 && W.ap === 0, 'рывок');
   ok(canBuy(W, 'a:charge') === 'points' || canBuy(W, 'a:charge') === 'level', 'второй ранг без очков');
   const W2 = mk(60); for (let i = 0; i < 9; i++) buy(W2, 't:th_hand', refreshGear), buy(W2, 't:th_roar', refreshGear), buy(W2, 't:nose', refreshGear);
   ok(canBuy(W2, 'm:charge') === 'req', 'мастерство без умения 3-го ранга');

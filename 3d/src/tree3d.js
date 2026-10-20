@@ -8,6 +8,8 @@ import { branchesOf } from './data/skills3d.js';
 import { canUpgrade, upgradeAbility } from './abilities3d.js';
 
 export const ROWS = 7, COLS = 4, ROW_STEP = 2;
+// очков в ветке для ряда: первые два ряда открыты сразу — первое умение берётся первым очком умений (до 3.85 ряд 2 ждал 2 очка и на старте был недоступен)
+export const rowNeed = row => Math.max(0, row - 2) * ROW_STEP;
 const COMMON_SPLIT = [['step', 'nose'], ['eye', 'sneak'], ['haggle', 'pockets']];     // общие таланты в первый ряд веток
 const cache = new Map();
 // ветки героя: [{ id, name, color, role, nodes: [{ key, kind, id, name, row, col, max, req, icon }] }]
@@ -44,7 +46,7 @@ const findNode = (hero, key) => { for (const b of treeOf(hero)) { const n = b.no
 export function canBuy(W, key) {
   const f = findNode(W.hero, key); if (!f) return 'none'; const { b, n } = f, r = rankOf(W, n);
   if (r >= n.max) return 'max';
-  if (spentInTree(W, b) < (n.row - 1) * ROW_STEP) return 'row';
+  if (spentInTree(W, b) < rowNeed(n.row)) return 'row';
   if (n.kind === 'talent') return W.sp >= 1 ? 'ok' : 'points';
   if (n.kind === 'mastery' && (W.ab[n.id] || 0) < 3) return 'req';
   const u = canUpgrade(W, n.id); return u === 'ok' ? 'ok' : u === 'points' ? 'points' : u === 'max' ? 'max' : 'level';
@@ -57,5 +59,5 @@ export function buy(W, key, refreshGear) {
 // что нужно для следующего ранга — для подсказки
 export function needText(W, key) {
   const f = findNode(W.hero, key); if (!f) return ''; const { b, n } = f, st = canBuy(W, key);
-  return st === 'row' ? `Нужно ${(n.row - 1) * ROW_STEP} очков в ветке «${b.name}» (сейчас ${spentInTree(W, b)})` : st === 'req' ? 'Нужно умение 3-го ранга' : st === 'level' ? 'Следующий ранг — с более высокого уровня' : st === 'points' ? (n.kind === 'talent' ? 'Нет очков талантов' : 'Нет очков умений') : st === 'max' ? 'Максимум' : '';
+  return st === 'row' ? `Нужно ${rowNeed(n.row)} очков в ветке «${b.name}» (сейчас ${spentInTree(W, b)})` : st === 'req' ? 'Нужно умение 3-го ранга' : st === 'level' ? 'Следующий ранг — с более высокого уровня' : st === 'points' ? (n.kind === 'talent' ? 'Нет очков талантов' : 'Нет очков умений') : st === 'max' ? 'Максимум' : '';
 }
