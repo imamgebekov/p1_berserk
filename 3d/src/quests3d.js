@@ -168,12 +168,12 @@ export function questTarget(W, q, actors = []) {
   if (q.type === 'track') { const pts = trackPts(W, q); return pts[Math.min(st.n, pts.length - 1)]; }
   if (q.type === 'visit') { const pl = (W.cfg.map.places || []).find(x => x.id === q.place); return pl ? { x: pl.x, z: pl.z } : null; }
   if (q.type === 'boss') { const d = W.cfg.bosses.list.find(b => b.type === q.boss), dn = d && d.level && W.cfg.dungeons.list.find(x => x.id === d.level); return dn && dn.at ? { x: dn.at.x, z: dn.at.z } : d && Number.isFinite(d.x) ? { x: d.x, z: d.z } : null; }
-  if (q.type === 'kill' && W.lvl === 'surface') { let best = null, bd = W.cfg.quests.seek; for (const e of W.enemies) { if (e.dead || e.type !== q.enemy) continue; const d = len(e.x - W.player.x, e.z - W.player.z); if (d < bd) { bd = d; best = e; } } return best ? { x: best.x, z: best.z } : null; }
+  if (q.type === 'kill' && W.lvl === 'surface') { let best = null, bd = W.questFocus === q.id ? Infinity : W.cfg.quests.seek; for (const e of W.enemies) { if (e.dead || e.type !== q.enemy) continue; const d = len(e.x - W.player.x, e.z - W.player.z); if (d < bd) { bd = d; best = e; } } return best ? { x: best.x, z: best.z } : null; }     // выбранное задание («Вести») — ближайший враг этого вида где угодно
   return null;
 }
 const activeList = W => { const a = QUESTS.filter(q => { const st = stateOf(W, q.id); return st && st.s === 'active'; }); return a.filter(q => questState(W, q) === 'ready').concat(a.filter(q => questState(W, q) !== 'ready')); };
 // метки на карте: [{ x, z, ready, name }] — все взятые задания с целью
-export const questMarks = (W, actors = []) => activeList(W).map(q => { const t = questTarget(W, q, actors); return t ? { x: t.x, z: t.z, ready: questState(W, q) === 'ready', name: q.name } : null; }).filter(Boolean);
+export const questMarks = (W, actors = []) => activeList(W).map(q => { const t = questTarget(W, q, actors); return t ? { id: q.id, x: t.x, z: t.z, ready: questState(W, q) === 'ready', name: q.name } : null; }).filter(Boolean);
 const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 function lineOf(W, q) {
   const st = stateOf(W, q.id), p = progressOf(W, q), rd = questState(W, q) === 'ready';

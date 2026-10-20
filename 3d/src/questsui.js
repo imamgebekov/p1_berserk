@@ -2,6 +2,7 @@
 import { QUESTS, GIVER_NAME } from './data/quests3d.js';
 import { BY_ID } from './data/items.js';
 import { questState, acceptQuest, claimQuest, abandonQuest, progressOf, questsOf, activeCount, MAX_ACTIVE } from './quests3d.js';
+import { GI } from './data/gicons.js';
 
 export function createQuests(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const $ = id => doc.getElementById(id);
@@ -24,20 +25,26 @@ export function createQuests(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     track: () => `Выследить: ${q.beast} — следов ${q.n}, потом логово`,
     defend: () => `Оборона: ${q.waves.length} волны — место на карте`
   }[q.type])() + (q.limit ? ` · срок ${Math.round(q.limit / 60)} мин` : '');
+  // карточка задания (2026-10-20, просьба владельца: проще и нагляднее): значок вида, имя, строка описания, цель с полосой, награда фишками
+  const TYPE_IC = { kill: 'map:fight', boss: 'map:boss', visit: 'ui:map', bring: 'ui:bag', craft: 'ui:anvil', tome: 'ui:book', open: 'map:chest', hire: 'map:fight', hunt: 'ui:eye', track: 'ui:eye', defend: 'ui:bell' };
+  const gi = (k, cls) => { const sv = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.setAttribute('viewBox', '0 0 512 512'); sv.setAttribute('class', cls); if (GI[k]) { const pa = doc.createElementNS('http://www.w3.org/2000/svg', 'path'); pa.setAttribute('d', GI[k]); pa.setAttribute('fill', 'currentColor'); sv.appendChild(pa); } return sv; };
+  const chip = (txt, cls, ic) => { const c = el('span', 'qchip ' + (cls || '')); if (ic) c.appendChild(gi(ic, 'qci')); c.append(txt); return c; };
   function card(q, s) {
-    const r = el('div', 'srow qrow ' + s), info = el('div', 'sinfo'), p = progressOf(W, q);
-    const nm = el('span', 'nm', q.name); if (s === 'ready') nm.style.color = '#a8e0a0';
-    info.append(nm, el('div', 'sub', q.text), el('div', 'sub', goalText(q) + (p && p[1] > 1 ? ` · ${p[0]}/${p[1]}` : '')), el('div', 'sub g', 'Награда: ' + rewardText(q)));
-    if (q.minLv && W.lv < q.minLv) info.append(el('div', 'sub z', `Рекомендуется уровень ${q.minLv}`));
-    r.append(info);
-    const near = W.nearNpc === q.giver;
-    let b = null;
-    if (s === 'available') { b = el('button', 'buy' + (near ? '' : ' no'), 'Взять'); b.addEventListener('click', () => { const res = acceptQuest(W, q.id); flash(res === 'ok' ? 'Задание взято' : res === 'full' ? `Не больше ${MAX_ACTIVE} заданий` : 'Подойдите к тому, кто выдаёт'); render(); onChange && onChange(); }); }
-    else if (s === 'ready') { b = el('button', 'buy' + (near ? '' : ' no'), 'Сдать'); b.addEventListener('click', () => { const res = claimQuest(W, q.id); flash(res === 'ok' ? 'Награда получена' : 'Сдавать нужно: ' + GIVER_NAME[q.giver]); render(); onChange && onChange(); }); }
-    else if (s === 'active') { b = el('button', 'buy', armed === q.id ? 'Точно?' : 'Бросить'); b.addEventListener('click', () => { if (armed !== q.id) { armed = q.id; setTimeout(() => { armed = ''; render(); }, 2500); render(); return; } armed = ''; abandonQuest(W, q.id); render(); onChange && onChange(); }); }
-    else r.append(el('span', 'sub' + (s === 'done' ? ' g' : ''), { cooldown: 'Позже', done: 'Выполнено' }[s] || ''));
-    if (b) { b.type = 'button'; r.append(b); }
-    return r;
+    const r = el('div', 'qcard ' + s), p = progressOf(W, q), main = el('div', 'qmain');
+    const ic = el('div', 'qic'); ic.appendChild(gi(TYPE_IC[q.type] || 'ui:scroll', 'qsvg')); r.append(ic);
+    const head = el('div', 'qhead'); head.append(el('span', 'qname', q.name)); if (s === 'ready') head.append(chip('Готово — сдать', 'ok')); if (q.minLv && W.lv < q.minLv) head.append(chip(`ур. ${q.minLv}+`, 'warn'));
+    const goal = el('div', 'qgoal'); goal.append(el('span', 'qgt', goalText(q)));
+    if (p && p[1] > 1) { const bar = el('span', 'qbar'), fill = el('i'); fill.style.width = Math.round(Math.min(1, p[0] / p[1]) * 100) + '%'; bar.append(fill); goal.append(bar, el('span', 'qpn', `${p[0]}/${p[1]}`)); }
+    const rw = el('div', 'qrew'); if (q.reward.ash) rw.append(chip(`${q.reward.ash} пепла`, 'ash', 'ui:fire')); if (q.reward.xp) rw.append(chip(`${q.reward.xp} опыта`, 'xp', 'ui:sparkle')); for (const [id, n] of q.reward.items || []) rw.append(chip(BY_ID[id].name + (n > 1 ? ' ×' + n : ''), 'item', 'ui:gem'));
+    main.append(head, el('div', 'qtext', q.text), goal, rw); r.append(main);
+    const near = W.nearNpc === q.giver, acts = el('div', 'qacts'), btn = (txt, cls, f) => { const b = el('button', 'qbtn ' + (cls || ''), txt); b.type = 'button'; b.addEventListener('click', f); acts.append(b); return b; };
+    if (s === 'available') btn('Взять', near ? 'main' : 'main no', () => { const res = acceptQuest(W, q.id); flash(res === 'ok' ? 'Задание взято' : res === 'full' ? `Не больше ${MAX_ACTIVE} заданий` : 'Подойдите к тому, кто выдаёт'); if (res === 'ok' && !W.questFocus) W.questFocus = q.id; render(); onChange && onChange(); });
+    if (s === 'ready') btn('Сдать', near ? 'main' : 'main no', () => { const res = claimQuest(W, q.id); flash(res === 'ok' ? 'Награда получена' : 'Сдавать нужно: ' + GIVER_NAME[q.giver]); if (res === 'ok' && W.questFocus === q.id) W.questFocus = null; render(); onChange && onChange(); });
+    if (s === 'active' || s === 'ready') {
+      const on = W.questFocus === q.id; btn(on ? '✓ Ведём' : 'Вести', on ? 'focus on' : 'focus', () => { W.questFocus = on ? null : q.id; flash(on ? 'Метки пути выключены' : 'Метки пути — к этому заданию'); render(); onChange && onChange(); });
+      if (s === 'active') btn(armed === q.id ? 'Точно бросить?' : 'Бросить', 'quiet', () => { if (armed !== q.id) { armed = q.id; setTimeout(() => { armed = ''; render(); }, 2500); render(); return; } armed = ''; if (W.questFocus === q.id) W.questFocus = null; abandonQuest(W, q.id); render(); onChange && onChange(); }); }
+    if (s === 'cooldown') acts.append(el('span', 'qstate', 'Позже'));
+    r.append(acts); return r;
   }
   function render() {
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
@@ -49,7 +56,8 @@ export function createQuests(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       listEl.appendChild(el('div', 'ssec', GIVER_NAME[g]));
       const order = { ready: 0, available: 1, active: 2, cooldown: 3, done: 4 };
       const items = questsOf(W, g).map(q => [q, questState(W, q)]).filter(([, s]) => s !== 'locked').sort((a, b) => order[a[1]] - order[b[1]]);
-      for (const [q, s] of items) listEl.appendChild(card(q, s));
+      const done = items.filter(([, s]) => s === 'done'); for (const [q, s] of items) if (s !== 'done') listEl.appendChild(card(q, s));
+      if (done.length) { const d = el('details', 'qdone'), sm = el('summary', '', `Выполнено: ${done.length}`); d.append(sm); for (const [q] of done) d.append(el('div', 'qdl', '✓ ' + q.name)); listEl.appendChild(d); }     // выполненные — свёрнуто
       if (!items.length) listEl.appendChild(el('div', 'emptyl', 'Пока нечего поручить. Загляните позже.'));
     } else {
       const act = QUESTS.map(q => [q, questState(W, q)]).filter(([, s]) => s === 'active' || s === 'ready');

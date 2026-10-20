@@ -139,7 +139,7 @@ try {
   else {
     await page.tap('#questBtn'); await page.waitForTimeout(200);
     if (await page.evaluate(() => document.getElementById('quests').hidden)) bad('окно заданий не открылось');
-    await page.tap('#questList .qrow.available .buy'); await page.waitForTimeout(150);
+    await page.tap('#questList .qcard.available .qbtn.main'); await page.waitForTimeout(150);
     await page.screenshot({ path: join(out, '3d-quests.png') });
     await page.tap('#questClose'); await page.waitForTimeout(500);
     if (await page.evaluate(() => document.getElementById('tracker').hidden)) bad('трекер задания не показан');

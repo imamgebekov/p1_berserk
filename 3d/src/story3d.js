@@ -203,14 +203,19 @@ export function storyTick(W, dt) {
   if (G.type === 'escort') { const a = W.allies.find(q => q.story && S.allies.includes(q.id)), to = place(W, G.to, G.toOff); if (a && len(a.x - to.x, a.z - to.z) < G.r && len(p.x - to.x, p.z - to.z) < G.r + 4) toOutro(W); }
 }
 // строка цели и точка на карте
+// где персонаж сюжета: сюжетная фигура рядом или житель в доме (капитан, торговец, кузнец) — для цели на карте и меток на земле
+function actorAt(W, kind) {
+  const a = storyActors(W).find(q => q.kind === kind); if (a) return a;
+  const M = W.levels ? W.levels.surface.map : W.map, b = M && M.buildings.find(q => q.npc && q.npc.kind === kind); return b ? { x: b.npc.x, z: b.npc.z } : null;
+}
 export function storyGoal(W) {
   const S = W.story, c = S && sc(W); if (!c || S.st === 'end') return null;
   const lv = W.lv < c.lv ? ` (рек. ур. ${c.lv})` : '', head = `Акт ${ROMAN[c.act] || c.act} · ${c.name}: `;
   const who = k => SPEAKERS[k].name.split(',')[0];
-  if (S.st === 'wait') { if (c.auto) return { text: head + 'начало', at: null }; const a = storyActors(W).find(q => q.kind === c.giver); return { text: head + `поговорите: ${who(c.giver)}` + lv, at: a ? { x: a.x, z: a.z } : null }; }
-  if (S.st === 'outro') { const k = c.outroAt || c.giver, a = storyActors(W).find(q => q.kind === k); return { text: head + `вернитесь: ${who(k)}`, at: a ? { x: a.x, z: a.z } : null }; }
+  if (S.st === 'wait') { if (c.auto) return { text: head + 'начало', at: null }; const a = actorAt(W, c.giver); return { text: head + `поговорите: ${who(c.giver)}` + lv, at: a ? { x: a.x, z: a.z } : null }; }
+  if (S.st === 'outro') { const k = c.outroAt || c.giver, a = actorAt(W, k); return { text: head + `вернитесь: ${who(k)}`, at: a ? { x: a.x, z: a.z } : null }; }
   const G = c.goal;
-  if (G.type === 'talk') { const nx = G.talk.find(k => !(S.met || []).includes(k)), a = nx && storyActors(W).find(q => q.kind === nx); return { text: head + c.goalText + ` — ${S.met.length}/${G.talk.length}`, at: a ? { x: a.x, z: a.z } : null }; }
+  if (G.type === 'talk') { const nx = G.talk.find(k => !(S.met || []).includes(k)), a = nx && actorAt(W, nx); return { text: head + c.goalText + ` — ${S.met.length}/${G.talk.length}`, at: a ? { x: a.x, z: a.z } : null }; }
   if (G.type === 'sneak') { const b = place(W, G.to, G.toOff); return { text: head + c.goalText + ` — ${Math.round(len(W.player.x - b.x, W.player.z - b.z))} м`, at: b }; }
   if (G.type === 'eclipse') return { text: head + c.goalText + ` — ${Math.max(0, Math.ceil(G.t - S.t))} с`, at: place(W, G.at, G.off) };
   if (G.type === 'siege') { const a = W.allies.find(q => q.ram), to = place(W, G.to, G.toOff); return { text: head + c.goalText + (a ? ` — ${Math.round(len(a.x - to.x, a.z - to.z))} м до ворот` : ''), at: to }; }

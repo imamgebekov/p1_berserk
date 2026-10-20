@@ -555,12 +555,12 @@ html,body{font-family:var(--sans);font-size:15.5px}
 .bhead h2,.pbox h2{font-family:var(--serif)!important;font-weight:700;font-size:21px!important;letter-spacing:.04em;color:transparent!important;background:linear-gradient(180deg,#fff1cf,#e8c47a 55%,#b68a4c);-webkit-background-clip:text;background-clip:text;text-shadow:none;filter:drop-shadow(0 2px 0 #000)}
 .pbox h3{font-family:var(--serif)!important;color:var(--br-hi)!important;letter-spacing:.06em}
 /* кнопки: объём, бронзовый кант, нажатие */
-.tab,.reset,.acts button,.prow button,.bhead button:not(.close),.tbuy,#again,.bslot,.qrow button,#dlgOpts button{font-family:var(--sans);font-weight:600;color:#ecd9b4!important;text-shadow:0 1px 0 #000;
+.tab,.reset,.acts button,.prow button,.bhead button:not(.close),.tbuy,#again,.bslot,.qrow button,.qcard button,#dlgOpts button{font-family:var(--sans);font-weight:600;color:#ecd9b4!important;text-shadow:0 1px 0 #000;
   background:linear-gradient(180deg,#4b3321,#2a1b11 60%,#22160d)!important;border:1px solid #080503!important;border-radius:9px!important;
   box-shadow:inset 0 1px 0 rgba(255,220,170,.22),inset 0 -2px 0 rgba(0,0,0,.45),0 0 0 1px var(--br-d),0 2px 3px rgba(0,0,0,.5);transition:filter .12s,transform .06s}
 .tab:hover,.reset:hover,.acts button:hover,.prow button:hover,.bhead button:not(.close):hover,.tbuy:hover:not(:disabled),.bslot:hover,#dlgOpts button:hover{filter:brightness(1.18)}
 .tab:active,.reset:active,.acts button:active,.prow button:active,.bhead button:active,.tbuy:active,.bslot:active,#dlgOpts button:active{transform:translateY(1px);box-shadow:inset 0 2px 4px rgba(0,0,0,.6),0 0 0 1px var(--br-d)}
-.acts .main,.prow .main,.bhead button.main,#again,.tbuy:not(:disabled),#dlgOpts button.main{background:linear-gradient(180deg,#c43a2c,#8a1a17 55%,#5e0f0e)!important;color:#fff3dc!important;box-shadow:inset 0 1px 0 rgba(255,200,170,.35),inset 0 -2px 0 rgba(0,0,0,.45),0 0 0 1px var(--br),0 2px 4px rgba(0,0,0,.55)!important}
+.acts .main,.prow .main,.qcard .qbtn.main,.bhead button.main,#again,.tbuy:not(:disabled),#dlgOpts button.main{background:linear-gradient(180deg,#c43a2c,#8a1a17 55%,#5e0f0e)!important;color:#fff3dc!important;box-shadow:inset 0 1px 0 rgba(255,200,170,.35),inset 0 -2px 0 rgba(0,0,0,.45),0 0 0 1px var(--br),0 2px 4px rgba(0,0,0,.55)!important}
 .tbuy:disabled,.reset:disabled,button:disabled{filter:grayscale(.6) brightness(.7)}
 .tab.on,.bslot.on{background:linear-gradient(180deg,#6a4a2a,#3c2816)!important;color:#fff1cf!important;box-shadow:inset 0 1px 0 rgba(255,230,180,.35),0 0 0 1px var(--br-hi),0 0 10px rgba(232,196,122,.35)!important}
 .reset.warn{background:linear-gradient(180deg,#8a1a17,#4a0c0b)!important;opacity:1}
@@ -686,3 +686,32 @@ html,body{font-family:var(--sans);font-size:15.5px}
 .ttile .tn{font-size:14px}
 .tsel .tname,.tsel h3{font-size:22px}
 .tsel .tsub,.tsel .tst{font-size:16px}
+
+/* окно заданий (2026-10-20, просьба владельца): карточки крупнее и проще */
+#quests .pbox{max-width:min(1000px,var(--pbw,1000px))!important}
+.qcard{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 16px;margin-bottom:10px;border-radius:12px;background:radial-gradient(120% 140% at 50% 0%,#241911,#120c08);border:1px solid #070403;box-shadow:inset 0 0 0 1px #3a2a1c}
+.qcard.ready{box-shadow:inset 0 0 0 2px #6aa860}
+.qcard.cooldown{opacity:.55}
+.qic{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 40% 35%,#5a3e22,#24180e);box-shadow:inset 0 0 0 2px #8a6a3a,0 2px 6px #000}
+.qsvg{width:38px;height:38px;color:#f4e2b8}
+.qmain{display:grid;gap:6px;min-width:0}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.qname{font-family:var(--serif,Georgia),serif;font-size:21px;font-weight:700;color:#ffe2a8;letter-spacing:.02em}
+.qtext{font-size:16px;color:#c8b090;line-height:1.35}
+.qgoal{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:17px;color:#f0dcb4;font-weight:600}
+.qbar{flex:1 1 120px;max-width:220px;height:9px;border-radius:5px;background:#0a0604;box-shadow:inset 0 0 0 1px #3a2a1c;overflow:hidden}
+.qbar i{display:block;height:100%;background:linear-gradient(90deg,#c88a2c,#ffd27a)}
+.qpn{font-size:16px;color:#ffd27a}
+.qrew{display:flex;flex-wrap:wrap;gap:6px}
+.qchip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:15px;font-weight:600;background:#2a1d12;color:#ecd9b4;box-shadow:inset 0 0 0 1px #4a3420}
+.qchip.ash{color:#ffcf7a}.qchip.xp{color:#bfe0ff}.qchip.item{color:#e8c8ff}.qchip.ok{background:#1e3a1e;color:#b8f0a8}.qchip.warn{background:#3a1e14;color:#ffb08a}
+.qci{width:16px;height:16px}
+.qacts{display:flex;flex-direction:column;gap:8px;min-width:150px}
+.qbtn{min-height:46px;padding:8px 16px;border-radius:10px;font-size:17px!important}
+.qbtn.no{opacity:.6}.qbtn.quiet{min-height:38px;font-size:14px!important;opacity:.8}
+.qbtn.focus.on{box-shadow:inset 0 0 0 2px #ffd27a}
+.qstate{font-size:15px;color:#c8b090;text-align:center}
+.qdone{margin-top:6px;padding:10px 14px;border-radius:10px;background:#140d08;color:#c8b090;font-size:16px}
+.qdone summary{cursor:pointer;font-weight:600;color:#e8d0a0}
+.qdl{padding:4px 0 0 6px;font-size:15px;opacity:.8}
+@media (max-width:640px){.qcard{grid-template-columns:48px minmax(0,1fr)}.qic{width:48px;height:48px}.qsvg{width:28px;height:28px}.qacts{grid-column:1/-1;flex-direction:row;flex-wrap:wrap}.qbtn{flex:1}}

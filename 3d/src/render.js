@@ -622,6 +622,18 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.color.needsUpdate = true;
   }
   const heroShadow = shadow(.7); scene.add(heroShadow);
+  // метки пути (2026-10-20, просьба владельца): шевроны на земле от героя к выбранному заданию (кнопка «Вести» в «Моих»), бегут вперёд
+  const PM = cfg.view.pathMarks || { n: 7, step: 2.2, start: 2.4 }, chevGeo = (() => { const s = new THREE.Shape(); s.moveTo(0, .55); s.lineTo(.5, -.15); s.lineTo(.28, -.15); s.lineTo(0, .22); s.lineTo(-.28, -.15); s.lineTo(-.5, -.15); s.closePath(); return new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2).rotateY(Math.PI); })();
+  const chevMat = new THREE.MeshBasicMaterial({ color: '#ffd27a', transparent: true, opacity: .8, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+  const chevs = new THREE.InstancedMesh(chevGeo, chevMat, PM.n); chevs.frustumCulled = false; chevs.count = 0; scene.add(chevs); const CM = new THREE.Matrix4(), CQ = new THREE.Quaternion(), CP = new THREE.Vector3(), CS = new THREE.Vector3(), CY = new THREE.Vector3(0, 1, 0);
+  function updateChevs(W, p, t) {
+    const g = W.goal, on = W.goalFocus && g && Number.isFinite(g.x) && W.lvl === 'surface' && !p.dead; if (!on) { chevs.count = 0; return; }
+    const dx = g.x - p.x, dz = g.z - p.z, d = Math.hypot(dx, dz); if (d < 5) { chevs.count = 0; return; }
+    const ux = dx / d, uz = dz / d, yaw = Math.atan2(ux, uz), ph = calm ? 0 : (t * 1.6) % 1; CQ.setFromAxisAngle(CY, yaw); let n = 0;
+    for (let i = 0; i < PM.n; i++) { const r = PM.start + (i + ph) * PM.step; if (r > d - 1.5) break; const x = p.x + ux * r, z = p.z + uz * r, k = Math.min(1, (i + 1 - ph) / 1.5) * (1 - (i + ph) / PM.n) * 1.3;
+      CP.set(x, Y(x, z) + .07, z); CS.setScalar(Math.max(.01, 1.25 * k)); CM.compose(CP, CQ, CS); chevs.setMatrixAt(n++, CM); }
+    chevs.count = n; chevs.instanceMatrix.needsUpdate = true;
+  }
   const ents = new Map(), allyEnts = new Map();
   const markRing = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 6), new THREE.MeshBasicMaterial({ color: '#ffd27a', transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide }));
   markRing.rotation.x = -Math.PI / 2; markRing.visible = false; scene.add(markRing);
@@ -1010,6 +1022,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     { const o = W.inv.eq.offhand && BY_ID[W.inv.eq.offhand]; hero.setOff(o ? o.id : '', o && o.kind, o && o.mat, o && o.form); }
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
     heroBlade.set(hero.weapon, bladeOn() ? bladeEls(W.wp).filter(hasBladeStyle) : []); heroBlade.update(dt, t, calm);
+    updateChevs(W, p, t);
     if (hero.gltf) { driveHero(hero, p, dt, cfg, p.swingMul || W.gear.swing || 1); hero.flash(p.inv > 0 && p.inv < 5 && p.state !== 'roll' ? .25 : 0); } else animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
     { const on = !!(W.life && W.life.mount.on) && !p.dead; horse.group.visible = on;     // верхом: конь под героем, герой выше и сидит
       if (on) { horse.group.position.set(p.x, py, p.z); horse.group.rotation.y = hero.group.rotation.y; horse.step(t, Math.hypot(p.vx, p.vz)); hero.group.position.y = py + .95; if (hero.legL) hero.legL.rotation.x = hero.legR.rotation.x = -1.2; } }
