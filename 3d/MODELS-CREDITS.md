@@ -5,6 +5,8 @@
 ## CC0 (без условий)
 - **KayKit Adventurers 2.0** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-adventurers — Knight, Rogue, Rogue Hooded, Ranger, Mage.
 - **KayKit Skeletons 1.1** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-skeletons — Skeleton Warrior, Minion, Rogue, Mage.
+- **KayKit Forest Nature Pack 1.0 (Free)** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-forest — деревья, кусты, камни.
+- **KayKit Halloween Bits 1.0** — Kay Lousberg, https://kaylousberg.itch.io/halloween-bits — мёртвые деревья.
 - **KayKit Character Animations 1.1** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-character-animations — клипы Rig_Medium.
 - **Quaternius RPG Characters (Nov 2020)** — Quaternius, https://quaternius.com — Wizard, Cleric (из FBX в glTF).
 - **Quaternius Ultimate Monsters / Animated Animals / Modular Men / Modular Women** — Quaternius, через https://poly.pizza — Demon (flying), Ghost Skull, Yeti, Wolf, King, Farmer, Adventurer (женщина), Hooded Adventurer, Stag, Fox, Cow, Chicken, Pigeon, Horse.

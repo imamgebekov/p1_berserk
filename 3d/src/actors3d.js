@@ -164,3 +164,16 @@ export function actorKey(cfg, kind, id) {
 // ?models=0 — только свои модели; в автотестах (webdriver) готовые модели включает только ?models=1
 const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('models') : null;
 const OFF = Q === '0' || (Q !== '1' && typeof navigator !== 'undefined' && navigator.webdriver);
+// природа (nature.glb): геометрии по видам — дерево, сухое, мёртвое, куст, камень; тяжёлые варианты не берём
+const NAT_SKIP = /^(tree_1_C|tree_2_D|tree_2_E|tree_3_|tree_4_C|bush_1_E|bush_1_G)/;
+export async function loadNature() {
+  const u = urlOf('nature'); if (!u || OFF) return null;
+  const g = await ld().loadAsync(u), lib = { tree: [], bare: [], dead: [], bush: [], rock: [] };
+  g.scene.traverse(o => { if (!o.isMesh || NAT_SKIP.test(o.name)) return; const k = o.name.split('_')[0], geo = o.geometry.clone();
+    if (!geo.index) geo.setIndex([...Array(geo.attributes.position.count).keys()]);
+    if (geo.attributes.color.itemSize === 4 || geo.attributes.color.normalized || !(geo.attributes.color.array instanceof Float32Array)) { const c = geo.attributes.color, a = new Float32Array(c.count * 3); for (let i = 0; i < c.count; i++) { a[i * 3] = c.getX(i); a[i * 3 + 1] = c.getY(i); a[i * 3 + 2] = c.getZ(i); } geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); }
+    for (const n of ['position', 'normal', 'uv']) { const at = geo.attributes[n]; if (at && (at.normalized || !(at.array instanceof Float32Array) || at.isInterleavedBufferAttribute)) { const a = new Float32Array(at.count * at.itemSize); for (let i = 0; i < at.count; i++) for (let j = 0; j < at.itemSize; j++) a[i * at.itemSize + j] = at.getComponent(i, j); geo.setAttribute(n, new THREE.BufferAttribute(a, at.itemSize)); } }
+    geo.computeBoundingBox(); geo.translate(0, -geo.boundingBox.min.y, 0); geo.userData.h = geo.boundingBox.max.y - geo.boundingBox.min.y;
+    (lib[k === 'tree' ? 'tree' : k] || lib.tree).push(geo); });
+  return Object.values(lib).every(a => a.length) ? lib : null;
+}

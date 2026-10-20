@@ -389,7 +389,25 @@ export function pushBlob(list, kind, sx, sy, sz, x, y, z, rx, ry, rz, color) {
   const n = geo.attributes.position.count; paint(geo, color); geo.setIndex([...Array(n).keys()]);     // с индексом — сливается с кубиками
   list.push(geo);
 }
+// готовая природа (2026-10-20, выбор владельца: KayKit Forest и Halloween Bits): деревья, сухие и мёртвые деревья, кусты, камни.
+// Цвет запечён в вершины (nature.glb); листва перекрашивается в зелень палитры (look.leaf), камень — в look.rock. Пока не загружено — свои формы
+let NAT = null;
+export function setNature(lib) { NAT = lib; }
+const LEAFC = new THREE.Color(), TMPC = new THREE.Color();
+function pushNat(list, geo, x, y, z, s, ry, look, sway, kind) {
+  const g = geo.clone(); tmpE.set(0, ry, 0); tmpQ.setFromEuler(tmpE); tmpP.set(x, y, z); tmpS.set(s, s, s); tmpM.compose(tmpP, tmpQ, tmpS); g.applyMatrix4(tmpM);
+  const c = g.attributes.color, p = g.attributes.position, h = geo.userData.h * s || 1, sw = new Float32Array(p.count);
+  if (look) for (let i = 0; i < c.count; i++) {
+    const r = c.getX(i), gg = c.getY(i), b = c.getZ(i), lum = (r + gg + b) / 3;
+    if (kind === 'rock') { TMPC.set(look.rock[i % 2 ? 1 : 0]); c.setXYZ(i, TMPC.r * (.6 + lum * 2.2), TMPC.g * (.6 + lum * 2.2), TMPC.b * (.6 + lum * 2.2)); }
+    else if (gg > r * 1.1 && gg > b) { LEAFC.set(look.leaf[(i >> 4) % look.leaf.length]); const k = .55 + lum * 2.4; c.setXYZ(i, LEAFC.r * k, LEAFC.g * k, LEAFC.b * k); }     // листва — зелень палитры, яркость — своя
+  }
+  for (let i = 0; i < p.count; i++) sw[i] = Math.max(0, Math.min(sway, (p.getY(i) - y) / (h + 1)));
+  g.setAttribute('sway', new THREE.BufferAttribute(sw, 1)); list.push(g);
+}
+const pickN = (rnd, a) => a[(rnd() * a.length) | 0];
 export function addTree(list, rnd, x, z, look = null) {
+  if (NAT && look) { const bare = rnd() < look.bare, set = bare ? (rnd() < .5 ? NAT.dead : NAT.bare) : NAT.tree, geo = pickN(rnd, set), h = 3.2 + rnd() * 2.6; pushNat(list, geo, x, 0, z, h / geo.userData.h, rnd() * 6.283, look, 1, 'tree'); return; }
   const k0 = list.length, h = 2.6 + rnd() * 2.2, col = look ? look.trunk[rnd() < .5 ? 0 : 1] : rnd() < .5 ? '#1a1210' : '#221813';
   pushBox(list, .36, h, .36, x, h / 2, z, 0, 0, (rnd() - .5) * .15, col);
   const n = 2 + (rnd() * 3 | 0);
@@ -405,6 +423,7 @@ export function addTree(list, rnd, x, z, look = null) {
 }
 // куст (зелень, 2026-10-17): 2–3 округлых куска листвы у земли размером около s м; качается слабее кроны
 export function addBush(list, rnd, x, z, s, look) {
+  if (NAT && look) { const geo = pickN(rnd, NAT.bush); pushNat(list, geo, x, 0, z, s * 1.6 / Math.max(.3, geo.userData.h), rnd() * 6.283, look, .45, 'bush'); return; }
   const k0 = list.length, n = 2 + (rnd() * 2 | 0);
   for (let i = 0; i < n; i++) { const q = s * (.55 + rnd() * .45), a = rnd() * Math.PI * 2, r = i ? s * (.35 + rnd() * .3) : 0; pushBlob(list, 'ico', q, q * .8, q, x + Math.cos(a) * r, q * .62, z + Math.sin(a) * r, rnd() * .3, rnd() * 3, rnd() * .3, look.leaf[(rnd() * look.leaf.length) | 0]); }
   for (let k = k0; k < list.length; k++) { const p = list[k].attributes.position, sw = new Float32Array(p.count); for (let i = 0; i < p.count; i++) sw[i] = Math.max(0, Math.min(.45, p.getY(i) / (s * 3))); list[k].setAttribute('sway', new THREE.BufferAttribute(sw, 1)); }
@@ -419,6 +438,7 @@ export function addCanopyTree(list, rnd, c, look) {
 }
 export function addRock(list, rnd, x, z, look = null) {
   const s = .5 + rnd() * 1.1, col = (look ? look.rock : ['#2a2420', '#332b26'])[rnd() < .5 ? 0 : 1];
+  if (NAT && look) { const geo = pickN(rnd, NAT.rock); pushNat(list, geo, x, 0, z, s * 1.4 / Math.max(.2, geo.userData.h), rnd() * 6.283, look, 0, 'rock'); return; }
   if (look) {                                              // F1: глыба из додекаэдров вместо кубов
     const k0 = list.length;
     pushBlob(list, 'dodeca', s * .75, s * .55, s * .6, x, s * .3, z, 0, rnd() * 3, 0, col);

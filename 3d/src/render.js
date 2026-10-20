@@ -22,6 +22,8 @@ import { qualityOf } from './quality3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeBladeFx, bladeEls, hasBladeStyle } from './bladefx3d.js';
 import { weaponMix, weaponElement } from './stones3d.js';
+import { loadNature } from './actors3d.js';
+import { setNature } from './models.js';
 import { makeActor, actorKey, actorReady, preloadActors, driveHero, driveFoe, disposeActor } from './actors3d.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeHorse, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
 import { heroOf } from './data/heroes3d.js';
@@ -507,6 +509,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const heroBlade = makeBladeFx(scene), bladeOn = () => !!(cfg.bladeFx && cfg.bladeFx.on);     // стихия на клинке (2026-10-20)
   if (actorKey(cfg, 'hero', 'thorn') !== null || Object.keys((cfg.actors && cfg.actors.foes) || {}).length) preloadActors(cfg);     // готовые модели (2026-10-20): грузятся в фоне
   const kitOf = k => cfg.actors.kits[k];
+  loadNature().then(lib => { if (!lib) return; setNature(lib); for (const k of [...liveLand.keys()]) dropLand(k); }).catch(e => console.warn('природа не загрузилась:', e && e.message));     // готовые деревья и камни: участки пересобираются
   // жители и звери (2026-10-20): готовая модель по виду, если пришла; tint и рост — по виду
   const ambMake = (g, id, tint) => { const k = actorKey(cfg, g, id); if (!k || !actorReady(k)) return null; const A0 = cfg.actors, h = (A0.sizes || {})[id]; return makeActor(k, { ...kitOf(k), ...(h ? { height: h } : {}), tint: tint || A0.tints[id] }, id); };
   let ambSwapT = 0;
