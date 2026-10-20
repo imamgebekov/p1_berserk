@@ -19,8 +19,11 @@ export function createQuests(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     craft: () => `Выковать: ${BY_ID[q.item].name}`,
     tome: () => 'Прочитать книгу',
     open: () => `Вскрыть контейнеров: ${q.n}`,
-    hire: () => 'Нанять бойца'
-  }[q.type])();
+    hire: () => 'Нанять бойца',
+    hunt: () => `Охота: ${q.beast} (${cfg.enemies[q.enemy].name}) — место на карте`,     // этап 5 «круче»
+    track: () => `Выследить: ${q.beast} — следов ${q.n}, потом логово`,
+    defend: () => `Оборона: ${q.waves.length} волны — место на карте`
+  }[q.type])() + (q.limit ? ` · срок ${Math.round(q.limit / 60)} мин` : '');
   function card(q, s) {
     const r = el('div', 'srow qrow ' + s), info = el('div', 'sinfo'), p = progressOf(W, q);
     const nm = el('span', 'nm', q.name); if (s === 'ready') nm.style.color = '#a8e0a0';

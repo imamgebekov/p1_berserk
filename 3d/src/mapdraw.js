@@ -147,6 +147,9 @@ export function drawMap(ctx, W, v) {
   // событие: золотой «!» над подопечным или местом засады; на миникарте прижимается к краю
   if (!under && W.event) { const ev = W.event, g = ev.guest && W.allies.find(a => a.id === ev.guest), ex = g ? g.x : ev.x, ez = g ? g.z : ev.z, m = 7, x = Math.min(w - m, Math.max(m, X(ex))), y = Math.min(h - m, Math.max(m, Y(ez)));
     ctx.fillStyle = '#ffc040'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 5.5, 0, 6.2832); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#1a1008'; ctx.fillRect(x - 1, y - 3.5, 2, 4.5); ctx.fillRect(x - 1, y + 2, 2, 1.6); }
+  // метки взятых заданий (этап 5 «круче»): ромб — цель, зелёный — пора сдавать; на миникарте прижимаются к краю
+  if (!under) for (const q of W.qmarks || []) { if (W.goal && q.x === W.goal.x && q.z === W.goal.z) continue; const m = 6, x = Math.min(w - m, Math.max(m, X(q.x))), y = Math.min(h - m, Math.max(m, Y(q.z))), r = full ? 5 : 4;
+    ctx.fillStyle = q.ready ? '#8fe08a' : '#e8d07a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill(); ctx.stroke(); }
   // цель (шаг 12): золотое кольцо с точкой; на миникарте за краем — прижимается к краю, показывая направление
   if (W.goal && Number.isFinite(W.goal.x)) { const m = 7, gx = X(W.goal.x), gy = Y(W.goal.z), x = Math.min(w - m, Math.max(m, gx)), y = Math.min(h - m, Math.max(m, gy)), t = performance.now() / 1000, r = 5 + (full ? 0 : Math.sin(t * 4) * .8);
     ctx.lineWidth = 2.5; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.arc(x, y, r + 1, 0, 6.2832); ctx.stroke(); ctx.strokeStyle = '#ffd45a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.stroke(); ctx.fillStyle = '#ffd45a'; ctx.beginPath(); ctx.arc(x, y, 1.8, 0, 6.2832); ctx.fill(); }

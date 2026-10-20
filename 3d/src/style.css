@@ -176,7 +176,7 @@ button.jrow{width:100%}.mats{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top
 .qrow.ready{border-color:#6aa860}.qrow.cooldown,.qrow.done{opacity:.55}
 #questBtn{position:fixed;left:50%;bottom:calc(206px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:44px;padding:0 18px;background:#241514;color:var(--ink);font-weight:700;border:3px solid #000;border-radius:12px;z-index:6;touch-action:none}
 #questBtn[hidden]{display:none}#questBtn.dot{border-color:#e8c04a;color:#ffd27a}
-#tracker{position:fixed;right:calc(var(--pad) + env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 72px + var(--mm));max-width:46%;font-size:12px;line-height:1.25;text-align:right;color:#e8c04a;text-shadow:0 1px 0 #000,0 0 4px #000;pointer-events:none}
+#tracker{white-space:pre-line;position:fixed;right:calc(var(--pad) + env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 72px + var(--mm));max-width:46%;font-size:12px;line-height:1.25;text-align:right;color:#e8c04a;text-shadow:0 1px 0 #000,0 0 4px #000;pointer-events:none}
 #tracker[hidden]{display:none}
 
 /* режим левши: кнопки слева (джойстик плавающий и так работает в любом месте экрана) */
@@ -494,3 +494,11 @@ html:not([data-desk]) .pair{grid-column:span 2;aspect-ratio:2}
 /* случайные свойства вещи (этап 4 «круче») */
 .afx{display:grid;gap:1px;margin:4px 0}.afl{color:#8ab8ff;font-size:13px;font-weight:600}
 #bagBest.best{width:auto;padding:0 10px;font-size:13px;font-weight:700}
+
+/* «кинокамера» сцен (этап 5 «круче»): полосы кадра и приглушённый интерфейс в разговоре */
+#cineTop,#cineBot{position:fixed;left:0;right:0;height:0;background:#000;pointer-events:none;z-index:6;transition:height .5s ease}
+#cineTop{top:0}#cineBot{bottom:0}
+body.cine #cineTop,body.cine #cineBot{height:9vh}
+#hud,#tracker,#miniBtn,#statusRow,#party,#abil{transition:opacity .4s}
+body.cine #hud,body.cine #tracker,body.cine #miniBtn,body.cine #statusRow,body.cine #party,body.cine #abil{opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#cineTop,#cineBot{transition:none}}

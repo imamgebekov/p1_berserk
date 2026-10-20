@@ -1,12 +1,13 @@
 // Задания. giver — кто выдаёт (merchant, smith, captain). type и поля цели:
 //   kill {enemy, n}, boss {boss}, visit {place}, bring {item, n} (сдаются выдавшему), craft {item}, tome {tome}, open {n, kind?}, hire {}
+//   hunt {enemy, at, off, beast, pack} — зверь в месте; track {…, n} — n следов, потом зверь; defend {at, off, waves: [[вид, n]]} — оборона; limit — срок, с (этап 5 «круче»)
 // reward: ash, xp, items [[id, n]]. after — id задания, которое надо выполнить раньше. minLv — рекомендуемый уровень.
 // repeat: секунды до повторной выдачи (заказы). Тексты авторские.
 export const QUESTS = [
   // ---- торговец Пепельного Брода ----
   { id: 'm_imps', giver: 'merchant', name: 'Беспокойные пустоши', text: 'Бесы лезут к дороге и пугают покупателей. Прогоните пятерых.', type: 'kill', enemy: 'imp', n: 5, reward: { ash: 60, xp: 30 } },
   { id: 'm_food', giver: 'merchant', name: 'Нужна еда', text: 'Склад пуст, караван не придёт. Принесите четыре ржаных хлеба.', type: 'bring', item: 'f_rye', n: 4, reward: { ash: 70, xp: 25 } },
-  { id: 'm_hounds', giver: 'merchant', name: 'Гончие у дороги', text: 'Гончие рвут вьючных. Четыре штуки, и разговор окончен.', type: 'kill', enemy: 'hound', n: 4, after: 'm_imps', reward: { ash: 90, xp: 45, items: [['p_heal2', 1]] } },
+  { id: 'm_hounds', giver: 'merchant', name: 'Гончие у дороги', text: 'Гончие рвут вьючных. Следы ведут от Сухих Полей: пройдите по ним, найдите вожака стаи и убейте.', type: 'track', enemy: 'hound', n: 3, at: 'polya', off: [0, 0], beast: 'Рваное Ухо', pack: 2, after: 'm_imps', reward: { ash: 90, xp: 45, items: [['p_heal2', 1]] } },
   { id: 'm_open', giver: 'merchant', name: 'Что в сундуках', text: 'Говорят, в домах ещё осталось добро. Вскройте восемь любых ящиков, сундуков и бочек.', type: 'open', n: 8, reward: { ash: 100, xp: 40 } },
   { id: 'm_polya', giver: 'merchant', name: 'Разведка Полей', text: 'Что там, на Сухих Полях? Сходите и вернитесь живым. Книга за труды.', type: 'visit', place: 'polya', reward: { ash: 80, xp: 60, items: [['tome_leather', 1]] } },
   { id: 'm_coins', giver: 'merchant', name: 'Коллекционер', text: 'Один покупатель собирает серебряные кругляши. Три штуки, и он станет щедрым.', type: 'bring', item: 'c_round', n: 3, reward: { ash: 130, xp: 40 } },
@@ -21,9 +22,9 @@ export const QUESTS = [
   { id: 's_devourer', giver: 'smith', name: 'Сердце Пожирателя', text: 'Нужно сердце того, кто живёт в склепе. Убейте Пожирателя Погоста.', type: 'boss', boss: 'devourer', minLv: 10, after: 's_hide', reward: { ash: 300, xp: 400, items: [['m_black_resin', 2]] } },
   // ---- капитан Заставы ----
   { id: 'c_lager', giver: 'captain', name: 'Лагерь Ржавых', text: 'Разведайте лагерь. Только разведайте: идти в одиночку не советую.', type: 'visit', place: 'lager', minLv: 6, reward: { ash: 150, xp: 100, items: [['p_heal3', 1]] } },
-  { id: 'c_brutes', giver: 'captain', name: 'Рогачи у границы', text: 'Шестеро рогачей не дают вывозить зерно. Заберите их.', type: 'kill', enemy: 'brute', n: 6, minLv: 5, reward: { ash: 220, xp: 140 } },
+  { id: 'c_brutes', giver: 'captain', name: 'Рогачи у границы', text: 'Рогачи ходят на Сухие Поля за зерном. Встаньте на краю полей и отбейте три набега.', type: 'defend', at: 'polya', off: [8, -8], waves: [['brute', 2], ['brute', 3], ['brute', 3]], minLv: 5, reward: { ash: 220, xp: 140 } },
   { id: 'c_shields', giver: 'captain', name: 'Стена из щитов', text: 'У Ржавых завелись щитоносцы. В лоб их не взять: заходите сбоку, бейте из переката или с размаха.', type: 'kill', enemy: 'shield', n: 5, minLv: 6, reward: { ash: 240, xp: 160 } },
-  { id: 'c_bombers', giver: 'captain', name: 'Тлеющие в руинах', text: 'Тлеющие бросаются под ноги и рвутся. Шестерых — и дорога к руинам снова наша. Держитесь подальше, когда зашипят.', type: 'kill', enemy: 'bomber', n: 6, minLv: 5, reward: { ash: 200, xp: 130, items: [['p_heal2', 1]] } },
+  { id: 'c_bombers', giver: 'captain', name: 'Тлеющие в руинах', text: 'Тлеющие бросаются под ноги и рвутся. Шестерых — и дорога к руинам снова наша. Держитесь подальше, когда зашипят. Срок — десять минут, пока не расползлись.', type: 'kill', enemy: 'bomber', n: 6, limit: 600, minLv: 5, reward: { ash: 200, xp: 130, items: [['p_heal2', 1]] } },
   { id: 'c_hire', giver: 'captain', name: 'Свой отряд', text: 'Нанимайте бойца. Один человек в пустошах не воин, а добыча.', type: 'hire', reward: { ash: 100, xp: 40 } },
   { id: 'c_ruins', giver: 'captain', name: 'Руины Скорби', text: 'Что там стряслось? Дойдите до руин и вернитесь с вестями.', type: 'visit', place: 'ruiny', minLv: 7, after: 'c_lager', reward: { ash: 180, xp: 120 } },
   { id: 'c_archers', giver: 'captain', name: 'Стрелки на холме', text: 'Лучники Ржавых бьют по обозам издалека. Сократите их: четверых хватит.', type: 'kill', enemy: 'archer', n: 4, minLv: 6, after: 'c_lager', reward: { ash: 200, xp: 160 } },
@@ -36,7 +37,7 @@ export const QUESTS = [
   { id: 't_hounds', giver: 'timka', story: 'duel', name: 'Стая у тракта', text: 'Гончие режут наших лошадей. Восемь штук — и Корд перестанет ворчать.', type: 'kill', enemy: 'hound', n: 8, reward: { ash: 140, xp: 160 } },
   { id: 't_scout', giver: 'timka', story: 'firstblood', name: 'Что в Руинах', text: 'Аларик хочет знать, что творится в Руинах Скорби. Сходи посмотри, только не геройствуй.', type: 'visit', place: 'ruiny', reward: { ash: 120, xp: 220 } },
   { id: 't_archers', giver: 'timka', story: 'pogost', name: 'Стрелки на опушке', text: 'Лучники Ржавых бьют из кустов. Шестерых хватит, чтобы остальные задумались.', type: 'kill', enemy: 'archer', n: 6, reward: { ash: 220, xp: 380 } },
-  { id: 't_wolves', giver: 'timka', story: 'hundred', name: 'Волчий лес', text: 'В Ольховом лесу гончих больше, чем деревьев. Проредим, пока Ирма отдыхает.', type: 'kill', enemy: 'hound', n: 12, reward: { ash: 360, xp: 900 } },
+  { id: 't_wolves', giver: 'timka', story: 'hundred', name: 'Волчий лес', text: 'В Ольховом лесу завёлся матёрый, Седой. Найди его логово и убей — стая разбежится.', type: 'hunt', enemy: 'hound', at: 'hubolkh', off: [-45, 10], beast: 'Седой', pack: 3, reward: { ash: 360, xp: 900 } },
   { id: 'k_bread', giver: 'kord', story: 'duel', name: 'Похлёбка', text: 'Хлеба. Шесть.', type: 'bring', item: 'f_rye', n: 6, reward: { ash: 110, xp: 120 } },
   { id: 'k_ore', giver: 'kord', story: 'firstblood', name: 'Руда для молота', text: 'Молот треснул. Руды. Восемь.', type: 'bring', item: 'm_ore', n: 8, reward: { ash: 180, xp: 200 } },
   { id: 'k_hides', giver: 'kord', story: 'pogost', name: 'Шкуры на зиму', text: 'Зима скоро. Шкуры. Пять.', type: 'bring', item: 'm_beast_hide', n: 5, reward: { ash: 220, xp: 320 } },
@@ -49,7 +50,7 @@ export const QUESTS = [
   { id: 'q_moss_drowned', giver: 'quarter', story: 'a2_oath', name: 'Мёртвые в трясине', text: 'Утопленники выходят к гатям по ночам. Восемь. Пусть лежат, где положено.', type: 'kill', enemy: 'drowned', n: 8, reward: { ash: 320, xp: 1500 } },
   { id: 'q_moss_xbow', giver: 'quarter', story: 'a2_oath', name: 'Болты из камыша', text: 'Арбалетчики Кадмии бьют обозников из камыша. Шестерых — и обозы пойдут.', type: 'kill', enemy: 'kad_xbow', n: 6, reward: { ash: 320, xp: 1500 } },
   { id: 'q_moss_moss', giver: 'quarter', story: 'a2_oath', name: 'Мох для лекарей', text: 'Лекарям нужен могильный мох — раны в топях гниют. Десять пучков.', type: 'bring', item: 'm_grave_moss', n: 10, reward: { ash: 280, xp: 1200 } },
-  { id: 'q_moss_soldiers', giver: 'quarter', story: 'a2_gat', name: 'Латники на гати', text: 'Кадмийские латники держат дальнюю гать. Восемь — и она наша.', type: 'kill', enemy: 'kad_soldier', n: 8, reward: { ash: 420, xp: 2000 } },
+  { id: 'q_moss_soldiers', giver: 'quarter', story: 'a2_gat', name: 'Латники на гати', text: 'Мы заняли дальнюю гать. Кадмийцы пойдут её отбивать — держите её три набега.', type: 'defend', at: 'hub:moss', off: [35, -35], waves: [['kad_soldier', 2], ['kad_soldier', 3], ['kad_soldier', 4]], reward: { ash: 420, xp: 2000 } },
   { id: 'q_moss_maid', giver: 'quarter', story: 'a2_gat', name: 'Песня со дна', text: 'Солдаты слышат пение из часовни и уходят в воду. Заставь Утопленницу замолчать.', type: 'boss', boss: 'drownedmaid', reward: { ash: 600, xp: 2600 } },
   { id: 'q_foot_spear', giver: 'quarter', story: 'a2_battle', name: 'Копья на тропе', text: 'Копейщики Кадмии перекрыли горную тропу. Шестерых.', type: 'kill', enemy: 'kad_spear', n: 6, reward: { ash: 450, xp: 2200 } },
   { id: 'q_foot_ore', giver: 'quarter', story: 'a2_battle', name: 'Руда для таранов', text: 'Кузнецам нужна руда на окову тарана. Двенадцать кусков.', type: 'bring', item: 'm_ore', n: 12, reward: { ash: 400, xp: 1800 } },
@@ -64,7 +65,7 @@ export const QUESTS = [
   { id: 'i_a2_drill', giver: 'irma', story: 'a2_oath', name: 'Строй против строя', text: 'Десять латников. Учимся ломать щиты. Повторим, когда скажу.', type: 'kill', enemy: 'kad_soldier', n: 10, repeat: 900, reward: { ash: 300, xp: 1600 } },
   { id: 'i_a2_spears', giver: 'irma', story: 'a2_night', name: 'Длинные руки', text: 'Восемь копейщиков. Береги ноги и не стой на одной линии.', type: 'kill', enemy: 'kad_spear', n: 8, reward: { ash: 500, xp: 2600 } },
   { id: 'i_a2_hides', giver: 'irma', story: 'a2_feast', name: 'Тёплые плащи', text: 'В пустошах ночи холодные. Шесть шкур — на плащи отряду.', type: 'bring', item: 'm_beast_hide', n: 6, reward: { ash: 450, xp: 2200 } },
-  { id: 'i_a2_dogs', giver: 'irma', story: 'a2_dogs', name: 'Охота на псов', text: 'Они пришли за нами — пусть узнают, каково это. Десять чёрных псов.', type: 'kill', enemy: 'blackdog', n: 10, reward: { ash: 700, xp: 3600 } },
+  { id: 'i_a2_dogs', giver: 'irma', story: 'a2_dogs', name: 'Охота на псов', text: 'Они пришли за нами — пусть узнают, каково это. У Мшистого Мыса логово их вожака. Убей его.', type: 'hunt', enemy: 'blackdog', at: 'hub:rust', off: [-45, 0], beast: 'Чёрный Вожак', pack: 3, reward: { ash: 700, xp: 3600 } },
   { id: 't_a2_scout', giver: 'timka', story: 'a2_oath', name: 'Что в трясине', text: 'Утопленники ходят стаями. Десяток — и я смогу пройти разведать гать.', type: 'kill', enemy: 'drowned', n: 10, reward: { ash: 380, xp: 1800 } },
   { id: 't_a2_xbow', giver: 'timka', story: 'a2_gat', name: 'Стрелок на стрелка', text: 'Десять арбалетчиков. Ставлю нож, что ты не управишься до заката.', type: 'kill', enemy: 'kad_xbow', n: 10, reward: { ash: 480, xp: 2400 } },
   { id: 't_a2_sapper', giver: 'timka', story: 'a2_gat', name: 'Минёр', text: 'В часовне сидит их минёр. Без него порох — просто грязь.', type: 'boss', boss: 'sapper', reward: { ash: 650, xp: 2800 } },
@@ -80,13 +81,13 @@ export const QUESTS = [
   { id: 's_shades', giver: 'smuggler', story: 'a2_leave', name: 'Ночные гости', text: 'По ночам у складов бродят тени. Восемь — и мои люди перестанут бояться.', type: 'kill', enemy: 'shade', n: 8, reward: { ash: 700, xp: 3600 } },
   { id: 's_warden', giver: 'smuggler', story: 'a3_year', name: 'Страж у ворот', text: 'Страж Башни стоит у входа, как скала. Уберёшь — проведу кого скажешь.', type: 'boss', boss: 'towerwarden', reward: { ash: 900, xp: 4400 } },
   { id: 's_keys', giver: 'smuggler', story: 'a3_year', name: 'Ключи от камер', text: 'У Ключника ключи от всех камер Башни. Мне нужен один. Тебе — остальные.', type: 'boss', boss: 'keymaster', reward: { ash: 900, xp: 4400 } },
-  { id: 'i_a3_dogs', giver: 'irma', story: 'a3_remnants', name: 'Должок Псам', text: 'Двенадцать чёрных псов. За каждого из наших, кого они достали.', type: 'kill', enemy: 'blackdog', n: 12, reward: { ash: 800, xp: 4200 } },
+  { id: 'i_a3_dogs', giver: 'irma', story: 'a3_remnants', name: 'Должок Псам', text: 'Двенадцать чёрных псов. За каждого из наших, кого они достали. Пятнадцать минут — пока след свежий.', type: 'kill', enemy: 'blackdog', n: 12, limit: 900, reward: { ash: 800, xp: 4200 } },
   { id: 'i_a3_fiends', giver: 'irma', story: 'a3_chase', name: 'Твари у берега', text: 'У берега ходят твари. Таких раньше не было. Восемь.', type: 'kill', enemy: 'eclipse_fiend', n: 8, reward: { ash: 850, xp: 4600 } },
   { id: 'i_a3_hides', giver: 'irma', story: 'a3_chase', name: 'Одеяла', text: 'Ему холодно. Восемь шкур.', type: 'bring', item: 'm_beast_hide', n: 8, reward: { ash: 700, xp: 3800 } },
   { id: 'i_a3_hound', giver: 'irma', story: 'a3_city', name: 'Пёс в подвале', text: 'Пёс Башни сторожит нижнюю камеру. Без него не пройти.', type: 'boss', boss: 'towerhound', reward: { ash: 1000, xp: 5000 } },
   { id: 't_a3_archers', giver: 'timka', story: 'a3_chase', name: 'Стрелки в дюнах', text: 'Десять стрелков в дюнах. Ставлю... ладно, ставить уже нечего. Просто десять.', type: 'kill', enemy: 'archer', n: 10, reward: { ash: 750, xp: 4000 } },
   { id: 't_a3_amber', giver: 'timka', story: 'a3_chase', name: 'Янтарь', text: 'Ирма говорит, янтарь на шее отгоняет дурное. Три куска. Для Аларика.', type: 'bring', item: 'm_amber', n: 3, reward: { ash: 700, xp: 3800 } },
-  { id: 't_a3_fiends', giver: 'timka', story: 'a3_garm', name: 'Кто воет у скал', text: 'Десять тварей у скал. Посмотрим, кто кого.', type: 'kill', enemy: 'eclipse_fiend', n: 10, reward: { ash: 900, xp: 4800 } },
+  { id: 't_a3_fiends', giver: 'timka', story: 'a3_garm', name: 'Кто воет у скал', text: 'У скал по ночам что-то воет. Найди следы, дойди до логова и убей вожака.', type: 'track', enemy: 'eclipse_fiend', n: 3, at: 'hub:grey', off: [-45, 0], beast: 'Воющий', pack: 2, reward: { ash: 900, xp: 4800 } },
   { id: 'k_a3_ore', giver: 'kord', story: 'a3_chase', name: 'Подкова', text: 'Руды. Двенадцать. Колесо.', type: 'bring', item: 'm_ore', n: 12, reward: { ash: 650, xp: 3400 } },
   { id: 'k_a3_brutes', giver: 'kord', story: 'a3_chase', name: 'Рогачи', text: 'Рогачи. Двенадцать.', type: 'kill', enemy: 'brute', n: 12, reward: { ash: 700, xp: 3800 } },
   { id: 'k_a3_coal', giver: 'kord', story: 'a3_garm', name: 'Огонь', text: 'Угля. Десять. Ночи холодные.', type: 'bring', item: 'm_coal', n: 10, reward: { ash: 650, xp: 3400 } },
@@ -98,7 +99,7 @@ export const QUESTS = [
   { id: 'x_king', giver: 'masked', story: 'a3_brand', name: 'Безымянный', text: 'Король без имени ещё правит своими мёртвыми. Дай ему уснуть.', type: 'boss', boss: 'namelessking', reward: { ash: 1200, xp: 6000 } },
   // ---- Акт IV (этап 7): вдова с болот, кузнец Гедеон, человек в маске ----
   { id: 'w_drowned', giver: 'widow', story: 'a3_vow', name: 'Утопленники у мостков', text: 'Двенадцать утопленников у мостков. Дети боятся ходить за водой.', type: 'kill', enemy: 'drowned', n: 12, reward: { ash: 1000, xp: 6000 } },
-  { id: 'w_ghouls', giver: 'widow', story: 'a3_vow', name: 'Упыри на погосте', text: 'На нашем погосте упыри. Двенадцать.', type: 'kill', enemy: 'ghoul', n: 12, reward: { ash: 1000, xp: 6000 } },
+  { id: 'w_ghouls', giver: 'widow', story: 'a3_vow', name: 'Упыри на погосте', text: 'Упыри лезут из земли каждую ночь. Постой у погоста, пока лезут, — три волны.', type: 'defend', at: 'hub:rot', off: [-45, -20], waves: [['ghoul', 3], ['ghoul', 4], ['ghoul', 5]], reward: { ash: 1000, xp: 6000 } },
   { id: 'w_shriek', giver: 'widow', story: 'a3_vow', name: 'Кликуши', text: 'Кликуши лечат тварей. Восемь — и твари станут смертными.', type: 'kill', enemy: 'shrieker', n: 8, reward: { ash: 1100, xp: 6400 } },
   { id: 'w_fiends', giver: 'widow', story: 'a3_vow', name: 'Твари из тумана', text: 'Десять тварей Затмения. Они приходят, когда туман.', type: 'kill', enemy: 'eclipse_fiend', n: 10, reward: { ash: 1100, xp: 6400 } },
   { id: 'w_moss', giver: 'widow', story: 'a3_vow', name: 'Мох на раны', text: 'Двенадцать пучков мха. Раны на болоте гниют.', type: 'bring', item: 'm_grave_moss', n: 12, reward: { ash: 900, xp: 5400 } },
@@ -107,7 +108,7 @@ export const QUESTS = [
   { id: 'g_ore', giver: 'gedeon', story: 'a4_nest', name: 'Горная руда', text: 'Двадцать пять кусков руды. Для работы, не для тебя.', type: 'bring', item: 'm_ore', n: 25, reward: { ash: 1000, xp: 6000 } },
   { id: 'g_coal', giver: 'gedeon', story: 'a4_nest', name: 'Уголь для горна', text: 'Пятнадцать угля. Горн голодный.', type: 'bring', item: 'm_coal', n: 15, reward: { ash: 1000, xp: 6000 } },
   { id: 'g_soot', giver: 'gedeon', story: 'a4_nest', name: 'Сажа', text: 'Четыре мешочка сажи. Для закалки.', type: 'bring', item: 'm_soot', n: 4, reward: { ash: 1100, xp: 6400 } },
-  { id: 'g_trolls', giver: 'gedeon', story: 'a4_nest', name: 'Тролли на тропе', text: 'Тролли перекрыли тропу к руднику. Восемь. Бей быстро — они зарастают.', type: 'kill', enemy: 'troll', n: 8, reward: { ash: 1300, xp: 7200 } },
+  { id: 'g_trolls', giver: 'gedeon', story: 'a4_nest', name: 'Тролли на тропе', text: 'Старый тролль перекрыл тропу к руднику. Бей быстро — он зарастает.', type: 'hunt', enemy: 'troll', at: 'hub:mute', off: [35, 35], beast: 'Старый Мох', pack: 1, reward: { ash: 1300, xp: 7200 } },
   { id: 'g_shriek', giver: 'gedeon', story: 'a4_nest', name: 'Нела боится', text: 'Кликуши поют у дома по ночам. Нела не спит. Десять.', type: 'kill', enemy: 'shrieker', n: 10, reward: { ash: 1300, xp: 7200 } },
   { id: 'g_choir', giver: 'gedeon', story: 'a4_gedeon', name: 'Хор', text: 'В монастыре поёт хор, который не поёт. Заставь его замолчать совсем.', type: 'boss', boss: 'choir', reward: { ash: 1500, xp: 8600 } },
   { id: 'g_shriekmother', giver: 'gedeon', story: 'a4_gedeon', name: 'Старшая', text: 'Старшая кликуша водит остальных. Найди её в монастыре.', type: 'boss', boss: 'abbeyshriek', reward: { ash: 1500, xp: 8600 } },

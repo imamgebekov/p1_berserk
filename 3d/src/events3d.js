@@ -229,6 +229,11 @@ export function updateEvents(W, dt) {
   }
   W.evT = E.retry;
 }
+// где событие: подопечный, вор или место (для цели на карте)
+export function eventAt(W) {
+  const ev = W.event; if (!ev) return null; const g = ev.guest && guestOf(W, ev), th = ev.kind === 'thief' && W.enemies.find(e => e.id === ev.foes[0]);
+  return g ? { x: g.x, z: g.z } : th ? { x: th.x, z: th.z } : { x: ev.x, z: ev.z };
+}
 // строка для трекера заданий
 export function eventLine(W) {
   const ev = W.event; if (!ev) return '';

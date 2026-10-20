@@ -46,7 +46,7 @@ for (const lose of [true, false]) { const W = mk(5); W.story.i = ACT.findIndex(c
   if (lose) { for (let i = 0; i < 20; i++) { const h = W.player.hp; W.player.inv = 0; const d = 999; W.player.hp -= Math.min(d, Math.max(0, W.player.hp - 1)); storyTick(W, .1); if (W.story.st !== 'goal') break; } }
   else { e.hp = e.maxhp * .2; storyTick(W, .1); }
   ok(!W.player.dead && W.story.st === 'outro' && W.story.won === !lose, `поединок (${lose ? 'проигрыш' : 'победа'}): ${W.story.st}, won ${W.story.won}`);
-  const t = storyTalk(W, 'alaric'); ok(t && t.lines === (lose ? ACT.find(c => c.id === 'duel').outro : ACT.find(c => c.id === 'duel').outroWin), 'реплики после поединка не те'); }
+  const t = storyTalk(W, 'alaric'); ok(t && JSON.stringify(t.lines) === JSON.stringify(lose ? ACT.find(c => c.id === 'duel').outro : ACT.find(c => c.id === 'duel').outroWin), 'реплики после поединка не те'); }
 // 3. брод: гибель — сцена заново с разговора, враги брода убраны
 { const W = mk(6); W.story.i = ACT.findIndex(c => c.id === 'hundred'); talk(W, 'alaric'); for (let i = 0; i < 40; i++) step(W, .1, {});
   ok(W.story.foes.length > 0, 'волны у брода не пришли'); W.player.dead = true; storyTick(W, .1); ok(W.story.st === 'wait' && !W.enemies.some(e => e.storyFoe && !e.dead), 'гибель на броде не вернула сцену к разговору'); }

@@ -9,11 +9,14 @@ import { addItem, entryOf, roomFor, nomIl, countOf, removeAt } from './inv.js';
 import { BY_ID } from './data/items.js';
 import { gainXp, paceXp } from './progress3d.js';
 import { len } from './util3d.js';
+import { addRep } from './life3d.js';
 
 export const ACT = ACT_ALL;
 const ROMAN = ['', 'I', 'II', 'III', 'IV'];
 const sc = W => ACT[W.story.i] || null;
-export const storyFresh = () => ({ i: 0, st: 'wait', n: 0, t: 0, won: false, wave: 0, foes: [], allies: [], met: [] });
+export const storyFresh = () => ({ i: 0, st: 'wait', n: 0, t: 0, won: false, wave: 0, foes: [], allies: [], met: [], flags: {} });
+// реплики с условием (этап 5 «круче»): { if: флаг, line } — только если выбор был; выбор хранит своё следствие
+const linesOf = (S, L) => (L || []).map(x => (x && x.if ? ((S.flags || {})[x.if] ? x.line : null) : x)).filter(Boolean);
 const mul = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 const srng = W => W.srng || (W.srng = mul((W.cfg.world.seed || 1) * 4421 + 7));     // свой генератор: бой и добыча не сдвигаются
 
@@ -30,6 +33,7 @@ function spotOf(W, at) {
   if (at === 'ford') { const d = Math.hypot(hub.x - camp.x, hub.z - camp.z) || 1, k = Math.min(1, W.cfg.story.fordAt / d); return { x: camp.x + (hub.x - camp.x) * k, z: camp.z + (hub.z - camp.z) * k }; }
   const p = (M.places || []).find(q => q.id === at); return p ? { x: p.x, z: p.z } : { x: camp.x, z: camp.z };
 }
+export const storySpot = (W, at, off, x, z) => { if (at !== 'xy') return place(W, at, off); const o = { x, z }; try { resolve(surfMap(W), o, .5); } catch (e) { /* без карты — как есть */ } return o; };     // место по имени сюжета (для заданий: охота, оборона)
 const place = (W, at, off) => { const s = spotOf(W, at), o = { x: s.x + (off ? off[0] : 0), z: s.z + (off ? off[1] : 0) }; try { resolve(surfMap(W), o, .5); } catch (e) { /* без карты — как есть */ } return o; };
 
 // ---- кто стоит в мире: [{ kind, name, tint, x, z, mark: '!' | '?' | null }] ----
@@ -55,12 +59,22 @@ export function storyTalkable(W, kind) {
 // реплики разговора: { lines, part: 'intro' | 'outro' } или null
 export function storyTalk(W, kind) {
   const S = W.story, c = S && sc(W); if (!c) return null;
-  if (S.st === 'wait' && (c.auto || c.giver === kind)) return { lines: c.intro, part: 'intro', scene: c.name, act: c.act || 1 };
-  if (S.st === 'outro' && (c.outroAt || c.giver) === kind) return { lines: S.won && c.outroWin ? c.outroWin : c.outro, part: 'outro', scene: c.name, act: c.act || 1 };
-  if (talkOpen(S, c, kind)) return { lines: c.talks[kind], part: 'talk:' + kind, scene: c.name, act: c.act || 1 };
+  if (S.st === 'wait' && (c.auto || c.giver === kind)) return { lines: linesOf(S, c.intro), part: 'intro', scene: c.name, act: c.act || 1 };
+  if (S.st === 'outro' && (c.outroAt || c.giver) === kind) return { lines: linesOf(S, S.won && c.outroWin ? c.outroWin : c.outro), part: 'outro', scene: c.name, act: c.act || 1 };
+  if (talkOpen(S, c, kind)) return { lines: linesOf(S, c.talks[kind]), part: 'talk:' + kind, scene: c.name, act: c.act || 1 };
   return null;
 }
 // разговор окончен: intro → цель; outro → награда и следующая сцена
+// следствие выбора в разговоре (этап 5 «круче»): пепел, вещь, репутация, флаг для реплики позже; один раз на выбор
+export function storyChoice(W, eff) {
+  const S = W.story; if (!S || !eff) return null;
+  if (eff.flag) { if (!S.flags) S.flags = {}; S.flags[eff.flag] = true; }
+  if (eff.ash) W.inv.ash += eff.ash;
+  if (eff.item) { const [id, n] = eff.item, left = addItem(W.inv, id, n, W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0)); if (left > 0) W.drops.push({ id, n: left, x: W.player.x + 1, z: W.player.z, t: 0, cd: 0 }); }
+  if (eff.rep && W.life) addRep(W, eff.rep[0], eff.rep[1]);
+  const v = { k: 'storyChoice', note: eff.note || '', ash: eff.ash || 0, item: eff.item ? BY_ID[eff.item[0]].name + (eff.item[1] > 1 ? ' ×' + eff.item[1] : '') : '', rep: eff.rep ? eff.rep[1] : 0 };
+  W.ev.push(v); return v;
+}
 export function storyTalked(W, part) {
   const S = W.story; if (!S) return;
   if (part === 'intro' && S.st === 'wait') startGoal(W);
@@ -217,11 +231,12 @@ export function brandTick(W, dt, safe) {
 export const sceneIndex = id => ACT.findIndex(c => c.id === id);
 
 // ---- сохранение: бой в разгаре (поединок, оборона, проводы, бой с отрядом) не сохраняется — сцена снова ждёт разговора ----
-export const serializeStory = S => (S ? { i: S.i, st: S.st === 'goal' && ['kill', 'quests', 'boss', 'spark', 'bring'].includes((ACT[S.i] || {}).goal?.type) && !(ACT[S.i].goal.party) && !(ACT[S.i].goal.spawnBoss) ? 'goal' : S.st === 'goal' ? 'wait' : S.st, n: S.n | 0 } : null);
+export const serializeStory = S => (S ? { i: S.i, st: S.st === 'goal' && ['kill', 'quests', 'boss', 'spark', 'bring'].includes((ACT[S.i] || {}).goal?.type) && !(ACT[S.i].goal.party) && !(ACT[S.i].goal.spawnBoss) ? 'goal' : S.st === 'goal' ? 'wait' : S.st, n: S.n | 0, f: Object.keys(S.flags || {}).filter(k => S.flags[k]) } : null);
 export function sanitizeStory(d) {
   const S = storyFresh(); if (!d || typeof d !== 'object') return S;
   S.i = Number.isInteger(d.i) && d.i >= 0 ? Math.min(ACT.length, d.i) : 0;
   S.st = S.i >= ACT.length ? 'end' : ['wait', 'goal', 'outro'].includes(d.st) ? d.st : 'wait'; S.n = Number.isFinite(d.n) && d.n > 0 ? Math.floor(d.n) : 0;
-  if (S.st === 'goal' && ACT[S.i].goal.spawn) S.st = 'wait';     // бой со своими врагами — заново с разговора
+  if (S.st === 'goal' && ACT[S.i].goal.spawn) S.st = 'wait';
+  if (Array.isArray(d.f)) for (const k of d.f.slice(0, 32)) if (typeof k === 'string' && /^[a-z_]{1,20}$/.test(k)) S.flags[k] = true;     // флаги выборов     // бой со своими врагами — заново с разговора
   return S;
 }

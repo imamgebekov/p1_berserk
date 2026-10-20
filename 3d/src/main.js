@@ -11,8 +11,8 @@ import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sf
 import { mixOf } from './soundscape3d.js';
 import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
-import { trackerLine, questMark, questsOf } from './quests3d.js';
-import { eventLine } from './events3d.js';
+import { trackerLines, questMarks, questMark, questsOf } from './quests3d.js';
+import { eventLine, eventAt } from './events3d.js';
 import { fireNear, knownFires, fastTravel, travelBlock, sanitizeFires } from './fires3d.js';
 import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
 import { isNight } from './daynight.js';
@@ -28,7 +28,7 @@ import { ELEMENT_COLOR } from './elements3d.js';
 import { KIND_NAME } from './data/items.js';
 import { drawMap, tickRelief } from './mapdraw.js';
 import { zoneAt } from './zones3d.js';
-import { storyTalk, storyTalked, storyTalkable, storyGoal, storyAutoPending, storyActors } from './story3d.js';
+import { storyTalk, storyTalked, storyTalkable, storyGoal, storyAutoPending, storyActors, storyChoice } from './story3d.js';
 import { SPEAKERS } from './data/story3d.js';
 import { liveAllies, squadCommand } from './squad3d.js';
 import { setHeroic, isInstance, heroicOpen } from './levels3d.js';
@@ -250,6 +250,12 @@ function onEvent(v) {
   else if (v.k === 'questaccept') toast('Задание: ' + v.name, 'sys');
   else if (v.k === 'questready') toast('Можно сдать: ' + v.name, '', '#a8e0a0');
   else if (v.k === 'questdone') { toast('Задание выполнено: ' + v.name, '', '#e8c04a'); saver.write(); }
+  else if (v.k === 'questbeast') { toast(`${v.name} здесь!`, '', '#ffb060', 'warn'); sfx('questready'); }     // новые виды заданий (этап 5 «круче»)
+  else if (v.k === 'questtrack') { toast(`${v.name}: следы ведут дальше (${v.i + 1}/${v.n})`, '', '#e8c04a', 'scroll'); sfx('questready'); }
+  else if (v.k === 'questdefend') toast(`${v.name}: держите место — враги идут`, '', '#ffb060');
+  else if (v.k === 'questwave') toast(`${v.name}: волна ${v.i} из ${v.n}`, '', '#ffb060');
+  else if (v.k === 'questleft') toast(`${v.name}: вы оставили пост — оборона сначала`, 'sys');
+  else if (v.k === 'questfail') { toast(`Задание провалено: ${v.name}${v.why === 'time' ? ' — время вышло' : ''}`, '', '#ff8a6a'); saver.write(); }
   else if (v.k === 'elite') toast('Элита: ' + v.name, 'bad');
   else if (v.k === 'bossaggro') { const e = W.enemies.find(x => x.id === v.id), f = e && cfg.enemies[e.type].g === 'f'; toast(`${v.name} ${f ? 'проснулась' : 'проснулся'}`, 'bad'); }     // род по врагу
   else if (v.k === 'bossphase') toast(`${v.name}: ${v.what}`, 'bad');
@@ -550,6 +556,12 @@ const SHOT = new URLSearchParams(location.search).has('shot');     // режим
 // разговор (этап 3): реплики по одной; у реплики-выбора — кнопки ответов; конец — сюжет идёт дальше
 const HAIR = { alaric: '#ece6da', irma: '#2a1a14', timka: '#7a4a24', kord: '#1a1412', masked: '#0a0808', hostess: '#5a3020', captain: '#4a4440', herald: '#6a5030' };
 const dlg = { lines: null, i: 0, part: null, scene: '', act: 1 };
+// «кинокамера» (этап 5 «круче»): в разговоре сцены камера наезжает на говорящего — между героем и ним, ближе к нему
+function cineFocus() {
+  if (!dlg.lines || $('dialog').hidden) return null;
+  const L = dlg.lines[dlg.i], who = Array.isArray(L) ? L[0] : 'hero', p = W.player, a = who !== 'hero' && storyActors(W).find(q => q.kind === who), b = cfg.view.cine.bias;
+  const o = a || W.nearActor || null; return o ? { x: p.x + (o.x - p.x) * (a ? b : .5), z: p.z + (o.z - p.z) * (a ? b : .5) } : { x: p.x, z: p.z };
+}
 function dlgFace(who) { const cv = $('dlgFace'); if (who === 'hero') { drawPortrait(cv, HEROES[W.hero].look); return; } const S = SPEAKERS[who] || SPEAKERS.hostess;
   drawPortrait(cv, { cape: S.tint, cloth: S.tint, hair: HAIR[who] || '#3a2a1a', capeLen: .8, hood: who === 'masked' }); if (who === 'masked') { const g = cv.getContext('2d'); g.fillStyle = '#d8d0c0'; g.fillRect(5, 3, 6, 4); g.fillStyle = '#000'; g.fillRect(6, 4, 1, 1); g.fillRect(9, 4, 1, 1); } }
 function dlgShow() {
@@ -557,11 +569,11 @@ function dlgShow() {
   const say = (who, text) => { const S = SPEAKERS[who] || SPEAKERS.hostess; $('dlgWho').textContent = S.name; $('dlgWho').style.color = who === 'hero' ? '#e8c04a' : S.tint === '#1c161a' ? '#b0a8b8' : S.tint; $('dlgLine').textContent = text; dlgFace(who); };
   const btn = (label, fn, main) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; if (main) b.className = 'main'; b.addEventListener('click', fn); opts.append(b); return b; };
   if (Array.isArray(L)) { say(L[0], L[1]); btn(dlg.i < dlg.lines.length - 1 ? 'Далее' + (desk ? ' · E' : '') : 'Закончить' + (desk ? ' · E' : ''), dlgNext, true).focus(); return; }
-  say('hero', '…'); L.choose.forEach(([label, reply], k) => btn((desk ? `${k + 1}. ` : '') + label, () => { dlg.lines.splice(dlg.i + 1, 0, reply); dlgNext(); }, k === 0));
+  say('hero', '…'); L.choose.forEach(([label, reply, eff], k) => btn((desk ? `${k + 1}. ` : '') + label, () => { dlg.lines.splice(dlg.i + 1, 0, reply); const v = eff && storyChoice(W, eff); if (v) toast([v.note, v.ash ? `+${v.ash} пепла` : '', v.item, v.rep ? `+${v.rep} репутации` : ''].filter(Boolean).join(' · '), '', '#e8c04a', 'scroll'); dlgNext(); }, k === 0));     // следствие выбора (этап 5 «круче»)
 }
 function dlgNext() { dlg.i++; if (dlg.i >= dlg.lines.length) dlgClose(); else dlgShow(); }
-function dlgClose() { $('dialog').hidden = true; panelOpen = false; const part = dlg.part; dlg.lines = null; storyTalked(W, part); saver.write(true); }
-function dlgOpen(t) { if (!t || !t.lines || !t.lines.length) { if (t) storyTalked(W, t.part); return; } dlg.lines = t.lines.slice(); dlg.i = 0; dlg.part = t.part; dlg.scene = t.scene; dlg.act = t.act || 1; $('dialog').hidden = false; panelOpen = true; input.release(); dlgShow(); }
+function dlgClose() { document.body.classList.remove('cine'); $('dialog').hidden = true; panelOpen = false; const part = dlg.part; dlg.lines = null; storyTalked(W, part); saver.write(true); }
+function dlgOpen(t) { if (!t || !t.lines || !t.lines.length) { if (t) storyTalked(W, t.part); return; } dlg.lines = t.lines.slice(); dlg.i = 0; dlg.part = t.part; dlg.scene = t.scene; dlg.act = t.act || 1; document.body.classList.add('cine'); $('dialog').hidden = false; panelOpen = true; input.release(); dlgShow(); }
 // карта: миникарта в углу, большая карта по касанию
 const miniCtx = $('mini').getContext('2d'), mapCv = $('mapCv'), mapCtx = mapCv.getContext('2d'), mapEl = $('map');
 let miniT = 0;
@@ -675,7 +687,7 @@ function frame(now) {
     if (fa) { feelFlash.style.opacity = fk.flash.a.toFixed(3); feelFlash.style.background = fk.flash.c; } if (va) feelVig.style.opacity = fk.vig.toFixed(3); } if (fk.beat && !paused) sfx('heart');
   if (!fk.streak && !streakEl.hidden) streakEl.hidden = true;
   if (lvlCardT > 0 && (lvlCardT -= real) <= 0) lvlCard.hidden = true;
-  if (renderer) renderer.setZoom(fk.zoom);
+  if (renderer) { renderer.setZoom(fk.zoom); renderer.setCine(cineFocus()); }
   { const n = bagUsed(W.inv), m = bagSlots(W), s = n + '/' + m, cls = n >= m ? 'full' : n >= m * .8 ? 'warn' : ''; if (bagFill.textContent !== s) bagFill.textContent = s; if (bagFill.className !== cls) bagFill.className = cls; }     // заполненность сумки на кнопке
   const t1 = performance.now();
   if (renderer) renderer.render(W, dt);
@@ -709,7 +721,11 @@ function frame(now) {
     const sp = W.spark && !W.spark.done, pg = pathGoal(W), crypt = pg && PATH[pathIndex(W)].id === 'crypt';
     const sg = !sp && W.story ? storyGoal(W) : null;     // сюжет (этап 3) — главнее «Пути пепла»
     const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null };
-    const tl = eventLine(W) || (sp ? g.text : trackerLine(W) || g.text); W.goal = !eventLine(W) && (sp || !trackerLine(W)) ? g.at : null;
+    // трекер (этап 5 «круче»): главная строка (событие, искра, сюжет, путь) и до трёх заданий; цель на карте не пропадает
+    const surf = W.lvl === 'surface', ev = eventLine(W), main = ev || (sp || sg || pg || !surf ? g.text : ''), ql = trackerLines(W, 3);
+    W.qmarks = surf ? questMarks(W, storyActors(W)) : [];
+    const tl = [main || (ql.length ? '' : g.text), ...ql].filter(Boolean).join('\n');
+    W.goal = ev ? eventAt(W) : main ? g.at : W.qmarks.length ? W.qmarks[0] : g.at;
     if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }

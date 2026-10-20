@@ -25,6 +25,8 @@ for (const q of QUESTS) {
   else if (q.type === 'craft') ok(BY_ID[q.item] && Object.values(RECIPE_BY_ID).some(r => r.result.id === q.item), 'цель craft ' + q.id);
   else if (q.type === 'tome') ok(TOME_BY_ID[q.tome], 'цель tome ' + q.id);
   else if (q.type === 'open') ok(q.n >= 1, 'цель open ' + q.id);
+  else if (q.type === 'hunt' || q.type === 'track') ok(CFG3.enemies[q.enemy] && q.beast && q.at && (q.type === 'hunt' || q.n >= 2), 'цель ' + q.type + ' ' + q.id);     // этап 5 «круче»
+  else if (q.type === 'defend') ok(q.at && q.waves.length && q.waves.every(([t, n]) => CFG3.enemies[t] && n >= 1), 'цель defend ' + q.id);
   else ok(q.type === 'hire', 'тип ' + q.type);
 }
 // цепочки без циклов

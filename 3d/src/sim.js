@@ -31,7 +31,7 @@ import { SETS } from './data/sets3d.js';
 import { initBoss, updateBoss, tickBossZones } from './boss3d.js';
 import { storyFresh, storyTick, storyKill, storyBoss, storyActors, duelGuard, brandTick } from './story3d.js';
 import { newKnown } from './craft3d.js';
-import { questEvent } from './quests3d.js';
+import { questEvent, questTick } from './quests3d.js';
 import { lightOf, isNight } from './daynight.js';
 import { rollElite, makeChief, eliteOnHit, eliteOnDeath, eliteTick, hasAff, affOf, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned, rainK } from './status3d.js';
@@ -326,7 +326,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
 
 export function killEnemy(W, e, share) {
   if (e.dead) return;
-  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
+  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
   { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
   { const gid = gemDropOf(W, e); if (gid) { W.drops.push({ id: gid, n: 1, x: e.x + .5, z: e.z - .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: gid }); } }     // камень силы
@@ -845,6 +845,7 @@ function updateHouses(W, dt) {
   if ((W.shop.t += dt) > W.cfg.shop.restock) restock(W);
   updateWanderer(W, dt);
   updateEvents(W, dt);
+  questTick(W, dt);     // охота, следы, оборона, срок заданий (этап 5 «круче»)
   if (W.story) { storyTick(W, dt); const pl = placeAt(W.map, W.player.x, W.player.z); brandTick(W, dt, !!(pl && pl.safe) || (!!W.map.camp && insideCamp(W.map.camp, W.player.x, W.player.z))); }     // сюжет (этап 3); клеймо ночью (этап 7)
   if (W.tomb && (W.tomb.lvl || SURFACE) === W.lvl && !p.dead && len(p.x - W.tomb.x, p.z - W.tomb.z) < 1.6) { W.inv.ash += W.tomb.ash; W.ev.push({ k: 'tomb', ash: W.tomb.ash, x: W.tomb.x, z: W.tomb.z }); W.tomb = null; }
   W.nearPortal = portalNear(W);
