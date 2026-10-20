@@ -988,6 +988,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : cfg.squad.types[a.type] && cfg.squad.types[a.type].hero ? mateModel(cfg.squad.types[a.type]) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
       const ay = Y(a.x, a.z); en.m.group.position.set(a.x, ay, a.z); en.m.group.rotation.y = a.face;
       if (en.m.setLook && !a.guest) {     // спутник-герой (этап 4): анимация героя по «подставному» игроку — бег по скорости, удар по замаху
+        if (a.eq) { const T0 = cfg.squad.types[a.type], lk = lookKey(T0.hero, a, null) + (a.eq.weapon || ''); if (en.lk !== lk) { en.lk = lk; en.m.setLook(dressedLook(heroOf(T0.hero).look, a, null)); const wi = a.eq.weapon && BY_ID[a.eq.weapon]; en.m.setWeapon(wi ? wi.kind : MATE_W[T0.hero] || 'sword', wi ? wi.mat : 'steel'); } }     // одежда бойца-героя (2026-10-20)
         const T = cfg.squad.types[a.type], AT = cfg.player.attackTime, k = dt > 0 ? 1 / dt : 0, pp = en.pp || (en.pp = { chain: 0, fin: false, heavy: 0, hand: 0, inv: 0, rollT: 0, chargeT: 0, dashT: 0, dashDur: 0 });
         pp.vx = en.lx === undefined ? 0 : (a.x - en.lx) * k; pp.vz = en.lz === undefined ? 0 : (a.z - en.lz) * k; en.lx = a.x; en.lz = a.z;
         pp.face = a.face; pp.dead = a.dead; pp.deadT = a.deadT; pp.state = a.state === 'wind' || a.state === 'rec' ? 'atk' : 'idle';

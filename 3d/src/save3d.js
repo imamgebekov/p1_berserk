@@ -1,5 +1,6 @@
 // Сохранение 3D-прототипа: сумка, надетое, пепел, убийства. Отдельно от 2D-игры и от настроек ползунков.
-import { serialize, deserialize } from './inv.js';
+import { serialize, deserialize, cleanAf } from './inv.js';
+import { BY_ID as BY_ID_S } from './data/items.js';
 import { serializeStory, sanitizeStory } from './story3d.js';
 import { serializeLife, sanitizeLife } from './life3d.js';
 import { serializeAch, sanitizeAch } from './achieve3d.js';
@@ -99,6 +100,18 @@ export function applyDungeonState(W, saved) {
 
 // позиция героя на поверхности: числа в пределах мира
 const sanePos = p => (p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.hypot(p.x, p.z) < CFG3.world.radius ? { x: p.x, z: p.z } : null);
+// снаряжение бойца отряда (2026-10-20): только существующие вещи в своих слотах, уровни и заточка в пределах, свойства — очищенные
+function cleanKit(k) {
+  if (!k || typeof k !== 'object' || !k.eq || typeof k.eq !== 'object') return null;
+  const out = { eq: {}, up: {}, il: {}, af: {} };
+  for (const s of ['weapon', 'offhand', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet']) {
+    const id = k.eq[s], it = typeof id === 'string' && BY_ID_S[id]; if (!it || !(it.slot === s || (s === 'offhand' && (it.slot === 'weapon' || it.slot === 'offhand')))) { out.eq[s] = null; continue; }
+    out.eq[s] = id; const up = k.up && k.up[s], il = k.il && k.il[s];
+    if (Number.isInteger(up) && up > 0) out.up[s] = Math.min(up, 5); if (Number.isFinite(il) && il > 0) out.il[s] = Math.min(Math.floor(il), 99);
+    const af = k.af && cleanAf(k.af[s], CFG3); if (af) out.af[s] = af;
+  }
+  return Object.values(out.eq).some(Boolean) ? out : null;
+}
 // прогресс героя из сохранения: уровень, опыт, очки, навыки и умения в допустимых пределах
 function progOf(pr, hero, fresh = false) {     // fresh — древо умений (2026-10-20): сброс умений и талантов с возвратом всех очков
     const num = (v, a, b, def) => (Number.isFinite(v) ? Math.max(a, Math.min(b, Math.floor(v))) : def);
@@ -127,7 +140,7 @@ export function loadSave(slots, storage = globalThis.localStorage) {
     const heroes = {};     // отложенные герои (2026-10-18): свой уровень и умения; старое сохранение — пусто (уровень у текущего)
     if (d.heroes && typeof d.heroes === 'object') for (const h of Object.keys(HEROES)) if (h !== hero && HEROES[h].open && d.heroes[h] && typeof d.heroes[h] === 'object') { const q = progOf(d.heroes[h], h, fresh); heroes[h] = { lv: q.lv, xp: q.xp, sp: q.sp, skills: q.skills, ap: q.ap, ab: q.ab, bar: q.bar }; }
     const sameWorld = d.gen === CFG3.world.gen;        // другой мир (номер world.gen) — туман, позиция и таймеры боссов не переносятся
-    return { hero, heroes, life: sanitizeLife(d.life, CFG3), story: sanitizeStory(d.story), ach: sanitizeAch(d.ach), inv: deserialize(d.inv, slots, hero, CFG3), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(d.seen, seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [], fires: sameWorld && Array.isArray(d.fires) ? d.fires.filter(x => typeof x === 'string').slice(0, 200) : [], shrines: sameWorld && d.shrines && typeof d.shrines === 'object' ? Object.fromEntries(Object.entries(d.shrines).filter(([k, v]) => /^p\d+$/.test(k) && Number.isFinite(v)).slice(0, 300)) : {} };
+    return { hero, heroes, life: sanitizeLife(d.life, CFG3), story: sanitizeStory(d.story), ach: sanitizeAch(d.ach), inv: deserialize(d.inv, slots, hero, CFG3), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(d.seen, seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp, kit: cleanKit(a && a.kit) })) : [], fires: sameWorld && Array.isArray(d.fires) ? d.fires.filter(x => typeof x === 'string').slice(0, 200) : [], shrines: sameWorld && d.shrines && typeof d.shrines === 'object' ? Object.fromEntries(Object.entries(d.shrines).filter(([k, v]) => /^p\d+$/.test(k) && Number.isFinite(v)).slice(0, 300)) : {} };
   } catch (e) { return null; }
 }
 // загрузка с откатом на резервные копии: { save, from: 'main' | 'bak1' | 'bak2' } или null; из копии — она же становится основной
@@ -147,7 +160,7 @@ export const saveFileName = (d = new Date()) => `berserk3d-save-${d.getFullYear(
 // onFail(err) — запись не удалась (кончилось место и т. п.); now — часы в мс (для тестов)
 export function createSaver(W, storage = globalThis.localStorage, { onFail = null, now = () => Date.now(), bakEvery = (CFG3.save ? CFG3.save.bakEvery : 300) * 1000 } = {}) {
   let last = '', lastBak = now(), off = false;     // off — после сброса: автосохранение при уходе со страницы не вернёт старый прогресс
-  const snap = () => JSON.stringify({ v: VERSION, tree: 1, hero: W.hero, heroes: W.heroes || {}, life: W.life ? serializeLife(W) : null, story: serializeStory(W.story), ach: serializeAch(W.ach), inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab, bar: W.bar, spark: W.spark, path: W.path, prank: W.prank || 0, pxp: W.pxp || 0, ng: W.ng || 0 }, seen: W.levels ? packSeenChunks(W.levels.surface.seen, W.levels.surface.seenN) : packSeenChunks(W.seen, W.seenN), pos: W.lvl === 'surface' && !W.player.dead ? { x: Math.round(W.player.x * 100) / 100, z: Math.round(W.player.z * 100) / 100 } : null, gen: W.cfg.world.gen, dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest && !a.story).map(a => ({ type: a.type, hp: Math.round(a.hp) })), fires: Object.keys(W.fires || {}), shrines: Object.fromEntries(Object.entries(W.shrines || {}).filter(([, v]) => v > W.t).map(([k, v]) => [k, Math.round(v)])) });
+  const snap = () => JSON.stringify({ v: VERSION, tree: 1, hero: W.hero, heroes: W.heroes || {}, life: W.life ? serializeLife(W) : null, story: serializeStory(W.story), ach: serializeAch(W.ach), inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab, bar: W.bar, spark: W.spark, path: W.path, prank: W.prank || 0, pxp: W.pxp || 0, ng: W.ng || 0 }, seen: W.levels ? packSeenChunks(W.levels.surface.seen, W.levels.surface.seenN) : packSeenChunks(W.seen, W.seenN), pos: W.lvl === 'surface' && !W.player.dead ? { x: Math.round(W.player.x * 100) / 100, z: Math.round(W.player.z * 100) / 100 } : null, gen: W.cfg.world.gen, dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest && !a.story).map(a => ({ type: a.type, hp: Math.round(a.hp), ...(a.eq && Object.values(a.eq).some(Boolean) ? { kit: { eq: a.eq, up: a.up, il: a.il, af: a.af } } : {}) })), fires: Object.keys(W.fires || {}), shrines: Object.fromEntries(Object.entries(W.shrines || {}).filter(([, v]) => v > W.t).map(([k, v]) => [k, Math.round(v)])) });
   return {
     write(force) {
       if (W.ironDead || off) return false; const s = snap(); if (!force && s === last) return false;

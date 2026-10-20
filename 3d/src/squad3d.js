@@ -6,6 +6,33 @@ import { insideOf, resolve, slide, pathStep, roomHops, insideCamp, campGates, li
 import { killEnemy } from './sim.js';
 import { hitsWall } from './foes3d.js';
 import { addThreat, taunt } from './threat3d.js';
+import { gearStats } from './inv.js';
+import { BY_ID } from './data/items.js';
+
+// снаряжение бойцов (2026-10-20, просьба владельца): нанятый — без вещей и слабее (cfg.squad.gear.naked); вещи из сумки
+// надеваются на бойца так же, как на героя (хранятся в a.eq/up/il/af/gem, сумка общая). Правила вещей — героя по роли.
+const SLOTS_A = ['weapon', 'offhand', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet'];
+export const allyGearOn = W => !!(W.cfg.squad.gear && W.cfg.squad.gear.on);
+export const allyHeroOf = T => T.hero || (T.role === 'heal' ? 'irga' : T.ranged || T.role === 'ranged' ? 'jay' : 'thorn');     // чьи правила вещей у бойца
+export function allyKit(a) { if (!a.eq) { a.eq = Object.fromEntries(SLOTS_A.map(s => [s, null])); a.up = {}; a.il = {}; a.af = {}; a.gem = {}; } return a; }
+// «сумка» бойца для функций inv.js: его надетое, общая сумка героя
+export const allyInv = (W, a) => { allyKit(a); return { bag: W.inv.bag, eq: a.eq, up: a.up, il: a.il, af: a.af, gem: a.gem, get ash() { return W.inv.ash; }, set ash(v) { W.inv.ash = v; } }; };
+export function allyStats(W, a) { allyKit(a); return gearStats({ eq: a.eq, up: a.up, il: a.il, af: a.af, gem: a.gem }, [], W.cfg.smith.bonus); }
+// пересчёт силы бойца после смены вещей: запас здоровья и урон
+export function refreshAlly(W, a) {
+  const T = W.cfg.squad.types[a.type]; if (!T || a.guest || a.story || a.decoy) return;
+  const on = allyGearOn(W), g = on ? allyStats(W, a) : null; a.ghp = g ? g.hp : 0; a.gdmg = g ? g.dmg : 0; a.garmor = g ? g.armor : 0;
+  const mh = allyMaxHpOf(W, a), frac = a.maxhp ? a.hp / a.maxhp : 1;
+  a.maxhp = mh; a.hp = Math.max(1, Math.min(mh, Math.round(mh * frac)));
+}
+// запас здоровья бойца: по уровню героя, без вещей — меньше, плюс здоровье вещей
+export const allyMaxHpOf = (W, a) => { const T = W.cfg.squad.types[a.type]; return allyGearOn(W) && !a.story && !a.guest ? Math.max(1, Math.round(allyHp(W, T) * W.cfg.squad.gear.naked.hp + (a.ghp || 0))) : allyHp(W, T); };
+export const allyDmgOf = (W, a) => { const T = W.cfg.squad.types[a.type], G = W.cfg.squad.gear; return allyGearOn(W) && !a.story && !a.guest ? allyDmg(W, T) * G.naked.dmg + (a.gdmg || 0) * G.dmgK : allyDmg(W, T); };
+// вещи павшего или уволенного бойца — на землю
+export function dropAllyGear(W, a) {
+  if (!a.eq) return;
+  for (const s of SLOTS_A) { const id = a.eq[s]; if (!id) continue; const ang = SLOTS_A.indexOf(s) * .79; W.drops.push({ id, n: 1, x: a.x + Math.sin(ang) * .8, z: a.z + Math.cos(ang) * .8, t: 0, cd: 0, mine: true, ...(a.up[s] ? { up: a.up[s] } : {}), ...(a.il[s] ? { il: a.il[s] } : {}), ...(a.af[s] ? { af: a.af[s] } : {}) }); a.eq[s] = null; }
+}
 
 // ---- отряд ----
 export const squadMax = W => Math.min(W.cfg.squad.cap, W.cfg.squad.baseMax + Math.floor(W.lv / W.cfg.squad.perLevels));
@@ -17,7 +44,7 @@ export function pickAlly(W, e, dPlayer) {
 }
 export function hurtAlly(W, a, dmg, e) {
   if (a.dead) return;
-  a.hp -= dmg * (a.taken ?? 1); a.flash = .12; a.calm = 3;     // подопечные событий получают меньше (taken)
+  a.hp -= dmg * (a.taken ?? 1) / (1 + Math.max(0, a.garmor || 0) * W.cfg.gear.armorK); a.flash = .12; a.calm = 3;     // подопечные событий получают меньше (taken); броня бойца — как у героя
   const d = len(a.x - e.x, a.z - e.z) || 1; a.vx += (a.x - e.x) / d * 3; a.vz += (a.z - e.z) / d * 3;
   W.ev.push({ k: 'allyhurt', x: a.x, z: a.z, dmg });
   if (a.story && a.hp < 1) a.hp = 1;     // герои сюжета не гибнут: держатся на ногах
@@ -30,6 +57,7 @@ export function spawnAlly(W, type, hp) {
   const T = W.cfg.squad.types[type], p = W.player, ang = p.face + Math.PI + rr(W, -.8, .8), mh = allyHp(W, T);
   const a = { id: W.aid++, type, x: p.x + Math.sin(ang) * 1.8, z: p.z + Math.cos(ang) * 1.8, vx: 0, vz: 0, face: p.face, hp: hp || mh, maxhp: mh, state: 'idle', t: 0, cd: 0, dead: false, deadT: 0, flash: 0, calm: 0, tgt: 0, moving: false, hcd: 0, tcd: 0 };
   if (T.taken) a.taken = T.taken;
+  if (!T.story && !T.decoy) { allyKit(a); refreshAlly(W, a); a.hp = hp ? Math.max(1, Math.min(a.maxhp, hp)) : a.maxhp; }     // без вещей — слабее (gear.naked); сохранённое здоровье — не выше запаса
   resolve(W.map, a, .45); W.allies.push(a); return a;
 }
 export const hireable = (W, id) => { const T = W.cfg.squad.types[id]; return !!T && !T.story && T.hero !== W.hero && !(T.hero && W.allies.some(a => !a.dead && a.type === id)); };     // спутник-герой — один, и не тот, кем играете
@@ -41,10 +69,10 @@ export function hireAlly(W, type) {
   if (W.inv.ash < T.cost) return 'ash';
   W.inv.ash -= T.cost; spawnAlly(W, type); questEvent(W, 'hire'); W.ev.push({ k: 'hire', name: T.name }); return 'ok';
 }
-export function dismissAlly(W, id) { const i = W.allies.findIndex(a => a.id === id); if (i < 0) return false; W.allies.splice(i, 1); return true; }
+export function dismissAlly(W, id) { const i = W.allies.findIndex(a => a.id === id); if (i < 0) return false; dropAllyGear(W, W.allies[i]); W.allies.splice(i, 1); return true; }     // вещи уволенного — на землю
 export function restoreAllies(W, list) {
   W.allies.length = 0;
-  for (const s of Array.isArray(list) ? list : []) { if (liveAllies(W).length >= squadMax(W)) break; const T = s && W.cfg.squad.types[s.type]; if (T && hireable(W, s.type)) { const mh = allyHp(W, T); spawnAlly(W, s.type, clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : mh, 1, mh)); } }
+  for (const s of Array.isArray(list) ? list : []) { if (liveAllies(W).length >= squadMax(W)) break; const T = s && W.cfg.squad.types[s.type]; if (T && hireable(W, s.type)) { const mh = allyHp(W, T), a = spawnAlly(W, s.type, clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : mh, 1, mh)); if (s.kit) { Object.assign(allyKit(a), { eq: { ...a.eq, ...s.kit.eq }, up: { ...s.kit.up }, il: { ...s.kit.il }, af: { ...s.kit.af } }); refreshAlly(W, a); a.hp = clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : a.maxhp, 1, a.maxhp); } } }     // снаряжение бойца — из сохранения
 }
 // дом на пути: боец в другом доме, чем герой (или снаружи, когда герой внутри), — идёт через дверь, как враги
 function doorGoal(W, a, p) {
@@ -105,7 +133,7 @@ function allyHit(W, T, id, e, dmg, from, push = 1) {
 function allyShot(W, a, T, e) {
   const S = W.cfg.squad.shot, dx = e.x - a.x, dz = e.z - a.z, d = len(dx, dz) || 1;
   W.proj.push({ friendly: true, ally: a.id, type: a.type, kind: T.role === 'heal' ? 'orb' : 'arrow', x: a.x + dx / d * .6, z: a.z + dz / d * .6, vx: dx / d * S.speed, vz: dz / d * S.speed,
-    dmg: Math.round(allyDmg(W, T) * rr(W, .9, 1.1)), life: (T.range + 3) / S.speed, hit: [] });
+    dmg: Math.round(allyDmgOf(W, a) * rr(W, .9, 1.1)), life: (T.range + 3) / S.speed, hit: [] });
   W.ev.push({ k: 'allyshoot', x: a.x, z: a.z, heal: T.role === 'heal' });
 }
 // стрелы и искры спутников (свои стрелы героя летят в sim.js)
@@ -167,14 +195,14 @@ function pickTarget(W, a, T, P, enemies) {
 }
 export function updateAllies(W, dt) {
   const S = W.cfg.squad, p = W.player, P = partyOf(W), live = W.allies.filter(a => !a.dead && !a.guest), enemies = W.enemies.filter(e => !e.dead);     // в бою и строю — и герои сюжета (этап 7: раньше они стояли)
-  for (let i = W.allies.length - 1; i >= 0; i--) { const a = W.allies[i]; if (a.dead) { a.deadT += dt; if (a.deadT > 1.4) W.allies.splice(i, 1); } }
+  for (let i = W.allies.length - 1; i >= 0; i--) { const a = W.allies[i]; if (a.dead) { a.deadT += dt; if (a.deadT > 1.4) { dropAllyGear(W, a); W.allies.splice(i, 1); } } }     // вещи павшего — на землю
   const back = () => { P.cmd = 'follow'; P.mark = 0; W.ev.push({ k: 'squadCmd', cmd: 'follow', auto: true }); };
   if (P.cmd === 'assist' && !enemies.some(e => e.id === P.mark)) back();                 // метка пала — снова за героем
   else if (P.cmd === 'hold' && (!liveAllies(W).length || len(p.x - P.hx, p.z - P.hz) > S.cmd.far)) back();     // герой ушёл далеко — догоняют
   updateShots(W, dt);
   live.forEach((a, idx) => {
     const T = S.types[a.type];
-    { const mh = allyHp(W, T); if (mh !== a.maxhp) { a.hp = Math.max(1, a.hp + mh - a.maxhp); a.maxhp = mh; } }     // уровень героя вырос — боец крепче
+    { const mh = allyMaxHpOf(W, a); if (mh !== a.maxhp) { a.hp = Math.max(1, a.hp + mh - a.maxhp); a.maxhp = mh; } }     // уровень героя вырос — боец крепче
     if (a.flash > 0) a.flash -= dt; if (a.calm > 0) a.calm -= dt; if (a.hcd > 0) a.hcd -= dt; if (a.tcd > 0) a.tcd -= dt;
     const px = a.x, pz = a.z;
     slide(W.map, a, a.vx * dt, a.vz * dt, .45); const kd = Math.exp(-8 * dt); a.vx *= kd; a.vz *= kd;
@@ -188,7 +216,7 @@ export function updateAllies(W, dt) {
         a.state = 'rec'; a.t = 0;
         const e = a.tg;
         if (e && !e.dead && T.ranged) { if (len(e.x - a.x, e.z - a.z) <= T.range + 2) allyShot(W, a, T, e); }
-        else if (e && !e.dead && len(e.x - a.x, e.z - a.z) <= T.range + W.cfg.enemies[e.type].radius + .5) allyHit(W, T, a.id, e, Math.round(allyDmg(W, T) * rr(W, .9, 1.1)), a);
+        else if (e && !e.dead && len(e.x - a.x, e.z - a.z) <= T.range + W.cfg.enemies[e.type].radius + .5) allyHit(W, T, a.id, e, Math.round(allyDmgOf(W, a) * rr(W, .9, 1.1)), a);
       }
     } else if (a.state === 'rec') { a.t += dt; if (a.t >= T.recover) { a.state = 'idle'; a.t = 0; } }
     else if (tgt) {

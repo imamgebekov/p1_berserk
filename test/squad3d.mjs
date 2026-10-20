@@ -1,5 +1,7 @@
 // Тест отряда 3D: найм, места, следование, бой, гибель, лечение, двери, сохранение, опыт и добыча от бойцов.
 import { CFG3 } from '../3d/src/config3d.js';
+import { allyInv, refreshAlly } from '../3d/src/squad3d.js';
+import { equipAt, entryOf } from '../3d/src/inv.js';
 import { createWorld, step, mulberry32, spawnEnemy, hireAlly, dismissAlly, squadMax, restoreAllies, respawnPlayer } from '../3d/src/sim.js';
 import { allyHp } from '../3d/src/squad3d.js';
 import { insideOf } from '../3d/src/map.js';
@@ -28,7 +30,7 @@ const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i+
   W.player.x = -60; W.player.z = 0; run(W, .5); ok(W.allies.every(a => d(a) < 8), 'бойцы не телепортировались при отрыве');
   ok(W.allies.every(a => !(W.map.walls.some(w => Math.hypot(Math.max(w.x0, Math.min(w.x1, a.x)) - a.x, Math.max(w.z0, Math.min(w.z1, a.z)) - a.z) < .3))), 'боец застрял в стене'); }
 // бой: бойцы убивают врагов, опыт и добыча идут герою
-{ const W = mk(4); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'veteran'); W.player.x = 0; W.player.z = 10; gather(W); run(W, 1);
+{ const W = mk(4); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'veteran'); W.inv.bag.push(entryOf('w_sword_steel', 0, null, 8, null)); { const v = W.allies.find(x => x.type === 'veteran'); equipAt(allyInv(W, v), W.inv.bag.length - 1, 'thorn'); refreshAlly(W, v); } W.player.x = 0; W.player.z = 10; gather(W); run(W, 1);     // с 3.78 боец без вещей слаб — даём меч
   const e = spawnEnemy(W, 'imp', 6, 10); e.alert = false; e.cd = 99; const xp0 = W.xp + W.lv * 1e4; run(W, 5);
   ok(e.dead && W.kills === 1, 'боец не убил беса'); ok(W.xp + W.lv * 1e4 > xp0, 'опыт за убийство бойца не получен'); }
 { let drops = 0; for (let sd = 0; sd < 40; sd++) { const W = mk(200 + sd); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'veteran'); W.player.x = 0; W.player.z = 10; gather(W); run(W, 1); const e = spawnEnemy(W, 'brute', 5, 10); e.alert = false; e.cd = 99; e.hp = 5; run(W, 3); drops += W.drops.length + W.inv.bag.length; } ok(drops > 5, 'добыча с убитых бойцами не выпадает: ' + drops); }
@@ -48,7 +50,7 @@ const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i+
   const W = mk(8); W.lv = 16; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'guard'); hireAlly(W, 'veteran'); W.allies[1].hp = 77; createSaver(W, st).write(true);
   const l = loadSave(30, st); const W2 = mk(9); W2.lv = 16; restoreAllies(W2, l.squad); ok(W2.allies.length === 2 && W2.allies[1].type === 'veteran' && W2.allies[1].hp === 77, 'отряд не восстановился: ' + JSON.stringify(W2.allies.map(a => [a.type, a.hp])));
   const W3 = mk(10); W3.lv = 1; restoreAllies(W3, [{ type: 'guard', hp: 5 }, { type: 'guard', hp: 5 }, { type: 'нет', hp: 5 }]); ok(W3.allies.length === 1, 'лишние бойцы сверх мест: ' + W3.allies.length);
-  const W4 = mk(11); W4.lv = 30; restoreAllies(W4, [{ type: 'veteran', hp: 1e9 }, { type: 'guard', hp: -4 }, { type: 'guard', hp: NaN }, null, 'x']); ok(W4.allies.length === 3 && W4.allies[0].hp === allyHp(W4, CFG3.squad.types.veteran) && W4.allies[1].hp === 1 && W4.allies[2].hp === allyHp(W4, CFG3.squad.types.guard), 'мусор в сохранении отряда: ' + JSON.stringify(W4.allies.map(a => a.hp))); }
+  const W4 = mk(11); W4.lv = 30; restoreAllies(W4, [{ type: 'veteran', hp: 1e9 }, { type: 'guard', hp: -4 }, { type: 'guard', hp: NaN }, null, 'x']); ok(W4.allies.length === 3 && W4.allies[0].hp === W4.allies[0].maxhp && W4.allies[1].hp === 1 && W4.allies[2].hp === W4.allies[2].maxhp, 'мусор в сохранении отряда: ' + JSON.stringify(W4.allies.map(a => a.hp))); }
 // возрождение героя: бойцы остаются и догоняют
 { const W = mk(12); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'guard'); W.player.x = 60; W.player.z = 0; run(W, 1); W.player.hp = 0; W.player.dead = true; respawnPlayer(W); run(W, 1); ok(Math.hypot(W.allies[0].x - W.player.x, W.allies[0].z - W.player.z) < 8 && W.allies.length === 1, 'боец потерялся после возрождения героя'); }
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }

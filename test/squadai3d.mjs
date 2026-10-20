@@ -6,7 +6,7 @@ import { createWorld, step, mulberry32, spawnEnemy, hireAlly, restoreAllies, swi
 import { spawnAlly, squadCommand, allyHp, hireable, liveAllies } from '../3d/src/squad3d.js';
 import { threatPick } from '../3d/src/threat3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
-const mk = (seed = 1, hero = 'vale', lv = 20) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.bosses.list = []; const W = createWorld(cfg, mulberry32(seed)); W.hero = hero; W.lv = lv; W.player.x = 60; W.player.z = 40; W.player.inv = 1e9; return W; };
+const mk = (seed = 1, hero = 'vale', lv = 20) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.bosses.list = []; cfg.squad.gear.on = false; const W = createWorld(cfg, mulberry32(seed)); W.hero = hero; W.lv = lv; W.player.x = 60; W.player.z = 40; W.player.inv = 1e9; return W; };
 const run = (W, sec, inp = {}, each) => { for (let i = 0; i < Math.round(sec * 60); i++) { step(W, 1 / 60, inp); if (each) each(); W.ev.length = 0; } };
 const party = (W, ...types) => types.map((t, i) => { const a = spawnAlly(W, t); a.x = W.player.x + 1.5 + i; a.z = W.player.z + 1.5; return a; });
 const foe = (W, type, dx, dz, hp = 1e5) => { const e = spawnEnemy(W, type, W.player.x + dx, W.player.z + dz); e.hp = e.maxhp = hp; e.alert = true; return e; };

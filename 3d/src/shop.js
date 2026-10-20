@@ -204,7 +204,7 @@ export function createCaptain(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     const row = (id, T) => {
       const r = el('div', 'srow'), info = el('div', 'sinfo'), mate = !!T.hero, own = mate && !hireable(W, id) && T.hero !== W.hero;
       const nm = el('span', 'nm', T.name + (mate ? ' · ' + ROLE[T.role] : '')); nm.style.color = T.tint === '#2e2e34' ? '#c8c8d8' : T.tint;
-      info.append(nm, el('div', 'sub', `${T.text} Здоровье ${allyHp(W, T)}, урон ${Math.round(allyDmg(W, T))}.`));
+      info.append(nm, el('div', 'sub', `${T.text} Без снаряжения: здоровье ${Math.round(allyHp(W, T) * (W.cfg.squad.gear && W.cfg.squad.gear.on ? W.cfg.squad.gear.naked.hp : 1))}, урон ${Math.round(allyDmg(W, T) * (W.cfg.squad.gear && W.cfg.squad.gear.on ? W.cfg.squad.gear.naked.dmg : 1))}. Одевайте в сумке.`));
       const full = live.length >= max, b = el('button', 'buy' + (own || full || W.inv.ash < T.cost ? ' no' : ''), own ? 'В отряде' : `Нанять · ${T.cost}`); b.type = 'button';
       b.addEventListener('click', () => { const res = hireAlly(W, id); flash(res === 'ok' ? `${T.name} в отряде` : res === 'ash' ? 'Не хватает пепла' : res === 'full' ? `Отряд полон (мест: ${max}). Новые места открываются с уровнем` : res === 'taken' ? `${T.name} уже в отряде` : 'Подойдите к капитану'); render(); onChange && onChange(); });
       r.append(info, b); listEl.appendChild(r);

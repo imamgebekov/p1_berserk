@@ -661,3 +661,7 @@ html,body{font-family:var(--sans);font-size:15.5px}
 .tact.sell{background:linear-gradient(180deg,#5aa04a,#2e6a24 60%,#1c4416);box-shadow:inset 0 1px 0 rgba(220,255,200,.4),0 0 0 1px #8ac070,0 2px 4px rgba(0,0,0,.6)}
 .tact.no{filter:grayscale(.7) brightness(.7)}
 #shop .junk{min-height:40px;font-size:12.5px}
+/* сумка: кого одеваем — герой или боец отряда */
+.whobar{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-bottom:4px}
+.whobar .who{min-height:30px;padding:0 9px;font-size:12px;font-weight:600;border-radius:7px;color:#e8d5b0;background:linear-gradient(180deg,#3e2a1a,#21150d);border:1px solid #000;box-shadow:inset 0 1px 0 rgba(255,220,170,.18),0 0 0 1px var(--br-d)}
+.whobar .who.on{color:#fff1cf;box-shadow:inset 0 1px 0 rgba(255,230,180,.35),0 0 0 1px var(--br-hi),0 0 8px rgba(232,192,74,.35)}
