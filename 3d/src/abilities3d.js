@@ -1,9 +1,9 @@
 // Активные умения (B3): очки умений, ранги, перезарядки и действия. Действия собраны из того, что уже есть в бою:
 // удар по врагу (abilityHit), статусы (страх, оглушение), баффы (броня), рывок (состояние героя 'dash').
-import { ABILITIES, rankLvs, abilityPointsAt, rankIdx, withMastery } from './data/abilities3d.js';
+import { ABILITIES, rankLvs, abilityPointsAt, rankIdx, withMastery, MASTERY_TEXT } from './data/abilities3d.js';
 import { abilityHit, abilityArrow } from './sim.js';
 import { lineBlocked, insideOf, resolve } from './map.js';
-import { applyStatus } from './status3d.js';
+import { applyStatus, cleansePlayer } from './status3d.js';
 import { len } from './util3d.js';
 import { resTick, resNow, resSpend, resOf, resMax } from './resource3d.js';
 import { comboFor, boosted, noteAbility } from './combos3d.js';
@@ -79,6 +79,9 @@ function aimAt(W, range, cone = 180) {
 // точка умения по площади: ближайший видимый враг в range или ahead м впереди
 const spot = (W, A) => { const p = W.player; if (W.aimPt) { const dx = W.aimPt.x - p.x, dz = W.aimPt.z - p.z, d = len(dx, dz), k = d > A.range ? A.range / d : 1; return { x: p.x + dx * k, z: p.z + dz * k }; }     // курсор: точка под курсором (не дальше range)
   const { e } = aimAt(W, A.range); return e ? { x: e.x, z: e.z } : { x: p.x + Math.sin(p.face) * A.ahead, z: p.z + Math.cos(p.face) * A.ahead }; };
+const tw = (W, r) => r >= 3 && !!(W.cfg.abilities.mastery && W.cfg.abilities.mastery.twist);     // мастерство меняет поведение умения (этап 3+ «круче»)
+const heal = (W, k) => { const p = W.player; if (!p.dead) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * k); };
+const pull = (W, e, k) => { const p = W.player, dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1; e.vx = dx / d * k; e.vz = dz / d * k; };
 const near = (W, r) => W.enemies.filter(e => !e.dead && len(e.x - W.player.x, e.z - W.player.z) < r + W.cfg.enemies[e.type].radius);
 
 const ACT = {
@@ -89,48 +92,51 @@ const ACT = {
     for (const e of W.enemies) { if (e.dead) continue; const d = len(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; best = e; } }
     if (best && bd > .5) p.face = Math.atan2(best.x - p.x, best.z - p.z);
     const dist = best ? Math.max(1.5, Math.min(A.dist, bd - W.cfg.enemies[best.type].radius - A.stop)) : A.dist;     // к цели — останавливается перед ней, а не пролетает за спину
-    Object.assign(p, { state: 'dash', dashT: 0, dashDur: A.time * dist / A.dist, dashV: A.dist / A.time, dashX: Math.sin(p.face), dashZ: Math.cos(p.face), dashHit: [], dashMul: A.mul[r], dashKnock: A.knock, atkT: 0 });
+    Object.assign(p, { state: 'dash', dashT: 0, dashDur: A.time * dist / A.dist, dashV: A.dist / A.time, dashX: Math.sin(p.face), dashZ: Math.cos(p.face), dashHit: [], dashMul: A.mul[r], dashKnock: A.knock, atkT: 0, dashStun: tw(W, r) ? 1 : 0 });     // мастерство: рывок оглушает
     p.inv = Math.max(p.inv, A.time);
   },
   cry(W, A, r) {
     for (const e of near(W, A.r)) applyStatus(W, e, 'fear', 0, A.fear[r]);
     const ex = W.buffs.find(b => b.src === 'cry'); if (ex) ex.t = A.t; else W.buffs.push({ stat: 'armor', amt: A.armor[r], t: A.t, src: 'cry' });
+    if (tw(W, r)) heal(W, .12);     // мастерство: клич лечит
   },
-  whirl(W, A, r) { const C = W.cmb; for (const e of near(W, A.r)) abilityHit(W, e, A.mul[r] * (C && C.id === 'rift' && e.st && e.st.root ? C.k : 1), { knock: A.knock }); W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.6); },     // «Разлом»: по корням сильнее
-  iron(W, A, r) { W.abuf.iron = A.t[r]; W.abuf.ironTaken = A.taken; },
-  rage(W, A, r) { W.abuf.rage = A.t[r]; W.abuf.rageMul = 1 + A.dmg[r] / 100; W.abuf.rageSwing = A.swing; W.abuf.rageDrain = A.drain; },
+  whirl(W, A, r) { const C = W.cmb, T = tw(W, r); for (const e of near(W, A.r + (T ? 2 : 0))) { abilityHit(W, e, A.mul[r] * (C && C.id === 'rift' && e.st && e.st.root ? C.k : 1), { knock: T ? 0 : A.knock }); if (T && !e.dead) pull(W, e, 9); } W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.6); },     // «Разлом»: по корням сильнее
+  iron(W, A, r) { W.abuf.iron = A.t[r]; W.abuf.ironTaken = A.taken; if (tw(W, r)) cleansePlayer(W, ['burn', 'poison', 'bleed']); },     // мастерство: снимает горение, яд и кровь
+  rage(W, A, r) { W.abuf.rage = A.t[r]; W.abuf.rageMul = 1 + A.dmg[r] / 100; W.abuf.rageSwing = A.swing; W.abuf.rageDrain = tw(W, r) ? 0 : A.drain; },     // мастерство: ярость не тает здоровьем
   bash(W, A, r) {                                  // конус перед собой: удар и оглушение (доворот на ближайшего)
     const p = W.player, { ang } = aimAt(W, A.r + 1); p.face = ang; let hit = 0;
     for (const e of near(W, A.r)) { const d = Math.atan2(e.x - p.x, e.z - p.z) - p.face; if (Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) > A.cone / 2 * Math.PI / 180) continue;
       const fear = W.cmb && W.cmb.id === 'dread' && e.st && e.st.fear;     // «Устрашение»: испуганных оглушает дольше
-      abilityHit(W, e, A.mul[r], { knock: A.knock }); if (!e.dead) applyStatus(W, e, 'stun', 0, A.stun[r] * (fear ? W.cmb.stun : 1)); hit++; }
+      abilityHit(W, e, A.mul[r], { knock: A.knock }); if (!e.dead) applyStatus(W, e, 'stun', 0, A.stun[r] * (fear ? W.cmb.stun : 1)); if (!e.dead && tw(W, r)) applyStatus(W, e, 'crack', .25, 5); hit++; }     // мастерство: раскалывает броню
     if (!hit) return false;
   },
   quake(W, A, r) {
-    const p = W.player; for (const e of near(W, A.r)) { abilityHit(W, e, A.mul[r], { knock: .3 }); if (!e.dead) applyStatus(W, e, 'root', 0, A.root[r]); }
+    const p = W.player; for (const e of near(W, A.r)) { abilityHit(W, e, A.mul[r], { knock: .3 }); if (!e.dead) applyStatus(W, e, 'root', 0, A.root[r]); if (!e.dead && tw(W, r)) applyStatus(W, e, 'slow', .4, A.root[r] + 3); }     // мастерство: после корней — замедление
     W.shake = Math.max(W.shake, W.cfg.fx.shake * 2); W.ev.push({ k: 'quake', x: p.x, z: p.z, r: A.r });
   },
-  blood(W, A, r) { W.abuf.blood = A.t[r]; W.abuf.bloodLeech = A.leech[r]; },
+  blood(W, A, r) { W.abuf.blood = A.t[r]; W.abuf.bloodLeech = A.leech[r]; if (tw(W, r)) { heal(W, .15); delete W.pst.bleed; } },     // мастерство: сразу лечит и останавливает кровь
   // Сойка
   leap(W, A, r) {                                  // отскок прочь от ближайшего врага и выстрел в него
     const p = W.player, { ang } = aimAt(W, A.range);
     abilityArrow(W, ang, A.mul[r]); p.face = ang;
+    if (tw(W, r)) W.traps.push({ x: p.x, z: p.z, t: 20, r: 1.3, root: 2, mul: A.mul[r] * .6, lvl: W.lvl });     // мастерство: на месте отскока — капкан
     Object.assign(p, { state: 'dash', dashT: 0, dashDur: A.time, dashV: A.dist / A.time, dashX: -Math.sin(ang), dashZ: -Math.cos(ang), dashHit: [], dashMul: 0, dashKnock: 0 });
     p.inv = Math.max(p.inv, A.time);
   },
-  volley(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; for (let k = 0; k < A.n; k++) abilityArrow(W, ang + (k / (A.n - 1) - .5) * A.spread * Math.PI / 180, A.mul[r]); },
+  volley(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; for (let k = 0; k < A.n; k++) abilityArrow(W, ang + (k / (A.n - 1) - .5) * A.spread * Math.PI / 180, A.mul[r], tw(W, r) ? { pierce: 1 } : undefined); },     // мастерство: стрелы насквозь
   trap(W, A, r) {
     const p = W.player; W.traps.push({ x: p.x + Math.sin(p.face) * A.ahead, z: p.z + Math.cos(p.face) * A.ahead, t: A.life, r: A.r, root: A.root[r], mul: A.mul[r], lvl: W.lvl });
-    while (W.traps.length > A.max) W.traps.shift();
+    if (tw(W, r)) W.traps.push({ x: p.x + Math.sin(p.face) * (A.ahead + 2.5), z: p.z + Math.cos(p.face) * (A.ahead + 2.5), t: A.life, r: A.r, root: A.root[r], mul: A.mul[r], lvl: W.lvl });     // мастерство: два капкана
+    while (W.traps.length > A.max + (tw(W, r) ? 1 : 0)) W.traps.shift();
   },
-  venom(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { poison: [A.dps[r], A.t], pierce: A.pierce, kind: 'venom' }); },
-  frost(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { freeze: A.freeze[r], pierce: W.cmb && W.cmb.id === 'aimcold' ? W.cmb.pierce : 0 }); },     // «Прицельный холод» — насквозь
-  firearrow(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { blast: { r: A.r, k: A.splash, dps: A.dps[r], t: A.t } }); },
-  hawk(W, A, r) { W.abuf.hawk = A.t[r]; W.abuf.hawkCrit = A.crit[r] / 100; },
+  venom(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { poison: [A.dps[r], A.t], pierce: A.pierce + (tw(W, r) ? 2 : 0), kind: 'venom' }); },     // мастерство: яд пробивает ещё двоих
+  frost(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { freeze: A.freeze[r] * (tw(W, r) ? 1.5 : 1), pierce: Math.max(W.cmb && W.cmb.id === 'aimcold' ? W.cmb.pierce : 0, tw(W, r) ? 1 : 0) }); },     // мастерство: дольше и насквозь     // «Прицельный холод» — насквозь
+  firearrow(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { blast: { r: A.r * (tw(W, r) ? 1.5 : 1), k: A.splash, dps: A.dps[r], t: A.t } }); },     // мастерство: взрыв шире
+  hawk(W, A, r) { W.abuf.hawk = A.t[r]; W.abuf.hawkCrit = A.crit[r] / 100; if (tw(W, r)) { const ex = W.buffs.find(b => b.src === 'hawk'); if (ex) ex.t = A.t[r]; else W.buffs.push({ stat: 'spd', amt: 15, t: A.t[r], src: 'hawk' }); } },     // мастерство: и быстрее бег
   rain(W, A, r) {                                  // град: на ближайшего видимого врага или вперёд
     const p = W.player, C = W.cmb, held = C && C.id === 'snare' ? W.enemies.find(o => !o.dead && o.st && o.st.root && len(o.x - p.x, o.z - p.z) < A.range) : null;     // «Западня»: на пойманного
     let { e } = aimAt(W, A.range); if (held) e = held; const x = e ? e.x : p.x + Math.sin(p.face) * A.ahead, z = e ? e.z : p.z + Math.cos(p.face) * A.ahead;
-    W.zones.push({ x, z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl, slow: C && C.id === 'icehail' ? C.slow : 0 });     // «Ледяной град» замедляет
+    W.zones.push({ x, z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl, slow: C && C.id === 'icehail' ? C.slow : tw(W, r) ? .35 : 0 });     // мастерство: град замедляет     // «Ледяной град» замедляет
   },
   // Вейл
   blink(W, A, r) {                                 // к врагу в конусе: встать за спину (если там стена — перед ним) и ударить
@@ -141,46 +147,52 @@ const ACT = {
     p.x = tx; p.z = tz; p.vx = p.vz = 0; p.face = Math.atan2(e.x - tx, e.z - tz);
     abilityHit(W, e, A.mul[r], { knock: .6, forceCrit: !!(W.cmb && W.cmb.id === 'shadowstrike') });     // «Удар из тени» — верный крит
     W.ev.push({ k: 'blink', x: fx, z: fz, x2: tx, z2: tz });
+    if (tw(W, r)) { W.abuf.smoke = Math.max(W.abuf.smoke || 0, 1.2); for (const o of near(W, 6)) o.alert = false; }     // мастерство: после прыжка — миг невидимости
   },
-  parry(W, A, r) { W.abuf.parry = A.t[r]; W.abuf.parryStun = A.stun[r]; W.abuf.parryMul = A.mul[r]; },
-  dance(W, A, r) { W.abuf.twin = !!(W.cmb && W.cmb.id === 'twindance'); W.abuf.dance = A.t; W.abuf.danceGap = A.t / A.hits; W.abuf.danceAcc = W.abuf.danceGap; W.abuf.danceMul = A.mul[r]; W.abuf.danceR = A.r; W.player.inv = Math.max(W.player.inv, A.t * .5); },
+  parry(W, A, r) { W.abuf.parry = A.t[r]; W.abuf.parryStun = A.stun[r]; W.abuf.parryMul = A.mul[r]; W.abuf.parryHeal = tw(W, r) ? .08 : 0; },     // мастерство: пойманный удар лечит
+  dance(W, A, r) { W.abuf.twin = !!(W.cmb && W.cmb.id === 'twindance'); W.abuf.dance = A.t; W.abuf.danceGap = A.t / A.hits; W.abuf.danceAcc = W.abuf.danceGap; W.abuf.danceMul = A.mul[r]; W.abuf.danceR = A.r; W.abuf.danceBleed = tw(W, r) ? [A.mul[r] * 4, 4] : null; W.player.inv = Math.max(W.player.inv, A.t * .5); },
   shadow(W, A, r) {
-    const p = W.player; for (let i = W.allies.length - 1; i >= 0; i--) if (W.allies[i].decoy) W.allies.splice(i, 1);     // одна тень за раз
+    const p = W.player, two = tw(W, r); for (let i = W.allies.length - 1; i >= 0; i--) if (W.allies[i].decoy) W.allies.splice(i, 1);     // одна тень за раз (мастерство — две)
+    if (two) W.allies.push({ id: W.aid++, guest: true, decoy: true, type: 'guest', name: 'Тень', x: p.x - Math.sin(p.face) * 1.2, z: p.z - Math.cos(p.face) * 1.2, vx: 0, vz: 0, face: p.face, hp: A.hp[r], maxhp: A.hp[r], state: 'idle', t: A.t[r], cd: A.hit / 2, gap: A.hit, r: A.r, mul: A.mul[r], dead: false, deadT: 0, flash: 0, calm: 0, tgt: 0, moving: false, lvl: W.lvl });
     W.allies.push({ id: W.aid++, guest: true, decoy: true, type: 'guest', name: 'Тень', x: p.x + Math.sin(p.face) * 1.2, z: p.z + Math.cos(p.face) * 1.2, vx: 0, vz: 0, face: p.face, hp: A.hp[r], maxhp: A.hp[r], state: 'idle', t: A.t[r], cd: 0, gap: A.hit, r: A.r, mul: A.mul[r], dead: false, deadT: 0, flash: 0, calm: 0, tgt: 0, moving: false, lvl: W.lvl });
   },
-  fan(W, A, r) { const { ang } = aimAt(W, 12, 60); W.player.face = ang; for (let k = 0; k < A.n; k++) abilityArrow(W, ang + (k / (A.n - 1) - .5) * A.spread * Math.PI / 180, A.mul[r], { bleed: [A.dps[r], A.t] }); },
+  fan(W, A, r) { const { ang } = aimAt(W, 12, 60); W.player.face = ang; for (let k = 0; k < A.n; k++) abilityArrow(W, ang + (k / (A.n - 1) - .5) * A.spread * Math.PI / 180, A.mul[r], tw(W, r) ? { bleed: [A.dps[r], A.t], poison: [A.dps[r] * .6, A.t] } : { bleed: [A.dps[r], A.t] }); },     // мастерство: и яд
   smoke(W, A, r) {                                 // враги рядом теряют героя; короткая «невидимость» и скорость
     const p = W.player; for (const e of near(W, A.r)) { e.alert = false; if (e.state === 'chase' || e.state === 'wind') { e.state = 'rec'; e.t = 0; } }
     W.abuf.smoke = A.hide; const ex = W.buffs.find(b => b.src === 'smoke'); if (ex) ex.t = A.t[r]; else W.buffs.push({ stat: 'spd', amt: A.spd[r], t: A.t[r], src: 'smoke' });
+    if (tw(W, r)) for (const e of near(W, A.r)) applyStatus(W, e, 'blind', 0, 2.5);     // мастерство: враги в дыму ослеплены
     W.ev.push({ k: 'smoke', x: p.x, z: p.z, r: A.r });
   },
   bloodlet(W, A, r) { const list = near(W, A.r), C = W.cmb; if (!list.length) return false; for (const e of list) { abilityHit(W, e, A.mul[r] * (C && C.id === 'bloodfan' && e.st && e.st.bleed ? C.k : 1), { knock: .4 });     // «Кровавый веер»
- if (!e.dead) applyStatus(W, e, 'bleed', A.dps[r], A.t); } },
+ if (!e.dead) applyStatus(W, e, 'bleed', A.dps[r], A.t); } if (tw(W, r)) heal(W, .03 * list.length); },     // мастерство: лечит за каждого задетого
   // Ирга
-  fireball(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { blast: { r: A.r, k: A.splash, dps: A.dps[r], t: A.t }, kind: 'orb', detonate: W.cmb && W.cmb.id === 'detonate' ? W.cmb : null }); },     // «Взрыв облака»
+  fireball(W, A, r) { const { ang } = aimAt(W, 16, 60); W.player.face = ang; abilityArrow(W, ang, A.mul[r], { blast: { r: A.r, k: A.splash, dps: A.dps[r], t: A.t }, kind: 'orb', detonate: W.cmb && W.cmb.id === 'detonate' ? W.cmb : null });
+    if (tw(W, r)) for (const s of [-1, 1]) abilityArrow(W, ang + s * .22, A.mul[r] * .45, { blast: { r: A.r * .6, k: A.splash, dps: A.dps[r] * .5, t: A.t }, kind: 'orb' }); },     // мастерство: шар делится на три     // «Взрыв облака»
   nova(W, A, r) { const p = W.player, C = W.cmb; for (const e of near(W, A.r)) { abilityHit(W, e, A.mul[r], { knock: .8 }); if (!e.dead) applyStatus(W, e, 'freeze', 0, A.freeze[r]); } W.ev.push({ k: 'nova', x: p.x, z: p.z, r: A.r });
+    if (tw(W, r)) { const ex = W.buffs.find(b => b.src === 'novaarmor'); if (ex) ex.t = 6; else W.buffs.push({ stat: 'armor', amt: 12, t: 6, src: 'novaarmor' }); }     // мастерство: кольцо одевает в лёд
     if (C && C.id === 'icearmor') { const ex = W.buffs.find(b => b.src === 'icearmor'); if (ex) ex.t = C.t; else W.buffs.push({ stat: 'armor', amt: C.armor, t: C.t, src: 'icearmor' }); } },     // «Ледяная броня»
   chain(W, A, r) {                                 // молния: цель впереди, потом прыжки к ближайшим ещё не задетым
     const { e } = aimAt(W, A.range, 70); if (!e) return false;
     const p = W.player; p.face = Math.atan2(e.x - p.x, e.z - p.z); let cur = e, from = p, m = A.mul[r]; const done = new Set();
-    for (let i = 0; cur && i <= A.jumps[r]; i++) {
+    for (let i = 0; cur && i <= A.jumps[r] + (tw(W, r) ? 2 : 0); i++) {     // мастерство: два прыжка сверху
       done.add(cur); W.ev.push({ k: 'chain', x: from.x, z: from.z, x2: cur.x, z2: cur.z });
       const dmg = abilityHit(W, cur, m, { knock: .3 }); if (!cur.dead) applyStatus(W, cur, 'shock', dmg, W.cfg.elements.mark.shock); if (!cur.dead && W.cmb && W.cmb.id === 'frozenstorm') applyStatus(W, cur, 'slow', W.cmb.slow, 2);     // «Ледяная гроза» замедляет
       from = cur; m *= A.fall; let best = null, bd = A.hop; for (const o of W.enemies) { if (o.dead || done.has(o)) continue; const d = len(o.x - from.x, o.z - from.z); if (d < bd) { bd = d; best = o; } } cur = best;
     }
   },
-  cloud(W, A, r) { const at = spot(W, A); W.ezones.push({ kind: 'cloud', x: at.x, z: at.z, r: A.r, t: A.t, tick: A.tick, acc: 0, lvl: W.lvl, dps: A.dps[r] }); },
-  meteor(W, A, r) { const at = spot(W, A); (W.meteors = W.meteors || []).push({ x: at.x, z: at.z, t: A.delay, r: A.r, mul: A.mul[r], burn: A.burn, lvl: W.lvl }); W.ev.push({ k: 'meteorMark', x: at.x, z: at.z, r: A.r, t: A.delay }); },
-  shield(W, A, r) { W.abuf.mshield = A.t[r]; W.abuf.mshieldK = A.absorb[r]; },
-  blizzard(W, A, r) { const at = spot(W, A); W.zones.push({ x: at.x, z: at.z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl, slow: A.slow, snow: true }); },
+  cloud(W, A, r) { const at = spot(W, A); W.ezones.push({ kind: 'cloud', x: at.x, z: at.z, r: A.r * (tw(W, r) ? 1.5 : 1), t: A.t, tick: A.tick, acc: 0, lvl: W.lvl, dps: A.dps[r] }); },
+  meteor(W, A, r) { const at = spot(W, A), n = tw(W, r) ? 3 : 1; for (let k = 0; k < n; k++) { const a = k * 2.094 + W.t, o = k ? A.r * 1.2 : 0, x = at.x + Math.sin(a) * o, z = at.z + Math.cos(a) * o; (W.meteors = W.meteors || []).push({ x, z, t: A.delay + k * .35, r: A.r, mul: A.mul[r] * (k ? .6 : 1), burn: A.burn, lvl: W.lvl }); W.ev.push({ k: 'meteorMark', x, z, r: A.r, t: A.delay + k * .35 }); } },     // мастерство: три метеора
+  shield(W, A, r) { W.abuf.mshield = A.t[r]; W.abuf.mshieldK = A.absorb[r]; if (tw(W, r)) { cleansePlayer(W, ['burn', 'poison', 'bleed']); const ex = W.buffs.find(b => b.src === 'mshield'); if (ex) ex.t = A.t[r]; else W.buffs.push({ stat: 'spd', amt: 20, t: A.t[r], src: 'mshield' }); } },     // мастерство: очищает и ускоряет
+  blizzard(W, A, r) { const at = spot(W, A); W.zones.push({ x: at.x, z: at.z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl, slow: A.slow, snow: true, follow: tw(W, r) }); },     // мастерство: вьюга идёт за Иргой
   spear(W, A, r) {
     const p = W.player, { e } = aimAt(W, A.range, A.cone); if (!e) return false;
     p.face = Math.atan2(e.x - p.x, e.z - p.z); W.ev.push({ k: 'spear', x: p.x, z: p.z, x2: e.x, z2: e.z });
     abilityHit(W, e, A.mul[r] * (W.cmb && W.cmb.id === 'breach' && e.st && e.st.shock ? W.cmb.k : 1), { knock: 1.5, heavy: true });     // «Пробой»: по «разряду» сильнее
+    if (tw(W, r)) { const ux = Math.sin(p.face), uz = Math.cos(p.face); for (const o of W.enemies) { if (o.dead || o === e) continue; const dx = o.x - p.x, dz = o.z - p.z, along = dx * ux + dz * uz; if (along > 0 && along < A.range && Math.abs(dx * uz - dz * ux) < 1.2 + W.cfg.enemies[o.type].radius) abilityHit(W, o, A.mul[r] * .7, { knock: 1 }); } }     // мастерство: копьё пробивает всех на линии
   },
   execute(W, A, r) {
     const p = W.player, { e } = aimAt(W, A.reach + 1, A.cone); if (!e || len(e.x - p.x, e.z - p.z) > A.reach + W.cfg.enemies[e.type].radius) return false;
-    if (!e.boss && e.hp / e.maxhp < A.kill[r]) { abilityHit(W, e, A.mul[r], { knock: 1.5 }); if (!e.dead) { e.hp = 0; W.fx.kill(e); } W.ev.push({ k: 'execute', x: e.x, z: e.z }); return; }
+    if (!e.boss && e.hp / e.maxhp < A.kill[r]) { abilityHit(W, e, A.mul[r], { knock: 1.5 }); if (!e.dead) { e.hp = 0; W.fx.kill(e); } W.ev.push({ k: 'execute', x: e.x, z: e.z }); if (tw(W, r)) delete W.acd.blink; return; }     // мастерство: казнь снимает перезарядку прыжка
     abilityHit(W, e, A.mul[r] * (1 + (1 - e.hp / e.maxhp)), { knock: 1.5, stun: .4 });
   }
 };
@@ -191,6 +203,7 @@ export function dashStep(W) {
   for (const e of W.enemies) {
     if (!p.dashMul || e.dead || p.dashHit.includes(e.id) || len(e.x - p.x, e.z - p.z) > (p.dashW || W.cfg.abilities.thorn.charge.width) / 2 + W.cfg.enemies[e.type].radius + .4) continue;
     p.dashHit.push(e.id); abilityHit(W, e, p.dashMul, { knock: p.dashKnock, heavy: true, mix: !!p.dashMix });     // dashMix — выпад умения оружия
+    if (p.dashStun && !e.dead) applyStatus(W, e, 'stun', 0, p.dashStun);
   }
 }
 // перезарядки и действие баффов умений
@@ -204,7 +217,7 @@ export function tickAbilities(W, dt) {
     if (e) { abilityHit(W, e, tp.mul, { knock: .1 }); applyStatus(W, e, 'root', 0, tp.root); W.ev.push({ k: 'trapSnap', x: tp.x, z: tp.z }); W.traps.splice(i, 1); } }
   // град стрел: удар по всем в круге каждые tick секунд
   W.zones = W.zones.filter(zn => zn.lvl === W.lvl && zn.t > 0);
-  for (const zn of W.zones) { zn.t -= dt; zn.acc += dt; while (zn.acc >= zn.tick) { zn.acc -= zn.tick; for (const e of W.enemies) if (!e.dead && len(e.x - zn.x, e.z - zn.z) < zn.r + W.cfg.enemies[e.type].radius) { abilityHit(W, e, zn.mul, { knock: zn.snow ? .05 : .15 }); if (zn.slow && !e.dead) applyStatus(W, e, 'slow', zn.slow, zn.tick + .3); } } }     // вьюга ещё и замедляет
+  for (const zn of W.zones) { if (zn.follow && !p.dead) { zn.x = p.x; zn.z = p.z; } zn.t -= dt; zn.acc += dt; while (zn.acc >= zn.tick) { zn.acc -= zn.tick; for (const e of W.enemies) if (!e.dead && len(e.x - zn.x, e.z - zn.z) < zn.r + W.cfg.enemies[e.type].radius) { abilityHit(W, e, zn.mul, { knock: zn.snow ? .05 : .15 }); if (zn.slow && !e.dead) applyStatus(W, e, 'slow', zn.slow, zn.tick + .3); } } }     // вьюга ещё и замедляет
   // метеоры Ирги: через delay с падают в круг — удар и горение (живут на своём уровне)
   W.meteors = (W.meteors || []).filter(m => m.lvl === W.lvl);
   for (let i = W.meteors.length - 1; i >= 0; i--) { const m = W.meteors[i]; if ((m.t -= dt) > 0) continue; W.meteors.splice(i, 1); W.ev.push({ k: 'meteor', x: m.x, z: m.z, r: m.r }); W.shake = Math.max(W.shake, W.cfg.fx.shake * 2);
@@ -215,7 +228,7 @@ export function tickAbilities(W, dt) {
   if (b.parry > 0) b.parry -= dt;
   // танец клинков: удар каждые danceGap секунд по ближнему врагу вокруг
   if (b.dance > 0) { b.dance -= dt; b.danceAcc += dt;
-    while (b.danceAcc >= b.danceGap) { b.danceAcc -= b.danceGap; const list = near(W, b.danceR); if (!list.length) break; const e = list.reduce((a, o) => (len(o.x - p.x, o.z - p.z) < len(a.x - p.x, a.z - p.z) ? o : a)); p.face = Math.atan2(e.x - p.x, e.z - p.z); abilityHit(W, e, b.danceMul, { knock: .3 }); W.ev.push({ k: 'danceHit', x: e.x, z: e.z });
+    while (b.danceAcc >= b.danceGap) { b.danceAcc -= b.danceGap; const list = near(W, b.danceR); if (!list.length) break; const e = list.reduce((a, o) => (len(o.x - p.x, o.z - p.z) < len(a.x - p.x, a.z - p.z) ? o : a)); p.face = Math.atan2(e.x - p.x, e.z - p.z); abilityHit(W, e, b.danceMul, { knock: .3 }); if (b.danceBleed && !e.dead) applyStatus(W, e, 'bleed', b.danceBleed[0], b.danceBleed[1]); W.ev.push({ k: 'danceHit', x: e.x, z: e.z });
       const tw = b.twin && W.allies.find(q => q.decoy && !q.dead); if (tw) { const o = W.enemies.filter(q => !q.dead && len(q.x - tw.x, q.z - tw.z) < b.danceR + W.cfg.enemies[q.type].radius).sort((u, v) => len(u.x - tw.x, u.z - tw.z) - len(v.x - tw.x, v.z - tw.z))[0]; if (o) { tw.face = Math.atan2(o.x - tw.x, o.z - tw.z); abilityHit(W, o, b.danceMul, { knock: .3 }); W.ev.push({ k: 'danceHit', x: o.x, z: o.z }); } } } }     // «Двойной танец»: тень тоже режет
   // тень-двойник: стоит, режет ближнего, тает по времени; на другом уровне пропадает
   for (let i = W.allies.length - 1; i >= 0; i--) { const a = W.allies[i]; if (!a.decoy) continue;
@@ -229,7 +242,7 @@ export function tickAbilities(W, dt) {
 export function abilityView(W) {
   return heroAbilities(W).map((a, i) => {
     const A = withTalents(cfgOf(W, a.id), W.talAb && W.talAb[a.id]), L = rankLvs(W.cfg, i), rank = W.ab[a.id] || 0, r = rankIdx(W.cfg, i, Math.max(1, rank));
-    return { ...a, slot: i, lv: L[0], max: L.length, nextLv: rank < L.length ? L[rank] : 0, rank, open: W.lv >= L[0], cd: W.acd[a.id] || 0, cdMax: A.cd[r], cost: A.cost || 0, enough: resNow(W) >= (A.cost || 0), now: rank ? a.text(A, r) : '', next: rank < L.length ? a.text(A, rankIdx(W.cfg, i, rank + 1)) : '' };
+    return { ...a, slot: i, lv: L[0], max: L.length, nextLv: rank < L.length ? L[rank] : 0, rank, open: W.lv >= L[0], cd: W.acd[a.id] || 0, cdMax: A.cd[r], cost: A.cost || 0, enough: resNow(W) >= (A.cost || 0), now: rank ? a.text(A, r) : '', mt: W.cfg.abilities.mastery && W.cfg.abilities.mastery.twist && L.length >= 4 ? MASTERY_TEXT[a.id] || '' : '', mlv: L.length >= 4 ? L[3] : 0, next: rank < L.length ? a.text(A, rankIdx(W.cfg, i, rank + 1)) : '' };
   });
 }
 // ресурс героя для интерфейса: { name, color, now, max }

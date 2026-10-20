@@ -32,6 +32,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       if (!a.open) info.append(nm, pips, el('div', 'sub', `Откроется на уровне ${a.lv}. ${a.next}`));
       else if (!a.rank) info.append(nm, pips, el('div', 'sub', `Открыть${when}: ${a.next}`));
       else info.append(nm, pips, el('div', 'sub', `Сейчас: ${a.now}${a.cost && resName ? ` Цена: ${a.cost} (${resName.toLowerCase()}).` : ''}`), el('div', 'sub nx', a.next ? `Ранг ${a.rank + 1}${when}: ${rankDiff(a.now, a.next) || a.next}` : 'Максимум.'));     // только разница (шаг 10)
+      if (a.mt) info.append(el('div', 'sub ' + (a.rank >= 4 ? 'g' : 'nx'), `Мастерство (с ${a.mlv}-го ур.): ${a.mt}`));     // мастерство меняет поведение умения
       const st = canUpgrade(W, a.id), b = el('button', 'plus', '+'); b.type = 'button'; b.disabled = st !== 'ok'; b.setAttribute('aria-label', 'Улучшить: ' + a.name);
       b.addEventListener('click', () => { upgradeAbility(W, a.id); render(); onChange && onChange(); });
       // панель (2026-10-18): в какую ячейку 1–5 поставить изученное умение; повторное нажатие убирает с панели

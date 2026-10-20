@@ -293,6 +293,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   if (W.abuf.parry > 0 && !p.dead) {                             // парирование (Вейл): удар пойман, бьющий оглушён, ответ
     W.ev.push({ k: 'parry', x: p.x, z: p.z, face: p.face });
     if (att && !att.dead) { applyStatus(W, att, 'stun', 0, W.abuf.parryStun); abilityHit(W, att, W.abuf.parryMul, { knock: 1.2 }); }
+    if (W.abuf.parryHeal) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * W.abuf.parryHeal);     // мастерство «Парирования»
     return false;
   }
   if (p.state === 'roll' || p.inv > 0) {
