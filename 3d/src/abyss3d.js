@@ -53,15 +53,15 @@ function applyMods(W) {
 }
 // вход и спуск: travel — из levels3d (передаётся, чтобы не было кольца импортов)
 // «Затмение недели» (этап 6 «круче»): забег по Бездне с тремя модификаторами по номеру недели (свой генератор);
-// цель — пройти ярус eclipse.goal; награда — раз в неделю
+// цель — пройти ярус eclipse.goal (8); награда — раз в неделю
 export const weekOf = ms => Math.floor((ms / 86400000 + 3) / 7);     // недели с понедельника
 export function eclipseMods(week) { const r = mulberry32((week * 2654435761) >>> 0), pool = Object.keys(MODS).filter(m => m !== 'greedy'), out = []; while (out.length < 3) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0]); return out; }
 export const eclipseDoneThisWeek = (W, week) => !!(W.ach && W.ach.c.ewk === week);
-export function abyssGo(W, q, travel, spawnFoes, week = null) {     // week — забег «Затмения» этой недели
+export function abyssGo(W, q, travel, spawnFoes, week = null, start = 1) {     // week — забег «Затмения» этой недели; start — с какого яруса (боты баланса)
   const A = W.cfg.abyss;
   if (q.abyssEnter && W.lv < A.lv) { W.ev.push({ k: 'abyssLocked', lv: A.lv }); return false; }
   if (q.abyssNext && W.enemies.some(e => !e.dead)) { W.ev.push({ k: 'abyssClosed', n: W.enemies.filter(e => !e.dead).length }); return false; }
-  const tier = q.abyssEnter ? 1 : W.abyss.tier + 1, wk = q.abyssEnter ? week : W.abyss.week ?? null, fixed = wk != null ? eclipseMods(wk) : null;
+  const tier = q.abyssEnter ? start : W.abyss.tier + 1, wk = q.abyssEnter ? week : W.abyss.week ?? null, fixed = wk != null ? eclipseMods(wk) : null;
   if (q.abyssNext) { abyssCleared(W); W.enemies = []; W.drops = []; }     // старый ярус не уносим
   W.levels[ABYSS] = makeLevel(W, tier, fixed);
   const ok = travel(W, ABYSS, -1.5, 0); if (!ok) return false;
@@ -82,7 +82,7 @@ export function abyssTick(W, dt, out) {     // out — подняться нав
   const S = W.abyss; if (!S) return;
   if (W.lvl !== ABYSS || W.player.dead) { W.ev.push({ k: 'abyssEnd', tier: S.tier }); W.abyss = null; return; }
   const left = W.enemies.filter(e => !e.dead).length;
-  if (!left && !S.open) { S.open = true; const D = W.levels[ABYSS].def; W.ev.push({ k: 'abyssOpen', tier: S.tier });
+  if (!left && !S.open) { S.open = true; const D = W.levels[ABYSS].def, p = W.player; p.hp = Math.min(p.maxhp, p.hp + p.maxhp * W.cfg.abyss.heal); W.ev.push({ k: 'abyssOpen', tier: S.tier });     // зачистил — передышка: часть здоровья
     if (S.tier % W.cfg.abyss.chestEvery === 0) for (const it of rollLoot(CONTAINERS.ironchest, W.rng, 1, W.gear.luck)) W.drops.push({ id: it.id, n: it.n, x: D.down.x - 1.5, z: D.down.z, t: 0, cd: 0 }); }
   if (S.open) return;
   if ((S.t -= dt) <= 0) { W.ev.push({ k: 'abyssTime', tier: S.tier }); W.abyss = null; out(); }     // время вышло — наверх, к люку

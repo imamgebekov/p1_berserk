@@ -340,7 +340,7 @@ const BASE = {
   // к каждому удару, dual.swing — удары с двумя клинками быстрее (×)
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
-  heroes: { thorn: { hp: 1.15, speed: 1, crit: 0 },     // Торн — защитник: здоровья больше (этап 2 «круче»: на «железе» гиб чаще всех)
+  heroes: { thorn: { hp: 1.15, speed: 1, crit: 0, killHeal: .03, healLv: [8, 12] },     // Торн — защитник: здоровья больше; убийство рядом (до 6 м), когда вокруг ещё двое и больше, лечит на killHeal до healLv[0] ур., к healLv[1] — на нет (на «железе» гиб чаще всех)
   vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 } },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
@@ -742,8 +742,8 @@ const BASE = {
   // «Бездна» (этап 6 «круче»): люк у лагеря (at) с уровня lv; ярус — арены arenas[0]+ярус/arenaEvery (до arenas[1]), врагов foes[0]+ярус×foes[1] на арену,
   // уровень врагов level[0]+ярус×level[1] (за 60 — сила растёт дальше), время time+ярус×timeTier с; модификатор каждые modEvery ярусов (до 2),
   // страж каждые guardEvery, окованный сундук каждые chestEvery; пепел ash×ярус. types: [вид, с какого яруса]
-  abyss: { on: true, at: { x: 12, z: -24 }, lv: 30, arenas: [2, 5], arenaEvery: 6, foes: [3, .35], level: [30, 2], time: 150, timeTier: 4, modEvery: 3, guardEvery: 5, guardHp: 4, chestEvery: 5, ash: 40,
-    eclipse: { goal: 10, ash: 2500 },     // «Затмение недели»: пройти ярус goal — награда раз в неделю
+  abyss: { on: true, at: { x: 12, z: -24 }, lv: 30, arenas: [2, 5], arenaEvery: 6, foes: [3, .2], level: [30, 1.5], time: 150, timeTier: 4, modEvery: 5, guardEvery: 5, guardHp: 2.5, chestEvery: 5, ash: 40,
+    eclipse: { goal: 8, ash: 2500 }, heal: .3,     // heal — доля здоровья за зачищенный ярус     // «Затмение недели»: пройти ярус goal — награда раз в неделю
     mod: { thick: 1.4, swift: 1.25, frail: 1.3, packs: 1.5, greedy: 1.6, dark: .55 },
     types: [['hound', 1], ['ghoul', 1], ['brute', 1], ['archer', 2], ['shield', 3], ['blackdog', 4], ['kad_soldier', 5], ['golem', 7], ['eclipse_fiend', 9], ['troll', 12], ['shrieker', 14], ['war_ghost', 16], ['demon_guard', 20]] },     // достижения (этап 6 «круче»): награды пепел, титулы, цвета плаща
   quests: { wake: 24, seek: 160, hunt: { hp: 3, dmg: 1.25, scale: 1.3 }, track: { step: [16, 24], r: 4 }, defend: { r: 9, leave: 35, gap: 5, ring: [12, 16] } },     // виды заданий (этап 5 «круче»): охота, «выследи», оборона; seek — «убей»: метка на ближайшем враге не дальше, м

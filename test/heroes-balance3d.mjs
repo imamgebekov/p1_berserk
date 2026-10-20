@@ -7,7 +7,8 @@
 // Полный прогон: npm run balance:heroes (HB_SEEDS=30); в npm test — 12 сидов. HB_NOAB=1 — боты без умений (для сравнения).
 import { CORE3 as CFG3 } from '../3d/src/config3d.js';     // ручное ядро: баланс меряется на нём (большой мир — отдельно)
 CFG3.terrain.on = false;      // эталон боя — плоское поле без реки (C2): цифры сравнимы с прошлыми версиями
-import { createWorld, step, mulberry32, aliveEnemies, travel, refreshGear } from '../3d/src/sim.js';
+import { createWorld, step, mulberry32, aliveEnemies, travel, refreshGear, spawnFoes } from '../3d/src/sim.js';
+import { abyssGo } from '../3d/src/abyss3d.js';
 import { pathStep, lineBlocked, resolve, insideOf } from '../3d/src/map.js';
 import { abilityPoints, upgradeAbility, useAbility, heroAbilities } from '../3d/src/abilities3d.js';
 import { resNow } from '../3d/src/resource3d.js';
@@ -161,14 +162,38 @@ function crypt(hero, tier, seed) {
   return { dead: false, frac: 1 - aliveEnemies(W).length / total };
 }
 
+// ---- Бездна (этап 6 «круче»): ярус t, герой уровня яруса (до 60) в чёрном; зачистка с путём по комнатам, как в склепе ----
+function abyssRun(hero, t, seed) {
+  const cfg = baseCfg(); cfg.enemies.count = 0; cfg.bosses.list = [];
+  const W = setup(cfg, hero, 'чёрное', seed); W.lv = Math.min(60, cfg.abyss.level[0] + t * cfg.abyss.level[1]); W.ap = abilityPoints(W.lv, cfg); spend(W); for (const k of Object.keys(W.inv.eq)) if (W.inv.eq[k]) W.inv.il[k] = W.lv; refreshGear(W); W.player.hp = W.player.maxhp;     // вещи — уровня героя
+  abyssGo(W, { abyssEnter: true }, travel, spawnFoes, null, t); const total = aliveEnemies(W).length, lim = W.abyss.t, dodge = mulberry32(seed + 77);
+  for (let i = 0; i < 60 * (lim + 2); i++) {
+    const p = W.player, en = aliveEnemies(W); if (!en.length) return { dead: false, frac: 1, t: i / 60, lim };
+    if (!W.abyss) return { dead: false, frac: 1 - en.length / total, t: lim, lim, out: true };
+    let tgt = null, bd = 1e9; for (const e of en) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; tgt = e; } }
+    const wp = bd > 6 && pathStep(W.map, p.x, p.z, tgt.x, tgt.z, W.keys); let inp;
+    if (wp) { const dx = wp.x - p.x, dz = wp.z - p.z, d = Math.hypot(dx, dz) || 1; inp = { mx: dx / d, mz: dz / d, attackPress: RANGED(hero) && bd < W.wp.trait.range && !lineBlocked(W.map, p.x, p.z, tgt.x, tgt.z) }; }
+    else inp = bot(W, cfg, hero, en, dodge);
+    telegraphDodge(W, inp, dodge);
+    step(W, 1 / 60, inp); if (p.dead) return { dead: true, frac: 1 - aliveEnemies(W).length / total, t: i / 60, lim };
+  }
+  return { dead: false, frac: 1 - aliveEnemies(W).length / total, t: lim, lim, out: true };
+}
+if (process.env.HB_ABYSS) {
+  const TT = process.env.HB_ABYSS.split(',').map(Number);
+  for (const t of TT) console.log(`Бездна, ярус ${String(t).padStart(2)}  ` + HEROES.map(h => { let d = 0, f = 0, tm = 0, out = 0; for (let s = 0; s < SEEDS; s++) { const r = abyssRun(h, t, s); d += r.dead; f += r.frac; tm += r.t / r.lim; out += !!r.out; } return `${NAME[h]}: ${(d / SEEDS * 100).toFixed(0).padStart(3)}% † зачищено ${(f / SEEDS * 100).toFixed(0).padStart(3)}% время ${(tm / SEEDS * 100).toFixed(0).padStart(3)}% вышло ${out}`; }).join(' | '));
+  process.exit(0);
+}
 // ---- прогоны ----
 const T = {}, out = s => { if (!QUIET) console.log(s); };
-for (const tier of TIERS) for (const place of Object.keys(PLACES)) {
+const ONLY = process.env.HB_TIER || '';     // замер одной ступени (поле), без босса, склепа и проверок
+for (const tier of TIERS.filter(t => !ONLY || t === ONLY)) for (const place of Object.keys(PLACES)) {
   const row = {};
   for (const h of HEROES) { let dead = 0, kills = 0, taken = 0; for (let s = 0; s < SEEDS; s++) { const r = field(h, tier, place, s); dead += r.dead; kills += r.kills; taken += r.taken; } row[h] = { smert: dead / SEEDS, kills: kills / SEEDS, tpk: kills ? taken / kills : taken }; }
   T[`${tier} / ${place}`] = row;
   out(`${(tier + ' / ' + place).padEnd(22)} ` + HEROES.map(h => `${NAME[h]}: ${(row[h].smert * 100).toFixed(0).padStart(3)}% † ${row[h].kills.toFixed(1).padStart(4)} уб. ${row[h].tpk.toFixed(1).padStart(5)} ур/уб`).join(' | '));
 }
+if (ONLY) process.exit(0);
 const B = {}, BN = SEEDS;
 for (const tier of ['сталь', 'чёрное']) { B[tier] = {}; for (const h of HEROES) { let w = 0, t = 0; for (let s = 0; s < BN; s++) { const r = boss(h, tier, s); w += r.win; t += r.t; } B[tier][h] = { win: w / BN, t: t / BN }; }
   out(`босс / ${tier}`.padEnd(22) + ' ' + HEROES.map(h => `${NAME[h]}: побед ${(B[tier][h].win * 100).toFixed(0).padStart(3)}%, ${B[tier][h].t.toFixed(0)} с`).join(' | ')); }

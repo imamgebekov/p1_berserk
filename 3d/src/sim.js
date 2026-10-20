@@ -332,6 +332,7 @@ export function killEnemy(W, e, share) {
   if (e.dead) return;
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
+  { const H = heroMul(W), kh = H.killHeal ? H.killHeal * clamp((H.healLv[1] - W.lv) / (H.healLv[1] - H.healLv[0]), 0, 1) : 0, p = W.player; if (kh && !p.dead && p.hp > 0 && len(p.x - e.x, p.z - e.z) < 6 && W.enemies.filter(o => !o.dead && len(o.x - p.x, o.z - p.z) < 6).length >= 2) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * kh); }     // «второе дыхание» Торна: убил рядом — подлечился
   { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
   { const gid = gemDropOf(W, e); if (gid) { W.drops.push({ id: gid, n: 1, x: e.x + .5, z: e.z - .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: gid }); } }     // камень силы
   if (share >= 1) mixOnDeath(W, e);
@@ -393,7 +394,7 @@ function strike(W, e, dmg, o) {
   if (C.guard && o.heavy) applyStatus(W, e, 'stun', 0, C.guard.breakStun);                          // тяжёлый удар ломает защиту
   dmg = cracked(W, e, dmg);
   e.hp -= dmg; e.flash = .12; p.calm = P.fire.calm; addThreat(W, e, 0, dmg); W.party.last = e.id;
-  if (hasAff(e, 'mirror') && dmg > 0 && !p.dead) { const r = Math.max(1, Math.round(dmg * affOf(W, 'mirror').k)); p.hp -= r; W.ev.push({ k: 'mirror', x: p.x, z: p.z, dmg: r }); }     // зеркальная элита возвращает часть удара (этап 2 «круче»)
+  if (hasAff(e, 'mirror') && dmg > 0 && !p.dead) { const r = Math.max(1, Math.round(dmg * affOf(W, 'mirror').k)); p.hp -= r; W.ev.push({ k: 'mirror', x: p.x, z: p.z, dmg: r }); if (p.hp <= 0) { p.hp = 0; killPlayer(W); } }     // зеркальная элита возвращает часть удара (этап 2 «круче»)
   if (e.b && (o.heavy || o.ab)) e.b.kick = true;     // тяжёлый удар или умение сбивает чтение босса (этап 5)     // угроза героя (этап 4); последняя цель — для «моей цели»
   { const thirst = W.wp.mix && W.wp.mix.a === 'blood' && W.wp.mix.b === 'blood' ? W.cfg.stones.thirst[0] : 0, lch = (W.gear.leech + thirst + (W.abuf.blood > 0 ? W.abuf.bloodLeech : 0)) * (e.st && e.st.bleed && W.cfg.elements.react && isWet(W, e) ? W.cfg.elements.mix.tide : 1); if (lch > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * lch / 100); }     // «Кровавый прилив»: мокрый и кровоточащий     // «Кровавый порыв» Торна добавляет вампиризм
   const heavy = C.heavy || hasAff(e, 'armored'), k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
