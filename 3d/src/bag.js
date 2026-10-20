@@ -11,6 +11,7 @@ import { weaponMix, armorGemFx } from './stones3d.js';
 import { skillOfItem } from './weaponskill3d.js';
 import { MIX_NAME, ELEMENT_NAME, mixKey } from './elements3d.js';
 import { affixLines } from './affix3d.js';
+import { createHeroView } from './bagview3d.js';     // герой в надетом вместо силуэта (2026-10-20)
 
 const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
 const tabOf = it => it.slot === 'weapon' ? 'weapon' : it.slot ? 'armor' : it.cat === 'consumable' ? 'use' : 'other';
@@ -43,6 +44,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     if (ks.length) statsEl.appendChild(el('div', 'bkeys', 'Ключи: ' + ks.join(', ')));       // связка ключей подземелий
   }
   // силуэт героя между слотами «куклы»
+  let heroView = null;
   const FIG = '<svg viewBox="0 0 60 120" aria-hidden="true"><g fill="currentColor"><circle cx="30" cy="16" r="10"/><path d="M16 30h28l5 36h-9l-2 50h-8l-1-34h-2l-1 34h-8l-2-50h-9z"/><path d="M14 31l-8 32 6 2 9-26zM46 31l8 32-6 2-9-26z"/></g></svg>';
   // подсказка при наведении (компьютер): название, редкость, статы со сравнением с надетым
   const tipEl = $('bagTip');
@@ -166,7 +168,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
     // «кукла»: слоты вокруг силуэта героя
     eqEl.textContent = '';
-    { const fig = el('div', 'fig'); fig.innerHTML = FIG; fig.append(el('div', 'fign', `${heroOf(W.hero).name} · ур. ${W.lv}`)); eqEl.appendChild(fig); }
+    { const fig = el('div', 'fig'), cv = (heroView || (heroView = createHeroView(doc))).show(W); if (cv) fig.append(cv); else fig.innerHTML = FIG; fig.append(el('div', 'fign', `${heroOf(W.hero).name} · ур. ${W.lv}`)); eqEl.appendChild(fig); }
     for (const slot of SLOTS) {
       const id = W.inv.eq[slot], it = id && BY_ID[id], up = W.inv.up[slot] || 0;
       const b = el('button', 'slot' + (it ? ' r' + it.rar : ' none') + (sel && sel.from === 'eq' && sel.slot === slot ? ' sel' : '')); b.type = 'button'; b.style.gridArea = slot;

@@ -26,7 +26,7 @@ try {
   const page = await ctx.newPage(); page.setDefaultTimeout(8000);
   page.on('console', m => { if (['error', 'warning'].includes(m.type()) && !/GPU stall due to ReadPixels/.test(m.text())) logs.push(m.type() + ': ' + m.text()); });
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
-  await page.goto(url + '?shot&hero=thorn'); await page.waitForTimeout(1500);
+  await page.goto(url + '?shot&hero=thorn', { timeout: 30000 }); await page.waitForTimeout(1500);
   await page.evaluate(() => { const W = window.__b3d.W; W.enemies.forEach(e => { if (!e.boss) e.dead = true; }); W.player.x = 0; W.player.z = 8; W.player.face = Math.PI * .75; });
 
   for (const [fam, kind] of Object.entries(SHOW)) for (const step of ['a', 'b', 'fin']) {

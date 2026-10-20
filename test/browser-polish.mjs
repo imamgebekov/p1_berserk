@@ -26,7 +26,7 @@ async function open(ctx, label, logs) {
   const page = await ctx.newPage(); page.setDefaultTimeout(8000);
   page.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push(label + ' ' + m.type() + ': ' + m.text()); });
   page.on('pageerror', e => logs.push(label + ' pageerror: ' + e.message));
-  await page.goto(url); await page.waitForSelector('#go');
+  await page.goto(url, { timeout: 30000 }); await page.waitForSelector('#go');
   return page;
 }
 const geo = (page, sel) => page.evaluate(s => [...document.querySelectorAll(s)].map(e => { const r = e.getBoundingClientRect(); return { id: e.id, x: r.x, y: r.y, w: r.width, h: r.height }; }), sel);
@@ -143,7 +143,7 @@ try {
     const page = await ctx.newPage(); page.setDefaultTimeout(10000);
     page.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push('офлайн ' + m.type() + ': ' + m.text()); });
     page.on('pageerror', e => logs.push('офлайн pageerror: ' + e.message));
-    await page.goto(purl); await page.waitForSelector('#go');
+    await page.goto(purl, { timeout: 30000 }); await page.waitForSelector('#go');
     const head = await page.evaluate(() => ({ manifest: document.querySelector('link[rel=manifest]')?.getAttribute('href'), apple: document.querySelector('link[rel=apple-touch-icon]')?.getAttribute('href'),
       capable: document.querySelector('meta[name=apple-mobile-web-app-capable]')?.content, vp: document.querySelector('meta[name=viewport]')?.content }));
     if (!head.manifest || !head.apple || head.capable !== 'yes' || !head.vp.includes('viewport-fit=cover')) bad('мета для установки: ' + JSON.stringify(head));

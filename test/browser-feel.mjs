@@ -17,14 +17,15 @@ const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html?shot&hero=
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage(); page.setDefaultTimeout(20000);
   page.on('pageerror', e => bad('pageerror: ' + e.message));
-  await page.goto(url); await page.waitForFunction(() => window.__b3d && window.__b3d.W);
+  await page.goto(url, { timeout: 30000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W);
   const ev = (f, a) => page.evaluate(f, a), op = id => ev(id => { const e = document.getElementById(id); return e.hidden ? 0 : Number(getComputedStyle(e).opacity); }, id);     // скрытый слой — 0
   await ev(() => { const W = window.__b3d.W; W.player.maxhp = W.player.hp = 1e6; W.enemies.forEach(e => { e.dead = true; }); });
   await page.waitForTimeout(1500);
   const push = v => ev(v => { const b = window.__b3d, W = b.W; b.emit({ ...v, x: W.player.x + 2, z: W.player.z }); }, v);     // прямо в обработчик: очередь мира шаг может стереть раньше рендера
   // босс: вспышка, замедление и наезд сразу, потом гаснет (пики копит игра — кадр без видеокарты длинный)
   await ev(() => window.__b3d.feelPeak()); await push({ k: 'die', boss: true, type: 'devourer' });
-  await page.waitForTimeout(400); const p1 = await ev(() => window.__b3d.feelPeak()); await page.screenshot({ path: join(out, `${tag}-boss.png`) });
+  let p1 = { scale: 1, flash: 0, zoom: 0 }; for (let k = 0; k < 26 && !(p1.flash > .2 && p1.scale < .5 && p1.zoom > .05); k++) { await page.waitForTimeout(300); const q = await ev(() => window.__b3d.feelPeak()); p1 = { scale: Math.min(p1.scale, q.scale), flash: Math.max(p1.flash, q.flash), zoom: Math.max(p1.zoom, q.zoom), now: q.now }; if (tag === 'nofeel' && k >= 1) break; }     // ждём кадров: без видеокарты их мало
+  await page.screenshot({ path: join(out, `${tag}-boss.png`) });
   await page.waitForTimeout(3500); ev(() => window.__b3d.feelPeak()); await page.waitForTimeout(300); const p2 = await ev(() => window.__b3d.feelPeak());
   if (tag === 'feel') { if (!(p1.flash > .2 && p1.scale < .5 && p1.zoom > .05)) bad('нет отклика на убийство босса: ' + JSON.stringify(p1)); if (!(p2.flash < .02 && p2.scale === 1 && p2.zoom < .02)) bad('отклик босса не погас: ' + JSON.stringify(p2)); }
   else if (p1.flash > .02 || p1.scale < 1) bad('?nofeel: отклик есть ' + JSON.stringify(p1));

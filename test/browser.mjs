@@ -31,7 +31,7 @@ async function session(label, device) {
   const logs = [];
   page.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push(m.type() + ': ' + m.text()); });
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
-  await page.goto(url);
+  await page.goto(url, { timeout: 30000 });
   await page.waitForSelector('#go');
   await page.tap('#go');
   // кнопка «Перекат»: тап запускает перекат, дальше перезарядка

@@ -28,7 +28,7 @@ export function canUpgrade(W, id) {
 export function upgradeAbility(W, id) { const r = canUpgrade(W, id); if (r !== 'ok') return r; W.ab[id] = (W.ab[id] || 0) + 1; W.ap--; if (W.ab[id] === 1) autoBar(W, id); return 'ok'; }
 // панель умений (2026-10-18): 5 ячеек (клавиши 1–5), в каждой — id изученного умения или null; изученное умение само встаёт
 // в первую пустую ячейку; игрок переставляет в окне «Навыки»
-export const BAR = 5;
+export const BAR = 6;     // 6 ячеек (древо, 2026-10-20)
 export function barOf(W) {
   const learned = heroAbilities(W).filter(a => (W.ab[a.id] || 0) > 0).map(a => a.id), own = new Set(learned);
   if (!W.bar || !W.bar.length) return Array.from({ length: BAR }, (_, i) => learned[i] || null);     // старое сохранение: изученные по порядку

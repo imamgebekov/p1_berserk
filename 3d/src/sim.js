@@ -634,8 +634,8 @@ function updatePlayer(W, dt, input) {
   if (pressed) { p.holdT = 0; p.atkBuf = H.buffer; } else if (held) p.holdT += dt;
 
   // перекат
-  if (input.ability === 6) useWeaponSkill(W);                  // умение оружия: F
-  else if (input.ability) useSlot(W, input.ability - 1);          // умения: ячейки панели 1–5
+  if (input.ability === 7) useWeaponSkill(W);                  // умение оружия: F
+  else if (input.ability) useSlot(W, input.ability - 1);          // умения: ячейки панели 1–6 (древо, 2026-10-20)
   if (input.roll && p.state !== 'roll' && p.state !== 'dash' && p.rollCd <= 0) {
     const dl = moving ? ml : 0;
     p.rollDirX = moving ? mx / dl : Math.sin(p.face); p.rollDirZ = moving ? mz / dl : Math.cos(p.face);

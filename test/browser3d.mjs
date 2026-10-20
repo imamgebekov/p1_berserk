@@ -27,7 +27,7 @@ try {
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
   // «Ретро» (крупные пиксели): Chromium без видеокарты на полном разрешении даёт ~8 кадр/с, а проверки управления меряют время;
   // гладкий вид (шаг 2 аудита) проверяется ниже размером холста и в тестах Мака и Safari
-  await page.goto(url + '?shot&hero=thorn&retro&dev'); await page.waitForTimeout(1500);     // ?dev: панель настройки и ссылка на 2D видны только так
+  await page.goto(url + '?shot&hero=thorn&retro&dev', { timeout: 25000 }); await page.waitForTimeout(1500);     // ?dev: панель настройки и ссылка на 2D видны только так
   // окна кузнеца, журнала и найма проверяем как открытые: «Путь пепла» (шаг 13) открывает их после первого босса и с 5-го уровня
   await page.evaluate(() => { window.__b3d.W.path.slain.devourer = true; });
 
@@ -85,11 +85,10 @@ try {
   if (await page.evaluate(() => document.getElementById('skills').hidden)) bad('окно навыков не открылось');
   await page.screenshot({ path: join(out, '3d-skills.png') });
   const dmg0 = await page.evaluate(() => window.__b3d.W.gear.dmg);
-  await page.tap('#skillTabs .tab[data-tab="th_slayer"]'); await page.waitForTimeout(100);
-  await page.locator('#skillList .skrow .plus').first().tap(); await page.locator('#skillList .skrow .plus').first().tap(); await page.waitForTimeout(120);
+  await page.tap('.tnode[data-key="t:th_hand"]'); await page.waitForTimeout(100);     // древо (2026-10-20): выбрать узел, «Вложить очко»
+  await page.tap('.tcard .tbuy'); await page.waitForTimeout(100); await page.tap('.tcard .tbuy'); await page.waitForTimeout(120);
   if ((await page.evaluate(() => window.__b3d.W.skills.th_hand)) !== 2 || (await page.evaluate(() => window.__b3d.W.sp)) !== 2) bad('вложение очка в талант не сработало');
-  if (!(await page.locator('#skillList .skrow').nth(1).evaluate(e => e.classList.contains('lock')))) bad('второй ярус должен быть закрыт');
-  await page.tap('#skillTabs .tab[data-tab="wander"]'); await page.waitForTimeout(100);
+  if (!(await page.locator('.tnode[data-key="t:th_bash"]').evaluate(e => e.classList.contains('lock')))) bad('третий ряд должен быть закрыт');
   { const small = await page.evaluate(() => [...document.querySelectorAll('#skills button')].filter(b => b.offsetParent && (b.getBoundingClientRect().height < 40 || b.getBoundingClientRect().width < 40)).map(b => b.textContent)); if (small.length) bad('кнопки навыков мельче 40px: ' + small.join(',')); }
   await page.tap('#skillClose'); await page.waitForTimeout(100);
   { const d = await page.evaluate(() => window.__b3d.W.gear.dmg); if (!(d >= dmg0 + 4)) bad(`талант не повлиял на урон: ${dmg0} → ${d}`); }
@@ -103,7 +102,7 @@ try {
     if (await page.evaluate(() => document.getElementById('shop').hidden)) bad('окно торговли не открылось');
     await page.screenshot({ path: join(out, '3d-shop.png') });
     const n0 = await page.evaluate(() => window.__b3d.W.inv.bag.length);
-    await page.tap('#shopList .buy:not(.no)');     // первая по карману: сверху полка редкостей (G3), она бывает дороже await page.waitForTimeout(150);
+    await page.tap('.buyp .ttile:not(.poor)'); await page.waitForTimeout(120); await page.tap('.tsel .tact.buy'); await page.waitForTimeout(150);     // первая по карману (2026-10-20: сетка значков, карточка с кнопкой)
     if (!(await page.evaluate(() => window.__b3d.W.inv.ash < 500))) bad('покупка не списала пепел');
     await page.tap('#shopTabs .tab[data-tab="sell"]'); await page.tap('#shopJunk'); await page.waitForTimeout(150);
     if (await page.evaluate(() => window.__b3d.W.inv.bag.some(s => s.id === 'k_goblet'))) bad('«Продать хлам» не продал кубок');

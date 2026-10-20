@@ -245,7 +245,8 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 /* выбор героя (B1) */
 #heroPick{overflow:auto;justify-content:flex-start;padding-top:calc(24px + env(safe-area-inset-top))}
 #heroPick h2{margin:0;font-size:22px}
-#heroCards{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:1100px}
+#heroCards{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:1180px}
+[data-desk] #heroCards .hcard{width:216px}     /* пять героев в один ряд на компьютере */
 .hcard{width:260px;max-width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px;background:#1b1211;border:2px solid var(--line);border-radius:12px;text-align:center}
 .hcard canvas{width:96px;height:96px;image-rendering:pixelated;image-rendering:crisp-edges}
 .hcard .nm{font-size:18px;font-weight:700}.hcard .role{font-size:13px;color:#e8c04a}.hcard .txt{font-size:13px;opacity:.8;line-height:1.3}
@@ -444,8 +445,9 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 [data-desk] #resBar span{font-size:calc(9px * var(--dz,1));line-height:calc(12px * var(--dz,1))}
 /* выбор ячейки панели в окне «Навыки → Умения» (2026-10-18) */
 .skrow .slots{display:flex;align-items:center;gap:4px;margin-top:6px;flex-wrap:wrap}.skrow .sl-l{font-size:11.5px;opacity:.7;margin-right:4px}
-.skrow .slots .bslot{min-width:44px;min-height:44px;padding:0;border-radius:8px;background:var(--btn);border:2px solid var(--line);color:var(--ink);font-weight:700}
-.skrow .slots .bslot.on{border-color:var(--gold);background:var(--btn-on);color:#f6e6c8}
+.tcard .slots{display:flex;gap:5px;align-items:center;flex-wrap:wrap}.tcard .sl-l{font-size:12px;opacity:.7;margin-right:4px}
+.skrow .slots .bslot,.tcard .slots .bslot{min-width:44px;min-height:44px;padding:0;border-radius:8px;background:var(--btn);border:2px solid var(--line);color:var(--ink);font-weight:700}
+.skrow .slots .bslot.on,.tcard .slots .bslot.on{border-color:var(--gold);background:var(--btn-on);color:#f6e6c8}
 .gempop{display:flex;flex-direction:column;gap:5px;margin-top:6px;padding:6px;border:1px solid var(--line);border-radius:10px;background:#140d0c}.gemopt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:44px;padding:6px 10px;text-align:left;background:#1e1414;border:2px solid var(--gc);border-radius:10px}.gemopt .gn{font-weight:700;color:var(--gc)}.gemopt .gf,.gemopt .gm{font-size:12px;opacity:.8}.gemopt .gm{color:#e8c04a}
 #firesMap{display:block;width:min(100%,520px,62vh);aspect-ratio:1;margin:6px auto 10px;border-radius:12px;border:2px solid var(--line);cursor:pointer;touch-action:manipulation}
 /* разговор (этап 3): внизу экрана, над панелью умений; портрет слева, ответы кнопками */
@@ -502,3 +504,160 @@ body.cine #cineTop,body.cine #cineBot{height:9vh}
 #hud,#tracker,#miniBtn,#statusRow,#party,#abil{transition:opacity .4s}
 body.cine #hud,body.cine #tracker,body.cine #miniBtn,body.cine #statusRow,body.cine #party,body.cine #abil{opacity:0;pointer-events:none}
 @media (prefers-reduced-motion:reduce){#cineTop,#cineBot{transition:none}}
+/* древо умений (2026-10-20): три ветки рядом, узлы-значки game-icons с рангом; на узком экране ветки листаются вбок */
+.tree{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:4px 2px 8px;flex:none}
+.tbranch{flex:1 0 214px;background:#160e0d;border:2px solid var(--line);border-top:3px solid var(--bc);border-radius:10px;padding:6px}
+.tbh{font-weight:700;font-size:14px;color:var(--bc)}.tbr{font-size:11px;opacity:.6;margin-bottom:4px;min-height:13px}
+.tgrid{position:relative;display:grid;gap:7px 5px;justify-items:center}
+.tlines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.tlines line{stroke:#4a3a30;stroke-width:1.2;vector-effect:non-scaling-stroke}.tlines line.on{stroke:#e8c04a}
+.tnode{position:relative;z-index:1;width:42px;height:42px;padding:5px;border-radius:9px;border:2px solid #3a2c26;background:#0e0909;color:#8a7a6a;cursor:pointer}
+.tnode .gi{width:100%;height:100%;fill:currentColor;display:block}
+.tnode .trk{position:absolute;right:-4px;bottom:-6px;font-size:10px;font-weight:700;line-height:1;padding:2px 3px;border-radius:5px;background:#000;color:#bba}
+.tnode.active{border-radius:50%}.tnode.mastery{border-color:#7a5a20;border-style:double;border-width:4px}
+.tnode.lock{opacity:.35;filter:grayscale(1)}
+.tnode.can{border-color:#6aa84f;color:#cfe8bf;box-shadow:0 0 8px rgba(106,168,79,.45)}
+.tnode.some{color:#e8dcc0;border-color:var(--bc)}
+.tnode.full{color:#ffd45a;border-color:#e8c04a}.tnode.full .trk{color:#ffd45a}
+.tnode.sel{outline:2px solid #fff;outline-offset:2px}
+.tcard{background:#1b1211;border:2px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;flex:none}
+.tcard .tch{display:flex;align-items:center;gap:8px}.tcard .gi.big{width:34px;height:34px;fill:#e8dcc0;flex:none}.tcard .tcn{font-weight:700;font-size:15px}
+.tcard .tck{font-size:11px;opacity:.55;text-transform:uppercase;letter-spacing:.04em}.tcard .sub{font-size:12.5px;opacity:.85;line-height:1.3}.tcard .sub.z{color:#ff9a7a}
+.tcard .tbuy{align-self:flex-start;min-height:40px;padding:0 16px;border-radius:9px;border:2px solid #000;background:var(--red);color:#fff;font-weight:700}.tcard .tbuy:disabled{background:#2a1b1a;color:#776}
+[data-desk] #skills .pbox{max-width:1140px}     /* древо: три ветки рядом, карточка справа */
+.tview{display:flex;flex-direction:column;gap:8px}
+[data-desk] .tview{display:grid;grid-template-columns:minmax(0,1fr) 270px;align-items:start;gap:10px}
+.tbranch{flex-basis:196px}
+
+/* ===================== оформление «как в играх» (2026-10-20, просьба владельца) =====================
+   шрифты Alegreya SC / Alegreya Sans (OFL, fonts/OFL-Alegreya.txt); рамки окон из тёмного дерева с бронзовым кантом и уголками,
+   заголовок на табличке, объёмные кнопки, утопленные ячейки, древо с лентами веток, пергамент диалогов */
+@font-face{font-family:'Alegreya SC';src:url('./fonts/AlegreyaSC-Medium.woff2') format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:'Alegreya SC';src:url('./fonts/AlegreyaSC-Bold.woff2') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Alegreya Sans';src:url('./fonts/AlegreyaSans-Regular.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Alegreya Sans';src:url('./fonts/AlegreyaSans-Medium.woff2') format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:'Alegreya Sans';src:url('./fonts/AlegreyaSans-Bold.woff2') format('woff2');font-weight:700;font-display:swap}
+:root{--serif:'Alegreya SC',"Iowan Old Style",Palatino,Georgia,serif;--sans:'Alegreya Sans',system-ui,-apple-system,sans-serif;
+  --br-hi:#d9b27a;--br:#a07a48;--br-d:#6b4a2a;--br-dd:#3a2716;--ink2:#f1e2c4;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .35 0 0 0 0 .2 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  --c-tl:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg transform='scale(1 1)'%3E%3Cpath d='M2 38V12Q2 2 12 2h26' fill='none' stroke='%23c79a5e' stroke-width='2.4'/%3E%3Cpath d='M7 38V14q0-7 7-7h24' fill='none' stroke='%236b4a2a' stroke-width='1.4'/%3E%3Cpath d='M2 2l9 9M12 2c0 6 4 10 10 10M2 12c6 0 10 4 10 10' fill='none' stroke='%23d9b27a' stroke-width='1.6'/%3E%3Ccircle cx='11' cy='11' r='2.6' fill='%23e8c47a'/%3E%3C/g%3E%3C/svg%3E");
+  --c-tr:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg transform='translate(40 0) scale(-1 1)'%3E%3Cpath d='M2 38V12Q2 2 12 2h26' fill='none' stroke='%23c79a5e' stroke-width='2.4'/%3E%3Cpath d='M7 38V14q0-7 7-7h24' fill='none' stroke='%236b4a2a' stroke-width='1.4'/%3E%3Cpath d='M2 2l9 9M12 2c0 6 4 10 10 10M2 12c6 0 10 4 10 10' fill='none' stroke='%23d9b27a' stroke-width='1.6'/%3E%3Ccircle cx='11' cy='11' r='2.6' fill='%23e8c47a'/%3E%3C/g%3E%3C/svg%3E");
+  --c-bl:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg transform='translate(0 40) scale(1 -1)'%3E%3Cpath d='M2 38V12Q2 2 12 2h26' fill='none' stroke='%23c79a5e' stroke-width='2.4'/%3E%3Cpath d='M7 38V14q0-7 7-7h24' fill='none' stroke='%236b4a2a' stroke-width='1.4'/%3E%3Cpath d='M2 2l9 9M12 2c0 6 4 10 10 10M2 12c6 0 10 4 10 10' fill='none' stroke='%23d9b27a' stroke-width='1.6'/%3E%3Ccircle cx='11' cy='11' r='2.6' fill='%23e8c47a'/%3E%3C/g%3E%3C/svg%3E");
+  --c-br:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg transform='translate(40 40) scale(-1 -1)'%3E%3Cpath d='M2 38V12Q2 2 12 2h26' fill='none' stroke='%23c79a5e' stroke-width='2.4'/%3E%3Cpath d='M7 38V14q0-7 7-7h24' fill='none' stroke='%236b4a2a' stroke-width='1.4'/%3E%3Cpath d='M2 2l9 9M12 2c0 6 4 10 10 10M2 12c6 0 10 4 10 10' fill='none' stroke='%23d9b27a' stroke-width='1.6'/%3E%3Ccircle cx='11' cy='11' r='2.6' fill='%23e8c47a'/%3E%3C/g%3E%3C/svg%3E")}
+html,body{font-family:var(--sans);font-size:15.5px}
+/* окно: дерево, бронзовый кант, уголки */
+.pbox{position:relative;background:var(--grain),radial-gradient(130% 70% at 50% 0%,rgba(255,200,140,.07),transparent 60%),linear-gradient(180deg,#2c1e14,#1b120c 42%,#130c08)!important;
+  border:1px solid #050302!important;box-shadow:inset 0 0 0 2px var(--br-d),inset 0 0 0 4px #150d08,inset 0 0 0 5px var(--br),inset 0 0 50px rgba(0,0,0,.55),0 14px 40px rgba(0,0,0,.6)!important}
+.pbox::before{content:'';position:absolute;inset:3px;pointer-events:none;z-index:2;
+  background:var(--c-tl) left top/34px 34px no-repeat,var(--c-tr) right top/34px 34px no-repeat,var(--c-bl) left bottom/34px 34px no-repeat,var(--c-br) right bottom/34px 34px no-repeat}
+/* заголовок на табличке с узором под ним */
+.bhead{position:relative;padding-bottom:10px;margin-bottom:6px}
+.bhead::after{content:'';position:absolute;left:8%;right:8%;bottom:0;height:9px;background:radial-gradient(circle at 50% 50%,var(--br-hi) 0 2.6px,transparent 3.2px),linear-gradient(90deg,transparent,var(--br) 18%,var(--br-hi) 50%,var(--br) 82%,transparent) center/100% 1.5px no-repeat}
+.bhead h2,.pbox h2{font-family:var(--serif)!important;font-weight:700;font-size:21px!important;letter-spacing:.04em;color:transparent!important;background:linear-gradient(180deg,#fff1cf,#e8c47a 55%,#b68a4c);-webkit-background-clip:text;background-clip:text;text-shadow:none;filter:drop-shadow(0 2px 0 #000)}
+.pbox h3{font-family:var(--serif)!important;color:var(--br-hi)!important;letter-spacing:.06em}
+/* кнопки: объём, бронзовый кант, нажатие */
+.tab,.reset,.acts button,.prow button,.bhead button:not(.close),.tbuy,#again,.bslot,.qrow button,#dlgOpts button{font-family:var(--sans);font-weight:600;color:#ecd9b4!important;text-shadow:0 1px 0 #000;
+  background:linear-gradient(180deg,#4b3321,#2a1b11 60%,#22160d)!important;border:1px solid #080503!important;border-radius:9px!important;
+  box-shadow:inset 0 1px 0 rgba(255,220,170,.22),inset 0 -2px 0 rgba(0,0,0,.45),0 0 0 1px var(--br-d),0 2px 3px rgba(0,0,0,.5);transition:filter .12s,transform .06s}
+.tab:hover,.reset:hover,.acts button:hover,.prow button:hover,.bhead button:not(.close):hover,.tbuy:hover:not(:disabled),.bslot:hover,#dlgOpts button:hover{filter:brightness(1.18)}
+.tab:active,.reset:active,.acts button:active,.prow button:active,.bhead button:active,.tbuy:active,.bslot:active,#dlgOpts button:active{transform:translateY(1px);box-shadow:inset 0 2px 4px rgba(0,0,0,.6),0 0 0 1px var(--br-d)}
+.acts .main,.prow .main,.bhead button.main,#again,.tbuy:not(:disabled),#dlgOpts button.main{background:linear-gradient(180deg,#c43a2c,#8a1a17 55%,#5e0f0e)!important;color:#fff3dc!important;box-shadow:inset 0 1px 0 rgba(255,200,170,.35),inset 0 -2px 0 rgba(0,0,0,.45),0 0 0 1px var(--br),0 2px 4px rgba(0,0,0,.55)!important}
+.tbuy:disabled,.reset:disabled,button:disabled{filter:grayscale(.6) brightness(.7)}
+.tab.on,.bslot.on{background:linear-gradient(180deg,#6a4a2a,#3c2816)!important;color:#fff1cf!important;box-shadow:inset 0 1px 0 rgba(255,230,180,.35),0 0 0 1px var(--br-hi),0 0 10px rgba(232,196,122,.35)!important}
+.reset.warn{background:linear-gradient(180deg,#8a1a17,#4a0c0b)!important;opacity:1}
+/* закрыть: бронзовый медальон */
+.close{width:44px;height:44px;border-radius:50%!important;background:radial-gradient(circle at 40% 35%,#5a3e26,#24170d 70%)!important;border:1px solid #000!important;color:var(--br-hi)!important;font-size:22px;
+  box-shadow:inset 0 0 0 2px var(--br-d),inset 0 0 0 3px #120b06,0 0 0 1px var(--br),0 2px 4px rgba(0,0,0,.6)!important}
+.close:hover{color:#fff1cf!important;filter:brightness(1.2)}
+/* ячейки и строки — утоплены */
+.slot,.item,.skrow,.qrow,.srow,.jrow,#bagCard,.tcard,.bstats{background:radial-gradient(120% 140% at 50% 0%,#1d140e,#100a07)!important;border:1px solid #070403!important;box-shadow:inset 0 2px 6px rgba(0,0,0,.7),0 0 0 1px var(--br-dd)}
+.bstats{border-radius:9px}
+/* панель HUD: кнопки-медальоны */
+#skillBtn,#bookBtn,#bagBtn,#gear,#questBtn{background:radial-gradient(circle at 45% 35%,#4a3220,#1a100a 72%)!important;border:1px solid #000!important;color:var(--br-hi)!important;
+  box-shadow:inset 0 0 0 2px var(--br-d),inset 0 0 0 3px #120b06,0 0 0 1px var(--br),0 2px 5px rgba(0,0,0,.6)!important}
+/* ---- древо: ветка — лист со знаком, лента с названием, узлы в бронзе ---- */
+.tbranch{position:relative;overflow:hidden;background:var(--grain),radial-gradient(90% 60% at 50% 30%,color-mix(in srgb,var(--bc) 14%,transparent),transparent 70%),linear-gradient(180deg,#1e140d,#110a07)!important;
+  border:1px solid #050302!important;border-radius:10px;box-shadow:inset 0 0 0 1px var(--br-d),inset 0 0 0 3px #0d0805,inset 0 0 0 4px color-mix(in srgb,var(--bc) 55%,#3a2716),inset 0 0 40px rgba(0,0,0,.6)}
+.tbranch .twm{position:absolute;left:50%;top:52%;width:78%;transform:translate(-50%,-50%);opacity:.07;fill:var(--bc);pointer-events:none}
+.tbh{position:relative;margin:-2px -2px 2px;padding:6px 10px 7px;text-align:center;font-family:var(--serif);font-size:16px;letter-spacing:.05em;color:#fff6e0!important;text-shadow:0 1px 0 #000,0 0 6px rgba(0,0,0,.6);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--bc) 85%,#fff 10%),color-mix(in srgb,var(--bc) 70%,#000));clip-path:polygon(0 0,100% 0,96% 50%,100% 100%,0 100%,4% 50%);box-shadow:inset 0 -2px 0 rgba(0,0,0,.35)}
+.tbr{text-align:center;font-style:italic;color:#cdb894!important;opacity:.85!important}
+.tlines line{stroke:#2a1d12!important;stroke-width:4!important;stroke-linecap:round}.tlines line.on{stroke:#e8c04a!important;filter:drop-shadow(0 0 2px rgba(232,192,74,.8))}
+.tnode{width:40px!important;height:40px!important;padding:5px!important;border:1px solid #060403!important;border-radius:8px;background:radial-gradient(circle at 50% 35%,#2a1c12,#0c0806 75%)!important;color:#b9a585!important;
+  box-shadow:inset 0 0 0 2px var(--br-d),inset 0 0 0 3px #0b0705,inset 0 2px 8px rgba(0,0,0,.8),0 0 0 1px #000,0 2px 4px rgba(0,0,0,.6)!important}
+.tnode.active{border-radius:50%!important;box-shadow:inset 0 0 0 2px var(--br),inset 0 0 0 3px #0b0705,inset 0 2px 8px rgba(0,0,0,.8),0 0 0 1px #000,0 2px 4px rgba(0,0,0,.6)!important}
+.tnode.mastery{border-radius:4px!important;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);width:46px!important;height:46px!important;padding:11px!important;background:radial-gradient(circle,#3a2a12,#0c0806 70%)!important;box-shadow:inset 0 0 0 3px #b8892e,inset 0 0 12px rgba(0,0,0,.8)!important}
+.tnode.mastery .trk{right:6px;bottom:2px}
+.tnode .trk{right:-5px!important;bottom:-7px!important;font-family:var(--sans);font-size:10.5px!important;padding:1px 4px!important;border-radius:4px!important;background:linear-gradient(180deg,#2a1c12,#0c0806)!important;border:1px solid var(--br-d);color:#d8c4a0!important}
+.tnode.lock{opacity:.4;filter:grayscale(1) brightness(.75)}
+.tnode.can{color:#e9f6d8!important;box-shadow:inset 0 0 0 2px #6aa84f,inset 0 0 0 3px #0b0705,inset 0 2px 8px rgba(0,0,0,.6),0 0 0 1px #000,0 0 10px rgba(120,200,90,.55)!important;animation:tglow 1.8s ease-in-out infinite}
+@keyframes tglow{50%{filter:brightness(1.25)}}
+.tnode.some{color:#f4e6c6!important}
+.tnode.full{color:#ffe08a!important;box-shadow:inset 0 0 0 2px #e8c04a,inset 0 0 0 3px #0b0705,inset 0 0 10px rgba(232,192,74,.25),0 0 0 1px #000,0 0 10px rgba(232,192,74,.45)!important}
+.tnode.full .trk{color:#ffe08a!important;border-color:#b8892e}
+.tnode.sel{outline:2px solid #fff3d0!important;outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.tnode.can{animation:none}}
+.tcard{border-radius:10px}.tcard .tcn{font-family:var(--serif);font-size:17px!important;letter-spacing:.03em}.tcard .tck{color:var(--br-hi);opacity:.8!important}
+.tcard .gi.big{width:40px!important;height:40px!important;padding:6px;border-radius:8px;background:radial-gradient(circle,#2a1c12,#0c0806);box-shadow:inset 0 0 0 2px var(--br),0 0 0 1px #000}
+/* ---- диалог: пергамент, портрет в бронзовой рамке, имя на ленте ---- */
+#dialog{background:radial-gradient(ellipse at 50% 40%,#f2e6c8,#e2cfa6 60%,#c9ac7a)!important;color:#2b1b0e!important;border:1px solid #1a0f08!important;border-radius:12px!important;
+  box-shadow:inset 0 0 0 3px #6b4a2a,inset 0 0 0 5px #c9ac7a,inset 0 0 0 6px #8a6438,inset 0 0 40px rgba(110,70,30,.35),0 14px 40px rgba(0,0,0,.65)!important}
+#dialog::before{content:'';position:absolute;inset:0;border-radius:12px;pointer-events:none;background:var(--grain);opacity:.9;mix-blend-mode:multiply}
+#dlgFace{border-radius:50%;background:#1a100a;box-shadow:0 0 0 3px #b8892e,0 0 0 5px #3a2716,0 3px 8px rgba(0,0,0,.5)}
+#dlgScene{font-family:var(--serif);color:#7a4a1e!important;letter-spacing:.06em;font-size:12.5px;opacity:1!important}
+#dlgWho{font-family:var(--serif);font-size:18px;text-shadow:0 1px 0 rgba(255,255,255,.4);filter:brightness(.55) saturate(1.3)}
+#dlgLine{font-family:var(--sans);font-size:16.5px;line-height:1.4;color:#2b1b0e!important}
+#dlgOpts button{color:#f4e6c6!important}
+
+.tgrid{gap:4px 4px!important}[data-desk] .tcard .slots .bslot{min-width:34px!important;min-height:34px!important;font-size:13px}.tcard .tmax{font-family:var(--serif);color:#ffe08a;letter-spacing:.05em}
+#skills #skillXp{margin-top:0}
+
+/* панель умений: значки game-icons в бронзовом кольце */
+#abil .ab{background:radial-gradient(circle at 45% 35%,#4a3220,#140c07 72%)!important;box-shadow:inset 0 0 0 2px var(--br-d),inset 0 0 0 3px #0b0705,0 0 0 2px var(--br),0 3px 6px rgba(0,0,0,.6)}
+#abil .ab .abgi{position:absolute;inset:18%;width:64%;height:64%;fill:#f0dcb0;filter:drop-shadow(0 1px 0 #000)}
+#abil .ab.poor .abgi{fill:#8a7a6a}
+.gi.inl{width:20px;height:20px;fill:currentColor;vertical-align:-4px;margin-right:6px}
+.pbox a,.note a{color:var(--br-hi);text-decoration-color:rgba(217,178,122,.4)}
+.jrow b{font-family:var(--serif);font-size:15.5px;color:#f0dcb0;letter-spacing:.02em}.jrow.dim b{color:#a89478}
+.sico{flex:none;width:44px;height:44px;border-radius:8px;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,#2a1c12,#0c0806 75%);box-shadow:inset 0 0 0 2px var(--rc,#6b4a2a),inset 0 0 0 3px #0b0705,0 0 0 1px #000}.sico img{width:34px;height:34px;image-rendering:auto}
+.srow{display:flex;align-items:center;gap:10px}
+.doll .fig canvas.herov{width:100%;max-width:240px;height:auto;aspect-ratio:3/4;display:block}
+.doll .fig{background:radial-gradient(circle at 50% 42%,#3a2618,#140c08 70%)!important;box-shadow:inset 0 0 0 1px var(--br-d),inset 0 0 30px rgba(0,0,0,.7);border-radius:10px}
+/* верх экрана: полоса здоровья в бронзовой оправе, плашки уровня, пепла и времени */
+#hpBar{height:16px!important;border:1px solid #000!important;border-radius:9px;overflow:hidden;background:linear-gradient(180deg,#1a0a0b,#2a1012)!important;box-shadow:inset 0 2px 4px rgba(0,0,0,.8),0 0 0 2px var(--br-d),0 0 0 3px #0b0705,0 0 0 4px var(--br),0 2px 6px rgba(0,0,0,.6)!important}
+#hpFill{background:linear-gradient(180deg,#ff5a4a,#c41a20 45%,#6e0a10)!important;box-shadow:inset 0 1px 0 rgba(255,220,200,.45)}
+#hpTxt{font-family:var(--serif);font-weight:700;color:#f6e3c2;text-shadow:0 1px 0 #000,0 0 6px #000}
+#kills span{font-family:var(--serif);background:linear-gradient(180deg,#3a281a,#1a110b)!important;border:1px solid #000!important;color:#f0dcb0!important;box-shadow:inset 0 1px 0 rgba(255,220,170,.18),0 0 0 1px var(--br-d),0 2px 4px rgba(0,0,0,.5)!important}
+#tracker{font-family:var(--serif);letter-spacing:.02em}
+/* окно торговли (2026-10-20): витрина и сумка — две сетки значков с ценой; карточка выбранной вещи снизу */
+[data-desk] #shop .pbox{max-width:1100px}
+.trade{display:grid;grid-template-columns:1fr;gap:10px;flex:1;min-height:0}
+[data-desk] .trade{grid-template-columns:1fr 1fr}
+.trade.buy .sellp,.trade.sell .buyp{display:none}[data-desk] .trade .tpane{display:flex!important}
+[data-desk] #shopTabs{display:none}
+.tpane{display:flex;flex-direction:column;gap:6px;min-height:0;padding:8px;border-radius:10px;background:var(--grain),linear-gradient(180deg,#1e140d,#110a07);box-shadow:inset 0 0 0 1px var(--br-d),inset 0 0 0 3px #0d0805,inset 0 0 30px rgba(0,0,0,.6)}
+.tpane.buyp{box-shadow:inset 0 0 0 1px var(--br-d),inset 0 0 0 3px #0d0805,inset 0 0 0 4px #7a5a26,inset 0 0 30px rgba(0,0,0,.6)}
+.tpane.sellp{box-shadow:inset 0 0 0 1px var(--br-d),inset 0 0 0 3px #0d0805,inset 0 0 0 4px #3e5a3a,inset 0 0 30px rgba(0,0,0,.6)}
+.tph{display:flex;align-items:baseline;gap:8px;padding:2px 4px 6px;border-bottom:1px solid rgba(160,122,72,.35)}
+.tpn{font-family:var(--serif);font-size:17px;font-weight:700;color:#f0dcb0}.tps{font-size:12px;font-style:italic;opacity:.6;flex:1}
+.buyp .tpn{color:#ffd27a}.sellp .tpn{color:#bfe0a8}
+.tash{display:inline-flex;align-items:center;gap:4px;font-family:var(--serif);font-weight:700;color:#ffd27a}
+.tgridx{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;overflow:auto;-webkit-overflow-scrolling:touch;min-height:0;max-height:46vh;padding:2px}
+[data-desk] .tgridx{max-height:52vh}
+.ttile{position:relative;aspect-ratio:1;min-height:60px;padding:6px 6px 16px;border:1px solid #060403;border-radius:8px;background:radial-gradient(circle at 50% 35%,#2a1c12,#0c0806 75%);box-shadow:inset 0 0 0 2px var(--rc,#6b4a2a),inset 0 0 0 3px #0b0705,0 0 0 1px #000;cursor:pointer}
+.ttile img{width:100%;height:100%;object-fit:contain;display:block}
+.ttile .tpr{position:absolute;left:3px;right:3px;bottom:2px;display:flex;align-items:center;justify-content:center;gap:2px;font-size:11.5px;font-weight:700;color:#ffd27a;text-shadow:0 1px 0 #000;background:rgba(0,0,0,.55);border-radius:4px;line-height:14px}
+.sellp .ttile .tpr{color:#c8f0b0}
+.ttile .tn{position:absolute;right:3px;top:2px;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 0 #000}
+.ttile.sel{outline:2px solid #fff3d0;outline-offset:1px}.ttile:hover{filter:brightness(1.2)}
+.ttile.poor .tpr{color:#ff8a7a}.ttile.nope img{filter:grayscale(.8) brightness(.7)}.ttile.locked::after{content:'🔒';position:absolute;left:3px;top:1px;font-size:11px}
+.ttile.rare{box-shadow:inset 0 0 0 2px var(--rc),inset 0 0 0 3px #0b0705,0 0 0 1px #000,0 0 10px color-mix(in srgb,var(--rc) 60%,transparent)}
+.ttile.fresh::before{content:'новое';position:absolute;left:2px;top:2px;font-size:9.5px;font-weight:700;color:#1a0f08;background:#ffd27a;border-radius:3px;padding:0 3px}
+.tcoin{display:inline-flex;width:11px;height:11px}.tcoin svg{width:100%;height:100%;fill:#f0b060}
+.tsel{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:10px;background:radial-gradient(120% 140% at 50% 0%,#241811,#100a07);box-shadow:inset 0 0 0 1px var(--br-d),inset 0 2px 6px rgba(0,0,0,.6);flex:none;min-height:64px}
+.tsi{flex:none;width:56px;height:56px;border-radius:9px;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,#2a1c12,#0c0806 75%);box-shadow:inset 0 0 0 2px var(--rc),inset 0 0 0 3px #0b0705,0 0 0 1px #000}.tsi img{width:44px;height:44px}
+.tsinfo{flex:1;min-width:0}.tsn{font-family:var(--serif);font-size:16.5px;font-weight:700}.tsel .sub{font-size:12.5px;opacity:.8}
+.tact{flex:none;min-height:46px;padding:0 18px;border-radius:9px!important;font-weight:700;border:1px solid #000;color:#fff3dc;text-shadow:0 1px 0 #000}
+.tact.buy{background:linear-gradient(180deg,#d8a040,#8a5a18 60%,#5a3a0e);box-shadow:inset 0 1px 0 rgba(255,230,180,.5),0 0 0 1px var(--br-hi),0 2px 4px rgba(0,0,0,.6)}
+.tact.sell{background:linear-gradient(180deg,#5aa04a,#2e6a24 60%,#1c4416);box-shadow:inset 0 1px 0 rgba(220,255,200,.4),0 0 0 1px #8ac070,0 2px 4px rgba(0,0,0,.6)}
+.tact.no{filter:grayscale(.7) brightness(.7)}
+#shop .junk{min-height:40px;font-size:12.5px}

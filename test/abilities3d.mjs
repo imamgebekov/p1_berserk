@@ -153,12 +153,12 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 
 // ---------- 9. панель: изученное встаёт в пустую ячейку, перестановка, клавиша ячейки ----------
 { const W = mk(30); upgradeAbility(W, 'whirl'); upgradeAbility(W, 'bash');
-  ok(barOf(W).join() === 'whirl,bash,,,', 'изученное не встало в первые ячейки: ' + barOf(W).join());
+  ok(barOf(W).join() === 'whirl,bash,,,,', 'изученное не встало в первые ячейки: ' + barOf(W).join());
   setBar(W, 4, 'whirl'); ok(barOf(W)[4] === 'whirl' && barOf(W)[0] === null, 'умение не переставилось в ячейку 5');
   setBar(W, 1, 'whirl'); ok(barOf(W)[1] === 'whirl' && barOf(W)[4] === 'bash', 'занятые ячейки не поменялись местами: ' + barOf(W).join());
   ok(setBar(W, 0, 'quake') === false, 'на панель встало неизученное умение');
   const e = foe(W, 1.5, 0); still(W); ok(useSlot(W, 1) === 'ok' && W.acd.whirl > 0 && e.hp < e.maxhp, 'клавиша ячейки 2 не запустила вихрь'); ok(useSlot(W, 0) === 'none', 'пустая ячейка что-то запустила');
-  W.bar = []; ok(barOf(W).join() === 'whirl,bash,,,', 'старое сохранение без панели: не по порядку изучения'); }
+  W.bar = []; ok(barOf(W).join() === 'whirl,bash,,,,', 'старое сохранение без панели: не по порядку изучения'); }
 // ---------- 10. новые умения: каждое делает своё ----------
 const mkJ = () => { const W = mk(30); W.hero = 'jay'; W.inv.eq.weapon = 'w_bow_iron'; refreshGear(W); return W; }, mkV = () => { const W = mk(30); W.hero = 'vale'; W.inv.eq.weapon = 'w_rapier_iron'; refreshGear(W); return W; };
 const st = (e, k) => !!(e.st && e.st[k] && e.st[k].t > 0);

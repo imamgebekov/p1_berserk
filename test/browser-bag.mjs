@@ -36,7 +36,7 @@ async function fill(page) {
 const bagInfo = page => page.evaluate(() => {
   const L = document.getElementById('bagList'), tiles = [...L.querySelectorAll('.tile:not(.empty)')], empty = L.querySelectorAll('.tile.empty').length;     // сетка как в MMO: пустые ячейки до вместимости
   return { n: tiles.length, minW: Math.min(...tiles.map(t => t.getBoundingClientRect().width)), over: L.scrollWidth - L.clientWidth,
-    icons: tiles.every(t => { const i = t.querySelector('img.ic'); return i && i.naturalWidth === 16; }), rar: tiles.filter(t => /\br[34]\b/.test(t.className)).length,
+    icons: tiles.every(t => { const i = t.querySelector('img.ic'); return i && i.naturalWidth >= 16; }), rar: tiles.filter(t => /\br[34]\b/.test(t.className)).length,
     eqIcons: [...document.querySelectorAll('#bagEq .slot img.ic')].length, cnt: tiles.filter(t => t.querySelector('.cnt')).length, upg: tiles.filter(t => t.querySelector('.upg')).length, bt: tiles.filter(t => t.querySelector('.bt')).length,
     bagN: window.__b3d.W.inv.bag.length, empty, minEmpty: Math.min(...[...L.querySelectorAll('.tile')].map(t => t.getBoundingClientRect().width)) };
 });
@@ -45,10 +45,10 @@ try {
   // ---- телефон ----
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 664 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-    const page = await ctx.newPage(); page.setDefaultTimeout(8000);
+    const page = await ctx.newPage(); page.setDefaultTimeout(20000);
     page.on('console', m => { if (['error', 'warning'].includes(m.type()) && !/GPU stall due to ReadPixels/.test(m.text())) logs.push(m.type() + ': ' + m.text()); });
     page.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await page.goto(url + '?shot&hero=thorn'); await page.waitForTimeout(1200);
+    await page.goto(url + '?shot&hero=thorn', { timeout: 30000 }); await page.waitForTimeout(1200);
     await fill(page);
     await page.tap('#bagBtn'); await page.waitForTimeout(300);
     const r = await bagInfo(page);
@@ -64,7 +64,7 @@ try {
       if (g.t !== cap + '/' + cap || g.c !== 'full') bad('полная сумка не отмечена: ' + JSON.stringify(g)); }
     if (r.minW < 44) bad('плитка уже 44 px: ' + r.minW);
     if (r.over > 0) bad('сумка прокручивается вбок на ' + r.over + ' px');
-    if (!r.icons) bad('не у всех плиток загружен значок 16×16');
+    if (!r.icons) bad('не у всех плиток загружен значок');
     if (r.eqIcons !== SLOTS.length) bad(`у надетого не ${SLOTS.length} значков: ` + r.eqIcons);
     if (r.rar < 2) bad('нет рамок великих и клеймёных вещей');
     if (r.cnt < 3 || r.upg < 1 || r.bt < 1) bad('нет пометок числа, улучшения или «лучше надетого»: ' + JSON.stringify(r));
@@ -83,10 +83,10 @@ try {
   // ---- компьютер: две колонки ----
   {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false });
-    const page = await ctx.newPage(); page.setDefaultTimeout(8000);
+    const page = await ctx.newPage(); page.setDefaultTimeout(20000);
     page.on('console', m => { if (['error', 'warning'].includes(m.type()) && !/GPU stall due to ReadPixels/.test(m.text())) logs.push(m.type() + ': ' + m.text()); });
     page.on('pageerror', e => logs.push('pageerror: ' + e.message));
-    await page.goto(url + '?shot&hero=thorn'); await page.waitForTimeout(1200);
+    await page.goto(url + '?shot&hero=thorn', { timeout: 30000 }); await page.waitForTimeout(1200);
     await fill(page);
     await page.keyboard.press('KeyI'); await page.waitForTimeout(300);
     await page.locator('#bagList .tile').first().click(); await page.waitForTimeout(200);

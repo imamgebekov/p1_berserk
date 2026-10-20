@@ -17,6 +17,7 @@ import { groundMix, grassHSL, flowersIn, bushesIn } from './flora3d.js';
 import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
 import { inCliff } from './cliffs3d.js';
 import * as THREE from 'three';
+import { dressedLook, lookKey } from './look3d.js';
 import { qualityOf } from './quality3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeHorse, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
@@ -855,7 +856,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const under = W.lvl !== 'surface';
     if (!under) { streamLand(cam.x, cam.z); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
     dome.position.set(cam.x, 0, cam.z);                              // небо — вокруг камеры (мир шире купола)
-    { const lk = W.hero + ((W.ach && W.ach.cape) || ''); if (lk !== heroLook) { heroLook = lk; const L = heroOf(W.hero).look; hero.setLook(W.ach && W.ach.cape ? { ...L, cape: W.ach.cape } : L); } }     // цвет плаща — награда подвига (этап 6)
+    { const cp = W.ach && W.ach.cape, lk = lookKey(W.hero, W.inv, cp); if (lk !== heroLook) { heroLook = lk; hero.setLook(dressedLook(heroOf(W.hero).look, W.inv, cp)); } }     // облик по надетому и цвет плаща — награда подвига
     if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : 1, rain: WE.force === 'rain' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
     scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog;     // в дождь туман гуще     // на рассвете туман гуще
     if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }

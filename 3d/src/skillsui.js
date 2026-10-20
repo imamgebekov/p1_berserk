@@ -3,6 +3,10 @@ import { branchesOf, TIER_STEP, spentIn, canRank } from './data/skills3d.js';
 import { spendSkill, respec, respecCost, xpNeed, rankNeed } from './sim.js';
 import { combosOf } from './combos3d.js';
 import { abilityView, upgradeAbility, canUpgrade, respecAbilities, respecAbilityCost, spentAbility, resView, barOf, setBar, BAR } from './abilities3d.js';
+import { treeOf, rankOf, canBuy, buy, needText, spentInTree, ROWS, COLS, ROW_STEP } from './tree3d.js';
+import { MASTERY_TEXT } from './data/abilities3d.js';
+import { GI } from './data/gicons.js';
+import { refreshGear } from './sim.js';
 
 // разница рангов (шаг 10): у описаний одинаковый текст, меняются числа — показываем только их: «×1,4 → ×1,6 · 9 с → 8,5 с»;
 // если текст рангов разный — null (тогда показываем следующий ранг целиком)
@@ -20,13 +24,14 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2200); };
   // вкладки — специализации героя (этап 2), «Скиталец» и «Умения»; при смене героя строятся заново
-  const buildTabs = () => { tabsHero = W.hero; tabsEl.textContent = ''; if (!branchesOf(W.hero).some(b => b.id === branch) && branch !== 'abil') branch = branchesOf(W.hero)[0].id; for (const b of [...branchesOf(W.hero), { id: 'abil', name: 'Умения' }]) { const t = el('button', 'tab', b.name); t.type = 'button'; t.dataset.tab = b.id; t.addEventListener('click', () => { branch = b.id; armed = false; render(); }); tabsEl.appendChild(t); } };
+  let sel = null;     // выбранный узел древа
+  const buildTabs = () => { tabsHero = W.hero; tabsEl.textContent = ''; if (branch !== 'tree' && branch !== 'abil') branch = 'tree'; for (const b of [{ id: 'tree', name: 'Древо' }, { id: 'abil', name: 'Панель и связки' }]) { const t = el('button', 'tab', b.name); t.type = 'button'; t.dataset.tab = b.id; t.addEventListener('click', () => { branch = b.id; armed = false; render(); }); tabsEl.appendChild(t); } };
   function renderAbil() {
     const AC = '#e8c04a', list = abilityView(W), rv = resView(W), resName = rv ? rv.name : '';
     if (!list.length) listEl.appendChild(el('div', 'emptyl', 'У этого героя умений пока нет.'));
     for (const a of list) {
       const row = el('div', 'skrow' + (a.open ? '' : ' lock')), info = el('div', 'sinfo');
-      const nm = el('span', 'nm', `${a.icon} ${a.name}`); nm.style.color = AC;
+      const nm = el('span', 'nm', a.name); nm.style.color = AC; nm.prepend(gi('n:' + a.id, 'gi inl'));
       const pips = el('span', 'pips'); pips.style.setProperty('--pc', AC); for (let k = 0; k < a.max; k++) pips.appendChild(el('i', k < a.rank ? 'on' : ''));
       const when = a.nextLv > W.lv ? ' — с уровня ' + a.nextLv : '';
       if (!a.open) info.append(nm, pips, el('div', 'sub', `Откроется на уровне ${a.lv}. ${a.next}`));
@@ -40,7 +45,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
         for (let k = 0; k < BAR; k++) { const sb = el('button', 'bslot' + (bar[k] === a.id ? ' on' : ''), String(k + 1)); sb.type = 'button'; sb.setAttribute('aria-label', `${a.name}: ячейка ${k + 1}`);
           sb.addEventListener('click', () => { setBar(W, k, bar[k] === a.id ? null : a.id); render(); onChange && onChange(); }); sl.append(sb); }
         info.append(sl); }
-      row.append(info, b); listEl.appendChild(row);
+      void b; row.append(info); listEl.appendChild(row);     // очки — только в древе (2026-10-20)
     }
     // связки (2026-10-18): умение А, потом Б не позже window с — Б сильнее; видно, изучены ли оба и стоят ли на панели
     const cl = combosOf(W.hero); if (cl.length) {
@@ -50,16 +55,65 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
         const row = el('div', 'skrow combo' + (known ? '' : ' lock')), info = el('div', 'sinfo'), nm = el('span', 'nm', c.name); nm.style.color = '#ffd27a';
         info.append(nm, el('div', 'sub', `${name(c.a)} → ${name(c.b)}: ${c.text}`), el('div', 'sub nx', !known ? 'Нужны оба умения.' : onBar ? 'Оба на панели — готово.' : 'Поставьте оба на панель.'));
         row.append(info); listEl.appendChild(row); } }
-    resetBtn.textContent = armed ? 'Точно? Очки умений вернутся, пепел спишется' : `Сбросить умения · ${respecAbilityCost(W)} пепла`;
-    resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !spentAbility(W.ab);
+    const cost = respecCost(W) + respecAbilityCost(W);
+    resetBtn.textContent = armed ? 'Точно? Все очки вернутся, пепел спишется' : `Сбросить древо · ${cost} пепла`; resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !(spentAbility(W.ab) || Object.values(W.skills).some(v => v > 0));
+  }
+  // древо (2026-10-20): три ветки рядом, узлы-значки с рангом; выбор — карточка с описанием и кнопкой
+  const gi = (k, cls) => { const d = GI[k], sv = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.setAttribute('viewBox', '0 0 512 512'); sv.setAttribute('class', cls || 'gi'); if (d) { const pa = doc.createElementNS('http://www.w3.org/2000/svg', 'path'); pa.setAttribute('d', d); sv.appendChild(pa); } return sv; };
+  function nodeInfo(n) {
+    const ab = n.kind !== 'talent' ? abilityView(W).find(a => a.id === n.id) : null, r = rankOf(W, n), out = [];
+    if (n.kind === 'talent') out.push(n.text);
+    else if (n.kind === 'mastery') out.push(MASTERY_TEXT[n.id] || '', ab && ab.mlv ? `С ${ab.mlv}-го уровня, нужно умение 3-го ранга.` : '');
+    else if (ab) { if (r) out.push('Сейчас: ' + ab.now); if (r < 3 && ab.next) out.push(`${r ? 'Ранг ' + (r + 1) : 'Открыть'}${ab.nextLv > W.lv ? ' — с уровня ' + ab.nextLv : ''}: ${r && ab.now ? rankDiff(ab.now, ab.next) || ab.next : ab.next}`); }
+    return out.filter(Boolean);
+  }
+  function renderTree() {
+    const T = treeOf(W.hero), wrap = el('div', 'tree'), card = el('div', 'tcard');
+    T.forEach(br => {
+      const spent = spentInTree(W, br), col = el('div', 'tbranch'); col.style.setProperty('--bc', br.color);
+      { const fa = br.nodes.find(x => x.kind === 'active'); if (fa) col.append(gi(fa.icon, 'twm')); }     // знак ветки на фоне
+      col.append(el('div', 'tbh', `${br.name} · ${spent}`), el('div', 'tbr', br.role || ''));
+      const grid = el('div', 'tgrid'); grid.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`; grid.style.gridTemplateRows = `repeat(${ROWS}, auto)`;
+      const lines = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); lines.setAttribute('class', 'tlines'); lines.setAttribute('viewBox', `0 0 ${COLS * 10} ${ROWS * 10}`); lines.setAttribute('preserveAspectRatio', 'none');
+      for (const n of br.nodes) {
+        const r = rankOf(W, n), st = canBuy(W, n.key), b = el('button', 'tnode ' + n.kind + (r >= n.max ? ' full' : r ? ' some' : '') + (st === 'ok' ? ' can' : '') + (st === 'row' || st === 'req' ? ' lock' : '') + (sel === n.key ? ' sel' : ''));
+        b.type = 'button'; b.dataset.key = n.key; b.style.gridColumn = String(n.col + 1); b.style.gridRow = String(n.row); b.title = n.name; b.setAttribute('aria-label', `${n.name}: ${r} из ${n.max}`);
+        b.append(gi(n.icon), el('span', 'trk', `${r}/${n.max}`));
+        b.addEventListener('click', () => { sel = n.key; render(); });
+        b.addEventListener('dblclick', () => { if (buy(W, n.key, refreshGear) === 'ok') { render(); onChange && onChange(); } });
+        grid.append(b);
+        if (n.req) { const q = br.nodes.find(x => x.key === n.req); if (q) { const ln = doc.createElementNS('http://www.w3.org/2000/svg', 'line'); ln.setAttribute('x1', q.col * 10 + 5); ln.setAttribute('y1', q.row * 10 - 3); ln.setAttribute('x2', n.col * 10 + 5); ln.setAttribute('y2', n.row * 10 - 7); ln.setAttribute('class', rankOf(W, q) >= 3 ? 'on' : ''); lines.append(ln); } }
+      }
+      grid.prepend(lines); col.append(grid); wrap.append(col);
+    });
+    const view = el('div', 'tview'); view.append(wrap, card); listEl.append(view);
+    // карточка выбранного узла
+    const f = sel && T.flatMap(b => b.nodes.map(n => ({ b, n }))).find(x => x.n.key === sel);
+    if (f) {
+      const { b, n } = f, r = rankOf(W, n), st = canBuy(W, n.key), head = el('div', 'tch');
+      head.append(gi(n.icon, 'gi big'), el('div', 'tcn', `${n.name} · ${r}/${n.max}`)); head.lastChild.style.color = b.color;
+      card.append(head, el('div', 'tck', n.kind === 'talent' ? 'Талант' : n.kind === 'mastery' ? 'Мастерство умения' : 'Активное умение'));
+      for (const t of nodeInfo(n)) card.append(el('div', 'sub', t));
+      const why = needText(W, n.key); if (why && st !== 'ok' && st !== 'max') card.append(el('div', 'sub z', why));
+      if (st === 'max') card.append(el('div', 'tmax', 'Изучено полностью'));
+      else { const bt = el('button', 'tbuy', 'Вложить очко'); bt.type = 'button'; bt.disabled = st !== 'ok';
+        bt.addEventListener('click', () => { const res = buy(W, n.key, refreshGear); if (res !== 'ok') flash(needText(W, n.key) || 'Нельзя'); render(); onChange && onChange(); });
+        card.append(bt); }
+      if (n.kind === 'active' && r > 0) { const bar = barOf(W), sl = el('div', 'slots'); sl.append(el('span', 'sl-l', 'На панель:'));
+        for (let k = 0; k < BAR; k++) { const sb = el('button', 'bslot' + (bar[k] === n.id ? ' on' : ''), String(k + 1)); sb.type = 'button'; sb.addEventListener('click', () => { setBar(W, k, bar[k] === n.id ? null : n.id); render(); onChange && onChange(); }); sl.append(sb); }
+        card.append(sl); }
+    } else card.append(el('div', 'sub', 'Нажмите на узел — описание и кнопка «Вложить очко». Двойной щелчок — сразу вложить.'), el('div', 'sub', `Ряд открывается за каждые ${ROW_STEP} очка в ветке. Умения и мастерство — за очки умений, таланты — за очки талантов.`));
+    const cost = respecCost(W) + respecAbilityCost(W), any = Object.values(W.skills).some(v => v > 0) || spentAbility(W.ab) > 0;
+    resetBtn.textContent = armed ? 'Точно? Все очки вернутся, пепел спишется' : `Сбросить древо · ${cost} пепла`; resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !any;
   }
   function render() {
     if (tabsHero !== W.hero) buildTabs();
-    headEl.textContent = `Таланты · очков: ${W.sp} · умений: ${W.ap}`;
+    headEl.textContent = `Древо · очков талантов: ${W.sp} · умений: ${W.ap}`;
     xpEl.textContent = W.lv >= cfg.level.max ? (cfg.level.ranks && cfg.level.ranks.on ? `Уровень ${W.lv} · пепельный ранг ${W.prank || 0}` + ((W.prank || 0) < cfg.level.ranks.cap ? ` · опыт ${W.pxp || 0}/${rankNeed(cfg)}` : ' (максимум)') : `Уровень ${W.lv} (максимум)`) : `Уровень ${W.lv} · опыт ${W.xp}/${xpNeed(W.lv, cfg)}`;
-    for (const t of tabsEl.children) { const b = branchesOf(W.hero).find(x => x.id === t.dataset.tab); t.classList.toggle('on', t.dataset.tab === branch); t.textContent = b ? `${b.name} · ${spentIn(W.skills, b.id)}` : `Умения · ${spentAbility(W.ab)}`; }
+    for (const t of tabsEl.children) t.classList.toggle('on', t.dataset.tab === branch);
     listEl.textContent = '';
     if (branch === 'abil') { renderAbil(); return; }
+    renderTree(); return;
     const br = branchesOf(W.hero).find(b => b.id === branch), spent = spentIn(W.skills, branch);
     listEl.appendChild(el('div', 'emptyl', br.common ? 'Общая ветка: польза в пути, у всех героев.' : `Специализация «${br.name}» — ${br.role}. Следующий талант открывается за каждые ${TIER_STEP} очка в ветке.`));
     br.skills.forEach((s, i) => {
@@ -78,7 +132,8 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   }
   resetBtn.addEventListener('click', () => {
     if (!armed) { armed = true; render(); setTimeout(() => { armed = false; render(); }, 3000); return; }
-    armed = false; const r = branch === 'abil' ? respecAbilities(W) : respec(W); if (r === 'ash') flash('Не хватает пепла'); render(); onChange && onChange();
+    armed = false; const need = respecCost(W) + respecAbilityCost(W); if (W.inv.ash < need) { flash('Не хватает пепла'); render(); return; }
+    if (spentAbility(W.ab)) respecAbilities(W); if (Object.values(W.skills).some(v => v > 0)) respec(W); sel = null; render(); onChange && onChange();     // сброс всего древа разом
   });
   const open = () => { render(); root.hidden = false; onOpen && onOpen(); };
   const close = () => { root.hidden = true; onClose && onClose(); };

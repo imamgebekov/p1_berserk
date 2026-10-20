@@ -100,10 +100,11 @@ export function applyDungeonState(W, saved) {
 // позиция героя на поверхности: числа в пределах мира
 const sanePos = p => (p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.hypot(p.x, p.z) < CFG3.world.radius ? { x: p.x, z: p.z } : null);
 // прогресс героя из сохранения: уровень, опыт, очки, навыки и умения в допустимых пределах
-function progOf(pr, hero) {
+function progOf(pr, hero, fresh = false) {     // fresh — древо умений (2026-10-20): сброс умений и талантов с возвратом всех очков
     const num = (v, a, b, def) => (Number.isFinite(v) ? Math.max(a, Math.min(b, Math.floor(v))) : def);
     const prog = { lv: num(pr.lv, 1, 99, 1), xp: num(pr.xp, 0, 1e9, 0), sp: num(pr.sp, 0, 999, 0), skills: sanitizeSkills(pr.skills, hero), spark: pr.spark && typeof pr.spark === 'object' ? pr.spark : null, path: pr.path && typeof pr.path === 'object' ? pr.path : null };     // path — чистит main.js (sanitizePath)     // spark — чистит main.js (sanitizeSpark)
     prog.prank = num(pr.prank, 0, CFG3.level.ranks ? CFG3.level.ranks.cap : 0, 0); prog.pxp = num(pr.pxp, 0, 1e9, 0); prog.ng = num(pr.ng, 0, 99, 0);     // пепельные ранги (этап 3 «круче»)
+    if (fresh) { prog.skills = {}; pr = { ...pr, ab: {}, bar: [] }; }
     // очков не может быть больше, чем уровней: иначе сбрасываем распределение (защита от испорченного сохранения)
     const spent = Object.values(prog.skills).reduce((a, b) => a + b, 0);
     if (spent + prog.sp > prog.lv - 1) { prog.skills = {}; prog.sp = prog.lv - 1; }
@@ -112,7 +113,7 @@ function progOf(pr, hero) {
     { const ids = (ABILITIES[hero] || []).map(x => x.id), ab = {}, src = pr.ab && typeof pr.ab === 'object' ? pr.ab : {};
       ids.forEach((id, i) => { const r = src[id]; if (Number.isInteger(r) && r > 0) { const m = Math.min(r, ranksOpenAt(prog.lv, CFG3, i)); if (m > 0) ab[id] = m; } });
       const ap = Math.max(0, abPoints(prog.lv) - Object.values(ab).reduce((a, b) => a + b, 0));
-      prog.ab = ab; prog.ap = ap; prog.bar = Array.isArray(pr.bar) ? pr.bar.slice(0, 5).map(id => (typeof id === 'string' && ids.includes(id) ? id : null)) : []; }     // панель умений
+      prog.ab = ab; prog.ap = ap; prog.bar = Array.isArray(pr.bar) ? pr.bar.slice(0, 6).map(id => (typeof id === 'string' && ids.includes(id) ? id : null)) : []; }     // панель умений
     return prog;
 }
 export function loadSave(slots, storage = globalThis.localStorage) {
@@ -122,9 +123,9 @@ export function loadSave(slots, storage = globalThis.localStorage) {
     if (!d || typeof d !== 'object') return null;
     migrate(d); if (d.v !== VERSION) return null;       // более новое сохранение (из будущей версии) не трогаем
     const hero = HEROES[d.hero] && HEROES[d.hero].open ? d.hero : DEFAULT_HERO;      // неизвестный или ещё закрытый герой — Торн
-    const prog = progOf(d.prog || {}, hero);
+    const fresh = d.tree !== 1, prog = progOf(d.prog || {}, hero, fresh); prog.treeReset = fresh && Number.isFinite(d.v);     // старое сохранение — очки возвращены (сообщение)
     const heroes = {};     // отложенные герои (2026-10-18): свой уровень и умения; старое сохранение — пусто (уровень у текущего)
-    if (d.heroes && typeof d.heroes === 'object') for (const h of Object.keys(HEROES)) if (h !== hero && HEROES[h].open && d.heroes[h] && typeof d.heroes[h] === 'object') { const q = progOf(d.heroes[h], h); heroes[h] = { lv: q.lv, xp: q.xp, sp: q.sp, skills: q.skills, ap: q.ap, ab: q.ab, bar: q.bar }; }
+    if (d.heroes && typeof d.heroes === 'object') for (const h of Object.keys(HEROES)) if (h !== hero && HEROES[h].open && d.heroes[h] && typeof d.heroes[h] === 'object') { const q = progOf(d.heroes[h], h, fresh); heroes[h] = { lv: q.lv, xp: q.xp, sp: q.sp, skills: q.skills, ap: q.ap, ab: q.ab, bar: q.bar }; }
     const sameWorld = d.gen === CFG3.world.gen;        // другой мир (номер world.gen) — туман, позиция и таймеры боссов не переносятся
     return { hero, heroes, life: sanitizeLife(d.life, CFG3), story: sanitizeStory(d.story), ach: sanitizeAch(d.ach), inv: deserialize(d.inv, slots, hero, CFG3), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(d.seen, seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp })) : [], fires: sameWorld && Array.isArray(d.fires) ? d.fires.filter(x => typeof x === 'string').slice(0, 200) : [], shrines: sameWorld && d.shrines && typeof d.shrines === 'object' ? Object.fromEntries(Object.entries(d.shrines).filter(([k, v]) => /^p\d+$/.test(k) && Number.isFinite(v)).slice(0, 300)) : {} };
   } catch (e) { return null; }
@@ -146,7 +147,7 @@ export const saveFileName = (d = new Date()) => `berserk3d-save-${d.getFullYear(
 // onFail(err) — запись не удалась (кончилось место и т. п.); now — часы в мс (для тестов)
 export function createSaver(W, storage = globalThis.localStorage, { onFail = null, now = () => Date.now(), bakEvery = (CFG3.save ? CFG3.save.bakEvery : 300) * 1000 } = {}) {
   let last = '', lastBak = now(), off = false;     // off — после сброса: автосохранение при уходе со страницы не вернёт старый прогресс
-  const snap = () => JSON.stringify({ v: VERSION, hero: W.hero, heroes: W.heroes || {}, life: W.life ? serializeLife(W) : null, story: serializeStory(W.story), ach: serializeAch(W.ach), inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab, bar: W.bar, spark: W.spark, path: W.path, prank: W.prank || 0, pxp: W.pxp || 0, ng: W.ng || 0 }, seen: W.levels ? packSeenChunks(W.levels.surface.seen, W.levels.surface.seenN) : packSeenChunks(W.seen, W.seenN), pos: W.lvl === 'surface' && !W.player.dead ? { x: Math.round(W.player.x * 100) / 100, z: Math.round(W.player.z * 100) / 100 } : null, gen: W.cfg.world.gen, dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest && !a.story).map(a => ({ type: a.type, hp: Math.round(a.hp) })), fires: Object.keys(W.fires || {}), shrines: Object.fromEntries(Object.entries(W.shrines || {}).filter(([, v]) => v > W.t).map(([k, v]) => [k, Math.round(v)])) });
+  const snap = () => JSON.stringify({ v: VERSION, tree: 1, hero: W.hero, heroes: W.heroes || {}, life: W.life ? serializeLife(W) : null, story: serializeStory(W.story), ach: serializeAch(W.ach), inv: serialize(W.inv), kills: W.kills, prog: { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab, bar: W.bar, spark: W.spark, path: W.path, prank: W.prank || 0, pxp: W.pxp || 0, ng: W.ng || 0 }, seen: W.levels ? packSeenChunks(W.levels.surface.seen, W.levels.surface.seenN) : packSeenChunks(W.seen, W.seenN), pos: W.lvl === 'surface' && !W.player.dead ? { x: Math.round(W.player.x * 100) / 100, z: Math.round(W.player.z * 100) / 100 } : null, gen: W.cfg.world.gen, dseen: packDseen(W), keys: Object.keys(W.keys || {}).filter(k => W.keys[k]), unlocked: packUnlocked(W), bosses: { ...W.bossDead }, difficulty: W.difficulty, iron: W.iron, tomb: W.tomb, known: serializeKnown(W.known), quests: serializeQuests(W.quests), t: Math.round(W.t), squad: W.allies.filter(a => !a.dead && !a.guest && !a.story).map(a => ({ type: a.type, hp: Math.round(a.hp) })), fires: Object.keys(W.fires || {}), shrines: Object.fromEntries(Object.entries(W.shrines || {}).filter(([, v]) => v > W.t).map(([k, v]) => [k, Math.round(v)])) });
   return {
     write(force) {
       if (W.ironDead || off) return false; const s = snap(); if (!force && s === last) return false;

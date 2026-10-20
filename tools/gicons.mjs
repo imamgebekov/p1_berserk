@@ -1,6 +1,6 @@
 // Сборка значков game-icons.net (CC BY 3.0, часть — CC0) в модуль данных: node tools/gicons.mjs <папка icons из github.com/game-icons/icons>
 // Берёт значки из tools/gicons-map.json (ключ → автор/имя), вынимает контуры фигуры (без чёрного фона 512×512) и пишет
-// 3d/src/data/gicons.js ({ ключ: путь SVG }) и 3d/ICONS-CREDITS.md (кто автор каких значков). Код из набора не запускается.
+// 3d/src/data/gicons.json ({ ключ: путь SVG }, читает data/gicons.js) и 3d/ICONS-CREDITS.md (кто автор каких значков). Код из набора не запускается.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +14,6 @@ for (const [k, name] of Object.entries(map)) {
   out[k] = d; const a = name.split('/')[0]; (by[a] = by[a] || []).push(name.split('/')[1]);
 }
 if (miss.length) { console.log('нет значков:\n' + miss.join('\n')); process.exit(1); }
-writeFileSync(join(root, '3d', 'src', 'data', 'gicons.js'), '// Значки game-icons.net (CC BY 3.0, авторы — 3d/ICONS-CREDITS.md). Собрано tools/gicons.mjs — не править руками.\n// Путь SVG в квадрате 512×512, белая фигура без фона.\nexport const GI = ' + JSON.stringify(out, null, 0).replace(/","/g, '",\n  "') + ';\n');
+writeFileSync(join(root, '3d', 'src', 'data', 'gicons.json'), JSON.stringify(out));     // JSON: сборщик отдаёт без карты исходников (в .js она весила 2 МБ)
 writeFileSync(join(root, '3d', 'ICONS-CREDITS.md'), '# Значки\n\nЗначки — [game-icons.net](https://game-icons.net), лицензия [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) (часть — CC0). Цвет и рамки изменены.\n\n' + Object.entries(by).sort().map(([a, l]) => `- **${a}**: ${[...new Set(l)].sort().join(', ')}`).join('\n') + '\n');
 console.log(`значков: ${Object.keys(out).length}, авторов: ${Object.keys(by).length}`);

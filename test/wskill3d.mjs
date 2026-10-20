@@ -30,7 +30,7 @@ const CASES = [['cleave', 'w_sword_blood', 'thorn', [[0, 1.8], [1.8, 0], [-1.8, 
 for (const [id, wid, hero, spots] of CASES) {
   const W = mk(wid, hero), es = spots.map(([x, z]) => foe(W, x, z));
   ok(weaponSkillOf(W) && weaponSkillOf(W).id === id, `${wid}: не то умение`);
-  W.ev.length = 0; step(W, 1 / 60, { ability: 6 }); const ev = W.ev.find(v => v.k === 'wskill');
+  W.ev.length = 0; step(W, 1 / 60, { ability: 7 }); const ev = W.ev.find(v => v.k === 'wskill');
   run(W, 3);
   ok(ev && ev.id === id, `${id}: F не запустило умение`);
   ok(es.every(e => hurt(e) > 0), `${id}: не все враги задеты: ${es.map(hurt)}`);

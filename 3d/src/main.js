@@ -1,3 +1,4 @@
+import { GI } from './data/gicons.js';     // значки game-icons.net на панели умений (2026-10-20)
 import { CFG3 } from './config3d.js';
 import { createWorld, step, respawnPlayer, spawnEnemy, spawnBoss, rerollRare } from './sim.js';
 import { BY_ID, RARITY, STAT_NAME } from './data/items.js';
@@ -85,7 +86,8 @@ if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранени
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
 if (saved) { W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (saved.ach) W.ach = saved.ach; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
 W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
-W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);     // «Путь пепла» (шаг 13): старому сохранению — по уже сделанному
+W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);
+if (W.treeReset) { delete W.treeReset; setTimeout(() => toast('Новое древо умений: все очки возвращены — распределите их в окне умений', '', '#e8c04a', 'skills'), 2500); }     // переход на древо (2026-10-20)     // «Путь пепла» (шаг 13): старому сохранению — по уже сделанному
 let saveFailT = -1e9;     // ошибка записи (кончилось место): сообщаем не чаще раза в минуту
 const saver = BENCH ? createSaver(W, memStore) : createSaver(W, globalThis.localStorage, { onFail: () => { const t = performance.now(); if (t - saveFailT > 60000) { saveFailT = t; toast('Не удалось сохранить: в браузере мало места. Меню → Сохранение → «Сохранить в файл»', 'bad', '#ff8a6a', 'warn'); } } });
 
@@ -131,7 +133,7 @@ let panelOpen = false, landscape = false;
 $('heroCancel').addEventListener('click', closeHeroPick);
 $('heroSwitch').addEventListener('click', () => { $('tweakClose').click(); openHeroPick(true); });
 // кнопки умений: видны только вкачанные; на кнопке значок, номер клавиши (на компьютере) и заливка перезарядки
-const abilBtns = [0, 1, 2, 3, 4].map(i => {
+const abilBtns = [0, 1, 2, 3, 4, 5].map(i => {
   const b = document.createElement('button'); b.type = 'button'; b.className = 'ab'; b.dataset.i = i; b.hidden = true;
   b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); b.classList.add('on'); input.ability(i + 1); });
   for (const t of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(t, () => b.classList.remove('on'));
@@ -139,7 +141,7 @@ const abilBtns = [0, 1, 2, 3, 4].map(i => {
 });
 // умение оружия (клеймёное, золотое): ячейка «F» после пяти умений на компьютере, отдельная кнопка над «Перекатом» на телефоне
 const wBtn = document.createElement('button'); wBtn.type = 'button'; wBtn.className = 'ab wsk'; wBtn.dataset.i = 5; wBtn.hidden = true;
-wBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); wBtn.classList.add('on'); input.ability(6); });
+wBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); wBtn.classList.add('on'); input.ability(7); });
 for (const t of ['pointerup', 'pointercancel', 'pointerleave']) wBtn.addEventListener(t, () => wBtn.classList.remove('on'));
 $('abil').append(wBtn);
 let wKey = '';
@@ -167,7 +169,7 @@ function drawAbil() {
   if (key === abilKey) return; abilKey = key;
   // ячейки панели (выбор — в окне «Навыки»): на компьютере 5 ячеек, как в Minecraft (пустые видны); на телефоне — только занятые, у кнопки удара
   abilBtns.forEach((b, i) => { const a = v[i], show = (!!a || desk) && !panelOpen && !landscape && !W.player.dead; if (b.hidden === show) b.hidden = !show; if (!show) return;
-    const tag = a ? a.id + a.rank : 'empty'; if (b.dataset.id !== tag) { b.dataset.id = tag; b.textContent = a ? a.icon : ''; const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k);
+    const tag = a ? a.id + a.rank : 'empty'; if (b.dataset.id !== tag) { b.dataset.id = tag; b.textContent = ''; if (a) { const g = GI['n:' + a.id]; if (g) b.insertAdjacentHTML('beforeend', `<svg class="abgi" viewBox="0 0 512 512" aria-hidden="true"><path d="${g}"/></svg>`); else b.textContent = a.icon; } const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k);
       if (a) { const c = document.createElement('span'); c.className = 'c'; c.textContent = a.cost; b.append(c); } else if (next) { const l = document.createElement('span'); l.className = 'lv'; l.textContent = 'ур. ' + next.lv; b.append(l); }
       b.setAttribute('aria-label', a ? `${a.name} (${i + 1}), цена ${a.cost}` : 'Пустая ячейка: умение ставится в окне «Навыки»'); b.title = a ? `${a.name} · клавиша ${i + 1} · цена ${a.cost}` : 'Пусто: поставьте умение в окне «Навыки» → «Умения»'; }
     b.classList.toggle('empty', !a); b.classList.toggle('poor', !!a && !a.enough); { const c = a && cr.find(q => q.id === a.id); b.classList.toggle('combo', !!c); if (c) b.dataset.combo = c.combo.name; else delete b.dataset.combo; } if (!a) { b.style.setProperty('--cd', 0); return; }

@@ -2,7 +2,7 @@
 export function createInput(doc, win) {
   const $ = id => doc.getElementById(id);
   const zone = $('zone'), stick = $('stick'), knob = $('knob'), bAtk = $('bAtk'), bRoll = $('bRoll');
-  const S = { mx: 0, mz: 0, attackBtn: false, mouseAtk: false, rollQ: false, atkQ: false, abilQ: 0 };     // abilQ — номер умения 1–5, ждёт чтения       // atkQ — нажатие удара, ждёт чтения
+  const S = { mx: 0, mz: 0, attackBtn: false, mouseAtk: false, rollQ: false, atkQ: false, abilQ: 0 };     // abilQ — номер ячейки 1–6 (7 — умение оружия), ждёт чтения       // atkQ — нажатие удара, ждёт чтения
   const keys = new Set();
   const R = 56;                       // радиус хода джойстика, px
   let pid = null, ox = 0, oy = 0;
@@ -33,7 +33,7 @@ export function createInput(doc, win) {
   // физические клавиши (e.code): WASD работает и на русской раскладке
   const KM = { KeyW: 'u', ArrowUp: 'u', KeyS: 'd', ArrowDown: 'd', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r', Space: 'atk', KeyJ: 'atk', KeyK: 'roll', ShiftLeft: 'roll', ShiftRight: 'roll', KeyL: 'roll' };
   const code = e => KM[e.code] || (e.key === ' ' ? 'atk' : null);
-  win.addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey) return; if (!e.repeat && /^Digit[1-5]$/.test(e.code)) S.abilQ = +e.code[5]; if (!e.repeat && e.code === 'KeyF') S.abilQ = 6; const k = code(e); if (!k) return; if (k === 'roll') { if (!keys.has('roll')) S.rollQ = true; } if (k === 'atk' && !keys.has('atk')) S.atkQ = true; keys.add(k); if (k === 'atk' || e.code.startsWith('Arrow')) e.preventDefault(); });     // F — умение оружия
+  win.addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey) return; if (!e.repeat && /^Digit[1-6]$/.test(e.code)) S.abilQ = +e.code[5]; if (!e.repeat && e.code === 'KeyF') S.abilQ = 7; const k = code(e); if (!k) return; if (k === 'roll') { if (!keys.has('roll')) S.rollQ = true; } if (k === 'atk' && !keys.has('atk')) S.atkQ = true; keys.add(k); if (k === 'atk' || e.code.startsWith('Arrow')) e.preventDefault(); });     // F — умение оружия
   win.addEventListener('keyup', e => { const k = code(e); if (k) keys.delete(k); });
   // мышь (компьютер): левая кнопка по полю — удар (держать — серия), правая — перекат
   const gl = $('gl');

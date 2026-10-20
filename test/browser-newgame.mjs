@@ -16,7 +16,7 @@ const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html`;
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage(); page.setDefaultTimeout(20000);
   page.on('pageerror', e => bad('pageerror: ' + e.message));
-  await page.goto(url); await page.waitForFunction(() => window.__b3d && window.__b3d.W);
+  await page.goto(url, { timeout: 30000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W);
   if (!(await page.evaluate(() => !document.getElementById('heroPick').hidden))) bad('первый запуск: нет выбора героя');
   await page.locator('#heroCards button').first().click(); await page.waitForFunction(() => document.getElementById('heroPick').hidden);
   for (let k = 0; k < 20 && !(await page.evaluate(() => document.getElementById('dialog').hidden)); k++) { await page.keyboard.press('Escape'); await page.waitForTimeout(100); }

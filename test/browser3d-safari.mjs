@@ -23,7 +23,7 @@ const runs = pg => pg.evaluate(async () => { const t0 = window.__b3d.W.t; await 
 try {
   // ---- Мак (Safari) ----
   { const ctx = await browser.newContext({ viewport: { width: 1440, height: 780 }, deviceScaleFactor: 2 }), pg = await ctx.newPage(); watch(pg);
-    await pg.goto(url + '?shot'); await pg.waitForTimeout(1500);
+    await pg.goto(url + '?shot', { timeout: 30000 }); await pg.waitForTimeout(1500);
     if (!(await pg.evaluate(() => !document.getElementById('heroPick').hidden))) bad('Мак: нет выбора героя при новой игре');
     await pg.keyboard.press('Digit3'); await pg.waitForFunction(() => window.__b3d.W.hero === 'jay', null, { timeout: 4000 }).catch(() => bad('Мак: 3 не выбрала Сойку'));
     if (!(await runs(pg))) bad('Мак: игра стоит');
@@ -67,7 +67,7 @@ try {
     await ctx.close(); }
   // ---- iPhone (Safari) ----
   { const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), pg = await ctx.newPage(); watch(pg);
-    await pg.goto(url + '?shot'); await pg.waitForTimeout(1500);
+    await pg.goto(url + '?shot', { timeout: 30000 }); await pg.waitForTimeout(1500);
     const wide = await pg.evaluate(() => [...document.querySelectorAll('.hcard')].every(c => { const r = c.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }));
     if (!wide) bad('iPhone: карточки героев шире экрана');
     await pg.locator('.hcard[data-hero="vale"] button').tap();

@@ -25,7 +25,7 @@ async function open(ctx, label, logs) {
   const page = await ctx.newPage(); page.setDefaultTimeout(8000);
   page.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push(label + ' ' + m.type() + ': ' + m.text()); });
   page.on('pageerror', e => logs.push(label + ' pageerror: ' + e.message));
-  await page.goto(url); await page.waitForSelector('#go');
+  await page.goto(url, { timeout: 30000 }); await page.waitForSelector('#go');
   return page;
 }
 const st = page => page.evaluate(() => { const B = window.__berserk, P = B.P; return { lv: P.lv, ash: P.ash, sp: P.sp, skills: JSON.stringify(P.skills), bag: P.bag.map(i => i.id + ':' + i.up).join(), weapon: P.eq.weapon ? P.eq.weapon.id + ':' + P.eq.weapon.up : '-', quests: JSON.stringify(P.quests), cycle: B.W.cycle }; });
