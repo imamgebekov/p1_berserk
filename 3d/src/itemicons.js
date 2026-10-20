@@ -2,6 +2,7 @@
 // '.' — пусто, b — контур, a — основной цвет (материал), d — блик, e — тень основного, c — дерево/кожа, r — цвет редкости (камни, акценты), w — бумага/белое.
 // iconGrid — чистые данные (тестируется в Node); iconURL рисует на холсте и кэширует (только браузер).
 import { RARITY } from './data/items.js';
+import { GI } from './data/gicons.js';     // значки game-icons.net (CC BY 3.0) — 2026-10-20, просьба владельца
 
 export const TEMPLATES = {
   sword: [
@@ -128,10 +129,29 @@ export function iconGrid(it) {
   return T.map(row => [...row].map(ch => (ch === '.' ? null : P[ch])));
 }
 
+// ключ значка game-icons по вещи: оружие и броня — по виду, остальное — по пулу
+export function giKeyOf(it) {
+  if (!it) return null;
+  if (it.slot === 'weapon') return 'w:' + (it.kind || 'sword');
+  if (it.slot === 'offhand') return 'offhand:shield';
+  if (it.slot) return it.slot + ':' + (it.kind || it.slot);
+  if (it.pool === 'material' && /ore/.test(it.id)) return 'p:ore';
+  if (it.pool === 'food' && /meat|ham|jerky/.test(it.id)) return 'p:meat';
+  return 'p:' + (it.pool || it.cat);
+}
+const giPath = new Map(), pathOf = d => { let p = giPath.get(d); if (!p) { p = new Path2D(d); giPath.set(d, p); } return p; };
+// силуэт game-icons: обводка контуром, заливка по материалу сверху вниз (блик → основной → тень)
+function giDraw(doc, d, P, dark) {
+  const S = 64, cv = doc.createElement('canvas'); cv.width = cv.height = S; const ctx = cv.getContext('2d'), p = pathOf(d);
+  ctx.scale(S / 512, S / 512); ctx.lineJoin = 'round'; ctx.lineWidth = 26; ctx.strokeStyle = dark ? '#0c0806' : P.b; ctx.stroke(p);
+  if (dark) ctx.fillStyle = '#3a2c28'; else { const g = ctx.createLinearGradient(0, 0, 0, 512); g.addColorStop(0, P.d); g.addColorStop(.5, P.a); g.addColorStop(1, P.e); ctx.fillStyle = g; }
+  ctx.fill(p); return cv.toDataURL('image/png');
+}
 const cache = new Map();
 export function iconURL(doc, it) {
-  const P = paletteOf(it), key = templateOf(it) + JSON.stringify(P);
+  const P = paletteOf(it), gk = giKeyOf(it), gd = gk && GI[gk], key = (gd ? 'gi:' + gk : templateOf(it)) + JSON.stringify(P);
   if (cache.has(key)) return cache.get(key);
+  if (gd && typeof Path2D !== 'undefined') { const url = giDraw(doc, gd, P, false); cache.set(key, url); return url; }
   const cv = doc.createElement('canvas'); cv.width = cv.height = 16;
   const ctx = cv.getContext('2d'), g = iconGrid(it);
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) if (g[y][x]) { ctx.fillStyle = g[y][x]; ctx.fillRect(x, y, 1, 1); }
@@ -140,6 +160,7 @@ export function iconURL(doc, it) {
 // силуэт пустого слота (тёмный)
 export function slotIconURL(doc, slot) {
   const key = 'slot:' + slot; if (cache.has(key)) return cache.get(key);
+  { const gd = GI[slot === 'weapon' ? 'w:sword' : slot === 'offhand' ? 'offhand:shield' : slot + ':' + ({ head: 'helm', body: 'cuirass', cloak: 'cloak', boots: 'boots', ring: 'ring', amulet: 'amulet' }[slot] || slot)]; if (gd && typeof Path2D !== 'undefined') { const url = giDraw(doc, gd, null, true); cache.set(key, url); return url; } }
   const t = slot === 'weapon' ? 'sword' : slot, T = TEMPLATES[t] || TEMPLATES.gem;
   const cv = doc.createElement('canvas'); cv.width = cv.height = 16; const ctx = cv.getContext('2d'); ctx.fillStyle = '#3a2c28';
   T.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') ctx.fillRect(x, y, 1, 1); }));

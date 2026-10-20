@@ -1,0 +1,23 @@
+{
+  "w:dagger": "lorc/plain-dagger", "w:knife": "lorc/curvy-knife", "w:sickle": "delapouite/sickle", "w:rapier": "lorc/broad-dagger", "w:sword": "lorc/broadsword",
+  "w:axe": "delapouite/sharp-axe", "w:pick": "delapouite/war-pick", "w:mace": "delapouite/flanged-mace", "w:club": "delapouite/wood-club", "w:spear": "lorc/barbed-spear",
+  "w:flail": "delapouite/flail", "w:scythe": "lorc/scythe", "w:halberd": "lorc/halberd", "w:war_axe": "delapouite/war-axe", "w:hammer": "delapouite/thor-hammer",
+  "w:greatsword": "delapouite/two-handed-sword", "w:chain_ball": "lorc/spiked-mace", "w:bow": "delapouite/bow-arrow", "w:longbow": "lorc/pocket-bow", "w:crossbow": "carl-olsen/crossbow",
+  "w:staff": "lorc/wizard-staff", "w:wand": "lorc/crystal-wand", "w:fists": "lorc/fist",
+  "offhand:shield": "delapouite/viking-shield",
+  "head:helm": "lorc/heavy-helm", "head:hood": "lorc/hood", "head:cap": "delapouite/phrygian-cap", "head:mask": "delapouite/devil-mask", "head:sallet": "delapouite/light-helm", "head:crown": "delapouite/jewel-crown", "head:set": "delapouite/black-knight-helm",
+  "body:cuirass": "lorc/breastplate", "body:mail": "willdabeast/chain-mail", "body:jerkin": "lorc/leather-vest", "body:robe": "lorc/robe", "body:gambeson": "delapouite/leather-armor", "body:plate": "lorc/scale-mail", "body:set": "lorc/breastplate",
+  "cloak:cloak": "lucasms/cloak", "cloak:cape": "delapouite/cape", "cloak:pelt": "delapouite/fur-shirt", "cloak:shroud": "delapouite/vampire-cape", "cloak:set": "delapouite/cape-armor",
+  "boots:boots": "lorc/leather-boot", "boots:greaves": "delapouite/greaves", "boots:shoes": "delapouite/sandal", "boots:wraps": "delapouite/fur-boot", "boots:set": "delapouite/metal-boot",
+  "ring:ring": "delapouite/diamond-ring", "ring:band": "delapouite/power-ring", "ring:signet": "lorc/skull-signet",
+  "amulet:amulet": "lorc/gem-pendant", "amulet:charm": "lorc/charm", "amulet:talisman": "delapouite/tribal-pendant", "amulet:pendant": "delapouite/emerald-necklace",
+  "p:food": "delapouite/bread", "p:potion": "delapouite/health-potion", "p:fairy": "delapouite/magic-potion", "p:medic": "lorc/bandage-roll", "p:coin": "delapouite/two-coins",
+  "p:material": "lorc/metal-bar", "p:craftmat": "faithtoken/ore", "p:monstermat": "delapouite/animal-hide", "p:trophy": "skoll/fangs", "p:gem": "lorc/cut-diamond",
+  "p:tome": "delapouite/spell-book", "p:bosstome": "willdabeast/black-book", "p:book": "lorc/open-book", "p:curio": "lorc/crystal-shine", "p:key": "delapouite/boss-key",
+  "p:meat": "lorc/meat", "p:ore": "faithtoken/ore", "p:gold": "willdabeast/gold-bar",
+  "ui:bag": "delapouite/backpack", "ui:skills": "lorc/book-aura", "ui:gear": "lorc/cog", "ui:scroll": "lorc/scroll-unfurled", "ui:book": "lorc/open-book", "ui:fire": "lorc/campfire",
+  "ui:moon": "lorc/moon", "ui:sun": "badges/sun", "ui:sleep": "delapouite/night-sleep", "ui:gem": "lorc/cut-diamond", "ui:key": "delapouite/boss-key", "ui:horn": "lorc/hunting-horn",
+  "ui:rain": "lorc/heavy-rain", "ui:shop": "delapouite/shop", "ui:sparkle": "delapouite/sparkles", "ui:bell": "lorc/ringing-bell", "ui:warn": "lorc/hazard-sign", "ui:hint": "lorc/light-bulb",
+  "ui:sound": "delapouite/speaker", "ui:mute": "delapouite/speaker-off", "ui:swap": "lorc/swap-bag", "ui:phone": "delapouite/phone", "ui:timer": "lorc/heavy-timer", "ui:eye": "delapouite/all-seeing-eye",
+  "ui:question": "badges/question", "ui:map": "lorc/treasure-map", "ui:anvil": "lorc/anvil"
+}

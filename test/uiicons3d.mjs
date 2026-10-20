@@ -11,7 +11,7 @@ const src = p => readFileSync(new URL('../3d/' + p, import.meta.url), 'utf8');
 for (const [n, I] of Object.entries(ICONS)) {
   ok(/^[MmLlHhVvCcSsQqTtAaZz0-9.,\s-]+$/.test(I.d) && /^M/.test(I.d), 'путь иконки ' + n + ' не SVG');
   const nums = I.d.match(/-?\d*\.?\d+/g) || []; ok(nums.length > 4 && nums.every(v => Number.isFinite(+v)), 'числа в иконке ' + n);
-  ok(icon(n).includes('viewBox="0 0 24 24"') && icon(n).includes('aria-hidden="true"'), 'иконка ' + n + ' без viewBox или aria-hidden');
+  ok(/viewBox="0 0 (24 24|512 512)"/.test(icon(n)) && icon(n).includes('aria-hidden="true"'), 'иконка ' + n + ' без viewBox или aria-hidden');
 }
 const html = src('index.html'), main = src('src/main.js');
 for (const n of new Set([...html.matchAll(/data-icon="(\w+)"/g)].map(m => m[1]).concat([...main.matchAll(/setIconText\([^,]+,\s*'(\w+)'/g)].map(m => m[1])))) ok(ICONS[n], 'нет иконки ' + n);

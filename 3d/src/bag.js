@@ -31,7 +31,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
 
   // сводка героя: пары «название — значение» (шаг «сумка как в MMO»)
   function stats() {
-    const g = W.gear, P = cfg.player, p = W.player, rows = [['Уровень', W.lv], ['Урон', Math.round(P.attackDamage + g.dmg)], ['Броня', g.armor], ['Здоровье', `${Math.ceil(p.hp)}/${p.maxhp}`], ['Крит', Math.round(12 + g.crit) + '%']];
+    const g = W.gear, P = cfg.player, p = W.player, rows = [['Уровень', W.lv], ['Урон', Math.round(P.attackDamage + g.dmg)], ['Броня', g.armor], ['Здоровье', `${Math.ceil(p.hp)}/${Math.round(p.maxhp)}`], ['Крит', Math.round(12 + g.crit) + '%']];
     if (g.spd) rows.push(['Скорость', (g.spd > 0 ? '+' : '') + g.spd + '%']);
     if (g.leech) rows.push(['Вампиризм', g.leech + '%']);
     if (g.luck) rows.push(['Удача', g.luck]);

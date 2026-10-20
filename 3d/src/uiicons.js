@@ -1,5 +1,6 @@
 // Иконки интерфейса (шаг 10 аудита): однотонные силуэты на встроенном SVG — чёткие на любом экране, цвет берётся от текста
 // (currentColor), без файлов и эмодзи. icon(name) — разметка, setIconText(el, name, text) — иконка и подпись в кнопке.
+import { GI } from './data/gicons.js';     // значки game-icons.net вместо самодельных, где нашёлся подходящий
 
 // круг радиуса r в точке (x, y) как часть пути (для дыр — с правилом evenodd)
 const circ = (x, y, r) => `M${x - r} ${y}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0z`;
@@ -43,7 +44,8 @@ export const ICONS = {
   lv: { d: 'M12 2.5l3 5.5 6 1-4.3 4.4 1 6.1L12 16.6l-5.7 2.9 1-6.1L3 9l6-1z' },
   question: { d: circ(12, 12, 9.5) + 'M9 9.2a3 3 0 1 1 4.2 2.7c-.8.4-1.2.9-1.2 1.8v.6H10.4v-.7c0-1.6.8-2.5 1.9-3.1a1.3 1.3 0 1 0-1.7-1.3zm1.4 7.1H12v1.8h-1.6z', e: 1 }
 };
-const svg = name => { const I = ICONS[name]; if (!I) return ''; return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" data-ic="${name}"><path${I.e ? ' fill-rule="evenodd"' : ''} d="${I.d}"/></svg>`; };
+const svg = name => { const g = GI['ui:' + name]; if (g) return `<svg class="ic" viewBox="0 0 512 512" aria-hidden="true" data-ic="${name}"><path d="${g}"/></svg>`;     // game-icons.net (CC BY 3.0)
+  const I = ICONS[name]; if (!I) return ''; return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" data-ic="${name}"><path${I.e ? ' fill-rule="evenodd"' : ''} d="${I.d}"/></svg>`; };
 export const icon = svg;
 
 const tpl = new Map();
