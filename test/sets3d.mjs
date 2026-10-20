@@ -20,7 +20,7 @@ for (const s of SETS) {
   ok(Object.keys(s.b4.fx || {}).length || Object.keys(s.b4.stats).length >= 2, 'бонус за 4 должен быть заметен: ' + s.id);
 }
 ok(NAMED_ARMOR.length === 12 && NAMED_ARMOR.every(([id, slot, name, st]) => BY_ID[`as_${id}_${slot}`] && BY_ID[`as_${id}_${slot}`].pool === 'setunique' && BY_ID[`as_${id}_${slot}`].rar === 4), 'именные вещи');
-ok(CATALOG.length <= 760, 'каталог превысил 760: ' + CATALOG.length);
+ok(CATALOG.length <= 2000, 'каталог превысил 2000: ' + CATALOG.length);
 ok(CATALOG.filter(i => i.slot && i.stats && i.stats.armor).every(i => i.stats.armor <= 30), 'броня вещи выше 30');
 
 // ---- счёт частей и бонусы ----

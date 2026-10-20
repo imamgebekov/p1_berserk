@@ -25,7 +25,7 @@ import { inCliff } from './cliffs3d.js';
 import { firesOf, discoverFires } from './fires3d.js';
 import { addFires } from './map.js';
 import { BY_ID, CATALOG } from './data/items.js';
-import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem } from './data/loot.js';
+import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem, chestGold } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
 import { SETS } from './data/sets3d.js';
 import { initBoss, updateBoss, tickBossZones } from './boss3d.js';
@@ -351,7 +351,7 @@ function dropLoot(W, e) {
   if (e.noLoot || e.duel) return;     // сюжетные: поединок без добычи
   const depth = clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1);
   const rolls = e.elite ? W.cfg.elite.lootRolls : 1;
-  for (let r = 0; r < rolls; r++) for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck + (e.elite ? W.cfg.elite.luck : 0), W.cfg.drops.brandK)) {
+  for (let r = 0; r < rolls; r++) for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck + (e.elite ? W.cfg.elite.luck : 0), W.cfg.drops.brandK, W.cfg.loot && W.cfg.loot.on ? { lvl: e.lvl, L: W.cfg.loot } : null, W.cfg.drops)) {
     const a = W.rng() * TAU;
     W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * .7, z: e.z + Math.cos(a) * .7, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: ilRoll(W, e.lvl, e.id + r) } : {}) });
     W.ev.push({ k: 'drop', x: e.x, z: e.z, id: it.id });
@@ -809,8 +809,10 @@ const P_RADIUS = W => W.cfg.player.radius;
 function refill(W, c) {
   const def = CONTAINERS[c.kind], depth = Math.min(1, depthAt(W, c.x, c.z));     // добыча — не выше глубины 1 и в большом мире
   const pl = placeAt(W.map, c.x, c.z);
-  c.items = rollLoot(def, W.rng, depth, W.gear.luck, pl && pl.danger ? pl.danger * W.cfg.enemies.dangerLoot : 0);
-  { const lv = Math.round(levelAt(W, c.x, c.z)); for (const it of c.items) if (BY_ID[it.id].slot) it.il = ilRoll(W, lv, c.x * 7 + c.z); }     // уровень вещи — по месту (этап 0)
+  const lvl0 = levelAt(W, c.x, c.z), G = W.cfg.loot;
+  c.items = rollLoot(def, W.rng, depth, W.gear.luck, pl && pl.danger ? pl.danger * W.cfg.enemies.dangerLoot : 0, 1, G && G.on ? { lvl: lvl0, L: G } : null);
+  { const g = chestGold(G, c.kind, lvl0, Math.round(c.x * 31 + c.z * 17), W.t | 0); if (g) c.items.push({ id: g, n: 1 }); }     // золото: 2–3% с сундука в сложных краях (свой хеш — бой не сдвигается)
+  { const lv = Math.round(lvl0); for (const it of c.items) if (BY_ID[it.id].slot) it.il = ilRoll(W, lv, c.x * 7 + c.z); }     // уровень вещи — по месту (этап 0)
   c.ready = c.items.length > 0; c.t = 0;
   c.locked = !!def.locked; c.keyTier = def.locked ? (depth < .3 ? 1 : depth < .6 ? 2 : 3) : 0;
 }

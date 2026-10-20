@@ -56,7 +56,11 @@ export const DROPS = {
 
 // базовые веса редкости: сдвиг растёт с качеством, глубиной (дальше от костра) и удачей
 const BASE = [58, 27, 10, 4, 1];
-export function rarityWeights(q, depth, luck) {
+// по уровню места (2026-10-20, просьба владельца): в лёгких краях — простое и редко хорошее, в сложных — хорошее;
+// lq = { lvl, L: cfg.loot } (null — прежний расчёт по глубине)
+export function rarityWeights(q, depth, luck, lq = null) {
+  const L = lq && lq.L, lvl = lq && lq.lvl;
+  if (L && lvl != null) { const d = Math.max(0, Math.min(1, (lvl - 1) / 59)), shift = q * L.q + d * L.lv + luck * .03; return L.base.map((w, r) => w * Math.exp(shift * r)); }
   const shift = q * .45 + depth * .7 + luck * .03;
   return BASE.map((w, r) => w * Math.exp(shift * r));
 }
@@ -70,8 +74,8 @@ export function pickItem(pool, rar, rng) {
 }
 
 // бросок добычи: [{id, n}]
-export function rollLoot(def, rng, depth = 0, luck = 0, extraQ = 0, brandK = 1) {
-  const [a, b] = def.slots, slots = a + ((rng() * (b - a + 1)) | 0), out = [], w = rarityWeights(def.q + extraQ, depth, luck); w[4] *= brandK;     // brandK — доля оранжевых (с врагов их меньше)
+export function rollLoot(def, rng, depth = 0, luck = 0, extraQ = 0, brandK = 1, lq = null, slotsMax = 99) {     // lq — уровень места и cfg.loot (добыча по сложности края)
+  const [a, b] = def.slots, slots = Math.min(slotsMax, a + ((rng() * (b - a + 1)) | 0)), out = [], w = rarityWeights(def.q + extraQ, depth, luck, lq); w[4] *= brandK;     // brandK — доля оранжевых (с врагов их меньше)
   for (let i = 0; i < slots; i++) {
     const pool = pickW(def.pools.filter(p => p[1] > 0 && BY_POOL[p[0]]), rng)[0];
     let rar = pickW(w.map((x, r) => [r, x]), rng)[0];
@@ -83,7 +87,14 @@ export function rollLoot(def, rng, depth = 0, luck = 0, extraQ = 0, brandK = 1) 
   }
   return out;
 }
-export function rollDrop(kind, rng, depth = 0, luck = 0, brandK = 1) {
-  const d = DROPS[kind]; if (!d || rng() > d.chance) return [];
-  return rollLoot(d, rng, depth, luck, 0, brandK);
+// золото в сундуке (2026-10-20): шанс по уровню края (cfg.loot.gold), только сундуки goldKinds; свой хеш от места и времени — без W.rng
+const hash01i = (a, b) => { let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35); h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12; return (h >>> 0) / 4294967296; };
+export function chestGold(L, kind, lvl, a, b) {
+  if (!L || !L.on || !L.goldKinds.includes(kind)) return null;
+  const ch = L.gold.reduce((s, [lv, c]) => (lvl >= lv ? c : s), 0), G = BY_POOL.gold ? BY_POOL.gold.flat() : [];
+  return ch > 0 && G.length && hash01i(a, b) < ch ? G[Math.floor(hash01i(a + 7919, b + 1) * G.length)].id : null;
+}
+export function rollDrop(kind, rng, depth = 0, luck = 0, brandK = 1, lq = null, D = null) {     // D — cfg.drops: chanceK (меньше добычи), slots (не больше вещей)
+  const d = DROPS[kind]; if (!d || rng() > d.chance * (D && D.chanceK != null ? D.chanceK : 1)) return [];
+  return rollLoot(d, rng, depth, luck, 0, brandK, lq, D && D.slots ? D.slots : 99);
 }

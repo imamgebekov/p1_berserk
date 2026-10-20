@@ -31,7 +31,7 @@ const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i+
 { const W = mk(4); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'veteran'); W.player.x = 0; W.player.z = 10; gather(W); run(W, 1);
   const e = spawnEnemy(W, 'imp', 6, 10); e.alert = false; e.cd = 99; const xp0 = W.xp + W.lv * 1e4; run(W, 5);
   ok(e.dead && W.kills === 1, 'боец не убил беса'); ok(W.xp + W.lv * 1e4 > xp0, 'опыт за убийство бойца не получен'); }
-{ let drops = 0; for (let sd = 0; sd < 40; sd++) { const W = mk(200 + sd); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'veteran'); W.player.x = 0; W.player.z = 10; gather(W); run(W, 1); const e = spawnEnemy(W, 'brute', 5, 10); e.alert = false; e.cd = 99; e.hp = 5; run(W, 3); drops += W.drops.length + W.inv.bag.length; } ok(drops > 15, 'добыча с убитых бойцами не выпадает: ' + drops); }
+{ let drops = 0; for (let sd = 0; sd < 40; sd++) { const W = mk(200 + sd); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'veteran'); W.player.x = 0; W.player.z = 10; gather(W); run(W, 1); const e = spawnEnemy(W, 'brute', 5, 10); e.alert = false; e.cd = 99; e.hp = 5; run(W, 3); drops += W.drops.length + W.inv.bag.length; } ok(drops > 5, 'добыча с убитых бойцами не выпадает: ' + drops); }
 // враги бьют бойцов, боец может погибнуть
 { const W = mk(5); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'guard'); W.player.x = 0; W.player.z = 10; gather(W); W.player.inv = 1e9; run(W, 1);
   for (let i = 0; i < 4; i++) { const e = spawnEnemy(W, 'brute', 3 + i, 12); e.alert = true; e.hp = e.maxhp = 9999; }

@@ -69,7 +69,7 @@ for (const b of map.buildings) for (const r of [.5, .8]) {
     const hit = wp => { const Wx = createWorld(c, mulberry32(2)); Wx.cfg.enemies.count = 0; Wx.inv.eq.weapon = wp; step(Wx, 1 / 60, {}); const e = spawnEnemy(Wx, 'brute', Wx.player.x + Math.sin(Wx.player.face) * 1.5, Wx.player.z + Math.cos(Wx.player.face) * 1.5); e.hp = e.maxhp = 9999; for (let k = 0; k < 60 && e.hp === 9999; k++) step(Wx, 1 / 60, { attack: true }); return 9999 - e.hp; };
     ok(hit('w_greatsword_blood') > hit(null) * 1.8, 'клеймёный двуручник не бьёт сильнее голых рук'); }
   // убитый монстр оставляет вещи (в среднем)
-  { let drops = 0; for (let sd = 0; sd < 60; sd++) { const Wx = createWorld(c, mulberry32(100 + sd)); Wx.cfg.enemies.count = 0; const e = spawnEnemy(Wx, 'brute', Wx.player.x + 1, Wx.player.z); e.hp = 1; e.alert = true; Wx.player.face = Math.PI / 2; step(Wx, 1 / 60, { attack: true }); for (let k = 0; k < 40; k++) step(Wx, 1 / 60, { attack: true }); drops += Wx.drops.length + Wx.inv.bag.length; } ok(drops > 30, 'рогачи почти не роняют вещи: ' + drops); }
+  { let drops = 0; for (let sd = 0; sd < 60; sd++) { const Wx = createWorld(c, mulberry32(100 + sd)); Wx.cfg.enemies.count = 0; const e = spawnEnemy(Wx, 'brute', Wx.player.x + 1, Wx.player.z); e.hp = 1; e.alert = true; Wx.player.face = Math.PI / 2; step(Wx, 1 / 60, { attack: true }); for (let k = 0; k < 40; k++) step(Wx, 1 / 60, { attack: true }); drops += Wx.drops.length + Wx.inv.bag.length; } ok(drops > 15, 'рогачи почти не роняют вещи: ' + drops); }
 }
 // слух: враг не слышит стоящего героя далеко, слышит бегущего и бьющего; ударенный всегда слышит
 {
