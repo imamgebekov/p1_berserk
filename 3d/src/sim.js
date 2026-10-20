@@ -32,6 +32,9 @@ import { initBoss, updateBoss, tickBossZones } from './boss3d.js';
 import { storyFresh, storyTick, storyKill, storyBoss, storyActors, duelGuard, brandTick } from './story3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent, questTick } from './quests3d.js';
+import { achFresh, achEvents, achTick } from './achieve3d.js';
+import { abyssTick } from './abyss3d.js';
+import { ngMul } from './ng3d.js';
 import { lightOf, isNight } from './daynight.js';
 import { rollElite, makeChief, eliteOnHit, eliteOnDeath, eliteTick, hasAff, affOf, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned, rainK } from './status3d.js';
@@ -97,7 +100,7 @@ function attachFx(W) {
 function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
-    cfg, rng, map: withLife(addFires(makeMap(cfg), cfg, firesOf), cfg), life: lifeFresh(), story: cfg.story && cfg.story.on ? storyFresh() : null, fires: {}, gfx: {}, hero: DEFAULT_HERO, heroes: {}, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, party: { cmd: 'follow', hx: 0, hz: 0, mark: 0, last: 0 }, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
+    cfg, rng, map: withLife(addFires(makeMap(cfg), cfg, firesOf), cfg), life: lifeFresh(), ach: achFresh(), story: cfg.story && cfg.story.on ? storyFresh() : null, fires: {}, gfx: {}, hero: DEFAULT_HERO, heroes: {}, ap: 0, ab: {}, bar: [], acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, party: { cmd: 'follow', hx: 0, hz: 0, mark: 0, last: 0 }, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
     player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
@@ -126,6 +129,7 @@ function withLife(map, cfg) { map.nodes = nodesOf(map, cfg); map.coaches = coach
 export function spawnEnemy(W, type, x, z, mode = null) {
   const C = W.cfg.enemies[type], E = W.cfg.enemies, d0 = depthAt(W, x, z), depth = Math.min(1, d0), lvl = levelAt(W, x, z), grow = 1 + Math.max(0, lvl - W.cfg.level.core) * W.cfg.level.grow, pl = placeAt(W.map, x, z), danger = pl && pl.danger || 0, hp = Math.round(C.hp * (1 + E.depthHp * depth) * grow * (1 + E.dangerHp * danger) * W.dif.hp);     // за ядром — по уровню места (этап 0): ×grow на уровень сверх core
   const e = { id: W.eid++, type, x, z, vx: 0, vz: 0, hp, maxhp: hp, lvl: Math.round(lvl), dmgMul: (1 + E.depthDmg * depth + E.dangerDmg * danger) * grow * W.dif.dmg * (W.night ? W.cfg.daynight.night.dmg : 1), danger, face: 0, state: 'chase', t: 0, cd: rr(W, .2, .9), flash: 0, dead: false, deadT: 0, hitMe: false };
+  if (W.ng) { const G = ngMul(W); e.hp = e.maxhp = Math.round(e.maxhp * G.hp); e.dmgMul *= G.dmg; }     // «Новый круг» (этап 6 «круче»)
   rollElite(W, e, depth, danger);
   if (mode === 'guard' || mode === 'patrol') postEnemy(W, e, mode);
   W.enemies.push(e);
@@ -846,6 +850,7 @@ function updateHouses(W, dt) {
   updateWanderer(W, dt);
   updateEvents(W, dt);
   questTick(W, dt);     // охота, следы, оборона, срок заданий (этап 5 «круче»)
+  abyssTick(W, dt, () => travel(W, SURFACE, W.cfg.abyss.at.x + 2, W.cfg.abyss.at.z));     // «Бездна» (этап 6 «круче»)
   if (W.story) { storyTick(W, dt); const pl = placeAt(W.map, W.player.x, W.player.z); brandTick(W, dt, !!(pl && pl.safe) || (!!W.map.camp && insideCamp(W.map.camp, W.player.x, W.player.z))); }     // сюжет (этап 3); клеймо ночью (этап 7)
   if (W.tomb && (W.tomb.lvl || SURFACE) === W.lvl && !p.dead && len(p.x - W.tomb.x, p.z - W.tomb.z) < 1.6) { W.inv.ash += W.tomb.ash; W.ev.push({ k: 'tomb', ash: W.tomb.ash, x: W.tomb.x, z: W.tomb.z }); W.tomb = null; }
   W.nearPortal = portalNear(W);
@@ -1005,7 +1010,8 @@ export function step(W, dt, input = {}) {
   for (const def of W.cfg.bosses.list) { if (def.level && !W.levels[def.level]) continue; const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def)); }     // боссы живут на своём уровне, даже если герой на другом
   { let hb = null; for (const e of W.enemies) if ((e.boss || e.duel) && !e.dead && (e.alert || e.duel) && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!(e.b && e.b.enraged), id: e.id, shield: !!(e.b && e.b.shield), cast: e.b && e.b.state === 'wind' && e.b.atk && e.b.atk.kind === 'cast' ? { name: e.b.atk.name, k: e.b.atk.t / e.b.atk.wind } : null }; if (e.duel) break; } W.hudBoss = hb; }     // противник поединка — тоже с полосой     // этап 5: щит и чтение на полосе босса
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
-  if (W.life) { repEvents(W, ev0); discoverCoaches(W); }     // репутация по событиям шага, повозки рядом (этап 6)
+  if (W.life) { repEvents(W, ev0); discoverCoaches(W); }
+  achEvents(W); achTick(W, dt);     // достижения (этап 6 «круче»)     // репутация по событиям шага, повозки рядом (этап 6)
   if (W.ev.length > 200) W.ev.splice(0, W.ev.length - 200);     // события забирает рендер; потолок защищает, если никто не забирает
 }
 

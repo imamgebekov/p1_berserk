@@ -6,6 +6,7 @@ import { reveal } from './places3d.js';
 import { mulberry32, spawnEnemy, spawnBoss } from './sim.js';
 import { bossAway } from './boss3d.js';
 import { zoneLevel } from './zones3d.js';
+import { initAbyss, abyssGo } from './abyss3d.js';
 
 export const SURFACE = 'surface';
 export const onSurface = W => W.lvl === SURFACE;
@@ -24,6 +25,7 @@ export function initLevels(W) {
     W.levels[def.id] = { id: def.id, def, map, enemies: [], drops: [], spawnT: 1, rng, ...fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal) };
   });
   W.seenR = cfg.world.radius; W.seenC = cfg.map.cell; W.revR = cfg.map.reveal;
+  initAbyss(W);     // «Бездна» (этап 6 «круче»): ярус 1 и люк у лагеря
 }
 
 function stash(W) { const L = W.levels[W.lvl]; L.enemies = W.enemies; L.drops = W.drops; L.spawnT = W.spawnT; }
@@ -73,7 +75,7 @@ export function portalNear(W) {
   const r = W.cfg.dungeons.reach;
   return W.map.portals.find(q => len(q.x - p.x, q.z - p.z) < r) || null;
 }
-export function portalName(W, q) { return q.up ? (q.to === SURFACE ? 'Подняться' : 'Подняться: ' + W.levels[q.to].def.name) : 'Спуститься: ' + W.levels[q.to].def.name; }
+export function portalName(W, q) { if (q.abyssEnter) return 'Спуститься: Бездна'; if (q.abyssNext) return `Спуститься: ярус ${(W.abyss ? W.abyss.tier : 0) + 1}`; return q.up ? (q.to === SURFACE ? 'Подняться' : 'Подняться: ' + W.levels[q.to].def.name) : 'Спуститься: ' + W.levels[q.to].def.name; }
 
 // уход с уровня: запомнить время; враги подземелья теряют героя
 function leave(W) { const L = W.levels[W.lvl]; L.leftT = W.t; if (L.def) for (const e of W.enemies) e.alert = false; }
@@ -129,7 +131,8 @@ export function setHeroic(W, id, on) {
   withLevel(W, id, () => { W.enemies = W.enemies.filter(e => !e.boss); for (const def of W.cfg.bosses.list) if (def.level === id) { delete W.bossDead[def.type]; spawnBoss(W, def); } });
   return true;
 }
-export function usePortal(W) { const q = portalNear(W); return q ? travel(W, q.to, q.tx, q.tz) : false; }
+export function eclipseGo(W, week) { const q = portalNear(W); return q && q.abyssEnter ? abyssGo(W, q, travel, spawnFoes, week) : false; }     // «Затмение недели» (этап 6 «круче»)
+export function usePortal(W) { const q = portalNear(W); if (q && (q.abyssEnter || q.abyssNext)) return abyssGo(W, q, travel, spawnFoes); return q ? travel(W, q.to, q.tx, q.tz) : false; }
 
 // после смерти герой встаёт у костра: возвращаем его на поверхность
 export function backToSurface(W) { if (W.lvl === SURFACE) return; leave(W); stash(W); load(W, SURFACE); arrive(W); W.inside = -1; }

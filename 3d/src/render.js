@@ -483,7 +483,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   function showLevel(W) {
     const id = W.lvl, L = W.levels[id];
-    if (!views.has(id)) { const v = L.def ? buildLevelView(L, cfg) : buildSurfaceView(L, Y); scene.add(v.group); views.set(id, v); }
+    { const old = views.get(id); if (old && old.map !== L.map) { scene.remove(old.group); old.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); views.delete(id); } }     // новый ярус Бездны — новая карта (этап 6)
+    if (!views.has(id)) { const v = L.def ? buildLevelView(L, cfg) : buildSurfaceView(L, Y); v.map = L.map; scene.add(v.group); views.set(id, v); }
     for (const [k, v] of views) v.group.visible = k === id;
     const up = !L.def; for (const o of surfaceObjs) o.visible = up;
     sun.visible = up; lantern.visible = !up;
@@ -850,11 +851,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       shT.copy(shR).multiplyScalar(a).addScaledVector(shU, b).addScaledVector(sunDir, c);
       sun.target.position.copy(shT); sun.position.copy(shT).addScaledVector(sunDir, SHD.dist); sun.target.updateMatrixWorld();
     }
-    if (W.lvl !== shownLvl) showLevel(W);
+    if (W.lvl !== shownLvl || (views.get(W.lvl) && views.get(W.lvl).map !== W.map)) showLevel(W);
     const under = W.lvl !== 'surface';
     if (!under) { streamLand(cam.x, cam.z); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
     dome.position.set(cam.x, 0, cam.z);                              // небо — вокруг камеры (мир шире купола)
-    if (W.hero !== heroLook) { heroLook = W.hero; hero.setLook(heroOf(W.hero).look); }
+    { const lk = W.hero + ((W.ach && W.ach.cape) || ''); if (lk !== heroLook) { heroLook = lk; const L = heroOf(W.hero).look; hero.setLook(W.ach && W.ach.cape ? { ...L, cape: W.ach.cape } : L); } }     // цвет плаща — награда подвига (этап 6)
     if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : 1, rain: WE.force === 'rain' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
     scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog;     // в дождь туман гуще     // на рассвете туман гуще
     if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }

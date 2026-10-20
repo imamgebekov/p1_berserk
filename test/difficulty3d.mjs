@@ -7,7 +7,7 @@ import { createSaver, loadSave } from '../3d/src/save3d.js';
 import { telegraphDodge } from './botsense.mjs';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const IDS = ['wanderer', 'berserk', 'ashen', 'eclipse'], L = CFG3.difficulty.levels;
-const mk = (dif, seed = 1, f) => { const cfg = JSON.parse(JSON.stringify(CFG3)); if (process.env.BAL_BUF) cfg.player.heavy.buffer = Number(process.env.BAL_BUF); cfg.enemies.count = 0; cfg.map.places = []; cfg.player.autoAim = 0; if (f) f(cfg); const W = createWorld(cfg, mulberry32(seed)); setDifficulty(W, dif); return W; };
+const mk = (dif, seed = 1, f) => { const cfg = JSON.parse(JSON.stringify(CFG3)); if (process.env.BAL_BUF) cfg.player.heavy.buffer = Number(process.env.BAL_BUF); cfg.enemies.count = 0; cfg.ach.on = false; cfg.map.places = []; cfg.player.autoAim = 0; if (f) f(cfg); const W = createWorld(cfg, mulberry32(seed)); setDifficulty(W, dif); return W; };
 const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i++) step(W, 1 / 60, inp); };
 
 // данные

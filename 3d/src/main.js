@@ -13,11 +13,13 @@ import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLines, questMarks, questMark, questsOf } from './quests3d.js';
 import { eventLine, eventAt } from './events3d.js';
+import { abyssLine, weekOf, eclipseMods, eclipseDoneThisWeek, modName } from './abyss3d.js';
+import { ngOpen, startNg } from './ng3d.js';
 import { fireNear, knownFires, fastTravel, travelBlock, sanitizeFires } from './fires3d.js';
 import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
 import { isNight } from './daynight.js';
 import { bagUsed } from './inv.js';
-import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
+import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, eclipseGo, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView, resView, barOf } from './abilities3d.js';
 import { createFeel, unlocksAt } from './feel3d.js';
@@ -81,7 +83,7 @@ const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : 
 const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)
 if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
-if (saved) { W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
+if (saved) { W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (saved.ach) W.ach = saved.ach; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
 W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
 W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);     // «Путь пепла» (шаг 13): старому сохранению — по уже сделанному
 let saveFailT = -1e9;     // ошибка записи (кончилось место): сообщаем не чаще раза в минуту
@@ -250,6 +252,15 @@ function onEvent(v) {
   else if (v.k === 'questaccept') toast('Задание: ' + v.name, 'sys');
   else if (v.k === 'questready') toast('Можно сдать: ' + v.name, '', '#a8e0a0');
   else if (v.k === 'questdone') { toast('Задание выполнено: ' + v.name, '', '#e8c04a'); saver.write(); }
+  else if (v.k === 'ach') { toast(`Подвиг: ${v.name} — ${v.reward}`, '', '#ffd45a', 'sparkle'); sfx('questdone'); saver.write(); }     // достижения (этап 6 «круче»)
+  else if (v.k === 'ngStart') { toast(`Новый круг ${v.n + 1}: сюжет начинается заново, враги сильнее`, '', '#ffb060', 'fire'); sfx('questdone'); }     // этап 6 «круче»
+  else if (v.k === 'eclipseDone') { toast(`Затмение недели пройдено: +${v.ash} пепла`, '', '#ffd45a', 'moon'); sfx('questdone'); saver.write(); }
+  else if (v.k === 'abyssEnter') { toast(`Бездна · ярус ${v.tier}${v.mods.length ? ': ' + v.mods.join(', ') : ''}`, '', '#c8a0ff', 'moon'); sfx('questready'); }     // «Бездна» (этап 6 «круче»)
+  else if (v.k === 'abyssOpen') { toast(`Ярус ${v.tier} зачищен — спуск открыт`, '', '#a8e0a0'); sfx('questdone'); }
+  else if (v.k === 'abyssTier') toast(`Ярус ${v.tier}: +${v.ash} пепла${v.best === v.tier ? ' · рекорд!' : ''}`, '', '#e8c04a', 'ash');
+  else if (v.k === 'abyssClosed') toast(`Спуск закрыт: врагов осталось ${v.n}`, 'sys');
+  else if (v.k === 'abyssLocked') toast(`Бездна откроется с ${v.lv}-го уровня`, 'sys');
+  else if (v.k === 'abyssTime') { toast(`Время вышло: Бездна выбросила вас наверх (ярус ${v.tier})`, '', '#ff8a6a'); saver.write(); }
   else if (v.k === 'questbeast') { toast(`${v.name} здесь!`, '', '#ffb060', 'warn'); sfx('questready'); }     // новые виды заданий (этап 5 «круче»)
   else if (v.k === 'questtrack') { toast(`${v.name}: следы ведут дальше (${v.i + 1}/${v.n})`, '', '#e8c04a', 'scroll'); sfx('questready'); }
   else if (v.k === 'questdefend') toast(`${v.name}: держите место — враги идут`, '', '#ffb060');
@@ -375,7 +386,7 @@ ironBtn.addEventListener('click', () => { if (W.iron) return; if (!ironArmed) { 
 renderDif();
 createTweakPanel(document, cfg, defaults, {
   onChange: t => { if (t && (t.reload || t.path === 'view.pixelScale')) fit(); setVolume(cfg.audio.volume); },
-  onOpen: () => { panelOpen = true; input.release(); renderDif(); $('heroNow').textContent = `${HEROES[W.hero].name} — ${HEROES[W.hero].role.toLowerCase()}. Смена героя сохраняет уровень, пепел, вещи и навыки.`; },
+  onOpen: () => { panelOpen = true; input.release(); renderDif(); { const b = $('ngBtn'); b.hidden = !ngOpen(W); b.dataset.arm = ''; b.textContent = `Новый круг ${(W.ng || 0) + 2}`; } $('heroNow').textContent = `${HEROES[W.hero].name} — ${HEROES[W.hero].role.toLowerCase()}. Смена героя сохраняет уровень, пепел, вещи и навыки.`; },
   onClose: () => { panelOpen = false; }
 });
 // клавиши компьютера (физические, работают на любой раскладке): действие, карта, сумка, навыки, задания, меню
@@ -448,6 +459,9 @@ applyPrefs();
 // панель настройки прототипа и ссылка на 2D — только для разработки (?dev, шаг 4 «Минус»)
 if (!new URLSearchParams(location.search).has('dev')) { $('tweakBox').hidden = true; $('back').hidden = true; }
 // сброс прогресса: удерживать 1,5 с (шаг 4): случайное касание ничего не сотрёт
+// «Новый круг» (этап 6 «круче»): второе нажатие подтверждает
+$('ngBtn').addEventListener('click', e => { const b = e.currentTarget; if (!b.dataset.arm) { b.dataset.arm = '1'; b.textContent = 'Нажмите ещё раз: сюжет и задания заново, враги сильнее'; return; }
+  if (startNg(W)) { b.hidden = true; saver.write(true); } });
 { const btn = $('saveReset'), HOLD = 1500; let t0 = 0, raf = 0;
   const stop = () => { cancelAnimationFrame(raf); t0 = 0; btn.style.setProperty('--k', 0); btn.classList.remove('on'); };
   const tick = () => { if (!t0) return; const k = Math.min(1, (performance.now() - t0) / HOLD); btn.style.setProperty('--k', k); if (k >= 1) { stop(); saver.reset(); location.reload(); return; } raf = requestAnimationFrame(tick); };
@@ -551,7 +565,8 @@ sleepBtn.addEventListener('click', e => {
 }, true);
 $('firesClose').addEventListener('click', closeFires);
 const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const q = W.nearPortal; if (q && !q.up) setHeroic(W, q.to, false); usePortal(W); }, true);     // обычный вход в подземелье снимает героическую
-const heroicBtn = $('heroicBtn'); heroicBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const q = W.nearPortal; if (q && !q.up && isInstance(W, q.to)) { setHeroic(W, q.to, true); usePortal(W); } }, true);     // этап 5
+const heroicBtn = $('heroicBtn'); heroicBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const q = W.nearPortal; if (q && q.abyssEnter) { eclipseGo(W, weekOf(Date.now())); return; }     // «Затмение недели»
+  if (q && !q.up && isInstance(W, q.to)) { setHeroic(W, q.to, true); usePortal(W); } }, true);     // этап 5
 const SHOT = new URLSearchParams(location.search).has('shot');     // режим тестов и снимков: пролог сам не открывается
 // разговор (этап 3): реплики по одной; у реплики-выбора — кнопки ответов; конец — сюжет идёт дальше
 const HAIR = { alaric: '#ece6da', irma: '#2a1a14', timka: '#7a4a24', kord: '#1a1412', masked: '#0a0808', hostess: '#5a3020', captain: '#4a4440', herald: '#6a5030' };
@@ -566,7 +581,7 @@ function dlgFace(who) { const cv = $('dlgFace'); if (who === 'hero') { drawPortr
   drawPortrait(cv, { cape: S.tint, cloth: S.tint, hair: HAIR[who] || '#3a2a1a', capeLen: .8, hood: who === 'masked' }); if (who === 'masked') { const g = cv.getContext('2d'); g.fillStyle = '#d8d0c0'; g.fillRect(5, 3, 6, 4); g.fillStyle = '#000'; g.fillRect(6, 4, 1, 1); g.fillRect(9, 4, 1, 1); } }
 function dlgShow() {
   const L = dlg.lines[dlg.i], opts = $('dlgOpts'); opts.textContent = ''; $('dlgScene').textContent = `Акт ${['I', 'II', 'III', 'IV'][dlg.act - 1] || 'I'} · ` + dlg.scene;     // акт сцены (раньше всегда «Акт I»)
-  const say = (who, text) => { const S = SPEAKERS[who] || SPEAKERS.hostess; $('dlgWho').textContent = S.name; $('dlgWho').style.color = who === 'hero' ? '#e8c04a' : S.tint === '#1c161a' ? '#b0a8b8' : S.tint; $('dlgLine').textContent = text; dlgFace(who); };
+  const say = (who, text) => { const S = SPEAKERS[who] || SPEAKERS.hostess; $('dlgWho').textContent = who === 'hero' && W.ach && W.ach.title ? `${S.name}, ${W.ach.title.toLowerCase()}` : S.name; $('dlgWho').style.color = who === 'hero' ? '#e8c04a' : S.tint === '#1c161a' ? '#b0a8b8' : S.tint; $('dlgLine').textContent = text; dlgFace(who); };
   const btn = (label, fn, main) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; if (main) b.className = 'main'; b.addEventListener('click', fn); opts.append(b); return b; };
   if (Array.isArray(L)) { say(L[0], L[1]); btn(dlg.i < dlg.lines.length - 1 ? 'Далее' + (desk ? ' · E' : '') : 'Закончить' + (desk ? ' · E' : ''), dlgNext, true).focus(); return; }
   say('hero', '…'); L.choose.forEach(([label, reply, eff], k) => btn((desk ? `${k + 1}. ` : '') + label, () => { dlg.lines.splice(dlg.i + 1, 0, reply); const v = eff && storyChoice(W, eff); if (v) toast([v.note, v.ash ? `+${v.ash} пепла` : '', v.item, v.rep ? `+${v.rep} репутации` : ''].filter(Boolean).join(' · '), '', '#e8c04a', 'scroll'); dlgNext(); }, k === 0));     // следствие выбора (этап 5 «круче»)
@@ -702,7 +717,7 @@ function frame(now) {
     const ms = !!(W.life && W.life.mount.owned) && W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mountBtn.hidden === ms) mountBtn.hidden = !ms; if (ms) { const l = (W.life.mount.on ? 'Спешиться' : 'Конь') + (desk ? ' · V' : ''); if (mountBtn.textContent !== l) mountBtn.textContent = l; } }
   if (hud) { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
   if (hud) { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; }
-    const hshow = show && !q.up && isInstance(W, q.to) && heroicOpen(W); if (heroicBtn.hidden === hshow) heroicBtn.hidden = !hshow; if (hshow) { const l = 'Героическая: ' + W.levels[q.to].def.name + (desk ? ' · H' : ''); if (heroicBtn.textContent !== l) heroicBtn.textContent = l; } }
+    const ecl = show && q.abyssEnter && W.lv >= cfg.abyss.lv, wk = weekOf(Date.now()), hshow = ecl || (show && !q.up && isInstance(W, q.to) && heroicOpen(W)); if (heroicBtn.hidden === hshow) heroicBtn.hidden = !hshow; if (hshow) { const l = (ecl ? `Затмение недели: ${eclipseMods(wk).map(modName).join(', ')}${eclipseDoneThisWeek(W, wk) ? ' · пройдено' : ''}` : 'Героическая: ' + W.levels[q.to].def.name) + (desk ? ' · H' : ''); if (heroicBtn.textContent !== l) heroicBtn.textContent = l; } }
   if (hud) { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged + hb.shield + (hb.cast ? hb.cast.name + Math.round(hb.cast.k * 50) : '') : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : '') + (hb.shield ? ' · щит' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); bossEl.classList.toggle('shield', !!hb.shield);
     const bc = $('bossCast'); bc.hidden = !hb.cast; if (hb.cast) { bc.firstChild.style.transform = `scaleX(${Math.min(1, hb.cast.k)})`; bc.lastChild.textContent = `Читает «${hb.cast.name}» — собейте!`; } } } }     // этап 5: чтение и щит на полосе
   { const n = W.combo.n; if (n !== lastCombo) { comboEl.hidden = n < 2; if (n >= 2) { comboEl.innerHTML = `×${n}<small>+${Math.round(Math.min(.3, n * .02) * 100)}%</small>`; comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); } lastCombo = n; } }
@@ -722,10 +737,10 @@ function frame(now) {
     const sg = !sp && W.story ? storyGoal(W) : null;     // сюжет (этап 3) — главнее «Пути пепла»
     const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null };
     // трекер (этап 5 «круче»): главная строка (событие, искра, сюжет, путь) и до трёх заданий; цель на карте не пропадает
-    const surf = W.lvl === 'surface', ev = eventLine(W), main = ev || (sp || sg || pg || !surf ? g.text : ''), ql = trackerLines(W, 3);
+    const surf = W.lvl === 'surface', ev = eventLine(W) || abyssLine(W), main = ev || (sp || sg || pg || !surf ? g.text : ''), ql = trackerLines(W, 3);
     W.qmarks = surf ? questMarks(W, storyActors(W)) : [];
     const tl = [main || (ql.length ? '' : g.text), ...ql].filter(Boolean).join('\n');
-    W.goal = ev ? eventAt(W) : main ? g.at : W.qmarks.length ? W.qmarks[0] : g.at;
+    W.goal = ev && W.event ? eventAt(W) : ev ? null : main ? g.at : W.qmarks.length ? W.qmarks[0] : g.at;
     if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }
@@ -738,7 +753,7 @@ function frame(now) {
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; const k = `scaleX(${Math.max(0, W.player.hp / W.player.maxhp)})`; hpFill.style.transform = k; hpGhost.style.transform = k; hpTxt.textContent = Math.ceil(W.player.hp); }     // след потерянного здоровья догоняет с задержкой (шаг 5)
-  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; hudLv.textContent = `Ур. ${W.lv}`; setIconText(hudAsh, 'ash', String(W.inv.ash)); hudAsh.title = 'Пепел'; setIconText(hudTime, W.night ? 'moon' : 'sun', clockText(W.t, cfg.daynight)); xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
+  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; hudLv.textContent = `Ур. ${W.lv}${W.ng ? ` · круг ${W.ng + 1}` : ''}`; setIconText(hudAsh, 'ash', String(W.inv.ash)); hudAsh.title = 'Пепел'; setIconText(hudTime, W.night ? 'moon' : 'sun', clockText(W.t, cfg.daynight)); xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
 }
 requestAnimationFrame(loop);

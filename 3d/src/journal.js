@@ -11,6 +11,7 @@ import { ELEMENTS, ELEMENT_NAME, ELEMENT_COLOR, MIX_NAME, MIX_TEXT, mixKey } fro
 import { gemSources, gemId } from './stones3d.js';
 import { unlocks } from './ashpath3d.js';
 import { combosOf } from './combos3d.js';
+import { ACH, achProgress, achRewardText, titlesOf, capesOf } from './achieve3d.js';
 import { heroAbilities } from './abilities3d.js';
 
 const TYPES = ['imp', 'brute', 'hound', 'ghoul', 'archer', 'witch', 'devourer', 'lord', 'chief'];
@@ -21,7 +22,7 @@ export function createJournal(doc, W, cfg, { onOpen, onClose, onCraft } = {}) {
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const row = (cls, html) => { const r = el('div', 'jrow ' + (cls || '')); r.innerHTML = html; return r; };
   const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  const TABS = [['recipes', 'Рецепты'], ['mixes', 'Сплавы'], ['stones', 'Камни'], ['combos', 'Связки'], ['sources', 'Источники'], ['bestiary', 'Бестиарий'], ['atlas', 'Атлас'], ['trades', 'Ремёсла'], ['rep', 'Слава']], LOCKED = ['bestiary', 'atlas'];
+  const TABS = [['recipes', 'Рецепты'], ['mixes', 'Сплавы'], ['stones', 'Камни'], ['combos', 'Связки'], ['sources', 'Источники'], ['bestiary', 'Бестиарий'], ['atlas', 'Атлас'], ['trades', 'Ремёсла'], ['rep', 'Слава'], ['ach', 'Подвиги']], LOCKED = ['bestiary', 'atlas'];
   for (const [id, label] of TABS) { const b = el('button', 'tab', label); b.type = 'button'; b.dataset.tab = id; b.addEventListener('click', () => { tab = id; sel = null; render(); }); tabsEl.appendChild(b); }
   const K = () => W.known;
   const kindName = k => (K().kinds[k] ? CONTAINERS[k].name : '???');
@@ -140,6 +141,18 @@ export function createJournal(doc, W, cfg, { onOpen, onClose, onCraft } = {}) {
   }
   // слава (этап 6): ступени у четырёх сторон и их награды
   const RS = { tier: 'рано', far: 'у торговца', ash: 'мало пепла', have: 'уже есть', full: 'сумка полна' };
+  // подвиги (этап 6 «круче»): прогресс, награды; выбор титула и цвета плаща из заработанных
+  function ach() {
+    if (!W.ach) return; const got = ACH.filter(a => W.ach.got[a.id] !== undefined).length;
+    listEl.appendChild(row('', `<b>Подвиги: ${got} из ${ACH.length}</b><div class="sub">Титул: ${esc(W.ach.title || 'нет')} · плащ: ${esc((capesOf(W).find(c => c.color === W.ach.cape) || { name: 'свой' }).name.toLowerCase())}</div>`));
+    const pick = (label, items, cur, set) => { if (!items.length) return; const r = row('', `<div class="sub">${label}</div>`); for (const [txt, val] of [['Без', null], ...items]) { const b = el('button', 'mat ' + (val === cur ? 'have' : ''), txt); b.type = 'button'; b.addEventListener('click', () => { set(val); render(); }); r.append(b); } listEl.appendChild(r); };
+    pick('Титул', titlesOf(W).map(t => [t, t]), W.ach.title, v => { W.ach.title = v; });
+    pick('Плащ', capesOf(W).map(c => [c.name, c.color]), W.ach.cape, v => { W.ach.cape = v; });
+    for (const a of ACH) {
+      const ok = W.ach.got[a.id] !== undefined, p = achProgress(W, a);
+      listEl.appendChild(row(ok ? '' : 'dim', `<b>${ok ? '✓ ' : ''}${esc(a.name)}</b><div class="sub">${esc(a.text)}${ok ? '' : ` — ${p} / ${a.n}`}</div><div class="sub g">Награда: ${esc(achRewardText(a.reward))}</div>`));
+    }
+  }
   function rep() {
     if (!W.life) return; const T = cfg.life.rep.tiers;
     listEl.appendChild(row('', `<b>Слава</b><div class="sub">Уважение растёт от заданий, сцен сюжета, боя в краях стороны и побед над боссами. Награды берут у торговца, кузнеца или капитана. Ступень у Пепельного Брода — скидка у торговцев ${Math.round(cfg.life.rep.brodDiscount * 100)}% за ступень.${note ? ' <b>' + esc(note) + '</b>' : ''}</div>`));
@@ -157,7 +170,7 @@ export function createJournal(doc, W, cfg, { onOpen, onClose, onCraft } = {}) {
     const lock = !unlocks(W).journal; if (lock && LOCKED.includes(tab)) tab = 'recipes';
     for (const b of tabsEl.children) { b.classList.toggle('on', b.dataset.tab === tab); b.hidden = lock && LOCKED.includes(b.dataset.tab); }
     listEl.textContent = '';
-    ({ bestiary, atlas, recipes, mixes, stones, combos, sources, trades, rep })[tab]();
+    ({ bestiary, atlas, recipes, mixes, stones, combos, sources, trades, rep, ach })[tab]();
   }
   // open(вкладка, вещь): книга на нужной вкладке; вещь — сразу карточка «где взять»
   const open = (t, item) => { if (t) tab = t; if (item !== undefined) sel = item; else if (t) sel = null; render(); root.hidden = false; onOpen && onOpen(); };
