@@ -849,6 +849,10 @@ const BASE = {
   // готовые модели (2026-10-20, выбор владельца; actors3d.js): герой и враги по видам → ключ модели из 3d/models; kits — рост, клипы, кисть, шлем.
   // Пока модель грузится или её нет — своя модель из кубиков. ?models=0 в адресе — только свои модели
   actors: { on: true,
+    // анимации моделей (2026-10-21, «правильнее и мягче»): смешивание клипов, с — loco (стоит/идёт/бежит), atk — удар, roll — перекат,
+    // hit — реакция на урон (не чаще hitGap с); пороги шага и бега — доли скорости героя/врага с запасом (on — включить, off — выключить);
+    // sp — сглаживание оценки скорости (1/с)
+    anim: { loco: .25, atk: .1, roll: .08, hit: .1, death: .15, hitGap: .8, walkOn: .1, walkOff: .05, runOn: .62, runOff: .48, sp: 10 },
     heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'q_wizard' },
     foes: { imp: 'q_demonfly', bomber: 'q_demonfly', ash_thief: 'q_demonfly', hound: 'q_wolf', blackdog: 'q_wolf', garm: 'q_wolf', eclipse_fiend: 'q_wolf', garm_beast: 'q_wolf', greywolf: 'q_wolf', towerhound: 'q_wolf',
       lunger: 'kk_skel_warrior', war_ghost: 'kk_skel_minion', witch: 'kk_skel_mage', archer: 'kk_rogue_hooded', kad_xbow: 'kk_rogue_hooded', shield: 'kk_knight', kad_soldier: 'kk_knight', kad_spear: 'kk_knight', kad_banner: 'kk_knight',

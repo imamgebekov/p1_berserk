@@ -40,11 +40,23 @@ const ACT = {
 // семейство оружия → три удара цепочки (прямой, обратный, завершающий)
 const CHAIN = { slash: ['a1', 'a2', 'a3'], thrust: ['p1', 'a1', 'p1'], smash: ['h1', 'h2', 'h2'], spin: ['h1', 'h3', 'h3'], flail: ['h2', 'h1', 'h2'], dual: ['d1', 'd2', 'd3'], fists: ['fist', 'fist', 'a3'], bow: ['bow', 'bow', 'bow'], staff: ['cast', 'cast', 'spell'] };
 const famKey = f => (CHAIN[f] ? f : 'slash');
+const LOCO = new Set(['walk', 'run']);     // циклы шага: при смене — та же фаза ног
 
 async function loadKk() {
   if (kkClips) return kkClips;
   const all = []; for (const k of KK_ANIMS) { const u = urlOf(k); if (u) all.push(...(await ld().loadAsync(u)).animations); }
   return (kkClips = all);
+}
+// клипы на месте (2026-10-21): у части моделей в ходьбе и ударе корень уходит вперёд — на стыке цикла модель прыгает назад, после удара
+// отъезжает. У корневых костей убираем равномерный уход за клип (колебания шага остаются); двигает модель игра. Смерть не трогаем
+const KEEP = new Set(ACT.death);     // смерть падает по-настоящему — её не трогаем
+function inPlace(clips, scene) {
+  const roots = new Set(); scene.traverse(o => { if (o.isBone && (!(o.parent && o.parent.isBone) || /hips|pelvis|root/i.test(o.name))) roots.add(THREE.PropertyBinding.sanitizeNodeName(o.name)); });
+  for (const c of clips) { if (c.userData && c.userData.inPlace || KEEP.has(clipName(c))) continue; (c.userData = c.userData || {}).inPlace = true;
+    for (const t of c.tracks) { const [node, prop] = [t.name.slice(0, t.name.lastIndexOf('.')), t.name.slice(t.name.lastIndexOf('.') + 1)]; if (prop !== 'position' || !roots.has(THREE.PropertyBinding.sanitizeNodeName(node))) continue;
+      const v = t.values, n = t.times.length, T = t.times[n - 1] - t.times[0]; if (n < 2 || T <= 0) continue;
+      for (let ax = 0; ax < 3; ax++) { const d = v[(n - 1) * 3 + ax] - v[ax]; let lo = Infinity, hi = -Infinity; for (let i = 0; i < n; i++) { lo = Math.min(lo, v[i * 3 + ax]); hi = Math.max(hi, v[i * 3 + ax]); }
+        if (Math.abs(d) > (hi - lo) * .5 && Math.abs(d) > 1e-4) for (let i = 0; i < n; i++) v[i * 3 + ax] -= d * (t.times[i] - t.times[0]) / T; } } }
 }
 // загрузить модель (один раз); kit — описание из cfg.actors.kits
 export function loadActor(key, kit) {
@@ -54,6 +66,7 @@ export function loadActor(key, kit) {
     const g = await ld().loadAsync(u), clips = [...g.animations, ...(kit.anims === 'kk' ? await loadKk() : [])];
     for (const [nm, [t0, t1]] of Object.entries(kit.split || {})) { const c = clips[0]; if (c) clips.push(THREE.AnimationUtils.subclip(c, nm, Math.round(t0 * 30), Math.round(t1 * 30), 30)); }     // одна склейка «поза-стойка-ходьба» → свои клипы
     g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.geometry.userData.shared = true; o.frustumCulled = false; const ms = Array.isArray(o.material) ? o.material : [o.material]; o.material = ms.map(m => new THREE.MeshLambertMaterial({ name: m.name, map: m.map || null, color: m.color ? m.color.clone() : 0xffffff, transparent: m.transparent, alphaTest: m.alphaTest || 0, emissive: m.emissive ? m.emissive.clone().multiplyScalar(m.emissiveIntensity ?? 1) : 0x000000, emissiveMap: m.emissiveMap || null }))[0]; } });
+    inPlace(clips, g.scene);
     const box = new THREE.Box3().setFromObject(g.scene), h = Math.max(.01, box.max.y - box.min.y);
     const v = { scene: g.scene, clips, h, minY: box.min.y }; lib.set(key, v); return v;
   })().catch(e => { console.warn('модель не загрузилась:', key, e && e.message); lib.set(key, null); return null; });
@@ -71,17 +84,33 @@ export function makeActor(key, kit, kind = 'actor') {
   const mats = []; obj.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); mats.push(o.material); if (kit.tint) o.material.color.multiply(new THREE.Color(kit.tint)); } });
   for (const n of kit.hide || []) { const o = byName(obj, n); if (o) o.visible = false; }
   const mixer = new THREE.AnimationMixer(obj), names = new Map(src.clips.map(c => [clipName(c), c])), acts = new Map();
-  const clipOf = a => { for (const n of ACT[a] || [a]) if (names.has(n)) return names.get(n); return null; };
-  const action = a => { if (acts.has(a)) return acts.get(a); const c = clipOf(a), x = c ? mixer.clipAction(c) : null; acts.set(a, x); return x; };
+  const clipOf = a => { const b = a.endsWith('#') ? a.slice(0, -1) : a; for (const n of ACT[b] || [b]) if (names.has(n)) return names.get(n); return null; };
+  const action = a => { if (acts.has(a)) return acts.get(a); const c = clipOf(a), x = c ? mixer.clipAction(a.endsWith('#') ? c.clone() : c) : null; acts.set(a, x); return x; };     // «имя#» — копия клипа: повтор того же удара смешивается сам с собой
   const A = { group: g, root, obj, mixer, mats, kind, gltf: true, key, kit, cur: null, curName: '', once: false, weapon: null, wkey: '', family: 'fists', okey: '', off: null, hurtT: 0,
     hand: byName(obj, kit.hand || 'handslot.r'), handL: byName(obj, kit.handL || 'handslot.l'), has: a => !!clipOf(a), dur: a => { const c = clipOf(a); return c ? c.duration : 1; } };
-  // сыграть действие: fade — время смешивания, once — один раз и замереть на последнем кадре, speed — скорость
+  // сыграть действие: fade — время смешивания, once — один раз и замереть на последнем кадре, speed — скорость, restart — сначала.
+  // Смешивание своё (2026-10-21): прежние клипы гаснут за fade, новый получает остаток — сумма весов всегда 1 (без «провала» в исходную позу);
+  // цикл, который ещё не погас, продолжается с того же кадра; шаг ↔ бег — в той же фазе ног
+  A.fade = .15;
   A.play = (a, { fade = .15, once = false, speed = 1, restart = false } = {}) => {
-    const x = action(a); if (!x) return false;
-    if (A.curName === a && !restart) { x.timeScale = speed; return true; }
-    x.reset(); x.timeScale = speed; x.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); x.clampWhenFinished = once; x.enabled = true; x.setEffectiveWeight(1);
-    if (A.cur && A.cur !== x) A.cur.crossFadeTo(x, fade, false); x.play();
-    A.cur = x; A.curName = a; A.once = once; return true;
+    if (!action(a)) return false;
+    if (A.curName === a && !restart) { A.cur.timeScale = speed; return true; }
+    if (A.curName === a && restart && !once) { A.cur.time = 0; A.cur.timeScale = speed; return true; }
+    const name = A.curName === a ? (A.alt = !A.alt) ? a + '#' : a : a, x = action(name) || action(a);     // тот же удар ещё раз — через копию
+    const prev = A.cur, w0 = x.getEffectiveWeight(), live = x.isRunning() && w0 > .01;
+    x.enabled = true; x.timeScale = speed; x.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); x.clampWhenFinished = once;
+    if (once || restart || !live) { x.reset(); x.setEffectiveWeight(prev ? 0 : 1); }
+    if (!once && prev && LOCO.has(A.curName) && LOCO.has(a)) { const pc = prev.getClip().duration, xc = x.getClip().duration; if (pc > 0 && xc > 0) x.time = (prev.time % pc) / pc * xc; }
+    x.paused = false; x.play();
+    A.cur = x; A.curName = a; A.once = once; A.fade = Math.max(0, fade); if (!prev || !A.fade) for (const y of acts.values()) if (y && y !== x) { y.setEffectiveWeight(0); y.stop(); } if (!prev || !A.fade) x.setEffectiveWeight(1);
+    return true;
+  };
+  // шаг смешивания и анимации: прежние гаснут с одной скоростью, текущий — остаток до 1
+  A.update = dt => {
+    let rest = 0; const k = A.fade > 0 ? dt / A.fade : 1;
+    for (const y of acts.values()) { if (!y || y === A.cur || !y.enabled || y.getEffectiveWeight() <= 0) continue; const w = Math.max(0, y.getEffectiveWeight() - k); if (w <= 0) { y.setEffectiveWeight(0); y.stop(); } else { y.setEffectiveWeight(w); rest += w; } }     // гаснет и законченный удар, замерший на последнем кадре
+    if (A.cur) A.cur.setEffectiveWeight(Math.max(0, 1 - rest));
+    mixer.update(dt);
   };
   // вспышка при уроне и цвет статуса (как у своих моделей)
   for (const m of mats) m.userData.e0 = m.emissive.clone();     // своё свечение модели (лава голема) — основа, вспышка добавляется
@@ -109,51 +138,59 @@ export function makeActor(key, kit, kind = 'actor') {
   // заглушки под код своих моделей (руки, ноги, голова, крылья): рендер может их крутить — на готовую модель это не влияет
   const dummy = () => new THREE.Object3D(); Object.assign(A, { armL: dummy(), armR: dummy(), head: dummy(), legs: [], wl: dummy(), wr: dummy() });
   // житель или зверь: действие (idle, walk, run, graze, fly…) и шаг анимации
-  A.tick = (dt, act = 'idle', speed = 1) => { if (!A.play(act, { fade: .25, speed })) A.play('idle', { fade: .25 }); A.mixer.update(dt); };
+  A.tick = (dt, act = 'idle', speed = 1) => { if (!A.play(act, { fade: .3, speed })) A.play('idle', { fade: .3 }); A.update(dt); };
   // конь: шаг по скорости, как у своей модели
   A.step = (t, sp) => { const d = Math.min(.1, Math.max(0, t - (A.lt ?? t))); A.lt = t; A.tick(d, sp > 5 ? 'run' : sp > .5 ? 'walk' : 'idle', sp > 5 ? sp / 9 : sp > .5 ? Math.max(.6, sp / 3) : 1); };
-  A.play('idle', { fade: 0 });
+  A.play('idle', { fade: 0 }); g.userData.anim = A;     // для тестов и замеров плавности
   return A;
 }
 
+const AN = cfg => cfg.actors && cfg.actors.anim || { loco: .25, atk: .1, roll: .08, hit: .1, death: .15, hitGap: .8, walkOn: .1, walkOff: .05, runOn: .62, runOff: .48, sp: 10 };
+// шаг по сглаженной скорости с запасом у порогов: на границе «шаг/бег» клип не переключается каждый кадр
+function loco(A, sp, top, N) {
+  const was = A.curName, mv = sp > top * (was === 'walk' || was === 'run' ? N.walkOff : N.walkOn), run = mv && sp > top * (was === 'run' ? N.runOff : N.runOn);
+  return mv ? (run ? 'run' : 'walk') : 'idle';
+}
 // герой (и спутник-герой): клип по состоянию игрока p
 export function driveHero(A, p, dt, cfg, swingMul = 1) {
-  const P = cfg.player, speed = Math.hypot(p.vx || 0, p.vz || 0);
-  if (p.dead || p.state === 'dead') { if (A.curName !== 'death') A.play('death', { once: true, fade: .1 }); }
-  else if (p.state === 'roll') A.play('roll', { once: true, fade: .05, speed: A.dur('roll') / P.rollTime, restart: A.curName !== 'roll' });
+  const P = cfg.player, N = AN(cfg), raw = Math.hypot(p.vx || 0, p.vz || 0);
+  A.sp = A.sp === undefined ? raw : A.sp + (raw - A.sp) * (1 - Math.exp(-N.sp * dt)); A.hitGap = Math.max(0, (A.hitGap || 0) - dt);
+  const speed = A.sp;
+  if (p.dead || p.state === 'dead') { if (A.curName !== 'death') A.play('death', { once: true, fade: N.death }); }
+  else if (p.state === 'roll') A.play('roll', { once: true, fade: N.roll, speed: A.dur('roll') / P.rollTime, restart: A.curName !== 'roll' });
   else if (p.state === 'atk') {
     const ch = CHAIN[famKey(A.family)], step = p.heavy > 0 || p.fin ? 2 : ((p.chain || 0) % 2), a = ch[step], len = P.attackTime * swingMul;
     const fresh = A.atkMark !== p.atkId && (A.lastAtkT === undefined || p.atkT < A.lastAtkT || A.curName !== a);
-    if (fresh) { A.atkMark = p.atkId; A.play(a, { once: true, fade: .06, speed: Math.max(.6, A.dur(a) * .8 / len), restart: true }); }
+    if (fresh) { A.atkMark = p.atkId; A.play(a, { once: true, fade: N.atk, speed: Math.max(.6, A.dur(a) * .8 / len), restart: true }); }
     A.lastAtkT = p.atkT;
-  } else if (p.state === 'charge') A.play('charge', { fade: .12 });
-  else if (p.state === 'dash') A.play('run', { fade: .05, speed: 1.6 });
-  else if (A.hurtT > 0 && A.curName !== 'hit' && speed < .5) A.play('hit', { once: true, fade: .05, restart: true });
+  } else if (p.state === 'charge') A.play('charge', { fade: N.atk });
+  else if (p.state === 'dash') A.play('run', { fade: N.roll, speed: 1.6 });
+  else if (A.hurtT > 0 && A.curName !== 'hit' && !A.hitGap && raw < .5) { A.hitGap = N.hitGap; A.play('hit', { once: true, fade: N.hit, restart: true }); }     // не чаще раза в hitGap с
   else if (!(A.once && A.cur && A.cur.isRunning() && A.curName === 'hit')) {
-    const run = speed > P.speed * .55, mv = speed > .3;
-    A.play(mv ? (run ? 'run' : 'walk') : 'idle', { fade: .18, speed: mv ? Math.max(.6, speed / (run ? P.speed : P.speed * .45)) : 1 });
+    const st = loco(A, speed, P.speed, N); A.play(st, { fade: N.loco, speed: st === 'idle' ? 1 : Math.max(.6, speed / (st === 'run' ? P.speed : P.speed * .45)) });
   }
   if (p.state !== 'atk') A.lastAtkT = undefined;
-  A.mixer.update(dt);
+  A.update(dt);
 }
 // враг: клип по состоянию e (замах, удар, отход, прицел, рывок, смерть) и по настоящей скорости
 export function driveFoe(A, e, time, dt, cfg) {
-  const C = cfg.enemies[e.type];
-  { const dtm = time - (A.lt ?? time); if (dtm > 0) { const v = Math.hypot(e.x - A.lx, e.z - A.lz) / dtm; A.sp = (A.sp || 0) * .8 + Math.min(v, C.speed * 2) * .2; } A.lt = time; A.lx = e.x; A.lz = e.z; }
+  const C = cfg.enemies[e.type], N = AN(cfg);
+  { const dtm = time - (A.lt ?? time); if (dtm > 0) { const v = Math.hypot(e.x - A.lx, e.z - A.lz) / dtm; A.sp = (A.sp || 0) + (Math.min(v, C.speed * 2) - (A.sp || 0)) * (1 - Math.exp(-N.sp * dtm)); } A.lt = time; A.lx = e.x; A.lz = e.z; }     // сглаживание не зависит от частоты кадров
+  A.hitGap = Math.max(0, (A.hitGap || 0) - dt);
   const atkA = A.kit.atk || 'a1';
-  if (e.dead) { if (A.curName !== 'death') A.play('death', { once: true, fade: .08 }); }
-  else if (e.state === 'wind') { if (A.curName !== atkA) A.play(atkA, { once: true, fade: .08, speed: Math.max(.4, A.dur(atkA) * .45 / Math.max(.15, C.wind || .5)), restart: true }); }
-  else if (e.state === 'rec') { if (A.curName === atkA && A.cur) A.cur.timeScale = Math.max(1, A.cur.timeScale); else A.play('idle', { fade: .2 }); }
-  else if (e.state === 'aim') A.play(A.kit.aim || 'aim', { fade: .1 });
-  else if (e.state === 'dash') A.play('run', { fade: .05, speed: 1.5 });
-  else if (e.flash > 0 && A.curName !== 'hit' && (A.sp || 0) < .3) A.play('hit', { once: true, fade: .04, restart: true });
-  else if (!(A.curName === 'hit' && A.cur && A.cur.isRunning())) { const sp = A.sp || 0, run = sp > C.speed * .6; A.play(sp > .25 ? (run ? 'run' : 'walk') : 'idle', { fade: .2, speed: sp > .25 ? Math.max(.6, sp / C.speed) : 1 }); }
+  if (e.dead) { if (A.curName !== 'death') A.play('death', { once: true, fade: N.death }); }
+  else if (e.state === 'wind') { if (A.curName !== atkA) A.play(atkA, { once: true, fade: N.atk, speed: Math.max(.4, A.dur(atkA) * .45 / Math.max(.15, C.wind || .5)), restart: true }); }
+  else if (e.state === 'rec') { if (A.curName === atkA && A.cur) A.cur.timeScale = Math.max(1, A.cur.timeScale); else A.play('idle', { fade: N.loco }); }
+  else if (e.state === 'aim') A.play(A.kit.aim || 'aim', { fade: N.atk });
+  else if (e.state === 'dash') A.play('run', { fade: N.roll, speed: 1.5 });
+  else if (e.flash > 0 && A.curName !== 'hit' && !A.hitGap && (A.sp || 0) < .3) { A.hitGap = N.hitGap; A.play('hit', { once: true, fade: N.hit, restart: true }); }
+  else if (!(A.curName === 'hit' && A.cur && A.cur.isRunning())) { const sp = A.sp || 0, st = loco(A, sp, C.speed, N); A.play(st, { fade: N.loco, speed: st === 'idle' ? 1 : Math.max(.6, sp / (st === 'run' ? C.speed : C.speed * .6)) }); }
   // у модели нет клипа удара или смерти — простой наклон корня (замах, удар, падение)
   { const R = A.root; R.rotation.set(0, 0, 0); R.position.set(0, 0, 0);
     if (e.dead && !A.has('death')) { const k = Math.min(1, (e.deadT || 0) / .5); R.rotation.z = -1.45 * k; R.position.y = -.15 * k; }
     else if (!A.has(atkA) && e.state === 'wind') { const k = Math.min(1, Math.max(0, e.t) / Math.max(.15, C.wind || .5)); R.rotation.x = -.3 * k; R.position.z = -.15 * k; }
     else if (!A.has(atkA) && e.state === 'rec') { const k = Math.min(1, e.t / .25); R.rotation.x = .4 * (1 - k); R.position.z = .3 * (1 - k); } }
-  A.mixer.update(dt);
+  A.update(dt);
 }
 export function disposeActor(A) { if (!A) return; A.mixer.stopAllAction(); A.mixer.uncacheRoot(A.obj); for (const m of A.mats) m.dispose(); }
 // ключ готовой модели героя (hero) или врага (foe) по виду; null — модели нет или готовые модели выключены
