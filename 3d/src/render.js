@@ -20,6 +20,8 @@ import * as THREE from 'three';
 import { dressedLook, lookKey } from './look3d.js';
 import { qualityOf } from './quality3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { makeBladeFx, bladeEls, hasBladeStyle } from './bladefx3d.js';
+import { weaponMix, weaponElement } from './stones3d.js';
 import { makeActor, actorKey, actorReady, preloadActors, driveHero, driveFoe, disposeActor } from './actors3d.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeHorse, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
 import { heroOf } from './data/heroes3d.js';
@@ -502,6 +504,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         sh.fragmentShader = 'uniform float uRim, uRimP; uniform vec3 uRimC;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  { float rimK = pow(1. - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0., 1.), uRimP); totalEmissiveRadiance += uRimC * rimK * uRim; }'); };
       mat.customProgramCacheKey = () => key + '|rim'; mat.needsUpdate = true; } }); };
   let hero = makeHero(); scene.add(hero.group); let heroLook = null, rimKey = '';
+  const heroBlade = makeBladeFx(scene), bladeOn = () => !!(cfg.bladeFx && cfg.bladeFx.on);     // стихия на клинке (2026-10-20)
   if (actorKey(cfg, 'hero', 'thorn') !== null || Object.keys((cfg.actors && cfg.actors.foes) || {}).length) preloadActors(cfg);     // готовые модели (2026-10-20): грузятся в фоне
   const kitOf = k => cfg.actors.kits[k];
   // жители и звери (2026-10-20): готовая модель по виду, если пришла; tint и рост — по виду
@@ -555,7 +558,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     while (trailS.length && trailS[0].age > TRAIL_LIFE) trailS.shift();
     const w = hero.weapon, P = cfg.player, sw = p.swingMul || W.gear.swing || 1, mx = W.wp.mix;
     if (W.wsk && W.wsk.kind === 'tempest' && !calm) for (let i = 0; i < 2; i++) { const a = W.t * 9 + i * Math.PI, el = mx ? (i ? mx.b || mx.a : mx.a) : W.wp.el; fx.emit(p.x + Math.sin(a) * 2.4, .9 + Y(p.x, p.z), p.z + Math.cos(a) * 2.4, 0, .5, 0, el ? ELEMENT_COLOR[el] : '#d8c8a8', .4, 0, .1, true); }     // «Цепная буря»
-    if (w && w.tip && mx && !calm && Math.random() < dt * 5) { const t = w.tip.getWorldPosition(new THREE.Vector3()), el = Math.random() < .5 || !mx.b ? mx.a : mx.b; fx.emit(t.x, t.y, t.z, (Math.random() - .5) * .3, .4 + Math.random() * .4, (Math.random() - .5) * .3, ELEMENT_COLOR[el], .5, -.2, .06, true); }     // оружие с камнями искрит цветом стихий
+    if (w && w.tip && mx && !calm && Math.random() < dt * 5) { const t = w.tip.getWorldPosition(new THREE.Vector3()), el = Math.random() < .5 || !mx.b ? mx.a : mx.b; if (!(cfg.bladeFx && cfg.bladeFx.on && hasBladeStyle(el))) fx.emit(t.x, t.y, t.z, (Math.random() - .5) * .3, .4 + Math.random() * .4, (Math.random() - .5) * .3, ELEMENT_COLOR[el], .5, -.2, .06, true); }     // оружие с камнями искрит цветом стихий
     if (w && p.state === 'atk' && hero.family !== 'bow' && hero.family !== 'staff' && trailOn(p.atkT / (P.attackTime * sw), P.attackHitAt / P.attackTime)) {
       hero.group.updateMatrixWorld(true);
       trailS.push({ a: w.base.getWorldPosition(new THREE.Vector3()), b: w.tip.getWorldPosition(new THREE.Vector3()), age: 0 });
@@ -959,6 +962,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (RS) RimU.uRim.value = RS.night + (RS.day - RS.night) * Math.min(1, Math.max(0, ((W.light ?? 1) - .15) / .6));
     { const o = W.inv.eq.offhand && BY_ID[W.inv.eq.offhand]; hero.setOff(o ? o.id : '', o && o.kind, o && o.mat, o && o.form); }
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
+    heroBlade.set(hero.weapon, bladeOn() ? bladeEls(W.wp).filter(hasBladeStyle) : []); heroBlade.update(dt, t, calm);
     if (hero.gltf) { driveHero(hero, p, dt, cfg, p.swingMul || W.gear.swing || 1); hero.flash(p.inv > 0 && p.inv < 5 && p.state !== 'roll' ? .25 : 0); } else animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
     { const on = !!(W.life && W.life.mount.on) && !p.dead; horse.group.visible = on;     // верхом: конь под героем, герой выше и сидит
       if (on) { horse.group.position.set(p.x, py, p.z); horse.group.rotation.y = hero.group.rotation.y; horse.step(t, Math.hypot(p.vx, p.vz)); hero.group.position.y = py + .95; if (hero.legL) hero.legL.rotation.x = hero.legR.rotation.x = -1.2; } }
@@ -1012,6 +1016,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         pp.face = a.face; pp.dead = a.dead; pp.deadT = a.deadT; pp.state = a.state === 'wind' || a.state === 'rec' ? 'atk' : 'idle';
         pp.atkT = a.state === 'wind' ? AT * .5 * Math.min(1, a.t / T.wind) : AT * (.5 + .5 * Math.min(1, a.t / T.recover));
         if (en.m.gltf) driveHero(en.m, pp, dt, cfg); else animateHero(en.m, pp, t, dt, cfg); en.m.group.rotation.y = a.face;
+        if (bladeOn() && a.eq) { const bl = en.blade || (en.blade = makeBladeFx(scene)), wi = a.eq.weapon && BY_ID[a.eq.weapon]; bl.set(en.m.weapon, wi ? bladeEls({ mix: weaponMix(wi, a.gem && a.gem.weapon), el: weaponElement(wi) }).filter(hasBladeStyle) : []); bl.update(dt, t, calm); }     // стихия на клинке спутника
       } else if (!a.guest) animateSoldier(en.m, a, t);
       else { en.m.group.visible = !a.dead; if (en.m.root) en.m.root.position.y = calm ? 0 : Math.abs(Math.sin(t * (a.moving ? 9 : 2))) * (a.moving ? .08 : .02); } en.sh.position.set(a.x, .03 + ay, a.z); en.sh.visible = !a.dead;
       const b = bar({ id: 'a' + a.id }, a.guest ? '#d8b040' : '#3a8a4a'), show = (a.guest || a.hp < a.maxhp) && !a.dead;
@@ -1019,7 +1024,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     { const mk = W.party && W.party.cmd === 'assist' && W.enemies.find(e => e.id === W.party.mark && !e.dead); markRing.visible = !!mk;     // метка «моей цели»
       if (mk) { const r = cfg.enemies[mk.type].radius + .5; markRing.position.set(mk.x, .08 + Y(mk.x, mk.z), mk.z); markRing.scale.setScalar(r); markRing.rotation.z = t * 1.5; } }
-    for (const [id, en] of allyEnts) if (!aliveA.has(id)) { if (en.m.gltf) disposeActor(en.m); scene.remove(en.m.group, en.sh); disposeDeep(en.m.group); disposeDeep(en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete('a' + id); } }
+    for (const [id, en] of allyEnts) if (!aliveA.has(id)) { if (en.blade) en.blade.dispose(); if (en.m.gltf) disposeActor(en.m); scene.remove(en.m.group, en.sh); disposeDeep(en.m.group); disposeDeep(en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete('a' + id); } }
     for (const [id, en] of ents) if (!alive.has(id)) dropEnt(id, en);
 
     // события боя → эффекты и подписи (подписи отдаёт hooks.onText)
