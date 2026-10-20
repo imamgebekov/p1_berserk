@@ -20,6 +20,7 @@ import * as THREE from 'three';
 import { dressedLook, lookKey } from './look3d.js';
 import { qualityOf } from './quality3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { makeActor, actorKey, actorReady, preloadActors, driveHero, driveFoe, disposeActor } from './actors3d.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeHorse, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
 import { heroOf } from './data/heroes3d.js';
 import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul, makeBeasts, updateBeasts, makeDucks, updateDucks } from './ambient3d.js';
@@ -499,7 +500,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       mat.onBeforeCompile = (sh, r) => { if (prev) prev(sh, r); Object.assign(sh.uniforms, RimU, { uRimC: { value: c }, uRimP: { value: RS.pow } });
         sh.fragmentShader = 'uniform float uRim, uRimP; uniform vec3 uRimC;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  { float rimK = pow(1. - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0., 1.), uRimP); totalEmissiveRadiance += uRimC * rimK * uRim; }'); };
       mat.customProgramCacheKey = () => key + '|rim'; mat.needsUpdate = true; } }); };
-  const hero = makeHero(); scene.add(hero.group); let heroLook = null, rimKey = '';
+  let hero = makeHero(); scene.add(hero.group); let heroLook = null, rimKey = '';
+  if (actorKey(cfg, 'hero', 'thorn') !== null || Object.keys((cfg.actors && cfg.actors.foes) || {}).length) preloadActors(cfg);     // готовые модели (2026-10-20): грузятся в фоне
+  const kitOf = k => cfg.actors.kits[k];
   const horse = makeHorse(); horse.group.visible = false; scene.add(horse.group);     // ездовое животное (этап 6)
   // точки сбора (этап 6): по виду — основа и яркая метка, по одному InstancedMesh на часть (мало вызовов отрисовки); собранная — скрыта до роста
   const NODE_LOOK = { herb: [new THREE.ConeGeometry(.42, .7, 6), '#3e7a30', new THREE.SphereGeometry(.12, 6, 4), '#f0d860', .62], ore: [new THREE.DodecahedronGeometry(.55, 0), '#66666e', new THREE.BoxGeometry(.5, .1, .14), '#e8b040', .45], hide: [new THREE.BoxGeometry(1.1, .4, .6), '#6a4630', new THREE.BoxGeometry(.7, .08, .08), '#e8e0c8', .3] };
@@ -525,7 +528,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   // тень-двойник Вейла: тёмная копия героя с его клинком
   const MATE_W = { thorn: 'sword', vale: 'dagger', jay: 'bow', irga: 'staff' };     // спутник-герой (этап 4): облик героя и его оружие
-  const mateModel = T => { const h = makeHero(); h.setLook(heroOf(T.hero).look); h.setWeapon(MATE_W[T.hero] || 'sword', 'steel'); return h; };
+  const mateModel = T => { const k = actorKey(cfg, 'hero', T.hero), A = k && makeActor(k, kitOf(k), 'hero'); if (A) { A.setWeapon(MATE_W[T.hero] || 'sword', 'steel'); return A; } const h = makeHero(); h.setLook(heroOf(T.hero).look); h.setWeapon(MATE_W[T.hero] || 'sword', 'steel'); return h; };
   const decoyModel = () => { const h = makeHero(); h.setLook({ cloth: '#1a1824', cape: '#2a1838', hair: '#0a0810', legs: '#14121c', shoulder: false, hood: false, quiver: false, capeLen: .7 }); h.setWeapon('rapier', 'black'); h.root.rotation.x = .12; return h; };
   // кольцо заряда тяжёлого удара под героем: растёт с зарядом, при полном — оранжевое и пульсирует
   const chargeRing = new THREE.Mesh(new THREE.RingGeometry(.82, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffd9c0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -638,11 +641,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // враг вне кадра: спрятать модель, тень, кольца, звёзды, лёд и полоску (анимация не идёт)
   function hideEnt(id, en) { if (en.hid) return; en.hid = true; en.m.group.visible = en.sh.visible = en.ring.visible = false; if (en.elite) en.elite.visible = false; if (en.stars) en.stars.visible = false; if (en.ice) en.ice.visible = false; const b = bars.get(id); if (b) b.g.visible = false; }
   // убрать и освободить модель врага (умер, исчез или далеко); при возвращении в кадр соберётся заново
-  function dropEnt(id, en) { scene.remove(en.m.group, en.sh, en.ring); disposeDeep(en.m.group); disposeDeep(en.sh); disposeDeep(en.ring); if (en.elite) { scene.remove(en.elite); disposeDeep(en.elite); } if (en.stars) scene.remove(en.stars); if (en.ice) scene.remove(en.ice); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete(id); } }
+  function dropEnt(id, en) { if (en.m.gltf) disposeActor(en.m); scene.remove(en.m.group, en.sh, en.ring); disposeDeep(en.m.group); disposeDeep(en.sh); disposeDeep(en.ring); if (en.elite) { scene.remove(en.elite); disposeDeep(en.elite); } if (en.stars) scene.remove(en.stars); if (en.ice) scene.remove(en.ice); ents.delete(id); const b = bars.get(id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete(id); } }
   function entity(e) {
     let en = ents.get(e.id);
     if (!en) {
-      const m = makeMonster(e.type, cfg), sh = shadow(.55 * cfg.enemies[e.type].scale); rimify(m.group, RS && RS.foe); if (shadowsOn) { m.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); sh.visible = false; }
+      const fk = actorKey(cfg, 'foe', e.type), m = (fk && makeActor(fk, { ...kitOf(fk), tint: cfg.actors.tints[e.type] }, e.type)) || makeMonster(e.type, cfg), sh = shadow(.55 * cfg.enemies[e.type].scale); rimify(m.group, RS && RS.foe); if (shadowsOn) { m.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); sh.visible = false; }
       const ring = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 28), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
       ring.rotation.x = -Math.PI / 2; ring.position.y = .06;
       scene.add(m.group, sh, ovl(ring));
@@ -856,6 +859,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const under = W.lvl !== 'surface';
     if (!under) { streamLand(cam.x, cam.z); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
     dome.position.set(cam.x, 0, cam.z);                              // небо — вокруг камеры (мир шире купола)
+    { const k = actorKey(cfg, 'hero', W.hero); if ((k || '') !== (hero.key || '')) { const A = k && makeActor(k, kitOf(k), 'hero'); if (A || !k) { scene.remove(hero.group); if (hero.gltf) disposeActor(hero); disposeDeep(hero.group); hero = A || makeHero(); hero.key = k || ''; scene.add(hero.group); heroLook = null; rimKey = ''; if (shadowsOn) hero.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); } } }     // готовая модель героя пришла или герой сменился
     { const cp = W.ach && W.ach.cape, lk = lookKey(W.hero, W.inv, cp); if (lk !== heroLook) { heroLook = lk; hero.setLook(dressedLook(heroOf(W.hero).look, W.inv, cp)); } }     // облик по надетому и цвет плаща — награда подвига
     if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : 1, rain: WE.force === 'rain' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
     scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog;     // в дождь туман гуще     // на рассвете туман гуще
@@ -944,9 +948,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (RS) RimU.uRim.value = RS.night + (RS.day - RS.night) * Math.min(1, Math.max(0, ((W.light ?? 1) - .15) / .6));
     { const o = W.inv.eq.offhand && BY_ID[W.inv.eq.offhand]; hero.setOff(o ? o.id : '', o && o.kind, o && o.mat, o && o.form); }
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
-    animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
+    if (hero.gltf) { driveHero(hero, p, dt, cfg, p.swingMul || W.gear.swing || 1); hero.flash(p.inv > 0 && p.inv < 5 && p.state !== 'roll' ? .25 : 0); } else animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
     { const on = !!(W.life && W.life.mount.on) && !p.dead; horse.group.visible = on;     // верхом: конь под героем, герой выше и сидит
-      if (on) { horse.group.position.set(p.x, py, p.z); horse.group.rotation.y = hero.group.rotation.y; horse.step(t, Math.hypot(p.vx, p.vz)); hero.group.position.y = py + .95; hero.legL.rotation.x = hero.legR.rotation.x = -1.2; } }
+      if (on) { horse.group.position.set(p.x, py, p.z); horse.group.rotation.y = hero.group.rotation.y; horse.step(t, Math.hypot(p.vx, p.vz)); hero.group.position.y = py + .95; if (hero.legL) hero.legL.rotation.x = hero.legR.rotation.x = -1.2; } }
     updateNodes(W, dt); updateCoaches(W);
     statusFx(heroFx, p.dead ? null : W.pst, p.x, Y(p.x, p.z), p.z, 1.7, 1, dt);
     updateCharge(p, t);
@@ -963,11 +967,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       alive.add(e.id);
       { const sc0 = cfg.enemies[e.type].scale * (e.scaleMul || 1), far = Math.hypot(e.x - p.x, e.z - p.z) > CL.foe;     // вне кадра — не анимировать; дальше 70 м — освободить модель
         if (!e.boss && (far || !inView(e.x, Y(e.x, e.z) + 1.2 * sc0, e.z, 2.5 * sc0 + 1))) { const en0 = ents.get(e.id); if (en0) { if (far) dropEnt(e.id, en0); else hideEnt(e.id, en0); } continue; } }
-      const en = entity(e);
+      let en = entity(e);
+      if (!en.m.gltf && !e.dead && (en.swapT = (en.swapT || 0) - dt) <= 0) { en.swapT = 1; const fk = actorKey(cfg, 'foe', e.type); if (fk && actorReady(fk)) { dropEnt(e.id, en); en = entity(e); } }     // готовая модель пришла позже — пересобрать
       if (en.hid) { en.hid = false; en.m.group.visible = en.sh.visible = en.ring.visible = true; }
       const ey = Y(e.x, e.z); en.m.group.position.set(e.x, ey, e.z); if (!en.yawInit || !cfg.view.blend) en.m.group.rotation.y = e.face; else if (!e.dead) en.m.group.rotation.y = dampAngle(en.m.group.rotation.y, e.face, e.state === 'dash' ? cfg.view.blend.hit : cfg.view.blend.yawFoe, dt); en.yawInit = true;     // поворот — плавно (шаг 3), мёртвый не крутится
       { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
-      animateMonster(en.m, e, t, cfg, p.x, p.z);
+      if (en.m.gltf) { driveFoe(en.m, e, t, dt, cfg); en.m.flash(e.flash > 0 ? .9 : 0, e.st && !e.dead ? (e.st.freeze ? [.04, .22, .45] : e.st.burn ? [.5, .16, 0] : e.st.poison ? [0, .3, .04] : null) : null); }
+      else animateMonster(en.m, e, t, cfg, p.x, p.z);
       { const sc = cfg.enemies[e.type].scale * (e.scaleMul || 1), st = !e.dead && e.st; statusFx(en, st, e.x, ey, e.z, 1.7 * sc, sc, dt); statusMarks(en, st, e.x, ey, e.z, sc, dt, t); }
       if (e.elite) {
         if (!en.elite) { en.elite = new THREE.Mesh(new THREE.RingGeometry(.95, 1.25, 28), new THREE.MeshBasicMaterial({ color: e.affColor, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide })); en.elite.rotation.x = -Math.PI / 2; scene.add(ovl(en.elite)); }
@@ -986,6 +992,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       aliveA.add(a.id);
       let en = allyEnts.get(a.id);
       if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : cfg.squad.types[a.type] && cfg.squad.types[a.type].hero ? mateModel(cfg.squad.types[a.type]) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
+      { const T1 = cfg.squad.types[a.type], k1 = T1 && T1.hero && !a.guest && !a.decoy && !en.m.gltf && actorKey(cfg, 'hero', T1.hero); if (k1 && actorReady(k1)) { scene.remove(en.m.group); disposeDeep(en.m.group); en.m = mateModel(T1); en.lk = null; scene.add(en.m.group); } }     // готовая модель спутника пришла позже
       const ay = Y(a.x, a.z); en.m.group.position.set(a.x, ay, a.z); en.m.group.rotation.y = a.face;
       if (en.m.setLook && !a.guest) {     // спутник-герой (этап 4): анимация героя по «подставному» игроку — бег по скорости, удар по замаху
         if (a.eq) { const T0 = cfg.squad.types[a.type], lk = lookKey(T0.hero, a, null) + (a.eq.weapon || ''); if (en.lk !== lk) { en.lk = lk; en.m.setLook(dressedLook(heroOf(T0.hero).look, a, null)); const wi = a.eq.weapon && BY_ID[a.eq.weapon]; en.m.setWeapon(wi ? wi.kind : MATE_W[T0.hero] || 'sword', wi ? wi.mat : 'steel'); } }     // одежда бойца-героя (2026-10-20)
@@ -993,7 +1000,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         pp.vx = en.lx === undefined ? 0 : (a.x - en.lx) * k; pp.vz = en.lz === undefined ? 0 : (a.z - en.lz) * k; en.lx = a.x; en.lz = a.z;
         pp.face = a.face; pp.dead = a.dead; pp.deadT = a.deadT; pp.state = a.state === 'wind' || a.state === 'rec' ? 'atk' : 'idle';
         pp.atkT = a.state === 'wind' ? AT * .5 * Math.min(1, a.t / T.wind) : AT * (.5 + .5 * Math.min(1, a.t / T.recover));
-        animateHero(en.m, pp, t, dt, cfg); en.m.group.rotation.y = a.face;
+        if (en.m.gltf) driveHero(en.m, pp, dt, cfg); else animateHero(en.m, pp, t, dt, cfg); en.m.group.rotation.y = a.face;
       } else if (!a.guest) animateSoldier(en.m, a, t);
       else { en.m.group.visible = !a.dead; if (en.m.root) en.m.root.position.y = calm ? 0 : Math.abs(Math.sin(t * (a.moving ? 9 : 2))) * (a.moving ? .08 : .02); } en.sh.position.set(a.x, .03 + ay, a.z); en.sh.visible = !a.dead;
       const b = bar({ id: 'a' + a.id }, a.guest ? '#d8b040' : '#3a8a4a'), show = (a.guest || a.hp < a.maxhp) && !a.dead;
@@ -1001,7 +1008,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     { const mk = W.party && W.party.cmd === 'assist' && W.enemies.find(e => e.id === W.party.mark && !e.dead); markRing.visible = !!mk;     // метка «моей цели»
       if (mk) { const r = cfg.enemies[mk.type].radius + .5; markRing.position.set(mk.x, .08 + Y(mk.x, mk.z), mk.z); markRing.scale.setScalar(r); markRing.rotation.z = t * 1.5; } }
-    for (const [id, en] of allyEnts) if (!aliveA.has(id)) { scene.remove(en.m.group, en.sh); disposeDeep(en.m.group); disposeDeep(en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete('a' + id); } }
+    for (const [id, en] of allyEnts) if (!aliveA.has(id)) { if (en.m.gltf) disposeActor(en.m); scene.remove(en.m.group, en.sh); disposeDeep(en.m.group); disposeDeep(en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete('a' + id); } }
     for (const [id, en] of ents) if (!alive.has(id)) dropEnt(id, en);
 
     // события боя → эффекты и подписи (подписи отдаёт hooks.onText)

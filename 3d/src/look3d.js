@@ -10,7 +10,7 @@ export function dressedLook(base, inv, cape) {
   const body = it('body'), cloak = it('cloak'), head = it('head'), boots = it('boots');
   if (body) { const c = col(body); if (c) L.cloth = c; if (['plate', 'mail', 'cuirass'].includes(body.kind)) L.shoulder = true; if (body.kind === 'robe') L.robe = true; }
   if (cloak) { const c = col(cloak); if (c) L.cape = c; L.capeLen = cloak.kind === 'cape' ? .75 : cloak.kind === 'shroud' ? 1.2 : cloak.kind === 'pelt' ? .9 : 1; }
-  if (head) L.hood = ['hood', 'mask'].includes(head.kind);
+  if (head) { L.hood = ['hood', 'mask'].includes(head.kind); L.helm = !L.hood; }     // helm — шлем или шляпа у готовых моделей
   if (boots) { const c = col(boots); if (c) L.legs = c; }
   if (cape) L.cape = cape;     // цвет плаща — награда подвига
   return L;

@@ -6,6 +6,8 @@ import { makeHero } from './models.js';
 import { heroOf } from './data/heroes3d.js';
 import { BY_ID } from './data/items.js';
 import { dressedLook, lookKey } from './look3d.js';
+import { CFG3 } from './config3d.js';
+import { actorKey, makeActor, disposeActor } from './actors3d.js';
 
 export function createHeroView(doc) {
   let r = null, scene, cam, hero, raf = 0, key = '', W = null, last = 0;
@@ -21,6 +23,8 @@ export function createHeroView(doc) {
     hero = makeHero(); scene.add(hero.group);
   } catch (e) { r = null; }
   function dress() {
+    { const k = actorKey(CFG3, 'hero', W.hero), A = k && (hero.key || '') !== k ? makeActor(k, CFG3.actors.kits[k], 'hero') : null;     // готовая модель героя (2026-10-20)
+      if (A) { scene.remove(hero.group); if (hero.gltf) disposeActor(hero); hero = A; hero.key = k; scene.add(hero.group); key = ''; } }
     const inv = W.inv, cp = W.ach && W.ach.cape, wp = inv.eq.weapon && BY_ID[inv.eq.weapon], of = inv.eq.offhand && BY_ID[inv.eq.offhand];
     const k = lookKey(W.hero, inv, cp) + '|' + (inv.eq.weapon || '') + '|' + (inv.eq.offhand || ''); if (k === key) return; key = k;
     hero.setLook(dressedLook(heroOf(W.hero).look, inv, cp));
@@ -28,10 +32,10 @@ export function createHeroView(doc) {
   }
   function frame(t) {
     raf = 0; if (!r || !W || !canvas.isConnected || canvas.offsetParent === null) return;     // сумка закрыта — не рисуем
-    if (globalThis.navigator && navigator.webdriver) { const k0 = key; dress(); if (k0 !== key) r.render(scene, cam); raf = requestAnimationFrame(frame); return; }     // автотесты (программный рендер): кадр только при смене одежды
+    if (globalThis.navigator && navigator.webdriver) { const k0 = key; dress(); if (k0 !== key) { if (hero.gltf) hero.mixer.update(.5); r.render(scene, cam); } raf = requestAnimationFrame(frame); return; }     // автотесты (программный рендер): кадр только при смене одежды
     if (t - last < 66) { raf = requestAnimationFrame(frame); return; }     // 15 кадров в секунду хватает для медленного поворота
     const dt = Math.min(.2, (t - (last || t)) / 1000); last = t;
-    dress(); hero.group.rotation.y += dt * .5; hero.root.position.y = Math.sin(t / 900) * .01;
+    dress(); hero.group.rotation.y += dt * .5; if (hero.gltf) hero.mixer.update(dt); else hero.root.position.y = Math.sin(t / 900) * .01;
     r.render(scene, cam); raf = requestAnimationFrame(frame);
   }
   // показать героя мира w в холсте; вызывать при каждой перерисовке сумки

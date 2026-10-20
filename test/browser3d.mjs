@@ -158,7 +158,7 @@ try {
     await page.tap('#smithClose'); await page.waitForTimeout(100);
   }
   // капитан: найм бойцов в отряд
-  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'captain'); w.lv = 20; w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.inv.ash = 3000; });
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'captain'); w.lv = 20; w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.inv.ash = 12000; });     // наём дороже с 3.78
   await page.waitForTimeout(500);
   if ((await page.$eval('#talk', e => e.hidden || e.textContent)) !== 'Наём') bad('у капитана кнопка не «Наём»');
   else {

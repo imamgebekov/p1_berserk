@@ -825,6 +825,27 @@ const BASE = {
   // roof — палитра крыш (солома, серо-коричневый, сине-серый) и насколько светлее верхняя ступень
   // экономия кадра (3.40): вне кадра не рисуем и не анимируем, дальнее снимаем со сцены, траву вдали прореживаем
   cull: { foe: 70, decor: 150, box: 95, grass: [[32, 1], [56, .6], [1e9, .35]], hud: .1 },     // foe — дальше модель врага освобождается, м; grass — [до, доля]; hud — шаг кнопок, с
+  // готовые модели (2026-10-20, выбор владельца; actors3d.js): герой и враги по видам → ключ модели из 3d/models; kits — рост, клипы, кисть, шлем.
+  // Пока модель грузится или её нет — своя модель из кубиков. ?models=0 в адресе — только свои модели
+  actors: { on: true,
+    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'q_wizard' },
+    foes: { imp: 'q_demonfly', bomber: 'q_demonfly', ash_thief: 'q_demonfly', hound: 'q_wolf', blackdog: 'q_wolf', garm: 'q_wolf', eclipse_fiend: 'q_wolf', garm_beast: 'q_wolf', greywolf: 'q_wolf', towerhound: 'q_wolf',
+      lunger: 'kk_skel_warrior', war_ghost: 'kk_skel_minion', witch: 'kk_skel_mage', archer: 'kk_rogue_hooded', kad_xbow: 'kk_rogue_hooded', shield: 'kk_knight', kad_soldier: 'kk_knight', kad_spear: 'kk_knight', kad_banner: 'kk_knight',
+      royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'q_yeti', castellan: 'q_king', ashking: 'q_king', oakking: 'q_king',
+      brute: 'sf_mino', ghoul: 'sf_ghoul', devourer: 'sf_ghoul', golem: 'sf_drugdor', firegolem: 'sf_drugdor', drowned: 'sf_fish', drownedmaid: 'sf_fish', silt: 'sf_fish', swampelder: 'sf_fish',
+      demon_guard: 'sf_minob', lord: 'sf_minob', gatebeast: 'sf_minob', hand_lord: 'sf_minob', chief: 'sf_minob', tidewyrm: 'sf_skdragon', bonetyrant: 'sf_sklord', namelessking: 'sf_sklord', gravewight: 'sf_sklord', abbot: 'sf_sklord' },
+    tints: { bomber: '#ffb070', ash_thief: '#e8d080', blackdog: '#404048', garm: '#a06050', eclipse_fiend: '#b080ff', garm_beast: '#c04838', greywolf: '#c8c8c0', towerhound: '#c09060',
+      kad_soldier: '#8aa0ff', kad_spear: '#8aa0ff', kad_banner: '#a0b0ff', kad_xbow: '#a0b8ff', royal_guard: '#ff8a8a', masked_knight: '#605870', brandshade: '#ff6a6a', shrieker: '#ffe0b0', ashking: '#c0a080', oakking: '#a0d080', devourer: '#c0ffa0', firegolem: '#ff9a60', drownedmaid: '#a0e0d0', silt: '#b0c080', swampelder: '#c0a070', lord: '#ff9070', gatebeast: '#ff7060', hand_lord: '#c090ff', chief: '#ffc0a0', gravewight: '#c0d080', abbot: '#ffe0a0' },
+    kits: {
+      kk_knight: { anims: 'kk', height: 2.25, helm: ['Knight_Helmet', 'Knight_HelmetVisor'], cape: ['Knight_Cape'] },
+      kk_rogue: { anims: 'kk', height: 2.15, cape: ['Rogue_Cape'] },
+      kk_rogue_hooded: { anims: 'kk', height: 2.15, aim: 'aim', atk: 'bow' },
+      kk_ranger: { anims: 'kk', height: 2.15, helm: ['Ranger_Hat'], cape: ['Ranger_Cape'] },
+      kk_mage: { anims: 'kk', height: 2.2, helm: ['Mage_Hat'], cape: ['Mage_Cape'] },
+      kk_skel_warrior: { anims: 'kk', height: 2.2, atk: 'p1' }, kk_skel_minion: { anims: 'kk', height: 2.0 }, kk_skel_mage: { anims: 'kk', height: 2.2, atk: 'cast', aim: 'spell' },
+      q_wizard: { height: 2.2, hand: 'WeaponR', handL: 'FistL', hide: ['Wizard_Staff'], wRot: [Math.PI, 0, 0] }, q_demonfly: { height: 1.8, atk: 'a1' }, q_wolf: { height: 1.3, atk: 'a1' }, q_ghostskull: { height: 1.8, atk: 'a1' },
+      q_yeti: { height: 2.1, atk: 'a1' }, q_king: { height: 2.0, atk: 'a1' },
+      sf_mino: { height: 2.1 }, sf_ghoul: { height: 1.9 }, sf_drugdor: { height: 2.0 }, sf_fish: { height: 2.4 }, sf_minob: { height: 2.1 }, sf_skdragon: { height: 1.8 }, sf_sklord: { height: 2.1, split: { idle: [.1, 2.5], walk: [2.95, 4.33] } } } },
   shapes: { grad: [.7, 1.08], contact: { r: 1.5, k: .25 }, round: { on: true, k: .2, max: .06, seg: 1 },
     roof: { colors: ['#8f7e5e', '#6e5e50', '#56606a'], top: 1.15 } },
   // зелень (2026-10-17): пятна по плавному шуму (масштабы scale м: сочная/сухая трава, проплешины, поляны); множители цвета
