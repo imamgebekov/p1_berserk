@@ -232,11 +232,11 @@ function onEvent(v) {
     $('deadTxt').textContent = v.iron ? 'Конец пути. Железный режим: сохранение стёрто.' : (parts.join(' ') || 'Потерь нет.');
     if (v.iron) { W.ironDead = true; saver.reset(); $('again').textContent = 'Начать заново'; }
   }
-  else if (v.k === 'evStart') { toast(v.kind === 'rescue' ? 'Крик о помощи: путника окружили враги' : v.kind === 'ambush' ? 'Засада!' : `Обоз в «${v.place}» ищет охрану у ворот`, v.kind === 'ambush' ? 'bad' : '', '#ffc040', v.kind === 'ambush' ? 'warn' : 'horn'); sfx(v.kind === 'ambush' ? 'ambush' : 'evStart'); }
+  else if (v.k === 'evStart') { toast(v.kind === 'rescue' ? 'Крик о помощи: путника окружили враги' : v.kind === 'ambush' ? 'Засада!' : v.kind === 'thief' ? 'Пепельный вор с мешком добычи! Догоните его' : `Обоз в «${v.place}» ищет охрану у ворот`, v.kind === 'ambush' ? 'bad' : '', '#ffc040', v.kind === 'ambush' ? 'warn' : 'horn'); sfx(v.kind === 'ambush' ? 'ambush' : 'evStart'); }
   else if (v.k === 'evMove') toast(`Обоз тронулся. Держитесь рядом до «${v.place}»`, 'sys');
   else if (v.k === 'evRaid') { toast('Налёт на обоз!', 'bad'); sfx('ambush'); }
-  else if (v.k === 'evDone') { toast(v.kind === 'rescue' ? `Путник спасён: +${v.ash} пепла и его благодарность` : v.kind === 'ambush' ? `Засада отбита: +${v.ash} пепла` : `Обоз дошёл: +${v.ash} пепла`, '', '#e8c04a'); sfx('evDone'); saver.write(); }
-  else if (v.k === 'evFail') { const t = { dead: v.kind === 'caravan' ? 'Обоз разбит' : 'Путник погиб', late: v.kind === 'caravan' ? 'Обоз уехал без вас' : 'Путник не дождался помощи', fled: 'Вы ушли от засады', gone: '' }[v.why]; if (t) toast(t, 'bad'); }
+  else if (v.k === 'evDone') { toast(v.kind === 'rescue' ? `Путник спасён: +${v.ash} пепла и его благодарность` : v.kind === 'ambush' ? `Засада отбита: +${v.ash} пепла` : v.kind === 'thief' ? `Вор пойман: +${v.ash} пепла и его мешок` : `Обоз дошёл: +${v.ash} пепла`, '', '#e8c04a'); sfx('evDone'); saver.write(); }
+  else if (v.k === 'evFail') { const t = { dead: v.kind === 'caravan' ? 'Обоз разбит' : 'Путник погиб', late: v.kind === 'caravan' ? 'Обоз уехал без вас' : 'Путник не дождался помощи', fled: 'Вы ушли от засады', escaped: 'Вор скрылся в пепле', gone: '' }[v.why]; if (t) toast(t, 'bad'); }
   else if (v.k === 'rainStart') { const R = cfg.weather.combat; toast(`Дождь: враги слышат и видят хуже, огонь слабее${R.storm > 1 ? ', гроза сильнее' : ''}`, '', '#9ac0e0', 'rain'); }
   else if (v.k === 'rainStop') toast('Дождь кончился', '', '#c8d8e8', 'sun');
   else if (v.k === 'shopRare') { const it = BY_ID[v.id]; toast(`У торговца в лагере: ${cfg.shop.rare.tiers[v.tier - 1].name.toLowerCase()} — ${it.name}`, '', RARITY[it.rar].color, 'shop'); sfx(v.tier >= 3 ? 'brand' : 'rare'); }

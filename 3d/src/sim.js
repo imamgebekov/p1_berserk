@@ -40,7 +40,8 @@ import { weaponMix, gemDropOf, weaponElement, magicDropOf, armorGems } from './s
 import { useWeaponSkill, tickWeaponSkill } from './weaponskill3d.js';
 import { makeWeather, weatherAt } from './weather3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS, talentMods } from './data/skills3d.js';
-import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain, roomFor, ilMul } from './inv.js';
+import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain, roomFor, ilMul, scoreUp } from './inv.js';
+import { affixFor } from './affix3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
@@ -862,7 +863,7 @@ function updateHouses(W, dt) {
     }
     if (c.key && !W.keys[c.key]) { W.keys[c.key] = true; W.ev.push({ k: 'key', key: c.key, x: c.x, z: c.z }); }    // ключ подземелья — на связку
     const rest = [];
-    for (const it of c.items) { const left = it.il ? (roomFor(W.inv, it.id, bagSlots(W)) ? (W.inv.bag.push(entryOf(it.id, 0, null, it.il)), W.ev.push({ k: 'pickup', id: it.id, n: 1 }), W.known.items[it.id] = 1, 0) : 1) : give(W, it.id, it.n); if (left > 0) rest.push({ id: it.id, n: left, ...(it.il ? { il: it.il } : {}) }); }     // вещь с уровнем — отдельной записью
+    for (const it of c.items) { const left = it.il ? (roomFor(W.inv, it.id, bagSlots(W)) ? (W.inv.bag.push(entryOf(it.id, 0, null, it.il, it.af || affixFor(W, it.id, it.il))), W.ev.push({ k: 'pickup', id: it.id, n: 1, af: true }), W.known.items[it.id] = 1, 0) : 1) : give(W, it.id, it.n); if (left > 0) rest.push({ id: it.id, n: left, ...(it.il ? { il: it.il } : {}) }); }     // вещь с уровнем — отдельной записью
     c.items = rest; W.known.kinds[c.kind] = 1; questEvent(W, 'open', { kind: c.kind }); W.ev.push({ k: 'open', kind: c.kind, x: c.x, z: c.z });
     if (rest.length) { if (!(c.cd > 0)) { c.cd = 2.5; W.ev.push({ k: 'full', x: c.x, z: c.z }); } }
     else { c.ready = false; c.t = 0; }
@@ -872,7 +873,7 @@ function updateHouses(W, dt) {
     const q = W.drops[i]; q.t += dt;
     const d = len(p.x - q.x, p.z - q.z);
     if (!p.dead && d < W.cfg.gear.pickup * 2.2) { const k = Math.min(1, dt * 8); q.x += (p.x - q.x) * k * .5; q.z += (p.z - q.z) * k * .5; }
-    if (!p.dead && d < W.cfg.gear.pickup * .8 && (q.up || q.g || q.il)) { if (roomFor(W.inv, q.id, bagSlots(W))) { W.inv.bag.push(entryOf(q.id, q.up, q.g, q.il)); W.known.items[q.id] = 1; W.ev.push({ k: 'pickup', id: q.id, n: 1 }); W.drops.splice(i, 1); continue; } if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }     // вещь с заточкой или камнями — целиком
+    if (!p.dead && d < W.cfg.gear.pickup * .8 && (q.up || q.g || q.il)) { if (roomFor(W.inv, q.id, bagSlots(W))) { W.inv.bag.push(entryOf(q.id, q.up, q.g, q.il, q.af || (q.up || q.g || q.mine ? null : affixFor(W, q.id, q.il)))); W.known.items[q.id] = 1; W.ev.push({ k: 'pickup', id: q.id, n: 1 }); W.drops.splice(i, 1); continue; } if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }     // вещь с заточкой или камнями — целиком     // свойства — у новой вещи с земли (этап 4 «круче»)
     else if (!p.dead && d < W.cfg.gear.pickup * .8) { const left = give(W, q.id, q.n); if (left < q.n) { q.n = left; if (!left) { W.drops.splice(i, 1); continue; } } else if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }
     if (q.cd > 0) q.cd -= dt;
     if (q.t > W.cfg.gear.dropLife) W.drops.splice(i, 1);
@@ -893,11 +894,22 @@ export function useItem(W, idx) {
   if (u.buff) { const ex = W.buffs.find(b => b.stat === u.buff.stat && b.src === it.id); if (ex) ex.t = u.buff.t; else W.buffs.push({ stat: u.buff.stat, amt: u.buff.amt, t: u.buff.t, src: it.id }); W.ev.push({ k: 'buff', x: p.x, z: p.z, stat: u.buff.stat }); }
   removeAt(W.inv, idx, 1); return true;
 }
+// надеть лучшее (этап 4 «круче»): в каждый слот (кроме второй руки) — вещь из сумки с лучшей оценкой, если она лучше надетой
+export function equipBest(W) {
+  const B = W.cfg.smith.bonus, inv = W.inv; let n = 0;
+  for (const slot of ['weapon', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet']) {
+    let bi = -1, bs = inv.eq[slot] ? scoreUp(BY_ID[inv.eq[slot]], inv.up[slot] || 0, B, inv.il && inv.il[slot], inv.af && inv.af[slot]) + .5 : -1e9;
+    inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; if (!it || it.slot !== slot || !canWield(W.hero, it)) return; const sc = scoreUp(it, s.up || 0, B, s.il, s.af); if (sc > bs) { bs = sc; bi = i; } });
+    if (bi >= 0 && equipAt(inv, bi, W.hero)) n++;
+  }
+  if (n) refreshGear(W); return n;
+}
 export function dropItem(W, idx, n = 1) {
   const s = W.inv.bag[idx]; if (!s) return false;
   const q = Math.min(n, s.n), p = W.player;
   const dq = { id: s.id, n: q, x: p.x + Math.sin(p.face) * 1.6, z: p.z + Math.cos(p.face) * 1.6, t: W.cfg.gear.dropLife - 12, cd: 0 };   // брошенное лежит недолго
-  if (!isPlain(s) || s.il) { dq.n = 1; if (s.up) dq.up = s.up; if (s.g) dq.g = s.g.slice(); if (s.il) dq.il = s.il; }     // заточка, камни и уровень остаются при вещи
+  if (!isPlain(s) || s.il) { dq.n = 1; if (s.up) dq.up = s.up; if (s.g) dq.g = s.g.slice(); if (s.il) dq.il = s.il; if (s.af) dq.af = { ...s.af }; }     // заточка, камни, уровень и свойства остаются при вещи
+  dq.mine = true;     // брошенное героем: при подборе новых свойств не получает (иначе перебор)
   W.drops.push(dq);
   removeAt(W.inv, idx, q); return true;
 }
@@ -925,7 +937,7 @@ export function switchHero(W, id) {
   W.hero = id; Object.assign(W, { lv: nx.lv, xp: nx.xp, sp: nx.sp, skills: nx.skills, ap: nx.ap, ab: nx.ab, bar: nx.bar }); W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.ezones = []; W.wsk = null; W.meteors = [];
   W.allies = W.allies.filter(a => !a.decoy);
   for (const a of W.allies.filter(a => (W.cfg.squad.types[a.type] || {}).hero === id)) { const T = W.cfg.squad.types[a.type]; W.inv.ash += T.cost; W.allies.splice(W.allies.indexOf(a), 1); W.ev.push({ k: 'allyleft', name: T.name, ash: T.cost }); }     // спутник-герой стал героем: уходит из отряда, найм возвращается
-  const inv = W.inv, back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot], inv.il && inv.il[slot])); inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; if (inv.il) delete inv.il[slot]; };
+  const inv = W.inv, back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot], inv.il && inv.il[slot], inv.af && inv.af[slot])); inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; if (inv.af) delete inv.af[slot]; if (inv.il) delete inv.il[slot]; };
   if (inv.eq.weapon && !canWield(id, BY_ID[inv.eq.weapon])) back('weapon');
   if (inv.eq.offhand && !canOff(id, BY_ID[inv.eq.offhand])) back('offhand');
   for (const sl of ['head', 'body', 'cloak', 'boots']) if (inv.eq[sl] && !canWield(id, BY_ID[inv.eq[sl]])) back(sl);     // тяжёлая броня — в сумку (Ирге только лёгкая)

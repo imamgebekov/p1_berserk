@@ -5,7 +5,7 @@
 // уровень по времени, убийства и смерти. Без проверок «годно/негодно»: это замер для сравнения этапов (база — scratchpad).
 // Ограничение: бот не берёт задания и сюжет — опыт только за убийства.
 import { CFG3 } from '../3d/src/config3d.js';
-import { createWorld, step, mulberry32, aliveEnemies, respawnPlayer, refreshGear } from '../3d/src/sim.js';
+import { createWorld, step, mulberry32, aliveEnemies, respawnPlayer, refreshGear, equipBest } from '../3d/src/sim.js';
 import { equipAt, betterThanWorn } from '../3d/src/inv.js';
 import { BY_ID } from '../3d/src/data/items.js';
 import { HEROES } from '../3d/src/data/heroes3d.js';
@@ -58,7 +58,7 @@ function play(hero, seed) {
     if (process.env.FUN_DEBUG && i % 600 === 0) console.log(hero, (t | 0) + 'с', 'xz', p.x | 0, p.z | 0, 'hp', p.hp | 0, fight ? `бой ${tgt.type} d${bd.toFixed(1)} ehp${tgt.hp | 0} alert${!!tgt.alert}` : 'дорога', 'убито', W.kills);
     if (i % 180 === 0) { if (!fight && Math.hypot(p.x - lastX, p.z - lastZ) < .5) { stuck++; const a = rnd() * Math.PI * 2; side = 1.2; sideX = Math.cos(a); sideZ = Math.sin(a); if (process.env.FUN_DEBUG) console.log('застрял', t | 0, p.x | 0, p.z | 0, boss ? 'бежит от босса ' + boss.type : 'дорога', inC ? 'в лагере' : ''); if (stuck % 3 === 0) cur = null; } lastX = p.x; lastZ = p.z; }
     if (W.inv.bag.length !== bagN) {                                           // новая вещь: надеть, если лучше
-      for (let k = W.inv.bag.length - 1; k >= 0; k--) { const it = BY_ID[W.inv.bag[k].id]; if (it && it.slot && betterThanWorn(W.inv, it) && equipAt(W.inv, k, W.hero)) { ups++; refreshGear(W); } }
+      ups += equipBest(W);     // как кнопка «Надеть лучшее»: с уровнем вещи и её свойствами (этап 4 «круче»)
       bagN = W.inv.bag.length;
     }
     if (p.dead) { deaths++; respawnPlayer(W); cur = null; }

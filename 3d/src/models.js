@@ -165,6 +165,7 @@ const CALM = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-mo
 // облик по виду: цвета и особенности
 const SCALY = new Set(['drowned', 'drownedmaid', 'silt', 'swampelder']);     // чешуя (T4)
 const LOOKS = {
+  ash_thief: { shape: 'imp', body: '#6a5a3a', dark: '#1e160e', eye: '#ffd040', crown: '#e8c04a' },     // «Пепельный вор» (этап 4 «круче»)
   imp: { body: '#3b3345', dark: '#1a121a', eye: '#ff3030' },
   brute: { body: '#4a3430', dark: '#2a1c1a', eye: '#ff3030' },
   hound: { body: '#55503f', dark: '#2a2620', eye: '#ffb020' },

@@ -102,6 +102,7 @@ function reward(W, ev, x, z) {
   const ash = Math.round(between(rng, R.ash) * (1 + depth)); W.inv.ash += ash;
   for (const it of rollLoot(CONTAINERS[R.box], rng, depth, W.gear.luck)) { const a = rng() * TAU; W.drops.push({ id: it.id, n: it.n, x: x + Math.sin(a) * 1.4, z: z + Math.cos(a) * 1.4, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x, z, id: it.id }); }
   if (R.buff) W.buffs.push({ ...R.buff, src: 'event' });
+  if (R.epic) { const it = GEAR[rng() * GEAR.length | 0]; W.drops.push({ id: it.id, n: 1, x, z, t: 0, cd: 0, il: Math.max(1, W.lv) }); W.ev.push({ k: 'drop', x, z, id: it.id }); }     // великая вещь из мешка вора
   return ash;
 }
 function endEvent(W, ev, ok, why) {
@@ -130,6 +131,12 @@ const START = {
     const ang = Math.atan2(Math.sin(p.face), Math.cos(p.face));
     spawnFoes(W, ev, 'ambush', p.x, p.z, A.r[0], A.r[1], ang, Math.PI * 1.4);    // впереди и с боков
     return ev.foes.length ? ev : null;
+  },
+  thief(W, id) {     // «Пепельный вор» (этап 4 «круче»): появляется неподалёку и убегает; догнать и убить — награда
+    const E = W.cfg.events, T = E.thief, s = spotNear(W, T, false); if (!s) return null;
+    const keep = W.rng; W.rng = erng(W); let e; try { e = spawnEnemy(W, 'ash_thief', s.x, s.z); } finally { W.rng = keep; }     // свой генератор: бой не сдвигается
+    e.evId = id; e.alert = true;
+    return { id, kind: 'thief', x: s.x, z: s.z, stage: 'fight', t: T.time, foes: [e.id] };
   },
   caravan(W, id) {
     const E = W.cfg.events, K = E.caravan, M = W.map, camp = M.camp, rng = erng(W); if (!camp) return null;
@@ -195,6 +202,10 @@ export function updateEvents(W, dt) {
     } else if (ev.kind === 'ambush') {
       if (!foesLeft(W, ev)) endEvent(W, ev, true);
       else if (len(p.x - ev.x, p.z - ev.z) > E.ambush.flee || (W.map.camp && insideCamp(W.map.camp, p.x, p.z)) || ev.t <= 0) endEvent(W, ev, false, 'fled');     // убежал или укрылся в лагере
+    } else if (ev.kind === 'thief') {
+      const th = W.enemies.find(e => e.id === ev.foes[0]);
+      if (!th || th.dead) endEvent(W, ev, true);
+      else if (ev.t <= 0 || len(p.x - th.x, p.z - th.z) > E.thief.lose) { W.enemies.splice(W.enemies.indexOf(th), 1); W.ev.push({ k: 'blink', x: th.x, z: th.z, x2: th.x, z2: th.z }); endEvent(W, ev, false, 'escaped'); }     // ушёл — растаял в пепле
     } else if (ev.kind === 'caravan') {
       if (ev.stage === 'wait') { if (len(p.x - g.x, p.z - g.z) < E.caravan.start) { ev.stage = 'move'; ev.t = E.caravan.time; W.ev.push({ k: 'evMove', x: g.x, z: g.z, place: ev.place }); } else if (ev.t <= 0) endEvent(W, ev, false, 'late'); }
       else {
@@ -224,5 +235,6 @@ export function eventLine(W) {
   const p = W.player, g = ev.guest && guestOf(W, ev), d = g ? Math.round(len(g.x - p.x, g.z - p.z)) : 0;
   if (ev.kind === 'rescue') return ev.stage === 'wait' ? `Крик о помощи: путник в беде · ${d} м` : `Спасите путника · врагов: ${foesLeft(W, ev)}`;
   if (ev.kind === 'ambush') return `Засада! Врагов: ${foesLeft(W, ev)}`;
+  if (ev.kind === 'thief') { const th = W.enemies.find(e => e.id === ev.foes[0]); return `Пепельный вор! Догоните за ${Math.max(0, Math.ceil(ev.t))} с` + (th ? ` · ${Math.round(len(th.x - p.x, th.z - p.z))} м` : ''); }
   return ev.stage === 'wait' ? `Обоз ждёт охраны у ворот · ${d} м` : `Проводите обоз: ${ev.place} · ${Math.min(99, Math.round(ev.went / ev.total * 100))}%${d > W.cfg.events.caravan.follow ? ' · обоз ждёт вас' : ''}`;
 }

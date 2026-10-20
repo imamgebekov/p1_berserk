@@ -2,6 +2,7 @@
 import { clamp, len, rr } from './util3d.js';
 import { hurtPlayer, angDiff } from './sim.js';
 import { hurtAlly } from './squad3d.js';
+import { speedMul } from './status3d.js';
 import { slide, resolve, roomAt, insideOf } from './map.js';
 
 // ---- элитные враги: шанс по глубине, опасности и ночи; считается от номера врага, без расхода генератора случайных чисел ----
@@ -9,7 +10,7 @@ const hash01 = (id, seed) => { const s = Math.sin(id * 12.9898 + seed * 78.233) 
 export const affOf = (W, id) => W.cfg.elite.affixes[id] || (W.cfg.elite.affixes2 || {})[id];
 export const hasAff = (e, id) => e.aff === id || e.aff2 === id;     // второе свойство элиты (этап 2 «круче»)
 export function rollElite(W, e, depth, danger) {
-  const K = W.cfg.elite, C = W.cfg.enemies[e.type]; if (!K || C.boss) return false;
+  const K = W.cfg.elite, C = W.cfg.enemies[e.type]; if (!K || C.boss || C.noElite) return false;
   const p = K.chance + K.depthK * depth + K.dangerK * danger + (W.night ? K.nightK : 0);
   if (hash01(e.id, W.cfg.world.seed) >= p) return false;
   const ids = Object.keys(K.affixes).concat(K.extra && K.affixes2 ? Object.keys(K.affixes2) : []), id = ids[Math.floor(hash01(e.id + .5, W.cfg.world.seed) * ids.length) % ids.length], A = affOf(W, id);     // extra — новые свойства (этап 2 «круче»)
@@ -136,6 +137,8 @@ export function foeAI(W, e, C, d, dx, dz, dt, see) {
     return true;
   }
   if (e.state === 'fuse') { e.t += dt; e.vx = e.vz = 0; return true; }   // фитиль горит: стоит на месте, взрыв считает пятно
+  if (C.ai === 'flee') { e.alert = true; e.state = 'chase'; e.runT = (e.runT || 0) + dt; const rest = e.runT % (C.run[0] + C.run[1]) > C.run[0];     // бежит run[0] с, переводит дух run[1] с
+    if (d < C.flee && !p.dead && !rest) { const sp = C.speed * speedMul(e) * dt, a = Math.atan2(-dx, -dz) + Math.sin(W.t * 2.3 + e.id) * .6; e.face = a; slide(W.map, e, Math.sin(a) * sp, Math.cos(a) * sp, C.radius); } return true; }     // вор бежит прочь зигзагом, не бьёт
   if (!e.alert || p.dead || !see) return false;
   if (C.ai === 'bomber' && d < C.fuse.at) {
     e.state = 'fuse'; e.t = 0;

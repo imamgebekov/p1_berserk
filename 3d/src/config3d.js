@@ -175,7 +175,8 @@ const BASE = {
   // сюжет (этап 3, 2026-10-19): Акт I — data/story3d.js; fordAt — брод на дороге к узлу Ольхового леса, м от лагеря
   story: { on: true, fordAt: 105 },
   events: {
-    on: true, first: [300, 540], every: [420, 780], retry: 30, kinds: { rescue: 3, ambush: 3, caravan: 2 },
+    on: true, first: [300, 540], every: [420, 780], retry: 30, kinds: { rescue: 3, ambush: 3, caravan: 2, thief: 2 },
+    thief: { dist: [16, 26], side: 3, campPad: 10, r: 1, time: 30, lose: 55 },     // «Пепельный вор» (этап 4 «круче»): убегает, догнать за time с; дальше lose м — ушёл
     rescue: { name: 'Путник', hp: 300, taken: .4, dmg: 8, range: 1.9, cd: 1.2, dist: [30, 60], side: 4, campPad: 8, r: 1, wake: 18, wait: 240, time: 150, thanks: 4 },
     ambush: { road: 3, campPad: 10, r: [7, 11], flee: 45, time: 120 },
     caravan: { name: 'Обоз', hp: 420, taken: .6, r: 1.2, speed: 2.1, follow: 13, start: 5, arrive: 4, waves: [.3, .65], ahead: 9, wait: 300, time: 240, minLen: 14 },
@@ -187,7 +188,8 @@ const BASE = {
     reward: {
       rescue: { ash: [30, 60], box: 'chest', buff: { stat: 'luck', amt: 15, t: 300 } },
       ambush: { ash: [20, 40], box: 'chest' },
-      caravan: { ash: [60, 110], box: 'ironchest' }
+      caravan: { ash: [60, 110], box: 'ironchest' },
+      thief: { ash: [80, 160], box: 'ironchest', epic: 1 }     // вор: пепел, сундук и великая вещь
     }
   },
   // мелкое оживление (только вид): villagers — жителей в лагере, walk — их скорость, pause — сколько стоят у точки (от–до), fireGap — не ближе к костру;
@@ -732,6 +734,11 @@ const BASE = {
   // xp — опыт, buy — цены торговца, boss — множитель времени возрождения боссов, death — штраф: ash — доля теряемого пепла (остаётся «могила»), gear — теряется уровень улучшения у надетого
   // элитные враги: шанс = chance + глубина × depthK + опасность × dangerK (+ nightK ночью). hp/dmg/xp — множители, luck и lootRolls — добыча.
   drops: { brandK: .25 },     // добыча с врагов: вес оранжевых (клеймёных) ×brandK — их было до половины снаряжения; сундуков и боссов не касается
+  // случайные свойства вещей (этап 4 «круче»): count — сколько у редкости (2 — редкий, 3 — великий, 4 — клеймёный, 5 — золотой);
+  // base — [начало, рост за уровень вещи]; q — разброс качества; max — предел свойства. on: false — вещи как раньше
+  affix: { on: true, count: { 2: 1, 3: 2, 4: 3, 5: 3 }, q: [.6, 1],
+    base: { dmg: [1, .12], armor: [1, .1], hp: [4, .6], crit: [2, .06], leech: [1, .03], spd: [2, .04], luck: [3, .15], regen: [.5, .01], stealth: [4, .1] },
+    max: { dmg: 12, armor: 10, hp: 45, crit: 8, leech: 4, spd: 6, luck: 15, regen: 1.5, stealth: 12 } },
   elite: {
     chance: .04, depthK: .03, dangerK: .03, nightK: .03, hp: 1.9, dmg: 1.2, xp: 3, scale: 1.2, luck: 10, lootRolls: 2,
     affixes: {
@@ -902,6 +909,7 @@ const BASE = {
       firstPack: { lv: 3, hp: .5, r: 90 } },     // шаг 12: пока герой ниже lv, стайки ближе r м к лагерю — «молодые» (здоровье ×hp)
     sleep: { r: 80, drop: 110 },   // дальше r от героя враг «спит» (не обновляется и не считается в числе живых вокруг), дальше drop бродячий — забывается
     brutePart: .3,        // доля рогачей среди врагов
+    ash_thief: { name: 'Пепельный вор', ai: 'flee', flee: 24, run: [3.5, 1.5], noElite: true, xp: 40, hp: 120, speed: 5, damage: 0, range: 1, wind: 1, recover: 1, radius: .45, scale: .9, immune: ['fear'] },     // убегает с мешком (этап 4 «круче»)
     imp:   { name: 'Бес', xp: 14, hp: 126, speed: 3.4, damage: 11,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1, ai: 'move', move: { kind: 'leap', min: 3.5, max: 7, cd: 7, first: 2 }, lunge: { min: 3.5, max: 7, aim: .5, speed: 14, len: 5.5, w: .8, cd: 7, mul: .7 } },
     brute: { name: 'Рогач', xp: 45, hp: 390, speed: 2.2, damage: 28, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6, ai: 'move', move: { kind: 'slam', r: 2.6, wind: .7, mul: .55, cd: 9, first: 3 } },
     hound: { name: 'Гончая', g: 'f', on: ['bleed', .6, 2.5, 4], xp: 10, hp: 90, speed: 5.6, damage: 10,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85, ai: 'move', move: { kind: 'howl', r: 12, t: 5, spd: 1.2, cd: 20, first: .5 } },   // быстрая, хрупкая; рыщет у руин и лагеря

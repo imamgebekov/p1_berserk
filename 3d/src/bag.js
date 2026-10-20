@@ -4,12 +4,13 @@ import { betterThanWorn, equipAt, equipOff, unequip, scoreUp, nameOf, SET_OF, se
 import { canWield, canOff, heroOf, NOT_FOR, heavyFor } from './data/heroes3d.js';
 import { iconURL, slotIconURL } from './itemicons.js';
 import { PERKS } from './data/weapons3d.js';
-import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots } from './sim.js';
+import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots, equipBest } from './sim.js';
 import { readTome } from './craft3d.js';
 import { socketsOf } from './inv.js';
 import { weaponMix, armorGemFx } from './stones3d.js';
 import { skillOfItem } from './weaponskill3d.js';
 import { MIX_NAME, ELEMENT_NAME, mixKey } from './elements3d.js';
+import { affixLines } from './affix3d.js';
 
 const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
 const tabOf = it => it.slot === 'weapon' ? 'weapon' : it.slot ? 'armor' : it.cat === 'consumable' ? 'use' : 'other';
@@ -56,12 +57,14 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
   // умение оружия у клеймёного и золотого: «Умение (F): Жатва — …»
   function skillLine(it) { const s = skillOfItem(it, cfg); return s ? el('div', 'wskl', `Умение${desk ? ' (F)' : ''}: ${s.name}${s.gold ? ', золотое — сильнее и с «Солнцем»' : ''}. ${s.text}`) : null; }
   const wIl = slot => (W.inv.il && W.inv.il[slot]) || 0;     // уровень надетой вещи
+  const wAf = slot => (W.inv.af && W.inv.af[slot]) || null;     // случайные свойства надетой (этап 4 «круче»)
+  const afBlock = af => { if (!af) return null; const d = el('div', 'afx'); for (const l of affixLines(af, STAT_NAME)) d.appendChild(el('div', 'afl', l)); return d; };
   const lvTxt = (it, il) => (it.slot ? ' · ур. ' + ilOf(it, il) : '');
-  function tip(e, it, up, worn, g, il = 0) {
+  function tip(e, it, up, worn, g, il = 0, af = null) {
     tipEl.textContent = ''; tipEl.className = 'r' + it.rar;
     tipEl.append(nm(it, 1, up), el('div', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : '') + lvTxt(it, il)));
-    { const gl = gemLine(it, g); if (gl) tipEl.appendChild(gl); const sl = skillLine(it); if (sl) tipEl.appendChild(sl); }
-    if (it.stats) for (const r of statDiff(it, worn, up, worn ? W.inv.up[it.slot] || 0 : 0, cfg.smith.bonus, il, worn ? wIl(it.slot) : 0)) {
+    { const ab = afBlock(af); if (ab) tipEl.appendChild(ab); const gl = gemLine(it, g); if (gl) tipEl.appendChild(gl); const sl = skillLine(it); if (sl) tipEl.appendChild(sl); }
+    if (it.stats) for (const r of statDiff(it, worn, up, worn ? W.inv.up[it.slot] || 0 : 0, cfg.smith.bonus, il, worn ? wIl(it.slot) : 0, af, worn ? wAf(it.slot) : null)) {
       if (!worn && !(r.k in it.stats)) continue;
       const row = el('div', 'str' + (r.d > 0 ? ' up' : r.d < 0 ? ' down' : '')); row.append(el('span', 'sk', r.name), el('span', 'sv', worn ? `${fmt(r.k, r.a)} → ${fmt(r.k, r.b)}` : fmt(r.k, r.b)), el('span', 'sd', r.d > 0 ? '▲' : r.d < 0 ? '▼' : '')); tipEl.appendChild(row);
     } else if (it.text) tipEl.appendChild(el('div', 'ct', it.text));
@@ -74,7 +77,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
   // надеть или использовать сразу (двойной щелчок, долгое касание)
   function quick(i) { const s = W.inv.bag[i], it = s && BY_ID[s.id]; if (!it) return; if (it.slot && canWield(W.hero, it)) { if (equipAt(W.inv, i, W.hero)) sel = null; } else if (it.use) { if (!useItem(W, i)) flash('Сейчас не нужно'); } hideTip(); render(); onChange && onChange(); }
   function hoverable(b, get) {
-    b.addEventListener('mouseenter', e => { const g = get(); if (g) tip(e, g.it, g.up, g.worn, g.g, g.il || 0); });
+    b.addEventListener('mouseenter', e => { const g = get(); if (g) tip(e, g.it, g.up, g.worn, g.g, g.il || 0, g.af || null); });
     b.addEventListener('mousemove', e => { if (!tipEl.hidden) moveTip(e); });
     b.addEventListener('mouseleave', hideTip);
   }
@@ -85,11 +88,11 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     t.append(el('div', 'cn', SLOT_NAME[slot]), el('div', 'rr', slot === 'offhand' ? (heroOf(W.hero).off.length ? 'Во вторую руку: ' + (heroOf(W.hero).off.includes('shield') ? 'щит' : 'второй клинок') : `${heroOf(W.hero).name} держит оружие двумя руками`) : 'Что надеть'));
     h.append(t); { const x = el('button', 'cclose', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть'); x.addEventListener('click', () => { sel = null; render(); }); h.append(x); }
     cardEl.appendChild(h);
-    const list = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).filter(r => fits(slot, r.it)).sort((a, b) => scoreUp(b.it, b.s.up || 0, cfg.smith.bonus, b.s.il) - scoreUp(a.it, a.s.up || 0, cfg.smith.bonus, a.s.il));
+    const list = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).filter(r => fits(slot, r.it)).sort((a, b) => scoreUp(b.it, b.s.up || 0, cfg.smith.bonus, b.s.il, b.s.af) - scoreUp(a.it, a.s.up || 0, cfg.smith.bonus, a.s.il, a.s.af));
     if (!list.length) cardEl.appendChild(el('div', 'emptyl', 'В сумке нет подходящих вещей.'));
     for (const r of list) { const row = el('button', 'pickrow r' + r.it.rar); row.type = 'button'; row.append(icon(r.it), el('span', 'pn', nameOf(r.it.id, r.s.up || 0)), el('span', 'ps', r.it.stats ? statLine(r.it) : ''));
       row.addEventListener('click', () => { const okk = slot === 'offhand' && r.it.slot === 'weapon' ? equipOff(W.inv, r.i, W.hero) : equipAt(W.inv, r.i, W.hero); if (okk) sel = null; render(); onChange && onChange(); });
-      if (desk) hoverable(row, () => ({ it: r.it, up: r.s.up || 0, g: r.s.g, il: r.s.il, worn: W.inv.eq[slot] ? BY_ID[W.inv.eq[slot]] : null }));
+      if (desk) hoverable(row, () => ({ it: r.it, up: r.s.up || 0, g: r.s.g, il: r.s.il, af: r.s.af, worn: W.inv.eq[slot] ? BY_ID[W.inv.eq[slot]] : null }));
       cardEl.appendChild(row); }
   }
   function card() {
@@ -104,12 +107,13 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     t.append(nm(it, n, up), el('div', 'rr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : '') + lvTxt(it, il))); h.append(t);
     { const x = el('button', 'cclose', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть'); x.addEventListener('click', () => { sel = null; render(); }); h.append(x); }
     cardEl.appendChild(h);
-    { const gl = gemLine(it, sel.from === 'eq' ? W.inv.gem[sel.slot] : W.inv.bag[sel.i].g); if (gl) cardEl.appendChild(gl); const sl = skillLine(it); if (sl) cardEl.appendChild(sl); }
+    const afSel = sel.from === 'eq' ? wAf(sel.slot) : W.inv.bag[sel.i] && W.inv.bag[sel.i].af || null;
+    { const ab = afBlock(afSel); if (ab) cardEl.appendChild(ab); const gl = gemLine(it, sel.from === 'eq' ? W.inv.gem[sel.slot] : W.inv.bag[sel.i].g); if (gl) cardEl.appendChild(gl); const sl = skillLine(it); if (sl) cardEl.appendChild(sl); }
     // характеристики: у вещи из сумки — рядом с надетым (было → стало), стрелка — лучше или хуже
     const worn = it.slot && sel.from === 'bag' && W.inv.eq[it.slot] ? BY_ID[W.inv.eq[it.slot]] : null;
     if (it.stats) {
       const g = el('div', 'stg');
-      for (const r of statDiff(it, worn, up, worn ? W.inv.up[it.slot] || 0 : 0, cfg.smith.bonus, il, worn ? wIl(it.slot) : 0)) {
+      for (const r of statDiff(it, worn, up, worn ? W.inv.up[it.slot] || 0 : 0, cfg.smith.bonus, il, worn ? wIl(it.slot) : 0, afSel, worn ? wAf(it.slot) : null)) {
         if (!worn && !(r.k in it.stats)) continue;
         const row = el('div', 'str' + (r.d > 0 ? ' up' : r.d < 0 ? ' down' : ''));
         row.append(el('span', 'sk', r.name), el('span', 'sv', worn ? `${fmt(r.k, r.a)} → ${fmt(r.k, r.b)}` : fmt(r.k, r.b)), el('span', 'sd', r.d > 0 ? '▲' : r.d < 0 ? '▼' : ''));
@@ -121,7 +125,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     if (!mine) cardEl.appendChild(el('div', 'cmp down', heavyFor(W.hero, it) ? `${NOT_FOR[W.hero]}: тяжёлая броня, ${heroOf(W.hero).name} носит только лёгкую. Можно продать торговцу.` : `${NOT_FOR[W.hero]}: ${heroOf(W.hero).name} держит ${heroOf(W.hero).kinds.map(k => KIND_NAME[k]).join(', ')}. Можно продать торговцу.`));
     if (it.slot && sel.from === 'bag' && mine) {
       const cur = W.inv.eq[it.slot], c = cur && BY_ID[cur];
-      if (c) { const d = Math.round(scoreUp(it, up, cfg.smith.bonus, il) - scoreUp(c, W.inv.up[it.slot] || 0, cfg.smith.bonus, wIl(it.slot))); cardEl.appendChild(el('div', 'cmp ' + (d > 0 ? 'up' : d < 0 ? 'down' : ''), `Надето: ${c.name} — в целом ${d > 0 ? 'лучше на ' + d : d < 0 ? 'хуже на ' + -d : 'так же'}`)); }
+      if (c) { const d = Math.round(scoreUp(it, up, cfg.smith.bonus, il, afSel) - scoreUp(c, W.inv.up[it.slot] || 0, cfg.smith.bonus, wIl(it.slot), wAf(it.slot))); cardEl.appendChild(el('div', 'cmp ' + (d > 0 ? 'up' : d < 0 ? 'down' : ''), `Надето: ${c.name} — в целом ${d > 0 ? 'лучше на ' + d : d < 0 ? 'хуже на ' + -d : 'так же'}`)); }
       else cardEl.appendChild(el('div', 'cmp up', 'Слот пуст'));
     }
     const st = SET_OF[it.id];
@@ -145,6 +149,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       if (it.use) btn('Использовать', () => { if (!useItem(W, sel.i)) flash('Сейчас не нужно'); else if (!W.inv.bag[sel.i] || W.inv.bag[sel.i].id !== it.id) sel = null; }, 'main');
       btn(`Продать · ${sellPrice(it, cfg, up, W.gear.trade) * n}`, () => { if (sellItem(W, sel.i, n) === 'far') flash('Продавать можно только у торговца'); else sel = null; });
       if (n > 1) btn(`Продать 1 · ${sellPrice(it, cfg, up, W.gear.trade)}`, () => { if (sellItem(W, sel.i, 1) === 'far') flash('Продавать можно только у торговца'); });
+      if (it.slot) { const s0 = W.inv.bag[sel.i]; btn(s0 && s0.lock ? 'Снять замок' : 'Замок', () => { const s = W.inv.bag[sel.i]; if (s) { if (s.lock) delete s.lock; else s.lock = true; } }); }     // замок: «продать хуже надетого» не тронет (этап 4 «круче»)
       btn('Выбросить', () => { dropItem(W, sel.i, n); sel = null; });
     }
     cardEl.insertBefore(row, cardEl.children[1] || null);      // кнопки — сразу под названием: у длинной карточки их видно без прокрутки
@@ -169,7 +174,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       if (it && up) b.append(el('span', 'upg', '+' + up));
       b.append(el('span', 'sl', SLOT_NAME[slot]));
       b.setAttribute('aria-label', it ? SLOT_NAME[slot] + ': ' + nameOf(it.id, up) : SLOT_NAME[slot] + ': пусто');
-      if (it) hoverable(b, () => ({ it, up, worn: null, g: W.inv.gem[slot], il: wIl(slot) }));
+      if (it) hoverable(b, () => ({ it, up, worn: null, g: W.inv.gem[slot], il: wIl(slot), af: wAf(slot) }));
       b.addEventListener('click', () => { sel = it ? { from: 'eq', slot } : { from: 'pick', slot }; render(); });     // пустой слот — список подходящих вещей
       eqEl.appendChild(b);
     }
@@ -184,12 +189,12 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       if (r.s.n > 1) b.append(el('span', 'cnt', '×' + r.s.n));
       if (r.s.up) b.append(el('span', 'upg', '+' + r.s.up));
       const mine = canWield(W.hero, r.it);
-      if (!mine) { b.classList.add('nw'); b.append(el('span', 'bt no', '✕')); } else if (r.it.slot ? scoreUp(r.it, r.s.up || 0, cfg.smith.bonus, r.s.il) > (W.inv.eq[r.it.slot] ? scoreUp(BY_ID[W.inv.eq[r.it.slot]], W.inv.up[r.it.slot] || 0, cfg.smith.bonus, wIl(r.it.slot)) : -1) + .5 : betterThanWorn(W.inv, r.it)) b.append(el('span', 'bt', '▲'));     // с учётом уровня вещи
+      if (!mine) { b.classList.add('nw'); b.append(el('span', 'bt no', '✕')); } else if (r.it.slot ? scoreUp(r.it, r.s.up || 0, cfg.smith.bonus, r.s.il, r.s.af) > (W.inv.eq[r.it.slot] ? scoreUp(BY_ID[W.inv.eq[r.it.slot]], W.inv.up[r.it.slot] || 0, cfg.smith.bonus, wIl(r.it.slot), wAf(r.it.slot)) : -1) + .5 : betterThanWorn(W.inv, r.it)) b.append(el('span', 'bt', '▲'));     // с учётом уровня вещи
       if (r.it.slot) b.append(el('span', 'ilv', ilOf(r.it, r.s.il)));     // уровень вещи в углу
       b.dataset.item = r.it.id;     // G — где взять
       b.title = nameOf(r.it.id, r.s.up || 0) + (r.s.n > 1 ? ' ×' + r.s.n : '') + (r.it.stats ? ' — ' + statLine(r.it) : '') + (mine ? '' : ' — ' + NOT_FOR[W.hero]);
       b.setAttribute('aria-label', b.title);
-      if (desk) { b.removeAttribute('title'); hoverable(b, () => ({ it: r.it, up: r.s.up || 0, g: r.s.g, il: r.s.il, worn: r.it.slot && W.inv.eq[r.it.slot] ? BY_ID[W.inv.eq[r.it.slot]] : null })); }
+      if (desk) { b.removeAttribute('title'); hoverable(b, () => ({ it: r.it, up: r.s.up || 0, g: r.s.g, il: r.s.il, af: r.s.af, worn: r.it.slot && W.inv.eq[r.it.slot] ? BY_ID[W.inv.eq[r.it.slot]] : null })); }
       b.addEventListener('click', () => { sel = { from: 'bag', i: r.i }; render(); });
       b.addEventListener('dblclick', () => quick(r.i));
       { let lp = 0; b.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; lp = setTimeout(() => { lp = 0; quick(r.i); }, 450); });     // долгое касание — надеть или использовать
@@ -207,6 +212,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
   $('bagBtn').addEventListener('click', () => (root.hidden ? open() : close()));
   $('bagClose').addEventListener('click', close);
   $('bagQuests').addEventListener('click', () => { close(); onQuests && onQuests(); });
+  $('bagBest').addEventListener('click', () => { const n = equipBest(W); flash(n ? `Надето лучшее: ${n}` : 'Лучше надетого нет'); sel = null; render(); onChange && onChange(); });     // этап 4 «круче»
   $('bagJournal').addEventListener('click', () => { close(); onJournal && onJournal(); });
   return { open, close, render, isOpen: () => !root.hidden };
 }

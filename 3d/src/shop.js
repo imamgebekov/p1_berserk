@@ -8,11 +8,12 @@ import { RECIPES } from './data/recipes3d.js';
 import { TOME_BY_ID } from './data/tomes3d.js';
 import { craft, craftStatus, missing, recipeKnown } from './craft3d.js';
 import { allyHp, allyDmg, hireable, liveAllies } from './squad3d.js';
+import { sellWorse } from './economy3d.js';
 import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, stockPrice, shopOf, priceMulOf, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
 
 export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const $ = id => doc.getElementById(id);
-  const root = $('shop'), listEl = $('shopList'), headEl = $('shopHead'), tabsEl = $('shopTabs'), flashEl = $('shopFlash'), junkBtn = $('shopJunk');
+  const root = $('shop'), listEl = $('shopList'), headEl = $('shopHead'), tabsEl = $('shopTabs'), flashEl = $('shopFlash'), junkBtn = $('shopJunk'), worseBtn = $('shopWorse');
   let tab = 'buy', armed = null, flashT = 0;
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2200); };
@@ -39,7 +40,7 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     const wand = W.nearNpc === 'wanderer' && W.wanderer, sh = shopOf(W), mul = W.dif.buy * priceMulOf(W);
     headEl.textContent = wand ? `Сказочный торговец · уедет через ${Math.max(0, Math.ceil(wand.t))} с · пепел ${W.inv.ash}` : `Торговец · пепел ${W.inv.ash}`;
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
-    junkBtn.hidden = tab !== 'sell';
+    junkBtn.hidden = tab !== 'sell'; worseBtn.hidden = tab !== 'sell';
     listEl.textContent = '';
     if (tab === 'buy') {
       sh.stock.forEach((s, i) => { const it = BY_ID[s.id], price = stockPrice(W, s); listEl.appendChild(tierRow(s, row(it, s.n, (canWield(W.hero, it) ? '' : NOT_FOR[W.hero] + ' · ') + (it.stats ? statLine(it) : it.text || ''), price, 'Купить', () => { const r = buyItem(W, i); if (r === 'closed') flash('Торговец спит до рассвета'); else if (r === 'ash') flash('Не хватает пепла'); else if (r === 'full') flash('Сумка полна'); else if (r === 'far') flash('Подойдите к торговцу'); }, W.inv.ash >= price, canWield(W.hero, it) && betterThanWorn(W.inv, it) ? '▲' : ''))); });
@@ -57,6 +58,7 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       if (!rows.length) listEl.appendChild(el('div', 'emptyl', 'Сумка пуста.'));
     }
   }
+  worseBtn.addEventListener('click', () => { const r = sellWorse(W); flash(r < 0 ? (W.night ? 'Торговец спит до рассвета' : 'Подойдите к торговцу') : r.n ? `Продано вещей: ${r.n} за ${r.sum}` : 'Хуже надетого нет'); render(); onChange && onChange(); });     // этап 4 «круче»
   junkBtn.addEventListener('click', () => { const sum = sellJunk(W); flash(sum < 0 ? (W.night ? 'Торговец спит до рассвета' : 'Подойдите к торговцу') : sum ? `Хлам продан за ${sum}` : 'Хлама нет'); render(); onChange && onChange(); });
   const open = () => { tab = 'buy'; render(); root.hidden = false; onOpen && onOpen(); };
   const close = () => { root.hidden = true; for (const s of W.shop.stock) s.fresh = false; onClose && onClose(); };     // посмотрел — уже не новинка
