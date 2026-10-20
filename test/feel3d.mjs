@@ -23,6 +23,6 @@ const F = CFG3.feel;
 { const f = createFeel({ ...CFG3, feel: { ...F, on: false } }); ok(f.event({ k: 'die', boss: true }) === null && f.tick(1 / 60).scale === 1, 'выключено — эффекты есть'); }
 { const A = ABILITIES.thorn, u3 = unlocksAt(3, CFG3, A), u8 = unlocksAt(8, CFG3, A), u7 = unlocksAt(7, CFG3, A);
   ok(u3.some(x => x.kind === 'ability' && x.name === A[0].name), 'на 3-м не открылось первое умение'); ok(u8.some(x => x.kind === 'squad' && x.n === 2), 'на 8-м нет второго бойца');
-  ok(u7.some(x => x.kind === 'rank' && x.rank === 2), 'на 7-м нет второго ранга'); ok(unlocksAt(32, CFG3, A).length === 0, 'на 32-м что-то открылось (пока нечему)'); }
+  ok(u7.some(x => x.kind === 'rank' && x.rank === 2), 'на 7-м нет второго ранга'); ok(unlocksAt(2, CFG3, A).length === 0 && unlocksAt(32, CFG3, A).length > 0, 'на 2-м что-то открылось или на 32-м пусто (древо: умения открываются почти каждый уровень)'); }
 if (fail.length) { console.log('ПРОВАЛ:\n' + fail.join('\n')); process.exit(1); }
 console.log('Ощущение боя 3D: OK');

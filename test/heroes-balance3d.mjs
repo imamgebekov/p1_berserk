@@ -40,7 +40,7 @@ const LV = { 'железо': 6, 'сталь': 12, 'чёрное': 22 }, TIERS = 
 const PLACES = { 'у костра': [6, 6], 'середина': [-20, -40], 'у границы': [-62, -5] };
 
 // очки умений: по одному в каждое открытое умение по порядку, остальное — до упора по порядку
-function spend(W) { const L = heroAbilities(W); for (let pass = 0; pass < 6; pass++) for (const a of L) upgradeAbility(W, a.id); }
+function spend(W) { const L = heroAbilities(W).slice(0, 8); for (let pass = 0; pass < 6; pass++) for (const a of L) upgradeAbility(W, a.id); }     // бот — на прежних 8 умениях (новые умения древа — test/actives3d.mjs)
 function setup(cfg, hero, tier, seed) {
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3)); W.hero = hero; W.lv = LV[tier]; W.ap = abilityPoints(W.lv, cfg);
   Object.assign(W.inv.eq, (hero === 'irga' || hero === 'warlock' ? LIGHT : ARMOR)[tier], ARMS[hero][tier]); spend(W); refreshGear(W); W.player.hp = W.player.maxhp; return W;

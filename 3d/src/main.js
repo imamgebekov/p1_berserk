@@ -22,7 +22,7 @@ import { isNight } from './daynight.js';
 import { bagUsed } from './inv.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, eclipseGo, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
-import { abilityView, resView, barOf } from './abilities3d.js';
+import { abilityView, resView, barOf, abilityAim } from './abilities3d.js';
 import { createFeel, unlocksAt } from './feel3d.js';
 import { ABILITIES, abilityPointsAt } from './data/abilities3d.js';
 import { weaponSkillView } from './weaponskill3d.js';
@@ -171,7 +171,7 @@ function drawAbil() {
   abilBtns.forEach((b, i) => { const a = v[i], show = (!!a || desk) && !panelOpen && !landscape && !W.player.dead; if (b.hidden === show) b.hidden = !show; if (!show) return;
     const tag = a ? a.id + a.rank : 'empty'; if (b.dataset.id !== tag) { b.dataset.id = tag; b.textContent = ''; if (a) { const g = GI['n:' + a.id]; if (g) b.insertAdjacentHTML('beforeend', `<svg class="abgi" viewBox="0 0 512 512" aria-hidden="true"><path d="${g}"/></svg>`); else b.textContent = a.icon; } const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k);
       if (a) { const c = document.createElement('span'); c.className = 'c'; c.textContent = a.cost; b.append(c); } else if (next) { const l = document.createElement('span'); l.className = 'lv'; l.textContent = 'ур. ' + next.lv; b.append(l); }
-      b.setAttribute('aria-label', a ? `${a.name} (${i + 1}), цена ${a.cost}` : 'Пустая ячейка: умение ставится в окне «Навыки»'); b.title = a ? `${a.name} · клавиша ${i + 1} · цена ${a.cost}` : 'Пусто: поставьте умение в окне «Навыки» → «Умения»'; }
+      b.setAttribute('aria-label', a ? `${a.name} (${i + 1}), цена ${a.cost}` : 'Пустая ячейка: умение ставится в древе'); b.title = a ? `${a.name} · клавиша ${i + 1} · цена ${a.cost}` : 'Пусто: поставьте умение на панель в древе (карточка умения)'; }
     b.classList.toggle('empty', !a); b.classList.toggle('poor', !!a && !a.enough); { const c = a && cr.find(q => q.id === a.id); b.classList.toggle('combo', !!c); if (c) b.dataset.combo = c.combo.name; else delete b.dataset.combo; } if (!a) { b.style.setProperty('--cd', 0); return; }
     b.style.setProperty('--cd', a.cd > 0 ? (a.cd / a.cdMax).toFixed(3) : 0); });
 }
@@ -402,6 +402,7 @@ if (desk) {
     if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].indexOf(c); if (n >= 0 && HERO_IDS[n]) pickHero(HERO_IDS[n]); else if (c === 'Escape' && heroSwitching) closeHeroPick(); return; }
     if (!$('dead').hidden) { if (c === 'Enter' || c === 'KeyE') $('again').click(); return; }
     if (!$('dialog').hidden) { e.preventDefault(); const bs = [...$('dlgOpts').children], n = ['Digit1', 'Digit2', 'Digit3'].indexOf(c); if (n >= 0 && bs[n]) bs[n].click(); else if (c === 'KeyE' || c === 'Space' || c === 'Enter') bs[0] && bs[0].click(); else if (c === 'Escape') { dlg.i = dlg.lines.length; dlgClose(); } return; }     // разговор (этап 3)
+    if (c === 'Escape' && aiming && !panelOpen) { e.preventDefault(); aimCancel = true; return; }     // Esc — отмена прицела
     if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.close'); if (open) open.click(); else $('gear').click(); return; }
     if (c === 'KeyH' && !panelOpen) { if (vis('heroicBtn')) heroicBtn.click(); return; }
     if ((c === 'KeyZ' || c === 'KeyX' || c === 'KeyC') && !panelOpen) { partyCmd(c === 'KeyZ' ? 'follow' : c === 'KeyX' ? 'hold' : 'assist'); return; }     // команды отряда (этап 4)
@@ -637,6 +638,23 @@ const comboEl = $('combo'), statusRow = $('statusRow');
 let lastCombo = 0, lastSt = '', hudT = 1, hudP = false;
 $('smithJournal').addEventListener('click', () => { smith.close(); journal.open(); });
 const hpFill = $('hpFill'), hpGhost = $('hpGhost'), hpTxt = $('hpTxt'), hudLv = $('hudLv'), hudAsh = $('hudAsh'), hudTime = $('hudTime');
+// прицел умения по площади (2026-10-20, просьба владельца): клавиша — кружок под мышью; клик или та же клавиша — удар; правый клик или Esc — отмена
+let aiming = null, aimCancel = false, atkHold = false;
+function aimStep(inp) {
+  const sl = inp.ability >= 1 && inp.ability <= 6 ? inp.ability - 1 : -1, p = W.player;
+  if (atkHold) { if (!inp.attack) atkHold = false; inp.attack = inp.attackPress = false; }     // кнопка мыши после удара ещё зажата — не бить оружием
+  if (aiming) {
+    const A = abilityAim(W, aiming.slot);
+    if (aimCancel || inp.roll || p.dead || !A) { aiming = null; aimCancel = false; inp.roll = false; inp.ability = 0; }     // правый клик отменяет прицел, а не катит
+    else if (inp.attackPress || sl === aiming.slot) { inp.ability = aiming.slot + 1; inp.attack = inp.attackPress = false; atkHold = true; aiming = null; }
+    else if (sl >= 0) { if (abilityAim(W, sl) && !(W.acd[barOf(W)[sl]] > 0)) { aiming = { slot: sl }; inp.ability = 0; } else aiming = null; }
+    else inp.attack = inp.attackPress = false;
+  } else if (sl >= 0 && abilityAim(W, sl) && !(W.acd[barOf(W)[sl]] > 0)) { aiming = { slot: sl }; inp.ability = 0; aimCancel = false; }
+  if (!renderer) return;
+  const A = aiming && abilityAim(W, aiming.slot); if (!A || !inp.aimPt) { renderer.setAim(null); return; }
+  const dx = inp.aimPt.x - p.x, dz = inp.aimPt.z - p.z, d = Math.hypot(dx, dz), k = d > A.range ? A.range / d : 1;     // как в умении: точка не дальше дальности
+  renderer.setAim({ x: p.x + dx * k, z: p.z + dz * k, r: A.r, el: A.el, px: p.x, pz: p.z, range: A.range });
+}
 let saveT = 0, lastHp = -1, lastKey = '', last = performance.now(), simK = 1;
 const CALM_UI = matchMedia('(prefers-reduced-motion: reduce)').matches;
 // замер кадра (C5): время процессора на симуляцию и подготовку отрисовки, вызовы и треугольники; окно последних 600 кадров
@@ -700,11 +718,13 @@ function frame(now) {
   // под меню (шаг 5): бой останавливается плавно за UI.stopT с (при «уменьшить движение» — сразу), а картинка живёт — вода, ветер, частицы
   const paused = panelOpen || landscape; simK = paused ? (CALM_UI ? 0 : Math.max(0, simK - real / cfg.ui.stopT)) : 1;
   const fk = lastFk = feel.tick(dt, W.player.dead ? 1 : W.player.hp / W.player.maxhp, CALM_UI);     // шаг не длиннее 0,05 с: долгий кадр не «съедает» замедление     // замедление и вспышки — только здесь, не в симуляции
+  if (aiming && (paused || !desk)) { aiming = null; if (renderer) renderer.setAim(null); }     // меню открыто — прицел снят
   if (simK > 0) {
     const inp = paused ? {} : input.read();
     Object.assign(inp, rotateInput(inp.mx || 0, inp.mz || 0, cfg.view.camYaw));
     if (desk && renderer && inp.cursor) inp.aimPt = renderer.groundAt(inp.cursor.x, inp.cursor.y);     // прицел курсором: удар, выстрел и умения — в сторону мыши        // «вверх» на джойстике = вверх на экране при любом повороте камеры
     if (W.player.dead) inp.attack = inp.roll = false;
+    if (desk) aimStep(inp);
     step(W, dt * simK * fk.scale, inp);
   }
   feelPeak.scale = Math.min(feelPeak.scale, fk.scale); feelPeak.flash = Math.max(feelPeak.flash, fk.flash.a); feelPeak.zoom = Math.max(feelPeak.zoom, fk.zoom);

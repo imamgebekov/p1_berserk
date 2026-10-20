@@ -11,8 +11,18 @@ import { comboFor, boosted, noteAbility } from './combos3d.js';
 import { withTalents } from './data/skills3d.js';
 
 export const heroAbilities = W => ABILITIES[W.hero] || [];
-const cfgOf = (W, id) => withMastery((W.cfg.abilities[W.hero] || {})[id]);     // 4-й ранг — мастерство (этап 3 «круче»)
-export const unlockLv = (W, i) => rankLvs(W.cfg, i)[0];
+const GCFG = new WeakMap();
+// настройки нового умения древа: числа вида (abilities.gen) + поправки умения; k — множитель урона
+function genCfg(cfg, d) {
+  let m = GCFG.get(cfg); if (!m) GCFG.set(cfg, m = new Map()); let o = m.get(d.id); if (o) return o;
+  const G = cfg.abilities.gen, { k, ...p } = d.p || {}; o = { ...G[d.kind], ...p, st: d.st, el: d.el, kind: d.kind, slowK: G.slowK };
+  if (k && o.mul) o.mul = o.mul.map(v => Math.round(v * k * 100) / 100);
+  if (d.kind === 'buff') o.amt = G.buff.amt[o.stat];
+  m.set(d.id, o); return o;
+}
+const defOf = (W, id) => heroAbilities(W).find(a => a.id === id);
+const cfgOf = (W, id) => { const own = (W.cfg.abilities[W.hero] || {})[id]; if (own) return withMastery(own); const d = defOf(W, id); return d && d.kind ? genCfg(W.cfg, d) : undefined; };     // 4-й ранг — мастерство (этап 3 «круче»)
+export const unlockLv = (W, i) => rankLvs(W.cfg, i, heroAbilities(W)[i])[0];
 // очков умений к уровню lv: по одному за каждый наступивший уровень ранга (abilities.ranks)
 export const abilityPoints = (lv, cfg) => abilityPointsAt(lv, cfg);
 export const spentAbility = ab => Object.values(ab || {}).reduce((a, b) => a + b, 0);
@@ -20,7 +30,7 @@ export const spentAbility = ab => Object.values(ab || {}).reduce((a, b) => a + b
 // можно ли улучшить: 'ok' | 'lvl' (следующий ранг — на более высоком уровне) | 'max' | 'points'
 export function canUpgrade(W, id) {
   const i = heroAbilities(W).findIndex(a => a.id === id); if (i < 0) return 'none';
-  const L = rankLvs(W.cfg, i), rank = W.ab[id] || 0;
+  const L = rankLvs(W.cfg, i, heroAbilities(W)[i]), rank = W.ab[id] || 0;
   if (rank >= L.length) return 'max';
   if (W.lv < L[rank]) return 'lvl';
   return W.ap > 0 ? 'ok' : 'points';
@@ -62,7 +72,7 @@ export function useAbility(W, i) {
   if (resNow(W) < cost) return 'res';
   const cb = comboFor(W, def.id);                    // связка: прошлое умение — первое в паре, окно открыто
   W.cmb = cb ? { id: cb.id, ...W.cfg.combos[cb.id] } : null;
-  let res; try { res = ACT[def.id](W, cb ? boosted(A, W.cfg.combos[cb.id]) : A, r); } finally { W.cmb = null; }
+  let res; try { res = (ACT[def.id] || GEN[def.kind])(W, cb ? boosted(A, W.cfg.combos[cb.id]) : A, r); } finally { W.cmb = null; }
   if (res === false) return 'target';
   resSpend(W, cost); W.acd[def.id] = A.cd[r]; noteAbility(W, def.id);
   W.ev.push({ k: 'ability', id: def.id, x: p.x, z: p.z, face: p.face });
@@ -136,7 +146,7 @@ const ACT = {
   hawk(W, A, r) { W.abuf.hawk = A.t[r]; W.abuf.hawkCrit = A.crit[r] / 100; if (tw(W, r)) { const ex = W.buffs.find(b => b.src === 'hawk'); if (ex) ex.t = A.t[r]; else W.buffs.push({ stat: 'spd', amt: 15, t: A.t[r], src: 'hawk' }); } },     // мастерство: и быстрее бег
   rain(W, A, r) {                                  // град: на ближайшего видимого врага или вперёд
     const p = W.player, C = W.cmb, held = C && C.id === 'snare' ? W.enemies.find(o => !o.dead && o.st && o.st.root && len(o.x - p.x, o.z - p.z) < A.range) : null;     // «Западня»: на пойманного
-    let { e } = aimAt(W, A.range); if (held) e = held; const x = e ? e.x : p.x + Math.sin(p.face) * A.ahead, z = e ? e.z : p.z + Math.cos(p.face) * A.ahead;
+    let { e } = aimAt(W, A.range); if (held) e = held; const at = !held && W.aimPt ? spot(W, A) : null, x = at ? at.x : e ? e.x : p.x + Math.sin(p.face) * A.ahead, z = at ? at.z : e ? e.z : p.z + Math.cos(p.face) * A.ahead;     // прицел мышью: град — в точку под курсором
     W.zones.push({ x, z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl, slow: C && C.id === 'icehail' ? C.slow : tw(W, r) ? .35 : 0 });     // мастерство: град замедляет     // «Ледяной град» замедляет
   },
   // Вейл
@@ -234,6 +244,47 @@ const ACT = {
   }
 };
 
+
+// новые умения древа (2026-10-20): виды действия; A — числа вида с поправками умения (genCfg), A.st — состояние, A.el — стихия (для эффекта)
+const stArgs = (A, r) => { const s = A.st; return s === 'burn' || s === 'poison' || s === 'bleed' ? [s, A.dps[r], A.t] : s === 'slow' ? [s, A.slowK, A.sd[r] * 2] : s === 'crack' ? [s, 1.25, A.sd[r] * 3] : [s, 0, A.sd[r]]; };     // [состояние, сила, длительность]
+function inflict(W, e, A, r) { if (!A.st || e.dead) return; const [s, v, t] = stArgs(A, r); applyStatus(W, e, s, v, t); }
+const gfx = (W, A, o) => W.ev.push({ k: 'gfx', kind: A.kind, el: A.el, ...o });
+const inCone = (W, e, r, cone) => { const p = W.player, d = Math.atan2(e.x - p.x, e.z - p.z) - p.face; return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) <= cone / 2 * Math.PI / 180; };
+const PROJ = { fire: 'orb', ice: 'orb', storm: 'orb', shadow: 'orb', light: 'orb', water: 'orb', venom: 'venom' };
+const buffOn = (W, src, stat, amt, t) => { const ex = W.buffs.find(b => b.src === src); if (ex) { ex.t = t; ex.amt = amt; } else W.buffs.push({ stat, amt, t, src }); };
+const GEN = {
+  nova(W, A, r) { const p = W.player; for (const e of near(W, A.r)) { abilityHit(W, e, A.mul[r], { knock: A.knock }); inflict(W, e, A, r); } gfx(W, A, { x: p.x, z: p.z, r: A.r }); },
+  cone(W, A, r) {
+    const p = W.player, { ang } = aimAt(W, A.r + 1, 90); p.face = ang; let hit = 0;
+    for (const e of near(W, A.r)) { if (!inCone(W, e, A.r, A.cone)) continue; abilityHit(W, e, A.mul[r], { knock: A.knock }); inflict(W, e, A, r); hit++; }
+    gfx(W, A, { x: p.x, z: p.z, r: A.r, face: p.face, cone: A.cone }); if (!hit) return false;
+  },
+  bolt(W, A, r) {
+    const { ang } = aimAt(W, 16, 60), o = { kind: PROJ[A.el] || 'arrow', pierce: A.pierce || 0, el: A.el, st: A.st ? stArgs(A, r) : null };
+    W.player.face = ang; const N = A.n || 1; for (let k = 0; k < N; k++) abilityArrow(W, ang + (N > 1 ? (k / (N - 1) - .5) * A.spread * Math.PI / 180 : 0), A.mul[r], o);
+    gfx(W, A, { x: W.player.x, z: W.player.z, face: ang });
+  },
+  strike(W, A, r) {
+    const p = W.player, { e } = aimAt(W, A.range + 1, A.cone); if (!e || len(e.x - p.x, e.z - p.z) > A.range + W.cfg.enemies[e.type].radius) return false;
+    p.face = Math.atan2(e.x - p.x, e.z - p.z); abilityHit(W, e, A.mul[r], { knock: A.knock || 1, heavy: true }); inflict(W, e, A, r);
+    gfx(W, A, { x: e.x, z: e.z, x2: p.x, z2: p.z, r: 1.4 });
+  },
+  dash(W, A, r) {
+    const p = W.player; let best = null, bd = A.dist + 2;
+    for (const e of W.enemies) { if (e.dead) continue; const d = len(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; best = e; } }
+    if (W.aimPt && len(W.aimPt.x - p.x, W.aimPt.z - p.z) > .3) p.face = Math.atan2(W.aimPt.x - p.x, W.aimPt.z - p.z); else if (best && bd > .5) p.face = Math.atan2(best.x - p.x, best.z - p.z);
+    const dist = best && !W.aimPt ? Math.max(1.5, Math.min(A.dist, bd - W.cfg.enemies[best.type].radius - A.stop)) : A.dist;
+    Object.assign(p, { state: 'dash', dashT: 0, dashDur: A.time * dist / A.dist, dashV: A.dist / A.time, dashX: Math.sin(p.face), dashZ: Math.cos(p.face), dashHit: [], dashMul: A.mul[r], dashKnock: A.knock, atkT: 0, dashStun: A.st === 'stun' ? A.sd[r] : 0, dashW: A.width, dashSt: A.st && A.st !== 'stun' ? [A, r] : null });
+    p.inv = Math.max(p.inv, A.time); gfx(W, A, { x: p.x, z: p.z, face: p.face, r: dist });
+  },
+  zone(W, A, r) { const at = spot(W, A); for (const e of W.enemies) if (!e.dead && len(e.x - at.x, e.z - at.z) < A.r + W.cfg.enemies[e.type].radius) { abilityHit(W, e, A.mul[r], { knock: .6 }); inflict(W, e, A, r); } gfx(W, A, { x: at.x, z: at.z, r: A.r }); W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4); },
+  field(W, A, r) { const at = spot(W, A); W.zones.push({ x: at.x, z: at.z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl, slow: A.slow || 0, el: A.el, snow: A.el === 'ice' }); gfx(W, A, { x: at.x, z: at.z, r: A.r }); },
+  cloud(W, A, r) { const at = spot(W, A); W.ezones.push({ kind: 'cloud', x: at.x, z: at.z, r: A.r, t: A.t, tick: A.tick, acc: 0, lvl: W.lvl, dps: A.dps[r] }); gfx(W, A, { x: at.x, z: at.z, r: A.r }); },
+  pull(W, A, r) { const list = near(W, A.r), p = W.player; if (!list.length) return false; for (const e of list) { abilityHit(W, e, A.mul[r], { knock: 0 }); if (!e.dead) pull(W, e, 10); inflict(W, e, A, r); } gfx(W, A, { x: p.x, z: p.z, r: A.r }); },
+  mark(W, A, r) { const { e } = aimAt(W, A.range, A.cone); if (!e) return false; (W.dooms = W.dooms || []).push({ id: e.id, t: A.delay, mul: A.mul[r], jump: false, lvl: W.lvl, el: A.el }); gfx(W, A, { x: e.x, z: e.z, r: 1.2 }); },
+  buff(W, A, r) { const p = W.player; buffOn(W, 'gen:' + A.stat, A.stat, A.amt[r], A.t[r]); gfx(W, A, { x: p.x, z: p.z, r: 1.6 }); },
+  heal(W, A, r) { const p = W.player; heal(W, A.k[r]); gfx(W, A, { x: p.x, z: p.z, r: 1.6 }); }
+};
 // рывок: двигает героя (sim.js, состояние 'dash') и бьёт каждого врага на пути один раз
 export function dashStep(W) {
   const p = W.player;
@@ -241,6 +292,7 @@ export function dashStep(W) {
     if (!p.dashMul || e.dead || p.dashHit.includes(e.id) || len(e.x - p.x, e.z - p.z) > (p.dashW || W.cfg.abilities.thorn.charge.width) / 2 + W.cfg.enemies[e.type].radius + .4) continue;
     p.dashHit.push(e.id); abilityHit(W, e, p.dashMul, { knock: p.dashKnock, heavy: true, mix: !!p.dashMix });     // dashMix — выпад умения оружия
     if (p.dashStun && !e.dead) applyStatus(W, e, 'stun', 0, p.dashStun);
+    if (p.dashSt) inflict(W, e, p.dashSt[0], p.dashSt[1]);     // рывок нового умения: его состояние
   }
 }
 // перезарядки и действие баффов умений
@@ -284,9 +336,14 @@ export function tickAbilities(W, dt) {
 // для интерфейса: список умений героя с состоянием
 export function abilityView(W) {
   return heroAbilities(W).map((a, i) => {
-    const A = withTalents(cfgOf(W, a.id), W.talAb && W.talAb[a.id]), L = rankLvs(W.cfg, i), rank = W.ab[a.id] || 0, r = rankIdx(W.cfg, i, Math.max(1, rank));
+    const A = withTalents(cfgOf(W, a.id), W.talAb && W.talAb[a.id]), L = rankLvs(W.cfg, i, a), rank = W.ab[a.id] || 0, r = rankIdx(W.cfg, i, Math.max(1, rank));
     return { ...a, slot: i, lv: L[0], max: L.length, nextLv: rank < L.length ? L[rank] : 0, rank, open: W.lv >= L[0], cd: W.acd[a.id] || 0, cdMax: A.cd[r], cost: A.cost || 0, enough: resNow(W) >= (A.cost || 0), now: rank ? a.text(A, r) : '', mt: W.cfg.abilities.mastery && W.cfg.abilities.mastery.twist && L.length >= 4 ? MASTERY_TEXT[a.id] || '' : '', mlv: L.length >= 4 ? L[3] : 0, next: rank < L.length ? a.text(A, rankIdx(W.cfg, i, rank + 1)) : '' };
   });
 }
 // ресурс героя для интерфейса: { name, color, now, max }
 export function resView(W) { const R = resOf(W); return R ? { name: R.name, color: R.color, now: resNow(W), max: resMax(W, R) } : null; }
+// прицел по точке (2026-10-20, просьба владельца): умение ячейки slot бьёт по площади в точке — { r, range } для кружка; иначе null
+export function abilityAim(W, slot) {
+  const id = barOf(W)[slot], def = id && defOf(W, id); if (!def || !def.aim || !(W.ab[id] > 0)) return null;
+  const A = withTalents(cfgOf(W, id), W.talAb && W.talAb[id]); return { id, r: A.r, range: A.range, el: def.el || null };
+}

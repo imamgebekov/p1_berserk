@@ -26,8 +26,8 @@ const run = (W, s) => { for (let i = 0; i < Math.round(s * 60); i++) step(W, 1 /
 {
   const H = HEROES.warlock; ok(HERO_IDS.includes('warlock') && H.open && H.name === 'Морок', 'нет героя Морок');
   ok(canWield('warlock', BY_ID.w_scythe_iron) && canWield('warlock', BY_ID.w_wand_iron) && !canWield('warlock', BY_ID.w_sword_iron) && !canWield('warlock', BY_ID.a_body_plate_black), 'оружие или броня Морока');
-  ok(ABILITIES.warlock.length === 8 && ABILITIES.warlock.every(a => CFG3.abilities.warlock[a.id] && MASTERY_TEXT[a.id] && [0, 1, 2].every(r => typeof a.text(CFG3.abilities.warlock[a.id], r) === 'string')), 'умения Морока не описаны');
-  ok(branchesOf('warlock').length === 4 && branchesOf('warlock').slice(0, 3).every(b => b.skills.length === 6), 'таланты Морока');
+  ok(ABILITIES.warlock.length === 30 && ABILITIES.warlock.slice(0, 8).every(a => CFG3.abilities.warlock[a.id] && MASTERY_TEXT[a.id] && [0, 1, 2].every(r => typeof a.text(CFG3.abilities.warlock[a.id], r) === 'string')), 'умения Морока не описаны');
+  ok(branchesOf('warlock').length === 4 && branchesOf('warlock').slice(0, 3).every(b => b.skills.filter(s => !s.boost && !s.gen).length === 6), 'таланты Морока');
   ok(combosOf('warlock').length === 4 && combosOf('warlock').every(c => CFG3.combos[c.id]), 'связки Морока');
   ok(CFG3.abilities.res.warlock && CFG3.abilities.res.warlock.name === 'Души', 'ресурс «Души»');
 }

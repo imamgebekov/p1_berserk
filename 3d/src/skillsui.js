@@ -1,6 +1,6 @@
-// Окно навыков: три ветки, ранги, очки, сброс за пепел; вкладка «Умения» — активные умения героя со своими очками (B3).
-import { branchesOf, TIER_STEP, spentIn, canRank } from './data/skills3d.js';
-import { spendSkill, respec, respecCost, xpNeed, rankNeed } from './sim.js';
+// Окно «Древо»: три ветки по 32 узла, ранги, очки, сброс за пепел. Отдельного окна умений нет (2026-10-20): панель 1–6 и связки — в карточке умения.
+import { branchesOf } from './data/skills3d.js';
+import { respec, respecCost, xpNeed, rankNeed } from './sim.js';
 import { combosOf } from './combos3d.js';
 import { abilityView, respecAbilities, respecAbilityCost, spentAbility, resView, barOf, setBar, BAR } from './abilities3d.js';
 import { treeOf, rankOf, canBuy, buy, needText, spentInTree, ROWS, COLS, ROW_STEP } from './tree3d.js';
@@ -25,50 +25,18 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2200); };
   // вкладки — специализации героя (этап 2), «Скиталец» и «Умения»; при смене героя строятся заново
   let sel = null;     // выбранный узел древа
-  const buildTabs = () => { tabsHero = W.hero; tabsEl.textContent = ''; if (branch !== 'tree' && branch !== 'abil') branch = 'tree'; for (const b of [{ id: 'tree', name: 'Древо' }, { id: 'abil', name: 'Панель и связки' }]) { const t = el('button', 'tab', b.name); t.type = 'button'; t.dataset.tab = b.id; t.addEventListener('click', () => { branch = b.id; armed = false; render(); }); tabsEl.appendChild(t); } };
-  function renderAbil() {
-    const AC = '#e8c04a', list = abilityView(W), rv = resView(W), resName = rv ? rv.name : '';
-    if (!list.length) listEl.appendChild(el('div', 'emptyl', 'У этого героя умений пока нет.'));
-    for (const a of list) {
-      const row = el('div', 'skrow' + (a.open ? '' : ' lock')), info = el('div', 'sinfo');
-      const nm = el('span', 'nm', a.name); nm.style.color = AC; nm.prepend(gi('n:' + a.id, 'gi inl'));
-      const pips = el('span', 'pips'); pips.style.setProperty('--pc', AC); for (let k = 0; k < a.max; k++) pips.appendChild(el('i', k < a.rank ? 'on' : ''));
-      const when = a.nextLv > W.lv ? ' — с уровня ' + a.nextLv : '';
-      if (!a.open) info.append(nm, pips, el('div', 'sub', `Откроется на уровне ${a.lv}. ${a.next}`));
-      else if (!a.rank) info.append(nm, pips, el('div', 'sub', `Открыть${when}: ${a.next}`));
-      else info.append(nm, pips, el('div', 'sub', `Сейчас: ${a.now}${a.cost && resName ? ` Цена: ${a.cost} (${resName.toLowerCase()}).` : ''}`), el('div', 'sub nx', a.next ? `Ранг ${a.rank + 1}${when}: ${rankDiff(a.now, a.next) || a.next}` : 'Максимум.'));     // только разница (шаг 10)
-      if (a.mt) info.append(el('div', 'sub ' + (a.rank >= 4 ? 'g' : 'nx'), `Мастерство (с ${a.mlv}-го ур.): ${a.mt}`));     // мастерство меняет поведение умения
-      const key = 'a:' + a.id, st = canBuy(W, key), b = el('button', 'plus', '+'); b.type = 'button'; b.disabled = st !== 'ok'; b.setAttribute('aria-label', 'Вложить очко: ' + a.name); if (st !== 'ok' && st !== 'max') b.title = needText(W, key) || '';
-      b.addEventListener('click', () => { if (buy(W, key, refreshGear) !== 'ok') flash(needText(W, key) || 'Нельзя'); render(); onChange && onChange(); });     // очко — по правилам древа (ряд ветки, уровень, очки умений)
-      // панель (2026-10-18): в какую ячейку 1–5 поставить изученное умение; повторное нажатие убирает с панели
-      if (a.rank) { const bar = barOf(W), sl = el('div', 'slots'); sl.append(el('span', 'sl-l', 'На панель:'));
-        for (let k = 0; k < BAR; k++) { const sb = el('button', 'bslot' + (bar[k] === a.id ? ' on' : ''), String(k + 1)); sb.type = 'button'; sb.setAttribute('aria-label', `${a.name}: ячейка ${k + 1}`);
-          sb.addEventListener('click', () => { setBar(W, k, bar[k] === a.id ? null : a.id); render(); onChange && onChange(); }); sl.append(sb); }
-        info.append(sl); }
-      row.append(info, b); listEl.appendChild(row);     // «+» и в списке (просьба владельца 2026-10-20): то же правило, что в древе
-    }
-    // связки (2026-10-18): умение А, потом Б не позже window с — Б сильнее; видно, изучены ли оба и стоят ли на панели
-    const cl = combosOf(W.hero); if (cl.length) {
-      listEl.appendChild(el('div', 'emptyl', `Связки: умение, потом второе не позже ${W.cfg.combos.window} с — второе сильнее. Кнопка второго подсвечивается.`));
-      const name = id => (list.find(a => a.id === id) || { name: id }).name, bar = barOf(W);
-      for (const c of cl) { const known = (W.ab[c.a] || 0) > 0 && (W.ab[c.b] || 0) > 0, onBar = bar.includes(c.a) && bar.includes(c.b);
-        const row = el('div', 'skrow combo' + (known ? '' : ' lock')), info = el('div', 'sinfo'), nm = el('span', 'nm', c.name); nm.style.color = '#ffd27a';
-        info.append(nm, el('div', 'sub', `${name(c.a)} → ${name(c.b)}: ${c.text}`), el('div', 'sub nx', !known ? 'Нужны оба умения.' : onBar ? 'Оба на панели — готово.' : 'Поставьте оба на панель.'));
-        row.append(info); listEl.appendChild(row); } }
-    const cost = respecCost(W) + respecAbilityCost(W);
-    resetBtn.textContent = armed ? 'Точно? Все очки вернутся, пепел спишется' : `Сбросить древо · ${cost} пепла`; resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !(spentAbility(W.ab) || Object.values(W.skills).some(v => v > 0));
-  }
+  const buildTabs = () => { tabsHero = W.hero; tabsEl.textContent = ''; tabsEl.hidden = true; branch = 'tree'; };     // окно умений убрано (2026-10-20): всё в древе
   // древо (2026-10-20): три ветки рядом, узлы-значки с рангом; выбор — карточка с описанием и кнопкой
   const gi = (k, cls) => { const d = GI[k], sv = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.setAttribute('viewBox', '0 0 512 512'); sv.setAttribute('class', cls || 'gi'); if (d) { const pa = doc.createElementNS('http://www.w3.org/2000/svg', 'path'); pa.setAttribute('d', d); sv.appendChild(pa); } return sv; };
   function nodeInfo(n) {
-    const ab = n.kind !== 'talent' ? abilityView(W).find(a => a.id === n.id) : null, r = rankOf(W, n), out = [];
+    const ab = n.kind !== 'talent' ? abilityView(W).find(a => a.id === n.id) : null, r = rankOf(W, n), out = [], rv = resView(W);
     if (n.kind === 'talent') out.push(n.text);
     else if (n.kind === 'mastery') out.push(MASTERY_TEXT[n.id] || '', ab && ab.mlv ? `С ${ab.mlv}-го уровня, нужно умение 3-го ранга.` : '');
-    else if (ab) { if (r) out.push('Сейчас: ' + ab.now); if (r < 3 && ab.next) out.push(`${r ? 'Ранг ' + (r + 1) : 'Открыть'}${ab.nextLv > W.lv ? ' — с уровня ' + ab.nextLv : ''}: ${r && ab.now ? rankDiff(ab.now, ab.next) || ab.next : ab.next}`); }
+    else if (ab) { if (r) out.push('Сейчас: ' + ab.now + (ab.cost ? ` Цена: ${ab.cost}${rv ? ' (' + rv.name.toLowerCase() + ')' : ''}.` : '')); if (r < 3 && ab.next) out.push(`${r ? 'Ранг ' + (r + 1) : 'Открыть'}${ab.nextLv > W.lv ? ' — с уровня ' + ab.nextLv : ''}: ${r && ab.now ? rankDiff(ab.now, ab.next) || ab.next : ab.next}`); }
     return out.filter(Boolean);
   }
   function renderTree() {
-    const T = treeOf(W.hero), wrap = el('div', 'tree'), card = el('div', 'tcard');
+    const T = treeOf(W.hero, W.cfg), wrap = el('div', 'tree'), card = el('div', 'tcard');
     T.forEach(br => {
       const spent = spentInTree(W, br), col = el('div', 'tbranch'); col.style.setProperty('--bc', br.color);
       { const fa = br.nodes.find(x => x.kind === 'active'); if (fa) col.append(gi(fa.icon, 'twm')); }     // знак ветки на фоне
@@ -102,6 +70,9 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       if (n.kind === 'active' && r > 0) { const bar = barOf(W), sl = el('div', 'slots'); sl.append(el('span', 'sl-l', 'На панель:'));
         for (let k = 0; k < BAR; k++) { const sb = el('button', 'bslot' + (bar[k] === n.id ? ' on' : ''), String(k + 1)); sb.type = 'button'; sb.addEventListener('click', () => { setBar(W, k, bar[k] === n.id ? null : n.id); render(); onChange && onChange(); }); sl.append(sb); }
         card.append(sl); }
+      if (n.kind === 'active') { const all = abilityView(W), nm = id => (all.find(a => a.id === id) || { name: id }).name, bar = barOf(W);     // связки этого умения (были во вкладке «Панель и связки»)
+        for (const c of combosOf(W.hero).filter(c => c.a === n.id || c.b === n.id)) { const known = (W.ab[c.a] || 0) > 0 && (W.ab[c.b] || 0) > 0, onBar = bar.includes(c.a) && bar.includes(c.b);
+          card.append(el('div', 'sub cmb', `Связка «${c.name}»: ${nm(c.a)} → ${nm(c.b)} не позже ${W.cfg.combos.window} с — ${c.text}. ${!known ? 'Нужны оба умения.' : onBar ? 'Оба на панели.' : 'Поставьте оба на панель.'}`)); } }
     } else card.append(el('div', 'sub', 'Нажмите на узел — описание и кнопка «Вложить очко». Двойной щелчок — сразу вложить.'), el('div', 'sub', `Ряд открывается за каждые ${ROW_STEP} очка в ветке. Умения и мастерство — за очки умений, таланты — за очки талантов.`));
     const cost = respecCost(W) + respecAbilityCost(W), any = Object.values(W.skills).some(v => v > 0) || spentAbility(W.ab) > 0;
     resetBtn.textContent = armed ? 'Точно? Все очки вернутся, пепел спишется' : `Сбросить древо · ${cost} пепла`; resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !any;
@@ -112,23 +83,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     xpEl.textContent = W.lv >= cfg.level.max ? (cfg.level.ranks && cfg.level.ranks.on ? `Уровень ${W.lv} · пепельный ранг ${W.prank || 0}` + ((W.prank || 0) < cfg.level.ranks.cap ? ` · опыт ${W.pxp || 0}/${rankNeed(cfg)}` : ' (максимум)') : `Уровень ${W.lv} (максимум)`) : `Уровень ${W.lv} · опыт ${W.xp}/${xpNeed(W.lv, cfg)}`;
     for (const t of tabsEl.children) t.classList.toggle('on', t.dataset.tab === branch);
     listEl.textContent = '';
-    if (branch === 'abil') { renderAbil(); return; }
-    renderTree(); return;
-    const br = branchesOf(W.hero).find(b => b.id === branch), spent = spentIn(W.skills, branch);
-    listEl.appendChild(el('div', 'emptyl', br.common ? 'Общая ветка: польза в пути, у всех героев.' : `Специализация «${br.name}» — ${br.role}. Следующий талант открывается за каждые ${TIER_STEP} очка в ветке.`));
-    br.skills.forEach((s, i) => {
-      const r = W.skills[s.id] || 0, st = canRank(W.skills, s.id, W.sp, W.hero), need = (s.tier ?? i) * TIER_STEP;
-      const row = el('div', 'skrow' + (spent < need ? ' lock' : '')), info = el('div', 'sinfo');
-      const nm = el('span', 'nm', s.name); nm.style.color = br.color;
-      const pips = el('span', 'pips'); pips.style.setProperty('--pc', br.color); for (let k = 0; k < s.max; k++) pips.appendChild(el('i', k < r ? 'on' : ''));
-      info.append(nm, pips, el('div', 'sub', spent < need ? `Нужно ${need} очков в ветке (сейчас ${spent})` : s.text));
-      const b = el('button', 'plus', '+'); b.type = 'button'; b.disabled = st !== 'ok'; b.setAttribute('aria-label', 'Вложить очко: ' + s.name);
-      b.addEventListener('click', () => { spendSkill(W, s.id); render(); onChange && onChange(); });
-      row.append(info, b); listEl.appendChild(row);
-    });
-    const cost = respecCost(W), spentAll = Object.values(W.skills).reduce((a, b) => a + b, 0);
-    resetBtn.textContent = armed ? 'Точно? Очки вернутся, пепел спишется' : `Сбросить таланты · ${cost} пепла`;
-    resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !spentAll;
+    renderTree();
   }
   resetBtn.addEventListener('click', () => {
     if (!armed) { armed = true; render(); setTimeout(() => { armed = false; render(); }, 3000); return; }

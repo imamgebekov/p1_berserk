@@ -12,7 +12,7 @@ import { magicDropOf } from '../3d/src/stones3d.js';
 import { restock } from '../3d/src/economy3d.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
-const A = CFG3.abilities.irga, IDS = ABILITIES.irga.map(a => a.id);
+const A = CFG3.abilities.irga, IDS = ABILITIES.irga.slice(0, 8).map(a => a.id);     // прежние 8; новые умения древа — test/actives3d.mjs
 function mk(weapon = 'w_staff_iron') {
   const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.weather.force = 'clear'; cfg.enemies.roam.on = false;
   const W = createWorld(cfg, () => .5); W.hero = 'irga'; W.lv = 30; W.player.x = 300; W.player.z = 0; W.player.face = 0; W.player.inv = 1e9;

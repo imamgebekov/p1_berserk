@@ -124,7 +124,7 @@ function progOf(pr, hero, fresh = false) {     // fresh — древо умен�
     else if (spent + prog.sp < prog.lv - 1) prog.sp = prog.lv - 1 - spent;     // этап 2: старые навыки стали талантами — пропавшие очки возвращаются
     // умения: только свои id; ранг не выше открытого к уровню героя (лишнее — срезается); очки умений = данные уровнем − вложенные
     { const ids = (ABILITIES[hero] || []).map(x => x.id), ab = {}, src = pr.ab && typeof pr.ab === 'object' ? pr.ab : {};
-      ids.forEach((id, i) => { const r = src[id]; if (Number.isInteger(r) && r > 0) { const m = Math.min(r, ranksOpenAt(prog.lv, CFG3, i)); if (m > 0) ab[id] = m; } });
+      ids.forEach((id, i) => { const r = src[id]; if (Number.isInteger(r) && r > 0) { const m = Math.min(r, ranksOpenAt(prog.lv, CFG3, i, ABILITIES[hero][i])); if (m > 0) ab[id] = m; } });
       const ap = Math.max(0, abPoints(prog.lv) - Object.values(ab).reduce((a, b) => a + b, 0));
       prog.ab = ab; prog.ap = ap; prog.bar = Array.isArray(pr.bar) ? pr.bar.slice(0, 6).map(id => (typeof id === 'string' && ids.includes(id) ? id : null)) : []; }     // панель умений
     return prog;

@@ -1,5 +1,6 @@
 // Активные умения героев: имена, значки (символ на кнопке) и описания по рангу. Числа — в config3d.js → abilities.
 // Порядок в списке героя — порядок открытия (8 умений, по 3 ранга); на панель (клавиши 1–5) игрок ставит любые 5 изученных. Уровни рангов — abilities.ranks.
+import { NEW_ACTIVES, OLD_AIM } from './actives3d.js';
 const pct = v => Math.round(v * 100) + '%';
 const n = v => String(Number.isFinite(v) ? Math.round(v * 100) / 100 : v).replace('.', ',');           // русская запятая в дробях; не больше двух знаков (таланты дают длинные дроби)
 export const ABILITIES = {
@@ -71,11 +72,12 @@ export const MASTERY_TEXT = {
 };
 // мастерство (этап 3 «круче»): 4-й ранг умения слота i на уровне mastery.lv[i] (после 30-го — каждые 3 уровня)
 const mast = cfg => (cfg.abilities.mastery && cfg.abilities.mastery.on ? cfg.abilities.mastery.lv : null);
-export const rankLvs = (cfg, i) => { const r = cfg.abilities.ranks[i] || [], m = mast(cfg); return m && r.length && m[i] ? r.concat(m[i]) : r; };
+export const rankLvs = (cfg, i, def) => { if (def && def.j !== undefined) return genLvs(cfg, def); const r = cfg.abilities.ranks[i] || [], m = mast(cfg); return m && r.length && m[i] ? r.concat(m[i]) : r; };     // def — новое умение древа: свои уровни
+const genLvs = (cfg, d) => { const A = cfg.abilities, L0 = A.genLv[d.j] + d.br, top = cfg.level.max || 60; return [L0, Math.min(top, L0 + A.genStep), Math.min(top, L0 + 2 * A.genStep)]; };
 // очков умений к уровню lv: по одному за каждый уровень с 3-го (решение владельца 2026-10-18)
-export const abilityPointsAt = (lv, cfg) => Math.max(0, Math.min(lv - (cfg.abilities.firstLv || 3) + 1, cfg.abilities.ranks.length * 3)) + ((mast(cfg) || []).filter(l => l <= lv).length);     // + очко за каждое мастерство     // не больше, чем всех рангов (уровни до 60: лишние очки не копятся)
+export const abilityPointsAt = (lv, cfg) => Math.max(0, Math.min(lv - (cfg.abilities.firstLv || 3) + 1, (cfg.abilities.slots || cfg.abilities.ranks.length) * 3)) + ((mast(cfg) || []).filter(l => l <= lv).length);     // + очко за каждое мастерство     // не больше, чем всех рангов (уровни до 60: лишние очки не копятся)
 // сколько рангов умения слота i доступно на уровне lv
-export const ranksOpenAt = (lv, cfg, i) => rankLvs(cfg, i).filter(l => l <= lv).length;
+export const ranksOpenAt = (lv, cfg, i, def) => rankLvs(cfg, i, def).filter(l => l <= lv).length;
 // индекс в списках силы (3 числа) для ранга 1–3
 export const rankIdx = (cfg, i, rank) => Math.max(0, Math.min(mast(cfg) ? 3 : 2, rank - 1));     // 3 — мастерство
 // сила 4-го ранга: списки из 3 чисел продолжают рост на тот же шаг (перезарядка короче, не меньше 80% от 3-го ранга)
@@ -85,3 +87,29 @@ export function withMastery(A) {
   for (const [k, v] of Object.entries(A)) if (Array.isArray(v) && v.length === 3 && v.every(x => typeof x === 'number')) { const d = v[2] - v[1]; o[k] = [...v, k === 'cd' ? Math.max(v[2] * .8, v[2] + d) : Math.round((v[2] + d) * 1000) / 1000]; }
   EXT.set(A, o); return o;
 }
+
+// ---- новые умения древа (2026-10-20): описание по виду действия ----
+const ST = { burn: 'горение', poison: 'яд', bleed: 'кровотечение', freeze: 'заморозка', stun: 'оглушение', fear: 'страх', root: 'корни', blind: 'слепота', slow: 'замедление', crack: 'трещина брони: урон по цели +25%' };
+const stTxt = (st, A, r) => !st ? '' : st === 'burn' || st === 'poison' || st === 'bleed' ? `${ST[st]} ${n(A.dps[r])} в секунду ${n(A.t)} с` : st === 'slow' ? `${ST[st]} ${n(A.sd[r] * 2)} с` : st === 'crack' ? `${ST[st]} ${n(A.sd[r] * 3)} с` : `${ST[st]} ${n(A.sd[r])} с`;
+const BUFF = { dmg: v => `урон +${n(v)}`, armor: v => `броня +${n(v)}`, spd: v => `скорость +${n(v)}%`, crit: v => `шанс крита +${n(v)}%`, leech: v => `вампиризм +${n(v)}%`, regen: v => `+${n(v)} здоровья в секунду` };
+const GEN_TEXT = {
+  nova: (A, r) => `Удар вокруг на ${n(A.r)} м (×${n(A.mul[r])})`,
+  cone: (A, r) => `Удар в конусе ${A.cone}° на ${n(A.r)} м (×${n(A.mul[r])})`,
+  bolt: (A, r) => (A.n > 1 ? `${A.n} снарядов веером (каждый ×${n(A.mul[r])})` : `Снаряд ×${n(A.mul[r])}`) + (A.pierce ? `, пробивает ${A.pierce} врагов` : ''),
+  strike: (A, r) => `Удар по цели впереди (×${n(A.mul[r])})`,
+  dash: (A, r) => `Рывок на ${n(A.dist)} м: бьёт всех на пути (×${n(A.mul[r])})`,
+  zone: (A, r) => `Удар в точке под прицелом: круг ${n(A.r)} м (×${n(A.mul[r])})`,
+  field: (A, r) => `Поле ${n(A.r)} м на ${n(A.t)} с в точке под прицелом: удар ×${n(A.mul[r])} каждые ${n(A.tick)} с${A.slow ? ', замедляет' : ''}`,
+  cloud: (A, r) => `Облако яда ${n(A.r)} м на ${n(A.t)} с в точке под прицелом: яд ${n(A.dps[r])} в секунду`,
+  pull: (A, r) => `Тянет врагов в ${n(A.r)} м к себе: удар ×${n(A.mul[r])}`,
+  mark: (A, r) => `Метка на цели впереди: через ${n(A.delay)} с удар ×${n(A.mul[r])}`,
+  buff: (A, r) => `${n(A.t[r])} с: ${BUFF[A.stat](A.amt[r])}`,
+  heal: (A, r) => `Лечит на ${pct(A.k[r])} здоровья`
+};
+const genText = d => (A, r) => { const s = stTxt(d.st, A, r); return `${GEN_TEXT[d.kind](A, r)}${s ? '; ' + s : ''}. Перезарядка ${n(A.cd[r])} с.`; };
+export const AIM_KINDS = new Set(['zone', 'field', 'cloud']);     // по точке под мышью: сначала кружок, потом удар
+for (const [hero, list] of Object.entries(NEW_ACTIVES)) {
+  const seen = [0, 0, 0];
+  for (const d of list) ABILITIES[hero].push({ ...d, j: seen[d.br]++, icon: '', aim: AIM_KINDS.has(d.kind), text: genText(d) });
+}
+for (const list of Object.values(ABILITIES)) for (const a of list) if (OLD_AIM.has(a.id)) a.aim = true;

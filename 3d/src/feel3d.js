@@ -48,8 +48,8 @@ export function createFeel(cfg) {
 
 // что открылось на уровне lv: первые ранги умений героя, новый ранг, место в отряде (для карточки «Новый уровень»)
 export function unlocksAt(lv, cfg, abilities) {
-  const out = [], R = cfg.abilities.ranks.map((_, i) => rankLvs(cfg, i));
-  R.forEach((ranks, i) => { const a = abilities[i]; if (!a) return; const k = ranks.indexOf(lv); if (k === 0) out.push({ kind: 'ability', name: a.name, icon: a.icon }); else if (k > 0) out.push({ kind: 'rank', name: a.name, rank: k + 1, icon: a.icon }); });
+  const out = [];
+  abilities.forEach((a, i) => { const ranks = rankLvs(cfg, i, a), k = ranks.indexOf(lv); if (k === 0) out.push({ kind: 'ability', name: a.name, icon: a.icon }); else if (k > 0) out.push({ kind: 'rank', name: a.name, rank: k + 1, icon: a.icon }); });
   const S = cfg.squad; if (lv > 1 && lv % S.perLevels === 0 && S.baseMax + lv / S.perLevels <= S.cap) out.push({ kind: 'squad', n: S.baseMax + lv / S.perLevels });
   return out;
 }

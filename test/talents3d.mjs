@@ -13,12 +13,12 @@ import { createSaver, loadSave } from '../3d/src/save3d.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 for (const h of Object.keys(HEROES)) {
-  const bs = TREES[h]; ok(bs && bs.length === 3 && bs.every(b => b.skills.length === 6 && b.name && b.role), `${h}: не 3 специализации по 6 талантов`);
+  const bs = TREES[h]; ok(bs && bs.length === 3 && bs.every(b => b.skills.filter(s => !s.boost && !s.gen).length === 6 && b.skills.length >= 17 && b.name && b.role), `${h}: не 3 специализации по 6 своих талантов (+ усилители и характеристики древа)`);
   ok(branchesOf(h).length === 4 && branchesOf(h)[3].common, `${h}: нет общей ветки`);
-  for (const b of bs) for (const s of b.skills) { if (!s.ab) continue; const A = CFG3.abilities[h][s.ab.id];
+  for (const b of bs) for (const s of b.skills) { if (!s.ab) continue; const d = ABILITIES[h].find(a => a.id === s.ab.id), A = CFG3.abilities[h][s.ab.id] || (d && d.kind && { ...CFG3.abilities.gen[d.kind], ...d.p, sd: 1, dps: 1 });     // новое умение древа: числа вида
     ok(A && ABILITIES[h].some(a => a.id === s.ab.id) && Object.keys(s.ab.k).every(k => k in A), `${s.id}: умение ${s.ab.id} или его ключи не найдены`); }
 }
-ok(Object.keys(SKILLS).length === Object.keys(HEROES).length * 18 + 6, 'талантов не ' + (Object.keys(HEROES).length * 18 + 6));
+ok(Object.keys(SKILLS).length === Object.keys(HEROES).length * (18 + 22 + 12) + 6, 'талантов не ' + (Object.keys(HEROES).length * 52 + 6));     // 18 своих, 22 усилителя новых умений, 12 характеристик
 ok(canRank({}, 'ir_heat', 5, 'thorn') === 'none' && canRank({}, 'th_hand', 5, 'thorn') === 'ok' && canRank({}, 'th_roar', 5, 'thorn') === 'locked' && canRank({ th_hand: TIER_STEP }, 'th_roar', 5, 'thorn') === 'ok', 'доступ к талантам по герою и ярусу');
 ok(canRank({}, 'pockets', 5, 'irga') === 'locked' && canRank({ step: 3 }, 'pockets', 5, 'irga') === 'ok', 'общая ветка у Ирги');
 // в бою

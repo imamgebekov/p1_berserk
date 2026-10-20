@@ -21,8 +21,8 @@ const both = (hero, f) => [f(mk(hero, true)), f(mk(hero, false))];
 
 // данные: у всех 32 есть описание, в окне умения — строка мастерства, ранги до 4
 {
-  const all = Object.values(ABILITIES).flat(); ok(all.length >= 32 && all.every(a => MASTERY_TEXT[a.id]), `описаний мастерства ${all.filter(a => MASTERY_TEXT[a.id]).length} из ${all.length}`);
-  const W = mk('thorn'), v = abilityView(W); ok(v.every(a => a.rank === 4 && a.mt && a.mlv >= 33), 'окно умения: ранг 4 и строка мастерства');
+  const all = Object.values(ABILITIES).flat().filter(a => !a.kind); ok(all.length >= 32 && all.every(a => MASTERY_TEXT[a.id]), `описаний мастерства ${all.filter(a => MASTERY_TEXT[a.id]).length} из ${all.length}`);
+  const W = mk('thorn'), v = abilityView(W).slice(0, 8); ok(v.every(a => a.rank === 4 && a.mt && a.mlv >= 33), 'окно умения: ранг 4 и строка мастерства');
   ok(abilityView(mk('thorn', false)).every(a => !a.mt), 'twist: false — строка мастерства видна');
 }
 // Торн

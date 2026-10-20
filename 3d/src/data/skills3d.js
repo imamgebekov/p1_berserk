@@ -4,6 +4,7 @@
 // ab — усиление умения за ранг: { id, k: { ключ настройки: доля }, cd: −доля перезарядки, cost: −доля цены };
 // fx — особый эффект за ранг (как у комплектов: thorns, lastStand, rollBlast, ashCloak, killHeal, plague, ignite, rage);
 // res — ресурс умений за ранг: regen — в секунду, hit — за удар оружием.
+import { NEW_ACTIVES } from './actives3d.js';
 const T = (id, name, max, eff, text) => ({ id, name, max, ...eff, text });
 const COMMON = { id: 'wander', name: 'Скиталец', color: '#5d9cec', common: true, skills: [
   T('step', 'Лёгкая поступь', 5, { stats: { spd: 2 } }, '+2% скорости за ранг'),
@@ -146,6 +147,18 @@ export const TREES = {
     ] }
   ]
 };
+// древо по 32 узла (2026-10-20): к каждому новому умению ветки — талант-усилитель, и ещё 4 таланта характеристик
+const STAT_SETS = [
+  [['Крепость', 'hp', 8, 5, '+8 здоровья', 'n:th_temper'], ['Броня духа', 'armor', 2, 5, '+2 брони', 'n:th_skin'], ['Стойкость', 'regen', .4, 4, '+0,4 здоровья в секунду', 'n:jy_breath'], ['Сила удара', 'dmg', 1.5, 5, '+1,5 урона', 'n:th_hand']],
+  [['Сила удара', 'dmg', 1.5, 5, '+1,5 урона', 'n:th_hand'], ['Точность', 'crit', 2, 5, '+2% шанс крита', 'n:th_roar'], ['Быстрый замах', 'swingMul', .97, 3, 'удары быстрее на 3%', 'n:th_frenzy'], ['Кровопийца', 'leech', 1, 4, '+1% вампиризма', 'n:th_thirst']],
+  [['Быстрые ноги', 'spd', 1.5, 5, '+1,5% скорости', 'n:step'], ['Точность', 'crit', 2, 5, '+2% шанс крита', 'n:th_roar'], ['Крепость', 'hp', 8, 5, '+8 здоровья', 'n:th_temper'], ['Длинная рука', 'reach', .15, 3, '+0,15 дальности удара', 'n:eye']]
+];
+const DOT = new Set(['burn', 'poison', 'bleed']);
+const boostKeys = d => { const k = d.kind === 'buff' ? { amt: .1 } : d.kind === 'heal' ? { k: .1 } : d.kind === 'cloud' ? { dps: .1 } : { mul: .1 }; if (d.st && d.kind !== 'cloud') k[DOT.has(d.st) ? 'dps' : 'sd'] = .1; return k; };     // что усиливает талант: сила вида и его состояния
+for (const [hero, list] of Object.entries(NEW_ACTIVES)) TREES[hero].forEach((b, bi) => {
+  for (const d of list.filter(x => x.br === bi)) b.skills.push({ ...T('g_' + d.id, 'Опыт: ' + d.name, 3, ab(d.id, boostKeys(d), .06), `«${d.name}»: сила +10%, перезарядка короче на 6% за ранг`), icon: 'n:' + d.id, boost: d.id });
+  STAT_SETS[bi].forEach(([name, st, v, max, txt, icon], j) => b.skills.push({ ...T(b.id + '_s' + j, name, max, { stats: { [st]: v } }, txt + ' за ранг'), icon, gen: true }));
+});
 export const TIER_STEP = 3;           // очков в ветке на каждый следующий талант
 const DEFAULT = 'thorn';
 // ветки героя: три специализации и общая

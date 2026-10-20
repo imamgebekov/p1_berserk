@@ -495,7 +495,7 @@ export function abilityArrow(W, ang, mult, extra = {}) {
   let dmg = Math.round((W.cfg.player.attackDamage + W.gear.dmg) * mult * rageMul(W) * rr(W, .9, 1.15));
   const crit = W.rng() < .12 + W.gear.crit / 100 + critBonus(W); if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
   const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null, sx = Math.sin(ang), sz = Math.cos(ang);
-  const sk = extra.speedK || 1, q = { friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * tr.speed * sk, vz: sz * tr.speed * sk, dmg, crit, fx, hk: 0, fin: false, knock: tr.knock || 1, pierce: (tr.pierce || 0) + (extra.pierce || 0), hit: [], life: tr.range / (tr.speed * sk), kind: extra.kind || (tr.bolt ? 'bolt' : 'arrow'), poison: extra.poison, freeze: extra.freeze, burn: extra.burn, bleed: extra.bleed, blast: extra.blast, mixAll: !!extra.mixAll, eblast: extra.eblast, pulse: extra.pulse || null, detonate: extra.detonate || null };
+  const sk = extra.speedK || 1, q = { friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * tr.speed * sk, vz: sz * tr.speed * sk, dmg, crit, fx, hk: 0, fin: false, knock: tr.knock || 1, pierce: (tr.pierce || 0) + (extra.pierce || 0), hit: [], life: tr.range / (tr.speed * sk), kind: extra.kind || (tr.bolt ? 'bolt' : 'arrow'), poison: extra.poison, freeze: extra.freeze, burn: extra.burn, bleed: extra.bleed, blast: extra.blast, mixAll: !!extra.mixAll, eblast: extra.eblast, pulse: extra.pulse || null, detonate: extra.detonate || null, st: extra.st || null, el: extra.el || null };     // st — состояние снаряда нового умения древа, el — его стихия (цвет)
   W.proj.push(q); return q;
 }
 // стрелы героя: летят, бьют первых врагов на пути (арбалет — насквозь pierce врагов), гаснут о стену и по дальности
@@ -515,6 +515,7 @@ function updateArrows(W, dt) {
       if (q.poison && !e.dead) applyStatus(W, e, 'poison', q.poison[0], q.poison[1]);          // ядовитая стрела умения
       if (q.freeze && !e.dead) applyStatus(W, e, 'freeze', 0, q.freeze);                           // ледяная стрела
       if (q.bleed && !e.dead) applyStatus(W, e, 'bleed', q.bleed[0], q.bleed[1]);                  // нож веера: кровотечение
+      if (q.st && !e.dead) applyStatus(W, e, q.st[0], q.st[1], q.st[2]);     // снаряд нового умения древа
       if (q.detonate) { const D = q.detonate, z = (W.ezones || []).find(c => c.kind === 'cloud' && len(c.x - e.x, c.z - e.z) < c.r + 1); q.detonate = null;     // «Взрыв облака»: шар в облаке
         if (z) { W.ezones.splice(W.ezones.indexOf(z), 1); W.ev.push({ k: 'react', name: 'Взрыв облака', key: 'fire+venom', x: z.x, z: z.z, r: z.r });
           for (const o of W.enemies) if (!o.dead && len(o.x - z.x, o.z - z.z) < z.r + W.cfg.enemies[o.type].radius) { dealDamage(W, o, Math.max(1, Math.round(q.dmg * D.k)), 'fire'); if (!o.dead) applyStatus(W, o, 'burn', D.burn[0], D.burn[1]); } } }
@@ -647,7 +648,7 @@ function updatePlayer(W, dt, input) {
   }
   if (p.state === 'dash') {                                    // рывок умения: летит по прямой, бьёт всех на пути
     p.dashT += dt; p.vx = p.dashX * p.dashV; p.vz = p.dashZ * p.dashV; dashStep(W);
-    if (p.dashT >= p.dashDur) { p.state = 'idle'; p.vx *= .2; p.vz *= .2; p.dashMix = false; p.dashW = 0; }
+    if (p.dashT >= p.dashDur) { p.state = 'idle'; p.vx *= .2; p.vz *= .2; p.dashMix = false; p.dashW = 0; p.dashSt = null; }
   } else if (p.state === 'roll') {
     if (pressed) p.rollPress = true;
     if (p.atkBuf > 0) p.atkBuf -= dt;

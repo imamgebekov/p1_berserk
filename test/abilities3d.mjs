@@ -26,12 +26,12 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 
 // ---------- 1. данные и очки ----------
 {
-  const L = ABILITIES.thorn; ok(L.length === 8 && L.every(a => T[a.id] && a.icon && [0, 1, 2].every(r => typeof a.text(T[a.id], r) === 'string')), 'у Торна не 8 описанных умений');
+  const L = ABILITIES.thorn.slice(0, 8); ok(ABILITIES.thorn.length === 30 && L.every(a => T[a.id] && a.icon && [0, 1, 2].every(r => typeof a.text(T[a.id], r) === 'string')), 'у Торна не 8 прежних описанных умений (всего 30 — древо 2026-10-20)');
   ok(A.ranks.map(r => r[0]).join() === '3,6,9,12,15,19,24,30' && A.ranks.every(r => r.length === 3 && r.every((l, k) => !k || l >= r[k - 1]) && r[2] <= 30), 'уровни открытия не 3/6/9/12/15/19/24/30 или ранги не по 3 и не по возрастанию');
   const c = clone(); c.enemies.count = 0; c.map.places = []; const W = createWorld(c, mulberry32(2)); W.hero = 'thorn';
   gainXp(W, 1e3); const lv = W.lv; ok(W.ap === abilityPoints(lv, c) && abilityPoints(2, c) === 0 && abilityPoints(3, c) === 1 && abilityPoints(4, c) === 2, `очков умений ${W.ap} на уровне ${lv}`);
   for (let i = 0; i < 2000 && W.lv < 60; i++) gainXp(W, 1e5);
-  ok(W.lv === 60 && W.ap === 24 + CFG3.abilities.mastery.lv.length && W.sp === 59, `на 60-м уровне умений ${W.ap} (все ранги — 24 + мастерство 8), навыков ${W.sp}`);     // уровни до 60 (этап 0): очков умений не больше всех рангов
+  ok(W.lv === 60 && W.ap === 58 + CFG3.abilities.mastery.lv.length && W.sp === 59, `на 60-м уровне умений ${W.ap} (очко за уровень с 3-го — 58 + мастерство 8; 30 умений древа), навыков ${W.sp}`);     // уровни до 60 (этап 0): очков умений не больше всех рангов
 }
 // ---------- 2. открытие, ранги, перезарядка ----------
 {
@@ -45,7 +45,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
   ok(useAbility(W, 0) === 'ok' && useAbility(W, 0) !== 'ok', 'рывок сработал дважды подряд');
   { const V = mk(); upgradeAbility(V, 'whirl'); ok(useAbility(V, 2) === 'ok' && useAbility(V, 2) === 'cd' && V.acd.whirl === T.whirl.cd[0], 'нет перезарядки'); }
   run(W, T.charge.cd[1] + .3); ok(useAbility(W, 0) === 'ok', 'перезарядка не прошла');     // ранг 2 — перезарядка второго ранга
-  const v = abilityView(W); ok(v.length === 8 && v[0].rank === 2 && v[0].nextLv === 11 && !v[2].open && v[0].cdMax === T.charge.cd[1] && v[7].max === 4, 'вид умений для интерфейса не тот');
+  const v = abilityView(W); ok(v.length === 30 && v[0].rank === 2 && v[0].nextLv === 11 && !v[2].open && v[0].cdMax === T.charge.cd[1] && v[7].max === 4, 'вид умений для интерфейса не тот');
 }
 // ---------- 3. рывок ----------
 {
@@ -103,7 +103,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 // ---------- 9. Сойка: отскок, залп, капкан, яд, град ----------
 {
   const J = A.jay, mkJ = (seed = 1) => { const W = mk(30, seed); W.hero = 'jay'; W.inv.eq.weapon = 'w_bow_iron'; refreshGear(W); return W; };
-  ok(ABILITIES.jay.length === 8 && ABILITIES.jay.every(a => J[a.id] && [0, 2].every(r => typeof a.text(J[a.id], r) === 'string')), 'у Сойки не 8 описанных умений');
+  ok(ABILITIES.jay.length === 30 && ABILITIES.jay.slice(0, 8).every(a => J[a.id] && [0, 2].every(r => typeof a.text(J[a.id], r) === 'string')), 'у Сойки не 8 описанных умений');
   { const W = mkJ(); upgradeAbility(W, 'leap'); const e = foe(W, 0, 4); still(W); ok(useAbility(W, 0) === 'ok', 'отскок не сработал');
     run(W, .8, () => { still(W); return {}; }); ok(W.player.z < 40 - J.leap.dist * .7 && e.hp < e.maxhp, `отскок: герой на ${(W.player.z - 40).toFixed(1)}, враг цел ${e.hp === e.maxhp}`); }
   { const W = mkJ(); upgradeAbility(W, 'volley'); const s15 = 15 * Math.PI / 180, a = foe(W, 0, 7), b = foe(W, Math.sin(s15) * 9, Math.cos(s15) * 9); still(W);     // веер строится от ближайшего врага
@@ -126,7 +126,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 // ---------- 10. Вейл: выпад, парирование, танец, тень, смертельный удар ----------
 {
   const V = A.vale, mkV = (seed = 1) => { const W = mk(30, seed); W.hero = 'vale'; W.inv.eq.weapon = 'w_rapier_iron'; refreshGear(W); return W; };
-  ok(ABILITIES.vale.length === 8 && ABILITIES.vale.every(a => V[a.id] && [0, 2].every(r => typeof a.text(V[a.id], r) === 'string')), 'у Вейла не 8 описанных умений');
+  ok(ABILITIES.vale.length === 30 && ABILITIES.vale.slice(0, 8).every(a => V[a.id] && [0, 2].every(r => typeof a.text(V[a.id], r) === 'string')), 'у Вейла не 8 описанных умений');
   { const W = mkV(); upgradeAbility(W, 'blink'); ok(useAbility(W, 0) === 'target' && !W.acd.blink, 'выпад без цели потратил перезарядку');
     const e = foe(W, 0, 6); still(W); ok(useAbility(W, 0) === 'ok', 'выпад не сработал');
     ok(W.player.z > e.z && Math.hypot(W.player.x - e.x, W.player.z - e.z) < 2.5 && e.hp < e.maxhp, `выпад: герой не за спиной (${W.player.z.toFixed(1)} при враге ${e.z.toFixed(1)}) или не ударил`);
@@ -174,6 +174,6 @@ const st = (e, k) => !!(e.st && e.st[k] && e.st[k].t > 0);
 { const { withMastery, abilityPointsAt } = await import('../3d/src/data/abilities3d.js'); const A = withMastery(CFG3.abilities.thorn.charge);
   ok(A.cd.length === 4 && A.cd[3] < A.cd[2] && A.cd[3] >= A.cd[2] * .8 - 1e-9, 'мастерство: перезарядка не короче: ' + A.cd);
   const num = Object.entries(CFG3.abilities.thorn.charge).find(([k, v]) => k !== 'cd' && Array.isArray(v) && v.length === 3 && v[2] > v[1]); ok(!num || A[num[0]][3] > A[num[0]][2], 'мастерство: сила не растёт');
-  ok(abilityPointsAt(33, CFG3) === abilityPointsAt(32, CFG3) + 1 && abilityPointsAt(31, CFG3) === abilityPointsAt(30, CFG3), 'очко мастерства не на 33-м'); }
+  ok(abilityPointsAt(33, CFG3) === abilityPointsAt(32, CFG3) + 2 && abilityPointsAt(31, CFG3) === abilityPointsAt(30, CFG3) + 1, 'очко мастерства не на 33-м'); }     // +1 за уровень (древо: 30 умений, очков хватает до 60-го) и +1 мастерство
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Умения 3D: OK');
