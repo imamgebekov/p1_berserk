@@ -4,6 +4,7 @@
 // biomeAt / biomeTint — какой биом в точке (пять секторов с волнистыми границами) и его оттенок земли с плавными стыками.
 import { riverOf, waterDist } from './terrain3d.js';
 import { castleFloors } from './castle3d.js';
+import { styleDungeons } from './dungeonstyle3d.js';
 import { zoneAt, zoneLevel, allZones } from './zones3d.js';
 
 const TAU = Math.PI * 2;
@@ -129,7 +130,7 @@ export function expandWorld(base) {
     cfg.dungeons.list.push(...C.floors); Object.assign(cfg.dungeons.keys, C.keys);
     cfg.map.places.push({ id: T.id, name: T.name, type: 'danger', x: s.x, z: s.z, r: 16, danger: 3, gen: 1, castle: true });
     cfg.map.castles.push({ id: T.id, x: s.x, z: s.z, name: T.name }); taken.push({ x: s.x, z: s.z, r: 34 });
-    const top = C.floors[C.floors.length - 1]; if (T.boss && top.throne) cfg.bosses.list.push({ ...T.boss, x: top.throne.x + top.throne.w * .25, z: top.throne.z, level: top.id, castle: T.id });     // босс — в тронном зале
+    const top = C.floors[C.floors.length - 1]; if (T.boss && top.throne) cfg.bosses.list.push({ ...T.boss, x: top.throne.x + top.throne.w * .25, z: top.throne.z, level: top.id, castle: T.id, final: true });     // босс — в тронном зале
   }
   // плато с обрывами (C3c): в горах, вдали от мест, ориентиров и реки; 1–2 пологих въезда
   cfg.map.plateaus = [];
@@ -279,8 +280,8 @@ export function expandWorld(base) {
       if (!at) continue;
       cfg.dungeons.list.push({ id: I.id, name: I.name, inst: true, raid: !!I.raid, at, back: I.back || { x: at.x, z: at.z + 3 }, level: I.level, depth: I.depth, danger: I.danger, rooms: I.rooms, doors: I.doors, foes: I.foes, spawns: I.spawns, entry: I.entry, exit: I.exit, chests: I.chests });
       taken.push({ x: at.x, z: at.z, r: 10 });
-      for (const B of I.bosses) { const rm = I.rooms.find(q => q.id === B.room); cfg.bosses.list.push({ ...B, x: rm.x, z: rm.z, level: I.id, base: I.base, inst: I.id }); }
+      I.bosses.forEach((B, k) => { const rm = I.rooms.find(q => q.id === B.room); cfg.bosses.list.push({ ...B, x: rm.x, z: rm.z, level: I.id, base: I.base, inst: I.id, final: k === I.bosses.length - 1 }); });     // final — главный босс подземелья
     }
   }
-  return cfg;
+  return styleDungeons(cfg);     // облик подземелий: крупнее, необычные залы (2026-10-20)
 }

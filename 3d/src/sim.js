@@ -250,7 +250,8 @@ export function spawnBoss(W, def) {
   const C = W.cfg.enemies[def.type], e = spawnEnemy(W, def.type, def.x, def.z);
   const L = W.cfg.level, bk = 1 + Math.max(0, (e.lvl || 1) - (def.base ?? L.bossBase)) * L.grow;     // боссы настроены под bossBase (подземелья — под свой base); глубже — крепче и злее (этап 0)
   const H = W.levels && W.levels[W.lvl] && W.levels[W.lvl].heroic ? W.cfg.instances.heroic : null;     // героическая (этап 5)
-  e.hp = e.maxhp = Math.round(C.hp * W.dif.hp * bk * (H ? H.hp : 1)); e.dmgMul = W.dif.dmg * bk * (H ? H.dmg : 1); if (H) e.heroic = true; initBoss(W, e, def); resolve(W.map, e, C.radius); e.b.home = { x: e.x, z: e.z };
+  const Mg = W.cfg.dungeons.might, mg = Mg && Mg.on && def.level ? (def.castle ? Mg.castle : def.final ? Mg.boss : Mg.mini) : null;     // боссы подземелий мощнее (2026-10-20): главный и промежуточные
+  e.hp = e.maxhp = Math.round(C.hp * W.dif.hp * bk * (H ? H.hp : 1) * (mg ? mg.hp : 1)); e.dmgMul = W.dif.dmg * bk * (H ? H.dmg : 1) * (mg ? mg.dmg : 1); if (H) e.heroic = true; initBoss(W, e, def); resolve(W.map, e, C.radius); e.b.home = { x: e.x, z: e.z };
   delete W.bossDead[def.type]; return e;
 }
 function bossDefeated(W, e) {

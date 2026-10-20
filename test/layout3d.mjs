@@ -30,7 +30,7 @@ for (const def of D.list) {
   const R = M.rooms, tag = def.id;
   ok(new Set(R.map(r => r.id)).size === R.length, `${tag}: имена комнат не повторяются`);
   for (let a = 0; a < R.length; a++) for (let b = a + 1; b < R.length; b++) ok(area(R[a], R[b]) < 1e-6, `${tag}: комнаты ${R[a].id} и ${R[b].id} наложены`);
-  for (const w of M.blocks) for (const r of R) ok(area(w, r) < 1e-6, `${tag}: стена залезает на пол ${r.id}`);
+  for (const w of M.blocks) if (!w.fill && !w.pit) for (const r of R) ok(area(w, r) < 1e-6, `${tag}: стена залезает на пол ${r.id}`);     // заливка углов круглых залов и провалы — внутри зала намеренно
   // связность: из комнаты входа достижима любая
   const ri = roomAt(M, def.entry.x, def.entry.z), seen = new Set([ri]), q = [ri];
   ok(ri >= 0, `${tag}: вход не в комнате`);

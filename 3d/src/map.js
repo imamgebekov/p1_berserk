@@ -232,7 +232,7 @@ export function pathStep(map, x, z, tx, tz, keys = null) {
 // двери в проёмах, граф связей (links, adj — для путей врагов и отряда), контейнеры, лестница наверх
 export function makeLevelMap(cfg, def) {
   const D = cfg.dungeons, t = D.wall;
-  const rooms = def.rooms.map((r, i) => ({ i, id: r.id || 'r' + i, x0: r.x - r.w / 2, x1: r.x + r.w / 2, z0: r.z - r.d / 2, z1: r.z + r.d / 2, corridor: Math.min(r.w, r.d) <= D.corridorMax }));
+  const rooms = def.rooms.map((r, i) => ({ i, id: r.id || 'r' + i, x0: r.x - r.w / 2, x1: r.x + r.w / 2, z0: r.z - r.d / 2, z1: r.z + r.d / 2, corridor: r.corr ?? Math.min(r.w, r.d) <= D.corridorMax, fill: r.fill || 'normal', ...(r.shape ? { shape: r.shape, sh: r } : {}) }));     // sh — описание формы (dungeonstyle3d)
   // стены: полосы снаружи каждой комнаты (с углами), из которых вырезан пол всех комнат
   let blocks = [];
   for (const r of rooms) blocks.push({ x0: r.x0 - t, x1: r.x1 + t, z0: r.z0 - t, z1: r.z0 }, { x0: r.x0 - t, x1: r.x1 + t, z0: r.z1, z1: r.z1 + t }, { x0: r.x0 - t, x1: r.x0, z0: r.z0, z1: r.z1 }, { x0: r.x1, x1: r.x1 + t, z0: r.z0, z1: r.z1 });
@@ -243,6 +243,13 @@ export function makeLevelMap(cfg, def) {
     const e = sharedEdge(rooms[a], rooms[b]); if (!e) continue;
     const m = (e.s0 + e.s1) / 2, L = { a, b, ...e, x: e.vert ? e.line : m, z: e.vert ? m : e.line, door: -1 };
     adj[a].push(links.length); adj[b].push(links.length); links.push(L);
+  }
+  // необычные залы: заливка углов круга и восьмигранника, провалы — в стены; колонны — твёрдые круги; линии стен — для вида
+  const solids = [], arcs = [], pits = [], pillars = [];
+  for (const r of rooms) if (r.shape) {
+    const P = shapeParts(cfg, r, links.filter(l => rooms[l.a] === r || rooms[l.b] === r), cut);
+    blocks.push(...P.fills, ...P.pits.map(q => ({ ...q, pit: true }))); arcs.push(...P.arcs); pits.push(...P.pits); pillars.push(...P.pillars);
+    for (const c of P.pillars) solids.push({ x: c.x, z: c.z, r: c.r });
   }
   // двери: { a: id комнаты, b: id комнаты } — встают на весь проём между ними
   const doors = [];
@@ -263,7 +270,7 @@ export function makeLevelMap(cfg, def) {
   const place = { id: def.id, name: def.name, type: 'dungeon', x: cx, z: cz, r: Math.hypot(bounds.x1 - bounds.x0, bounds.z1 - bounds.z0) + 4, danger: def.danger || 0 };
   const portals = [{ x: def.exit.x, z: def.exit.z, to: def.upTo || 'surface', tx: def.back.x, tz: def.back.z, up: true }];
   if (def.down) portals.push({ x: def.down.x, z: def.down.z, to: def.down.to, tx: def.down.tx, tz: def.down.tz, up: false });     // лестница на этаж ниже (C4)
-  return { level: def.id, path: D.path, buildings: [], walls: blocks, blocks, rooms, links, adj, hops, doors, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids: [], decor: [], roads: [] };
+  return { level: def.id, path: D.path, buildings: [], walls: blocks, blocks, rooms, links, adj, hops, doors, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids, arcs, pits, pillars, decor: [], roads: [] };
 }
 
 // сдвиг с шагами не длиннее 0.25: быстрый перекат не пролетает сквозь стену
@@ -293,6 +300,7 @@ export function propsBlocked(map, x, z) {
   return Math.hypot(x, z) < 6;
 }
 import { distSeg as distSegPt, pathSegs } from './world3d.js';
+import { shapeParts, shapeFree } from './dungeonstyle3d.js';
 
 // область, в которой стоит точка (graveyard, farm, ruins, camp…), либо null
 export function regionOf(map, x, z) {
@@ -359,3 +367,5 @@ export function blockFoe(map, o, r) {
   return hit;
 }
 
+// точка свободна в зале с формой (внутри круга, не в провале и не в колонне); обычный зал — всегда да
+export const roomFree = (room, x, z, pad = 0) => !room.sh || shapeFree(room.sh, x, z, pad);

@@ -56,7 +56,7 @@ for (const b of B) { let all = 0;
     let w = 0, t = 0; for (let s = 0; s < N; s++) { const r = fight(b, lv, s); w += r.win ? 1 : 0; t += r.t; } all += w;
     console.log(`${CFG3.enemies[b.type].name} / ур. ${lv}`.padEnd(32), `побед ${(w / N * 100).toFixed(0)}%  среднее время ${(t / N).toFixed(0)} с`);
   }
-  const k = all / (2 * N); ok(k >= .4 && k <= .92, `${b.type}: побед на уровне трона −6…0 ${(k * 100).toFixed(0)}% (нужно 40–92)`); }
+  const k = all / (2 * N); ok(k >= .2 && k <= .92, `${b.type}: побед на уровне трона −6…0 ${(k * 100).toFixed(0)}% (нужно 20–92)`); }     // с 3.79 тронный зал крупнее — босс сильнее (просьба владельца); было 40–92
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + [...new Set(fails)].join('\n')); process.exit(1); }
 console.log('Боссы замков 3D: OK');

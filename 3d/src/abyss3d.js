@@ -2,6 +2,7 @@
 // враги сильнее с каждым ярусом, у яруса 0–2 модификатора и время. Перебил всех — лестница вниз открыта; время вышло — выброс наверх.
 // Рекорд — W.ach.c.abyss (сохраняется с подвигами). Пока идёт забег — W.abyss { tier, t, mods }. Числа — cfg.abyss.
 import { makeLevelMap, resolve } from './map.js';
+import { styleDef } from './dungeonstyle3d.js';
 const mulberry32 = a => () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 import { CONTAINERS, rollLoot } from './data/loot.js';
 
@@ -29,7 +30,7 @@ export function abyssDef(cfg, tier, back, fixed = null) {     // fixed — мо�
     down: { x: x - 2.5, z: zc, to: ABYSS, tx: -1.5, tz: 0 }, guard: tier % A.guardEvery === 0 ? { type: types[types.length - 1][0], x: x - 6, z: zc, hp: A.guardHp, dmg: 1.2, key: null } : null };
 }
 function makeLevel(W, tier, fixed = null) {
-  const cfg = W.cfg, A = cfg.abyss, def = abyssDef(cfg, tier, A.at, fixed), map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2, n = Math.ceil(2 * R / cfg.dungeons.cell) + 2;
+  const cfg = W.cfg, A = cfg.abyss, def = styleDef(cfg, abyssDef(cfg, tier, A.at, fixed)), map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2, n = Math.ceil(2 * R / cfg.dungeons.cell) + 2;
   for (const q of map.portals) if (!q.up) q.abyssNext = true;
   const rng = W.rng === Math.random || (W.levels && W.levels.surface.rng === Math.random) ? Math.random : mulberry32((cfg.world.seed || 1) * 31 + tier);
   return { id: ABYSS, def, map, enemies: [], drops: [], spawnT: 1, rng, seenN: n, seenR: R, seenC: cfg.dungeons.cell, revR: cfg.dungeons.reveal * (def.mods.includes('dark') ? A.mod.dark : 1), seen: new Uint8Array(n * n) };

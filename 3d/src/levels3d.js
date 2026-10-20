@@ -1,7 +1,7 @@
 // Уровни: поверхность и подземелья. У каждого уровня свои карта, враги, вещи на земле и туман войны;
 // W.map, W.enemies, W.drops, W.seen всегда указывают на текущий уровень, поэтому стены, удары и снаряды работают без правок.
 import { clamp, len } from './util3d.js';
-import { makeLevelMap, resolve } from './map.js';
+import { makeLevelMap, resolve, roomFree } from './map.js';
 import { reveal } from './places3d.js';
 import { mulberry32, spawnEnemy, spawnBoss } from './sim.js';
 import { bossAway } from './boss3d.js';
@@ -93,7 +93,8 @@ export function spawnFoes(W, L) {
   const pick = () => { const t = def.foes.reduce((a, f) => a + f[1], 0); let r = rng() * t; for (const f of def.foes) if ((r -= f[1]) <= 0) return f[0]; return def.foes[0][0]; };
   if (def.guard) {                                                                // страж замка: крепкий, элитный, с ключом трона
     const G = def.guard, C = W.cfg.enemies[G.type], e = spawnEnemy(W, G.type, G.x, G.z);
-    e.hp = e.maxhp = Math.round(e.maxhp * G.hp); e.dmgMul *= G.dmg; e.scaleMul = 1.35; e.elite = true; e.affName = 'Страж'; e.affColor = '#ffd27a'; e.guard = G.key;
+    const Mg = W.cfg.dungeons.might, mg = Mg && Mg.on ? Mg.guard : null;     // страж мощнее (2026-10-20)
+    e.hp = e.maxhp = Math.round(e.maxhp * G.hp * (mg ? mg.hp : 1)); e.dmgMul *= G.dmg * (mg ? mg.dmg : 1); e.scaleMul = 1.35; e.elite = true; e.affName = 'Страж'; e.affColor = '#ffd27a'; e.guard = G.key;
   }
   for (const s of def.spawns || []) {
     const room = M.rooms.find(r => r.id === s.room); if (!room) continue;
@@ -101,7 +102,7 @@ export function spawnFoes(W, L) {
       let x = 0, z = 0;
       for (let a = 0; a < 12; a++) {
         x = room.x0 + D.spawnPad + rng() * Math.max(0, room.x1 - room.x0 - 2 * D.spawnPad); z = room.z0 + D.spawnPad + rng() * Math.max(0, room.z1 - room.z0 - 2 * D.spawnPad);
-        if (len(x - def.entry.x, z - def.entry.z) >= D.spawnSafe) break;
+        if (len(x - def.entry.x, z - def.entry.z) >= D.spawnSafe && roomFree(room, x, z, D.spawnPad)) break;
       }
       spawnEnemy(W, s.type || pick(), x, z);
     }

@@ -32,7 +32,9 @@ export function drawMap(ctx, W, v) {
     // подземелье: пол комнат, стены, лестница
     ctx.fillStyle = '#2a221d'; for (const r of M.rooms) ctx.fillRect(X(r.x0), Y(r.z0), (r.x1 - r.x0) * sc, (r.z1 - r.z0) * sc);
     for (const d of M.doors) if (d.open < .6) { ctx.fillStyle = d.locked ? '#d03a2a' : '#7a5030'; ctx.fillRect(X(d.rect.x0), Y(d.rect.z0), Math.max(2, (d.rect.x1 - d.rect.x0) * sc), Math.max(2, (d.rect.z1 - d.rect.z0) * sc)); }      // запертая — красная
-    ctx.fillStyle = '#6a5a4c'; for (const b of M.blocks) ctx.fillRect(X(b.x0), Y(b.z0), Math.max(1, (b.x1 - b.x0) * sc), Math.max(1, (b.z1 - b.z0) * sc));
+    ctx.fillStyle = '#6a5a4c'; for (const b of M.blocks) if (!b.pit) ctx.fillRect(X(b.x0), Y(b.z0), Math.max(1, (b.x1 - b.x0) * sc), Math.max(1, (b.z1 - b.z0) * sc));
+    ctx.fillStyle = '#050303'; for (const q of M.pits || []) ctx.fillRect(X(q.x0), Y(q.z0), (q.x1 - q.x0) * sc, (q.z1 - q.z0) * sc);     // провалы
+    ctx.fillStyle = '#6a5a4c'; for (const c of M.pillars || []) ctx.fillRect(X(c.x - c.r), Y(c.z - c.r), Math.max(2, c.r * 2 * sc), Math.max(2, c.r * 2 * sc));
   } else {
     // мир: подложка с рельефом (пока строится — ровная земля), край мира
     if (RL) { ctx.imageSmoothingEnabled = true; ctx.fillStyle = '#7a8a5a'; ctx.beginPath(); ctx.arc(X(0), Y(0), R * sc, 0, 6.2832); ctx.fill(); ctx.drawImage(RL.canvas, X(-RL.R), Y(-RL.R), 2 * RL.R * sc, 2 * RL.R * sc); }

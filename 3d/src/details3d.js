@@ -4,6 +4,7 @@
 import { mulberry32 } from './sim.js';
 import { pathSegs, distSeg } from './world3d.js';
 import { waterDist } from './terrain3d.js';
+import { roomFree } from './map.js';
 
 const YARD = ['barrel_d', 'crate_d', 'woodpile', 'sack_d', 'bucket'];
 const SIGNED = new Set(['shop', 'smithy', 'tavern', 'warehouse']);
@@ -46,16 +47,24 @@ export function dungeonDetails(M, cfg, salt = 0) {
   const rnd = mulberry32((cfg.world.seed ^ 0x2c1b ^ Math.imul(salt + 1, 2654435761)) >>> 0), out = [], pick = a => a[(rnd() * a.length) | 0];
   const open = (x, z) => (M.links || []).some(l => (l.vert ? Math.abs(x - l.line) < .3 && z > l.s0 - 1 && z < l.s1 + 1 : Math.abs(z - l.line) < .3 && x > l.s0 - 1 && x < l.s1 + 1));
   const nearPortal = (x, z) => (M.portals || []).some(q => Math.hypot(q.x - x, q.z - z) < 2.5) || (M.containers || []).some(c => Math.hypot(c.x - x, c.z - z) < 1.2);
+  const nearLink = (x, z, d) => (M.links || []).some(l => Math.hypot(l.x - x, l.z - z) < d);
   for (const r of M.rooms || []) {
     if (r.corridor) continue;
-    for (const [cx, cz] of [[r.x0 + .45, r.z0 + .45], [r.x1 - .45, r.z0 + .45], [r.x0 + .45, r.z1 - .45], [r.x1 - .45, r.z1 - .45]]) if (rnd() < D.candle && !open(cx, cz) && !nearPortal(cx, cz)) out.push({ t: 'candles', x: cx, z: cz, rot: rnd() * 6.28, detail: true });
+    const fr = (x, z, pad) => roomFree(r, x, z, pad);     // необычный зал: не в заливке углов, не в провале и не в колонне
+    if (r.fill === 'empty') { rnd(); continue; }     // пустой зал — ни свечей, ни хлама (2026-10-20)
+    if (r.fill === 'full') for (let k = 0, n = 5 + ((rnd() * 5) | 0), t = 0; k < n && t < 60; t++) {     // забитый зал: хлам вдоль стен
+      const x = r.x0 + .8 + rnd() * (r.x1 - r.x0 - 1.6), z = r.z0 + .8 + rnd() * (r.z1 - r.z0 - 1.6);
+      if (!fr(x, z, .7) || fr(x, z, 2.4) || nearLink(x, z, 2.6) || nearPortal(x, z)) continue;
+      out.push({ t: pick(['crate_d', 'barrel_d', 'sack_d', 'rubble', 'bones', 'skulls', 'rusty_sword', 'wreck', 'crate_d']), x, z, rot: rnd() * 6.28, s: .8 + rnd() * .5, detail: true }); k++;
+    }
+    for (const [cx, cz] of [[r.x0 + .45, r.z0 + .45], [r.x1 - .45, r.z0 + .45], [r.x0 + .45, r.z1 - .45], [r.x1 - .45, r.z1 - .45]]) if (rnd() < D.candle && !open(cx, cz) && !nearPortal(cx, cz) && fr(cx, cz, .2)) out.push({ t: 'candles', x: cx, z: cz, rot: rnd() * 6.28, detail: true });
     const walls = [[r.x0 + .08, null, Math.PI / 2], [r.x1 - .08, null, -Math.PI / 2], [null, r.z0 + .08, 0]];     // ближняя к камере стена (z1) — без деталей
     for (const [wx, wz, rot] of walls) {
       if (rnd() > D.wall) continue;
       const k = .2 + rnd() * .6, x = wx ?? r.x0 + k * (r.x1 - r.x0), z = wz ?? r.z0 + k * (r.z1 - r.z0);
-      if (!open(x, z) && !nearPortal(x, z)) out.push({ t: rnd() < .5 ? 'chain' : 'grate', x, z, rot, detail: true });
+      if (!open(x, z) && !nearPortal(x, z) && fr(x, z, -.3)) out.push({ t: rnd() < .5 ? 'chain' : 'grate', x, z, rot, detail: true });
     }
-    if (rnd() < D.floor) { const x = r.x0 + 1 + rnd() * Math.max(.1, r.x1 - r.x0 - 2), z = r.z0 + 1 + rnd() * Math.max(.1, r.z1 - r.z0 - 2); if (!open(x, z) && !nearPortal(x, z)) out.push({ t: pick(['bones', 'skulls']), x, z, rot: rnd() * 6.28, detail: true }); }
+    if (rnd() < D.floor) { const x = r.x0 + 1 + rnd() * Math.max(.1, r.x1 - r.x0 - 2), z = r.z0 + 1 + rnd() * Math.max(.1, r.z1 - r.z0 - 2); if (!open(x, z) && !nearPortal(x, z) && fr(x, z, .6)) out.push({ t: pick(['bones', 'skulls']), x, z, rot: rnd() * 6.28, detail: true }); }
   }
   return out;
 }

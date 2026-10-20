@@ -33,19 +33,41 @@ export function buildLevelView(L, cfg) {
   const M = L.map, D = cfg.dungeons, group = new THREE.Group();
   // пол: по прямоугольнику на комнату, с лёгкой «плиткой» из полос
   const floor = [], seams = [];
+  const rings = [];     // круглые залы: швы кольцами и мозаика в центре
   for (const r of M.rooms) {
     const w = r.x1 - r.x0, d = r.z1 - r.z0, cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
     floor.push(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2).translate(cx, 0, cz));
+    if (r.shape === 'round') { for (let k = 1.6; k < Math.min(w, d) / 2 - .3; k += 1.6) rings.push(new THREE.RingGeometry(k - .03, k + .03, 48).rotateX(-Math.PI / 2).scale(w / Math.min(w, d), 1, d / Math.min(w, d)).translate(cx, .006, cz)); rings.push(new THREE.CircleGeometry(1.2, 32).rotateX(-Math.PI / 2).translate(cx, .004, cz)); continue; }
     for (let x = r.x0 + 1.5; x < r.x1; x += 1.5) seams.push(box(.05, .01, d, x, .005, cz));
     for (let z = r.z0 + 1.5; z < r.z1; z += 1.5) seams.push(box(w, .01, .05, cx, .005, z));
   }
   group.add(new THREE.Mesh(mergeGeometries(floor), mat('#2c2622', 'masonry')));
   if (seams.length && !paintOn()) group.add(new THREE.Mesh(mergeGeometries(seams), mat('#1a1614')));     // с материалами плиты рисует шейдер
-  // стены одним мешем; сверху тёмный «срез», чтобы читалась толщина
-  const walls = M.blocks.map(w => box(w.x1 - w.x0, D.wallH, w.z1 - w.z0, (w.x0 + w.x1) / 2, D.wallH / 2, (w.z0 + w.z1) / 2));
+  if (rings.length) group.add(new THREE.Mesh(mergeGeometries(rings), mat('#3a3029', 'masonry')));
+  // стены одним мешем; сверху тёмный «срез», чтобы читалась толщина. Провалы — не стены; у круглых залов поверх заливки — гладкая линия стены
+  const solid = M.blocks.filter(w => !w.pit), arc = (a, h, y) => { const L = Math.hypot(a.x1 - a.x0, a.z1 - a.z0), mx = (a.x0 + a.x1) / 2, mz = (a.z0 + a.z1) / 2, n = Math.hypot(mx - a.cx, mz - a.cz) || 1, t = D.wall; return new THREE.BoxGeometry(L + .06, h, t).rotateY(-Math.atan2(a.z1 - a.z0, a.x1 - a.x0)).translate(mx + (mx - a.cx) / n * t / 2, y, mz + (mz - a.cz) / n * t / 2); };
+  const walls = solid.map(w => box(w.x1 - w.x0, D.wallH, w.z1 - w.z0, (w.x0 + w.x1) / 2, D.wallH / 2, (w.z0 + w.z1) / 2)).concat((M.arcs || []).map(a => arc(a, D.wallH, D.wallH / 2)));
   group.add(new THREE.Mesh(mergeGeometries(walls), mat('#4a4038', 'masonry')));
-  const caps = M.blocks.map(w => box(w.x1 - w.x0, .04, w.z1 - w.z0, (w.x0 + w.x1) / 2, D.wallH + .02, (w.z0 + w.z1) / 2));
+  const caps = solid.map(w => box(w.x1 - w.x0, .04, w.z1 - w.z0, (w.x0 + w.x1) / 2, D.wallH + .02, (w.z0 + w.z1) / 2)).concat((M.arcs || []).map(a => arc(a, .04, D.wallH + .03)));
   group.add(new THREE.Mesh(mergeGeometries(caps), new THREE.MeshBasicMaterial({ color: '#141010' })));
+  // провалы: чёрная пустота с каменной кромкой и багровым отсветом из глубины
+  if ((M.pits || []).length) {
+    const hole = [], rim = [], glow = [];
+    for (const q of M.pits) {
+      const w = q.x1 - q.x0, d = q.z1 - q.z0, cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2;
+      hole.push(box(w, .02, d, cx, .01, cz)); glow.push(new THREE.PlaneGeometry(Math.max(.2, w - 1.2), Math.max(.2, d - 1.2)).rotateX(-Math.PI / 2).translate(cx, .025, cz));
+      rim.push(box(w + .3, .1, .15, cx, .05, q.z0 - .075), box(w + .3, .1, .15, cx, .05, q.z1 + .075), box(.15, .1, d, q.x0 - .075, .05, cz), box(.15, .1, d, q.x1 + .075, .05, cz));
+    }
+    group.add(new THREE.Mesh(mergeGeometries(hole), new THREE.MeshBasicMaterial({ color: '#040303' })));
+    group.add(new THREE.Mesh(mergeGeometries(glow), new THREE.MeshBasicMaterial({ color: '#7a1c0a', transparent: true, opacity: .22, depthWrite: false })));
+    group.add(new THREE.Mesh(mergeGeometries(rim), mat('#5a5048', 'masonry')));
+  }
+  // колонны: база, ствол, капитель
+  if ((M.pillars || []).length) {
+    const col = [];
+    for (const c of M.pillars) col.push(box(c.r * 2.4, .25, c.r * 2.4, c.x, .125, c.z), new THREE.CylinderGeometry(c.r * .85, c.r, 2.6, 10).translate(c.x, 1.55, c.z), box(c.r * 2.2, .22, c.r * 2.2, c.x, 2.95, c.z));
+    group.add(new THREE.Mesh(mergeGeometries(col.map(g => g.index ? g.toNonIndexed() : g)), mat('#6a6058', 'masonry')));
+  }
   // факелы на сплошных стенах комнат (не в проходах и не на ближней к камере стене; без источников света — свет даёт фонарь героя)
   const torches = [], flames = [], open = (x, z) => M.links.some(l => (l.vert ? Math.abs(x - l.line) < .2 && z > l.s0 - .6 && z < l.s1 + .6 : Math.abs(z - l.line) < .2 && x > l.s0 - .6 && x < l.s1 + .6));
   for (const r of M.rooms) if (!r.corridor) for (const [x, z, ex, ez] of [[r.x0, (r.z0 + r.z1) / 2, .12, 0], [r.x1, (r.z0 + r.z1) / 2, -.12, 0], [(r.x0 + r.x1) / 2, r.z0, 0, .12]]) {
