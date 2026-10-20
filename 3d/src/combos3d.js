@@ -20,6 +20,12 @@ export const COMBOS = {
     { id: 'riposte', a: 'parry', b: 'execute', name: 'Ответ мастера', text: 'Смертельный удар добивает с 40% здоровья.' },
     { id: 'twindance', a: 'shadow', b: 'dance', name: 'Двойной танец', text: 'Тень-двойник танцует вместе с Вейлом.' }
   ],
+  warlock: [
+    { id: 'verdict', a: 'hex', b: 'doom', name: 'Приговор', text: 'Рок по проклятому бьёт в 1,5 раза сильнее.' },
+    { id: 'feast', a: 'terror', b: 'drain', name: 'Пир страха', text: 'Похищение жизни по испуганному лечит вдвое.' },
+    { id: 'gravecall', a: 'grasp', b: 'souls', name: 'Зов могил', text: 'В рое на 3 души больше.' },
+    { id: 'bloodimp', a: 'pact', b: 'summon', name: 'Кровавый бес', text: 'Бес держится в 1,5 раза дольше и бьёт сильнее.' }
+  ],
   irga: [
     { id: 'detonate', a: 'cloud', b: 'fireball', name: 'Взрыв облака', text: 'Огненный шар в ядовитом облаке взрывает его: огонь по всем в облаке.' },
     { id: 'frozenstorm', a: 'blizzard', b: 'chain', name: 'Ледяная гроза', text: 'Молния прыгает на 2 раза больше и замедляет.' },

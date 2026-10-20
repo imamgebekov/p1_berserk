@@ -6,6 +6,7 @@ import { lineBlocked, insideOf, resolve } from './map.js';
 import { applyStatus, cleansePlayer } from './status3d.js';
 import { len } from './util3d.js';
 import { resTick, resNow, resSpend, resOf, resMax } from './resource3d.js';
+const resGain = (W, n) => { const R = resOf(W); if (R) W.res = Math.min(resMax(W, R), (W.res || 0) + n); };
 import { comboFor, boosted, noteAbility } from './combos3d.js';
 import { withTalents } from './data/skills3d.js';
 
@@ -107,7 +108,7 @@ const ACT = {
     const p = W.player, { ang } = aimAt(W, A.r + 1); p.face = ang; let hit = 0;
     for (const e of near(W, A.r)) { const d = Math.atan2(e.x - p.x, e.z - p.z) - p.face; if (Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) > A.cone / 2 * Math.PI / 180) continue;
       const fear = W.cmb && W.cmb.id === 'dread' && e.st && e.st.fear;     // «Устрашение»: испуганных оглушает дольше
-      abilityHit(W, e, A.mul[r], { knock: A.knock }); if (!e.dead) applyStatus(W, e, 'stun', 0, A.stun[r] * (fear ? W.cmb.stun : 1)); if (!e.dead && tw(W, r)) applyStatus(W, e, 'crack', .25, 5); hit++; }     // мастерство: раскалывает броню
+      abilityHit(W, e, A.mul[r], { knock: A.knock }); if (!e.dead) applyStatus(W, e, 'stun', 0, A.stun[r] * (fear ? W.cmb.stun : 1)); if (!e.dead && tw(W, r)) applyStatus(W, e, 'crack', 1.25, 5); hit++; }     // мастерство: раскалывает броню
     if (!hit) return false;
   },
   quake(W, A, r) {
@@ -190,6 +191,42 @@ const ACT = {
     abilityHit(W, e, A.mul[r] * (W.cmb && W.cmb.id === 'breach' && e.st && e.st.shock ? W.cmb.k : 1), { knock: 1.5, heavy: true });     // «Пробой»: по «разряду» сильнее
     if (tw(W, r)) { const ux = Math.sin(p.face), uz = Math.cos(p.face); for (const o of W.enemies) { if (o.dead || o === e) continue; const dx = o.x - p.x, dz = o.z - p.z, along = dx * ux + dz * uz; if (along > 0 && along < A.range && Math.abs(dx * uz - dz * ux) < 1.2 + W.cfg.enemies[o.type].radius) abilityHit(W, o, A.mul[r] * .7, { knock: 1 }); } }     // мастерство: копьё пробивает всех на линии
   },
+  // Морок (чернокнижник)
+  hex(W, A, r) {
+    const { e } = aimAt(W, A.range, A.cone); if (!e) return false;
+    const curse = o => { applyStatus(W, o, 'poison', A.dps[r], A.t); (o.st || (o.st = {})).crack = { t: A.t, k: 1 + A.crack[r] }; W.ev.push({ k: 'hex', x: o.x, z: o.z }); };
+    curse(e); if (tw(W, r)) W.enemies.filter(o => !o.dead && o !== e && len(o.x - e.x, o.z - e.z) < 5).slice(0, 2).forEach(curse);     // мастерство: порча на двоих рядом
+  },
+  drain(W, A, r) {
+    const p = W.player, { e } = aimAt(W, A.range, A.cone); if (!e) return false;
+    p.face = Math.atan2(e.x - p.x, e.z - p.z); const feast = W.cmb && W.cmb.id === 'feast' && e.st && e.st.fear ? W.cmb.k : 1;     // «Пир страха»: по испуганным — вдвое
+    const dmg = abilityHit(W, e, A.mul[r], { knock: .4 }) || 0; if (!p.dead) p.hp = Math.min(p.maxhp, p.hp + Math.min(dmg * A.heal[r], p.maxhp * A.cap[r]) * feast);
+    W.ev.push({ k: 'chain', x: e.x, z: e.z, x2: p.x, z2: p.z }); if (tw(W, r)) resGain(W, 15);
+  },
+  summon(W, A, r) {
+    const p = W.player; for (let i = W.allies.length - 1; i >= 0; i--) if (W.allies[i].imp) W.allies.splice(i, 1);     // бесы прежнего призыва уходят
+    const n = tw(W, r) ? 2 : 1, B = W.cmb && W.cmb.id === 'bloodimp' ? W.cmb.mul : { t: 1, mul: 1 };     // «Кровавый бес» — дольше и сильнее
+    for (let k = 0; k < n; k++) { const a = p.face + (k ? -1 : 1) * 1.2; W.allies.push({ id: W.aid++, guest: true, decoy: true, imp: true, type: 'guest', name: 'Бес', x: p.x + Math.sin(a) * 1.4, z: p.z + Math.cos(a) * 1.4, vx: 0, vz: 0, face: p.face, hp: A.hp[r], maxhp: A.hp[r], state: 'idle', t: A.t[r] * (B.t || 1), cd: k * A.hit / 2, gap: A.hit, r: A.r, mul: A.mul[r] * (B.mul || 1), dead: false, deadT: 0, flash: 0, calm: 0, tgt: 0, moving: false, lvl: W.lvl }); }
+  },
+  terror(W, A, r) {
+    const p = W.player, list = near(W, A.r); for (const e of list) { applyStatus(W, e, 'fear', 0, A.fear[r]); applyStatus(W, e, 'slow', A.slow, A.fear[r] + 1); if (tw(W, r)) applyStatus(W, e, 'blind', 0, 1.5); }     // мастерство: ещё и слепота
+    W.ev.push({ k: 'smoke', x: p.x, z: p.z, r: A.r });
+  },
+  grasp(W, A, r) {
+    const at = spot(W, A); for (const e of W.enemies) if (!e.dead && len(e.x - at.x, e.z - at.z) < A.r + W.cfg.enemies[e.type].radius) { abilityHit(W, e, A.mul[r], { knock: .1 }); if (!e.dead) applyStatus(W, e, 'root', 0, A.root[r]); }
+    W.ev.push({ k: 'quake', x: at.x, z: at.z, r: A.r }); if (tw(W, r)) W.zones.push({ x: at.x, z: at.z, r: A.r, t: 4, tick: .5, acc: 0, mul: .1, lvl: W.lvl, slow: .45 });     // мастерство: вязкая земля
+  },
+  pact(W, A, r) {
+    const p = W.player; if (!tw(W, r)) { if (p.hp <= p.maxhp * A.price + 1) return false; p.hp -= p.maxhp * A.price; }     // мастерство: без платы здоровьем
+    resGain(W, A.gain); const ex = W.buffs.find(b => b.src === 'pact'); if (ex) ex.t = A.t[r]; else W.buffs.push({ stat: 'dmg', amt: A.dmg[r], t: A.t[r], src: 'pact' });
+    W.ev.push({ k: 'hex', x: p.x, z: p.z });
+  },
+  souls(W, A, r) { const { ang } = aimAt(W, 14, 60), n = A.n + (tw(W, r) ? 3 : 0); W.player.face = ang; for (let k = 0; k < n; k++) abilityArrow(W, ang + (k / (n - 1) - .5) * A.spread * Math.PI / 180, A.mul[r], { kind: 'orb' }); },
+  doom(W, A, r) {
+    const { e } = aimAt(W, A.range, A.cone); if (!e) return false;
+    const k = W.cmb && W.cmb.id === 'verdict' && e.st && e.st.crack ? W.cmb.k : 1;     // «Приговор»: по проклятому сильнее
+    (W.dooms = W.dooms || []).push({ id: e.id, t: A.delay, mul: A.mul[r] * k, jump: tw(W, r), lvl: W.lvl }); W.ev.push({ k: 'hex', x: e.x, z: e.z });
+  },
   execute(W, A, r) {
     const p = W.player, { e } = aimAt(W, A.reach + 1, A.cone); if (!e || len(e.x - p.x, e.z - p.z) > A.reach + W.cfg.enemies[e.type].radius) return false;
     if (!e.boss && e.hp / e.maxhp < A.kill[r]) { abilityHit(W, e, A.mul[r], { knock: 1.5 }); if (!e.dead) { e.hp = 0; W.fx.kill(e); } W.ev.push({ k: 'execute', x: e.x, z: e.z }); if (tw(W, r)) delete W.acd.blink; return; }     // мастерство: казнь снимает перезарядку прыжка
@@ -236,6 +273,12 @@ export function tickAbilities(W, dt) {
     if (a.flash > 0) a.flash -= dt;
     if ((a.cd -= dt) <= 0) { let best = null, bd = a.r; for (const e of W.enemies) { if (e.dead) continue; const d = len(e.x - a.x, e.z - a.z) - W.cfg.enemies[e.type].radius; if (d < bd) { bd = d; best = e; } }
       if (best) { a.cd = a.gap; a.face = Math.atan2(best.x - a.x, best.z - a.z); const hp0 = best.hp; abilityHit(W, best, a.mul, { knock: .4 }); W.ev.push({ k: 'shadowHit', x: best.x, z: best.z, dmg: hp0 - best.hp }); } } }
+  // рок Морока: через delay — тяжёлый удар; цель умерла раньше — метка переходит на ближайшего (мастерство) или гаснет
+  if (W.dooms && W.dooms.length) { W.dooms = W.dooms.filter(d => d.lvl === W.lvl);
+    for (let i = W.dooms.length - 1; i >= 0; i--) { const d = W.dooms[i]; let e = W.enemies.find(o => o.id === d.id && !o.dead);
+      if (!e && d.jump) { const o = W.enemies.filter(q => !q.dead && len(q.x - p.x, q.z - p.z) < 14).sort((u, v) => len(u.x - p.x, u.z - p.z) - len(v.x - p.x, v.z - p.z))[0]; if (o) { d.id = o.id; d.jump = false; e = o; } }
+      if (!e) { W.dooms.splice(i, 1); continue; }
+      if ((d.t -= dt) <= 0) { W.dooms.splice(i, 1); abilityHit(W, e, d.mul, { knock: 1.2, heavy: true }); W.ev.push({ k: 'meteor', x: e.x, z: e.z, r: 1.5 }); } } }
   if (b.rage > 0) { b.rage -= dt; if (!p.dead && p.hp > 1) p.hp = Math.max(1, p.hp - b.rageDrain * dt); }
 }
 // для интерфейса: список умений героя с состоянием

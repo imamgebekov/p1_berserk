@@ -13,7 +13,7 @@ const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const G = CATALOG.filter(i => i.rar === 5);
 
 // ---------- 1. каталог ----------
-ok(RARITY[5] && RARITY[5].name === 'Золотой' && G.length === 16 && G.every(i => i.pool === 'gold' && i.slot && i.stats), 'золотых вещей не 16 или не те');     // 12-я — Посох Зенита (Ирга); 13–16 — лёгкий комплект «Облачение Зари»
+ok(RARITY[5] && RARITY[5].name === 'Золотой' && G.length === 17 && G.every(i => i.pool === 'gold' && i.slot && i.stats), 'золотых вещей не 17 или не те');     // 12-я — Посох Зенита (Ирга); 13–16 — лёгкий комплект «Облачение Зари»
 ok(G.every(i => i.gold || (i.perks || []).includes('sun')), 'у золотой вещи нет своей механики');
 for (const it of G) {
   const light = ['head', 'body', 'boots'].includes(it.slot) && canWield('irga', it);     // лёгкая золотая броня сравнивается с лучшей лёгкой клеймёной

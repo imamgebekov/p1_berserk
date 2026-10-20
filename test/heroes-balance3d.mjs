@@ -16,7 +16,7 @@ import { telegraphDodge } from './botsense.mjs';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const SEEDS = Number(process.env.HB_SEEDS || 12), SECONDS = 90, TOL = Number(process.env.HB_TOL || .15), CELL = Number(process.env.HB_CELL || .3), QUIET = !!process.env.HB_QUIET;
-const HEROES = ['thorn', 'jay', 'vale', 'irga'], NAME = { thorn: 'Торн', jay: 'Сойка', vale: 'Вейл', irga: 'Ирга' };
+const HEROES = ['thorn', 'jay', 'vale', 'irga', 'warlock'], NAME = { thorn: 'Торн', jay: 'Сойка', vale: 'Вейл', irga: 'Ирга', warlock: 'Морок' };
 const RANGED = h => h === 'jay' || h === 'irga';     // стрелки: держат дистанцию
 const ARMOR = {
   'железо': { body: 'a_body_jerkin_leather', head: 'a_head_cap_leather', boots: 'a_boots_boots_leather' },
@@ -33,6 +33,7 @@ const ARMS = {
   thorn: { 'железо': { weapon: 'w_sword_iron', offhand: 's_buckler_iron' }, 'сталь': { weapon: 'w_sword_steel', offhand: 's_buckler_steel' }, 'чёрное': { weapon: 'w_greatsword_black', offhand: 's_tower_black' } },
   jay:   { 'железо': { weapon: 'w_bow_iron' }, 'сталь': { weapon: 'w_longbow_steel' }, 'чёрное': { weapon: 'w_longbow_black' } },
   irga:  { 'железо': { weapon: 'w_staff_iron' }, 'сталь': { weapon: 'w_staff_steel' }, 'чёрное': { weapon: 'w_staff_black' } },
+  warlock: { 'железо': { weapon: 'w_scythe_iron' }, 'сталь': { weapon: 'w_scythe_steel' }, 'чёрное': { weapon: 'w_scythe_black' } },
   vale:  { 'железо': { weapon: 'w_rapier_iron', offhand: 'w_dagger_iron' }, 'сталь': { weapon: 'w_sword_steel', offhand: 'w_rapier_steel' }, 'чёрное': { weapon: 'w_rapier_black', offhand: 'w_dagger_black' } }
 };
 const LV = { 'железо': 6, 'сталь': 12, 'чёрное': 22 }, TIERS = Object.keys(LV);
@@ -42,16 +43,17 @@ const PLACES = { 'у костра': [6, 6], 'середина': [-20, -40], 'у 
 function spend(W) { const L = heroAbilities(W); for (let pass = 0; pass < 6; pass++) for (const a of L) upgradeAbility(W, a.id); }
 function setup(cfg, hero, tier, seed) {
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3)); W.hero = hero; W.lv = LV[tier]; W.ap = abilityPoints(W.lv, cfg);
-  Object.assign(W.inv.eq, (hero === 'irga' ? LIGHT : ARMOR)[tier], ARMS[hero][tier]); spend(W); refreshGear(W); W.player.hp = W.player.maxhp; return W;
+  Object.assign(W.inv.eq, (hero === 'irga' || hero === 'warlock' ? LIGHT : ARMOR)[tier], ARMS[hero][tier]); spend(W); refreshGear(W); W.player.hp = W.player.maxhp; return W;
 }
 const baseCfg = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.events.on = false; c.wanderer.on = false; c.ambient.on = false; return c; };
 
 // ---- боты: один уровень ума, разный стиль ----
+const SKIP = (process.env.HB_SKIP || '').split(',').filter(Boolean).map(Number);     // умения, которые бот не жмёт (поиск сильного)
 const near = (W, r) => aliveEnemies(W).filter(e => Math.hypot(e.x - W.player.x, e.z - W.player.z) < r).length;
 const ready = (W, i) => { const a = heroAbilities(W)[i]; return a && (W.ab[a.id] || 0) > 0 && !(W.acd[a.id] > 0) && resNow(W) >= (W.cfg.abilities[W.hero][a.id].cost || 0); };     // и ресурса хватает
 function abilities(W, hero, tgt, bd) {
   if (process.env.HB_NOAB) return;
-  const p = W.player, low = p.hp < p.maxhp * .5, use = i => ready(W, i) && useAbility(W, i) === 'ok';
+  const p = W.player, low = p.hp < p.maxhp * .5, use = i => !SKIP.includes(i) && ready(W, i) && useAbility(W, i) === 'ok';
   if (hero === 'thorn') {
     if (low && use(3)) return; if ((low || near(W, 6) >= 3) && use(1)) return; if (near(W, 3.4) >= 2 && use(2)) return;
     if (bd < 2.5 && p.hp > p.maxhp * .6 && use(4)) return;
@@ -64,6 +66,11 @@ function abilities(W, hero, tgt, bd) {
     if (near(W, 14) >= 3 && (use(4) || use(6))) return; if (near(W, 14) >= 2 && use(3)) return;
     if ((tgt.boss || tgt.elite || tgt.maxhp > 150) && bd < 16 && use(7)) return;
     if (bd < 14 && use(2)) return; if (bd < 14 && use(0)) return;
+  } else if (hero === 'warlock') {                             // Морок: бес у ног, ужас при беде, порча и рок по сильным, похищение — когда ранен
+    if (!W.allies.some(a => a.imp && !a.dead) && near(W, 10) >= 1 && use(2)) return; if ((low || near(W, 4) >= 3) && use(3)) return;
+    if (p.hp < p.maxhp * .75 && bd < 9 && use(1)) return; if (near(W, 12) >= 2 && use(4)) return;
+    if (bd < 11 && !(tgt.st && tgt.st.crack) && use(0)) return; if ((tgt.elite || tgt.boss || tgt.maxhp > 150) && bd < 13 && use(7)) return;
+    if (bd < 12 && use(6)) return; if (resNow(W) < 30 && p.hp > p.maxhp * .7 && use(5)) return;
   } else {
     if (tgt.hp < tgt.maxhp * .35 && bd < 2.6 && use(4)) return; if ((low || near(W, 6) >= 3) && use(3)) return;
     if (near(W, 3) >= 2 && use(2)) return; if (bd > 4 && bd < 8 && use(0)) return;

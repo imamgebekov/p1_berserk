@@ -8,7 +8,7 @@ import { COMBOS, comboReady, boosted } from '../3d/src/combos3d.js';
 import { applyStatus } from '../3d/src/status3d.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
-const WEAPON = { thorn: 'w_sword_iron', jay: 'w_bow_iron', vale: 'w_rapier_iron', irga: 'w_staff_iron' }, X = CFG3.combos;
+const WEAPON = { thorn: 'w_sword_iron', jay: 'w_bow_iron', vale: 'w_rapier_iron', irga: 'w_staff_iron', warlock: 'w_scythe_iron' }, X = CFG3.combos;
 function mk(hero) {
   const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.weather.force = 'clear'; cfg.enemies.roam.on = false;
   const W = createWorld(cfg, () => .5); W.hero = hero; W.lv = 30; W.player.x = 300; W.player.z = 0; W.player.face = 0; W.player.inv = 1e9;
@@ -36,7 +36,11 @@ const CASE = {
   detonate: { setup: W => ({ e: foe(W, 0, 7), o: foe(W, 3.9, 7) }), m: (W, c) => (W.ezones.some(z => z.kind === 'cloud') ? 0 : hurt(c.o)), better: (a, b) => a > 0 && b === 0, time: .45 },     // сосед вне взрыва шара, но в облаке
   frozenstorm: { setup: W => ({ es: [foe(W, 0, 5), foe(W, 2, 8), foe(W, 4, 11), foe(W, 6, 14), foe(W, 8, 17), foe(W, 10, 20), foe(W, 12, 23)] }), m: (W, c) => c.es.filter(e => hurt(e) > 0 && e.st && e.st.slow).length, better: (a, b) => a >= 6 && b < 6, now: true },
   icearmor: { setup: W => ({ e: foe(W, 5, 0) }), m: (W, c) => (W.buffs.some(b => b.src === 'icearmor') ? 1 : 0) + (hurt(c.e) > 0 ? 1 : 0), better: (a, b) => a === 2 && b === 0, now: true },
-  breach: { setup: W => ({ e: foe(W, 0, 8) }), pre: (W, c) => applyStatus(W, c.e, 'shock', 10, 9), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.4, now: true }
+  breach: { setup: W => ({ e: foe(W, 0, 8) }), pre: (W, c) => applyStatus(W, c.e, 'shock', 10, 9), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.4, now: true },
+  verdict: { setup: W => ({ e: foe(W, 0, 6) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.5, time: 4.4 },     // Морок: рок по проклятому
+  feast: { setup: W => ({ e: foe(W, 0, 3) }), pre: W => { W.player.hp = W.player.maxhp * .4; }, m: W => W.player.hp, better: (a, b) => a > b, now: true },
+  gravecall: { setup: W => ({ e: foe(W, 0, 8) }), m: W => W.proj.filter(q => q.friendly).length, better: (a, b) => a >= b + 3, now: true },
+  bloodimp: { setup: () => ({}), m: W => (W.allies.find(a => a.imp) || { t: 0 }).t, better: (a, b) => a > b * 1.4, now: true }
 };
 // прогон: с первым умением (связка) или без; первое бьёт в пустоту далеко, чтобы не трогать цели
 function trial(hero, combo, withA) {
@@ -59,7 +63,7 @@ for (const [hero, list] of Object.entries(COMBOS)) for (const c of list) {
   ok(!b.combo, `${c.name}: связка без первого умения`);
   ok(CASE[c.id].better(a.v, b.v), `${c.name}: нет усиления — со связкой ${a.v}, без ${b.v}`);
 }
-ok(n === 16, 'связок не 16: ' + n);
+ok(n === 20, 'связок не 20: ' + n);
 
 // окно закрывается; подсветка; числа умения не портятся
 { const W = mk('thorn'); foe(W, 2, 0); cast(W, 'charge'); ok(comboReady(W).some(q => q.id === 'whirl'), 'после рывка нет подсветки вихря');
@@ -67,4 +71,4 @@ ok(n === 16, 'связок не 16: ' + n);
 { const A = CFG3.abilities.thorn.whirl, B = boosted(A, X.bladestorm); ok(B.r > A.r && B.mul[2] > A.mul[2] && CFG3.abilities.thorn.whirl.r === A.r, 'усиление портит числа умения'); }
 
 if (fails.length) { console.error('Связки умений 3D: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
-console.log('Связки умений 3D: OK (16)');
+console.log('Связки умений 3D: OK (20)');

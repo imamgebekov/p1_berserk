@@ -30,6 +30,13 @@ export const HEROES = {
     kinds: ['staff', 'wand'], off: [], start: 'w_staff_rust', armorBan: ['helm', 'sallet', 'cuirass', 'mail', 'plate', 'greaves'],     // лёгкая броня: без шлемов, кирас, кольчуг, лат и поножей
     look: { cloth: '#3e2e5e', cape: '#2a1e48', hair: '#d8d0c0', legs: '#3e2e5e', shoulder: false, hood: true, quiver: false, capeLen: 1.15, robe: true },     // robe — мантия до пят (объёмный вид)
     open: true
+  },
+  warlock: {     // Чернокнижник (2026-10-20): порча, похищение жизни, бес-призыв; ресурс — души
+    name: 'Морок', role: 'Чернокнижник',
+    text: 'Платит своей кровью за силу. Порча и рок, похищение жизни, бес у ног. Косы, серпы и жезлы; без лат и поножей.',
+    kinds: ['scythe', 'sickle', 'wand'], off: [], start: 'w_sickle_rust', armorBan: ['plate', 'greaves'],
+    look: { cloth: '#2a1a24', cape: '#4a0e2a', hair: '#1a1414', legs: '#1e1418', shoulder: false, hood: true, quiver: false, capeLen: 1.1, robe: true },
+    open: true
   }
 };
 export const HERO_IDS = Object.keys(HEROES);
@@ -43,4 +50,4 @@ export const heavyFor = (hero, it) => !!it && !!it.slot && it.slot !== 'weapon' 
 export const canOff = (hero, it) => !!it && (it.slot === 'offhand' || it.slot === 'weapon') && heroOf(hero).off.includes(it.kind);
 export const dualOf = hero => heroOf(hero).off.some(k => k !== 'shield');
 // названия видов оружия героя для карточки («меч, топор, …»)
-export const NOT_FOR = { thorn: 'Не для Торна', vale: 'Не для Вейла', jay: 'Не для Сойки', irga: 'Не для Ирги' };
+export const NOT_FOR = { thorn: 'Не для Торна', vale: 'Не для Вейла', jay: 'Не для Сойки', irga: 'Не для Ирги', warlock: 'Не для Морока' };

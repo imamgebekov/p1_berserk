@@ -21,7 +21,7 @@ const both = (hero, f) => [f(mk(hero, true)), f(mk(hero, false))];
 
 // данные: у всех 32 есть описание, в окне умения — строка мастерства, ранги до 4
 {
-  const all = Object.values(ABILITIES).flat(); ok(all.length === 32 && all.every(a => MASTERY_TEXT[a.id]), `описаний мастерства ${all.filter(a => MASTERY_TEXT[a.id]).length} из ${all.length}`);
+  const all = Object.values(ABILITIES).flat(); ok(all.length >= 32 && all.every(a => MASTERY_TEXT[a.id]), `описаний мастерства ${all.filter(a => MASTERY_TEXT[a.id]).length} из ${all.length}`);
   const W = mk('thorn'), v = abilityView(W); ok(v.every(a => a.rank === 4 && a.mt && a.mlv >= 33), 'окно умения: ранг 4 и строка мастерства');
   ok(abilityView(mk('thorn', false)).every(a => !a.mt), 'twist: false — строка мастерства видна');
 }
@@ -32,7 +32,7 @@ const both = (hero, f) => [f(mk(hero, true)), f(mk(hero, false))];
   const [h1, h0] = both('thorn', W => { W.player.hp = W.player.maxhp * .5; use(W, 'cry'); return W.player.hp / W.player.maxhp; });
   ok(h1 > .6 && h0 < .51, `клич не лечит: ${h1.toFixed(2)} / ${h0.toFixed(2)}`);
   const [r1, r0] = both('thorn', W => { use(W, 'rage'); return W.abuf.rageDrain; }); ok(r1 === 0 && r0 > 0, 'ярость тает здоровьем');
-  const [b1, b0] = both('thorn', W => { const e = foe(W, 0, 1.8); use(W, 'bash'); return !!(e.st && e.st.crack); }); ok(b1 && !b0, 'сокрушающий удар не раскалывает броню');
+  const [b1, b0] = both('thorn', W => { const e = foe(W, 0, 1.8); use(W, 'bash'); return !!(e.st && e.st.crack && e.st.crack.k > 1); }); ok(b1 && !b0, 'сокрушающий удар не раскалывает броню (k > 1)');
   const [c1, c0] = both('thorn', W => { const e = foe(W, 0, 5); use(W, 'charge'); run(W, .4); return !!(e.st && e.st.stun); }); ok(c1 && !c0, 'рывок не оглушает');
   const [i1] = both('thorn', W => { W.pst.burn = { t: 5, dps: 3 }; use(W, 'iron'); return !W.pst.burn; }); ok(i1, 'несокрушимость не снимает горение');
 }

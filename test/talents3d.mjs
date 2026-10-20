@@ -18,7 +18,7 @@ for (const h of Object.keys(HEROES)) {
   for (const b of bs) for (const s of b.skills) { if (!s.ab) continue; const A = CFG3.abilities[h][s.ab.id];
     ok(A && ABILITIES[h].some(a => a.id === s.ab.id) && Object.keys(s.ab.k).every(k => k in A), `${s.id}: умение ${s.ab.id} или его ключи не найдены`); }
 }
-ok(Object.keys(SKILLS).length === 4 * 18 + 6, 'талантов не 78');
+ok(Object.keys(SKILLS).length === Object.keys(HEROES).length * 18 + 6, 'талантов не ' + (Object.keys(HEROES).length * 18 + 6));
 ok(canRank({}, 'ir_heat', 5, 'thorn') === 'none' && canRank({}, 'th_hand', 5, 'thorn') === 'ok' && canRank({}, 'th_roar', 5, 'thorn') === 'locked' && canRank({ th_hand: TIER_STEP }, 'th_roar', 5, 'thorn') === 'ok', 'доступ к талантам по герою и ярусу');
 ok(canRank({}, 'pockets', 5, 'irga') === 'locked' && canRank({ step: 3 }, 'pockets', 5, 'irga') === 'ok', 'общая ветка у Ирги');
 // в бою

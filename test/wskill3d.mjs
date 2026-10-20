@@ -18,7 +18,7 @@ const hurt = e => e.maxhp - e.hp;
 
 // ---------- 1. у какого оружия есть умение ----------
 { const w = CATALOG.filter(i => i.slot === 'weapon');
-  const top = w.filter(i => i.rar >= S.minRar); ok(top.length === 43 && top.every(i => skillOfItem(i, CFG3)), `не у всего клеймёного и золотого оружия есть умение: ${top.filter(i => !skillOfItem(i, CFG3)).map(i => i.id)}`);
+  const top = w.filter(i => i.rar >= S.minRar); ok(top.length === 44 && top.every(i => skillOfItem(i, CFG3)), `не у всего клеймёного и золотого оружия есть умение: ${top.filter(i => !skillOfItem(i, CFG3)).map(i => i.id)}`);
   ok(w.filter(i => i.rar < S.minRar).every(i => !skillOfItem(i, CFG3)), 'умение у оружия ниже клеймёного');
   ok(new Set(top.map(i => skillOfItem(i, CFG3).id)).size === 7 && Object.keys(WSKILL).length === 7, 'умений по типам не 7');
   ok(top.filter(i => i.rar === 5).every(i => skillOfItem(i, CFG3).gold), 'золотое не отмечено');

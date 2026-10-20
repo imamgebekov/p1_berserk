@@ -275,7 +275,8 @@ const BASE = {
       thorn: { name: 'Ярость', color: '#d8402a', max: 100, start: 0, hit: 3.5, hurt: .3, roll: 0, regen: 0, decay: 6, idle: 4, perLv: 2 },
       jay: { name: 'Концентрация', color: '#e8c04a', max: 100, start: 100, hit: 4, hurt: 0, roll: 0, regen: 9, decay: 0, idle: 0, perLv: 2 },
       vale: { name: 'Концентрация', color: '#6ab0ff', max: 100, start: 0, hit: 2, hurt: 0, roll: 0, regen: 4, decay: 0, idle: 0, perLv: 2 },     // Вейл — скрытый дуэлянт: восстанавливается сама (пожелание 2026-10-18; было «Ритм» от ударов)
-      irga: { name: 'Мана', color: '#7a8aff', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 }
+      irga: { name: 'Мана', color: '#7a8aff', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 },
+      warlock: { name: 'Души', color: '#b04aff', max: 100, start: 60, hit: 4, hurt: 3, roll: 0, regen: 5, decay: 0, idle: 0, perLv: 2 }     // души: копятся от ударов и боли
     },
     thorn: {
       charge: { cd: [3, 3, 2.5], cost: 20, dist: 6, stop: .9, time: .28, width: 1.7, mul: [1.2, 1.6, 2], knock: 2.4 },   // рывок с размаха (stop — останавливается в стольких м от цели)
@@ -325,6 +326,16 @@ const BASE = {
       shield:   { cd: [20, 18, 16], cost: 40, t: [6, 8, 10], absorb: [.5, .6, .7] },     // щит маны
       blizzard: { cd: [16, 14, 12], cost: 55, r: 4, t: 4, tick: .4, mul: [.3, .4, .5], slow: .6, range: 14, ahead: 6 },     // вьюга
       spear:    { cd: [18, 16, 14], cost: 50, mul: [3.5, 4.5, 5.5], range: 16, cone: 60 }     // копьё бездны
+    },
+    warlock: {     // Морок-чернокнижник (2026-10-20)
+      hex:    { cd: [6, 5, 4], cost: 20, range: 12, cone: 60, crack: [.2, .3, .4], dps: [4, 6, 8], t: 6 },     // порча: трещина (урон по цели +crack) и яд
+      drain:  { cd: [7, 6, 5], cost: 25, range: 10, cone: 60, mul: [1.3, 1.7, 2.1], heal: [.25, .3, .35], cap: [.08, .1, .12] },     // похищение жизни: heal — доля нанесённого урона, не больше cap здоровья
+      summon: { cd: [22, 20, 18], cost: 40, t: [10, 12, 14], hp: [80, 120, 160], mul: [.6, .8, 1], hit: .9, r: 2.4 },     // бес у ног: бьёт ближнего каждые hit с
+      terror: { cd: [18, 16, 14], cost: 35, r: 5, fear: [2, 2.5, 3], slow: .4 },     // ужас: страх и замедление вокруг
+      grasp:  { cd: [10, 9, 8], cost: 35, r: 3, root: [1.5, 2, 2.5], mul: [.8, 1, 1.2], range: 12, ahead: 6 },     // хватка мёртвых: удар и корни в круге
+      pact:   { cd: [20, 18, 16], cost: 0, price: .15, gain: 60, t: [6, 8, 10], dmg: [8, 12, 16] },     // кровавый договор: плата здоровьем → души и урон
+      souls:  { cd: [5, 4.5, 4], cost: 30, n: 5, spread: 40, mul: [.5, .65, .8] },     // рой душ: веер сфер
+      doom:   { cd: [16, 14, 12], cost: 45, range: 14, cone: 60, delay: 4, mul: [3, 4, 5] }     // рок: через delay с — тяжёлый удар по цели
     }
   },
   // связки умений (2026-10-18): умение a, потом b не позже window с — b сильнее. mul — множители чисел умения, add — прибавки,
@@ -334,14 +345,15 @@ const BASE = {
     bladestorm: { mul: { r: 1.4, mul: 1.3 } }, dread: { mul: { cone: 1.5 }, stun: 2 }, rift: { k: 1.6 }, frenzy: { mul: { t: 1.5 } },
     archerdance: { add: { n: 3 } }, snare: { mul: { mul: 1.4 } }, aimcold: { pierce: 99 }, icehail: { slow: .6 },
     shadowstrike: { crit: true }, bloodfan: { k: 1.5 }, riposte: { set: { kill: .4 } }, twindance: {},
-    detonate: { k: 2, burn: [6, 4] }, frozenstorm: { add: { jumps: 2 }, slow: .6 }, icearmor: { mul: { r: 1.4 }, armor: 15, t: 6 }, breach: { k: 1.5 }
+    detonate: { k: 2, burn: [6, 4] }, frozenstorm: { add: { jumps: 2 }, slow: .6 }, icearmor: { mul: { r: 1.4 }, armor: 15, t: 6 }, breach: { k: 1.5 },
+    verdict: { k: 1.5 }, feast: { k: 2 }, gravecall: { add: { n: 3 } }, bloodimp: { mul: { t: 1.5, mul: 1.3 } }
   },
   // вторая рука (B2b): block.arc — ширина щита спереди, °; block.knock — доля отброса при блоке; dual.mul — доля урона второго клинка
   // к каждому удару, dual.swing — удары с двумя клинками быстрее (×)
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
   heroes: { thorn: { hp: 1.15, speed: 1, crit: 0, killHeal: .03, healLv: [8, 12] },     // Торн — защитник: здоровья больше; убийство рядом (до 6 м), когда вокруг ещё двое и больше, лечит на killHeal до healLv[0] ур., к healLv[1] — на нет (на «железе» гиб чаще всех)
-  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 } },
+  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .95, speed: 1.05, crit: 3 } },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
     // rar — редкость вещи (3 — великий, фиолетовый; 4 — клеймёный, оранжевый; 5 — золотой, только здесь), mul — наценка;
