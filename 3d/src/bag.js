@@ -216,7 +216,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       { let lp = 0; b.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; lp = setTimeout(() => { lp = 0; quick(r.i); }, 450); });     // долгое касание — надеть или использовать
         for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { if (lp) clearTimeout(lp); lp = 0; }); }
       if (freeItem(r.it)) { b.classList.add('free'); freeTiles.push(b); continue; }     // ключи и камни — отдельной полосой, места не занимают
-      if (halfItem(r.it)) { b.classList.add('half'); if (pend) { pend.append(b); pend = null; } else { pend = el('div', 'pair'); pend.append(b); listEl.appendChild(pend); } continue; }     // два расходника — в одной клетке
+      if (halfItem(r.it)) b.classList.add('cons');     // расходник — обычная клетка (просьба владельца 2026-10-20), а места в сумке занимает половину — считается в bagUsed
       listEl.appendChild(b);
     }
     if (tab === 'all') for (let k = n; k < cap; k++) listEl.appendChild(el('div', 'tile empty'));

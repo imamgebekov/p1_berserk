@@ -314,7 +314,7 @@ const fit = () => {
     const st = document.documentElement.style, dz = Math.min(cfg.view.desk.zoomMax, Math.max(1, innerHeight / cfg.view.desk.baseH)), pz = Math.min(dz, 1.25);
     st.setProperty('--dz', dz.toFixed(3)); st.setProperty('--pz', pz.toFixed(3));
     // высоты окон — в пикселях, делённых на zoom: Safari и Chromium по-разному увеличивают проценты под zoom, а пиксели — одинаково
-    st.setProperty('--pbh', Math.floor(innerHeight * .84 / pz) + 'px'); st.setProperty('--blh', Math.floor(innerHeight * .64 / pz) + 'px'); st.setProperty('--pbw', Math.floor(innerWidth * .86 / pz) + 'px');
+    st.setProperty('--pbh', Math.floor(innerHeight * .84 / pz) + 'px'); st.setProperty('--blh', Math.floor(innerHeight * .64 / pz) + 'px'); st.setProperty('--pbw', Math.floor(innerWidth * .86 / pz) + 'px'); st.setProperty('--fsw', Math.floor(innerWidth * .97 / pz) + 'px'); st.setProperty('--fsh', Math.floor(innerHeight * .94 / pz) + 'px');     // окна во весь экран (карта, перенос)
   }
   $('rotate').hidden = !landscape;
   renderer && renderer.resize(innerWidth, innerHeight);
@@ -502,51 +502,55 @@ talk.addEventListener('click', e => { e.stopImmediatePropagation(); if (storyTal
 // костры (C3d): у костра — список открытых, перенос к выбранному
 const fireBtn = $('fireBtn'), firesSec = $('fires');
 function openFires() {
-  const here = fireNear(W), list = $('firesList'), block = travelBlock(W); list.textContent = ''; firesSec.querySelector('h2').textContent = 'Костры'; $('firesMap').hidden = false;
-  $('firesNote').textContent = block && block !== 'Подойдите к костру' ? block + ' — перенос невозможен.' : 'Перенос к открытому костру. Новые костры открываются, когда к ним подходишь.';
-  const p = W.player;
+  const here = fireNear(W), list = $('firesList'), block = travelBlock(W); list.textContent = ''; firesSec.querySelector('h2').textContent = 'Костры — перенос';
+  $('firesNote').textContent = block && block !== 'Подойдите к костру' ? block + ' — перенос невозможен.' : 'Нажмите на костёр на карте или в списке.';
+  const p = W.player, pts = [];
   for (const f of knownFires(W).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))) {
-    const b = document.createElement('button'); b.type = 'button'; b.dataset.id = f.id; const d = Math.round(Math.hypot(f.x - p.x, f.z - p.z));
-    setIconText(b, 'fire', f.name); const sm = document.createElement('small'); sm.textContent = here && here.id === f.id ? 'вы здесь' : d + ' м' + (f.danger ? ' · опасность ' + '▮'.repeat(f.danger) : ''); b.appendChild(sm);
-    b.disabled = !!block || (here && here.id === f.id);
-    b.addEventListener('click', () => { if (fastTravel(W, f.id)) { closeFires(); sfx('travel'); } });
-    list.appendChild(b);
+    const me = !!(here && here.id === f.id), go = () => { if (fastTravel(W, f.id)) { closeFires(); sfx('travel'); } };
+    const d = Math.round(Math.hypot(f.x - p.x, f.z - p.z)), b = document.createElement('button'); b.type = 'button'; b.dataset.id = f.id;
+    setIconText(b, 'fire', f.name); const sm = document.createElement('small'); sm.textContent = me ? 'вы здесь' : d + ' м' + (f.danger ? ' · опасность ' + '▮'.repeat(f.danger) : ''); b.appendChild(sm);
+    b.disabled = !!block || me; b.addEventListener('click', go); list.appendChild(b);
+    pts.push({ x: f.x, z: f.z, name: f.name, icon: 'map:fire', bg: '#d8701c', me, off: !!block, go });
   }
-  drawFiresMap(block, here);
-  firesSec.hidden = false; panelOpen = true; input.release();
+  firesSec.hidden = false; panelOpen = true; input.release(); travelShow(pts);
 }
-// карта костров (2026-10-18): открытые костры на карте мира, нажатие — перенос; рамка — по открытым кострам и герою
-let firesPick = null;
-function drawFiresMap(block, here) {
-  const cv = $('firesMap'), ctx = cv.getContext('2d'), p = W.player, list = knownFires(W), S = 520;
-  const xs = [p.x, ...list.map(f => f.x)], zs = [p.z, ...list.map(f => f.z)], cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
-  const span = Math.max(160, (Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs))) * 1.25), sc = S / span;
-  drawMap(ctx, W, { w: S, h: S, scale: sc, cx, cz, full: true });
-  const X = x => S / 2 + (x - cx) * sc, Y = z => S / 2 + (z - cz) * sc;
-  firesPick = { list: list.map(f => ({ f, x: X(f.x), y: Y(f.z) })), block, here };
-  for (const q of firesPick.list) { const me = here && here.id === q.f.id; ctx.beginPath(); ctx.arc(q.x, q.y, 9, 0, 6.2832); ctx.fillStyle = me ? '#ffe08a' : block ? '#8a7a6a' : '#ff8a30'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#1a0e08'; ctx.stroke();
-    ctx.font = '600 12px "Iowan Old Style", Palatino, Georgia, serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(244,236,214,.95)'; ctx.fillStyle = '#3a1a08'; ctx.strokeText(q.f.name, q.x, q.y - 15); ctx.fillText(q.f.name, q.x, q.y - 15); }
+// карта переноса (2026-10-20): та же большая карта мира, точки назначения — значки; нажатие — перенос. Общая для костров и повозки
+let travelPick = null;
+function travelShow(pts) { travelPick = pts; requestAnimationFrame(travelDraw); }
+function travelDraw() {
+  const cv = $('firesMap'), pts = travelPick; if (!pts || firesSec.hidden) return;
+  const r = cv.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1), w = Math.max(300, Math.round(r.width * d)), h = Math.max(240, Math.round(r.height * d)); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const p = W.player, xs = [p.x, ...pts.map(q => q.x)], zs = [p.z, ...pts.map(q => q.z)], cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+  const span = Math.max(160, Math.max((Math.max(...xs) - Math.min(...xs)) * 1.2, (Math.max(...zs) - Math.min(...zs)) * 1.2 * w / h)), sc = w / span, ctx = cv.getContext('2d'), U = d * 1.2;
+  drawMap(ctx, W, { w, h, scale: sc, cx, cz, full: true, ui: U, dpr: d });
+  const X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc;
+  for (const q of pts) { q.px = X(q.x); q.py = Y(q.z);
+    ctx.beginPath(); ctx.arc(q.px, q.py, 13 * U, 0, 6.2832); ctx.fillStyle = q.me ? '#ffe08a' : q.off ? '#8a7a6a' : q.bg; ctx.fill(); ctx.lineWidth = 3 * U; ctx.strokeStyle = q.me ? '#fff6c8' : '#1a0e08'; ctx.stroke();
+    ctx.font = `700 ${Math.round(15 * U)}px "Alegreya Sans", Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4 * U; ctx.strokeStyle = 'rgba(244,236,214,.95)'; ctx.fillStyle = '#2a1408';
+    const t = q.name + (q.sub ? ' · ' + q.sub : ''); ctx.strokeText(t, q.px, q.py - 24 * U); ctx.fillText(t, q.px, q.py - 24 * U); ctx.textBaseline = 'alphabetic'; }
 }
 $('firesMap').addEventListener('click', e => {
-  if (!firesPick || firesPick.block) return; const r = e.currentTarget.getBoundingClientRect(), k = 520 / r.width, x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
-  let best = null, bd = 22; for (const q of firesPick.list) { const d = Math.hypot(q.x - x, q.y - y); if (d < bd) { bd = d; best = q; } }
-  if (best && !(firesPick.here && firesPick.here.id === best.f.id) && fastTravel(W, best.f.id)) { closeFires(); sfx('travel'); }
+  const cv = e.currentTarget, r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * cv.width, y = (e.clientY - r.top) / r.height * cv.height, d = Math.min(2, window.devicePixelRatio || 1);
+  let best = null, bd = 30 * d; for (const q of travelPick || []) { const k = Math.hypot(q.px - x, q.py - y); if (k < bd) { bd = k; best = q; } }
+  if (best && !best.me && !best.off) best.go();
 });
+window.addEventListener('resize', () => { if (!firesSec.hidden) travelDraw(); });
 function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write(); }
 fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
 // жизнь мира (этап 6): повозка — окно костров без карты; сбор; конь
 const coachBtn = $('coachBtn'), gatherBtn = $('gatherBtn'), mountBtn = $('mountBtn');
 const FLY = { far: 'Подойдите к повозке', unknown: 'Этот узел ещё не открыт', danger: 'Рядом враги', ash: 'Не хватает пепла' };
 function openCoach() {
-  const here = coachNear(W), list = $('firesList'); if (!here) return; list.textContent = ''; firesSec.querySelector('h2').textContent = 'Повозка'; $('firesMap').hidden = true;
-  $('firesNote').textContent = 'Повозка везёт в открытые узлы: лагерь и города зон. Новый узел открывается, когда вы к нему подходите.';
+  const here = coachNear(W), list = $('firesList'); if (!here) return; list.textContent = ''; firesSec.querySelector('h2').textContent = 'Повозка'; const pts = [];
+  $('firesNote').textContent = 'Повозка везёт в открытые города: нажмите на город на карте или в списке.';
   for (const c of coachList(W).filter(q => W.life.coaches[q.id])) {
     const b = document.createElement('button'), me = c.id === here.id, cost = flightCost(W, here, c); b.type = 'button'; b.textContent = c.name;
     const sm = document.createElement('small'); sm.textContent = me ? 'вы здесь' : `${cost} пепла · ${Math.round(Math.hypot(c.x - here.x, c.z - here.z))} м`; b.appendChild(sm); b.disabled = me || W.inv.ash < cost;
-    b.addEventListener('click', () => { const r = fly(W, c.id); if (r === 'ok') { closeFires(); sfx('travel'); toast(`Повозка: ${c.name}, −${cost} пепла`); } else toast(FLY[r] || 'Нельзя', 'bad'); });
-    list.appendChild(b);
+    const go = () => { const r = fly(W, c.id); if (r === 'ok') { closeFires(); sfx('travel'); toast(`Повозка: ${c.name}, −${cost} пепла`); } else toast(FLY[r] || 'Нельзя', 'bad'); };
+    b.addEventListener('click', go); list.appendChild(b);
+    pts.push({ x: c.x, z: c.z, name: c.name, sub: me ? 'вы здесь' : cost + ' пепла', icon: 'map:coach', bg: '#7a4ab8', me, off: W.inv.ash < cost, go });
   }
-  firesSec.hidden = false; panelOpen = true; input.release();
+  firesSec.hidden = false; panelOpen = true; input.release(); travelShow(pts);
 }
 coachBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openCoach(); }, true);
 const GATHER = { danger: 'Рядом враги — не до сбора', full: 'Сумка полна', none: 'Нечего собирать' };
@@ -599,8 +603,11 @@ function drawMini() { drawMap(miniCtx, W, { w: 128, h: 128, scale: 128 / cfg.map
 const MAP_MIN = 60, mapMax = () => cfg.world.radius * 2 + 6, mv = { cx: 0, cz: 0, span: 220 };
 const mapClamp = () => { mv.span = Math.max(MAP_MIN, Math.min(mapMax(), mv.span)); const R = cfg.world.radius, m = Math.max(0, R - mv.span / 2 + 20); mv.cx = Math.max(-m, Math.min(m, mv.cx)); mv.cz = Math.max(-m, Math.min(m, mv.cz)); };
 let mapRaf = 0; const mapRedraw = () => { if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; drawFull(); }); };
-const mapZoom = (k, px = 320, py = 320) => { const s0 = mv.span, wx = mv.cx + (px / 640 - .5) * s0, wz = mv.cz + (py / 640 - .5) * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px / 640 - .5) * mv.span; mv.cz = wz - (py / 640 - .5) * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте
-function drawFull() { const B = W.map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; drawMap(mapCtx, W, { w: 640, h: 640, scale: 640 / span, cx, cz, full: true }); const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
+// размер холста карты — по окну (почти весь экран, 2026-10-20), с плотностью пикселей; масштаб — метров на ширину
+const mapDpr = () => Math.min(2, window.devicePixelRatio || 1);
+const mapFit = () => { const r = mapCv.getBoundingClientRect(), d = mapDpr(), w = Math.max(320, Math.round(r.width * d)), h = Math.max(240, Math.round(r.height * d)); if (mapCv.width !== w || mapCv.height !== h) { mapCv.width = w; mapCv.height = h; } };
+const mapZoom = (k, px = mapCv.width / 2, py = mapCv.height / 2) => { const Wd = mapCv.width, Hd = mapCv.height, s0 = mv.span, wx = mv.cx + (px - Wd / 2) / Wd * s0, wz = mv.cz + (py - Hd / 2) / Wd * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px - Wd / 2) / Wd * mv.span; mv.cz = wz - (py - Hd / 2) / Wd * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте     // точка под курсором остаётся на месте
+function drawFull() { const B = W.map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; mapFit(); drawMap(mapCtx, W, { w: mapCv.width, h: mapCv.height, scale: mapCv.width / span, cx, cz, full: true, ui: mapDpr() * 1.15, dpr: mapDpr() }); const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
 // легенда карты — чипы «значок + слово» вместо абзаца (шаг 10): sq — квадрат, ring — круг-граница, dot — точка, fog — туман
 const LEG_SURF = [['sq', '#8a5a30', 'Люк'], ['ring', '#82c878', 'Безопасно'], ['ring', '#dc4632', 'Опасно'], ['dot', '#ffc860', 'Сундук'], ['dot', '#ffd45a', 'Торговец'], ['dot', '#ff8a3a', 'Кузнец'], ['dia', '#ff3a2a', 'Босс'], ['dia', '#c03adf', 'Замок'], ['dia', '#ff9a2a', 'Мини-босс'], ['sq', '#7a4a2a', 'Лагерь врагов'], ['sq', '#b0a898', 'Город'], ['fog', '#2a1e17', 'Не исследовано']];
 const LEG_UNDER = [['sq', '#e8d0a0', 'Лестница наверх'], ['dot', '#ffc860', 'Сундук'], ['fog', '#2a1e17', 'Не исследовано']];
@@ -610,13 +617,14 @@ function legend(here, items) {
   for (const [shape, color, word] of items) { const c = document.createElement('span'), sw = document.createElement('i'); c.className = 'chip'; sw.className = 'sw ' + shape; sw.style.setProperty('--c', color); c.append(sw, word); row.append(c); }
   box.replaceChildren(h, row);
 }
-const mapOpen = () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); drawFull(); mapEl.hidden = false; panelOpen = true; input.release(); };
-{ const pts = new Map(), loc = e => { const r = mapCv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * 640, y: (e.clientY - r.top) / r.height * 640 }; }; let pinch = 0;
+const mapOpen = () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); mapEl.hidden = false; drawFull(); requestAnimationFrame(drawFull); panelOpen = true; input.release(); };     // после показа — размер холста по окну
+window.addEventListener('resize', () => { if (!mapEl.hidden) mapRedraw(); });
+{ const pts = new Map(), loc = e => { const r = mapCv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * mapCv.width, y: (e.clientY - r.top) / r.height * mapCv.height }; }; let pinch = 0;
   mapCv.addEventListener('wheel', e => { e.preventDefault(); const q = loc(e); mapZoom(Math.exp(e.deltaY * .0015), q.x, q.y); }, { passive: false });
   mapCv.addEventListener('pointerdown', e => { mapCv.setPointerCapture(e.pointerId); pts.set(e.pointerId, loc(e)); if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); } });
   mapCv.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; const q = loc(e), o = pts.get(e.pointerId); pts.set(e.pointerId, q);
     if (pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch > 0 && d > 0) mapZoom(pinch / d, (a.x + b.x) / 2, (a.y + b.y) / 2); pinch = d; }       // щипок
-    else { mv.cx -= (q.x - o.x) / 640 * mv.span; mv.cz -= (q.y - o.y) / 640 * mv.span; mapClamp(); mapRedraw(); } });       // перетаскивание
+    else { mv.cx -= (q.x - o.x) / mapCv.width * mv.span; mv.cz -= (q.y - o.y) / mapCv.width * mv.span; mapClamp(); mapRedraw(); } });       // перетаскивание
   const up = e => { pts.delete(e.pointerId); pinch = 0; }; mapCv.addEventListener('pointerup', up); mapCv.addEventListener('pointercancel', up);
   $('mapIn').addEventListener('click', () => mapZoom(1 / 1.5)); $('mapOut').addEventListener('click', () => mapZoom(1.5));
   $('mapMe').addEventListener('click', () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); mapRedraw(); }); $('mapAll').addEventListener('click', () => { mv.span = mapMax(); mv.cx = mv.cz = 0; mapClamp(); mapRedraw(); }); }

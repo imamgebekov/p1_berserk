@@ -1,6 +1,7 @@
 // Сюжет Акта I (этап 3, 2026-10-19): все 12 сцен проходятся по порядку — разговор, цель, разговор в конце, награда;
 // поединок с Алариком кончается без смерти (оба исхода); оборона брода при гибели героя начинается заново; спутники сюжета не гибнут
 // и уходят после сцены; бой и добыча (W.rng) не сдвигаются от сюжета; прогресс сохраняется (бой в разгаре — заново с разговора).
+import { QUESTS } from '../3d/src/data/quests3d.js';
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, mulberry32, step, killEnemy, spawnEnemy } from '../3d/src/sim.js';
 import { ACT, storyTalk, storyTalked, storyActors, storyGoal, storyTick, serializeStory, sanitizeStory, brandOn } from '../3d/src/story3d.js';
@@ -14,7 +15,7 @@ const giverOf = c => c.auto ? null : c.giver;
 function solve(W, c, opt = {}) {
   const S = W.story, G = c.goal;
   if (G.type === 'spark') { W.spark = W.spark || {}; W.spark.done = true; }
-  if (G.type === 'quests') for (const id of G.list.slice(0, G.n)) W.quests[id] = { s: 'done', n: 0, ok: false, t: 0 };
+  if (G.type === 'quests') for (const id of (G.list || QUESTS.filter(q => G.givers.includes(q.giver)).map(q => q.id)).slice(0, G.n)) W.quests[id] = { s: 'done', n: 0, ok: false, t: 0 };
   if (G.type === 'kill') { for (const id of [...S.foes]) { const e = W.enemies.find(q => q.id === id); if (e) killEnemy(W, e); } }
   if (G.type === 'boss') { const d = W.cfg.bosses.list.find(b => b.type === G.boss), e = W.enemies.find(q => q.boss && q.type === G.boss && !q.dead) || spawnEnemy(W, G.boss, d.x, d.z); e.boss = true; e.b = e.b || { minions: [] }; killEnemy(W, e); }
   if (G.type === 'duel') { const e = W.enemies.find(q => q.duel && !q.dead); if (!e) { fails.push(c.id + ': нет противника поединка'); return; } if (opt.lose) { W.player.hp = W.player.maxhp * .2; } else e.hp = e.maxhp * .2; }

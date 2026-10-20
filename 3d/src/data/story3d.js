@@ -41,7 +41,7 @@ export const ACT1 = [
     goal: { type: 'spark' }, goalText: 'пройдите «Первую искру»', outro: [], reward: { xp: 40 } },
   { id: 'contracts', name: 'Наёмный меч', lv: 2, giver: 'captain', actors: [],
     intro: [['captain', 'Новенький? Платят здесь за головы, а не за красивые слова.'], ['captain', 'Возьми у меня или у торговца три заказа и выполни. Тогда поговорим всерьёз.']],
-    goal: { type: 'quests', n: 3, list: ['m_imps', 'm_hounds', 'm_ghoul', 'm_b_imps', 'c_brutes', 'c_b_hounds', 'c_archers', 'c_shields'] }, goalText: 'выполните три заказа капитана или торговца',
+    goal: { type: 'quests', n: 3, givers: ['merchant', 'captain'] }, goalText: 'выполните три задания капитана или торговца',
     outro: [['captain', 'Неплохо. В округе уже говорят о тебе.'], ['captain', 'И ещё. В Брод идёт отряд Аларика Белого. Держись от них подальше: этот красавец улыбается, когда считает мертвецов.']], reward: { xp: 150, ash: 120 } },
   { id: 'whitecloaks', name: 'Белые плащи', lv: 5, giver: 'alaric', actors: [['alaric', 'gate'], ['irma', 'gate', [2, 1.5]], ['timka', 'gate', [-2, 1]], ['kord', 'gate', [-1, 3]]],
     intro: [['timka', 'Гляди-ка, у ворот бесы, а Бруно опять спит.'], ['alaric', 'Не мешай ему, Тимка. Посмотрим, что умеет местный меч.'], ['irma', 'Аларик, это пустая трата времени.']],

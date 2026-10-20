@@ -24,7 +24,18 @@ export function firesOf(map, cfg) {
     for (let k = 0; k < 16 && !s; k++) { const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 8; s = freeNear(map, p.x + Math.sin(a) * (p.r + F.gate), p.z + Math.cos(a) * (p.r + F.gate), 4); }
     if (s) out.push({ id: p.id, name: 'У входа: ' + p.name, x: s.x, z: s.z, danger: p.danger });
   }
-  return out;
+  // реже (2026-10-20, просьба владельца): у лагеря — только костёр лагеря; между кострами не ближе gap м; первыми — узлы, посёлки, опасные места
+  if (!F.gap) return out;
+  const cx = camp ? camp.x : 0, cz = camp ? camp.z : 0, place = id => (cfg.map.places || []).find(q => q.id === id) || {};
+  const rank = f => f.home ? 0 : place(f.id).hub || place(f.id).city ? 1 : place(f.id).safe ? 2 : 3 - (f.danger || 0) * .1;
+  const keep = [];
+  for (const f of [...out].sort((a, b) => rank(a) - rank(b) || Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))) {
+    const must = f.home || place(f.id).hub || place(f.id).city;     // узлы зон и города — всегда с костром
+    if (!must && Math.hypot(f.x - cx, f.z - cz) < F.campR) continue;
+    if (!must && keep.some(k => Math.hypot(k.x - f.x, k.z - f.z) < F.gap)) continue;
+    keep.push(f);
+  }
+  return out.filter(f => keep.includes(f));     // прежний порядок — ids и сохранения не меняются
 }
 const fireById = (W, id) => (W.levels ? W.levels.surface.map : W.map).fires.find(f => f.id === id);
 // костёр рядом с героем (на поверхности)

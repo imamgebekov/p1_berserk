@@ -1,6 +1,7 @@
 // Движок сюжета (этап 3, 2026-10-19; акты подряд — этап 7): сцены всех актов по порядку. Состояние — W.story { i, st, n, t, won, wave, foes, allies }:
 // st — 'wait' (ждёт разговора с тем, кто начинает), 'goal' (идёт цель), 'outro' (ждёт разговора в конце), 'end' (акт пройден).
 // Разговор показывает интерфейс: storyTalk(W, kind) отдаёт реплики, storyTalked(W) — разговор окончен. Чистая логика (Node-тесты).
+import { QUESTS } from './data/quests3d.js';
 import { ACT_ALL, ACTS, SPEAKERS, END_ACTORS } from './data/story3d.js';
 import { spawnEnemy, killEnemy, spawnBoss } from './sim.js';
 import { spawnAlly } from './squad3d.js';
@@ -154,7 +155,7 @@ export function storyTick(W, dt) {
   const S = W.story, c = S && sc(W); if (!c || S.st !== 'goal') return;
   const G = c.goal, p = W.player;
   if (G.type === 'spark') { if (!W.spark || W.spark.done) toOutro(W); return; }
-  if (G.type === 'quests') { const n = G.list.filter(id => W.quests[id] && W.quests[id].s === 'done').length; S.n = n; if (n >= G.n) toOutro(W); return; }
+  if (G.type === 'quests') { const ids = G.givers ? QUESTS.filter(q => G.givers.includes(q.giver)).map(q => q.id) : G.list, n = ids.filter(id => W.quests[id] && W.quests[id].s === 'done').length; S.n = n; if (n >= G.n) toOutro(W); return; }     // givers — любые задания этих людей (до 3.86 — только заказы на убийство)
   if (G.type === 'duel') { const e = W.enemies.find(q => q.duel && !q.dead);
     if (!e) { S.won = true; toOutro(W); return; }
     if (e.hp <= e.maxhp * G.yieldFoe) { S.won = true; toOutro(W); return; }

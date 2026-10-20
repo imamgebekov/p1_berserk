@@ -632,7 +632,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function arcGeometry(deg) {
     if (arcFor === deg) return;
     arcFor = deg; arc.geometry.dispose();
-    const a = deg * Math.PI / 180; arc.geometry = new THREE.CircleGeometry(1, 24, Math.PI / 2 - a / 2, a);
+    const a = deg * Math.PI / 180; arc.geometry = new THREE.CircleGeometry(1, 24, -Math.PI / 2 - a / 2, a);     // центр на −90°: после поворота на землю и rotation.z = face — вперёд по взгляду (было +90° — дуга за спиной)
   }
 
   // эффекты боя: частицы, пятна на земле, вспышки (fx3d.js)

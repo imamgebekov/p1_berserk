@@ -14,7 +14,8 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 const W = mk(), F = W.map.fires, P = CFG3.map.places;
 
 // ---------- 1. где костры ----------
-ok(F.length === P.length, `костров ${F.length} при местах ${P.length}`);
+ok(F.length >= P.length * .4 && F.length <= P.length * .6, `костров ${F.length} при местах ${P.length} (с 3.86 — около половины)`);
+{ const G = CFG3.fires; const must = f => f.home || (P.find(q => q.id === f.id) || {}).hub || (P.find(q => q.id === f.id) || {}).city; ok(F.every(f => must(f) || Math.hypot(f.x, f.z) >= G.campR - 1), 'костёр у лагеря'); ok(F.every((f, i) => must(f) || F.every((g, j) => i === j || must(g) || Math.hypot(f.x - g.x, f.z - g.z) >= G.gap - 1)), 'костры слишком близко'); }
 ok(new Set(F.map(f => f.id)).size === F.length && F.some(f => f.home && f.x === 0 && f.z === 0), 'нет костра лагеря или повтор');
 for (const f of F) {
   if (f.home) continue;

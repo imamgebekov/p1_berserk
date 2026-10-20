@@ -234,5 +234,20 @@
   "n:vl_parry": "lorc/shield-reflect",
   "n:vl_temper": "lorc/muscle-up",
   "n:vl_frenzy": "lorc/crossed-sabres",
-  "n:vl_thorns": "lorc/thorn-helix"
+  "n:vl_thorns": "lorc/thorn-helix",
+  "map:dungeon": "delapouite/dungeon-gate",
+  "map:castle": "lorc/castle",
+  "map:boss": "lorc/crowned-skull",
+  "map:mini": "lorc/skull-crossed-bones",
+  "map:camp": "delapouite/camping-tent",
+  "map:coach": "delapouite/old-wagon",
+  "map:grave": "sbed/tombstone",
+  "map:village": "delapouite/village",
+  "map:fire": "lorc/campfire",
+  "map:chest": "skoll/open-chest",
+  "map:stairs": "delapouite/stairs-goal",
+  "map:quest": "lorc/scroll-unfurled",
+  "map:smith": "badges/anvil",
+  "map:shop": "delapouite/shop",
+  "map:fight": "lorc/crossed-swords"
 }
