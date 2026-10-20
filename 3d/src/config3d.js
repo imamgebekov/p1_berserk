@@ -242,7 +242,7 @@ const BASE = {
   stones: {
     sockets: [0, 0, 1, 1, 2, 2], drop: .05, danger: .02, elite: .5, rain: 'water',
     of: { imp: 'fire', brute: 'earth', hound: 'blood', ghoul: 'venom', archer: 'storm', witch: 'fire', shield: 'earth', bomber: 'fire', lunger: 'blood', shade: 'ice' },
-    hearts: { devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', gatebeast: 'fire', hand_womb: 'venom', hand_whisper: 'storm', hand_net: 'blood', hand_lord: 'fire', swampelder: 'venom', feeder: 'venom', swarm: 'blood', nestlord: 'venom', abbeyshriek: 'fire', choir: 'storm', abbot: 'fire', ap_serpent: 'venom', ap_boar: 'earth', ap_moth: 'fire', garm_beast: 'blood', towerwarden: 'earth', keymaster: 'storm', towerhound: 'blood', bloodbanner: 'blood', namelessking: 'ice', gravewight: 'venom', sapper: 'fire', drownedmaid: 'water', silt: 'venom', gatewarden: 'earth', gneis: 'storm', borot: 'blood', armorer: 'earth', firegolem: 'fire', smelter: 'fire', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
+    hearts: { lampwarden: 'fire', tidecaller: 'ice', tidewyrm: 'storm', devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', gatebeast: 'fire', hand_womb: 'venom', hand_whisper: 'storm', hand_net: 'blood', hand_lord: 'fire', swampelder: 'venom', feeder: 'venom', swarm: 'blood', nestlord: 'venom', abbeyshriek: 'fire', choir: 'storm', abbot: 'fire', ap_serpent: 'venom', ap_boar: 'earth', ap_moth: 'fire', garm_beast: 'blood', towerwarden: 'earth', keymaster: 'storm', towerhound: 'blood', bloodbanner: 'blood', namelessking: 'ice', gravewight: 'venom', sapper: 'fire', drownedmaid: 'water', silt: 'venom', gatewarden: 'earth', gneis: 'storm', borot: 'blood', armorer: 'earth', firegolem: 'fire', smelter: 'fire', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
     fuse: { n: 3, ash: [40, 150] }, unsocket: [15, 50, 150],
     // гнёзда в броне (2026-10-18): шлем, доспех, плащ, сапоги; гнёзд по редкости sockets; камень даёт характеристику стихии по рангу (stat),
     // огонь, яд и кровь ещё ослабляют на герое горение, яд и кровотечение (res по рангу, сумма не больше resMax)
@@ -584,6 +584,24 @@ const BASE = {
           { type: 'towerhound', room: 'b3', loot: ['d_cloak_hound', 'd_axe_hound', 'd_bow_hound'],
             attacks: [{ kind: 'charge', wind: .7, len: 14, width: 2.6, mul: 1.1, cd: 4.5, range: 16 }, { kind: 'slam', wind: .6, r: 3.6, mul: .95, cd: 2.5, range: 4 }, { kind: 'nova', wind: 1, r: 7.5, inner: 2.5, mul: 1, cd: 9, range: 99 }],
             phases: [{ at: .5, summon: { type: 'blackdog', n: 3 } }, { at: .3, enrage: true }] }
+        ] },
+      { id: 'inst_dusk', name: 'Маяк Затмения', zone: 'dusk', lv: 40, level: 40, base: 40, depth: 1.6, danger: 3,     // Затмённое побережье 38–42 (2026-10-20): маяк, что светит чёрным
+        rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
+          { id: 'b1', x: 36, z: 0, w: 14, d: 14 }, { id: 'c3', x: 36, z: -11, w: 2.4, d: 8 }, { id: 'niches', x: 36, z: -21, w: 12, d: 12 }, { id: 'c4', x: 36, z: -31, w: 2.4, d: 8 },
+          { id: 'b2', x: 36, z: -42, w: 14, d: 14 }, { id: 'c5', x: 47, z: -42, w: 8, d: 2.4 }, { id: 'b3', x: 61, z: -42, w: 20, d: 20 }],
+        doors: [], entry: { x: -2.5, z: 0 }, exit: { x: -4, z: 1.6 },
+        foes: [['eclipse_fiend', 3], ['drowned', 2], ['shade', 2], ['blackdog', 1]], spawns: [{ room: 'gallery', n: 4 }, { room: 'niches', n: 4 }, { room: 'c5', n: 1, type: 'eclipse_fiend' }],
+        chests: [{ kind: 'ironchest', x: 21, z: 3.5 }, { kind: 'chest', x: 40, z: -25 }, { kind: 'ironchest', x: 69, z: -42 }],
+        bosses: [
+          { type: 'lampwarden', room: 'b1', loot: ['d_hammer_lamp', 'd_helm_lamp'],
+            attacks: [{ kind: 'slam', wind: .8, r: 4.2, mul: 1, cd: 3, range: 4.8 }, { kind: 'charge', wind: .9, len: 13, width: 2.8, mul: 1.1, cd: 6, range: 15 }, { kind: 'nova', wind: 1.1, r: 7.5, inner: 2.5, mul: 1, cd: 9, range: 99 }],
+            phases: [{ at: .5, summon: { type: 'shade', n: 2 } }, { at: .3, enrage: true }] },
+          { type: 'tidecaller', room: 'b2', loot: ['d_staff_tide', 'd_ring_tide'],
+            attacks: [{ kind: 'cast', name: 'Чёрный прилив', wind: 2.6, r: 99, mul: 3.2, cd: 12, range: 99 }, { kind: 'pools', wind: .8, n: 3, r: 2.5, dur: 8, mul: .55, cd: 9, range: 99 }, { kind: 'beam', wind: 1.2, len: 14, width: 1.8, dur: 4, sweep: .7, mul: .9, cd: 12, range: 99 }],
+            phases: [{ at: .6, summon: { type: 'drowned', n: 3 }, shield: true }, { at: .3, enrage: true }] },
+          { type: 'tidewyrm', room: 'b3', loot: ['d_cloak_wyrm', 'd_spear_wyrm', 'd_crossbow_wyrm'],
+            attacks: [{ kind: 'charge', wind: .7, len: 14, width: 2.6, mul: 1.1, cd: 5, range: 16 }, { kind: 'slam', wind: .7, r: 4, mul: 1, cd: 3, range: 4.5 }, { kind: 'pools', wind: .8, n: 4, r: 2.4, dur: 8, mul: .5, cd: 10, range: 99 }, { kind: 'nova', wind: 1, r: 8, inner: 2.6, mul: 1, cd: 9, range: 99 }],
+            phases: [{ at: .6, summon: { type: 'eclipse_fiend', n: 2 }, shield: true }, { at: .35, summon: { type: 'drowned', n: 3 } }, { at: .25, enrage: true }] }
         ] },
       { id: 'inst_barrow', name: 'Курганы Великой войны', zone: 'war', lv: 44, level: 44, base: 44, depth: 1.75, danger: 3,
         rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
@@ -1024,6 +1042,9 @@ const BASE = {
     garm_beast:  { boss: true, name: 'Гарм-зверь',        xp: 4400, hp: 16000, speed: 4.2, damage: 76, range: 3, wind: .55, recover: .7, radius: 1.4, scale: 2.4, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .9, 5, 5] },
     towerwarden: { boss: true, name: 'Страж Башни',       xp: 3000, hp: 15000, speed: 3.0, damage: 74, range: 3.2, wind: .7, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun'] },
     keymaster:   { boss: true, name: 'Ключник',           xp: 3000, hp: 11500, speed: 3.4, damage: 66, range: 2.6, wind: .55, recover: .8, radius: 1.0, scale: 1.9, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .7, 4, 4] },
+    lampwarden:  { boss: true, name: 'Смотритель Маяка',  xp: 3500, hp: 16500, speed: 2.9, damage: 78, range: 3.2, wind: .7, recover: .9, radius: 1.5, scale: 2.5, heavy: true, immune: ['stun'], on: ['burn', .6, 4, 4] },     // Маяк Затмения (2026-10-20)
+    tidecaller:  { boss: true, name: 'Зовущая Прилив',    xp: 3500, hp: 12000, speed: 3.2, damage: 66, range: 2.8, wind: .6, recover: .8, radius: 1.0, scale: 2.0, heavy: true, immune: ['stun', 'fear'], on: ['poison', .6, 4, 4], g: 'f' },
+    tidewyrm:    { boss: true, name: 'Змей Чёрного Прилива', xp: 5000, hp: 17000, speed: 4.0, damage: 82, range: 3.0, wind: .55, recover: .75, radius: 1.5, scale: 2.6, heavy: true, immune: ['stun', 'fear', 'poison'], on: ['poison', .8, 5, 5] },
     towerhound:  { boss: true, name: 'Пёс Башни',         xp: 4600, hp: 17000, speed: 4.4, damage: 78, range: 2.8, wind: .5, recover: .7, radius: 1.3, scale: 2.4, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .9, 5, 5] },
     bloodbanner: { boss: true, name: 'Кровавый знаменосец', xp: 4000, hp: 18000, speed: 3.0, damage: 86, range: 3.2, wind: .7, recover: .9, radius: 1.5, scale: 2.6, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .8, 5, 5] },
     namelessking: { boss: true, name: 'Безымянный король', xp: 4000, hp: 17000, speed: 2.8, damage: 82, range: 3.4, wind: .7, recover: .9, radius: 1.5, scale: 2.6, heavy: true, immune: ['stun', 'fear', 'poison'], on: ['bleed', .7, 4, 4] },

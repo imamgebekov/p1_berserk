@@ -347,6 +347,13 @@ const DUN = [
   ['d_cloak_hound', 'a_cloak_pelt_black', 'Шкура Пса Башни', 'towerhound', { armor: 10, hp: 38, spd: 2 }, 'Тяжёлая и тёплая. Пахнет псиной и железом.'],
   ['d_axe_hound', 'w_axe_black', 'Топор псаря', 'towerhound', { dmg: 22, crit: 6 }, 'Им рубили цепи. И не только.'],
   ['d_bow_hound', 'w_longbow_black', 'Лук загонщика', 'towerhound', { dmg: 26, crit: 9, swing: 1.15 }, 'С ним загоняли беглецов к морю.'],
+  ['d_hammer_lamp', 'w_hammer_black', 'Молот Смотрителя', 'lampwarden', { dmg: 28, crit: 5, swing: 1.3, hp: 18 }, 'Им дробили лёд на фонаре маяка. Потом — головы.'],     // Маяк Затмения (2026-10-20)
+  ['d_helm_lamp', 'a_head_helm_black', 'Шлем со смотровой щелью', 'lampwarden', { armor: 12, hp: 30 }, 'Сквозь щель видно на три лиги. И чёрный свет.'],
+  ['d_staff_tide', 'w_staff_black', 'Посох Прилива', 'tidecaller', { dmg: 24, crit: 6, swing: 1.2, hp: 18 }, 'Мокрый, сколько ни суши. Тянет к воде.'],
+  ['d_ring_tide', 'r_ring_blood', 'Кольцо утопленницы', 'tidecaller', { hp: 36, crit: 5 }, 'Его сняли с пальца, который не разжимался.', '#4a8aa8'],
+  ['d_cloak_wyrm', 'a_cloak_shroud_black', 'Плащ из чешуи Змея', 'tidewyrm', { armor: 11, hp: 40, spd: 2 }, 'Чешуя Змея. Холодная даже у костра.'],
+  ['d_spear_wyrm', 'w_spear_black', 'Зуб Змея', 'tidewyrm', { dmg: 27, reach: .8, crit: 7 }, 'Один зуб из тысячи. Самый длинный.'],
+  ['d_crossbow_wyrm', 'w_crossbow_black', 'Самострел со дна', 'tidewyrm', { dmg: 30, crit: 10, swing: 1.3 }, 'Его подняли сети вместе со Змеем.'],
   ['d_fang_garm', 'w_sword_black', 'Клык Гарма', 'garm_beast', { dmg: 20, crit: 9, leech: 3 }, 'Он отдал за силу мать. Клык отдал даром.'],
   ['d_collar_garm', 'm_talisman_blood', 'Ошейник Чёрного Пса', 'garm_beast', { hp: 40, crit: 4 }, 'Знак Чёрных Псов. Теперь ничей.', '#3a2a2a'],
   ['d_spear_banner', 'w_spear_black', 'Копьё Кровавого знамени', 'bloodbanner', { dmg: 22, reach: .8, crit: 6 }, 'Знамя истлело. Копьё — нет.'],
