@@ -1,5 +1,5 @@
 // Окно торговли: «Купить» (витрина) и «Продать» (сумка). Продавать можно только рядом с торговцем.
-import { BY_ID, RARITY, SLOTS, SLOT_NAME, statLine } from './data/items.js';
+import { BY_ID, RARITY, SLOTS, SLOT_NAME, statLine, STAT_NAME } from './data/items.js';
 import { iconURL } from './itemicons.js';     // значок вещи в строке лавки (2026-10-20)
 import { betterThanWorn, nameOf, socketsOf } from './inv.js';
 import { socketGem, unsocketGem, fuseGems, gemsAt, weaponMix, unsocketCost, gemId, armorGemFx } from './stones3d.js';
@@ -7,7 +7,7 @@ import { MIX_NAME, MIX_TEXT, ELEMENT_NAME, ELEMENT_COLOR, mixKey } from './eleme
 import { canWield, NOT_FOR } from './data/heroes3d.js';
 import { RECIPES } from './data/recipes3d.js';
 import { TOME_BY_ID } from './data/tomes3d.js';
-import { craft, craftStatus, missing, recipeKnown } from './craft3d.js';
+import { craft, craftStatus, missing, recipeKnown, reagentsFor, masterQ } from './craft3d.js';
 import { allyHp, allyDmg, hireable, liveAllies } from './squad3d.js';
 import { sellWorse } from './economy3d.js';
 import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, stockPrice, shopOf, priceMulOf, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
@@ -150,6 +150,7 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
       row.append(info, b); listEl.appendChild(row);
     }
   }
+  const reagSel = {};     // выбранный реагент по рецепту (4.02)
   function craftRow(r) {
     const it = BY_ID[r.result.id], st = craftStatus(W, r), row = el('div', 'srow'), info = el('div', 'sinfo');
     const nm = el('span', 'nm', it.name + (r.result.n > 1 ? ' ×' + r.result.n : '')); nm.style.color = RARITY[it.rar].color; info.append(nm);
@@ -159,9 +160,16 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
       info.append(el('div', 'sub', statLine(it) || r.text));
       const m = el('div', 'mats'); for (const [id, n, have] of missing(W, r)) { const c = el('button', 'mat ' + (have >= n ? 'have' : 'lack'), `${BY_ID[id].name} ${Math.min(have, n)}/${n}`); c.type = 'button'; c.dataset.item = id; c.title = 'Где взять (G)'; c.addEventListener('click', () => onSource && onSource(id)); m.append(c); } m.append(el('span', W.inv.ash >= r.ash ? 'have' : 'lack', `пепел ${r.ash}`)); info.append(m);
     }
+    if (it.slot && st !== 'tome') {     // работа мастера (4.02): качество и реагент свойства
+      const [q0, q1] = masterQ(W, r); info.append(el('div', 'sub', `Работа мастера: качество ${Math.round(q0 * 100)}–${Math.round(q1 * 100)}%, свойства как у находки. Реагент задаёт одно свойство.`));
+      const rs = reagentsFor(W, it).filter(x => x.have > 0), box = el('div', 'mats');
+      if (rs.length) { for (const x of [{ id: null }, ...rs]) { const on = (reagSel[r.id] || null) === x.id, c = el('button', 'mat ' + (on ? 'have' : '') + (x.id && x.have < x.n ? ' lack' : ''), x.id ? `${BY_ID[x.id].name} ×${x.n} → ${x.key === 'q' ? 'качество на предел' : STAT_NAME[x.key] || x.key}` : 'без реагента'); c.type = 'button'; c.setAttribute('aria-pressed', String(on)); c.addEventListener('click', () => { reagSel[r.id] = x.id; render(); }); box.append(c); } info.append(box); }
+      else info.append(el('div', 'sub', 'Реагентов в сумке нет: клык беса, сера, паутина, рог и другие задают свойство.'));
+    }
     const b = el('button', 'buy' + (st === 'ok' ? '' : ' no'), st === 'tome' ? 'Закрыто' : 'Ковать'); b.type = 'button';
-    b.addEventListener('click', () => { if (st === 'tome') return; const res = craft(W, r.id); flash(res === 'ok' ? `Готово: ${it.name}` : res === 'far' ? 'Подойдите к кузнецу' : res === 'mats' ? 'Не хватает материалов' : res === 'ash' ? 'Не хватает пепла' : res === 'full' ? 'Сумка полна' : ''); render(); onChange && onChange(); });
-    row.append(info, b); return row;
+    let all = null; if (!it.slot && st === 'ok') { all = el('button', 'buy', 'Всё'); all.type = 'button'; all.title = 'Ковать, пока хватает материалов'; all.addEventListener('click', () => { let n = 0; while (n < 50 && craft(W, r.id) === 'ok') n++; flash(`Готово: ${it.name} ×${n * r.result.n}`); render(); onChange && onChange(); }); }     // плавка пачкой (4.02)
+    b.addEventListener('click', () => { if (st === 'tome') return; const res = craft(W, r.id, it.slot ? reagSel[r.id] || null : null); flash(res === 'ok' ? `Готово: ${it.name}` : res === 'far' ? 'Подойдите к кузнецу' : res === 'mats' ? 'Не хватает материалов' : res === 'ash' ? 'Не хватает пепла' : res === 'reag' ? 'Не хватает реагента' : res === 'full' ? 'Сумка полна' : ''); render(); onChange && onChange(); });
+    row.append(info, ...(all ? [all] : []), b); return row;
   }
   function render() {
     refreshGear(W);
@@ -169,7 +177,7 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
     headEl.textContent = `Кузнец · пепел ${W.inv.ash}`; listEl.textContent = '';
     if (tab === 'gems') { gemsTab(); return; }
     if (tab === 'craft') {
-      noteEl.textContent = 'Материалы берутся из сумки. Улучшенное оружие и броня на ковку не идут. Новые рецепты открывают книги: читайте их в сумке.';
+      noteEl.textContent = 'Материалы берутся из сумки. Заточенное, с камнями и зачарованное снаряжение на ковку не идёт. Скованная вещь — работа мастера: качество выше, чем у находки. Реагент из сумки задаёт свойство. Новые рецепты открывают книги.';
       const f = el('button', 'junk', onlyReady ? 'Показаны доступные сейчас. Показать все' : 'Показаны все. Только доступные'); f.type = 'button'; f.addEventListener('click', () => { onlyReady = !onlyReady; render(); }); listEl.appendChild(f);
       const order = { ok: 0, mats: 1, ash: 1, far: 1, tome: 3 }, known = RECIPES.filter(r => recipeKnown(W.known, r));
       const list = onlyReady ? RECIPES.filter(r => craftStatus(W, r) === 'ok') : RECIPES.slice().sort((a, b) => order[craftStatus(W, a)] - order[craftStatus(W, b)]);

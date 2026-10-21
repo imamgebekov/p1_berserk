@@ -5,8 +5,8 @@ export const RECIPES = [];
 const R = (id, res, n, mats, ash, needs, text) => RECIPES.push({ id, result: { id: res, n }, mats, ash, needs, text });
 
 // плавка
-R('ingot', 'm_ingot', 1, [['m_ore', 3], ['m_coal', 1]], 5, null, 'Переплавка руды в слиток.');
-R('steel', 'm_steel_ingot', 1, [['m_ingot', 2], ['m_coal', 2]], 12, 'smelting', 'Слитки и уголь дают сталь.');
+R('ingot', 'm_ingot', 1, [['m_ore', 2], ['m_coal', 1]], 5, null, 'Переплавка руды в слиток.');     // 4.02: цепочки короче (было 3 руды; сталь — 2 слитка и 2 угля)
+R('steel', 'm_steel_ingot', 1, [['m_ingot', 1], ['m_coal', 1]], 8, 'smelting', 'Слиток и уголь дают сталь.');
 R('alloy', 'm_ash_alloy', 1, [['m_steel_ingot', 2], ['m_ash_salt', 2], ['m_soot', 1]], 30, 'alloy', 'Сплав для именных вещей.');
 // лекарство
 R('antidote', 'p_antidote', 2, [['m_grave_moss', 2], ['m_ash_salt', 1]], 8, 'medic', 'Снимает яд, кровь и горение.');
@@ -14,8 +14,8 @@ R('salve', 'h_salve', 1, [['m_tallow', 2], ['m_grave_moss', 2], ['m_beast_hide',
 R('elixir', 'p_elixir', 1, [['m_amber', 1], ['m_grave_moss', 3], ['m_ash_salt', 2]], 60, 'medic', 'Эликсир жизни.');
 // оружие среднего уровня: железо → закалённое → стальное
 for (const k of ['sword', 'axe', 'mace', 'spear', 'dagger']) {
-  R(`w_${k}_tempered`, `w_${k}_tempered`, 1, [[`w_${k}_iron`, 1], ['m_tempered_sinew', 1], ['m_ingot', 2]], 20, 'fine', 'Закалка железного клинка.');
-  R(`w_${k}_steel`, `w_${k}_steel`, 1, [[`w_${k}_tempered`, 1], ['m_steel_ingot', 3]], 40, 'fine', 'Сталь вместо железа.');
+  R(`w_${k}_tempered`, `w_${k}_tempered`, 1, [[`w_${k}_iron`, 1], ['m_tempered_sinew', 1], ['m_ingot', 1]], 20, 'fine', 'Закалка железного клинка.');
+  R(`w_${k}_steel`, `w_${k}_steel`, 1, [[`w_${k}_tempered`, 1], ['m_steel_ingot', 2]], 40, 'fine', 'Сталь вместо железа.');
 }
 // кожаная броня
 for (const id of ['a_head_hood_leather', 'a_body_jerkin_leather', 'a_cloak_cape_leather', 'a_boots_shoes_leather']) R(id, id, 1, [['m_beast_hide', 3], ['m_sinew', 1]], 12, 'leather', 'Кожа и жила.');

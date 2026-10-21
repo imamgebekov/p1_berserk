@@ -3,16 +3,18 @@ import { BY_ID } from './data/items.js';
 import { RECIPES, RECIPE_BY_ID } from './data/recipes3d.js';
 import { TOMES, TOME_BY_ID } from './data/tomes3d.js';
 import { CONTAINERS, DROPS, SHOP, SHOP_STAPLES, BOSS_DROPS, BOSS_LOOT } from './data/loot.js';
-import { addItem, removeAt, countOf, isPlain, roomFor, entryOf, nomIl } from './inv.js';
+import { addItem, removeAt, countOf, hasGems, roomFor, entryOf, nomIl } from './inv.js';
+import { craftAffixes, poolOf, kindOf } from './affix3d.js';
 import { profSkill, tradeBlock, tradeUp } from './life3d.js';
 
 export const newKnown = () => ({ tomes: {}, bestiary: {}, places: {}, kinds: {}, items: {} });
 export const recipeKnown = (K, r) => !r.needs || !!K.tomes[r.needs];
 
-// количество вещи в сумке; улучшенное оружие и броня в материалы не идут
-const plainCount = (inv, id) => (BY_ID[id].slot ? inv.bag.reduce((c, s) => c + (s.id === id && isPlain(s) ? s.n : 0), 0) : countOf(inv, id));
+// количество вещи в сумке; улучшенное, с камнями и зачарованное оружие и броня в материалы не идут (качество и находочные свойства — идут: 4.02)
+const isBase = s => !s.up && !hasGems(s.g) && !(s.af && s.af.en);
+const plainCount = (inv, id) => (BY_ID[id].slot ? inv.bag.reduce((c, s) => c + (s.id === id && isBase(s) ? s.n : 0), 0) : countOf(inv, id));
 function take(inv, id, n) {
-  for (let i = inv.bag.length - 1; i >= 0 && n > 0; i--) { const s = inv.bag[i]; if (s.id !== id || (BY_ID[id].slot && !isPlain(s))) continue; const t = Math.min(n, s.n); removeAt(inv, i, t); n -= t; }
+  for (let i = inv.bag.length - 1; i >= 0 && n > 0; i--) { const s = inv.bag[i]; if (s.id !== id || (BY_ID[id].slot && !isBase(s))) continue; const t = Math.min(n, s.n); removeAt(inv, i, t); n -= t; }
 }
 
 // 'ok' | 'tome' (нет книги) | 'skill' (мал навык ремесла) | 'far' (кузнечное — не у кузнеца) | 'danger' (враги рядом) | 'mats' | 'ash'
@@ -26,14 +28,30 @@ export function craftStatus(W, r) {
 }
 export const missing = (W, r) => r.mats.map(([id, n]) => [id, n, plainCount(W.inv, id)]);
 
-// скрафтить; возвращает статус, 'full' (нет места) или 'ok'. Ничего не списывается, пока всё не получится
-export function craft(W, id) {
+// реагенты (4.02): материал → свойство; что можно положить в вещь it и сколько нужно. [{ id, key, n, have }] (key 'q' — уголёк: качество на предел)
+export function reagentsFor(W, it) {
+  const C = W.cfg.craft; if (!C || !it || !it.slot) return [];
+  const n = C.reagN[it.rar || 0] || 1, jewel = kindOf(it) === 'jewel', pool = poolOf(it);
+  const out = pool.filter(k => C.reag[k]).map(k => ({ id: C.reag[k], key: k, n, have: countOf(W.inv, C.reag[k]) }));
+  if (!jewel && C.ember) out.push({ id: C.ember, key: 'q', n: 1, have: countOf(W.inv, C.ember) });
+  return out;
+}
+// качество мастера: нижняя граница растёт с навыком ремесла
+export const masterQ = (W, r) => { const C = W.cfg.craft, mx = (W.cfg.life && W.cfg.life.trades && W.cfg.life.trades.max) || 100, k = Math.min(1, profSkill(W, r.prof || 'smith') / mx); return C ? [C.q[0] + (C.q[1] - C.q[0]) * k, C.q[2]] : [1, 1]; };
+// скрафтить; reag — id реагента (материал свойства или уголёк) или null. Возвращает статус, 'full' (нет места), 'reag' (нет реагента) или 'ok'.
+// Ничего не списывается, пока всё не получится
+export function craft(W, id, reag = null) {
   const r = RECIPE_BY_ID[id]; if (!r) return 'none';
   const st = craftStatus(W, r); if (st !== 'ok') return st;
+  const R = BY_ID[r.result.id], rg = reag && R.slot ? reagentsFor(W, R).find(x => x.id === reag) : null;
+  if (reag && (!rg || rg.have < rg.n + (r.mats.find(([m]) => m === reag) || [0, 0])[1])) return 'reag';
   const tmp = { bag: JSON.parse(JSON.stringify(W.inv.bag)), eq: W.inv.eq, up: W.inv.up, ash: 0 };
   for (const [mid, n] of r.mats) take(tmp, mid, n);
-  const mx = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0), R = BY_ID[r.result.id];
-  if (R.slot) { if (!roomFor(tmp, r.result.id, mx)) return 'full'; tmp.bag.push(entryOf(r.result.id, 0, null, Math.max(nomIl(R), W.lv))); }     // скованное снаряжение — уровня героя (этап 0)
+  if (rg) take(tmp, rg.id, rg.n);
+  const mx = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
+  if (R.slot) { if (!roomFor(tmp, r.result.id, mx)) return 'full'; const il = Math.max(nomIl(R), W.lv), [qLow, qTop] = masterQ(W, r); W.afN = (W.afN || 0) + 1;     // скованное — уровня героя (этап 0), работа мастера (4.02)
+    const af = craftAffixes(W.cfg, r.result.id, il, (W.cfg.world.seed * 7919 + W.afN * 2654435761 + Math.floor((W.t || 0) * 1000)) >>> 0, { qLow, qTop, key: rg && rg.key !== 'q' ? rg.key : null, ember: !!(rg && rg.key === 'q') });
+    tmp.bag.push(entryOf(r.result.id, 0, null, il, af)); }     // скованное снаряжение — уровня героя (этап 0)
   else if (addItem(tmp, r.result.id, r.result.n, mx) > 0) return 'full';
   W.inv.bag = tmp.bag; W.inv.ash -= r.ash; W.known.items[r.result.id] = 1;
   W.ev.push({ k: 'craft', id: r.result.id, n: r.result.n }); W.fx.quest('craft', { item: r.result.id }); if (W.life) tradeUp(W, r); return 'ok';

@@ -92,11 +92,12 @@ export function sellWorse(W) {
   }
   inv.ash += sum; if (n) W.ev.push({ k: 'sell' }); return { sum, n };
 }
-// продать весь хлам разом: безделушки, деньги, записки и материалы (оружие, броня, ключи и расходники остаются)
+// продать весь хлам разом: безделушки, деньги, записки и материалы, кроме реагентов и пыли (оружие, броня, ключи и расходники остаются)
+const isReagent = (cfg, id) => !!cfg.craft && (Object.values(cfg.craft.reag).includes(id) || id === cfg.craft.ember || id === cfg.craft.shard);     // реагенты (4.02) — не хлам
 export function sellJunk(W) {
   if (!W.nearMerchant || closed(W)) return -1;
   let sum = 0;
-  for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if ((it.cat === 'curio' || it.cat === 'material') && it.pool !== 'arcane') { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
+  for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if ((it.cat === 'curio' || it.cat === 'material') && it.pool !== 'arcane' && !isReagent(W.cfg, it.id)) { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
   W.inv.ash += sum; if (sum) W.ev.push({ k: 'sell' }); return sum;
 }
 

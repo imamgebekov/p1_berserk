@@ -73,6 +73,13 @@ export function pickItem(pool, rar, rng) {
   return null;
 }
 
+// сырьё (4.02): вес у каждой вещи по её редкости, а не у ступени редкости. Иначе 15 обычных делят свою долю на всех, а единственный
+// редкий материал забирает свою целиком и падает чаще любого обычного (так было: «Чёрная смола» — самая частая)
+// Сдвиг к редким по краю и сундуку для сырья — вполовину (корень множителя): в сложных краях редкое чаще, но не наравне с обычным
+function pickByItem(pool, w, rng, B) {
+  const all = BY_POOL[pool].flat(), wm = w.map((x, r) => B[r] * Math.sqrt(x / B[r])); let t = 0; for (const it of all) t += wm[Math.min(wm.length - 1, it.rar || 0)];
+  let r = rng() * t; for (const it of all) { r -= wm[Math.min(wm.length - 1, it.rar || 0)]; if (r <= 0) return it; } return all[all.length - 1];
+}
 // бросок добычи: [{id, n}]
 export function rollLoot(def, rng, depth = 0, luck = 0, extraQ = 0, brandK = 1, lq = null, slotsMax = 99) {     // lq — уровень места и cfg.loot (добыча по сложности края)
   const [a, b] = def.slots, slots = Math.min(slotsMax, a + ((rng() * (b - a + 1)) | 0)), out = [], w = rarityWeights(def.q + extraQ, depth, luck, lq); w[4] *= brandK;     // brandK — доля оранжевых (с врагов их меньше)
@@ -80,7 +87,7 @@ export function rollLoot(def, rng, depth = 0, luck = 0, extraQ = 0, brandK = 1, 
     const pool = pickW(def.pools.filter(p => p[1] > 0 && BY_POOL[p[0]]), rng)[0];
     let rar = pickW(w.map((x, r) => [r, x]), rng)[0];
     if (def.minRar && i === 0) rar = Math.max(rar, def.minRar);
-    const it = pickItem(pool, rar, rng); if (!it) continue;
+    const it = pool === 'material' ? pickByItem(pool, w, rng, (lq && lq.L && lq.L.base) || BASE) : pickItem(pool, rar, rng); if (!it) continue;     // сырьё — вес у каждого материала (4.02)
     const n = it.stack > 1 ? 1 + ((rng() * Math.min(it.stack, it.cat === 'curio' && it.pool === 'coin' ? 6 : 3)) | 0) : 1;
     const ex = out.find(o => o.id === it.id);
     if (ex) ex.n = Math.min(it.stack, ex.n + n); else out.push({ id: it.id, n });

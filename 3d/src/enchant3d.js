@@ -2,8 +2,9 @@
 // за пыль и пепел — добавить свойство, перековать одно свойство или поднять качество. Счётчик зачарований вещи хранится в af.en
 // и поднимает цену. Свой генератор (счётчик W.enN + зерно мира): бой и его случайности не сдвигаются. Числа — cfg.enchant. Чистая логика.
 import { BY_ID } from './data/items.js';
-import { removeAt, addItem, hasGems, qOf, ilOf } from './inv.js';
+import { removeAt, addItem, hasGems, qOf, ilOf, countOf } from './inv.js';
 import { rng, rollValue, poolOf, kindOf, affixCount } from './affix3d.js';
+import { reagentsFor } from './craft3d.js';
 
 const E = W => W.cfg.enchant;
 const near = W => E(W) && E(W).on && W.nearNpc === E(W).npc;
@@ -28,21 +29,30 @@ export function enchantInfo(W, where) {
 }
 // op: 'add' — новое свойство; 'reroll' — свойство key сменить на другое; 'quality' — качество заново, но не ниже прежнего.
 // Вернёт 'ok' | 'far' | 'none' | 'max' | 'ash' | 'dust'
-export function enchant(W, where, op, key) {
+// op 'max' — свойство key до предела за осколок затмения (4.02). reag — реагент (4.02): для 'add' — материал свойства (свойство не случайное),
+// для 'quality' — клеймёный уголёк (качество сразу на предел). Вернёт 'ok' | 'far' | 'none' | 'max' | 'ash' | 'dust' | 'reag'
+export function enchant(W, where, op, key, reag = null) {
   if (!near(W)) return 'far';
   const I = enchantInfo(W, where); if (!I) return 'none';
+  if (!['add', 'quality', 'reroll', 'max'].includes(op)) return 'none';
   if (op === 'add' && !I.canAdd) return 'max';
   if (op === 'quality' && !I.canQ) return 'max';
   if (op === 'reroll' && (!I.keys.includes(key) || !I.free.length)) return 'none';
-  if (!['add', 'quality', 'reroll'].includes(op)) return 'none';
+  const A = W.cfg.affix, C = W.cfg.craft || {};
+  if (op === 'max' && (!I.keys.includes(key) || !(I.af[key] < A.max[key]))) return 'max';
+  const rg = op === 'max' ? { id: C.shard, n: 1 } : reag ? reagentsFor(W, I.it).find(x => x.id === reag && (op === 'quality' ? x.key === 'q' : op === 'add' && x.key !== 'q' && I.free.includes(x.key))) : null;
+  if ((reag || op === 'max') && !rg) return 'none';
+  if (rg && countOf(W.inv, rg.id) < rg.n) return 'reag';
   if (W.inv.ash < I.cost.ash) return 'ash';
   if (dustOf(W) < I.cost.dust) return 'dust';
-  const A = W.cfg.affix, r = rngOf(W), af = { ...(I.af || {}) }, L = ilOf(I.it, I.il) || 1;
-  if (op === 'add' || op === 'reroll') { if (op === 'reroll') delete af[key]; const k = I.free[Math.floor(r() * I.free.length)]; af[k] = rollValue(A, k, L, r); }
-  else { const [q0, q1] = A.quality, q = Math.round((q0 + (q1 - q0) * r()) * 100) / 100; af.q = Math.max(qOf(I.af), q); }
+  const r = rngOf(W), af = { ...(I.af || {}) }, L = ilOf(I.it, I.il) || 1;
+  if (op === 'max') af[key] = A.max[key];
+  else if (op === 'add' || op === 'reroll') { if (op === 'reroll') delete af[key]; const k = rg ? rg.key : I.free[Math.floor(r() * I.free.length)]; af[k] = rollValue(A, k, L, r); }
+  else { const [q0, q1] = A.quality, q = rg ? q1 : Math.round((q0 + (q1 - q0) * r()) * 100) / 100; af.q = Math.max(qOf(I.af), q); }
   af.en = I.en + 1;
-  W.inv.ash -= I.cost.ash; let left = I.cost.dust;
-  for (let i = W.inv.bag.length - 1; i >= 0 && left > 0; i--) { const s = W.inv.bag[i]; if (s.id !== E(W).item) continue; const t = Math.min(left, s.n), len0 = W.inv.bag.length; left -= t; removeAt(W.inv, i, t); if (W.inv.bag.length < len0 && where.idx !== undefined && i < where.idx) where = { idx: where.idx - 1 }; }     // пыль ушла из сумки: место вещи сдвигается
+  W.inv.ash -= I.cost.ash;
+  for (const [id, n] of [[E(W).item, I.cost.dust], ...(rg ? [[rg.id, rg.n]] : [])]) { let left = n;     // пыль и реагент ушли из сумки: место вещи сдвигается
+    for (let i = W.inv.bag.length - 1; i >= 0 && left > 0; i--) { const s = W.inv.bag[i]; if (s.id !== id) continue; const t = Math.min(left, s.n), len0 = W.inv.bag.length; left -= t; removeAt(W.inv, i, t); if (W.inv.bag.length < len0 && where.idx !== undefined && i < where.idx) where = { idx: where.idx - 1 }; } }
   setAf(W, where, af); W.ev.push({ k: 'enchant', op, id: I.id }); return 'ok';
 }
 // пыль за разбор вещи

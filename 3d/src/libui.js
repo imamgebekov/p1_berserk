@@ -5,6 +5,8 @@ import { iconURL } from './itemicons.js';
 import { nameOf } from './inv.js';
 import { affixLines } from './affix3d.js';
 import { enchantInfo, enchant, disenchant, dustOf, itemAt, yieldOf } from './enchant3d.js';
+import { reagentsFor } from './craft3d.js';
+import { countOf } from './inv.js';
 import { refreshGear } from './sim.js';
 
 export function createLibrary(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
@@ -14,7 +16,7 @@ export function createLibrary(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2400); };
   const ico = it => { const w = el('span', 'sico'), im = doc.createElement('img'); im.src = iconURL(doc, it); im.alt = ''; w.style.setProperty('--rc', RARITY[it.rar || 0].color); w.append(im); return w; };
-  const MSG = { far: 'Подойдите к книжнице', ash: 'Не хватает пепла', dust: 'Не хватает чародейской пыли', max: 'Больше нельзя', none: 'Нечего менять', lock: 'Вещь под замком', gems: 'Сначала выньте камни у кузнеца', full: 'Сумка полна' };
+  const MSG = { reag: 'Не хватает реагента', far: 'Подойдите к книжнице', ash: 'Не хватает пепла', dust: 'Не хватает чародейской пыли', max: 'Больше нельзя', none: 'Нечего менять', lock: 'Вещь под замком', gems: 'Сначала выньте камни у кузнеца', full: 'Сумка полна' };
   const done = (r, ok) => { flash(r === 'ok' || (r && r.n) ? ok(r) : MSG[r] || ''); armed = null; refreshGear(W); render(); onChange && onChange(); };
   const price = c => `пепел ${c.ash}, пыль ${c.dust}`;
   for (const [id, label] of [['ench', 'Зачаровать'], ['break', 'Разобрать']]) { const b = el('button', 'tab', label); b.type = 'button'; b.dataset.tab = id; b.addEventListener('click', () => { tab = id; armed = null; render(); }); tabsEl.appendChild(b); }
@@ -31,6 +33,11 @@ export function createLibrary(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     act(I.canAdd ? `Добавить свойство · ${price(I.cost)}` : `Свойств ${I.n} из ${I.cap}`, I.canAdd, () => done(enchant(W, where, 'add'), () => 'Новое свойство вписано'));
     if (I.canQ || I.af && I.af.q) act(I.canQ ? `Качество выше · ${price(I.cost)}` : 'Качество — предел', I.canQ, () => done(enchant(W, where, 'quality'), () => 'Качество переписано'));
     for (const k of I.keys) act(`Перековать «${STAT_NAME[k] || k}» · ${price(I.cost)}`, I.free.length > 0, () => done(enchant(W, where, 'reroll', k), () => 'Свойство перековано'));
+    for (const x of reagentsFor(W, I.it).filter(x => x.have > 0)) {     // реагенты (4.02): свойство на выбор, уголёк — качество на предел
+      if (x.key === 'q') { if (I.canQ) act(`Качество на предел · ${BY_ID[x.id].name} ×${x.n}, ${price(I.cost)}`, x.have >= x.n, () => done(enchant(W, where, 'quality', null, x.id), () => 'Качество на пределе')); }
+      else if (I.canAdd && I.free.includes(x.key)) act(`Вписать «${STAT_NAME[x.key] || x.key}» · ${BY_ID[x.id].name} ×${x.n}, ${price(I.cost)}`, x.have >= x.n, () => done(enchant(W, where, 'add', null, x.id), () => 'Свойство вписано'));
+    }
+    const shard = cfg.craft && cfg.craft.shard; if (shard && countOf(W.inv, shard) > 0) for (const k of I.keys) if (I.af[k] < cfg.affix.max[k]) act(`«${STAT_NAME[k] || k}» до предела · ${BY_ID[shard].name}, ${price(I.cost)}`, true, () => done(enchant(W, where, 'max', k), () => 'Свойство на пределе'));
     info.append(acts); return r;
   }
   function breakRow(i) {
@@ -52,7 +59,7 @@ export function createLibrary(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       return;
     }
     const C = cfg.enchant;
-    noteEl.textContent = `Зачарование стоит пепел и чародейскую пыль. Свойств — не больше своих по редкости +${C.extra} и не больше ${C.cap}. Перековка меняет одно свойство на случайное другое. Качество не падает. Каждое зачарование вещи дороже прежнего.`;
+    noteEl.textContent = `Зачарование стоит пепел и чародейскую пыль. Свойств — не больше своих по редкости +${C.extra} и не больше ${C.cap}. Перековка меняет одно свойство на случайное другое. Реагент из сумки (клык беса, сера, паутина…) вписывает нужное свойство. Качество не падает. Каждое зачарование вещи дороже прежнего.`;
     for (const slot of SLOTS) if (W.inv.eq[slot]) { const row = enchRow({ slot }, SLOT_NAME[slot] + ' · надето'); if (row) { listEl.appendChild(row); n++; } }
     W.inv.bag.forEach((s, i) => { if (BY_ID[s.id] && BY_ID[s.id].slot) { const row = enchRow({ idx: i }, 'в сумке'); if (row) { listEl.appendChild(row); n++; } } });
     if (!n) listEl.appendChild(el('div', 'emptyl', 'Нет оружия, брони и украшений.'));

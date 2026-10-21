@@ -149,6 +149,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     }
     if (it.perks && it.perks.length) cardEl.appendChild(el('div', 'cs', 'Свойства: ' + it.perks.map(id => PERKS[id].name).join(', ')));
     if (it.text) cardEl.appendChild(el('div', 'ct', it.text));
+    { const C = cfg.craft, k = C && Object.keys(C.reag).find(q => C.reag[q] === it.id), t = k ? `задаёт свойство «${STAT_NAME[k] || k}» при ковке снаряжения и в библиотеке` : C && it.id === C.ember ? 'качество вещи сразу на предел — при ковке и в библиотеке' : C && it.id === C.shard ? 'в библиотеке доводит свойство вещи до предела' : null; if (t) cardEl.appendChild(el('div', 'cs', 'Реагент: ' + t)); }     // 4.02
     cardEl.appendChild(el('div', 'cv', `Продажа: ${sellPrice(it, cfg, up, W.gear.trade, il, afSel)} пепла (только у торговца)`));
     const row = el('div', 'acts');
     const btn = (label, fn, cls) => { const b = el('button', cls || '', label); b.type = 'button'; b.addEventListener('click', () => { fn(); render(); onChange && onChange(); }); row.appendChild(b); };

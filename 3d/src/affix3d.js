@@ -24,6 +24,15 @@ export function rollAffixes(cfg, id, il, seed) {
 // сила одного свойства k на уровне вещи L (r — генератор)
 export function rollValue(A, k, L, r) { const [b0, b1] = A.base[k], q = A.q[0] + (A.q[1] - A.q[0]) * r(), v = Math.min(A.max[k], (b0 + b1 * Math.max(1, L)) * q); return v >= 3 ? Math.round(v) : Math.max(.1, Math.round(v * 10) / 10); }
 export const poolOf = it => POOL[kindOf(it)].slice();     // какие свойства бывают у вещи
+// свойства скованной вещи (4.02): как у находки, качество мастера в [qLow, qTop]; key — свойство от реагента (заменяет случайное
+// или добавляется, если своих нет); ember — качество сразу qTop
+export function craftAffixes(cfg, id, il, seed, { qLow = 1, qTop = 1.15, key = null, ember = false } = {}) {
+  const A = cfg.affix, it = BY_ID[id]; if (!A || !A.on || !it || !it.slot) return null;
+  const af = rollAffixes(cfg, id, il, seed) || {}, r = rng((seed ^ 0x5bd1e995) >>> 0);
+  if (kindOf(it) !== 'jewel') af.q = ember ? qTop : Math.round((qLow + (qTop - qLow) * r()) * 100) / 100;
+  if (key && POOL[kindOf(it)].includes(key) && !(key in af)) { const ks = Object.keys(af).filter(k => k !== 'q'); if (ks.length) delete af[ks[Math.floor(r() * ks.length)]]; af[key] = rollValue(A, key, Math.max(1, il || 1), r); }
+  return Object.keys(af).length ? af : null;
+}
 // камень внутри при находке (3.99): фиолетовая — с шансом A.gems.purple, золотая — всегда; случайная стихия, ранг по редкости
 export function rollGems(cfg, id, seed, sockets) {
   const A = cfg.affix, G = A && A.gems, it = BY_ID[id]; if (!G || !it || !it.slot || !sockets) return null;

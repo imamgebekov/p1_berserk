@@ -825,6 +825,12 @@ const BASE = {
   // библиотека (4.00, просьба владельца): книжница в доме с полками в лагере (снаружи — вид церкви). Разбор ненужной вещи → чародейская пыль (yield по редкости);
   // зачарование за пепел и пыль: добавить свойство (не больше своих по редкости + extra и не больше cap), перековать одно, поднять качество.
   // Цена: пепел = base + цена вещи × valueK, пыль — dust по редкости; каждое зачарование вещи дороже на grow
+  // ремесло 2.0 (4.02, просьба владельца): скованная вещь — «работа мастера»: качество от q[0] (навык 0) до q[1] (навык на пределе)
+  // и не выше q[2], свойства — как у находки той же редкости. Реагент (материал) задаёт свойство: при ковке и в библиотеке.
+  // reagN — сколько реагента по редкости вещи; ember — качество сразу на предел; shard — свойство до предела (библиотека)
+  craft: { q: [1, 1.1, 1.15], reagN: [1, 1, 1, 2, 2, 3], ember: 'm_brand_ember', shard: 'm_eclipse_shard',
+    reag: { dmg: 'm_horn', crit: 'm_imp_fang', leech: 'm_bone_dust', spd: 'm_raven_feather', luck: 'm_dark_glass', burnCh: 'm_sulfur', poisonCh: 'm_web', shockCh: 'm_copper_wire',
+      bleedCh: 'm_wolf_claw', armor: 'm_mail_scrap', hp: 'm_bone', regen: 'm_tar', stealth: 'm_rotten_cloth' } },
   enchant: { on: true, npc: 'scribe', item: 'm_arcane_dust', yield: [1, 1, 2, 4, 6, 9], upYield: 1, dust: [1, 1, 2, 3, 4, 5], base: 20, valueK: .35, grow: .6, extra: 1, cap: 4 },
   elite: {
     chance: .04, depthK: .03, dangerK: .03, nightK: .03, hp: 1.9, dmg: 1.2, xp: 3, scale: 1.2, luck: 10, lootRolls: 2,

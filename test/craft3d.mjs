@@ -41,7 +41,7 @@ const atSmith = W => { const b = W.map.buildings.find(x => x.npc && x.npc.kind =
 const give = (W, id, n = 1) => W.inv.bag.push({ id, n });
 { const W = mk(); const r = RECIPE_BY_ID.ingot; step(W, 1 / 60, {});
   ok(craftStatus(W, r) === 'far' && craft(W, 'ingot') === 'far', 'ковка издалека'); atSmith(W);
-  ok(craft(W, 'ingot') === 'mats', 'нет материалов'); give(W, 'm_ore', 3); give(W, 'm_coal', 1); W.inv.ash = 4; ok(craft(W, 'ingot') === 'ash', 'нет пепла'); W.inv.ash = 50;
+  ok(craft(W, 'ingot') === 'mats', 'нет материалов'); give(W, 'm_ore', 2); give(W, 'm_coal', 1); W.inv.ash = 4; ok(craft(W, 'ingot') === 'ash', 'нет пепла'); W.inv.ash = 50;
   ok(craft(W, 'ingot') === 'ok' && W.inv.ash === 45 && W.inv.bag.some(s => s.id === 'm_ingot') && !W.inv.bag.some(s => s.id === 'm_ore'), 'ковка не списала материалы'); ok(W.known.items.m_ingot === 1 && W.ev.some(v => v.k === 'craft'), 'запись о предмете и событие');
   ok(craft(W, 'steel') === 'tome' && !recipeKnown(W.known, RECIPE_BY_ID.steel), 'рецепт без книги'); ok(craft(W, 'нет') === 'none', 'неизвестный рецепт'); }
 { // полная сумка: ничего не списывается
