@@ -43,8 +43,8 @@ import { weaponMix, gemDropOf, weaponElement, magicDropOf, armorGems } from './s
 import { useWeaponSkill, tickWeaponSkill } from './weaponskill3d.js';
 import { makeWeather, weatherAt } from './weather3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS, talentMods } from './data/skills3d.js';
-import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain, roomFor, ilMul, scoreUp } from './inv.js';
-import { affixFor } from './affix3d.js';
+import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain, roomFor, ilMul, scoreUp, qOf, socketsOf } from './inv.js';
+import { affixFor, gemsFor } from './affix3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
@@ -426,6 +426,18 @@ function weaponStatuses(W, e, dmg, crit, p) {
     for (const o of W.enemies) { if (o.dead || o === e) continue; const d = len(o.x - e.x, o.z - e.z); if (d < bd) { bd = d; best = o; } }
     if (best) { W.ev.push({ k: 'chain', x: e.x, z: e.z, x2: best.x, z2: best.z }); dealDamage(W, best, sd, 'storm'); if (X.react && !best.dead) applyStatus(W, best, 'shock', sd, X.mark.shock); }
   }
+  const G = W.gear, A = W.cfg.affix;
+  if (A && !e.dead && (G.burnCh > 0 || G.poisonCh > 0 || G.bleedCh > 0 || G.shockCh > 0)) {     // случайные свойства вещи (3.99): шанс в %, урон — доля удара; генератор зовётся только при шансе
+    const dps = Math.max(1, Math.round(dmg * A.dot));
+    if (G.burnCh > 0 && r() < G.burnCh / 100 * rainK(W, 'fire')) applyStatus(W, e, 'burn', dps, A.dur);
+    if (G.poisonCh > 0 && !e.dead && r() < G.poisonCh / 100) applyStatus(W, e, 'poison', dps, A.dur);
+    if (G.bleedCh > 0 && !e.dead && r() < G.bleedCh / 100) applyStatus(W, e, 'bleed', dps, A.dur);
+    if (G.shockCh > 0 && r() < G.shockCh / 100 * rainK(W, 'storm')) {     // молния: в ближнего соседа до 6 м, нет соседа — в саму цель
+      const sd = Math.max(1, Math.round(dmg * A.shockK)); let best = null, bd = 6;
+      for (const o of W.enemies) { if (o.dead || o === e) continue; const d = len(o.x - e.x, o.z - e.z); if (d < bd) { bd = d; best = o; } }
+      if (best) W.ev.push({ k: 'chain', x: e.x, z: e.z, x2: best.x, z2: best.z }); const t = best || e; if (!t.dead) dealDamage(W, t, sd, 'storm');
+    }
+  }
   const mx = W.wp.mix;
   if (mx && !e.dead && (p.fin || p.heavy > 0 || r() < W.cfg.stones.chance[mx.rank - 1])) { mixHit(W, e, dmg, mx); if (W.wp.pm.sun) W.sunN = (W.sunN || 0) + 1; }     // сплав заряжает «Солнце»
 }
@@ -556,7 +568,7 @@ export function sunFlash(W, at) {
 function offDmg(W) {
   const id = W.inv.eq.offhand, it = id && BY_ID[id];
   if (!it || it.slot !== 'weapon' || !canOff(W.hero, it)) return 0;
-  return it.stats.dmg * (1 + (W.inv.up.offhand || 0) * W.cfg.smith.bonus) * ilMul(it, W.inv.il && W.inv.il.offhand) * W.cfg.dual.mul;
+  return it.stats.dmg * (1 + (W.inv.up.offhand || 0) * W.cfg.smith.bonus) * ilMul(it, W.inv.il && W.inv.il.offhand) * qOf(W.inv.af && W.inv.af.offhand) * W.cfg.dual.mul;
 }
 // ярость берсерка: множитель урона, пока действует (иначе ровно 1 — бой без умений не меняется)
 const rageMul = W => (W.abuf.rage > 0 ? W.abuf.rageMul : 1);
@@ -876,7 +888,7 @@ function updateHouses(W, dt) {
     }
     if (c.key && !W.keys[c.key]) { W.keys[c.key] = true; W.ev.push({ k: 'key', key: c.key, x: c.x, z: c.z }); }    // ключ подземелья — на связку
     const rest = [];
-    for (const it of c.items) { const left = it.il ? (roomFor(W.inv, it.id, bagSlots(W)) ? (W.inv.bag.push(entryOf(it.id, 0, null, it.il, it.af || affixFor(W, it.id, it.il))), W.ev.push({ k: 'pickup', id: it.id, n: 1, af: true }), W.known.items[it.id] = 1, 0) : 1) : give(W, it.id, it.n); if (left > 0) rest.push({ id: it.id, n: left, ...(it.il ? { il: it.il } : {}) }); }     // вещь с уровнем — отдельной записью
+    for (const it of c.items) { const left = it.il ? (roomFor(W.inv, it.id, bagSlots(W)) ? (W.inv.bag.push(entryOf(it.id, 0, it.g || gemsFor(W, it.id, socketsOf(BY_ID[it.id], W.cfg)), it.il, it.af || affixFor(W, it.id, it.il))), W.ev.push({ k: 'pickup', id: it.id, n: 1, af: true }), W.known.items[it.id] = 1, 0) : 1) : give(W, it.id, it.n); if (left > 0) rest.push({ id: it.id, n: left, ...(it.il ? { il: it.il } : {}) }); }     // вещь с уровнем — отдельной записью
     c.items = rest; W.known.kinds[c.kind] = 1; questEvent(W, 'open', { kind: c.kind }); W.ev.push({ k: 'open', kind: c.kind, x: c.x, z: c.z });
     if (rest.length) { if (!(c.cd > 0)) { c.cd = 2.5; W.ev.push({ k: 'full', x: c.x, z: c.z }); } }
     else { c.ready = false; c.t = 0; }
@@ -886,7 +898,7 @@ function updateHouses(W, dt) {
     const q = W.drops[i]; q.t += dt;
     const d = len(p.x - q.x, p.z - q.z);
     if (!p.dead && d < W.cfg.gear.pickup * 2.2) { const k = Math.min(1, dt * 8); q.x += (p.x - q.x) * k * .5; q.z += (p.z - q.z) * k * .5; }
-    if (!p.dead && d < W.cfg.gear.pickup * .8 && (q.up || q.g || q.il)) { if (roomFor(W.inv, q.id, bagSlots(W))) { W.inv.bag.push(entryOf(q.id, q.up, q.g, q.il, q.af || (q.up || q.g || q.mine ? null : affixFor(W, q.id, q.il)))); W.known.items[q.id] = 1; W.ev.push({ k: 'pickup', id: q.id, n: 1 }); W.drops.splice(i, 1); continue; } if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }     // вещь с заточкой или камнями — целиком     // свойства — у новой вещи с земли (этап 4 «круче»)
+    if (!p.dead && d < W.cfg.gear.pickup * .8 && (q.up || q.g || q.il)) { if (roomFor(W.inv, q.id, bagSlots(W))) { W.inv.bag.push(entryOf(q.id, q.up, q.g || (q.up || q.af || q.mine ? null : gemsFor(W, q.id, socketsOf(BY_ID[q.id], W.cfg))), q.il, q.af || (q.up || q.g || q.mine ? null : affixFor(W, q.id, q.il)))); W.known.items[q.id] = 1; W.ev.push({ k: 'pickup', id: q.id, n: 1 }); W.drops.splice(i, 1); continue; } if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }     // вещь с заточкой или камнями — целиком     // свойства — у новой вещи с земли (этап 4 «круче»)
     else if (!p.dead && d < W.cfg.gear.pickup * .8) { const left = give(W, q.id, q.n); if (left < q.n) { q.n = left; if (!left) { W.drops.splice(i, 1); continue; } } else if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }
     if (q.cd > 0) q.cd -= dt;
     if (q.t > W.cfg.gear.dropLife) W.drops.splice(i, 1);
@@ -955,7 +967,7 @@ export function switchHero(W, id) {
   if (inv.eq.offhand && !canOff(id, BY_ID[inv.eq.offhand])) back('offhand');
   for (const sl of ['head', 'body', 'cloak', 'boots']) if (inv.eq[sl] && !canWield(id, BY_ID[inv.eq[sl]])) back(sl);     // тяжёлая броня — в сумку (Ирге только лёгкая)
   if (!inv.eq.weapon) {
-    let bi = -1, bd = -1; inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; if (it.slot === 'weapon' && canWield(id, it) && it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus) * ilMul(it, s.il) > bd) { bd = it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus) * ilMul(it, s.il); bi = i; } });
+    let bi = -1, bd = -1; inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; if (it.slot !== 'weapon' || !canWield(id, it)) return; const v = it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus) * ilMul(it, s.il) * qOf(s.af); if (v > bd) { bd = v; bi = i; } });
     if (bi >= 0) equipAt(inv, bi, id); else if (H.start) inv.eq.weapon = H.start;
   }
   refreshGear(W); W.player.hp = Math.min(W.player.hp, W.player.maxhp);

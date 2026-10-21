@@ -816,9 +816,12 @@ const BASE = {
     mod: { thick: 1.4, swift: 1.25, frail: 1.3, packs: 1.5, greedy: 1.6, dark: .55 },
     types: [['hound', 1], ['ghoul', 1], ['brute', 1], ['archer', 2], ['shield', 3], ['blackdog', 4], ['kad_soldier', 5], ['golem', 7], ['eclipse_fiend', 9], ['troll', 12], ['shrieker', 14], ['war_ghost', 16], ['demon_guard', 20]] },     // достижения (этап 6 «круче»): награды пепел, титулы, цвета плаща
   quests: { wake: 24, seek: 160, hunt: { hp: 3, dmg: 1.25, scale: 1.3 }, track: { step: [16, 24], r: 4 }, defend: { r: 9, leave: 35, gap: 5, ring: [12, 16] } },     // виды заданий (этап 5 «круче»): охота, «выследи», оборона; seek — «убей»: метка на ближайшем враге не дальше, м
-  affix: { on: true, count: { 2: 1, 3: 2, 4: 3, 5: 3 }, q: [.6, 1],
-    base: { dmg: [1, .12], armor: [1, .1], hp: [4, .6], crit: [2, .06], leech: [1, .03], spd: [2, .04], luck: [3, .15], regen: [.5, .01], stealth: [4, .1] },
-    max: { dmg: 12, armor: 10, hp: 45, crit: 8, leech: 4, spd: 6, luck: 15, regen: 1.5, stealth: 12 } },
+  // 3.99: quality — разброс базовых чисел любой брони и оружия; count с «необычных» (1); …Ch — шанс эффекта стихии при ударе, %;
+  // gems — камень внутри при находке: фиолетовая/оранжевая — с шансом purple, золотая — всегда (ранг goldRank); rank2 — доля 2-го ранга
+  affix: { on: true, count: { 1: 1, 2: 1, 3: 2, 4: 3, 5: 3 }, q: [.6, 1], quality: [.85, 1.15], dot: .15, dur: 4, shockK: .3,
+    gems: { purple: .2, goldRank: 2, rank2: .25, els: ['fire', 'ice', 'storm', 'venom', 'blood', 'earth', 'water'] },
+    base: { dmg: [1, .12], armor: [1, .1], hp: [4, .6], crit: [2, .06], leech: [1, .03], spd: [2, .04], luck: [3, .15], regen: [.5, .01], stealth: [4, .1], burnCh: [3, .1], poisonCh: [3, .1], shockCh: [3, .1], bleedCh: [3, .1] },
+    max: { dmg: 12, armor: 10, hp: 45, crit: 8, leech: 4, spd: 6, luck: 15, regen: 1.5, stealth: 12, burnCh: 12, poisonCh: 12, shockCh: 12, bleedCh: 12 } },
   elite: {
     chance: .04, depthK: .03, dangerK: .03, nightK: .03, hp: 1.9, dmg: 1.2, xp: 3, scale: 1.2, luck: 10, lootRolls: 2,
     affixes: {

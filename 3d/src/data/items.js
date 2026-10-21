@@ -17,7 +17,7 @@ export const RARITY = [
 
 export const SLOTS = ['weapon', 'offhand', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet'];
 export const SLOT_NAME = { weapon: 'Оружие', offhand: 'Вторая рука', head: 'Голова', body: 'Тело', cloak: 'Плащ', boots: 'Ноги', ring: 'Кольцо', amulet: 'Амулет' };
-export const STAT_NAME = { dmg: 'урон', armor: 'броня', block: 'блок %', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
+export const STAT_NAME = { burnCh: 'шанс поджога %', poisonCh: 'шанс яда %', shockCh: 'шанс молнии %', bleedCh: 'шанс крови %', dmg: 'урон', armor: 'броня', block: 'блок %', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
 
 import { NAMED_ARMOR, RAID_ARMOR } from './sets3d.js';
 import { GOLD, GOLD_K, goldText } from './gold3d.js';

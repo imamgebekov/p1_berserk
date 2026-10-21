@@ -1,9 +1,9 @@
 // Тест этапа 4 «круче»: случайные свойства вещей, «Надеть лучшее», «Продать хуже надетого», замок, сохранение,
 // событие «Пепельный вор». Свойства — только у редких и выше, в пределах cfg.affix.max, бой без них не меняется.
 import { CFG3 } from '../3d/src/config3d.js';
-import { createWorld, step, mulberry32, killEnemy, equipBest, dropItem } from '../3d/src/sim.js';
-import { rollAffixes, affixFor, affixLines } from '../3d/src/affix3d.js';
-import { createInv, entryOf, gearStats, serialize, deserialize, scoreUp } from '../3d/src/inv.js';
+import { createWorld, step, mulberry32, killEnemy, equipBest, dropItem, spawnEnemy } from '../3d/src/sim.js';
+import { rollAffixes, affixFor, affixLines, affixCount, rollGems } from '../3d/src/affix3d.js';
+import { createInv, entryOf, gearStats, serialize, deserialize, scoreUp, socketsOf } from '../3d/src/inv.js';
 import { sellWorse } from '../3d/src/economy3d.js';
 import { eventLine } from '../3d/src/events3d.js';
 import { CATALOG, BY_ID } from '../3d/src/data/items.js';
@@ -16,12 +16,14 @@ const A = CFG3.affix;
 // ---------- 1. свойства: число по редкости, пределы, повтор по зерну ----------
 {
   const gear = CATALOG.filter(i => i.slot && i.pool !== 'unique' && i.pool !== 'setunique');
-  let bad = 0, over = 0, n = 0;
+  let bad = 0, over = 0, noq = 0, n = 0;
   for (const it of gear.slice(0, 400)) for (const il of [1, 30, 60]) {
-    const af = rollAffixes(CFG3, it.id, il, 12345 + n++), want = A.count[it.rar] || 0;
-    if ((af ? Object.keys(af).length : 0) !== want) bad++;
-    for (const [k, v] of Object.entries(af || {})) if (!(v > 0 && v <= A.max[k])) over++;
+    const af = rollAffixes(CFG3, it.id, il, 12345 + n++), want = A.count[it.rar] || 0, jewel = it.slot === 'ring' || it.slot === 'amulet';
+    if (affixCount(af) !== want) bad++;
+    if (jewel ? af && 'q' in af : !(af && af.q >= A.quality[0] && af.q <= A.quality[1])) noq++;     // качество — у оружия и брони, у украшений его нет
+    for (const [k, v] of Object.entries(af || {})) if (k !== 'q' && !(v > 0 && v <= A.max[k])) over++;
   }
+  ok(noq === 0, `качество вне разброса или у украшения: ${noq}`);
   ok(bad === 0, `число свойств не по редкости: ${bad}`);
   ok(over === 0, `свойства вне пределов: ${over}`);
   const rare = gear.find(i => i.rar === 3 && i.slot === 'weapon');
@@ -35,6 +37,33 @@ const A = CFG3.affix;
   ok(gearStats(inv).dmg === g0 + 5, 'свойство надетой вещи не входит в силу');
   ok(scoreUp(rare, 0, .1, 20, { dmg: 5 }) > scoreUp(rare, 0, .1, 20, null), 'свойство не входит в оценку');
 }
+// ---------- 1b. качество, шансы стихий, камни внутри (3.99) ----------
+{
+  const w = CATALOG.find(i => i.slot === 'weapon' && i.rar === 2), inv = createInv(); inv.eq.weapon = w.id;
+  const g0 = gearStats(inv).dmg; inv.af.weapon = { q: 1.15 }; const gHi = gearStats(inv).dmg; inv.af.weapon = { q: .85 }; const gLo = gearStats(inv).dmg;
+  ok(gHi > g0 && gLo < g0, `качество не меняет урон: ${gLo} / ${g0} / ${gHi}`);
+  ok(scoreUp(w, 0, .1, 20, { q: 1.15 }) > scoreUp(w, 0, .1, 20, { q: .85 }), 'качество не входит в оценку');
+  inv.af.weapon = { burnCh: 7 }; ok(gearStats(inv).burnCh === 7, 'шанс поджога не в силе вещи');
+  const qs = CATALOG.filter(i => i.slot === 'weapon' && i.rar === 2).slice(0, 20).map((it, i) => rollAffixes(CFG3, it.id, 20, 900 + i).q);
+  ok(new Set(qs).size > 10, 'качество почти не меняется: ' + qs.join(','));
+  // камни внутри: золотая — всегда один, фиолетовая и клеймёная — изредка, ниже — никогда
+  const gems = rar => { const its = CATALOG.filter(i => i.rar === rar && (i.slot === 'weapon' || i.slot === 'body') && socketsOf(i, CFG3) > 0); let c = 0, m = 0; for (let k = 0; k < 400; k++) { const it = its[k % its.length], g = rollGems(CFG3, it.id, 77 + k, socketsOf(it, CFG3)); if (g) { c++; if (g.filter(Boolean).length !== 1 || g.length !== socketsOf(it, CFG3) || !BY_ID[g[0]]) m++; } } return { k: c / 400, m, n: its.length }; };
+  const g5 = gems(5), g3 = gems(3), g2 = gems(2);
+  ok(g5.n && g5.k === 1 && !g5.m, 'золотая без камня или камней не один: ' + JSON.stringify(g5));
+  ok(g3.k > A.gems.purple * .6 && g3.k < A.gems.purple * 1.4 && !g3.m, 'фиолетовые с камнем не изредка: ' + JSON.stringify(g3));
+  ok(g2.k === 0, 'синяя с камнем внутри');
+}
+// ---------- 1c. шанс стихии срабатывает в бою: урон по манекену растёт, без шанса — бой как был ----------
+{
+  const run = ch => { const c = clone(); c.enemies.count = 0; c.wanderer.on = false; c.events.on = false; c.ambient.on = false; c.bosses.list = []; c.map.places = [];
+    const W = createWorld(c, mulberry32(4)); W.inv.af.weapon = ch ? { burnCh: ch, poisonCh: ch, bleedCh: ch, shockCh: ch } : null; W.player.inv = 1e9;
+    const e = spawnEnemy(W, 'brute', W.player.x, W.player.z - 2.2); e.hp = e.maxhp = 1e5; e.cd = 1e9; W.player.face = Math.PI;
+    for (let i = 0; i < 600; i++) { e.x = W.player.x; e.z = W.player.z - 2.2; e.cd = 1e9; W.player.hp = W.player.maxhp; step(W, 1 / 60, { attackPress: i % 6 === 0, aimPt: { x: e.x, z: e.z } }); W.ev.length = 0; }
+    return { W, dmg: e.maxhp - e.hp }; };
+  const a = run(0), b = run(30);
+  ok(b.W.gear.burnCh === 30 && a.W.gear.burnCh === 0, 'шанс стихии не попал в силу героя');
+  ok(a.dmg > 0 && b.dmg > a.dmg * 1.05, `шанс стихии не добавил урона: ${Math.round(a.dmg)} → ${Math.round(b.dmg)}`);
+}
 // ---------- 2. сохранение: свойства и замок переживают круг, мусор отбрасывается ----------
 {
   const rare = CATALOG.find(i => i.rar === 3 && i.slot === 'body');
@@ -45,6 +74,8 @@ const A = CFG3.affix;
   const junk = deserialize({ bag: [{ id: rare.id, n: 1, il: 25, af: { armor: 999, nope: 3, hp: 'x' } }] }, 30);
   const af = junk.bag[0].af || {};
   ok(!('nope' in af) && !('hp' in af) && (af.armor || 0) <= A.max.armor, 'мусор в свойствах не отброшен: ' + JSON.stringify(af));
+  const qd = deserialize({ bag: [{ id: rare.id, n: 1, il: 25, af: { q: 1.12, armor: 3 } }, { id: rare.id, n: 1, il: 25, af: { q: 9 } }] }, 30);
+  ok(qd.bag[0].af && qd.bag[0].af.q === 1.12 && qd.bag[1].af && qd.bag[1].af.q === A.quality[1], 'качество не пережило сохранение: ' + JSON.stringify(qd.bag.map(b => b.af)));
   const old = deserialize({ bag: [{ id: rare.id, n: 1, il: 25 }] }, 30); ok(!old.bag[0].af, 'старая вещь получила свойства');
 }
 // ---------- 3. мир: «Надеть лучшее», «Продать хуже надетого», замок, без переброса при броске ----------
@@ -80,7 +111,7 @@ const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; c.wand
   // новая вещь с земли — со свойствами
   W.inv.bag.length = 0; W.drops.push({ id: rare.id, n: 1, x: W.player.x, z: W.player.z, t: 0, cd: 0, il: 20 });
   for (let i = 0; i < 90 && !W.inv.bag.length; i++) { step(W, 1 / 60, {}); W.ev.length = 0; }
-  ok(W.inv.bag.length === 1 && W.inv.bag[0].af && Object.keys(W.inv.bag[0].af).length === A.count[3], 'новая редкая вещь без свойства');
+  ok(W.inv.bag.length === 1 && W.inv.bag[0].af && affixCount(W.inv.bag[0].af) === A.count[3], 'новая редкая вещь без свойства');
   const a1 = affixFor(W, rare.id, 20), a2 = affixFor(W, rare.id, 20); ok(a1 && a2, 'affixFor без свойств');
 }
 // ---------- 4. «Пепельный вор»: появляется, убегает, пойман — награда, упущен — исчезает ----------

@@ -3,6 +3,7 @@
 // Состояние W.ach { got: {id: время}, c: {счётчики}, title, cape } сохраняется. Чистая логика (Node-тесты).
 import { BY_ID } from './data/items.js';
 import { tierOf, factions } from './life3d.js';
+import { affixCount } from './affix3d.js';
 
 const C = k => W => (W.ach.c[k] || 0);
 const bagAndWorn = W => [...W.inv.bag.map(s => ({ id: s.id, up: s.up || 0, af: s.af })), ...Object.keys(W.inv.eq).filter(k => W.inv.eq[k]).map(k => ({ id: W.inv.eq[k], up: W.inv.up[k] || 0, af: W.inv.af && W.inv.af[k] }))];
@@ -44,7 +45,7 @@ const A = [
   ['gather100', 'Собиратель', 'Соберите 100 трав, руд и шкур', 100, C('gather'), { ash: 300 }],
   ['up5', 'Пять зарубок', 'Заточите вещь до +5', 5, W => maxOf(W, s => s.up), { ash: 500 }],
   ['gold1', 'Золото', 'Добудьте золотую вещь', 1, W => maxOf(W, s => ((BY_ID[s.id] || {}).rar === 5 ? 1 : 0)), { ash: 500 }],
-  ['affix3', 'Три свойства', 'Добудьте вещь с тремя свойствами', 3, W => maxOf(W, s => Object.keys(s.af || {}).length), { ash: 300 }],
+  ['affix3', 'Три свойства', 'Добудьте вещь с тремя свойствами', 3, W => maxOf(W, s => affixCount(s.af)), { ash: 300 }],
   ['rep4', 'Свой среди своих', 'Получите высшую ступень репутации', 1, W => (W.life && factions(W).some(f => tierOf(W, f.id) >= 4) ? 1 : 0), { title: 'Свой' }],
   ['heroes4', 'Четыре судьбы', 'Сыграйте всеми четырьмя героями', 4, W => new Set([W.hero, ...Object.keys(W.heroes || {})]).size, { cape: ['Синий плащ', '#24426a'] }],
   ['squad4', 'Отряд', 'Соберите отряд из 4 бойцов', 4, W => W.allies.filter(a => !a.dead && !a.guest && !a.story).length, { ash: 300 }],

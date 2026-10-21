@@ -11,6 +11,9 @@ export const createInv = () => ({ bag: [], eq: Object.fromEntries(SLOTS.map(s =>
 export const nomIl = it => CFG3.level.il.nom[it.rar] ?? 1;
 export const ilOf = (it, il) => (it && it.slot ? il || nomIl(it) : 0);
 export const ilMul = (it, il) => { if (!il || !it || !it.slot) return 1; const g = CFG3.level.il.g; return (1 + g * il) / (1 + g * nomIl(it)); };
+// качество вещи (3.99): базовые урон, броня, здоровье, крит и вампиризм × q из случайных свойств экземпляра; крит и вампиризм — с десятыми
+export const qOf = af => (af && Number.isFinite(af.q) && af.q > 0 ? af.q : 1);
+const UPS = ['dmg', 'armor', 'hp', 'crit', 'leech'], rnd = (k, v) => (k === 'crit' || k === 'leech' ? Math.round(v * 10) / 10 : Math.round(v));
 const IL_KEYS = ['dmg', 'armor', 'hp'];     // от уровня вещи растут урон, броня и здоровье
 // камни в гнёздах (2026-10-18): у записи сумки — поле g (массив id камней или null по гнёздам), у надетого — inv.gem[слот].
 // Вещь с заточкой или камнями — отдельная запись: не складывается и не идёт в материалы. Камни едут с вещью везде.
@@ -22,6 +25,7 @@ const entryOf = (id, up, g, il, af) => { const e = { id, n: 1 }; if (up) e.up = 
 export function cleanAf(af, cfg = CFG3) {
   const A = cfg.affix; if (!A || !af || typeof af !== 'object') return null; const o = {};
   for (const [k, v] of Object.entries(af)) if (A.max[k] && Number.isFinite(v) && v > 0) o[k] = Math.min(A.max[k], Math.round(v * 10) / 10);
+  if (A.quality && Number.isFinite(af.q)) o.q = Math.min(A.quality[1], Math.max(A.quality[0], Math.round(af.q * 100) / 100));     // качество — в своём разбросе
   return Object.keys(o).length ? o : null;
 }
 export const socketsOf = (it, cfg) => (!it || !cfg || !cfg.stones ? 0 : it.slot === 'weapon' ? cfg.stones.sockets[it.rar] || 0 : cfg.stones.armor && cfg.stones.armor.slots.includes(it.slot) ? cfg.stones.armor.sockets[it.rar] || 0 : 0);     // оружие и броня (2026-10-18)
@@ -116,9 +120,9 @@ export function bonusText(b) {
 
 // суммарные характеристики экипировки и временных баффов
 export function gearStats(inv, buffs = [], bonus = .1, extra = null) {
-  const g = { block: 0, dmg: 0, armor: 0, hp: 0, spd: 0, reach: 0, crit: 0, leech: 0, luck: 0, swing: 1, arc: 0, rollcd: 0, regen: 0, stealth: 0, trade: 0, bag: 0 };
+  const g = { block: 0, dmg: 0, armor: 0, hp: 0, spd: 0, reach: 0, crit: 0, leech: 0, luck: 0, swing: 1, arc: 0, rollcd: 0, regen: 0, stealth: 0, trade: 0, bag: 0, burnCh: 0, poisonCh: 0, shockCh: 0, bleedCh: 0 };     // …Ch — шанс эффекта стихии при ударе, % (3.99)
   // второй клинок во второй руке бьёт сам (sim.js offDmg), в сумму характеристик не идёт
-  for (const slot of SLOTS) { const id = inv.eq[slot], it = id && BY_ID[id]; if (!it || (slot === 'offhand' && it.slot === 'weapon')) continue; const m = 1 + (inv.up[slot] || 0) * bonus, mi = ilMul(it, inv.il && inv.il[slot]); for (const [k, v] of Object.entries(it.stats)) { if (k === 'swing') g.swing *= v; else if (v > 0 && (k === 'dmg' || k === 'armor' || k === 'hp' || k === 'crit' || k === 'leech')) g[k] += Math.round(v * m * (IL_KEYS.includes(k) ? mi : 1)); else g[k] += v; } }
+  for (const slot of SLOTS) { const id = inv.eq[slot], it = id && BY_ID[id]; if (!it || (slot === 'offhand' && it.slot === 'weapon')) continue; const m = 1 + (inv.up[slot] || 0) * bonus, mi = ilMul(it, inv.il && inv.il[slot]), q = qOf(inv.af && inv.af[slot]); for (const [k, v] of Object.entries(it.stats)) { if (k === 'swing') g.swing *= v; else if (v > 0 && UPS.includes(k)) g[k] += rnd(k, v * m * (IL_KEYS.includes(k) ? mi : 1) * q); else g[k] += v; } }
   for (const s of Object.values(inv.af || {})) for (const [k, v] of Object.entries(s || {})) if (k in g) g[k] += v;     // случайные свойства надетого (этап 4 «круче»)
   for (const b of buffs) g[b.stat] += b.amt;
   { const sb = setBonus(inv).stats; for (const k of Object.keys(sb)) g[k] += sb[k]; }
@@ -154,16 +158,15 @@ export function deserialize(data, maxSlots, hero, cfg) {
 
 // сравнение по характеристикам: строки {k, name, a — у надетого, b — у этой вещи, d — +1 лучше / −1 хуже / 0}; у скорости удара меньше — лучше.
 // upIt, upWorn — уровни заточки (как в gearStats: урон, броня, здоровье, крит, вампиризм × (1 + уровень × bonus))
-const UPS = ['dmg', 'armor', 'hp', 'crit', 'leech'];
-const upped = (st, up, bonus, mi = 1) => { const o = { ...st }; if (up || mi !== 1) for (const k of UPS) if (o[k] > 0) o[k] = Math.round(o[k] * (1 + up * bonus) * (IL_KEYS.includes(k) ? mi : 1)); return o; };
+const upped = (st, up, bonus, mi = 1, q = 1) => { const o = { ...st }; if (up || mi !== 1 || q !== 1) for (const k of UPS) if (o[k] > 0) o[k] = rnd(k, o[k] * (1 + up * bonus) * (IL_KEYS.includes(k) ? mi : 1) * q); return o; };
 const saneIl = v => (Number.isFinite(v) && v >= 1 ? Math.min(99, Math.floor(v)) : 0);
-const plusAf = (st, af) => { if (!af) return st; const o = { ...st }; for (const [k, v] of Object.entries(af)) o[k] = (o[k] || 0) + v; return o; };     // свойства вещи — поверх её статов
+const plusAf = (st, af) => { if (!af) return st; const o = { ...st }; for (const [k, v] of Object.entries(af)) if (k !== 'q') o[k] = (o[k] || 0) + v; return o; };     // свойства вещи — поверх её статов
 export function statDiff(it, worn, upIt = 0, upWorn = 0, bonus = .1, ilIt = 0, ilWorn = 0, afIt = null, afWorn = null) {
-  const a = plusAf(upped((worn && worn.stats) || {}, upWorn, bonus, ilMul(worn, ilWorn)), afWorn), b = plusAf(upped((it && it.stats) || {}, upIt, bonus, ilMul(it, ilIt)), afIt), keys = [...new Set([...Object.keys(b), ...Object.keys(a)])];
+  const a = plusAf(upped((worn && worn.stats) || {}, upWorn, bonus, ilMul(worn, ilWorn), qOf(afWorn)), afWorn), b = plusAf(upped((it && it.stats) || {}, upIt, bonus, ilMul(it, ilIt), qOf(afIt)), afIt), keys = [...new Set([...Object.keys(b), ...Object.keys(a)])];
   return keys.map(k => {
     const x = a[k] ?? (k === 'swing' ? 1 : 0), y = b[k] ?? (k === 'swing' ? 1 : 0), better = k === 'swing' ? y < x : y > x, worse = k === 'swing' ? y > x : y < x;
     return { k, name: STAT_NAME[k] || k, a: x, b: y, d: worn ? (better ? 1 : worse ? -1 : 0) : 0 };
   });
 }
 // оценка вещи с учётом заточки (для строки «в целом лучше на N»)
-export const scoreUp = (it, up = 0, bonus = .1, il = 0, af = null) => score({ stats: plusAf(upped(it.stats || {}, up, bonus, ilMul(it, il)), af) });
+export const scoreUp = (it, up = 0, bonus = .1, il = 0, af = null) => score({ stats: plusAf(upped(it.stats || {}, up, bonus, ilMul(it, il), qOf(af)), af) });
