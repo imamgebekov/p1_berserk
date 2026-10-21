@@ -44,6 +44,14 @@ export function unpackSeenChunks(o, a, n) {
   }
   return true;
 }
+// мир ×2 (4.04): туман из сохранения прежнего мира (радиус world.inner) — в новую сетку со сдвигом к центру; иначе — как есть
+export function growSeen(o, cfg) {
+  const n = seenSize(cfg), Rin = cfg.world.inner; if (!o || !Rin || o.n === n) return o;
+  const n0 = seenSize({ ...cfg, world: { ...cfg.world, radius: Rin } }), off = Math.round((cfg.world.radius - Rin) / cfg.map.cell); if (o.n !== n0) return o;
+  const a0 = new Uint8Array(n0 * n0); if (!unpackSeenChunks(o, a0, n0)) return o;
+  const a = new Uint8Array(n * n); for (let z = 0; z < n0; z++) for (let x = 0; x < n0; x++) if (a0[z * n0 + x]) { const X = x + off, Z = z + off; if (X < n && Z < n) a[Z * n + X] = 1; }
+  return packSeenChunks(a, n);
+}
 // проверка при загрузке: только ключи «x,z» в пределах сетки и строки нужной длины
 function sanitizeSeenChunks(o, n) {
   if (!o || typeof o !== 'object' || o.n !== n || !o.c || typeof o.c !== 'object') return null;
@@ -140,7 +148,7 @@ export function loadSave(slots, storage = globalThis.localStorage) {
     const heroes = {};     // отложенные герои (2026-10-18): свой уровень и умения; старое сохранение — пусто (уровень у текущего)
     if (d.heroes && typeof d.heroes === 'object') for (const h of Object.keys(HEROES)) if (h !== hero && HEROES[h].open && d.heroes[h] && typeof d.heroes[h] === 'object') { const q = progOf(d.heroes[h], h, fresh); heroes[h] = { lv: q.lv, xp: q.xp, sp: q.sp, skills: q.skills, ap: q.ap, ab: q.ab, bar: q.bar }; }
     const sameWorld = d.gen === CFG3.world.gen;        // другой мир (номер world.gen) — туман, позиция и таймеры боссов не переносятся
-    return { hero, heroes, life: sanitizeLife(d.life, CFG3), story: sanitizeStory(d.story), ach: sanitizeAch(d.ach), inv: deserialize(d.inv, slots, hero, CFG3), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(d.seen, seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), qf: typeof d.qf === 'string' && d.qf.length < 40 ? d.qf : null, t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp, kit: cleanKit(a && a.kit) })) : [], fires: sameWorld && Array.isArray(d.fires) ? d.fires.filter(x => typeof x === 'string').slice(0, 200) : [], shrines: sameWorld && d.shrines && typeof d.shrines === 'object' ? Object.fromEntries(Object.entries(d.shrines).filter(([k, v]) => /^p\d+$/.test(k) && Number.isFinite(v)).slice(0, 300)) : {} };
+    return { hero, heroes, life: sanitizeLife(d.life, CFG3), story: sanitizeStory(d.story), ach: sanitizeAch(d.ach), inv: deserialize(d.inv, slots, hero, CFG3), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(growSeen(d.seen, CFG3), seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: d.tomb && Number.isFinite(d.tomb.x) && Number.isFinite(d.tomb.z) && Number.isFinite(d.tomb.ash) && d.tomb.ash > 0 ? { x: d.tomb.x, z: d.tomb.z, ash: Math.floor(d.tomb.ash), lvl: levelId(d.tomb.lvl) } : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), qf: typeof d.qf === 'string' && d.qf.length < 40 ? d.qf : null, t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: Array.isArray(d.squad) ? d.squad.slice(0, 8).map(a => ({ type: a && a.type, hp: a && a.hp, kit: cleanKit(a && a.kit) })) : [], fires: sameWorld && Array.isArray(d.fires) ? d.fires.filter(x => typeof x === 'string').slice(0, 200) : [], shrines: sameWorld && d.shrines && typeof d.shrines === 'object' ? Object.fromEntries(Object.entries(d.shrines).filter(([k, v]) => /^p\d+$/.test(k) && Number.isFinite(v)).slice(0, 300)) : {} };
   } catch (e) { return null; }
 }
 // загрузка с откатом на резервные копии: { save, from: 'main' | 'bak1' | 'bak2' } или null; из копии — она же становится основной

@@ -56,7 +56,21 @@ const NAMES = {
   warcamp: [['Острог', 'Лагерь', 'Укрепление'], ['Ржавых', 'Пепельных', 'Кровавых', 'Чёрного клыка', 'Безглазых', 'Волчьей стаи', 'Серых плащей']],
   city: [['Павший', 'Мёртвый', 'Пепельный'], ['Вельград', 'Красноград', 'Остромир', 'Белоград', 'Звенигор']]
 };
-const nameOf = (r, kind, used) => { const [a, b] = NAMES[kind]; for (let k = 0; k < 40; k++) { const n = a[(r() * a.length) | 0] + ' ' + (kind === 'village' ? b[(r() * b.length) | 0] : b[(r() * b.length) | 0]); if (!used.has(n)) { used.add(n); return n; } } return a[0] + ' ' + used.size; };
+// слова внешнего кольца (мир ×2, 4.04): мест в разы больше — к спискам добавляются свои слова; внутренний мир их не видит (те же списки — те же имена)
+const NAMES_OUT = {
+  village: [['Глухой', 'Пепельный', 'Чёрный', 'Забытый', 'Последний', 'Студёный', 'Ржавый', 'Крайний', 'Немой', 'Волчий', 'Вороний', 'Совиный'], ['Острог', 'Выселок', 'Погорелец', 'Займище', 'Кордон', 'Скит', 'Перевоз', 'Ночлег']],
+  camp: [['Табор', 'Притон', 'Схрон'], ['Пепельных', 'Безглазых', 'Клеймёных', 'Висельников', 'Кровавых', 'Ночных', 'Бешеных', 'Гнилых']],
+  ruins: [['Пепелище', 'Обломки', 'Стены'], ['Башни', 'Скита', 'Кордона', 'Маяка', 'Тюрьмы', 'Моста', 'Капища', 'Казарм']],
+  graveyard: [['Жальник', 'Могилы', 'Склепы'], ['Чумной', 'Пепельный', 'Висельный', 'Крайний', 'Заросший', 'Проклятый', 'Солдатский', 'Чёрный']],
+  farm: [['Пепелище хутора', 'Мёртвая деревня', 'Сгоревшая мельница'], ['у обрыва', 'в низине', 'у кургана', 'за болотом', 'у старой дороги', 'под горой', 'у пустоши', 'на краю']],
+  bandits: [['Берлога', 'Яма', 'Нора'], ['мародёров', 'дезертиров', 'людоедов', 'Безносого', 'Косого', 'Седого', 'Висельника', 'Пепельной шайки']],
+  barrow: [['Могила', 'Насыпь'], ['Короля', 'Палача', 'Девяти', 'Клятвопреступника', 'Великана', 'Пепельный', 'Забытый', 'Двух братьев']],
+  shrine: [['Жертвенник', 'Идол', 'Камень'], ['Бури', 'Пепла', 'Крови', 'Ворона', 'Затмения', 'Солнца', 'Волка', 'Безмолвия', 'Снега']],
+  warcamp: [['Застава', 'Твердыня', 'Крепь'], ['Висельников', 'Клеймёных', 'Пепельной Длани', 'Чумных', 'Ночной стражи', 'Железных волков', 'Безликих']],
+  city: [['Сожжённый', 'Проклятый', 'Забытый'], ['Тарград', 'Ольмир', 'Сорочь', 'Велесград', 'Ярь']]
+};
+let EXTRA = null;     // включается на внешний проход
+const nameOf = (r, kind, used) => { const [a0, b0] = NAMES[kind], X = EXTRA && EXTRA[kind], a = X ? [...a0, ...X[0]] : a0, b = X ? [...b0, ...X[1]] : b0; for (let k = 0; k < 40; k++) { const n = a[(r() * a.length) | 0] + ' ' + (kind === 'village' ? b[(r() * b.length) | 0] : b[(r() * b.length) | 0]); if (!used.has(n)) { used.add(n); return n; } } if (!X) return a[0] + ' ' + used.size; for (let k = 2; k < 99; k++) { const n = a[0] + ' ' + b[(k * 7) % b.length] + ' ' + ['', '', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'][Math.min(9, 1 + ((k / b.length) | 0))]; if (!used.has(n)) { used.add(n); return n.trim(); } } return a[0] + ' ' + used.size; };
 
 // продолжение реки от конца ядра к краю мира: шаг step м, поворот не больше max от направления «наружу»
 function extendRiver(r, from, prev, R, step) {
@@ -67,6 +81,74 @@ function extendRiver(r, from, prev, R, step) {
     p = { x: p.x + Math.sin(ang) * step, z: p.z + Math.cos(ang) * step }; out.push(p);
   }
   return out;
+}
+// мир ×2 (4.04, решение владельца: 2400 × 2400 м): внутренний мир — прежний генератор на радиусе world.inner (всё до него
+// не сдвигается: места, дома, узлы, подземелья, сюжет); кольцо до world.radius — второй проход генератора на полном радиусе
+// со своим зерном (outer.seed) и в outer.k раз большим числом мест; из него берётся только то, что дальше inner + outer.gap.
+// Посёлки кольца без дороги получают дорогу к ближайшему посёлку ближе к центру; река продлевается к новому краю
+export function expandBig(base) {
+  const Rin = base.world.inner, Rout = base.world.radius, O = base.worldgen && base.worldgen.outer;
+  if (!Rin || Rin >= Rout || !O || !base.worldgen.on) return expandWorld(base);
+  const b1 = JSON.parse(JSON.stringify(base)); b1.world.radius = Rin;
+  const cfg = expandWorld(b1), G = cfg.worldgen, T = cfg.terrain, RV = T && T.on && T.river;
+  cfg.world.radius = Rout; cfg.world.inner = Rin;
+  if (RV && RV.head && RV.head.length > 1 && RV.tail && RV.tail.length > 1) {
+    const rr = mul(base.world.seed * 7717 + 3), h = RV.head, t = RV.tail, n = t.length;
+    RV.head = [...extendRiver(rr, h[0], h[1], Rout, G.riverStep).reverse(), ...h]; RV.tail = [...t, ...extendRiver(rr, t[n - 1], t[n - 2], Rout, G.riverStep)];
+  }
+  // второй проход: тот же генератор на полном радиусе, места гуще в k раз; городов с именными боссами нет (боссы колец — отдельно)
+  const b2 = JSON.parse(JSON.stringify(base)), G2 = b2.worldgen, k = O.k;
+  b2.world.seed = base.world.seed + O.seed;
+  Object.assign(G2, { idPrefix: 'o', usedNames: cfg.map.places.map(p => p.name), riverFixed: !!RV, villages: Math.round(G2.villages * k), dangers: Math.round(G2.dangers * k), landmarks: Math.round(G2.landmarks * k), castles: [], hubT: [.12, .85] });     // стану внешней зоны — окно поиска шире (кольцо плотнее)
+  G2.pois.n = Math.round(G2.pois.n * k); if (G2.plateaus) G2.plateaus.n = Math.round(G2.plateaus.n * k); if (G2.forts) G2.forts.n = Math.round(G2.forts.n * k); if (G2.cities) G2.cities.n = 0;
+  if (b2.water) { b2.water.lakes.n = Math.round(b2.water.lakes.n * k); b2.water.streams.n = Math.round(b2.water.streams.n * k); }
+  if (RV) { b2.terrain.river.head = RV.head; b2.terrain.river.tail = RV.tail; }
+  const V = expandWorld(b2), lim = Rin + O.gap, far = (x, z, r = 0) => Math.hypot(x, z) - r > lim;
+  // что взять из второго прохода
+  const places = V.map.places.filter(p => p.gen && far(p.x, p.z, p.r || 0)), ids = new Set(places.map(p => p.id));
+  { const seen = new Set(cfg.map.places.map(p => p.name)); for (const p of places) { let n = p.name, k = 2; while (seen.has(n)) n = `${p.name} ${['II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][Math.min(8, k++ - 2)]}`; p.name = n; seen.add(n); } }     // имена кольца не повторяют прежние
+  cfg.map.places.push(...places);
+  const nb = base.map.buildings.length;
+  { const all = cfg.map.buildings;     // дома кольца: без наложений, зазор 2 м (дальше рост домов в map.js сам обходит соседей)
+    const hit = (a, b) => Math.abs(a.x - b.x) < (a.w + b.w) / 2 + 2.5 && Math.abs(a.z - b.z) < (a.d + b.d) / 2 + 2.5;
+    const cand = V.map.buildings.slice(nb).filter(b => (!b.vil || ids.has(b.vil)) && far(b.x, b.z, Math.max(b.w, b.d))).sort((a, b) => (b.npc ? 1 : 0) - (a.npc ? 1 : 0));
+    for (const b of cand) if (!all.some(q => hit(q, b))) all.push(b); }
+  cfg.map.zones.push(...V.map.zones.filter(z => z.gen && far(z.x, z.z, z.r || Math.max(z.w || 0, z.d || 0) / 2)));
+  for (const key of ['landmarks', 'pois', 'plateaus']) if (V.map[key]) (cfg.map[key] ||= []).push(...V.map[key].filter(q => far(q.x, q.z, q.r || 0)));
+  if (V.map.forts) (cfg.map.forts ||= []).push(...V.map.forts.filter(q => ids.has(q.id)));
+  const links = V.map.links.filter(([a, b]) => far(a.x, a.z) && far(b.x, b.z));
+  // дороги: посёлок кольца без дороги к центру — к ближайшему посёлку ближе к центру (внутреннему или уже связанному)
+  const hamlets = cfg.map.places.filter(p => p.type === 'hamlet'), outerH = places.filter(p => p.type === 'hamlet').sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z)), added = [];
+  const at = (q, p) => Math.abs(q.x - p.x) < .01 && Math.abs(q.z - p.z) < .01;
+  for (const v of outerH) {
+    const d = Math.hypot(v.x, v.z); if (links.some(([a, b]) => (at(b, v) && Math.hypot(a.x, a.z) < d) || (at(a, v) && Math.hypot(b.x, b.z) < d))) continue;
+    const blocks = [...cfg.map.places, ...(cfg.map.pois || []), ...(V.map.pois || []).filter(q => far(q.x, q.z, q.r || 0)), ...((RV && RV.lakes) || []).map(L => ({ x: L.x, z: L.z, r: L.r * 1.3 })), ...((V.terrain.river && V.terrain.river.lakes) || []).map(L => ({ x: L.x, z: L.z, r: L.r * 1.3 }))];
+    const clear = (a, b) => blocks.every(q => (Math.abs(q.x - a.x) < .01 && Math.abs(q.z - a.z) < .01) || (Math.abs(q.x - b.x) < .01 && Math.abs(q.z - b.z) < .01) || segD(q.x, q.z, a, b) >= (q.r || 0) + 2);     // дорога не через места, точки интереса и озёра
+    const to = hamlets.filter(q => q !== v && Math.hypot(q.x, q.z) < d).sort((a, q) => Math.hypot(a.x - v.x, a.z - v.z) - Math.hypot(q.x - v.x, q.z - v.z)).find(q => clear(q, v));
+    if (to) { const lk = [{ x: to.x, z: to.z }, { x: v.x, z: v.z }]; links.push(lk); added.push(lk); }
+  }
+  cfg.map.links.push(...links);
+  let goneP = [];     // пруды, ушедшие с точками интереса — их озёра тоже
+  { const road = (G.pois && G.pois.road || 14) + 8, near = q => cfg.map.links.some(([a, b]) => segD(q.x, q.z, a, b) < (q.r || 0) + road);     // точки кольца — дальше от дорог: тропы петляют по номеру дороги, а он здесь другой
+    const gone = (cfg.map.pois || []).filter(q => q.id.startsWith('o') && near(q)), ids2 = new Set(gone.map(q => q.place).filter(Boolean));
+    cfg.map.pois = cfg.map.pois.filter(q => !gone.includes(q)); cfg.map.places = cfg.map.places.filter(p => !ids2.has(p.id)); goneP = gone.filter(q => q.t === 'pond'); }
+  if (RV) {
+    const rv = riverOf(cfg), VR = V.terrain.river, B = T.bridge, extra = RV.extraBridges || (RV.extraBridges = []);
+    RV.lakes = [...(RV.lakes || []), ...(VR.lakes || []).filter(L => far(L.x, L.z, L.r * 1.3) && !goneP.some(q => Math.hypot(q.x - L.x, q.z - L.z) < .01))];
+    RV.streams = [...(RV.streams || []), ...(VR.streams || []).filter(S => S.pts.every(q => far(q.x, q.z)))];
+    extra.push(...(VR.extraBridges || []).filter(q => far(q.x, q.z)));
+    for (const [a, b] of added) for (let i = 1; i < rv.pts.length; i++) {     // мосты на новых дорогах
+      const t = cross(a, b, rv.pts[i - 1], rv.pts[i]); if (t < 0) continue;
+      const x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t, P = rv.pts[i - 1], Q = rv.pts[i];
+      if ([...rv.bridges, ...extra].some(q => Math.hypot(q.x - x, q.z - z) < 15)) continue;
+      extra.push({ x, z, ang: Math.atan2(Q.x - P.x, Q.z - P.z) + Math.PI / 2, len: RV.w + B.over * 2, w: B.w });
+    }
+  }
+  { const fr = places.filter(p => p.hub).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0];     // передовой стан: ближний к центру стан кольца — с книжницей
+    if (fr && O.frontier) { fr.name = O.frontier; fr.frontier = true; const b = cfg.map.buildings.find(q => q.vil === fr.id && !q.npc); if (b) { b.npc = 'scribe'; b.chests = []; } } }
+  cfg.world.props = Math.round(cfg.world.props * ((Rout - 1) ** 2 - 49) / ((Rin - 1) ** 2 - 49));     // та же плотность деревьев на всём круге
+  cfg.world.depth = [...cfg.world.depth, [Rout, G.depthMax]];     // за прежним краем глубина ровная: уровень места — по зонам
+  return cfg;
 }
 // расстояние от точки до отрезка ab
 const segD = (x, z, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2)); return Math.hypot(x - a.x - dx * t, z - a.z - dz * t); };
@@ -80,7 +162,8 @@ function cross(a, b, c, d) {
 export function expandWorld(base) {
   const cfg = JSON.parse(JSON.stringify(base)), G = cfg.worldgen, R = cfg.world.radius;
   if (!G || !G.on || R <= G.coreR) return cfg;
-  const r = mul(cfg.world.seed * 1013 + 5), used = new Set(cfg.map.places.map(p => p.name)), T = cfg.terrain;
+  EXTRA = G.idPrefix ? NAMES_OUT : null;
+  const r = mul(cfg.world.seed * 1013 + 5), used = new Set([...cfg.map.places.map(p => p.name), ...(G.usedNames || [])]), T = cfg.terrain, IDP = G.idPrefix || '';     // IDP — приставка id (внешний проход мира ×2)
   cfg.world.depth = [[0, 0], [G.coreR, 1], [R, G.depthMax]]; cfg.world.depthMax = G.depthMax;
   cfg.world.props = Math.round(cfg.world.props * ((R - 1) ** 2 - 49) / ((G.coreR - 1) ** 2 - 49));     // плотность деревьев как в ядре
   // река: ядро на прежнем радиусе, концы продлеваются к краю мира
@@ -88,7 +171,7 @@ export function expandWorld(base) {
   if (T && T.on && T.river) {
     T.river.rad = G.coreR + T.river.out;
     const core = riverOf(cfg).pts, n = core.length;
-    T.river.head = extendRiver(r, core[0], core[1], R, G.riverStep).reverse(); T.river.tail = extendRiver(r, core[n - 1], core[n - 2], R, G.riverStep);
+    if (!G.riverFixed) { T.river.head = extendRiver(r, core[0], core[1], R, G.riverStep).reverse(); T.river.tail = extendRiver(r, core[n - 1], core[n - 2], R, G.riverStep); }     // riverFixed — река задана заранее (мир ×2)
     rv = riverOf(cfg);
   }
   const wetAt = (x, z, pad) => !!rv && waterDist(rv, x, z) < pad;
@@ -99,7 +182,7 @@ export function expandWorld(base) {
   const villages = [];
   for (let i = 0; i < G.villages; i++) {
     const s = freeSpot(G.coreR + 50, R - 45, G.villageGap, 22); if (!s) break;
-    const id = 'v' + i, pl = { id, name: nameOf(r, 'village', used), type: 'hamlet', x: s.x, z: s.z, r: 15, safe: true, gen: 1 };
+    const id = IDP + 'v' + i, pl = { id, name: nameOf(r, 'village', used), type: 'hamlet', x: s.x, z: s.z, r: 15, safe: true, gen: 1 };
     cfg.map.places.push(pl); taken.push({ x: s.x, z: s.z, r: 18 }); villages.push(pl);
     const k = 2 + ((r() * 3) | 0), a0 = r() * TAU;
     for (let j = 0; j < k; j++) {
@@ -114,7 +197,7 @@ export function expandWorld(base) {
     const bio = biomeAt(cfg, s.x, s.z) || 'forest', kinds = G.dangerTypes[bio], type = kinds[(r() * kinds.length) | 0];
     const zone = type === 'graveyard' ? { type, x: s.x, z: s.z, w: 22, d: 16 } : type === 'farm' ? { type, x: s.x, z: s.z, w: 24, d: 18 } : { type, x: s.x, z: s.z, r: type === 'ruins' ? 9 : 7 };
     const pr = zone.w ? Math.max(zone.w, zone.d) / 2 + 8 : zone.r + 7, k = (Math.hypot(s.x, s.z) - G.coreR) / (R - G.coreR);
-    cfg.map.places.push({ id: 'd' + i, name: nameOf(r, type, used), type: 'danger', x: s.x, z: s.z, r: pr, danger: Math.min(3, 1 + Math.floor(k * 3)), gen: 1 });
+    cfg.map.places.push({ id: IDP + 'd' + i, name: nameOf(r, type, used), type: 'danger', x: s.x, z: s.z, r: pr, danger: Math.min(3, 1 + Math.floor(k * 3)), gen: 1 });
     cfg.map.zones.push({ ...zone, biome: bio, gen: 1 }); taken.push({ x: s.x, z: s.z, r: pr });
   }
   // ориентиры: башни, мельницы, руины крепостей (видно издалека; твёрдые)
@@ -161,7 +244,7 @@ export function expandWorld(base) {
       for (const [k, n] of tbl) { w -= n; if (w <= 0) { t = k; break; } }
       const pr = P.r[t];
       if (wetAt(x, z, Math.max(pr + 2, 13)) || taken.some(q => Math.hypot(q.x - x, q.z - z) < P.gap * .5 + pr + q.r) || cfg.map.links.some(([A, B]) => segD(x, z, A, B) < P.road + pr)) continue;
-      const id = 'p' + i, k = (d - G.coreR) / (R - G.coreR); let place = null;
+      const id = IDP + 'p' + i, k = (d - G.coreR) / (R - G.coreR); let place = null;
       if (t === 'bandits' || t === 'barrow') {
         place = { id, name: nameOf(r, t, used), type: 'danger', x, z, r: pr + 5, danger: Math.min(3, 1 + Math.floor(k * 3)), gen: 1, poi: t };
         cfg.map.zones.push({ type: t, x, z, r: pr - 2, biome: bio, gen: 1, poi: 1 });
@@ -224,7 +307,7 @@ export function expandWorld(base) {
     const F = G.forts; cfg.map.forts = [];
     if (F) for (let i = 0; i < F.n; i++) {
       const s = spot2(G.coreR + 70, R - F.H - 20, F.gap, F.H * 1.42 + 4); if (!s) continue;
-      const k = (Math.hypot(s.x, s.z) - G.coreR) / (R - G.coreR), id = 'wf' + i;
+      const k = (Math.hypot(s.x, s.z) - G.coreR) / (R - G.coreR), id = IDP + 'wf' + i;
       cfg.map.places.push({ id, name: nameOf(rc, 'warcamp', used), type: 'danger', x: s.x, z: s.z, r: F.H + 5, danger: Math.min(3, 2 + Math.floor(k * 1.6)), gen: 1, fort: true });
       cfg.map.zones.push({ type: 'warcamp', x: s.x, z: s.z, w: F.H * 2 - 4, d: F.H * 2 - 4, gen: 1 });
       const toC = Math.abs(s.x) > Math.abs(s.z) ? (s.x > 0 ? 'w' : 'e') : (s.z > 0 ? 'n' : 's'), opp = { w: 'e', e: 'w', n: 's', s: 'n' }[toC];
@@ -234,7 +317,7 @@ export function expandWorld(base) {
     const CI = G.cities; cfg.map.cities = [];
     if (CI) for (let i = 0; i < CI.n; i++) {
       const s = spot2(CI.ring[0], Math.min(CI.ring[1], R - CI.H - 20), CI.gap, CI.H * 1.42 + 6, true); if (!s) continue;
-      const id = 'wc' + i, H = CI.H;
+      const id = IDP + 'wc' + i, H = CI.H;
       { const gone = cfg.map.pois.filter(p => p.t !== 'pond' && Math.abs(p.x - s.x) < H + p.r + 4 && Math.abs(p.z - s.z) < H + p.r + 4), ids = new Set(gone.map(p => p.place).filter(Boolean));     // точки интереса на месте города убираются вместе с их местами
         cfg.map.pois = cfg.map.pois.filter(p => !gone.includes(p)); cfg.map.places = cfg.map.places.filter(p => !ids.has(p.id)); cfg.map.zones = cfg.map.zones.filter(zn => !(zn.poi && gone.some(p => Math.abs(p.x - zn.x) < .01 && Math.abs(p.z - zn.z) < .01))); }
       cfg.map.places.push({ id, name: nameOf(rc, 'city', used), type: 'danger', x: s.x, z: s.z, r: H + 4, danger: 3, gen: 1, city: true });
@@ -253,9 +336,9 @@ export function expandWorld(base) {
     // а где посёлка нет — новый (свой генератор: всё выше не сдвигается), с дорогой к ближайшему посёлку
     if (cfg.zones) { const rh = mul(cfg.world.seed * 6151 + 29), Z = cfg.zones;
       for (const zone of allZones(cfg).filter(q => q.ring >= 0)) {
-        let hub = villages.map(v => ({ v, q: zoneAt(cfg, v.x, v.z) })).filter(o => o.q.id === zone.id).sort((a, b) => a.q.t - b.q.t)[0]?.v;
-        if (!hub) { let s = null; for (let k = 0; k < 900 && !s; k++) { const a = rh() * TAU, d = G.coreR + 30 + rh() * (R - G.coreR - 60), x = Math.sin(a) * d, z = Math.cos(a) * d, q = zoneAt(cfg, x, z);
-            if (q.id !== zone.id || q.t < .12 || q.t > .5 || wet2(x, z, 20) || onRoad(x, z, 14) || taken.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 20) || (cfg.map.plateaus || []).some(o => Math.hypot(o.x - x, o.z - z) < o.r + o.len + 20)) continue; s = { x, z }; }
+        let hub = villages.map(v => ({ v, q: zoneAt(cfg, v.x, v.z) })).filter(o => o.q.id === zone.id && (!G.hubT || o.q.t >= G.hubT[0])).sort((a, b) => a.q.t - b.q.t)[0]?.v;
+        if (!hub) { let s = null; for (let k = 0; k < 3000 && !s; k++) { const a = rh() * TAU, d = G.coreR + 30 + rh() * (R - G.coreR - 60), x = Math.sin(a) * d, z = Math.cos(a) * d, q = zoneAt(cfg, x, z);
+            if (q.id !== zone.id || q.t < (G.hubT ? G.hubT[0] : .12) || q.t > (G.hubT ? G.hubT[1] : .5) || wet2(x, z, 20) || onRoad(x, z, 14) || taken.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 20) || (cfg.map.plateaus || []).some(o => Math.hypot(o.x - x, o.z - z) < o.r + o.len + 20)) continue; s = { x, z }; }
           if (!s) continue;
           hub = { id: 'h_' + zone.id, name: nameOf(rh, 'village', used), type: 'hamlet', x: s.x, z: s.z, r: 21, safe: true, gen: 1 }; cfg.map.places.push(hub); taken.push({ x: s.x, z: s.z, r: 24 });
           for (let j = 0, a0 = rh() * TAU; j < 4; j++) { const a = a0 + j * TAU / 4, bx = Math.round((s.x + Math.sin(a) * 9) * 2) / 2, bz = Math.round((s.z + Math.cos(a) * 9) * 2) / 2;

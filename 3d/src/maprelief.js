@@ -39,7 +39,7 @@ export function reliefRows(S, j0, j1, out) {
 export function regionLabels(cfg) {
   const G = cfg.worldgen; if (!G || !G.on) return [];
   if (cfg.zones) {     // зоны по уровням (этап 1): имя и пояс уровней — в середине сектора кольца
-    const Z = cfg.zones, rings = [[(G.coreR + G.belt + Z.split) / 2, 0], [(Z.split + cfg.world.radius) / 2, 1]], out = [];
+    const Z = cfg.zones, B = [G.coreR + G.belt, Z.split, ...(Z.splits || []).filter(v => v < cfg.world.radius), cfg.world.radius], rings = B.slice(0, -1).map((v, i) => [(v + B[i + 1]) / 2, i]), out = [];     // кольца (мир ×2: четыре)
     for (const [r, ring] of rings) { const acc = {};
       for (let a = 0; a < 360; a += 2) { const t = a * Math.PI / 180, x = Math.sin(t) * r, z = Math.cos(t) * r, q = zoneAt(cfg, x, z); if (!q || q.ring !== ring) continue; const A = acc[q.id] = acc[q.id] || { q, sx: 0, sz: 0 }; A.sx += Math.sin(t); A.sz += Math.cos(t); }
       for (const A of Object.values(acc)) { const l = Math.hypot(A.sx, A.sz) || 1; out.push({ b: A.q.id, name: A.q.name, sub: `ур. ${A.q.lv[0]}–${A.q.lv[1]}`, x: A.sx / l * r, z: A.sz / l * r }); } }

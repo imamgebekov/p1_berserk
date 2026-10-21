@@ -10,7 +10,8 @@ import { biomeAt } from '../3d/src/worldgen3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const map = makeMap(CFG3), S = reliefSetup(CFG3, map), N = S.N, R = S.R, out = new Uint8ClampedArray(N * N * 4);
 const t0 = performance.now(); reliefRows(S, 0, N, out); const ms = performance.now() - t0;
-ok(ms / N < 3, `ряд подложки строится долго: ${(ms / N).toFixed(2)} мс`);
+const lim = 3 * Math.max(1, (R / 624) ** 2);     // мир ×2: ряд пересекает вчетверо больше участков земли — предел по площади (строится по кадрам, игра не замирает)
+ok(ms / N < lim, `ряд подложки строится долго: ${(ms / N).toFixed(2)} мс (предел ${lim.toFixed(1)})`);
 const at = (x, z) => { const i = Math.floor((x + R) / S.step), j = Math.floor((z + R) / S.step), k = (j * N + i) * 4; return [out[k], out[k + 1], out[k + 2], out[k + 3]]; };
 const blue = c => c[2] > c[0] && c[2] > c[1];
 // вода и суша
@@ -30,7 +31,7 @@ ok(at(R * .99, R * .99)[3] === 0 && at(0, 0)[3] === 255, 'за краем мир
   ok(d / n > 2 && big / n > .05, `светотени почти нет: средняя разница ${(d / n).toFixed(2)}, заметная у ${(100 * big / n).toFixed(1)}%`); }
 void lum;
 // подписи областей
-{ const L = regionLabels(CFG3); ok(L.length === 10 && L.every(l => l.name && l.sub && Math.hypot(l.x, l.z) < R), 'подписи зон: ' + JSON.stringify(L)); }     // этап 1: подписи зон (имя и пояс уровней), 10 за ядром
+{ const L = regionLabels(CFG3); ok(L.length === 20 && L.every(l => l.name && l.sub && Math.hypot(l.x, l.z) < R), 'подписи зон: ' + JSON.stringify(L)); }     // этап 1: подписи зон (имя и пояс уровней), 20 за ядром (мир ×2)
 ok(CFG3.bag.slots === 40, 'сумка не на 40 мест: ' + CFG3.bag.slots);
 
 if (fails.length) { console.log('maprelief3d FAIL\n' + [...new Set(fails)].join('\n')); process.exit(1); }

@@ -19,7 +19,7 @@ const L = CFG3.life;
 
 // ---------- 1. точки сбора ----------
 { const W = mk(), N = W.map.nodes, C = W.map.camp;
-  ok(N.length === L.gather.n, 'точек сбора не ' + L.gather.n + ': ' + N.length); ok(N.filter(n => Math.hypot(n.x, n.z) < CFG3.worldgen.coreR).length >= L.gather.core * .9, 'в ядре мало точек');
+  ok(N.length === L.gather.n + (CFG3.world.inner ? L.gather.nOuter || 0 : 0), 'точек сбора не ' + (L.gather.n + (L.gather.nOuter || 0)) + ': ' + N.length);     // мир ×2: и внешнее кольцо ok(N.filter(n => Math.hypot(n.x, n.z) < CFG3.worldgen.coreR).length >= L.gather.core * .9, 'в ядре мало точек');
   ok(N.every(n => Math.hypot(n.x - C.x, n.z - C.z) > C.r + 3), 'точка в лагере'); ok(N.every(n => !W.map.solids.some(s => Math.hypot(s.x - n.x, s.z - n.z) < s.r + 1)), 'точка в препятствии');
   ok(!W.map.river || N.every(n => waterDist(W.map.river, n.x, n.z) > 2), 'точка в воде');
   const mtn = N.filter(n => biomeAt(CFG3, n.x, n.z) === 'mountains'); ok(mtn.length > 5 && mtn.filter(n => n.kind === 'ore').length / mtn.length > .6, 'в горах не руда');

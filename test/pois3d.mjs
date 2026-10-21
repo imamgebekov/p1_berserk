@@ -17,10 +17,11 @@ const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const M = CFG3.map, G = CFG3.worldgen, R = CFG3.world.radius, map = makeMap(CFG3), segs = pathSegs(map);
 
 // ---------- 1. генератор ----------
-const gen = M.places.filter(p => p.gen);
+const gen = M.places.filter(p => p.gen && !p.id.startsWith('o')), outer = M.places.filter(p => p.gen && p.id.startsWith('o')), Rin = CFG3.world.inner || R;     // мир ×2 (4.04): прежний мир — без внешнего кольца (o…)
 ok(gen.filter(p => p.type === 'hamlet' && !p.id.startsWith('h_')).length === G.villages, 'посёлков не ' + G.villages);     // узлы зон (h_…) — сверх (этап 1)
 ok(gen.filter(p => p.type === 'danger' && !p.poi && !p.castle && !p.fort && !p.city).length === G.dangers, 'опасных мест не ' + G.dangers);
-ok(M.landmarks.length === G.landmarks, 'ориентиров не ' + G.landmarks);
+ok(M.landmarks.filter(q => Math.hypot(q.x, q.z) <= Rin).length === G.landmarks, 'ориентиров не ' + G.landmarks);
+ok(outer.filter(p => p.type === 'hamlet').length >= G.villages * 2 && outer.every(p => Math.hypot(p.x, p.z) > Rin), 'внешнее кольцо: посёлков мало или место внутри прежнего мира');
 ok(M.pois.length >= G.pois.n * .95, 'точек интереса мало: ' + M.pois.length);
 for (const t of Object.keys(G.pois.r)) ok(M.pois.filter(q => q.t === t).length >= 8, `точек «${t}» меньше 8`);
 for (const [i, q] of M.pois.entries()) {

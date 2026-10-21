@@ -1,7 +1,7 @@
 // Все числа 3D-прототипа — здесь. Единицы: метры (условно), секунды, градусы.
 // Панель ⚙ в игре меняет часть этих чисел на лету (список — TWEAKS внизу) и умеет скопировать их текстом.
 
-import { expandWorld } from './worldgen3d.js';
+import { expandBig } from './worldgen3d.js';
 import { stretchCore } from './coremap3d.js';
 
 const BASE = {
@@ -42,7 +42,8 @@ const BASE = {
   },
 
   world: {
-    radius: 600,          // граница мира (круг); ядро — worldgen.coreR
+    radius: 1200,         // граница мира (круг); ядро — worldgen.coreR. Мир ×2 (4.04): было 600
+    inner: 600,           // до этого радиуса мир строится прежним генератором и не меняется; дальше — внешнее кольцо (worldgen.outer)
     props: 150,            // деревьев и камней в ядре (в большом мире генератор держит ту же плотность)
     seed: 7,
     gen: 2,               // номер мира: другой номер в сохранении — герой встаёт в лагерь, туман и таймеры боссов сбрасываются
@@ -61,7 +62,7 @@ const BASE = {
   // from м до ближайшей воды, шаг step м, не длиннее max шагов; slow — скорость в ручье ×
   water: { lakes: { n: 12, r: [10, 24], gap: 12, road: 14, bio: { forest: 2, swamp: 4, mountains: 1, waste: .3, coast: 2 }, amp: [.12, .08], pond: .8 },
     streams: { n: 10, w: [1, 1.6], from: [40, 110], step: 5, max: 40, wobble: .45 }, slow: .85 },
-  worldgen: { on: true, coreR: 85, belt: 30, turn: .07, wobble: .035, villages: 18, villageGap: 70, dangers: 30, dangerGap: 45, landmarks: 60, riverStep: 6, depthMax: 2,
+  worldgen: { on: true, outer: { k: 4, seed: 9973, gap: 12, frontier: 'Передовой стан' }, coreR: 85, belt: 30, turn: .07, wobble: .035, villages: 18, villageGap: 70, dangers: 30, dangerGap: 45, landmarks: 60, riverStep: 6, depthMax: 2,     // outer — второй проход мира ×2: мест в k раз гуще, своё зерно, зазор gap м за прежним краем
     // точки интереса (G2): n штук не ближе gap м друг к другу и road м от троп; вид — по весам биома. r — занимаемый радиус, м.
     // bandits — стоянка с сундуком и гарнизоном, shrine — святилище с даром, wagon — брошенная телега, barrow — курган с гарнизоном,
     // hut — хижина, pond — пруд, stones — стоячие камни
@@ -476,7 +477,7 @@ const BASE = {
   life: { on: true,
     // сбор: n точек по миру (не ближе gap м друг к другу; в ядре — core точек и gapCore), reach — дотянуться, respawn — через сколько секунд точка растёт снова;
     // kinds — вес вида точки по биому (core — ядро); yields[вид][ступень] — [вещь, сколько, шанс]; ступень по уровню места: до 20, до 40, выше
-    gather: { n: 260, core: 30, gapCore: 11, gap: 22, reach: 1.9, respawn: 300,     // core — сколько из n в ядре (ниже 20 ур.)
+    gather: { n: 260, nOuter: 520, core: 30, gapCore: 11, gap: 22, reach: 1.9, respawn: 300,     // core — сколько из n в ядре (ниже 20 ур.)
       kinds: { core: { herb: 2, ore: 1, hide: 1 }, forest: { herb: 3, hide: 2, ore: 1 }, swamp: { herb: 3, hide: 1 }, mountains: { ore: 4, herb: 1 }, waste: { ore: 2, hide: 2 }, coast: { herb: 1, hide: 2, ore: 1 } },
       names: { herb: 'Травы', ore: 'Рудная жила', hide: 'Туша зверя' },
       yields: {
@@ -780,12 +781,17 @@ const BASE = {
   smith: { max: 5, base: 10, costK: .45, pow: 1.35, bonus: .1, reach: 3.4 },   // улучшение +1…+5: цена = base + цена вещи × costK × (ур+1)^pow, каждый уровень даёт +bonus к статам
   // зоны по уровням (этап 1, 2026-10-19): ядро — свои уровни (как прежде по глубине); за ядром два кольца, в кольце зона = биом;
   // уровень внутри зоны растёт от lv[0] у внутренней границы кольца до lv[1] у внешней. Порядок — спиралью: по кругу, потом наружу
-  zones: { core: { id: 'brod', name: 'Пепельный Брод', lv: [1, 20] }, split: 330, wobble: 14,
+  zones: { core: { id: 'brod', name: 'Пепельный Брод', lv: [1, 20] }, split: 330, wobble: 14, splits: [600, 900],     // splits — границы колец за первым (мир ×2, 4.04)
     rings: [
       { forest: { id: 'olkh', name: 'Ольховый лес', lv: [20, 24] }, swamp: { id: 'moss', name: 'Мшистые топи', lv: [24, 28] }, mountains: { id: 'foot', name: 'Предгорья', lv: [28, 31] },
         waste: { id: 'rust', name: 'Ржавые пустоши', lv: [31, 35] }, coast: { id: 'grey', name: 'Серый берег', lv: [35, 38] } },
       { coast: { id: 'dusk', name: 'Затмённое побережье', lv: [38, 42] }, forest: { id: 'war', name: 'Поля Великой войны', lv: [42, 46] }, swamp: { id: 'rot', name: 'Гнилые топи', lv: [46, 50] },
-        mountains: { id: 'mute', name: 'Горы Безмолвия', lv: [50, 55] }, waste: { id: 'heart', name: 'Сердце Затмения', lv: [55, 60] } }
+        mountains: { id: 'mute', name: 'Горы Безмолвия', lv: [50, 55] }, waste: { id: 'heart', name: 'Сердце Затмения', lv: [55, 60] } },
+      // мир ×2 (4.04): кольца за прежним краем — уровни 60–70 и 70–80
+      { forest: { id: 'blackwood', name: 'Чернолесье', lv: [60, 62] }, swamp: { id: 'drown', name: 'Трясина Утопленников', lv: [62, 64] }, mountains: { id: 'brandridge', name: 'Хребет Клейма', lv: [64, 66] },
+        waste: { id: 'ashdesert', name: 'Пепельная пустыня', lv: [66, 68] }, coast: { id: 'wrecks', name: 'Берег Кораблекрушений', lv: [68, 70] } },
+      { coast: { id: 'abyssshore', name: 'Берег Бездны', lv: [70, 72] }, forest: { id: 'hanged', name: 'Лес Повешенных', lv: [72, 74] }, swamp: { id: 'rift', name: 'Гнилой Разлом', lv: [74, 76] },
+        mountains: { id: 'peaks', name: 'Пики Длани', lv: [76, 78] }, waste: { id: 'scorched', name: 'Выжженный Предел', lv: [78, 80] } }
     ], hub: { npcs: ['merchant', 'smith'], names: { moss: 'Ставка короля', grey: 'Велиград', dusk: 'Приют у скал', war: 'Стан у курганов', rot: 'Топкая Деревня', mute: 'Кузня под перевалом', heart: 'Последний Стан' } }, floorStep: 2 },     // names — свои имена узлов (Акт II: Ставка в Мшистых топях)     // floorStep — этаж замка выше зоны у входа на столько уровней
   level: { max: 60, base: 28, pow: 1.3, hpPer: 6, dmgPer: .6, healOnUp: .3,
     // темп (этап 3 «круче»): 60-й уровень — к концу Акта IV. За задание — не больше fq уровня, за сцену — не больше fs (от нужного
@@ -1205,7 +1211,7 @@ const BASE = {
 };
 // мир = ручное ядро + пояс по зерну (C3b): генератор дописывает места, области, дома, ориентиры, связи и продолжение реки
 stretchCore(BASE);     // лагерь крупнее: ядро раздвинуто до сборки мира (и в CFG3, и в CORE3)
-export const CFG3 = expandWorld(BASE);
+export const CFG3 = expandBig(BASE);     // мир ×2 (4.04): прежний мир до world.inner + внешнее кольцо
 // только ручное ядро (радиус coreR, без пояса): для тестов баланса, которые меряют ядро и сверяются со старыми цифрами
 export const CORE3 = (() => { const c = JSON.parse(JSON.stringify(BASE)); c.world.radius = c.worldgen.coreR; c.worldgen.on = false; c.enemies.roam.on = false; c.weather.combat = null; return c; })();
 

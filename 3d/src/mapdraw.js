@@ -125,8 +125,9 @@ export function drawMap(ctx, W, v) {
     const SERIF = '"Iowan Old Style", Palatino, Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     // области (шаг 10б): крупно, разрядкой, видны и под дымкой
     if (!under && RL) { ctx.font = `600 ${Math.round(Math.max(14, Math.min(26, 60 * sc)) * U)}px ${SERIF}`; ctx.fillStyle = 'rgba(52,38,24,.55)'; ctx.strokeStyle = 'rgba(240,230,205,.5)'; ctx.lineWidth = 3;
-      for (const L of RL.labels) { const t = L.name.toUpperCase().split('').join('\u2009'); ctx.strokeText(t, X(L.x), Y(L.z)); ctx.fillText(t, X(L.x), Y(L.z)); }
-      if (W.cfg.zones) { const fs = Math.round(Math.max(11, Math.min(16, 34 * sc)) * U); ctx.font = `600 ${fs}px ${SERIF}`; for (const L of RL.labels) if (L.sub) { ctx.strokeText(L.sub, X(L.x), Y(L.z) + fs * 1.3); ctx.fillText(L.sub, X(L.x), Y(L.z) + fs * 1.3); }     // пояс уровней под именем зоны
+      const boxes = [], shown = RL.labels.filter(L => { const t = L.name.toUpperCase().split('').join('\u2009'), wd = ctx.measureText(t).width, hh = parseFloat(ctx.font.split(' ')[1]) * 2.4, b = [X(L.x) - wd / 2, Y(L.z) - hh / 2, X(L.x) + wd / 2, Y(L.z) + hh / 2];     // мир ×2: подписи, что налезают на уже выведенные, на отдалении не выводятся
+        if (boxes.some(q => b[0] < q[2] && q[0] < b[2] && b[1] < q[3] && q[1] < b[3])) return false; boxes.push(b); ctx.strokeText(t, X(L.x), Y(L.z)); ctx.fillText(t, X(L.x), Y(L.z)); return true; });
+      if (W.cfg.zones) { const fs = Math.round(Math.max(11, Math.min(16, 34 * sc)) * U); ctx.font = `600 ${fs}px ${SERIF}`; for (const L of shown) if (L.sub) { ctx.strokeText(L.sub, X(L.x), Y(L.z) + fs * 1.3); ctx.fillText(L.sub, X(L.x), Y(L.z) + fs * 1.3); }     // пояс уровней под именем зоны
         const Z = W.cfg.zones; ctx.save(); ctx.setLineDash([6, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(52,38,24,.45)'; ctx.beginPath();     // граница колец зон
         for (let a = 0; a <= 360; a += 3) { const t = a * Math.PI / 180, r = Z.split + Z.wobble * Math.sin(t * 5 + 1.7), x = X(Math.sin(t) * r), y = Y(Math.cos(t) * r); a ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); ctx.restore(); } }
     // места: тёмные подписи со светлой обводкой; наползающие пропускаем

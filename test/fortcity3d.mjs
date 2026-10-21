@@ -9,7 +9,8 @@ import { BY_ID } from '../3d/src/data/items.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const M = CFG3.map, F = CFG3.worldgen.forts, CI = CFG3.worldgen.cities;
-ok(M.forts.length === F.n && M.cities.length === CI.n, `лагерей ${M.forts.length}, городов ${M.cities.length}`);
+const fo = M.forts.filter(q => q.id.startsWith('o'));     // мир ×2 (4.04): лагеря внешнего кольца — сверх прежних
+ok(M.forts.length - fo.length === F.n && fo.length >= F.n && M.cities.length === CI.n, `лагерей ${M.forts.length} (кольцо ${fo.length}), городов ${M.cities.length}`);
 const map = makeMap(JSON.parse(JSON.stringify(CFG3)));
 const inBlock = (x, z) => map.blocks.some(w => x > w.x0 && x < w.x1 && z > w.z0 && z < w.z1);
 const SIDE = { s: [0, 1], n: [0, -1], e: [1, 0], w: [-1, 0] };
