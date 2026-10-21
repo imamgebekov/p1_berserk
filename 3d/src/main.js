@@ -6,6 +6,7 @@ import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith, createCaptain } from './shop.js';
 import { createLibrary } from './libui.js';
+import { createMapClouds } from './mapclouds.js';
 import { createSkills } from './skillsui.js';
 import { createJournal } from './journal.js';
 import { createQuests } from './questsui.js';
@@ -650,9 +651,11 @@ let mapRaf = 0; const mapRedraw = () => { if (!mapRaf) mapRaf = requestAnimation
 // размер холста карты — по окну (почти весь экран, 2026-10-20), с плотностью пикселей; масштаб — метров на ширину
 const mapDpr = () => Math.min(2, window.devicePixelRatio || 1);
 const mapFit = () => { const r = mapCv.getBoundingClientRect(), d = mapDpr(), w = Math.max(320, Math.round(r.width * d)), h = Math.max(240, Math.round(r.height * d)); if (mapCv.width !== w || mapCv.height !== h) { mapCv.width = w; mapCv.height = h; } };
-const mapZoom = (k, px = mapCv.width / 2, py = mapCv.height / 2) => { const Wd = mapCv.width, Hd = mapCv.height, s0 = mv.span, wx = mv.cx + (px - Wd / 2) / Wd * s0, wz = mv.cz + (py - Hd / 2) / Wd * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px - Wd / 2) / Wd * mv.span; mv.cz = wz - (py - Hd / 2) / Wd * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте     // точка под курсором остаётся на месте
-function drawFull() { const B = mapW().map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; mapFit(); drawMap(mapCtx, W, { w: mapCv.width, h: mapCv.height, scale: Math.min(mapCv.width, mapCv.height) / span,     // по меньшей стороне: «весь мир» влезает целиком
- cx, cz, full: true, ui: mapDpr() * 1.15, dpr: mapDpr() }); const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
+const mapSide = () => Math.min(mapCv.width, mapCv.height);     // масштаб карты — по меньшей стороне холста (4.04)
+const mapZoom = (k, px = mapCv.width / 2, py = mapCv.height / 2) => { const Wd = mapCv.width, Hd = mapCv.height, S = mapSide(), s0 = mv.span, wx = mv.cx + (px - Wd / 2) / S * s0, wz = mv.cz + (py - Hd / 2) / S * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px - Wd / 2) / S * mv.span; mv.cz = wz - (py - Hd / 2) / S * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте     // точка под курсором остаётся на месте
+let mapView = null;     // последний вид большой карты — для облаков
+function drawFull() { const B = mapW().map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; mapFit(); drawMap(mapCtx, W, { w: mapCv.width, h: mapCv.height, scale: mapSide() / span,     // по меньшей стороне: «весь мир» влезает целиком
+ cx, cz, full: true, ui: mapDpr() * 1.15, dpr: mapDpr() }); mapView = { w: mapCv.width, h: mapCv.height, sc: mapSide() / span, cx, cz, under: !!B }; const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
 // легенда карты — чипы «значок + слово» вместо абзаца (шаг 10): sq — квадрат, ring — круг-граница, dot — точка, fog — туман
 const LEG_SURF = [['sq', '#8a5a30', 'Люк'], ['ring', '#82c878', 'Безопасно'], ['ring', '#dc4632', 'Опасно'], ['dot', '#ffc860', 'Сундук'], ['dot', '#ffd45a', 'Торговец'], ['dot', '#ff8a3a', 'Кузнец'], ['dia', '#ff3a2a', 'Босс'], ['dia', '#c03adf', 'Замок'], ['dia', '#ff9a2a', 'Мини-босс'], ['sq', '#7a4a2a', 'Лагерь врагов'], ['sq', '#b0a898', 'Город'], ['fog', '#2a1e17', 'Не исследовано']];
 const LEG_UNDER = [['sq', '#e8d0a0', 'Лестница наверх'], ['dot', '#ffc860', 'Сундук'], ['fog', '#2a1e17', 'Не исследовано']];
@@ -662,14 +665,26 @@ function legend(here, items) {
   for (const [shape, color, word] of items) { const c = document.createElement('span'), sw = document.createElement('i'); c.className = 'chip'; sw.className = 'sw ' + shape; sw.style.setProperty('--c', color); c.append(sw, word); row.append(c); }
   box.replaceChildren(h, row);
 }
-const mapOpen = () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); mapEl.hidden = false; drawFull(); requestAnimationFrame(drawFull); panelOpen = true; input.release(); };     // после показа — размер холста по окну
+// облака над картой (4.05): свой холст поверх #mapCv, кадры — только пока карта открыта; «меньше движения» — облака стоят
+const cloudCv = $('mapClouds'), cloudCtx = cloudCv.getContext('2d'), clouds = createMapClouds(document, cfg); let cloudOn = false, cloudLast = 0, reliefShown = 0;
+function cloudTick(ts) {
+  if (mapEl.hidden) { cloudOn = false; return; }
+  requestAnimationFrame(cloudTick); if (ts - cloudLast < 1000 / cfg.mapView.clouds.fps) return; cloudLast = ts;
+  const v = mapView; if (!v) return;
+  if (cloudCv.width !== v.w || cloudCv.height !== v.h) { cloudCv.width = v.w; cloudCv.height = v.h; }
+  const st = cloudCv.style; st.left = mapCv.offsetLeft + 'px'; st.top = mapCv.offsetTop + 'px'; st.width = mapCv.offsetWidth + 'px'; st.height = mapCv.offsetHeight + 'px';
+  if (!reliefDone && ts - reliefShown > 300) { reliefShown = ts; mapRedraw(); }     // подложка ещё строится — показываем, что готово
+  if (v.under) { cloudCtx.clearRect(0, 0, v.w, v.h); return; }     // под землёй облаков нет
+  clouds.draw(cloudCtx, v, CALM_UI ? 0 : ts / 1000);
+}
+const mapOpen = () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); mapEl.hidden = false; drawFull(); requestAnimationFrame(drawFull); panelOpen = true; input.release(); if (!cloudOn) { cloudOn = true; requestAnimationFrame(cloudTick); } };     // после показа — размер холста по окну
 window.addEventListener('resize', () => { if (!mapEl.hidden) mapRedraw(); });
 { const pts = new Map(), loc = e => { const r = mapCv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * mapCv.width, y: (e.clientY - r.top) / r.height * mapCv.height }; }; let pinch = 0;
   mapCv.addEventListener('wheel', e => { e.preventDefault(); const q = loc(e); mapZoom(Math.exp(e.deltaY * .0015), q.x, q.y); }, { passive: false });
   mapCv.addEventListener('pointerdown', e => { mapCv.setPointerCapture(e.pointerId); pts.set(e.pointerId, loc(e)); if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); } });
   mapCv.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; const q = loc(e), o = pts.get(e.pointerId); pts.set(e.pointerId, q);
     if (pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch > 0 && d > 0) mapZoom(pinch / d, (a.x + b.x) / 2, (a.y + b.y) / 2); pinch = d; }       // щипок
-    else { mv.cx -= (q.x - o.x) / mapCv.width * mv.span; mv.cz -= (q.y - o.y) / mapCv.width * mv.span; mapClamp(); mapRedraw(); } });       // перетаскивание
+    else { mv.cx -= (q.x - o.x) / mapSide() * mv.span; mv.cz -= (q.y - o.y) / mapSide() * mv.span; mapClamp(); mapRedraw(); } });       // перетаскивание
   const up = e => { pts.delete(e.pointerId); pinch = 0; }; mapCv.addEventListener('pointerup', up); mapCv.addEventListener('pointercancel', up);
   $('mapIn').addEventListener('click', () => mapZoom(1 / 1.5)); $('mapOut').addEventListener('click', () => mapZoom(1.5));
   $('mapMe').addEventListener('click', () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); mapRedraw(); }); $('mapAll').addEventListener('click', () => { mv.span = mapMax(); mv.cx = mv.cz = 0; mapClamp(); mapRedraw(); }); }
@@ -836,5 +851,5 @@ function frame(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { openWin: n => ({ journal, smith, captain, shop, quests }[n] || { open() {} }).open(), emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
+window.__b3d = { reliefDone: () => reliefDone, openWin: n => ({ journal, smith, captain, shop, quests }[n] || { open() {} }).open(), emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
 if (BENCH) setTimeout(() => runBench(W, cfg, input, renderer), 1500);

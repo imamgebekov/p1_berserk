@@ -35,6 +35,16 @@ export function propsIn(map, cfg, ci, cj) {
     if (x < ci * CHUNK || x >= (ci + 1) * CHUNK || z < cj * CHUNK || z >= (cj + 1) * CHUNK || biomeAt(cfg, x * .99, z * .99) === 'coast') continue;
     out.push({ tree: true, x, z, seed: seedOf(cfg.world.seed, k, 0, 47), bare: .5, edge: true });
   }
+  // за краем (4.05): пояс леса или скал — декорация, пройти туда нельзя
+  const HZ = cfg.world.horizon; if (HZ && HZ.on && T) { const rb = mulberry32(seedOf(cfg.world.seed, ci, cj, 53)), nb = Math.round(CHUNK * CHUNK / HZ.belt.per);
+    for (let i = 0; i < nb; i++) {
+      const x = ci * CHUNK + rb() * CHUNK, z = cj * CHUNK + rb() * CHUNK, pick = rb(), seed = (rb() * 4294967296) >>> 0, d = Math.hypot(x, z);
+      if (d < R + HZ.belt.r[0] || d > R + HZ.belt.r[1]) continue;
+      const bio = biomeAt(cfg, x * (R - 2) / d, z * (R - 2) / d) || 'forest'; if (bio === 'coast') continue;
+      const B = T[bio] || [1, .65, 0], woods = bio === 'forest' || bio === 'swamp';
+      if (!woods && pick > .55) continue;     // в горах и пустошах — реже, зато скалы
+      out.push({ tree: woods ? pick < .92 : pick < .12, x, z, seed, bare: B[2], edge: true, beyond: true });
+    } }
   return out;
 }
 // трава: сетка с шагом step м со сдвигом, только где можно (не тропа, не вода, не дом, не препятствие, в мире)
@@ -61,7 +71,7 @@ export function chunksAround(x, z, view, R) {
   const out = [], c0 = Math.floor((x - view) / CHUNK), c1 = Math.floor((x + view) / CHUNK), d0 = Math.floor((z - view) / CHUNK), d1 = Math.floor((z + view) / CHUNK);
   for (let ci = c0; ci <= c1; ci++) for (let cj = d0; cj <= d1; cj++) {
     const cx = (ci + .5) * CHUNK, cz = (cj + .5) * CHUNK, d = Math.hypot(cx - x, cz - z);
-    if (d < view + CHUNK * .71 && Math.hypot(cx, cz) < R + CHUNK) out.push({ ci, cj, d });
+    if (d < view + CHUNK * .71 && Math.hypot(cx, cz) < R + CHUNK * 1.6) out.push({ ci, cj, d });     // 4.05: и пояс за краем
   }
   return out.sort((a, b) => a.d - b.d);
 }

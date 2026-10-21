@@ -1,7 +1,7 @@
 // Подложка карты с рельефом (шаг 10б аудита, «как карта Skyrim»): цвет земли как в игре (оттенок биома), светотень склонов
 // по высотам, выше — светлее, вода реки, камень обрывов. Строится один раз на мир кусками (по рядам), чтобы не было рывка.
 // reliefRows — чистая функция (проверяется в Node), makeRelief — холст для браузера.
-import { buildHeights, heightAt, waterDist, streamDist } from './terrain3d.js';
+import { buildHeights, reliefHeight, waterDist, streamDist, vnoise } from './terrain3d.js';
 import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
 import { zoneAt } from './zones3d.js';
 import { inCliff } from './cliffs3d.js';
@@ -13,14 +13,15 @@ const srgb = v => { v = Math.max(0, Math.min(1, v)); return Math.round((v <= .00
 export function reliefSetup(cfg, map) {
   const V = cfg.mapView, R = cfg.world.radius, N = V.n;
   const g = cfg.look.ground, base = lin(g[0]).map((v, i) => v * .7 + lin(g[1])[i] * .3);     // средний цвет травы (как текстура земли)
-  return { V, R, N, step: 2 * R / N, hf: buildHeights(cfg, map), map, cfg, base, water: lin(V.water), rock: lin(V.rock), L: (() => { const l = V.light, n = Math.hypot(...l); return l.map(v => v / n); })() };
+  const step = 2 * R / N, RW = R * (V.wide || 1), RH = R * (V.tall || 1), NX = Math.round(2 * RW / step), NZ = Math.round(2 * RH / step);     // 4.05: подложка — прямоугольник шире круга мира
+  return { V, R, N, NX, NZ, X0: -NX * step / 2, Z0: -NZ * step / 2, step, hf: buildHeights(cfg, map), sand: lin(cfg.look.sand), map, cfg, base, water: lin(V.water), rock: lin(V.rock), L: (() => { const l = V.light, n = Math.hypot(...l); return l.map(v => v / n); })() };
 }
 // ряды j0..j1-1 в RGBA (out — Uint8ClampedArray на весь холст N×N); вне круга мира — прозрачно
 export function reliefRows(S, j0, j1, out) {
-  const { V, R, N, step, hf, map, base, water, rock, L } = S, H = (x, z) => heightAt(hf, x, z, false);
-  for (let j = j0; j < j1; j++) for (let i = 0; i < N; i++) {
-    const x = -R + (i + .5) * step, z = -R + (j + .5) * step, k = (j * N + i) * 4;
-    if (Math.hypot(x, z) > R) { out[k + 3] = 0; continue; }
+  const { V, R, NX, step, X0, Z0, hf, map, base, water, rock, L } = S, H = (x, z) => reliefHeight(hf, x, z);     // 4.05: облегчённая высота
+  for (let j = j0; j < j1; j++) for (let i = 0; i < NX; i++) {
+    const x = X0 + (i + .5) * step, z = Z0 + (j + .5) * step, k = (j * NX + i) * 4;
+    if (Math.hypot(x, z) > R) { farPixel(S, x, z, out, k); continue; }
     const h = H(x, z), hx = H(x + step, z), hz = H(x, z + step);
     let c;
     if (map.river && (waterDist(map.river, x, z) < V.waterIn || streamDist(map.river, x, z) < .4)) c = water.slice();     // и ручьи
@@ -34,6 +35,21 @@ export function reliefRows(S, j0, j1, out) {
     const m = (c[0] + c[1] + c[2]) / 3, B = V.bright * k2;     // карта светлее и спокойнее земли в игре (раскрашенный лист)
     out[k] = srgb((c[0] + (m - c[0]) * V.desat) * B); out[k + 1] = srgb((c[1] + (m - c[1]) * V.desat) * B); out[k + 2] = srgb((c[2] + (m - c[2]) * V.desat) * B); out[k + 3] = 255;
   }
+}
+// за краем мира (4.05): дорисовка без высот — шум с тенью; на побережье — море с отмелью, в горах — скалы и снег, на болоте — бочаги.
+// Темнее мира (V.far) — сверху ещё тёмные облака (mapclouds.js). Пройти туда нельзя: граница — круг
+const fbm = (x, z) => (vnoise(x / 230, z / 230, 911) * .55 + vnoise(x / 90, z / 90, 912) * .3 + vnoise(x / 35, z / 35, 913) * .15);
+function farPixel(S, x, z, out, k) {
+  const { V, R, step, base, water, rock, sand, L } = S, n = fbm(x, z), hx = fbm(x + step, z), hz = fbm(x, z + step), d = Math.hypot(x, z), ex0 = x * (R - 2) / d, ez0 = z * (R - 2) / d, bio = biomeAt(S.cfg, ex0, ez0) || 'forest', e = Math.min(1, (d - R) / 260);     // биом — у края по тому же лучу: без полос от волны границы
+  let c, hh = n;
+  if (bio === 'coast' && n < .56) { c = water.map(v => v * (1 - .35 * e)); hh = .3; }
+  else if (bio === 'coast' && n < .6) c = sand.slice();
+  else if (bio === 'mountains' || (bio === 'waste' && n > .64)) { c = n > .7 ? [.62, .6, .57] : rock.map((v, q) => v * .7 + base[q] * .3); hh = n * 1.8; }
+  else if (bio === 'swamp' && n < .34) { c = water.map(v => v * .7); hh = .3; }
+  else { const t = biomeTint(S.cfg, ex0, ez0); c = base.map((v, q) => v * t[q] * (bio === 'forest' ? .8 : 1)); }
+  const ex = V.exag * 18, nx = -(hx - n) / step * ex, nz = -(hz - n) / step * ex, nl = Math.hypot(nx, 1, nz), sh = Math.max(0, (nx * L[0] + L[1] + nz * L[2]) / nl);
+  const m = (c[0] + c[1] + c[2]) / 3, B = V.bright * (V.shade[0] + V.shade[1] * sh + (hh - .5) * .2) * (V.far || .7) * (1 - .25 * e);
+  out[k] = srgb((c[0] + (m - c[0]) * V.desat) * B); out[k + 1] = srgb((c[1] + (m - c[1]) * V.desat) * B); out[k + 2] = srgb((c[2] + (m - c[2]) * V.desat) * B); out[k + 3] = 255;
 }
 // подписи областей: середина сектора биома на среднем радиусе пояса (по пробам)
 export function regionLabels(cfg) {
@@ -52,13 +68,13 @@ export function regionLabels(cfg) {
 
 // холст подложки: строится по рядам за budget мс за вызов step(); done — готово
 export function makeRelief(doc, cfg, map) {
-  const S = reliefSetup(cfg, map), cv = doc.createElement('canvas'); cv.width = cv.height = S.N;
-  const ctx = cv.getContext('2d'), img = ctx.createImageData(S.N, S.N); let row = 0;
-  const R = { canvas: cv, R: S.R, done: false, labels: regionLabels(cfg),
+  const S = reliefSetup(cfg, map), cv = doc.createElement('canvas'); cv.width = S.NX; cv.height = S.NZ;
+  const ctx = cv.getContext('2d'), img = ctx.createImageData(S.NX, S.NZ); let row = 0;
+  const R = { canvas: cv, R: S.R, X0: S.X0, Z0: S.Z0, W: S.NX * S.step, H: S.NZ * S.step, done: false, labels: regionLabels(cfg),
     step(budget = S.V.budget) {
       if (R.done) return false; const t0 = performance.now(), r0 = row;
-      while (row < S.N && performance.now() - t0 < budget) { const r1 = Math.min(S.N, row + 4); reliefRows(S, row, r1, img.data); row = r1; }
-      ctx.putImageData(img, 0, 0, 0, r0, S.N, row - r0); if (row >= S.N) R.done = true; return true;
+      while (row < S.NZ && performance.now() - t0 < budget) { const r1 = Math.min(S.NZ, row + 4); reliefRows(S, row, r1, img.data); row = r1; }
+      ctx.putImageData(img, 0, 0, 0, r0, S.NX, row - r0); if (row >= S.NZ) R.done = true; return true;
     } };
   return R;
 }

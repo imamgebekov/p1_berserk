@@ -504,6 +504,26 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     g.setAttribute('bank', new THREE.Float32BufferAttribute(bank, 2)); g.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2));
     const m = new THREE.Mesh(g, waterMat); scene.add(m); return m;
   })();
+  // горизонт (4.05): далёкие горы (горы, пустоши) и лесистые холмы (лес, болото) за краем мира — один меш угловатых конусов в дымке;
+  // на побережье — море. Пройти туда нельзя: граница мира — круг
+  const horizon = (() => {
+    const HZ = cfg.world.horizon, G = cfg.worldgen; if (!HZ || !HZ.on || !G || !G.on || cfg.world.radius <= G.coreR) return null;
+    const R = cfg.world.radius, F = HZ.far, rnd = mulberry32(cfg.world.seed * 13 + 7), parts = [], n = Math.round(Math.PI * 2 * (R + F.r[0]) / F.step);
+    for (let row = 0; row < 2; row++) for (let k = 0; k < n; k++) {
+      const a = (k + rnd() * .8 + row * .5) / n * Math.PI * 2, d = R + F.r[0] + (F.r[1] - F.r[0]) * (row * .5 + rnd() * .5), x = Math.sin(a) * d, z = Math.cos(a) * d;
+      const bio = biomeAt(cfg, Math.sin(a) * (R - 2), Math.cos(a) * (R - 2)) || 'forest'; if (bio === 'coast') continue;
+      const rocky = bio === 'mountains' || bio === 'waste', h = (F.h[0] + rnd() * (F.h[1] - F.h[0])) * (rocky ? 1 : .45) * (row ? 1.25 : 1), w = h * (rocky ? .9 + rnd() * .5 : 1.8 + rnd());
+      const g = new THREE.ConeGeometry(w, h, rocky ? 6 : 9, 3), p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) { const y = p.getY(i) + h / 2; if (y > .01 && y < h - .01) { p.setX(i, p.getX(i) * (.8 + rnd() * .4)); p.setZ(i, p.getZ(i) * (.8 + rnd() * .4)); p.setY(i, (y * (.9 + rnd() * .2)) - h / 2); } }     // неровные склоны
+      g.translate(0, h / 2 - 1, 0); g.rotateY(rnd() * 6.28); g.translate(x, 0, z);
+      const col = new Float32Array(p.count * 3), base = rocky ? (bio === 'waste' ? [.42, .36, .3] : [.36, .36, .38]) : bio === 'swamp' ? [.16, .22, .14] : [.12, .2, .11];
+      for (let i = 0; i < p.count; i++) { const t = (p.getY(i) + 1) / h, c = rocky && bio === 'mountains' && t > .72 ? [.85, .86, .88] : base.map(v => v * (.75 + .35 * t)); col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2]; }     // в горах — снег на вершинах
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.deleteAttribute('uv'); parts.push(g);
+    }
+    if (!parts.length) return null;
+    const geo = mergeGeometries(parts, false); geo.computeVertexNormals(); for (const q of parts) q.dispose();
+    const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })); m.matrixAutoUpdate = false; scene.add(m); return m;
+  })();
   // ореолы ночью (V2c): светлые пятна к камере у фонарей и костров (без настоящих источников света); одним вызовом
   const HS = cfg.shaders && cfg.shaders.halo, haloSpots = [];
   for (const d of map.decor) { if (d.t === 'lamp') { const c = Math.cos(d.rot || 0), s = Math.sin(d.rot || 0); haloSpots.push({ x: d.x + .28 * c, y: 2.75, z: d.z - .28 * s, k: 'lamp' }); } else if (d.t === 'campfire') haloSpots.push({ x: d.x, y: .7, z: d.z, k: 'fire' }); }

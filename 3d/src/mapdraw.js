@@ -41,7 +41,7 @@ export function drawMap(ctx, W, v) {
     ctx.fillStyle = '#6a5a4c'; for (const c of M.pillars || []) ctx.fillRect(X(c.x - c.r), Y(c.z - c.r), Math.max(2, c.r * 2 * sc), Math.max(2, c.r * 2 * sc));
   } else {
     // мир: подложка с рельефом (пока строится — ровная земля), край мира
-    if (RL) { ctx.imageSmoothingEnabled = true; ctx.fillStyle = '#7a8a5a'; ctx.beginPath(); ctx.arc(X(0), Y(0), R * sc, 0, 6.2832); ctx.fill(); ctx.drawImage(RL.canvas, X(-RL.R), Y(-RL.R), 2 * RL.R * sc, 2 * RL.R * sc); }
+    if (RL) { ctx.imageSmoothingEnabled = true; ctx.fillStyle = '#7a8a5a'; ctx.beginPath(); ctx.arc(X(0), Y(0), R * sc, 0, 6.2832); ctx.fill(); ctx.drawImage(RL.canvas, X(RL.X0), Y(RL.Z0), RL.W * sc, RL.H * sc); }     // 4.05: подложка шире круга мира
     else { ctx.fillStyle = '#2a1e17'; ctx.beginPath(); ctx.arc(X(0), Y(0), R * sc, 0, 6.2832); ctx.fill(); }
     ctx.strokeStyle = RL ? 'rgba(70,52,34,.7)' : '#6a2a24'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(0), Y(0), R * sc, 0, 6.2832); ctx.stroke();
     // места

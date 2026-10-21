@@ -113,7 +113,7 @@ export function bridgeGoal(rv, x, z, tx, tz) {
 // дороги, места, зоны, логова, входы, сундуки, постройки — переход blend м. Русло проседает под водой, на мосту — настил.
 const hash = (i, j, s) => { let h = (i * 374761393 + j * 668265263 + s * 2147483647) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
 const smooth = t => t * t * (3 - 2 * t);
-function vnoise(x, z, s) { const i = Math.floor(x), j = Math.floor(z), fx = smooth(x - i), fz = smooth(z - j); const a = hash(i, j, s), b = hash(i + 1, j, s), c = hash(i, j + 1, s), d = hash(i + 1, j + 1, s); return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fz; }
+export function vnoise(x, z, s) { const i = Math.floor(x), j = Math.floor(z), fx = smooth(x - i), fz = smooth(z - j); const a = hash(i, j, s), b = hash(i + 1, j, s), c = hash(i, j + 1, s), d = hash(i + 1, j + 1, s); return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fz; }
 // поле высот лениво, участками CH×CH м (C3a): участок считается, когда в нём впервые спросили высоту. У каждого участка — только
 // те «ровные места», что могут его задеть (их расстояние меньше blend внутри рамки), поэтому большой мир считается быстро.
 // Значения совпадают с прежним сплошным полем: та же решётка (узлы через cell от нуля), та же формула.
@@ -163,6 +163,9 @@ function nodeH(hf, x, z, ks, rv, box) {
   const e = R - Math.max(Math.abs(x), Math.abs(z)); if (e < 10) h *= Math.max(0, e / 10);     // к краю мира — ровно
   return h;
 }
+// высота для подложки карты (4.05): без выравнивания под дома, тропы и места (на карте его не видно) — только холмы, река, ручьи и плато;
+// в разы дешевле участков земли, которых в мире ×2 вчетверо больше
+export const reliefHeight = (hf, x, z) => (hf.flat ? 0 : nodeH(hf, x, z, [], hf.river, false) + (hf.plates.length ? plateauH(hf.plates, x, z) : 0));
 // эталон для тестов: высота узла по всем ровным местам и всей реке, без участков и рамок
 export const nodeHeightRef = (hf, x, z) => (hf.flat ? 0 : nodeH(hf, x, z, hf.keep, hf.river, false) + plateauH(hf.plates, x, z));
 export const CHUNK = CH;

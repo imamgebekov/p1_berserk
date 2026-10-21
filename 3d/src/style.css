@@ -738,3 +738,4 @@ img.gi.own,img.abgi.own{image-rendering:auto}
 [data-land] #heroPick{gap:10px;padding-top:calc(12px + env(safe-area-inset-top))}[data-land] #heroPick h2{font-size:19px}
 [data-land] #heroCards .hcard{width:220px;padding:10px;gap:4px}
 #lib .sock.no{opacity:.5}     /* библиотека (4.00): недоступное действие — бледнее */
+#mapClouds{position:absolute;pointer-events:none;border-radius:10px}     /* облака над картой (4.05): место и размер — как у #mapCv (main.js) */
