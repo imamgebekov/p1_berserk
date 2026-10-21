@@ -344,7 +344,8 @@ const bag = createBag(document, W, cfg, {
   onClose: () => { panelOpen = false; saver.write(); },
   onChange: () => saver.write(),
   onReset: () => { saver.reset(); location.reload(); },     // сброс — из меню «Сохранение» с удержанием (шаг 4)
-  onOwnIcon: it => pickOwnIcon(giKeyOf(it))
+  onOwnIcon: it => pickOwnIcon(giKeyOf(it)),
+  onSource: id => { bag.close(); journal.open('sources', id); }
 });
 const shop = createShop(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); if (W.spark) W.spark.trader = true; },
