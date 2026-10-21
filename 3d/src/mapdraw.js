@@ -103,7 +103,7 @@ export function drawMap(ctx, W, v) {
   for (const b of M.buildings) if (b.npc) { if (full && NPC_IC[b.npc.kind]) { if (zs >= 1.2) badge(ctx, NPC_IC[b.npc.kind][0], X(b.npc.x), Y(b.npc.z), 7 * U, NPC_IC[b.npc.kind][1]); continue; } ctx.fillStyle = NPC[b.npc.kind] || '#fff'; ctx.beginPath(); ctx.arc(X(b.npc.x), Y(b.npc.z), Math.max(2.5, sc * 1.1), 0, 6.2832); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); }
   }
   // люки и лестницы
-  for (const q of M.portals || []) { if (!under && !isSeen(W, q.x, q.z)) continue; const r = Math.max(2.5, sc * .8); ctx.fillStyle = q.up ? '#e8d0a0' : '#8a5a30'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.fillRect(X(q.x) - r, Y(q.z) - r, r * 2, r * 2); ctx.strokeRect(X(q.x) - r, Y(q.z) - r, r * 2, r * 2); }
+  for (const q of M.portals || []) { if (!under && (q.stair || !isSeen(W, q.x, q.z))) continue; const r = Math.max(2.5, sc * .8); ctx.fillStyle = q.up ? '#e8d0a0' : '#8a5a30'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.fillRect(X(q.x) - r, Y(q.z) - r, r * 2, r * 2); ctx.strokeRect(X(q.x) - r, Y(q.z) - r, r * 2, r * 2); }     // лестницы в домах — не входы в подземелья
   // непустые контейнеры в открытых клетках
   ctx.fillStyle = '#ffc860';
   for (const c of M.containers) if (c.ready && isSeen(W, c.x, c.z) && !(full && zs < 2 && !under)) ctx.fillRect(X(c.x) - 1.5, Y(c.z) - 1.5, 3, 3);

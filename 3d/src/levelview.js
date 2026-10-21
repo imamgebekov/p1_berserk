@@ -29,7 +29,56 @@ export function makeHatch(q) {
   g.position.set(q.x, 0, q.z); return g;
 }
 
+// лестница в доме на второй этаж (2026-10-21): обычные ступени вдоль стены от подножия к верху, сбоку — тетива
+export function makeStairs(q, y0 = 0) {
+  const S = q.st, r = S.rect, n = 12, g = new THREE.Group(), steps = [], side = [];
+  const alongX = !!S.up[0], L = alongX ? r.x1 - r.x0 : r.z1 - r.z0, W2 = alongX ? r.z1 - r.z0 : r.x1 - r.x0, dir = alongX ? S.up[0] : S.up[1], c0 = alongX ? (dir > 0 ? r.x0 : r.x1) : (dir > 0 ? r.z0 : r.z1);
+  for (let i = 0; i < n; i++) { const h = S.h * (i + 1) / n, a = c0 + dir * (i + .5) * L / n;
+    steps.push(alongX ? box(L / n + .02, h, W2, a, h / 2, (r.z0 + r.z1) / 2) : box(W2, h, L / n + .02, (r.x0 + r.x1) / 2, h / 2, a)); }
+  const mid = c0 + dir * L / 2, open = alongX ? r.z1 : r.x1;     // тетива — с открытой стороны (не у стены)
+  side.push(alongX ? box(L, .12, .08, mid, S.h / 2 + .45, open - .04) : box(.08, .12, L, open - .04, S.h / 2 + .45, mid));
+  for (let i = 0; i <= 3; i++) { const a = c0 + dir * (i / 3) * L, hh = S.h * (i / 3) + .9; side.push(alongX ? box(.08, hh, .08, a, hh / 2, open - .04) : box(.08, hh, .08, open - .04, hh / 2, a)); }
+  g.add(new THREE.Mesh(mergeGeometries(steps), mat('#7a5636', 'auto', { plank: .25 })));
+  const rail = new THREE.Mesh(mergeGeometries(side), mat('#4a3020', 'auto')); g.add(rail);
+  g.position.y = y0; return g;
+}
+// второй этаж: доски, низкие стены (срез, как у первого этажа изнутри — видна улица), проём лестницы с перилами и ступенями вниз,
+// кровать и стол; снизу — толщина перекрытия. Рисуется над своим домом (render.js сдвигает группу на высоту этажа)
+function buildFloorView(L, cfg) {
+  const M = L.map, D = cfg.dungeons, group = new THREE.Group(), H = (cfg.map.floors && cfg.map.floors.wallH) || .9, S = M.stair, r = S.rect;
+  const fl = [], seams = [];
+  for (const q of M.rooms) { const w = q.x1 - q.x0, d = q.z1 - q.z0, cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2;
+    fl.push(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2).translate(cx, 0, cz));
+    for (let x = q.x0 + .55; x < q.x1; x += .55) seams.push(box(.03, .01, d, x, .004, cz)); }
+  group.add(new THREE.Mesh(mergeGeometries(fl), mat('#6e4c30', 'auto', { plank: .3 })));
+  if (seams.length && !paintOn()) group.add(new THREE.Mesh(mergeGeometries(seams), mat('#3a2818')));
+  const solid = M.blocks.filter(w => !w.pit);
+  group.add(new THREE.Mesh(mergeGeometries(solid.map(w => box(w.x1 - w.x0, H, w.z1 - w.z0, (w.x0 + w.x1) / 2, H / 2, (w.z0 + w.z1) / 2))), mat('#5a3e26', 'auto', { plank: .2 })));
+  group.add(new THREE.Mesh(mergeGeometries(solid.map(w => box(w.x1 - w.x0, .04, w.z1 - w.z0, (w.x0 + w.x1) / 2, H + .02, (w.z0 + w.z1) / 2))), new THREE.MeshBasicMaterial({ color: '#1a120c' })));
+  { const B0 = M.bounds; group.add(new THREE.Mesh(box(B0.x1 - B0.x0 + D.wall * 2, .25, B0.z1 - B0.z0 + D.wall * 2, (B0.x0 + B0.x1) / 2, -.14, (B0.z0 + B0.z1) / 2), mat('#3a2818', 'auto', { plank: .2 }))); }     // перекрытие: толщина пола этажа
+  const B = M.bounds;
+  // проём лестницы: тёмная дыра, верхние ступени уходят вниз, перила с открытых сторон
+  const alongX = !!S.up[0], dir = alongX ? S.up[0] : S.up[1], cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2, Lr = alongX ? r.x1 - r.x0 : r.z1 - r.z0, top = alongX ? (dir > 0 ? r.x1 : r.x0) : (dir > 0 ? r.z1 : r.z0);
+  group.add(new THREE.Mesh(box(r.x1 - r.x0, .02, r.z1 - r.z0, cx, .005, cz), new THREE.MeshBasicMaterial({ color: '#080504' })));
+  const st = []; for (let i = 1; i <= 4; i++) { const a = top - dir * (i - .5) * Lr / 12, y = -.22 * i; st.push(alongX ? box(Lr / 12, .06, r.z1 - r.z0 - .1, a, y + .03, cz) : box(r.x1 - r.x0 - .1, .06, Lr / 12, cx, y + .03, a)); }
+  group.add(new THREE.Mesh(mergeGeometries(st), mat('#7a5636', 'auto', { plank: .25 })));
+  const rail = [], post = (x, z) => rail.push(box(.08, .95, .08, x, .475, z));
+  if (alongX) { const zo = r.z1 + .04; rail.push(box(Lr, .07, .07, cx, .95, zo)); for (let i = 0; i <= 3; i++) post(r.x0 + i / 3 * Lr, zo); const xe = dir > 0 ? r.x0 - .04 : r.x1 + .04; rail.push(box(.07, .07, r.z1 - r.z0, xe, .95, cz)); post(xe, r.z0 + .05); }
+  else { const xo = r.x1 + .04; rail.push(box(.07, .07, Lr, xo, .95, cz)); for (let i = 0; i <= 3; i++) post(xo, r.z0 + i / 3 * Lr); const ze = dir > 0 ? r.z0 - .04 : r.z1 + .04; rail.push(box(r.x1 - r.x0, .07, .07, cx, .95, ze)); post(r.x0 + .05, ze); }
+  group.add(new THREE.Mesh(mergeGeometries(rail), mat('#4a3020', 'auto')));
+  // кровать у стены напротив лестницы и стол посередине
+  { const far = alongX ? (r.z0 - B.z0 < B.z1 - r.z1 ? B.z1 : B.z0) : (r.x0 - B.x0 < B.x1 - r.x1 ? B.x1 : B.x0), fur = [], blank = [];
+    if (alongX) { const z = far + (far > cz ? -1 : 1) * 1.05, x = (B.x0 + B.x1) / 2 + (B.x1 - B.x0) * .22; fur.push(box(1.9, .35, 1.0, x, .2, z)); blank.push(box(1.3, .12, .96, x + .25, .42, z)); fur.push(box(.12, .8, 1.0, x - .95, .4, z)); }
+    else { const x = far + (far > cx ? -1 : 1) * 1.05, z = (B.z0 + B.z1) / 2 + (B.z1 - B.z0) * .22; fur.push(box(1.0, .35, 1.9, x, .2, z)); blank.push(box(.96, .12, 1.3, x, .42, z + .25)); fur.push(box(1.0, .8, .12, x, .4, z - .95)); }
+    const tx = (B.x0 + B.x1) / 2 - (alongX ? (B.x1 - B.x0) * .12 : 0), tz = (B.z0 + B.z1) / 2 + (alongX ? 0 : -(B.z1 - B.z0) * .12);
+    fur.push(box(1.2, .08, .8, tx, .75, tz), box(.08, .72, .08, tx - .5, .36, tz - .32), box(.08, .72, .08, tx + .5, .36, tz - .32), box(.08, .72, .08, tx - .5, .36, tz + .32), box(.08, .72, .08, tx + .5, .36, tz + .32));
+    group.add(new THREE.Mesh(mergeGeometries(fur), mat('#5e4028', 'auto', { plank: .2 }))); group.add(new THREE.Mesh(mergeGeometries(blank), mat('#8a3a2a', 'cloth'))); }
+  { const B2 = M.bounds, l1 = new THREE.PointLight('#ffcf8a', 1.2, Math.max(B2.x1 - B2.x0, B2.z1 - B2.z0) * 1.2, 1.5); l1.position.set((B2.x0 + B2.x1) / 2, 2, (B2.z0 + B2.z1) / 2); group.add(l1); }     // тёплый свет лампы (ночью видно)
+  const conts = buildContainers(M); group.add(conts.group);
+  return { group, conts, flame: null, update: null };
+}
 export function buildLevelView(L, cfg) {
+  if (L.map.floor) return buildFloorView(L, cfg);
   const M = L.map, D = cfg.dungeons, group = new THREE.Group();
   // пол: по прямоугольнику на комнату, с лёгкой «плиткой» из полос
   const floor = [], seams = [];
@@ -98,7 +147,7 @@ export function buildLevelView(L, cfg) {
 
 // поверхность: контейнеры по карте мира и люки
 export function buildSurfaceView(L, Y) {
-  const group = new THREE.Group(), conts = buildContainers(L.map, Y); group.add(conts.group);
-  for (const q of L.map.portals) group.add(makeHatch(q));
-  return { group, conts, flame: null };
+  const group = new THREE.Group(), conts = buildContainers(L.map, Y), stairs = []; group.add(conts.group);
+  for (const q of L.map.portals) { const m = q.stair ? makeStairs(q, Y ? Y((q.st.rect.x0 + q.st.rect.x1) / 2, (q.st.rect.z0 + q.st.rect.z1) / 2) : 0) : makeHatch(q); if (q.stair) { m.userData.house = q.house; m.visible = false; stairs.push(m); } group.add(m); }     // лестница на второй этаж — ступени в доме
+  return { group, conts, flame: null, stairs };
 }

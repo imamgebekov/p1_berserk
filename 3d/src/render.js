@@ -530,12 +530,18 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   const surfaceObjs = [land, sea, riverGroup, sunGroup, rainGroup, ohGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
+  // второй этаж (2026-10-21): виден мир вокруг, как с первого этажа; этаж — над своим домом на высоте floors.lift
+  let liftY = null;
+  const floorL = W => { const L = W.levels && W.levels[W.lvl]; return L && L.map && L.map.floor ? L : null; };
+  const floorBase = (W, L) => { const b = W.levels.surface.map.buildings[L.map.house]; return heightAt(hf, b.x, b.z) + (cfg.map.floors.lift || 2.6); };
   function showLevel(W) {
-    const id = W.lvl, L = W.levels[id];
+    const id = W.lvl, L = W.levels[id], FL = floorL(W);
+    if (FL) { const S = W.levels.surface; if (!views.has('surface')) { const v = buildSurfaceView(S, Y); v.map = S.map; scene.add(v.group); views.set('surface', v); } }
     { const old = views.get(id); if (old && old.map !== L.map) { scene.remove(old.group); old.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); views.delete(id); } }     // новый ярус Бездны — новая карта (этап 6)
     if (!views.has(id)) { const v = L.def ? buildLevelView(L, cfg) : buildSurfaceView(L, Y); v.map = L.map; scene.add(v.group); views.set(id, v); }
-    for (const [k, v] of views) v.group.visible = k === id;
-    const up = !L.def; for (const o of surfaceObjs) o.visible = up;
+    for (const [k, v] of views) v.group.visible = k === id || (!!FL && k === 'surface');
+    if (FL) views.get(id).group.position.y = floorBase(W, FL);
+    const up = !L.def || !!FL; for (const o of surfaceObjs) o.visible = up;
     sun.visible = up; lantern.visible = !up;
     if (!up) { scene.fog.color.set('#070504'); scene.background.set('#070504'); hemi.color.set('#6a5a50'); hemi.groundColor.set('#1a1210'); hemi.intensity = .9; }
     lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts; fx.clear();
@@ -567,7 +573,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (!nodeParts) { nodeParts = []; for (const [kind, [g1, c1, g2, c2, ay]] of Object.entries(NODE_LOOK)) { const ns = list.filter(n => n.kind === kind); if (!ns.length) continue;
       const a = new THREE.InstancedMesh(g1, new THREE.MeshLambertMaterial({ color: c1 }), ns.length), b = new THREE.InstancedMesh(g2, new THREE.MeshBasicMaterial({ color: c2 }), ns.length); scene.add(a, b); nodeParts.push({ ns, a, b, ay }); } nodeT = 0; }
     if ((nodeT -= dt) > 0) return; nodeT = .5;
-    const under = W.lvl && W.lvl !== 'surface';
+    const under = W.lvl && W.lvl !== 'surface' && !floorL(W);
     for (const P of nodeParts) { P.a.visible = P.b.visible = !under; if (under) continue;
       P.ns.forEach((n, i) => { const k = W.life && W.life.nodes[n.id] > W.t ? 0 : 1, y = Y(n.x, n.z); NQ.setFromAxisAngle(NY, (n.x * 7.3 + n.z) % 6.28); NS.setScalar(k * 1e-3 + k);
         NP.set(n.x, y + .3, n.z); NM.compose(NP, NQ, NS); P.a.setMatrixAt(i, NM); NP.set(n.x, y + P.ay, n.z); NM.compose(NP, NQ, NS); P.b.setMatrixAt(i, NM); });
@@ -576,7 +582,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // повозки (этап 6): модель только рядом с героем (дальние — не рисуются)
   const coachEnts = new Map();
   function updateCoaches(W) {
-    const L0 = W.levels ? W.levels.surface.map : W.map, p = W.player, under = W.lvl && W.lvl !== 'surface';
+    const L0 = W.levels ? W.levels.surface.map : W.map, p = W.player, under = W.lvl && W.lvl !== 'surface' && !floorL(W);
     for (const c of L0.coaches || []) { const near = !under && Math.hypot(c.x - p.x, c.z - p.z) < 70; let m = coachEnts.get(c.id);
       if (near && !m) { m = makeCart(false); m.group.position.set(c.x, Y(c.x, c.z), c.z); m.group.rotation.y = Math.atan2(-c.x, -c.z) + Math.PI / 2; scene.add(m.group); coachEnts.set(c.id, m); }
       if (m) m.group.visible = near; }
@@ -916,13 +922,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function render(W, dt) {
     const t = W.t, p = W.player;
     // камера: плавно следует за героем под заданным углом
-    groundOn = W.lvl === 'surface';
+    const FL = floorL(W); groundOn = W.lvl === 'surface' || !!FL; liftY = FL ? floorBase(W, FL) : null;
     if (!cam.init) { cam.x = p.x; cam.z = p.z; cam.y = Y(p.x, p.z); cam.init = true; }
     const now = performance.now() / 1000, rdt = Math.min(.1, Math.max(0, now - (cineT || now))), C = cfg.view.cine; cineT = now;     // разговор идёт при паузе — время настоящее
     cineA += ((cine ? 1 : 0) - cineA) * (1 - Math.exp(-C.ease * rdt)); if (cineA < .002) cineA = 0;
     if (cine) { const kc = 1 - Math.exp(-C.follow * rdt); cf.x += (cine.x - cf.x) * kc; cf.z += (cine.z - cf.z) * kc; } else { cf.x = cam.x; cf.z = cam.z; }
     const k = 1 - Math.exp(-cfg.view.camFollow * dt), cfx = p.x + (cf.x - p.x) * cineA, cfz = p.z + (cf.z - p.z) * cineA, ka = cineA > 0 ? Math.max(k, 1 - Math.exp(-C.follow * rdt)) : k;
-    cam.x += (cfx - cam.x) * ka; cam.z += (cfz - cam.z) * ka; cam.y += (Y(p.x, p.z) - cam.y) * (cfg.view.blend ? 1 - Math.exp(-cfg.view.blend.camY * dt) : k);     // высота над холмами — медленнее (шаг 3)
+    cam.x += (cfx - cam.x) * ka; cam.z += (cfz - cam.z) * ka; cam.y += ((liftY ?? Y(p.x, p.z)) - cam.y) * (cfg.view.blend ? 1 - Math.exp(-cfg.view.blend.camY * dt) : k);     // высота над холмами — медленнее (шаг 3)
     const ca = calm ? 0 : cineA, pitch = (cfg.view.camPitch - C.pitch * ca) * Math.PI / 180, dist = cfg.view.camDist * (1 - feelZoom) * (1 - C.dist * ca);     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
     const FV = cfg.fx.view, sh = calm || !FV ? 0 : W.shake * FV.amp, wt = performance.now() / 1000;     // тряска — плавная (шаг 4), при «уменьшить движение» — нет
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
@@ -937,13 +943,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       sun.target.position.copy(shT); sun.position.copy(shT).addScaledVector(sunDir, SHD.dist); sun.target.updateMatrixWorld();
     }
     if (W.lvl !== shownLvl || (views.get(W.lvl) && views.get(W.lvl).map !== W.map)) showLevel(W);
-    const under = W.lvl !== 'surface';
+    const under = W.lvl !== 'surface' && !FL;
     if (!under) { streamLand(cam.x, cam.z); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
     dome.position.set(cam.x, 0, cam.z);                              // небо — вокруг камеры (мир шире купола)
     { const k = actorKey(cfg, 'hero', W.hero); if ((k || '') !== (hero.key || '')) { const A = k && makeActor(k, kitOf(k), 'hero'); if (A || !k) { scene.remove(hero.group); if (hero.gltf) disposeActor(hero); disposeDeep(hero.group); hero = A || makeHero(); hero.key = k || ''; scene.add(hero.group); heroLook = null; rimKey = ''; if (shadowsOn) hero.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); } } }     // готовая модель героя пришла или герой сменился
     { const cp = W.ach && W.ach.cape, lk = lookKey(W.hero, W.inv, cp); if (lk !== heroLook) { heroLook = lk; hero.setLook(dressedLook(heroOf(W.hero).look, W.inv, cp)); } }     // облик по надетому и цвет плаща — награда подвига
     if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : 1, rain: WE.force === 'rain' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
-    scene.fog.density = under ? cfg.view.fogDensity * 2.2 : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog;     // в дождь туман гуще     // на рассвете туман гуще
+    scene.fog.density = under ? cfg.view.fogDensity * (String(W.lvl).startsWith('up:') ? .5 : 2.2) : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog;     // в дождь туман гуще     // на рассвете туман гуще
     if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
     else if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток
       lastLight = W.light; const k = skyAt(W.light, cfg.daynight.sky);
@@ -967,7 +973,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         else if (n && river && Math.random() < dt * 1.5 * eff.rain) { const P = river.pts[(Math.random() * river.pts.length) | 0], a = Math.random() * Math.PI * 2, r = Math.random() * (river.w / 2 - .4); if (Math.hypot(P.x - p.x, P.z - p.z) < 26) { q.t = 0; q.m.visible = true; q.m.position.set(P.x + Math.sin(a) * r, cfg.terrain.water + .03, P.z + Math.cos(a) * r); } }
       } }
 
-    if (!under) town.update(W.inside, dt, W.map);
+    if (!under) { town.update(FL ? FL.map.house : W.inside, dt, W.levels ? W.levels.surface.map : W.map); const sv = views.get('surface'); if (sv && sv.stairs) for (const m of sv.stairs) m.visible = W.inside === m.userData.house; }     // лестница видна изнутри дома (снаружи — крыша)
     conts.update(W, t);
     // герои сюжета (этап 3): модель жителя своего цвета; над головой «!» — начать сцену, «?» — вернуться
     { const list = under ? [] : storyActors(W), seen = new Set();
@@ -996,14 +1002,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (!under) {
       for (const { v, m } of villagers) { stepVillager(v, dt, vStops, AMB, Math.random); if (!(m.group.visible = inView(v.x, 1 + Y(v.x, v.z), v.z, 2))) continue; m.group.position.set(v.x, Y(v.x, v.z), v.z); m.group.rotation.y = m.yawInit && cfg.view.blend ? dampAngle(m.group.rotation.y, v.face, cfg.view.blend.yawFoe, dt) : v.face; m.yawInit = true; m.root.position.y = v.moving && !calm ? Math.abs(Math.sin(t * 8 + v.id)) * .07 : 0; m.armL.rotation.x = v.moving && !calm ? Math.sin(t * 8 + v.id) * .5 : 0; m.armR.rotation.x = -m.armL.rotation.x; if (m.gltf) { m.root.position.y = 0; m.tick(dt, v.moving ? 'walk' : 'idle'); } }
       updateBirds(crows.map(c => c.b), p.x, p.z, dt, AMB);
-      if (beasts.length && W.lvl === 'surface') { const nOn = Math.max(2, Math.round(beasts.length * (Q.life ?? 1))); updateBeasts(beasts.slice(0, nOn).map(c => c.b), p.x, p.z, dt, BEA, Math.random, beastOk, (x, z) => biomeAt(cfg, x, z));
+      if (beasts.length && (W.lvl === 'surface' || liftY != null)) { const nOn = Math.max(2, Math.round(beasts.length * (Q.life ?? 1))); updateBeasts(beasts.slice(0, nOn).map(c => c.b), p.x, p.z, dt, BEA, Math.random, beastOk, (x, z) => biomeAt(cfg, x, z));
         for (let i = nOn; i < beasts.length; i++) for (const m of Object.values(beasts[i].ms)) m.group.visible = false;     // на «Низком» — меньше зверей
         for (const c of beasts.slice(0, nOn)) { const b = c.b, m = beastModel(c); m.group.visible = b.state !== 'gone' && inView(b.x, 1 + Y(b.x, b.z), b.z, 2); if (!m.group.visible) continue; const hop = b.kind === 'hare' && b.moving ? Math.abs(Math.sin(b.step * 2.2)) * .25 : 0; m.group.position.set(b.x, Y(b.x, b.z) + hop, b.z); m.group.rotation.y = m.yawInit && cfg.view.blend ? dampAngle(m.group.rotation.y, b.face, cfg.view.blend.yawFoe, dt) : b.face; m.yawInit = true; m.legs.forEach((l, i) => { l.rotation.x = b.moving ? Math.sin(b.step * (b.kind === 'deer' ? 3.2 : 4) + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * .7 : 0; }); (m.head || m.group.children[2]).rotation.x = b.state === 'graze' && (b.kind === 'deer' || b.kind === 'goat') ? .5 : 0;  if (m.gltf) { m.group.position.y -= hop; m.tick(dt, b.state === 'graze' ? 'graze' : b.moving ? (b.state === 'flee' || b.state === 'run' ? 'run' : 'walk') : 'idle'); }} }
-      if (ducks.length && W.lvl === 'surface' && river) { updateDucks(ducks.map(c => c.b), p.x, p.z, dt, river.lakes, BEA.ducks, lakeR);
+      if (ducks.length && (W.lvl === 'surface' || liftY != null) && river) { updateDucks(ducks.map(c => c.b), p.x, p.z, dt, river.lakes, BEA.ducks, lakeR);
         for (const { b, m } of ducks) { m.group.visible = !!b.lake && inView(b.x, 0, b.z, 1); if (!b.lake) continue; m.group.position.set(b.x, cfg.terrain.water + .02 + Math.sin(t * 2 + b.id) * .02, b.z); m.group.rotation.y = b.face; if (m.gltf) m.tick(dt, 'idle'); } }
-      if (river && river.lakes && W.lvl === 'surface' && (fishT -= dt) <= 0) { fishT = BEA.fish[0] + Math.random() * (BEA.fish[1] - BEA.fish[0]);     // рыба плеснула
+      if (river && river.lakes && (W.lvl === 'surface' || liftY != null) && (fishT -= dt) <= 0) { fishT = BEA.fish[0] + Math.random() * (BEA.fish[1] - BEA.fish[0]);     // рыба плеснула
         const L = river.lakes.find(q => Math.hypot(q.x - p.x, q.z - p.z) < q.r + 30); if (L && !calm) { const a = Math.random() * 6.283, rr = Math.random() * L.r * .6, x = L.x + Math.sin(a) * rr, z = L.z + Math.cos(a) * rr; ringFx(x, z, .9, '#d6e6dc'); for (let i = 0; i < 8; i++) fx.emit(x, cfg.terrain.water + .1, z, (Math.random() - .5) * 1.2, 1.6 + Math.random(), (Math.random() - .5) * 1.2, '#d8ecf4', .6, 6, .06, false); } }
-      if (flies && W.lvl === 'surface' && !calm) {     // днём бабочки у травы, ночью летучие мыши повыше
+      if (flies && (W.lvl === 'surface' || liftY != null) && !calm) {     // днём бабочки у травы, ночью летучие мыши повыше
         const n = Math.round(FLY.n * (Q.life ?? 1) * (W.rain > .3 ? 0 : 1)), night = !!W.night; flies.count = n; flies.material.color.set(night ? '#2a2026' : '#ffffff');
         for (let i = 0; i < n; i++) { let A = flyA[i];
           if (!A || Math.hypot(A.x - p.x, A.z - p.z) > FLY.r * 2.2) { const u = Math.random() * Math.PI * 2, d = FLY.r * (A ? .9 + Math.random() * .7 : .3 + Math.random()); A = flyA[i] = { x: p.x + Math.sin(u) * d, z: p.z + Math.cos(u) * d, t0: t, u: Math.random() * Math.PI * 2 }; }     // ушёл далеко — новое место у края, появляется плавно
@@ -1030,7 +1036,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ap.needsUpdate = true; ash.position.set(cam.x, 0, cam.z);
 
     // герой
-    const py = Y(p.x, p.z); hero.group.position.set(p.x, py, p.z);
+    const py = liftY ?? Y(p.x, p.z); hero.group.position.set(p.x, py, p.z);
     asciiLamp.visible = asciiOn && !under; if (asciiLamp.visible) asciiLamp.position.set(p.x, py + 2.6, p.z); { const BL = cfg.view.blend, early = p.state === 'atk' && p.atkT < cfg.player.attackHitAt * .6; hero.group.rotation.y = BL && hero.yawInit ? dampAngle(hero.group.rotation.y, p.face, early ? BL.yawWind : BL.yawHero, dt) : p.face; hero.yawInit = true; }     // поворот модели — плавно (шаг 3)
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); if (hero.wkey !== rimKey) { rimKey = hero.wkey; rimify(hero.group, RS && RS.hero); } }
     if (RS) RimU.uRim.value = RS.night + (RS.day - RS.night) * Math.min(1, Math.max(0, ((W.light ?? 1) - .15) / .6));
@@ -1083,7 +1089,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       let en = allyEnts.get(a.id);
       if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : cfg.squad.types[a.type] && cfg.squad.types[a.type].hero ? mateModel(cfg.squad.types[a.type]) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
       { const T1 = cfg.squad.types[a.type], k1 = T1 && T1.hero && !a.guest && !a.decoy && !en.m.gltf && actorKey(cfg, 'hero', T1.hero); if (k1 && actorReady(k1)) { scene.remove(en.m.group); disposeDeep(en.m.group); en.m = mateModel(T1); en.lk = null; scene.add(en.m.group); } }     // готовая модель спутника пришла позже
-      const ay = Y(a.x, a.z); en.m.group.position.set(a.x, ay, a.z); en.m.group.rotation.y = en.yawInit && cfg.view.blend ? dampAngle(en.m.group.rotation.y, a.face, cfg.view.blend.yawHero, dt) : a.face; en.yawInit = true;
+      const ay = liftY ?? Y(a.x, a.z); en.m.group.position.set(a.x, ay, a.z); en.m.group.rotation.y = en.yawInit && cfg.view.blend ? dampAngle(en.m.group.rotation.y, a.face, cfg.view.blend.yawHero, dt) : a.face; en.yawInit = true;
       if (en.m.setLook && !a.guest) {     // спутник-герой (этап 4): анимация героя по «подставному» игроку — бег по скорости, удар по замаху
         if (a.eq) { const T0 = cfg.squad.types[a.type], lk = lookKey(T0.hero, a, null) + (a.eq.weapon || ''); if (en.lk !== lk) { en.lk = lk; en.m.setLook(dressedLook(heroOf(T0.hero).look, a, null)); const wi = a.eq.weapon && BY_ID[a.eq.weapon]; en.m.setWeapon(wi ? wi.kind : MATE_W[T0.hero] || 'sword', wi ? wi.mat : 'steel'); } }     // одежда бойца-героя (2026-10-20)
         const T = cfg.squad.types[a.type], AT = cfg.player.attackTime, k = dt > 0 ? 1 / dt : 0, pp = en.pp || (en.pp = { chain: 0, fin: false, heavy: 0, hand: 0, inv: 0, rollT: 0, chargeT: 0, dashT: 0, dashDur: 0 });

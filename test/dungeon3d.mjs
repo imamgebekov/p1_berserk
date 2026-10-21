@@ -17,7 +17,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 {
   const W = mk();
   ok(W.lvl === 'surface' && W.levels[D.id], 'есть поверхность и погреб');
-  ok(W.map.portals.filter(q => !q.abyssEnter).length === CFG3.dungeons.list.filter(d => !d.hidden && !d.sub).length, 'на поверхности по люку на каждое открытое подземелье');
+  ok(W.map.portals.filter(q => !q.abyssEnter && !q.stair).length === CFG3.dungeons.list.filter(d => !d.hidden && !d.sub).length, 'на поверхности по люку на каждое открытое подземелье');
   ok(CFG3.dungeons.list.filter(d => d.hidden).every(d => !W.map.portals.some(q => q.to === d.id)), 'у скрытых подземелий люка наверху нет');
   ok(!portalNear(W), 'у костра люка нет');
   toHatch(W);

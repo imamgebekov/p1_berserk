@@ -18,11 +18,24 @@ export function interiorPos(b, u, v) {
 }
 export function roomSize(b) { const vert = b.door.side === 'e' || b.door.side === 'w'; return { depth: vert ? b.ix1 - b.ix0 : b.iz1 - b.iz0, along: vert ? b.iz1 - b.iz0 : b.ix1 - b.ix0, vert }; }
 
+// дома крупнее (2026-10-21, просьба владельца): каждый растёт в bScale раз, но не задевает соседний дом, частокол лагеря,
+// вход в подземелье и площадки перед дверями (тогда растёт меньше, с шагом 0,05)
+function grown(cfg) {
+  const M = cfg.map, K = M.bScale || 1, gap = M.bGap || 1.5, out = M.buildings.map(b => ({ ...b })); if (K <= 1) return out;
+  const camp = campOf(cfg), cw = camp ? [...campWalls(camp).blocks, ...campGates(camp).map(g => ({ x0: Math.min(camp.x, g.x) - 1.4, x1: Math.max(camp.x, g.x) + 1.4, z0: Math.min(camp.z, g.z) - 1.4, z1: Math.max(camp.z, g.z) + 1.4 }))] : [], pts = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden && !d.sub).map(d => d.at);     // уличные сундуки не мешают: их отодвигает makeMap     // и дороги от центра к воротам
+  const S = { e: [1, 0], w: [-1, 0], s: [0, 1], n: [0, -1] }, front = o => { const [dx, dz] = S[o.door] || [0, 0]; return { x: o.x + dx * (o.w / 2 + 2.6) + (dz ? o.off || 0 : 0), z: o.z + dz * (o.d / 2 + 2.6) + (dx ? o.off || 0 : 0) }; };     // площадка перед дверью
+  const hit = (b, i, k) => { const [dx, dz] = S[b.door] || [0, 0], fx = gap + 1, hw = b.w * k / 2 + gap, hd = b.d * k / 2 + gap;     // перед своей дверью — запас больше
+    const x0 = b.x - hw - (dx < 0 ? fx : 0), x1 = b.x + hw + (dx > 0 ? fx : 0), z0 = b.z - hd - (dz < 0 ? fx : 0), z1 = b.z + hd + (dz > 0 ? fx : 0), inR = (x, z, p = 0) => x > x0 - p && x < x1 + p && z > z0 - p && z < z1 + p;
+    return out.some((o, j) => j !== i && (o.x + o.w / 2 > x0 && o.x - o.w / 2 < x1 && o.z + o.d / 2 > z0 && o.z - o.d / 2 < z1 || (() => { const f = front(o); return Math.abs(f.x - b.x) < b.w * k / 2 + .9 && Math.abs(f.z - b.z) < b.d * k / 2 + .9; })()))
+      || pts.some(p => inR(p.x, p.z)) || cw.some(w => w.x1 > x0 && w.x0 < x1 && w.z1 > z0 && w.z0 < z1); };
+  out.forEach((b, i) => { let k = K; while (k > 1.001 && hit(b, i, k)) k -= .05; b.w = Math.round(b.w * k * 10) / 10; b.d = Math.round(b.d * k * 10) / 10; });
+  return out;
+}
 export function makeMap(cfg) {
   const M = cfg.map, t = M.wall, hw = M.doorW / 2;
   const buildings = [], walls = [], containers = [];
   const addC = (kind, x, z, bid) => containers.push({ id: containers.length, kind, x, z, b: bid, ready: false, t: 0, items: [], locked: false, keyTier: 0 });
-  M.buildings.forEach((b, id) => {
+  grown(cfg).forEach((b, id) => {
     const x0 = b.x - b.w / 2, x1 = b.x + b.w / 2, z0 = b.z - b.d / 2, z1 = b.z + b.d / 2;
     const off = b.off || 0;
     // дверь: центр проёма, точки «снаружи» и «внутри» для ходьбы врагов, ось стены
@@ -54,7 +67,9 @@ export function makeMap(cfg) {
     (b.chests || []).slice(0, 4).forEach((k, i) => { addC(k, cs[i][0], cs[i][1], id); bb.chests.push(containers[containers.length - 1]); });
   });
   const gen = genWorld(cfg, buildings);
-  for (const sp of M.spots || []) addC(sp.kind, sp.x, sp.z, -1);
+  for (const sp of M.spots || []) { let { x, z } = sp;     // уличный сундук внутри выросшего дома — за ближнюю стену (2026-10-21)
+    for (const b of buildings) if (x > b.x0 - .9 && x < b.x1 + .9 && z > b.z0 - .9 && z < b.z1 + .9) { const m = [[b.x0 - 1.1 - x, 0], [b.x1 + 1.1 - x, 0], [0, b.z0 - 1.1 - z], [0, b.z1 + 1.1 - z]].sort((u, v) => Math.hypot(...u) - Math.hypot(...v))[0]; x += m[0]; z += m[1]; }
+    addC(sp.kind, x, z, -1); }
   // созданные генератором: не ближе 1.6 м к уже стоящим (могилы и алтарь не слипаются)
   for (const sp of gen.spots) if (!containers.some(c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1);
   { const coreR = cfg.worldgen && cfg.worldgen.on && cfg.world.radius > cfg.worldgen.coreR ? cfg.worldgen.coreR : Infinity; for (const c of containers) c.far = Math.hypot(c.x, c.z) > coreR; }     // сундуки пояса большого мира наполняются, когда герой рядом (C3b)
@@ -122,7 +137,7 @@ export function resolve(map, o, r) {
     for (const bi of N.b) {
       const b = map.buildings[bi];
       if (o.x < b.x0 - r || o.x > b.x1 + r || o.z < b.z0 - r || o.z > b.z1 + r) continue;
-      const list = b.door.open < .6 ? b.walls.concat(b.door.rect) : b.walls;
+      const list0 = b.door.open < .6 ? b.walls.concat(b.door.rect) : b.walls, list = b.stairRect ? list0.concat(b.stairRect) : list0;     // лестница на второй этаж — твёрдая
       for (const w of list) {
         const cx = clamp(o.x, w.x0, w.x1), cz = clamp(o.z, w.z0, w.z1), dx = o.x - cx, dz = o.z - cz, d2 = dx * dx + dz * dz;
         if (d2 >= r * r) continue;

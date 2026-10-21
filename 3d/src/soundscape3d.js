@@ -10,7 +10,7 @@ const clamp01 = v => Math.max(0, Math.min(1, v));
 const smooth = (a, b, v) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t); };
 
 export function mixOf(W, A, env) {
-  const p = W.player, under = W.lvl !== 'surface';
+  const p = W.player, under = W.lvl !== 'surface' && !String(W.lvl).startsWith('up:');     // второй этаж дома — не подземелье: музыка и птицы слышны
   let n = 0; for (const e of W.enemies) if (!e.dead && e.alert && Math.hypot(e.x - p.x, e.z - p.z) < A.combat.r) n++;
   const combat = p.dead ? 0 : clamp01(n / A.combat.n), danger = clamp01(W.place && W.place.danger ? W.place.danger / 3 : 0);
   const rv = !under && W.map.river, d = rv ? Math.max(0, Math.min(waterDist(rv, p.x, p.z), streamDist(rv, p.x, p.z) + 3)) : 1e9;     // ручей журчит тише реки (как будто на 3 м дальше)

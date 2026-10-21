@@ -27,7 +27,7 @@ try {
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
   // «Ретро» (крупные пиксели): Chromium без видеокарты на полном разрешении даёт ~8 кадр/с, а проверки управления меряют время;
   // гладкий вид (шаг 2 аудита) проверяется ниже размером холста и в тестах Мака и Safari
-  await page.goto(url + '?shot&hero=thorn&retro&dev', { timeout: 25000 }); await page.waitForTimeout(1500);     // ?dev: панель настройки и ссылка на 2D видны только так
+  await page.goto(url + '?shot&hero=thorn&retro&dev', { waitUntil: 'domcontentloaded', timeout: 180000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 180000 }); await page.waitForTimeout(1500);     // холодный сервер разработки собирает модули дольше 25 с (было зависание с 3.77)     // ?dev: панель настройки и ссылка на 2D видны только так
   // окна кузнеца, журнала и найма проверяем как открытые: «Путь пепла» (шаг 13) открывает их после первого босса и с 5-го уровня
   await page.evaluate(() => { window.__b3d.W.path.slain.devourer = true; });
 
@@ -68,7 +68,7 @@ try {
 
   // места и карта: подпись места, миникарта, большая карта с туманом
   await page.evaluate(() => { const w = window.__b3d.W; w.enemies.length = 0; w.cfg.enemies.count = 0; for (const [x, z] of [[0, 6], [-28, 30], [56, -44], [-46, -30]]) { window.__b3d.reveal(x, z, 22); } w.player.x = 56; w.player.z = -44; w.player.inv = 1e9; });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(1500);     // программный GL — около 9 кадров/с: подпись меняется не сразу
   { const t = await page.$eval('#place', e => ({ hidden: e.hidden, text: e.textContent, cls: e.className })); if (t.hidden || !t.text.includes('Лагерь Ржавых') || t.cls !== 'danger') bad('подпись места не показана: ' + JSON.stringify(t)); }
   await page.screenshot({ path: join(out, '3d-place.png') });
   { const px = await page.evaluate(() => { const c = document.getElementById('mini'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; const set = new Set(); for (let i = 0; i < d.length; i += 40) set.add(d[i] + ',' + d[i + 1] + ',' + d[i + 2]); return set.size; }); if (px < 6) bad('миникарта пустая: цветов ' + px); }
@@ -88,7 +88,7 @@ try {
   await page.tap('.tnode[data-key="t:th_hand"]'); await page.waitForTimeout(100);     // древо (2026-10-20): выбрать узел, «Вложить очко»
   await page.tap('.tcard .tbuy'); await page.waitForTimeout(100); await page.tap('.tcard .tbuy'); await page.waitForTimeout(120);
   if ((await page.evaluate(() => window.__b3d.W.skills.th_hand)) !== 2 || (await page.evaluate(() => window.__b3d.W.sp)) !== 2) bad('вложение очка в талант не сработало');
-  if (!(await page.locator('.tnode[data-key="t:th_bash"]').evaluate(e => e.classList.contains('lock')))) bad('третий ряд должен быть закрыт');
+  if (!(await page.evaluate(() => [...[...document.querySelectorAll('.tbranch')][1].querySelectorAll('.tnode')].find(n => n.style.gridRowStart === '5').classList.contains('lock')))) bad('пятый ряд должен быть закрыт');     // древо 96 узлов (3.88): ряд 5 ждёт 6 очков в ветке
   { const small = await page.evaluate(() => [...document.querySelectorAll('#skills button')].filter(b => b.offsetParent && (b.getBoundingClientRect().height < 40 || b.getBoundingClientRect().width < 40)).map(b => b.textContent)); if (small.length) bad('кнопки навыков мельче 40px: ' + small.join(',')); }
   await page.tap('#skillClose'); await page.waitForTimeout(100);
   { const d = await page.evaluate(() => window.__b3d.W.gear.dmg); if (!(d >= dmg0 + 4)) bad(`талант не повлиял на урон: ${dmg0} → ${d}`); }
@@ -302,7 +302,7 @@ try {
   await page.tap('#bagClose'); await page.waitForTimeout(100);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('berserk3d.save') || 'null'));
   if (!saved || saved.inv.eq.weapon !== 'w_greatsword_black') bad('сохранение не записалось');
-  await page.reload(); await page.waitForTimeout(900);
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 120000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 120000 }); await page.waitForTimeout(900);
   if (await page.evaluate(() => window.__b3d.W.inv.eq.weapon) !== 'w_greatsword_black') bad('надетое не пережило перезагрузку');
   await page.evaluate(() => { window.__b3d.W.inv.eq.weapon = null; window.__b3d.saver.write(true); });
   await page.evaluate(() => { const w = window.__b3d.W, c = window.__b3d.cfg; w.player.x = -4; w.player.z = 2; c.view.camDist = 32; });
@@ -356,7 +356,7 @@ try {
   await page.screenshot({ path: join(out, '3d-panel.png') });
   const frozen = await st(); await page.waitForTimeout(400); const f2 = await st();
   if (f2.t !== frozen.t) bad('мир идёт при открытой панели');
-  await page.reload(); await page.waitForTimeout(800);
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 120000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 120000 }); await page.waitForTimeout(800);
   const persisted = await page.evaluate(() => window.__b3d.cfg.view.camPitch);
   if (persisted !== after) bad(`настройка не пережила перезагрузку ${persisted} ≠ ${after}`);
   await page.tap('#gear'); await page.waitForTimeout(150); if (!(await page.evaluate(() => document.getElementById('tweakBox').open))) await page.tap('#tweakBox summary'); await page.tap('#tweakReset');

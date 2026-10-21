@@ -7,6 +7,7 @@ import { mulberry32, spawnEnemy, spawnBoss } from './sim.js';
 import { bossAway } from './boss3d.js';
 import { zoneLevel } from './zones3d.js';
 import { initAbyss, abyssGo } from './abyss3d.js';
+import { floorsOf, floorMap, isFloor } from './floors3d.js';
 
 export const SURFACE = 'surface';
 export const onSurface = W => W.lvl === SURFACE;
@@ -24,6 +25,15 @@ export function initLevels(W) {
     const rng = W.rng === Math.random ? Math.random : mulberry32(cfg.dungeons.seed + i);
     W.levels[def.id] = { id: def.id, def, map, enemies: [], drops: [], spawnT: 1, rng, ...fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal) };
   });
+  // вторые этажи (2026-10-21): уровень над домом; внизу — лестница (твёрдая, переход у подножия); сундук на месте лестницы — в свободный угол
+  for (const f of floorsOf(cfg, W.map, (x, z) => levelAt(W, x, z))) {
+    const map = floorMap(cfg, f), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2, b = f.b, r = f.stair.rect;
+    W.levels[f.def.id] = { id: f.def.id, def: f.def, map, enemies: [], drops: [], spawnT: 1, rng: W.rng === Math.random ? Math.random : mulberry32(cfg.dungeons.seed + 1000 + b.id), ...fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal) };
+    b.stairRect = r; b.floor = f.def.id;
+    W.map.portals.push({ x: f.stair.foot.x, z: f.stair.foot.z, to: f.def.id, tx: f.stair.top.x, tz: f.stair.top.z, up: true, stair: true, st: f.stair, house: b.id });
+    const inR = c => c.x > r.x0 - .7 && c.x < r.x1 + .7 && c.z > r.z0 - .7 && c.z < r.z1 + .7;
+    for (const c of b.chests) if (inR(c)) { const spot = [[b.ix0 + .8, b.iz0 + .8], [b.ix1 - .8, b.iz0 + .8], [b.ix0 + .8, b.iz1 - .8], [b.ix1 - .8, b.iz1 - .8], [(b.ix0 + b.ix1) / 2, (b.iz0 + b.iz1) / 2]].find(([x, z]) => !inR({ x, z }) && !b.chests.some(o => o !== c && Math.hypot(o.x - x, o.z - z) < 1.2) && Math.hypot(x - b.door.x, z - b.door.z) > 2 && (!b.npc || Math.hypot(x - b.npc.x, z - b.npc.z) > 1.2)); if (spot) { c.x = spot[0]; c.z = spot[1]; } }
+  }
   W.seenR = cfg.world.radius; W.seenC = cfg.map.cell; W.revR = cfg.map.reveal;
   initAbyss(W);     // «Бездна» (этап 6 «круче»): ярус 1 и люк у лагеря
 }
@@ -75,7 +85,7 @@ export function portalNear(W) {
   const r = W.cfg.dungeons.reach;
   return W.map.portals.find(q => len(q.x - p.x, q.z - p.z) < r) || null;
 }
-export function portalName(W, q) { if (q.abyssEnter) return 'Спуститься: Бездна'; if (q.abyssNext) return `Спуститься: ярус ${(W.abyss ? W.abyss.tier : 0) + 1}`; return q.up ? (q.to === SURFACE ? 'Подняться' : 'Подняться: ' + W.levels[q.to].def.name) : 'Спуститься: ' + W.levels[q.to].def.name; }
+export function portalName(W, q) { if (q.stair) return q.down ? 'Спуститься вниз' : 'Подняться на второй этаж'; if (q.abyssEnter) return 'Спуститься: Бездна'; if (q.abyssNext) return `Спуститься: ярус ${(W.abyss ? W.abyss.tier : 0) + 1}`; return q.up ? (q.to === SURFACE ? 'Подняться' : 'Подняться: ' + W.levels[q.to].def.name) : 'Спуститься: ' + W.levels[q.to].def.name; }
 
 // уход с уровня: запомнить время; враги подземелья теряют героя
 function leave(W) { const L = W.levels[W.lvl]; L.leftT = W.t; if (L.def) for (const e of W.enemies) e.alert = false; }

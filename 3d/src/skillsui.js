@@ -6,6 +6,7 @@ import { abilityView, respecAbilities, respecAbilityCost, spentAbility, resView,
 import { treeOf, rankOf, canBuy, buy, needText, spentInTree, ROWS, COLS, ROW_STEP } from './tree3d.js';
 import { MASTERY_TEXT } from './data/abilities3d.js';
 import { GI } from './data/gicons.js';
+import { ownIcon } from './custom3d.js';
 import { refreshGear } from './sim.js';
 
 // разница рангов (шаг 10): у описаний одинаковый текст, меняются числа — показываем только их: «×1,4 → ×1,6 · 9 с → 8,5 с»;
@@ -17,7 +18,7 @@ export function rankDiff(now, next) {
   const out = []; for (let i = 0; i < a.length; i++) if (a[i][0] !== b[i][0]) out.push(`${a[i][0].trim()} → ${b[i][0].trim()}`);
   return out.length ? out.join(' · ') : null;
 }
-export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
+export function createSkills(doc, W, cfg, { onOpen, onClose, onChange, onOwnIcon } = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('skills'), listEl = $('skillList'), tabsEl = $('skillTabs'), headEl = $('skillHead'), xpEl = $('skillXp'), flashEl = $('skillFlash'), resetBtn = $('skillReset');
   let branch = branchesOf(W.hero)[0].id, armed = false, flashT = 0, tabsHero = null;
@@ -27,7 +28,8 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   let sel = null;     // выбранный узел древа
   const buildTabs = () => { tabsHero = W.hero; tabsEl.textContent = ''; tabsEl.hidden = true; branch = 'tree'; };     // окно умений убрано (2026-10-20): всё в древе
   // древо (2026-10-20): три ветки рядом, узлы-значки с рангом; выбор — карточка с описанием и кнопкой
-  const gi = (k, cls) => { const d = GI[k], sv = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.setAttribute('viewBox', '0 0 512 512'); sv.setAttribute('class', cls || 'gi'); if (d) { const pa = doc.createElementNS('http://www.w3.org/2000/svg', 'path'); pa.setAttribute('d', d); sv.appendChild(pa); } return sv; };
+  const gi = (k, cls) => { { const own = ownIcon(k); if (own) { const im = doc.createElement('img'); im.src = own; im.alt = ''; im.className = (cls || 'gi') + ' own'; return im; } }     // свой значок игрока
+    const d = GI[k], sv = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.setAttribute('viewBox', '0 0 512 512'); sv.setAttribute('class', cls || 'gi'); if (d) { const pa = doc.createElementNS('http://www.w3.org/2000/svg', 'path'); pa.setAttribute('d', d); sv.appendChild(pa); } return sv; };
   function nodeInfo(n) {
     const ab = n.kind !== 'talent' ? abilityView(W).find(a => a.id === n.id) : null, r = rankOf(W, n), out = [], rv = resView(W);
     if (n.kind === 'talent') out.push(n.text);
@@ -70,9 +72,11 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       if (n.kind === 'active' && r > 0) { const bar = barOf(W), sl = el('div', 'slots'); sl.append(el('span', 'sl-l', 'На панель:'));
         for (let k = 0; k < BAR; k++) { const sb = el('button', 'bslot' + (bar[k] === n.id ? ' on' : ''), String(k + 1)); sb.type = 'button'; sb.addEventListener('click', () => { setBar(W, k, bar[k] === n.id ? null : n.id); render(); onChange && onChange(); }); sl.append(sb); }
         card.append(sl); }
+      if (onOwnIcon && n.kind !== 'mastery') { const ob = el('button', 'tbuy own', ownIcon(n.icon) ? 'Свой значок: заменить' : 'Свой значок'); ob.type = 'button'; ob.addEventListener('click', () => onOwnIcon(n.icon)); card.append(ob);
+        if (ownIcon(n.icon)) { const rb = el('button', 'tbuy own', 'Вернуть значок игры'); rb.type = 'button'; rb.addEventListener('click', () => onOwnIcon(n.icon, true)); card.append(rb); } }
       if (n.kind === 'active') { const all = abilityView(W), nm = id => (all.find(a => a.id === id) || { name: id }).name, bar = barOf(W);     // связки этого умения (были во вкладке «Панель и связки»)
         for (const c of combosOf(W.hero).filter(c => c.a === n.id || c.b === n.id)) { const known = (W.ab[c.a] || 0) > 0 && (W.ab[c.b] || 0) > 0, onBar = bar.includes(c.a) && bar.includes(c.b);
-          card.append(el('div', 'sub cmb', `Связка «${c.name}»: ${nm(c.a)} → ${nm(c.b)} не позже ${W.cfg.combos.window} с — ${c.text}. ${!known ? 'Нужны оба умения.' : onBar ? 'Оба на панели.' : 'Поставьте оба на панель.'}`)); } }
+          card.append(el('div', 'sub cmb', `Связка «${c.name}»: ${nm(c.a)} → ${nm(c.b)} не позже ${W.cfg.combos.window} с — ${c.text.replace(/\.$/, '')}. ${!known ? 'Нужны оба умения.' : onBar ? 'Оба на панели.' : 'Поставьте оба на панель.'}`)); } }
     } else card.append(el('div', 'sub', 'Нажмите на узел — описание и кнопка «Вложить очко». Двойной щелчок — сразу вложить.'), el('div', 'sub', `Ряд открывается за каждые ${ROW_STEP} очка в ветке. Умения и мастерство — за очки умений, таланты — за очки талантов.`));
     const cost = respecCost(W) + respecAbilityCost(W), any = Object.values(W.skills).some(v => v > 0) || spentAbility(W.ab) > 0;
     resetBtn.textContent = armed ? 'Точно? Все очки вернутся, пепел спишется' : `Сбросить древо · ${cost} пепла`; resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !any;

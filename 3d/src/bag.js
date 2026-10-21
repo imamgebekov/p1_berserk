@@ -17,7 +17,7 @@ import { allyInv, allyHeroOf, refreshAlly, allyDmgOf } from './squad3d.js';     
 const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
 const tabOf = it => it.slot === 'weapon' ? 'weapon' : it.slot ? 'armor' : it.cat === 'consumable' ? 'use' : 'other';
 
-export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJournal, onQuests } = {}) {
+export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJournal, onQuests, onOwnIcon } = {}) {
   const desk = doc.documentElement.hasAttribute('data-desk');
   const $ = id => doc.getElementById(id);
   const root = $('bag'), eqEl = $('bagEq'), listEl = $('bagList'), cardEl = $('bagCard'), tabsEl = $('bagTabs'), statsEl = $('bagStats'), headEl = $('bagHead');
@@ -163,6 +163,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       if (n > 1) btn(`Продать 1 · ${sellPrice(it, cfg, up, W.gear.trade)}`, () => { if (sellItem(W, sel.i, 1) === 'far') flash('Продавать можно только у торговца'); });
       if (it.slot) { const s0 = W.inv.bag[sel.i]; btn(s0 && s0.lock ? 'Снять замок' : 'Замок', () => { const s = W.inv.bag[sel.i]; if (s) { if (s.lock) delete s.lock; else s.lock = true; } }); }     // замок: «продать хуже надетого» не тронет (этап 4 «круче»)
       btn('Выбросить', () => { dropItem(W, sel.i, n); sel = null; });
+      if (onOwnIcon) btn('Свой значок', () => onOwnIcon(it));     // значок с устройства — для всех вещей этого вида (custom3d.js)
     }
     cardEl.insertBefore(row, cardEl.children[1] || null);      // кнопки — сразу под названием: у длинной карточки их видно без прокрутки
   }

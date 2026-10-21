@@ -11,7 +11,7 @@ import { roomAt } from '../3d/src/map.js';
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
 const clone = () => JSON.parse(JSON.stringify(CFG3));
-const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; c.bosses.list = []; c.map.places = c.map.places.filter(p => !p.safe); if (tweak) tweak(c); const W = createWorld(c, mulberry32(seed)); W.player.x = 30; W.player.z = 30; return W; };
+const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; c.bosses.list = []; c.map.places = c.map.places.filter(p => !p.safe); if (tweak) tweak(c); const W = createWorld(c, mulberry32(seed)); W.player.x = 30; W.player.z = 24; return W; };     // склад рядом вырос (дома крупнее с 3.90)
 const run = (W, sec, input = {}) => { for (let i = 0; i < Math.round(sec * 60); i++) step(W, 1 / 60, typeof input === 'function' ? input(i) : input); };
 const NEW = ['shield', 'bomber', 'lunger', 'shade'];
 const near = (W, type, d, ang = 0) => { const p = W.player; const e = spawnEnemy(W, type, p.x + Math.sin(ang) * d, p.z + Math.cos(ang) * d); e.cd = 99; return e; };

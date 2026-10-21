@@ -8,7 +8,8 @@ import { createShop, createSmith, createCaptain } from './shop.js';
 import { createSkills } from './skillsui.js';
 import { createJournal } from './journal.js';
 import { createQuests } from './questsui.js';
-import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sfx, setScene, tickAudio, audioStats } from './audio3d.js';
+import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sfx, setScene, tickAudio, audioStats, setOwnMusicOn } from './audio3d.js';
+import { loadOwn, onOwnChange, ownIcon, ownMusic, ownIconCount, setOwnIcon, clearOwnIcon, clearOwnIcons, addOwnMusic, clearOwnMusic, player as ownPlayer } from './custom3d.js';
 import { mixOf } from './soundscape3d.js';
 import { clockText } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
@@ -25,6 +26,7 @@ import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView, resView, barOf, abilityAim } from './abilities3d.js';
 import { createFeel, unlocksAt } from './feel3d.js';
 import { ABILITIES, abilityPointsAt } from './data/abilities3d.js';
+import { giKeyOf } from './itemicons.js';
 import { weaponSkillView } from './weaponskill3d.js';
 import { comboReady } from './combos3d.js';
 import { ELEMENT_COLOR } from './elements3d.js';
@@ -169,7 +171,7 @@ function drawAbil() {
   if (key === abilKey) return; abilKey = key;
   // ячейки панели (выбор — в окне «Навыки»): на компьютере 5 ячеек, как в Minecraft (пустые видны); на телефоне — только занятые, у кнопки удара
   abilBtns.forEach((b, i) => { const a = v[i], show = (!!a || desk) && !panelOpen && !landscape && !W.player.dead; if (b.hidden === show) b.hidden = !show; if (!show) return;
-    const tag = a ? a.id + a.rank : 'empty'; if (b.dataset.id !== tag) { b.dataset.id = tag; b.textContent = ''; if (a) { const g = GI['n:' + a.id]; if (g) b.insertAdjacentHTML('beforeend', `<svg class="abgi" viewBox="0 0 512 512" aria-hidden="true"><path d="${g}"/></svg>`); else b.textContent = a.icon; } const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k);
+    const tag = a ? a.id + a.rank : 'empty'; if (b.dataset.id !== tag) { b.dataset.id = tag; b.textContent = ''; if (a) { const g = GI['n:' + a.id], own = ownIcon('n:' + a.id); if (own) b.insertAdjacentHTML('beforeend', `<img class="abgi own" src="${own}" alt="">`); else if (g) b.insertAdjacentHTML('beforeend', `<svg class="abgi" viewBox="0 0 512 512" aria-hidden="true"><path d="${g}"/></svg>`); else b.textContent = a.icon; } const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k);
       if (a) { const c = document.createElement('span'); c.className = 'c'; c.textContent = a.cost; b.append(c); } else if (next) { const l = document.createElement('span'); l.className = 'lv'; l.textContent = 'ур. ' + next.lv; b.append(l); }
       b.setAttribute('aria-label', a ? `${a.name} (${i + 1}), цена ${a.cost}` : 'Пустая ячейка: умение ставится в древе'); b.title = a ? `${a.name} · клавиша ${i + 1} · цена ${a.cost}` : 'Пусто: поставьте умение на панель в древе (карточка умения)'; }
     b.classList.toggle('empty', !a); b.classList.toggle('poor', !!a && !a.enough); { const c = a && cr.find(q => q.id === a.id); b.classList.toggle('combo', !!c); if (c) b.dataset.combo = c.combo.name; else delete b.dataset.combo; } if (!a) { b.style.setProperty('--cd', 0); return; }
@@ -299,7 +301,7 @@ function showZone() {
 function showPlace(pl) {
   const el = $('place'); el.hidden = !pl; if (!pl) return;
   el.className = pl.safe ? 'safe' : 'danger';
-  el.textContent = pl.safe ? `${pl.name} · безопасно` : `${pl.name} · опасность ${'▮'.repeat(pl.danger)}${'▯'.repeat(3 - pl.danger)}`;
+  el.textContent = pl.safe || String(W.lvl).startsWith('up:') ? `${pl.name}${String(W.lvl).startsWith('up:') ? '' : ' · безопасно'}` : `${pl.name} · опасность ${'▮'.repeat(pl.danger)}${'▯'.repeat(3 - pl.danger)}`;
   el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
 }
 function onHurt() {
@@ -339,7 +341,8 @@ const bag = createBag(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); },
   onClose: () => { panelOpen = false; saver.write(); },
   onChange: () => saver.write(),
-  onReset: () => { saver.reset(); location.reload(); }     // сброс — из меню «Сохранение» с удержанием (шаг 4)
+  onReset: () => { saver.reset(); location.reload(); },     // сброс — из меню «Сохранение» с удержанием (шаг 4)
+  onOwnIcon: it => pickOwnIcon(giKeyOf(it))
 });
 const shop = createShop(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); if (W.spark) W.spark.trader = true; },
@@ -347,6 +350,7 @@ const shop = createShop(document, W, cfg, {
   onChange: () => { saver.write(); bag.render(); }
 });
 const skills = createSkills(document, W, cfg, {
+  onOwnIcon: (key, reset) => (reset ? clearOwnIcon(key) : pickOwnIcon(key)),
   onOpen: () => { panelOpen = true; input.release(); },
   onClose: () => { panelOpen = false; saver.write(); },
   onChange: () => saver.write()
@@ -426,7 +430,25 @@ setVolume(cfg.audio.volume);
 for (const ev of ['pointerdown', 'touchstart', 'keydown']) addEventListener(ev, ensureAudio, { passive: true });
 const muteBtn = $('muteBtn');
 const showMute = () => { setIconText(muteBtn, isMuted() ? 'mute' : 'sound', isMuted() ? 'Звук выключен' : 'Звук включён'); };
-muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); });
+// своё с устройства (2026-10-21): музыка и значки игрока — только в этом браузере (custom3d.js)
+let ownMusicOn = true; try { ownMusicOn = localStorage.getItem('berserk3d.ownMusic') !== '0'; } catch (e) { /* без сохранения */ }
+let iconKey = null; const iconIn = $('ownIconFile'), musicIn = $('ownMusicFile');
+function pickOwnIcon(key) { if (!key) return; iconKey = key; iconIn.value = ''; iconIn.click(); }
+iconIn.addEventListener('change', () => { const f = iconIn.files && iconIn.files[0]; if (f && iconKey) setOwnIcon(iconKey, f).then(() => toast('Свой значок поставлен', '', '#a8e0a0')).catch(() => toast('Это не картинка', '', '#ff9a8a', 'warn')); });
+$('ownMusicAdd').addEventListener('click', () => { musicIn.value = ''; musicIn.click(); });
+musicIn.addEventListener('change', () => { addOwnMusic([...(musicIn.files || [])]).then(n => { toast(n ? `Своя музыка: +${n}` : 'Нет звуковых файлов', '', n ? '#a8e0a0' : '#ff9a8a'); syncOwnMusic(); }); });
+$('ownMusicBtn').addEventListener('click', () => { ownMusicOn = !ownMusicOn; try { localStorage.setItem('berserk3d.ownMusic', ownMusicOn ? '1' : '0'); } catch (e) { /* без сохранения */ } syncOwnMusic(); });
+$('ownMusicClear').addEventListener('click', () => clearOwnMusic().then(syncOwnMusic));
+$('ownIconsClear').addEventListener('click', () => clearOwnIcons());
+function syncOwnMusic() {
+  const n = ownMusic().length, on = ownMusicOn && n > 0 && !isMuted(); setOwnMusicOn(on); if (on) ownPlayer.start(); else ownPlayer.stop();
+  $('ownMusicBtn').hidden = !n; setIconText($('ownMusicBtn'), 'sound', ownMusicOn ? `Своя музыка играет (${n})` : `Своя музыка выключена (${n})`);
+  $('ownMusicClear').hidden = !n; $('ownMusicClear').textContent = 'Удалить свою музыку'; $('ownIconsClear').hidden = !ownIconCount(); $('ownIconsClear').textContent = `Вернуть значки игры (своих: ${ownIconCount()})`;
+}
+onOwnChange(() => { abilKey = ''; if (skills.isOpen()) skills.render(); if (!$('bag').hidden) bag.render(); try { syncOwnMusic(); } catch (e) { console.warn('своя музыка:', e && e.message); } });
+loadOwn();
+addEventListener('pointerdown', () => { if (ownPlayer.playing()) ownPlayer.pause(false); }, { once: true });     // браузер играет звук только после жеста
+muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); syncOwnMusic(); });
 showMute();
 const bagFill = $('bagFill');
 let reliefDone = false, goalT = 0, ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0;
@@ -523,7 +545,7 @@ function travelDraw() {
   const r = cv.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1), w = Math.max(300, Math.round(r.width * d)), h = Math.max(240, Math.round(r.height * d)); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
   const p = W.player, xs = [p.x, ...pts.map(q => q.x)], zs = [p.z, ...pts.map(q => q.z)], cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
   const span = Math.max(160, Math.max((Math.max(...xs) - Math.min(...xs)) * 1.2, (Math.max(...zs) - Math.min(...zs)) * 1.2 * w / h)), sc = w / span, ctx = cv.getContext('2d'), U = d * 1.2;
-  drawMap(ctx, W, { w, h, scale: sc, cx, cz, full: true, ui: U, dpr: d });
+  drawMap(ctx, mapW(), { w, h, scale: sc, cx, cz, full: true, ui: U, dpr: d });
   const X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc;
   for (const q of pts) { q.px = X(q.x); q.py = Y(q.z);
     ctx.beginPath(); ctx.arc(q.px, q.py, 13 * U, 0, 6.2832); ctx.fillStyle = q.me ? '#ffe08a' : q.off ? '#8a7a6a' : q.bg; ctx.fill(); ctx.lineWidth = 3 * U; ctx.strokeStyle = q.me ? '#fff6c8' : '#1a0e08'; ctx.stroke();
@@ -599,7 +621,9 @@ function dlgOpen(t) { if (!t || !t.lines || !t.lines.length) { if (t) storyTalke
 // карта: миникарта в углу, большая карта по касанию
 const miniCtx = $('mini').getContext('2d'), mapCv = $('mapCv'), mapCtx = mapCv.getContext('2d'), mapEl = $('map');
 let miniT = 0;
-function drawMini() { drawMap(miniCtx, W, { w: 128, h: 128, scale: 128 / cfg.mapView.miniSpan, cx: W.player.x, cz: W.player.z, full: false }); }     // miniSpan — сколько метров видно поперёк
+// на втором этаже карта — улица вокруг дома (2026-10-21)
+const mapW = () => { const L = W.levels && W.levels[W.lvl]; if (!(L && L.map && L.map.floor)) return W; const S = W.levels.surface; return { ...W, map: S.map, lvl: 'surface', seen: S.seen, seenN: S.seenN, seenR: S.seenR, seenC: S.seenC }; };
+function drawMini() { drawMap(miniCtx, mapW(), { w: 128, h: 128, scale: 128 / cfg.mapView.miniSpan, cx: W.player.x, cz: W.player.z, full: false }); }     // miniSpan — сколько метров видно поперёк
 // большая карта (C3e): масштаб и прокрутка — вид mv { cx, cz, span (м на ширину) }; в подземелье — весь уровень
 const MAP_MIN = 60, mapMax = () => cfg.world.radius * 2 + 6, mv = { cx: 0, cz: 0, span: 220 };
 const mapClamp = () => { mv.span = Math.max(MAP_MIN, Math.min(mapMax(), mv.span)); const R = cfg.world.radius, m = Math.max(0, R - mv.span / 2 + 20); mv.cx = Math.max(-m, Math.min(m, mv.cx)); mv.cz = Math.max(-m, Math.min(m, mv.cz)); };
@@ -608,7 +632,7 @@ let mapRaf = 0; const mapRedraw = () => { if (!mapRaf) mapRaf = requestAnimation
 const mapDpr = () => Math.min(2, window.devicePixelRatio || 1);
 const mapFit = () => { const r = mapCv.getBoundingClientRect(), d = mapDpr(), w = Math.max(320, Math.round(r.width * d)), h = Math.max(240, Math.round(r.height * d)); if (mapCv.width !== w || mapCv.height !== h) { mapCv.width = w; mapCv.height = h; } };
 const mapZoom = (k, px = mapCv.width / 2, py = mapCv.height / 2) => { const Wd = mapCv.width, Hd = mapCv.height, s0 = mv.span, wx = mv.cx + (px - Wd / 2) / Wd * s0, wz = mv.cz + (py - Hd / 2) / Wd * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px - Wd / 2) / Wd * mv.span; mv.cz = wz - (py - Hd / 2) / Wd * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте     // точка под курсором остаётся на месте
-function drawFull() { const B = W.map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; mapFit(); drawMap(mapCtx, W, { w: mapCv.width, h: mapCv.height, scale: mapCv.width / span, cx, cz, full: true, ui: mapDpr() * 1.15, dpr: mapDpr() }); const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
+function drawFull() { const B = mapW().map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; mapFit(); drawMap(mapCtx, W, { w: mapCv.width, h: mapCv.height, scale: mapCv.width / span, cx, cz, full: true, ui: mapDpr() * 1.15, dpr: mapDpr() }); const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
 // легенда карты — чипы «значок + слово» вместо абзаца (шаг 10): sq — квадрат, ring — круг-граница, dot — точка, fog — туман
 const LEG_SURF = [['sq', '#8a5a30', 'Люк'], ['ring', '#82c878', 'Безопасно'], ['ring', '#dc4632', 'Опасно'], ['dot', '#ffc860', 'Сундук'], ['dot', '#ffd45a', 'Торговец'], ['dot', '#ff8a3a', 'Кузнец'], ['dia', '#ff3a2a', 'Босс'], ['dia', '#c03adf', 'Замок'], ['dia', '#ff9a2a', 'Мини-босс'], ['sq', '#7a4a2a', 'Лагерь врагов'], ['sq', '#b0a898', 'Город'], ['fog', '#2a1e17', 'Не исследовано']];
 const LEG_UNDER = [['sq', '#e8d0a0', 'Лестница наверх'], ['dot', '#ffc860', 'Сундук'], ['fog', '#2a1e17', 'Не исследовано']];
@@ -765,7 +789,7 @@ function frame(now) {
     applyLocks();
     const sp = W.spark && !W.spark.done, pg = pathGoal(W), crypt = pg && PATH[pathIndex(W)].id === 'crypt';
     const sg = !sp && W.story ? storyGoal(W) : null;     // сюжет (этап 3) — главнее «Пути пепла»
-    const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null };
+    const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : String(W.lvl).startsWith('up:') ? { text: 'Второй этаж: сундуки; вниз — по лестнице', at: null } : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null };
     // трекер (этап 5 «круче»): главная строка (событие, искра, сюжет, путь) и до трёх заданий; цель на карте не пропадает
     const surf = W.lvl === 'surface', ev = eventLine(W) || abyssLine(W), main = ev || (sp || sg || pg || !surf ? g.text : ''), ql = trackerLines(W, 3);
     W.qmarks = surf ? questMarks(W, storyActors(W)) : [];
@@ -776,7 +800,7 @@ function frame(now) {
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }
   if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0); }
-  if ((atmoT += real) > .2) { atmoT = 0; setScene(mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null), cfg.audio); tickAudio(); }     // атмосфера: река, птицы, музыка
+  if ((atmoT += real) > .2) { atmoT = 0; const mx = mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null); setScene(mx, cfg.audio); tickAudio(); if (ownPlayer.playing()) ownPlayer.setVolume(cfg.audio.ownMusic * (mx.fight > 0 ? .45 : 1) * (W.player.dead ? .3 : 1)); }     // своя музыка: в бою тише     // атмосфера: река, птицы, музыка
   if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; sfx('step'); }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
   if (!reliefDone) reliefDone = tickRelief(document, W);
@@ -789,5 +813,5 @@ function frame(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
+window.__b3d = { openWin: n => ({ journal, smith, captain, shop, quests }[n] || { open() {} }).open(), emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
 if (BENCH) setTimeout(() => runBench(W, cfg, input, renderer), 1500);

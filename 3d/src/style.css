@@ -715,3 +715,16 @@ html,body{font-family:var(--sans);font-size:15.5px}
 .qdone summary{cursor:pointer;font-weight:600;color:#e8d0a0}
 .qdl{padding:4px 0 0 6px;font-size:15px;opacity:.8}
 @media (max-width:640px){.qcard{grid-template-columns:48px minmax(0,1fr)}.qic{width:48px;height:48px}.qsvg{width:28px;height:28px}.qacts{grid-column:1/-1;flex-direction:row;flex-wrap:wrap}.qbtn{flex:1}}
+/* крупный текст окон (2026-10-21, просьба владельца): журнал, кузнец, застава, меню — как окно заданий */
+#journal .note,#smith .note,#captain .note,#panel .note{font-size:15px;opacity:.82;line-height:1.4}
+#journal .tab,#smith .tab,#captain .tab,#panel .tab{font-size:15px}
+#journal .jrow{font-size:15px;line-height:1.4;padding:10px 12px}#journal .jrow b{font-size:17.5px}#journal .jrow .sub{font-size:14px;opacity:.78}
+#journal .mats{font-size:14.5px;gap:6px 12px}#journal .mats .mat,#smith .mats .mat,#journal .sub .mat{font-size:14.5px}
+#smith .srow,#captain .srow{min-height:64px;padding:8px 10px}#smith .srow .nm,#captain .srow .nm{font-size:16.5px}#smith .srow .sub,#captain .srow .sub{font-size:14px;opacity:.78;line-height:1.35}
+#smith .srow .tier,#captain .srow .tier{font-size:12.5px}#smith .srow .buy,#captain .srow .buy{font-size:15px;min-width:112px;min-height:48px}
+#smithFlash,#captainFlash{font-size:15px}#captain .ssec{font-size:13.5px;opacity:.75}
+#panel .pcol h2{font-size:19px}#panel .pcol h3{font-size:14.5px}#panel .reset{font-size:15px}#panel .keys{font-size:14.5px}#panel .pcol textarea{font-size:14px}
+#smith .reset{font-size:15px}
+/* свои значки игрока (2026-10-21): картинка вместо силуэта */
+img.gi.own,img.abgi.own{object-fit:contain;border-radius:6px}.tnode img.gi.own{width:100%;height:100%}#abil .ab img.abgi.own{inset:10%;width:80%;height:80%;filter:none}
+.tcard .tbuy.own{min-height:40px;font-size:14px;margin-top:4px;background:linear-gradient(180deg,#3a2a1c,#22170f)!important;border-color:var(--line)!important}

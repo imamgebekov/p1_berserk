@@ -1,6 +1,7 @@
 // Значки вещей: пиксельные картинки 16×16 из шаблонов (никаких внешних файлов). Шаблон — 16 строк по 16 знаков:
 // '.' — пусто, b — контур, a — основной цвет (материал), d — блик, e — тень основного, c — дерево/кожа, r — цвет редкости (камни, акценты), w — бумага/белое.
 // iconGrid — чистые данные (тестируется в Node); iconURL рисует на холсте и кэширует (только браузер).
+import { ownIcon } from './custom3d.js';
 import { RARITY } from './data/items.js';
 import { GI } from './data/gicons.js';     // значки game-icons.net (CC BY 3.0) — 2026-10-20, просьба владельца
 
@@ -149,6 +150,7 @@ function giDraw(doc, d, P, dark) {
 }
 const cache = new Map();
 export function iconURL(doc, it) {
+  { const own = ownIcon(giKeyOf(it)); if (own) return own; }     // свой значок игрока (custom3d.js)
   const P = paletteOf(it), gk = giKeyOf(it), gd = gk && GI[gk], key = (gd ? 'gi:' + gk : templateOf(it)) + JSON.stringify(P);
   if (cache.has(key)) return cache.get(key);
   if (gd && typeof Path2D !== 'undefined') { const url = giDraw(doc, gd, P, false); cache.set(key, url); return url; }

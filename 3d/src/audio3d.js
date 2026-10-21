@@ -165,6 +165,8 @@ let atmo = null, A = null, vol = { music: .55, nature: .8 }, rnd = Math.random;
 const voices = [];                                  // { s, e } — начало и конец каждого поставленного голоса (предел A.voices)
 const stats = { notes: 0, skipped: 0, birds: 0, owls: 0, plips: 0, pieces: 0, maxVoices: 0 };
 export const audioStats = () => ({ ...stats, voices: voices.length, state: ac ? ac.state : 'none', mix: atmo ? { ...atmo.mix } : null, playing: !!(atmo && atmo.piece) });
+let ownOn = false;     // своя музыка игрока играет — музыка игры молчит (custom3d.js)
+export const setOwnMusicOn = on => { ownOn = !!on; if (atmo) applyMix(); };
 export function setAtmoVolumes(music, nature) { vol = { music: Number(music) || 0, nature: Number(nature) || 0 }; if (atmo) applyMix(); }
 export const setAtmoRandom = f => { rnd = f; };     // для тестов
 function buildAtmo() {
@@ -195,8 +197,8 @@ function buildAtmo() {
 function applyMix() {
   const t = ac.currentTime, m = atmo.mix, tau = A ? A.combat.fade / 3 : .5;
   atmo.nature.gain.setTargetAtTime(vol.nature, t, .3);
-  atmo.music.gain.setTargetAtTime(vol.music * (A ? A.music.vol : .07) * m.music, t, tau);
-  { const FG = A && A.fight; atmo.fight.gain.setTargetAtTime(FG && FG.on ? vol.music * FG.vol * (m.fight > 0 ? 1 : 0) : 0, t, m.fight > 0 ? .4 : (FG ? FG.hold / 3 : 1)); }     // после боя затихает за hold с
+  atmo.music.gain.setTargetAtTime(ownOn ? 0 : vol.music * (A ? A.music.vol : .07) * m.music, t, tau);
+  { const FG = A && A.fight; atmo.fight.gain.setTargetAtTime(FG && FG.on && !ownOn ? vol.music * FG.vol * (m.fight > 0 ? 1 : 0) : 0, t, m.fight > 0 ? .4 : (FG ? FG.hold / 3 : 1)); }     // после боя затихает за hold с
   atmo.waterG.gain.setTargetAtTime((A ? A.water.vol : .09) * m.water, t, .6);
   atmo.rainG.gain.setTargetAtTime((A && A.rain ? A.rain.vol : .08) * (m.rain || 0), t, 1.2);
   atmo.rustleG.gain.setTargetAtTime((A && A.rustle ? A.rustle.vol : .06) * (m.rustle || 0), t, .4);

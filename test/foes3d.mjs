@@ -20,7 +20,7 @@ ok(readFileSync(new URL('../3d/src/journal.js', import.meta.url), 'utf8').includ
 for (const t of ['archer', 'witch']) { const b = bestiaryEntry(t, CFG3); ok(b && b.name === E[t].name && b.where.length && !b.where.includes('везде'), 'запись бестиария ' + t + ': ' + JSON.stringify(b && b.where)); }
 
 // ---- мир ----
-const mk = (seed = 1, tweak) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.bosses.list = []; cfg.map.places = []; cfg.elite.chance = 0; cfg.elite.depthK = cfg.elite.dangerK = cfg.elite.nightK = 0; cfg.elite.extra = false;     /* прежние 5 свойств; новые проверяет moves3d.mjs (этап 2 «круче») */ if (tweak) tweak(cfg); const W = createWorld(cfg, mulberry32(seed)); W.player.x = 30; W.player.z = -30; return W; };
+const mk = (seed = 1, tweak) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.bosses.list = []; cfg.map.places = []; cfg.elite.chance = 0; cfg.elite.depthK = cfg.elite.dangerK = cfg.elite.nightK = 0; cfg.elite.extra = false;     /* прежние 5 свойств; новые проверяет moves3d.mjs (этап 2 «круче») */ if (tweak) tweak(cfg); const W = createWorld(cfg, mulberry32(seed)); W.player.x = 30; W.player.z = -38; return W; };     // у таверны (дома крупнее с 3.90)
 const run = (W, sec, inp = {}) => { for (let i = 0; i < sec * 60; i++) step(W, 1 / 60, inp); };
 const foe = (W, type, dx, dz = 0) => { const e = spawnEnemy(W, type, W.player.x + dx, W.player.z + dz); e.alert = true; e.cd = .01; return e; };
 
