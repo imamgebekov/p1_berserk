@@ -22,7 +22,7 @@ const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html`;
 
 try {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 664 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  const page = await ctx.newPage(); page.setDefaultTimeout(8000);
+  const page = await ctx.newPage(); page.setDefaultTimeout(30000);     // снимки при программном GL под нагрузкой дольше 8 с
   if (process.env.ECO_OFF) await ctx.addInitScript(() => { try { localStorage.setItem('berserk3d.prefs', JSON.stringify({ eco: false })); } catch (e) { /* без хранилища */ } });
   page.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push(m.type() + ': ' + m.text()); });
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
@@ -44,7 +44,7 @@ try {
   const s0 = await st();
   const cdp = await ctx.newCDPSession(page);
   const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
-  await touch('touchStart', 100, 450); await touch('touchMove', 100, 400); await page.waitForTimeout(700);
+  { const t0 = await page.evaluate(() => window.__b3d.W.t); await touch('touchStart', 100, 450); await touch('touchMove', 100, 400); await page.waitForFunction(t => window.__b3d.W.t - t > .6, t0, { timeout: 15000 }).catch(() => {}); }     // ждём в игровом времени: под нагрузкой 700 мс — меньше полсекунды игры
   const s1 = await st();
   await page.screenshot({ path: join(out, '3d-move.png') });
   await touch('touchEnd');
@@ -372,7 +372,7 @@ try {
 
   // горизонтальный экран
   await page.setViewportSize({ width: 664, height: 390 }); await page.waitForTimeout(400);
-  { const t0 = await page.evaluate(() => window.__b3d.W.t); await page.waitForTimeout(800);     // телефон боком — тоже играем (3.92): без подсказки «поверните», игра идёт, раскладка data-land
+  { const t0 = await page.evaluate(() => window.__b3d.W.t); await page.waitForFunction(t => window.__b3d.W.t > t + .05, t0, { timeout: 5000 }).catch(() => {});     // телефон боком — тоже играем (3.92): без подсказки «поверните», игра идёт, раскладка data-land
     const L = await page.evaluate(t => ({ rot: !document.getElementById('rotate').hidden, land: document.documentElement.hasAttribute('data-land'), runs: window.__b3d.W.t > t }), t0);
     if (L.rot || !L.land || !L.runs) bad('горизонтальный экран: ' + JSON.stringify(L)); }
   await page.setViewportSize({ width: 390, height: 664 });
