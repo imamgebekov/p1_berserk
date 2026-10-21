@@ -81,23 +81,27 @@ export function sellItem(W, idx, n = 1) {
 }
 // продать снаряжение хуже надетого (этап 4 «круче»): только то, что герой носит; без замка, заточки и камней; клеймёное и золотое —
 // вручную. Вернёт { sum, n } или −1 (торговца рядом нет)
+export function isWorse(W, s) {     // 4.08: та же проверка — для окна торговца (счётчик и фильтр)
+  const it = BY_ID[s.id], inv = W.inv, B = W.cfg.smith.bonus; if (!it || !it.slot || s.lock || s.up || hasGems(s.g) || it.rar >= 4 || !canWield(W.hero, it)) return false;
+  const cur = inv.eq[it.slot]; if (!cur) return false;
+  return scoreUp(it, 0, B, s.il, s.af) + .5 < scoreUp(BY_ID[cur], inv.up[it.slot] || 0, B, inv.il && inv.il[it.slot], inv.af && inv.af[it.slot]);
+}
 export function sellWorse(W) {
   if (!W.nearMerchant || closed(W)) return -1;
-  let sum = 0, n = 0; const B = W.cfg.smith.bonus, inv = W.inv;
+  let sum = 0, n = 0; const inv = W.inv;
   for (let i = inv.bag.length - 1; i >= 0; i--) {
-    const s = inv.bag[i], it = BY_ID[s.id]; if (!it || !it.slot || s.lock || s.up || hasGems(s.g) || it.rar >= 4 || !canWield(W.hero, it)) continue;
-    const cur = inv.eq[it.slot]; if (!cur) continue;
-    if (scoreUp(it, 0, B, s.il, s.af) + .5 >= scoreUp(BY_ID[cur], inv.up[it.slot] || 0, B, inv.il && inv.il[it.slot], inv.af && inv.af[it.slot])) continue;
+    const s = inv.bag[i], it = BY_ID[s.id]; if (!isWorse(W, s)) continue;
     sum += sellPrice(it, W.cfg, 0, W.gear.trade, s.il || 0, s.af); inv.bag.splice(i, 1); n++;
   }
   inv.ash += sum; if (n) W.ev.push({ k: 'sell' }); return { sum, n };
 }
 // продать весь хлам разом: безделушки, деньги, записки и материалы, кроме реагентов и пыли (оружие, броня, ключи и расходники остаются)
 const isReagent = (cfg, id) => !!cfg.craft && (Object.values(cfg.craft.reag).includes(id) || id === cfg.craft.ember || id === cfg.craft.shard);     // реагенты (4.02) — не хлам
+export const isJunk = (W, s) => { const it = BY_ID[s.id]; return !!it && (it.cat === 'curio' || it.cat === 'material') && it.pool !== 'arcane' && !isReagent(W.cfg, it.id); };     // 4.08: хлам — для окна торговца
 export function sellJunk(W) {
   if (!W.nearMerchant || closed(W)) return -1;
   let sum = 0;
-  for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if ((it.cat === 'curio' || it.cat === 'material') && it.pool !== 'arcane' && !isReagent(W.cfg, it.id)) { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
+  for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if (isJunk(W, s)) { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
   W.inv.ash += sum; if (sum) W.ev.push({ k: 'sell' }); return sum;
 }
 

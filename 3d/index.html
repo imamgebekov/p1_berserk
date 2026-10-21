@@ -57,10 +57,10 @@
 
 <section id="shop" hidden>
   <div class="pbox">
-    <div class="bhead"><h2 id="shopHead">Торговец</h2><button id="shopClose" type="button" class="close" aria-label="Закрыть" title="Закрыть (Esc)">×</button></div>
+    <div class="bhead shead"><h2 id="shopHead">Торговец</h2><span id="shopSub" class="ssub"></span><span id="shopAsh" class="tash"></span><button id="shopClose" type="button" class="close" aria-label="Закрыть" title="Закрыть (Esc)">×</button></div>
     <div id="shopTabs" class="tabs"></div>
-    <button id="shopJunk" type="button" class="junk" hidden>Продать весь хлам (безделушки, монеты, записки, материалы)</button>
-    <button id="shopWorse" type="button" class="junk" hidden>Продать снаряжение хуже надетого (кроме вещей с замком, заточкой и камнями)</button>
+    <button id="shopJunk" type="button" class="junk" hidden title="Безделушки, монеты, записки и материалы, кроме реагентов">Продать хлам</button>
+    <button id="shopWorse" type="button" class="junk" hidden title="Кроме вещей с замком, заточкой и камнями">Продать хуже надетого</button>
     <div id="shopFlash"></div>
     <div id="shopList"></div>
   </div>
@@ -182,6 +182,11 @@
       <div class="pcol">
         <h2>Вид и звук</h2>
         <button id="muteBtn" type="button" class="reset"></button>
+        <div id="volBox" class="vols">
+          <label>Общая <input id="volAll" type="range" min="0" max="100" step="5"><output></output></label>
+          <label>Музыка <input id="volMusic" type="range" min="0" max="100" step="5"><output></output></label>
+          <label>Звуки <input id="volSfx" type="range" min="0" max="100" step="5"><output></output></label>
+        </div>
         <button id="retroBtn" type="button" class="reset"></button>
         <button id="ecoBtn" type="button" class="reset"></button>
         <button id="asciiBtn" type="button" class="reset"></button>

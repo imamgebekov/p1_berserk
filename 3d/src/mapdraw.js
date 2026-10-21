@@ -113,7 +113,9 @@ export function drawMap(ctx, W, v) {
   if (W.tomb && (W.tomb.lvl || 'surface') === (W.lvl || 'surface')) { ctx.strokeStyle = '#000'; ctx.fillStyle = '#ffd45a'; ctx.lineWidth = 1.5; const tx = X(W.tomb.x), ty = Y(W.tomb.z); ctx.fillRect(tx - 1.5, ty - 5, 3, 10); ctx.fillRect(tx - 4, ty - 2, 8, 3); ctx.strokeRect(tx - 1.5, ty - 5, 3, 10); }
   // туман войны: на земле — светлая дымка с мягким краем (сквозь неё виден рельеф); в подземелье — тёмный
   const cell = W.seenC || W.cfg.map.cell, n = W.seenN;
-  if (!under && V && doc) { ctx.imageSmoothingEnabled = true; ctx.drawImage(fogOf(doc, W, full), X(-R), Y(-R), n * cell * sc, n * cell * sc); }
+  if (!under && V && doc) { ctx.imageSmoothingEnabled = true; ctx.drawImage(fogOf(doc, W, full), X(-R), Y(-R), n * cell * sc, n * cell * sc);
+    if (full) { const q = n * cell * sc, hz = V.haze; ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.rect(X(-R), Y(-R), q, q); ctx.fillStyle = `rgba(${hz[0]},${hz[1]},${hz[2]},${V.hazeFull})`; ctx.fill('evenodd'); }     // 4.08: за краем мира — та же дымка, без шва
+  }
   else {
     ctx.fillStyle = full ? 'rgba(6,4,3,.94)' : 'rgba(6,4,3,.9)';
     const i0 = Math.max(0, Math.floor((cx - w / 2 / sc + R) / cell)), i1 = Math.min(n - 1, Math.floor((cx + w / 2 / sc + R) / cell));

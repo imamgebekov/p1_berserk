@@ -17,7 +17,7 @@ export function ensureAudio() {
       ac = new AC(); master = ac.createGain(); master.gain.value = muted ? 0 : volume;
       // шаг 8: громкость → мягкий ограничитель → выход (наложение звуков не хрипит; тихое проходит как есть, без задержки)
       const L = FX().limit; if (ac.createWaveShaper && L) { const w = ac.createWaveShaper(); w.curve = limitCurve(L); w.oversample = '2x'; master.connect(w).connect(ac.destination); } else master.connect(ac.destination);
-      sfxBus = ac.createGain(); sfxBus.connect(master); out = sfxBus;
+      sfxBus = ac.createGain(); sfxBus.gain.value = user.sfx; sfxBus.connect(master); out = sfxBus;
       noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       // фон: ветер (шум через фильтр с медленным качанием) и низкий гул затмения
@@ -34,6 +34,8 @@ export function ensureAudio() {
   if (ac && ac.state !== 'running') { try { ac.resume(); } catch (e) { /* без звука */ } }
 }
 export const setVolume = v => { volume = Math.min(1, Math.max(0, Number(v) || 0)); if (master) master.gain.value = muted ? 0 : volume; };
+let user = { music: 1, sfx: 1 };     // 4.08: ползунки игрока «Музыка» и «Звуки» (0–1), поверх чисел config3d
+export function setUserMix(music, sfx) { const k = v => Math.min(1, Math.max(0, Number(v))); user = { music: k(music ?? 1), sfx: k(sfx ?? 1) }; if (sfxBus) sfxBus.gain.value = user.sfx; if (atmo) applyMix(); }
 export const setMuted = m => { muted = !!m; if (master) master.gain.value = muted ? 0 : volume; };
 export const isMuted = () => muted;
 export function suspendAudio(on) { if (!ac) return; try { if (on) ac.suspend(); else ac.resume(); } catch (e) { /* без звука */ } }
@@ -196,9 +198,9 @@ function buildAtmo() {
 }
 function applyMix() {
   const t = ac.currentTime, m = atmo.mix, tau = A ? A.combat.fade / 3 : .5;
-  atmo.nature.gain.setTargetAtTime(vol.nature, t, .3);
-  atmo.music.gain.setTargetAtTime(ownOn ? 0 : vol.music * (A ? A.music.vol : .07) * m.music, t, tau);
-  { const FG = A && A.fight; atmo.fight.gain.setTargetAtTime(FG && FG.on && !ownOn ? vol.music * FG.vol * (m.fight > 0 ? 1 : 0) : 0, t, m.fight > 0 ? .4 : (FG ? FG.hold / 3 : 1)); }     // после боя затихает за hold с
+  atmo.nature.gain.setTargetAtTime(vol.nature * user.sfx, t, .3);
+  atmo.music.gain.setTargetAtTime(ownOn ? 0 : vol.music * user.music * (A ? A.music.vol : .07) * m.music, t, tau);
+  { const FG = A && A.fight; atmo.fight.gain.setTargetAtTime(FG && FG.on && !ownOn ? vol.music * user.music * FG.vol * (m.fight > 0 ? 1 : 0) : 0, t, m.fight > 0 ? .4 : (FG ? FG.hold / 3 : 1)); }     // после боя затихает за hold с
   atmo.waterG.gain.setTargetAtTime((A ? A.water.vol : .09) * m.water, t, .6);
   atmo.rainG.gain.setTargetAtTime((A && A.rain ? A.rain.vol : .08) * (m.rain || 0), t, 1.2);
   atmo.rustleG.gain.setTargetAtTime((A && A.rustle ? A.rustle.vol : .06) * (m.rustle || 0), t, .4);

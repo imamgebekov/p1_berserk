@@ -26,6 +26,6 @@ export function createTracks(cfg, setQuiet) {
     setQuiet(!!cur);
   }
   // вступление: один раз за запуск, по первому жесту игрока (браузер не играет звук без него)
-  function intro() { if (introDone || !T.intro) return; introDone = true; play(T.intro, 'intro'); target = .9; vol = .9; if (el) el.volume = .9; }
+  function intro(k = 1) { if (introDone || !T.intro) return; introDone = true; play(T.intro, 'intro'); target = vol = .9 * k; if (el) el.volume = vol; }     // k — ползунки игрока
   return { tick, intro, stop, playing: () => cur && cur.name };
 }

@@ -1,23 +1,24 @@
 // Окно торговли: «Купить» (витрина) и «Продать» (сумка). Продавать можно только рядом с торговцем.
 import { BY_ID, RARITY, SLOTS, SLOT_NAME, statLine, STAT_NAME } from './data/items.js';
 import { iconURL } from './itemicons.js';     // значок вещи в строке лавки (2026-10-20)
-import { betterThanWorn, nameOf, socketsOf } from './inv.js';
+import { betterThanWorn, nameOf, socketsOf, statDiff, ilOf } from './inv.js';
 import { socketGem, unsocketGem, fuseGems, gemsAt, weaponMix, unsocketCost, gemId, armorGemFx } from './stones3d.js';
 import { MIX_NAME, MIX_TEXT, ELEMENT_NAME, ELEMENT_COLOR, mixKey } from './elements3d.js';
 import { canWield, NOT_FOR } from './data/heroes3d.js';
 import { RECIPES } from './data/recipes3d.js';
+import { affixLines } from './affix3d.js';
 import { TOME_BY_ID } from './data/tomes3d.js';
 import { craft, craftStatus, missing, recipeKnown, reagentsFor, masterQ } from './craft3d.js';
 import { repairList, repairAll, wearOf } from './dur3d.js';
 import { allyHp, allyDmg, hireable, liveAllies } from './squad3d.js';
-import { sellWorse } from './economy3d.js';
+import { sellWorse, isWorse, isJunk } from './economy3d.js';
 import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, stockPrice, shopOf, priceMulOf, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
 
 // значок вещи в рамке редкости — для строк лавки и кузни
 const icoOf = (doc, it) => { const w = doc.createElement('span'), im = doc.createElement('img'); w.className = 'sico'; im.src = iconURL(doc, it); im.alt = ''; w.style.setProperty('--rc', RARITY[it.rar || 0].color); w.append(im); return w; };
 export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const $ = id => doc.getElementById(id);
-  const root = $('shop'), listEl = $('shopList'), headEl = $('shopHead'), tabsEl = $('shopTabs'), flashEl = $('shopFlash'), junkBtn = $('shopJunk'), worseBtn = $('shopWorse');
+  const root = $('shop'), listEl = $('shopList'), headEl = $('shopHead'), subEl = $('shopSub'), ashEl = $('shopAsh'), tabsEl = $('shopTabs'), flashEl = $('shopFlash'), junkBtn = $('shopJunk'), worseBtn = $('shopWorse');
   let tab = 'buy', armed = null, flashT = 0;
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2200); };
@@ -25,14 +26,20 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
 
   // окно торговли (2026-10-20, просьба владельца): слева витрина торговца, справа ваша сумка — сетки значков с ценой;
   // снизу карточка выбранной вещи с кнопкой. На телефоне — вкладки «Купить» и «Продать» с теми же сетками.
-  let sel = null;     // { side: 'buy' | 'sell', i }
+  let sel = null, cat = 'all', bagF = 'all';     // выбранная ячейка; фильтры витрины и сумки (4.08, макет А)
+  const catOf = it => (it.cat === 'weapon' ? 'weapon' : it.cat === 'armor' || it.cat === 'jewel' ? 'armor' : it.cat === 'consumable' ? 'food' : 'other');
+  const CATS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['food', 'Зелья и еда'], ['other', 'Прочее'], ['new', 'Новинки']];
+  const chip = (label, on, fn) => { const b = el('button', 'tchip' + (on ? ' on' : ''), label); b.type = 'button'; b.setAttribute('aria-pressed', String(on)); b.addEventListener('click', () => { fn(); sel = null; render(); }); return b; };
   const coin = () => { const c = el('span', 'tcoin'); c.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 7-3 13-3-13z"/></svg>'; return c; };
   const tile = (it, n, price, side, i, extra) => {
     const b = el('button', 'ttile' + (sel && sel.side === side && sel.i === i ? ' sel' : '') + (extra || '')); b.type = 'button'; b.style.setProperty('--rc', RARITY[it.rar || 0].color);
-    const im = doc.createElement('img'); im.src = iconURL(doc, it); im.alt = ''; b.append(im);
+    const im = doc.createElement('img'); im.src = iconURL(doc, it); im.alt = ''; const ib = el('span', 'tib'); ib.append(im); b.append(ib);
     if (n > 1) b.append(el('span', 'tn', '×' + n));
-    const pr = el('span', 'tpr', String(price)); pr.prepend(coin()); b.append(pr);
-    b.title = it.name; b.setAttribute('aria-label', `${it.name}${n > 1 ? ' ×' + n : ''}, ${side === 'buy' ? 'цена' : 'продать за'} ${price}`);
+    const nm = el('span', 'tnm', it.name); nm.style.color = RARITY[it.rar || 0].color; b.append(nm);
+    const row = el('span', 'trow'), pr = el('span', 'tpr', String(price)); pr.prepend(coin()); row.append(pr);
+    if (side === 'buy' && it.slot && canWield(W.hero, it) && betterThanWorn(W.inv, it)) row.append(el('span', 'tup', '▲'));
+    b.append(row);
+    b.title = [it.name, it.stats ? statLine(it) : '', it.text || ''].filter(Boolean).join('\n'); b.setAttribute('aria-label', `${it.name}${n > 1 ? ' ×' + n : ''}, ${side === 'buy' ? 'цена' : 'продать за'} ${price}`);
     b.addEventListener('click', () => { sel = { side, i }; render(); });
     b.addEventListener('dblclick', () => { sel = { side, i }; act(); });
     return b;
@@ -47,37 +54,64 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   }
   function render() {
     refreshGear(W);
-    const wand = W.nearNpc === 'wanderer' && W.wanderer, sh = shopOf(W);
-    headEl.textContent = wand ? `Сказочный торговец · уедет через ${Math.max(0, Math.ceil(wand.t))} с` : 'Торговец';
+    const wand = W.nearNpc === 'wanderer' && W.wanderer, sh = shopOf(W), left = Math.max(0, cfg.shop.restock - (W.shop.t || 0));
+    headEl.textContent = wand ? 'Сказочный торговец' : 'Торговец';
+    subEl.textContent = wand ? `уедет через ${Math.max(0, Math.ceil(wand.t))} с` : `${W.place ? W.place.name + ' · ' : ''}завоз новинок через ${Math.max(1, Math.ceil(left / 60))} мин`;
+    ashEl.textContent = `${W.inv.ash} пепла`; ashEl.prepend(coin());
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
     listEl.textContent = '';
     const wrap = el('div', 'trade ' + tab), buyP = el('div', 'tpane buyp'), sellP = el('div', 'tpane sellp');
-    { const h = el('div', 'tph'); h.append(el('span', 'tpn', wand ? 'Диковины' : 'Товары торговца'), el('span', 'tps', 'вы покупаете')); buyP.append(h); }
-    { const h = el('div', 'tph'); h.append(el('span', 'tpn', 'Ваша сумка'), el('span', 'tps', 'вы продаёте')); const ash = el('span', 'tash', String(W.inv.ash)); ash.prepend(coin()); h.append(ash); sellP.append(h); }
-    const gb = el('div', 'tgridx'), gs = el('div', 'tgridx');
-    sh.stock.forEach((s, i) => { const it = BY_ID[s.id], price = stockPrice(W, s); gb.append(tile(it, s.n, price, 'buy', i, (W.inv.ash < price ? ' poor' : '') + (it.slot && !canWield(W.hero, it) ? ' nope' : '') + (s.tier ? ' rare' : '') + (s.fresh ? ' fresh' : ''))); });
-    if (!sh.stock.length) gb.append(el('div', 'emptyl', wand ? 'Всё раскуплено. Сказочный торговец скоро уедет.' : 'Всё раскуплено. Витрина обновится позже.'));
-    W.inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; gs.append(tile(it, s.n, sellPrice(it, cfg, s.up || 0, W.gear.trade, s.il, s.af) * s.n, 'sell', i, s.lock ? ' locked' : '')); });
+    { const h = el('div', 'tph'); h.append(el('span', 'tpn', wand ? 'Диковины' : 'Товары'), el('span', 'tps', 'вы покупаете')); buyP.append(h); }
+    const used = W.inv.bag.length, room = cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
+    { const h = el('div', 'tph'); h.append(el('span', 'tpn', 'Ваша сумка'), el('span', 'tps', `вы продаёте · ${used}/${room}`)); sellP.append(h); }
+    // витрина: фильтр по виду вещи; номер ячейки остаётся прежним (покупка по нему)
+    const rows = sh.stock.map((s, i) => ({ s, i, it: BY_ID[s.id] })), nNew = rows.filter(r => r.s.fresh).length;
+    if (cat === 'new' && !nNew) cat = 'all';
+    { const c = el('div', 'tchips'); for (const [id, label] of CATS) { const n = id === 'new' ? nNew : id === 'all' ? 1 : rows.filter(r => catOf(r.it) === id).length; if (n) c.append(chip(id === 'new' ? `${label} · ${n}` : label, cat === id, () => { cat = id; })); } buyP.append(c); }
+    const gb = el('div', 'tgridx');
+    for (const { s, i, it } of rows) { if (cat === 'new' ? !s.fresh : cat !== 'all' && catOf(it) !== cat) continue; const price = stockPrice(W, s); gb.append(tile(it, s.n, price, 'buy', i, (W.inv.ash < price ? ' poor' : '') + (it.slot && !canWield(W.hero, it) ? ' nope' : '') + (s.tier ? ' rare' : '') + (s.fresh ? ' fresh' : ''))); }
+    if (!gb.children.length) gb.append(el('div', 'emptyl', !sh.stock.length ? (wand ? 'Всё раскуплено. Сказочный торговец скоро уедет.' : 'Всё раскуплено. Витрина обновится позже.') : 'Здесь пусто — выберите другой вид.'));
+    // сумка: «всё», «хлам», «хуже надетого» — со счётом, как в кнопках продажи
+    const junk = W.inv.bag.map((s, i) => ({ s, i })).filter(r => isJunk(W, r.s)), worse = W.inv.bag.map((s, i) => ({ s, i })).filter(r => isWorse(W, r.s));
+    const junkSum = junk.reduce((a, r) => a + sellPrice(BY_ID[r.s.id], cfg, 0, W.gear.trade) * r.s.n, 0), worseSum = worse.reduce((a, r) => a + sellPrice(BY_ID[r.s.id], cfg, 0, W.gear.trade, r.s.il || 0, r.s.af), 0);
+    if ((bagF === 'junk' && !junk.length) || (bagF === 'worse' && !worse.length)) bagF = 'all';
+    { const c = el('div', 'tchips'); c.append(chip('Всё', bagF === 'all', () => { bagF = 'all'; })); if (junk.length) c.append(chip(`Хлам · ${junkSum}`, bagF === 'junk', () => { bagF = 'junk'; })); if (worse.length) c.append(chip(`Хуже надетого · ${worse.length}`, bagF === 'worse', () => { bagF = 'worse'; })); sellP.append(c); }
+    const gs = el('div', 'tgridx'), only = bagF === 'junk' ? new Set(junk.map(r => r.i)) : bagF === 'worse' ? new Set(worse.map(r => r.i)) : null;
+    W.inv.bag.forEach((s, i) => { if (only && !only.has(i)) return; const it = BY_ID[s.id]; gs.append(tile(it, s.n, sellPrice(it, cfg, s.up || 0, W.gear.trade, s.il, s.af) * s.n, 'sell', i, s.lock ? ' locked' : '')); });
     if (!W.inv.bag.length) gs.append(el('div', 'emptyl', 'Сумка пуста.'));
-    buyP.append(gb); sellP.append(gs, junkBtn, worseBtn); junkBtn.hidden = false; worseBtn.hidden = false;
+    junkBtn.textContent = junk.length ? `Продать хлам · ${junkSum}` : 'Хлама нет'; junkBtn.disabled = !junk.length;
+    worseBtn.textContent = worse.length ? `Продать хуже надетого · ${worse.length}` : 'Хуже надетого нет'; worseBtn.disabled = !worse.length;
+    const sb = el('div', 'tsellb'); sb.append(junkBtn, worseBtn); junkBtn.hidden = false; worseBtn.hidden = false;
+    buyP.append(gb); sellP.append(gs, sb);
     wrap.append(buyP, sellP); listEl.append(wrap);
-    // карточка выбранной вещи
+    // карточка выбранной вещи: значок, имя и уровень, свойства, сравнение с надетым, кнопка
     const card = el('div', 'tsel');
     const s = sel && (sel.side === 'buy' ? sh.stock[sel.i] : W.inv.bag[sel.i]);
     if (s) {
-      const it = BY_ID[s.id], up = s.up || 0, nm = el('div', 'tsn', nameOf(it.id, up) + (s.n > 1 ? ' ×' + s.n : '')); nm.style.color = RARITY[it.rar].color;
-      const im = doc.createElement('img'); im.src = iconURL(doc, it); im.alt = ''; const ic = el('span', 'tsi'); ic.style.setProperty('--rc', RARITY[it.rar].color); ic.append(im);
-      const info = el('div', 'tsinfo'); info.append(nm, el('div', 'sub', `${RARITY[it.rar].name}${it.slot && !canWield(W.hero, it) ? ' · ' + NOT_FOR[W.hero] : ''}${it.slot && betterThanWorn(W.inv, it) ? ' · ▲ лучше надетого' : ''}`), el('div', 'sub', it.stats ? statLine(it) : it.text || ''));
+      const it = BY_ID[s.id], up = s.up || 0, rc = RARITY[it.rar].color, nm = el('div', 'tsn', nameOf(it.id, up) + (s.n > 1 ? ' ×' + s.n : '') + (it.slot ? ' · ур. ' + ilOf(it, s.il) : '')); nm.style.color = rc;
+      const im = doc.createElement('img'); im.src = iconURL(doc, it); im.alt = ''; const ic = el('span', 'tsi'); ic.style.setProperty('--rc', rc); ic.append(im);
+      const info = el('div', 'tsinfo'); info.append(nm, el('div', 'sub', `${RARITY[it.rar].name}${it.slot ? ' · ' + SLOT_NAME[it.slot] : ''}${it.slot && !canWield(W.hero, it) ? ' · ' + NOT_FOR[W.hero] : ''}`));
+      const worn = it.slot && W.inv.eq[it.slot] ? BY_ID[W.inv.eq[it.slot]] : null;
+      if (it.stats && worn && canWield(W.hero, it)) {
+        const d = el('div', 'tcmp'); let n = 0;
+        for (const r of statDiff(it, worn, up, W.inv.up[it.slot] || 0, cfg.smith.bonus, s.il || 0, (W.inv.il && W.inv.il[it.slot]) || 0, s.af, W.inv.af && W.inv.af[it.slot])) {
+          const v = Math.round((r.b - r.a) * 10) / 10; if (!r.d || !v || r.k === 'swing' || n >= 6) continue; n++; const sp = el('span', '', r.name + ' '); sp.append(el('b', r.d > 0 ? 'g' : 'r', (v > 0 ? '+' : '−') + Math.abs(v))); d.append(sp);
+        }
+        d.append(el('span', 'vs', n ? `против надетого «${nameOf(worn.id, W.inv.up[it.slot] || 0)}»` : `как надетое «${worn.name}»`)); info.append(d);
+      }
+      if (it.stats) info.append(el('div', 'tdesc', statLine(it)));     // полное описание вещи (4.08, просьба владельца)
+      if (s.af) { const L = affixLines(s.af, STAT_NAME); if (L.length) info.append(el('div', 'tdesc g', L.join(' · '))); }
+      if (it.text) info.append(el('div', 'tdesc t', it.text));
       if (s.tier) info.append(el('div', 'sub g', cfg.shop.rare.tiers[s.tier - 1].name));
       const price = sel.side === 'buy' ? stockPrice(W, s) : sellPrice(it, cfg, up, W.gear.trade, s.il, s.af) * s.n, key = s.id + ':' + sel.i;
       const b = el('button', 'tact ' + sel.side + (sel.side === 'buy' && W.inv.ash < price ? ' no' : ''), sel.side === 'buy' ? `Купить · ${price}` : (it.rar >= 3 && armed !== key ? `Продать? · ${price}` : `Продать${s.n > 1 ? ' всё' : ''} · ${price}`));
       b.type = 'button'; b.addEventListener('click', act); card.append(ic, info, b);
-    } else card.append(el('div', 'sub', 'Нажмите на вещь — подробности и цена. Двойной щелчок — сразу купить или продать.'));
+    } else card.append(el('div', 'sub', 'Нажмите на вещь — подробности, сравнение с надетым и цена. Двойной щелчок — сразу купить или продать.'));
     listEl.append(card);
   }
   worseBtn.addEventListener('click', () => { const r = sellWorse(W); flash(r < 0 ? (W.night ? 'Торговец спит до рассвета' : 'Подойдите к торговцу') : r.n ? `Продано вещей: ${r.n} за ${r.sum}` : 'Хуже надетого нет'); render(); onChange && onChange(); });     // этап 4 «круче»
   junkBtn.addEventListener('click', () => { const sum = sellJunk(W); flash(sum < 0 ? (W.night ? 'Торговец спит до рассвета' : 'Подойдите к торговцу') : sum ? `Хлам продан за ${sum}` : 'Хлама нет'); render(); onChange && onChange(); });
-  const open = () => { tab = 'buy'; sel = null; render(); root.hidden = false; onOpen && onOpen(); };
+  const open = () => { tab = 'buy'; sel = null; cat = 'all'; bagF = 'all'; render(); root.hidden = false; onOpen && onOpen(); };
   const close = () => { root.hidden = true; for (const s of W.shop.stock) s.fresh = false; onClose && onClose(); };     // посмотрел — уже не новинка
   $('shopClose').addEventListener('click', close);
   return { open, close, render, isOpen: () => !root.hidden };

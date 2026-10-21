@@ -10,7 +10,7 @@ import { createMapClouds } from './mapclouds.js';
 import { createSkills } from './skillsui.js';
 import { createJournal } from './journal.js';
 import { createQuests } from './questsui.js';
-import { ensureAudio, setVolume, setMuted, isMuted, suspendAudio, setAmbient, sfx, setScene, tickAudio, audioStats, setOwnMusicOn } from './audio3d.js';
+import { ensureAudio, setVolume, setUserMix, setMuted, isMuted, suspendAudio, setAmbient, sfx, setScene, tickAudio, audioStats, setOwnMusicOn } from './audio3d.js';
 import { loadOwn, onOwnChange, ownIcon, ownMusic, ownIconCount, setOwnIcon, clearOwnIcon, clearOwnIcons, addOwnMusic, clearOwnMusic, player as ownPlayer } from './custom3d.js';
 import { mixOf } from './soundscape3d.js';
 import { clockText } from './daynight.js';
@@ -408,7 +408,7 @@ let ironArmed = false;
 ironBtn.addEventListener('click', () => { if (W.iron) return; if (!ironArmed) { ironArmed = true; renderDif(); setTimeout(() => { ironArmed = false; renderDif(); }, 3000); return; } ironArmed = false; W.iron = true; saver.write(); renderDif(); });
 renderDif();
 createTweakPanel(document, cfg, defaults, {
-  onChange: t => { if (t && (t.reload || t.path === 'view.pixelScale')) fit(); setVolume(cfg.audio.volume); },
+  onChange: t => { if (t && (t.reload || t.path === 'view.pixelScale')) fit(); applyVol(); },
   onOpen: () => { panelOpen = true; input.release(); renderDif(); { const b = $('ngBtn'); b.hidden = !ngOpen(W); b.dataset.arm = ''; b.textContent = `Новый круг ${(W.ng || 0) + 2}`; } $('heroNow').textContent = `${HEROES[W.hero].name} — ${HEROES[W.hero].role.toLowerCase()}. Смена героя сохраняет уровень, пепел, вещи и навыки.`; },
   onClose: () => { panelOpen = false; }
 });
@@ -443,7 +443,15 @@ document.addEventListener('visibilitychange', () => { suspendAudio(document.hidd
 addEventListener('pagehide', () => saver.write());
 
 try { setMuted(localStorage.getItem('berserk3d.mute') === '1'); } catch (e) { /* без сохранения */ }
-setVolume(cfg.audio.volume);
+let uvol = { all: 1, music: 1, sfx: 1 }; try { Object.assign(uvol, JSON.parse(localStorage.getItem('berserk3d.vol') || '{}')); } catch (e) { /* без сохранения */ }     // 4.08: ползунки громкости игрока
+function applyVol() { setVolume(cfg.audio.volume * uvol.all); setUserMix(uvol.music, uvol.sfx); }
+applyVol();
+for (const [id, key] of [['volAll', 'all'], ['volMusic', 'music'], ['volSfx', 'sfx']]) {
+  const el = $(id), out = el.nextElementSibling, show = () => { out.textContent = `${el.value}%`; };
+  el.value = Math.round((Number(uvol[key]) || 0) * 100); show();
+  el.addEventListener('input', () => { uvol[key] = el.value / 100; show(); applyVol(); try { localStorage.setItem('berserk3d.vol', JSON.stringify(uvol)); } catch (e) { /* без сохранения */ } });
+  el.addEventListener('change', () => { ensureAudio(); if (key !== 'music') sfx('pickup'); });
+}
 for (const ev of ['pointerdown', 'touchstart', 'keydown']) addEventListener(ev, ensureAudio, { passive: true });
 const muteBtn = $('muteBtn');
 const showMute = () => { setIconText(muteBtn, isMuted() ? 'mute' : 'sound', isMuted() ? 'Звук выключен' : 'Звук включён'); };
@@ -466,7 +474,7 @@ function syncOwnMusic() {
 onOwnChange(() => { abilKey = ''; if (skills.isOpen()) skills.render(); if (!$('bag').hidden) bag.render(); try { syncOwnMusic(); } catch (e) { console.warn('своя музыка:', e && e.message); } });
 loadOwn();
 addEventListener('pointerdown', () => { if (ownPlayer.playing()) ownPlayer.pause(false); }, { once: true });
-for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { if (!ownActive && !isMuted()) tracks.intro(); }, { once: true });     // вступление — по первому жесту     // браузер играет звук только после жеста
+for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { if (!ownActive && !isMuted()) tracks.intro(uvol.all * uvol.music); }, { once: true });     // вступление — по первому жесту     // браузер играет звук только после жеста
 muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); syncOwnMusic(); });
 showMute();
 const bagFill = $('bagFill');
@@ -565,8 +573,7 @@ function travelShow(pts) { travelPick = pts; requestAnimationFrame(travelDraw); 
 function travelDraw() {
   const cv = $('firesMap'), pts = travelPick; if (!pts || firesSec.hidden) return;
   const r = cv.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1), w = Math.max(300, Math.round(r.width * d)), h = Math.max(240, Math.round(r.height * d)); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-  const p = W.player, xs = [p.x, ...pts.map(q => q.x)], zs = [p.z, ...pts.map(q => q.z)], cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
-  const span = Math.max(160, Math.max((Math.max(...xs) - Math.min(...xs)) * 1.2, (Math.max(...zs) - Math.min(...zs)) * 1.2 * w / h)), sc = w / span, ctx = cv.getContext('2d'), U = d * 1.2;
+  const cx = 0, cz = 0, sc = Math.min(w, h) / (cfg.world.radius * 2 + 12), ctx = cv.getContext('2d'), U = d * 1.2;     // 4.08: весь мир; неоткрытое — под туманом
   drawMap(ctx, mapW(), { w, h, scale: sc, cx, cz, full: true, ui: U, dpr: d });
   const X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc;
   for (const q of pts) { q.px = X(q.x); q.py = Y(q.z);
@@ -647,8 +654,10 @@ let miniT = 0;
 const mapW = () => { const L = W.levels && W.levels[W.lvl]; if (!(L && L.map && L.map.floor)) return W; const S = W.levels.surface; return { ...W, map: S.map, lvl: 'surface', seen: S.seen, seenN: S.seenN, seenR: S.seenR, seenC: S.seenC }; };
 function drawMini() { drawMap(miniCtx, mapW(), { w: 128, h: 128, scale: 128 / cfg.mapView.miniSpan, cx: W.player.x, cz: W.player.z, full: false }); }     // miniSpan — сколько метров видно поперёк
 // большая карта (C3e): масштаб и прокрутка — вид mv { cx, cz, span (м на ширину) }; в подземелье — весь уровень
-const MAP_MIN = 60, mapMax = () => cfg.world.radius * 2 + 6, mv = { cx: 0, cz: 0, span: 220 };
-const mapClamp = () => { mv.span = Math.max(MAP_MIN, Math.min(mapMax(), mv.span)); const R = cfg.world.radius, m = Math.max(0, R - mv.span / 2 + 20); mv.cx = Math.max(-m, Math.min(m, mv.cx)); mv.cz = Math.max(-m, Math.min(m, mv.cz)); };
+const MAP_MIN = 60, mv = { cx: 0, cz: 0, span: 220 };
+const mapBox = () => { const R = cfg.world.radius, V = cfg.mapView; return [R * (V.wide || 1), R * (V.tall || 1)]; };     // 4.08: края подложки (полуширина, полувысота), м
+const mapMax = () => { const [RW, RH] = mapBox(), S = mapSide(); return Math.max(cfg.world.radius * 2 + 6, Math.min(2 * RW * S / mapCv.width, 2 * RH * S / mapCv.height)); };     // отдаление: весь круг мира или подложка во весь экран
+const mapClamp = () => { mv.span = Math.max(MAP_MIN, Math.min(mapMax(), mv.span)); const [RW, RH] = mapBox(), k = mv.span / mapSide(), mx = Math.max(0, RW - mapCv.width * k / 2), mz = Math.max(0, RH - mapCv.height * k / 2); mv.cx = Math.max(-mx, Math.min(mx, mv.cx)); mv.cz = Math.max(-mz, Math.min(mz, mv.cz)); };     // 4.08: сдвиг — до края подложки по ширине и высоте
 let mapRaf = 0; const mapRedraw = () => { if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; drawFull(); }); };
 // размер холста карты — по окну (почти весь экран, 2026-10-20), с плотностью пикселей; масштаб — метров на ширину
 const mapDpr = () => Math.min(2, window.devicePixelRatio || 1);
@@ -679,7 +688,7 @@ function cloudTick(ts) {
   if (v.under) { cloudCtx.clearRect(0, 0, v.w, v.h); return; }     // под землёй облаков нет
   clouds.draw(cloudCtx, v, CALM_UI ? 0 : ts / 1000);
 }
-const mapOpen = () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); mapEl.hidden = false; drawFull(); requestAnimationFrame(drawFull); panelOpen = true; input.release(); if (!cloudOn) { cloudOn = true; requestAnimationFrame(cloudTick); } };     // после показа — размер холста по окну
+const mapOpen = () => { mv.cx = W.player.x; mv.cz = W.player.z; mapEl.hidden = false; mapFit(); mapClamp(); drawFull(); requestAnimationFrame(drawFull); panelOpen = true; input.release(); if (!cloudOn) { cloudOn = true; requestAnimationFrame(cloudTick); } };     // после показа — размер холста по окну
 window.addEventListener('resize', () => { if (!mapEl.hidden) mapRedraw(); });
 { const pts = new Map(), loc = e => { const r = mapCv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * mapCv.width, y: (e.clientY - r.top) / r.height * mapCv.height }; }; let pinch = 0;
   mapCv.addEventListener('wheel', e => { e.preventDefault(); const q = loc(e); mapZoom(Math.exp(e.deltaY * .0015), q.x, q.y); }, { passive: false });
@@ -840,7 +849,7 @@ function frame(now) {
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }
   if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0); }
-  if ((atmoT += real) > .2) { atmoT = 0; const mx = mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null); setScene(mx, cfg.audio); tickAudio(); tracks.tick(mx, ownActive || isMuted(), performance.now() / 1000, cfg.audio.musicVol); if (ownPlayer.playing()) ownPlayer.setVolume(cfg.audio.ownMusic * (mx.fight > 0 ? .45 : 1) * (W.player.dead ? .3 : 1)); }     // своя музыка: в бою тише     // атмосфера: река, птицы, музыка
+  if ((atmoT += real) > .2) { atmoT = 0; const mx = mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null); setScene(mx, cfg.audio); tickAudio(); tracks.tick(mx, ownActive || isMuted(), performance.now() / 1000, cfg.audio.musicVol * uvol.all * uvol.music); if (ownPlayer.playing()) ownPlayer.setVolume(cfg.audio.ownMusic * uvol.all * uvol.music * (mx.fight > 0 ? .45 : 1) * (W.player.dead ? .3 : 1)); }     // своя музыка: в бою тише     // атмосфера: река, птицы, музыка
   if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; sfx('step'); }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
   if (!reliefDone) reliefDone = tickRelief(document, W);
