@@ -15,7 +15,7 @@
     "test:browser": "node test/browser.mjs && node test/browser-progress.mjs && node test/browser-polish.mjs && node test/browser3d.mjs && node test/browser3d-desk.mjs && node test/browser-swings.mjs && node test/browser-bag.mjs && node test/browser-actors.mjs && node test/browser3d-safari.mjs && node test/browser-newgame.mjs && node test/browser-feel.mjs && node test/browser-cine.mjs && node test/browser-abyss.mjs && node test/walk3d.mjs",
     "test:all": "npm test && npm run test:slow",
     "balance:heroes": "HB_SEEDS=30 node test/heroes-balance3d.mjs",
-    "test:slow": "node test/world3d.mjs && node test/wanderer3d.mjs && node test/heroes-balance3d.mjs && node test/outer3d.mjs && node test/headless.mjs && node test/roam3d.mjs && node test/instances3d.mjs && FUN_MIN=10 FUN_HEROES=thorn,irga node test/fun3d.mjs",
+    "test:slow": "node test/world3d.mjs && node test/branches3d.mjs && node test/wanderer3d.mjs && node test/heroes-balance3d.mjs && node test/outer3d.mjs && node test/headless.mjs && node test/roam3d.mjs && node test/instances3d.mjs && FUN_MIN=10 FUN_HEROES=thorn,irga node test/fun3d.mjs",
     "test:smoke": "node test/smoke3d.mjs",
     "check": "npm test && npm run build && npm run test:smoke",
     "bench:gpu": "node test/bench-gpu.mjs",
