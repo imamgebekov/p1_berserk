@@ -753,8 +753,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     heroShadow.visible = !on;
     scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });     // шейдеры с тенями и без — разные
   }
-  function setQuality(id, desk) {
-    const nq = qualityOf(cfg, id, desk), regrow = nq.grass !== Q.grass; Q = nq; resScale = nq.scale; shadowsOn = nq.shadows; setPaintLevel(nq.paint ?? 1);
+  function setQuality(id, desk, eco) {
+    const q0 = qualityOf(cfg, id, desk), nq = eco ? { ...q0, grass: Math.min(q0.grass, eco.grass), life: Math.min(q0.life ?? 1, eco.life), shafts: false } : q0, regrow = nq.grass !== Q.grass; Q = nq; resScale = nq.scale; shadowsOn = nq.shadows; setPaintLevel(nq.paint ?? 1);     // экономия заряда — реже трава и жизнь, без столбов света
     if (regrow) for (const k of [...liveLand.keys()]) dropLand(k);     // густота травы — при постройке участка: перестроить
     applyShadows(); resize();
   }
@@ -989,7 +989,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       for (const c of ducks) if (!c.m.gltf) { const A = ambMake('beast', 'duck'); if (A) c.m = swapIn(c.m, A, life); }
       for (const c of beasts) for (const [k, m] of Object.entries(c.ms)) if (!m.gltf && actorKey(cfg, 'beast', k) && actorReady(actorKey(cfg, 'beast', k))) { life.remove(m.group); disposeDeep(m.group); delete c.ms[k]; if (c.m === m) c.m = null; }
       if (!horse.gltf) { const A = ambMake('beast', 'horse'); if (A) horse = swapIn(horse, A, scene); } }
-    for (const n of npcs) { if (n.gltf) n.tick(dt, 'idle'); const dx = p.x - n.pos.x, dz = p.z - n.pos.z; if (Math.hypot(dx, dz) < 9) n.group.rotation.y += angDiffTo(Math.atan2(dx, dz), n.group.rotation.y) * Math.min(1, dt * 6); n.root.position.y = Math.sin(t * 2) * .02; { const mk = storyTalkable(W, n.kind || n.pos.kind) ? 'available' : questMark(W, n.kind || n.pos.kind); n.mark.visible = !!mk; if (mk) { n.mark.material.color.set(mk === 'ready' ? '#7ad06a' : '#e8c04a'); n.mark.position.y = 2.6 + Math.sin(t * 3) * .08; n.mark.rotation.y = t * 2; } } n.armL.rotation.x = Math.sin(t * 1.6) * .08; n.armR.rotation.x = -Math.sin(t * 1.6) * .08; }
+    for (const n of npcs) { { const vis = !under && inView(n.pos.x, Y(n.pos.x, n.pos.z) + 1, n.pos.z, 2.2); if (n.group.visible !== vis) n.group.visible = vis; if (!vis) continue; }     // житель-торговец вне кадра — не рисуется и не анимируется (экономия)
+      if (n.gltf) n.tick(dt, 'idle'); const dx = p.x - n.pos.x, dz = p.z - n.pos.z; if (Math.hypot(dx, dz) < 9) n.group.rotation.y += angDiffTo(Math.atan2(dx, dz), n.group.rotation.y) * Math.min(1, dt * 6); n.root.position.y = Math.sin(t * 2) * .02; { const mk = storyTalkable(W, n.kind || n.pos.kind) ? 'available' : questMark(W, n.kind || n.pos.kind); n.mark.visible = !!mk; if (mk) { n.mark.material.color.set(mk === 'ready' ? '#7ad06a' : '#e8c04a'); n.mark.position.y = 2.6 + Math.sin(t * 3) * .08; n.mark.rotation.y = t * 2; } } n.armL.rotation.x = Math.sin(t * 1.6) * .08; n.armR.rotation.x = -Math.sin(t * 1.6) * .08; }
     { const w = W.wanderer; cart.group.visible = !under && !!w;
       if (w && !under) {
         cart.group.position.set(w.x, Y(w.x, w.z), w.z); cart.group.rotation.y = w.face;
@@ -1089,7 +1090,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       let en = allyEnts.get(a.id);
       if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : cfg.squad.types[a.type] && cfg.squad.types[a.type].hero ? mateModel(cfg.squad.types[a.type]) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
       { const T1 = cfg.squad.types[a.type], k1 = T1 && T1.hero && !a.guest && !a.decoy && !en.m.gltf && actorKey(cfg, 'hero', T1.hero); if (k1 && actorReady(k1)) { scene.remove(en.m.group); disposeDeep(en.m.group); en.m = mateModel(T1); en.lk = null; scene.add(en.m.group); } }     // готовая модель спутника пришла позже
-      const ay = liftY ?? Y(a.x, a.z); en.m.group.position.set(a.x, ay, a.z); en.m.group.rotation.y = en.yawInit && cfg.view.blend ? dampAngle(en.m.group.rotation.y, a.face, cfg.view.blend.yawHero, dt) : a.face; en.yawInit = true;
+      const ay = liftY ?? Y(a.x, a.z);
+      { const vis = inView(a.x, ay + 1, a.z, 2.5); if (!vis) { if (en.vis !== false) { en.vis = false; en.m.group.visible = false; if (en.sh) en.sh.visible = false; } continue; } if (en.vis === false) { en.vis = true; en.m.group.visible = !a.dead; if (en.sh) en.sh.visible = true; } }     // спутник вне кадра — не рисуется и не анимируется (экономия)
+      en.m.group.position.set(a.x, ay, a.z); en.m.group.rotation.y = en.yawInit && cfg.view.blend ? dampAngle(en.m.group.rotation.y, a.face, cfg.view.blend.yawHero, dt) : a.face; en.yawInit = true;
       if (en.m.setLook && !a.guest) {     // спутник-герой (этап 4): анимация героя по «подставному» игроку — бег по скорости, удар по замаху
         if (a.eq) { const T0 = cfg.squad.types[a.type], lk = lookKey(T0.hero, a, null) + (a.eq.weapon || ''); if (en.lk !== lk) { en.lk = lk; en.m.setLook(dressedLook(heroOf(T0.hero).look, a, null)); const wi = a.eq.weapon && BY_ID[a.eq.weapon]; en.m.setWeapon(wi ? wi.kind : MATE_W[T0.hero] || 'sword', wi ? wi.mat : 'steel'); } }     // одежда бойца-героя (2026-10-20)
         const T = cfg.squad.types[a.type], AT = cfg.player.attackTime, k = dt > 0 ? 1 / dt : 0, pp = en.pp || (en.pp = { chain: 0, fin: false, heavy: 0, hand: 0, inv: 0, rollT: 0, chargeT: 0, dashT: 0, dashDur: 0 });

@@ -23,6 +23,7 @@ const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html`;
 try {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 664 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await ctx.newPage(); page.setDefaultTimeout(8000);
+  if (process.env.ECO_OFF) await ctx.addInitScript(() => { try { localStorage.setItem('berserk3d.prefs', JSON.stringify({ eco: false })); } catch (e) { /* без хранилища */ } });
   page.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push(m.type() + ': ' + m.text()); });
   page.on('pageerror', e => logs.push('pageerror: ' + e.message));
   // «Ретро» (крупные пиксели): Chromium без видеокарты на полном разрешении даёт ~8 кадр/с, а проверки управления меряют время;
@@ -196,8 +197,8 @@ try {
       await cdp3.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x + 20, y: b.y + 20, id: 3 }] });
       await page.waitForFunction(t0 => window.__b3d.W.t - t0 > 1.6, t0, { timeout: 8000 }).catch(() => {});     // заряд — в игровом времени: при 12 кадр/с 1,5 с реальных — меньше секунды игры
       const st = await page.evaluate(() => window.__b3d.W.player.state); await page.screenshot({ path: join(out, '3d-charge.png') });
-      await cdp3.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(150);
-      const hv = await page.evaluate(() => window.__b3d.W.player.heavy); await page.waitForTimeout(700);
+      await cdp3.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      const hv = await page.waitForFunction(() => window.__b3d.W.player.heavy > .9, null, { timeout: 3000 }).then(() => 1).catch(() => page.evaluate(() => window.__b3d.W.player.heavy)); await page.waitForTimeout(700);     // ждём в игре: при 12 кадр/с 150 мс — один кадр
       const hp1 = await page.evaluate(() => window.__b3d.W.__foe.hp);
       if (st !== 'charge') bad('удержание кнопки «Удар» не заряжает: ' + st);
       if (!(hv > .9) || !(hp1 < hp0)) bad(`отпускание после заряда не дало тяжёлый удар: heavy=${hv}, ${hp0} → ${hp1}`); } if (!r.st.includes('burn') && !(await page.evaluate(() => window.__b3d.W.__foe.hp < 5000))) bad('меч с огнём не бьёт: ' + JSON.stringify(r)); }
@@ -371,7 +372,9 @@ try {
 
   // горизонтальный экран
   await page.setViewportSize({ width: 664, height: 390 }); await page.waitForTimeout(400);
-  if (await page.evaluate(() => document.getElementById('rotate').hidden)) bad('в альбомной ориентации нет подсказки повернуть');
+  { const t0 = await page.evaluate(() => window.__b3d.W.t); await page.waitForTimeout(800);     // телефон боком — тоже играем (3.92): без подсказки «поверните», игра идёт, раскладка data-land
+    const L = await page.evaluate(t => ({ rot: !document.getElementById('rotate').hidden, land: document.documentElement.hasAttribute('data-land'), runs: window.__b3d.W.t > t }), t0);
+    if (L.rot || !L.land || !L.runs) bad('горизонтальный экран: ' + JSON.stringify(L)); }
   await page.setViewportSize({ width: 390, height: 664 });
 
   // кадры
@@ -380,7 +383,7 @@ try {
   console.log('кадров/с (программный GL, для справки)', fps.toFixed(0));
   // гладкий вид (шаг 2 аудита) — в конце: переключение тональной кривой перекомпилирует все шейдеры, в Chromium без видеокарты это секунды
   { const sm = await page.evaluate(() => { const r = window.__b3d.renderer; r.setRetro(false); const c = document.getElementById('gl'), o = { w: c.width, ir: getComputedStyle(c).imageRendering, tone: r.look().tone }; r.setRetro(true); return o; });
-    if (sm.w !== Math.round(390 * Math.min(2, 2)) || /pixelated|crisp/.test(sm.ir) || !sm.tone) bad('гладкий вид на телефоне: холст не в полную плотность (до 2) или без тональной кривой ' + JSON.stringify(sm)); }
+    if (sm.w !== Math.round(390 * 1.5) || /pixelated|crisp/.test(sm.ir) || !sm.tone) bad('гладкий вид на телефоне: холст не в плотность экономии заряда (×1,5, 3.92) или без тональной кривой ' + JSON.stringify(sm)); }
 } catch (e) { bad('исключение: ' + e.message); }
 await browser.close(); await dev.close();
 const fatal = logs.filter(l => !/GPU stall|swiftshader|GL Driver Message|ReadPixels/i.test(l));

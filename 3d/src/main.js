@@ -313,7 +313,7 @@ function onHurt() {
 }
 
 const fit = () => {
-  landscape = !desk && innerWidth > innerHeight * 1.15 && innerHeight < 520;
+  landscape = false; document.documentElement.toggleAttribute('data-land', !desk && innerWidth > innerHeight);     // телефон боком — тоже играем (2026-10-21, просьба владельца): раскладка — в style.css [data-land]
   if (desk) {
     const st = document.documentElement.style, dz = Math.min(cfg.view.desk.zoomMax, Math.max(1, innerHeight / cfg.view.desk.baseH)), pz = Math.min(dz, 1.25);
     st.setProperty('--dz', dz.toFixed(3)); st.setProperty('--pz', pz.toFixed(3));
@@ -467,6 +467,7 @@ const shows = [
   prefBtn('vibBtn', () => P.vibrate, v => v ? 'Вибрация включена (на iPhone не работает)' : 'Вибрация выключена', () => { P.vibrate = !P.vibrate; }, 'phone'),
   prefBtn('fpsBtn', () => P.fps, v => v ? 'Счётчик кадров включён' : 'Счётчик кадров выключен', () => { P.fps = !P.fps; }, 'timer'),
   prefBtn('asciiBtn', () => P.ascii, v => v ? 'Вид: ASCII (символы)' : 'Вид: обычный', () => { P.ascii = !P.ascii; }, 'eye'),
+  prefBtn('ecoBtn', () => ecoOn(), v => v ? 'Экономия заряда включена (30 кадров, меньше нагрев)' : 'Экономия заряда выключена', () => { P.eco = !ecoOn(); }, 'timer'),
   prefBtn('retroBtn', () => P.retro, v => v ? 'Ретро-пиксели включены' : 'Ретро-пиксели выключены', () => { P.retro = !P.retro; }, 'pixels'),
   prefBtn('hintBtn', () => P.hints, v => v ? 'Подсказки включены (нажмите: показать заново)' : 'Подсказки выключены', () => { P.hints = !P.hints; if (P.hints) P.seen = {}; }, 'hint')
 ];
@@ -476,12 +477,14 @@ function applyPrefs() {
   for (const b of uiTabs.children) b.classList.toggle('on', Number(b.dataset.v) === P.ui);
   for (const b of qualTabs.children) b.classList.toggle('on', b.dataset.q === P.quality);
   $('qualNote').textContent = { auto: 'Разрешение подстраивается под кадры.', low: 'Меньше разрешение, реже трава, без столбов света.', mid: 'Полное разрешение без теней.', high: desk ? 'Мягкие тени от солнца — нужна хорошая видеокарта.' : 'На телефоне — как «Среднее»: тени только на компьютере.' }[P.quality];
-  if (renderer && P.quality !== qualNow) { qualNow = P.quality; renderer.setQuality(P.quality, desk); autoRes = P.quality === 'auto' ? makeAutoRes(cfg.view.quality.auto) : null; }
+  if (renderer && (P.quality !== qualNow || ecoOn() !== ecoNow)) { qualNow = P.quality; ecoNow = ecoOn(); renderer.setQuality(P.quality, desk, ecoNow ? cfg.view.eco : null); if (cfg.view.smooth) renderer.setDprMax(Math.min(desk ? cfg.view.smooth.dprMax.desk : cfg.view.smooth.dprMax.phone, ecoNow ? cfg.view.eco.dpr : 9)); autoRes = P.quality === 'auto' ? makeAutoRes(cfg.view.quality.auto) : null; }
   shows.forEach(f => f());
   if (renderer && P.ascii !== asciiNow) { asciiNow = P.ascii; renderer.setAscii(P.ascii); }
   if (renderer && P.retro !== retroNow) { retroNow = P.retro; renderer.setRetro(P.retro); }
 }
-let asciiNow = false, retroNow = false, qualNow = null, autoRes = null;     // качество (шаг 14): пресет и «Авто»
+let asciiNow = false, retroNow = false, qualNow = null, autoRes = null, ecoNow = null;
+// экономия заряда (2026-10-21): по умолчанию на телефоне; меньше кадров, плотности и мелочей вокруг
+function ecoOn() { return P.eco === null || P.eco === undefined ? !desk : !!P.eco; }     // качество (шаг 14): пресет и «Авто»
 if (new URLSearchParams(location.search).has('ascii')) P.ascii = true;      // для тестов и ссылок: сразу вид ASCII
 if (new URLSearchParams(location.search).has('retro')) P.retro = true;      // для тестов и ссылок: сразу вид «Ретро»
 applyPrefs();
@@ -740,7 +743,9 @@ function drawParty() {
   live.forEach((a, i) => { const r = partyList.children[i], k = Math.max(0, Math.min(1, a.hp / a.maxhp)); r.lastChild.firstChild.style.transform = `scaleX(${k})`; r.classList.toggle('low', k < .35); });
   for (const b of $('partyCmd').children) b.classList.toggle('on', b.dataset.cmd === W.party.cmd);
 }
-function loop(now) { try { frame(now); if (crashN && !crashShown) crashN = Math.max(0, crashN - .02); } catch (e) { crashed(e); } finally { requestAnimationFrame(loop); } }
+let ecoLast = 0;
+function loop(now) { if (ecoNow && cfg.view.eco) { const gap = 1000 / (panelOpen ? cfg.view.eco.panelFps : cfg.view.eco.fps) - 2; if (now - ecoLast < gap) { requestAnimationFrame(loop); return; } ecoLast = now; }     // экономия: пропуск кадров
+  try { frame(now); if (crashN && !crashShown) crashN = Math.max(0, crashN - .02); } catch (e) { crashed(e); } finally { requestAnimationFrame(loop); } }
 function frame(now) {
   const t0 = performance.now(), real = (now - last) / 1000, dt = Math.max(0, Math.min(.05, real)); last = now;
   // под меню (шаг 5): бой останавливается плавно за UI.stopT с (при «уменьшить движение» — сразу), а картинка живёт — вода, ветер, частицы

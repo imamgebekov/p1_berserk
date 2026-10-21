@@ -730,3 +730,7 @@ img.gi.own,img.abgi.own{object-fit:contain;border-radius:6px}.tnode img.gi.own{w
 .tcard .tbuy.own{min-height:40px;font-size:14px;margin-top:4px;background:linear-gradient(180deg,#3a2a1c,#22170f)!important;border-color:var(--line)!important}
 /* рисованные значки умений (Painterly Spell Icons): квадрат с мягкими углами */
 img.gi.own,img.abgi.own{image-rendering:auto}
+/* телефон боком (2026-10-21): цель — по центру под верхней строкой (справа — карта и кнопки), выбор героя — плотнее */
+[data-land] #tracker{right:auto;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 50px);max-width:48%;text-align:center}
+[data-land] #heroPick{gap:10px;padding-top:calc(12px + env(safe-area-inset-top))}[data-land] #heroPick h2{font-size:19px}
+[data-land] #heroCards .hcard{width:220px;padding:10px;gap:4px}
