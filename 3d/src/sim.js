@@ -450,6 +450,7 @@ function putEl(W, e, el, dmg, k) {
 function skillStrike(W, e, dmg) { const mx = W.wp.mix || (W.wp.el ? { a: W.wp.el, b: null, rank: 1, amp: false } : null); if (mx) mixHit(W, e, dmg, mx); }
 function mixHit(W, e, dmg, mx) {
   const S = W.cfg.stones, k = S.power[mx.rank - 1] * (mx.amp ? S.amp : 1), p = W.player;
+  if (S.bonus && W.wp.mix === mx && !e.dead) dealDamage(W, e, Math.max(1, Math.round(dmg * S.bonus[mx.rank - 1] * (mx.amp ? S.amp : 1))), mx.a);     // камни в оружии: удар стихией — доля урона удара (только сплав из камней)
   if (mx.b === null) { putEl(W, e, mx.a, dmg, k); return; }
   if (mx.a !== mx.b) { putEl(W, e, mx.a, dmg, k); if (!e.dead) putEl(W, e, mx.b, dmg, k); return; }
   const el = mx.a; W.ev.push({ k: 'mix', el, x: e.x, z: e.z });

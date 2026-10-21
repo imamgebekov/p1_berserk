@@ -35,8 +35,8 @@ function faceNearest(W, r) { const p = W.player; let best = null, bd = r; for (c
 const ACT = {
   cleave(W, S, k) { const L = near(W, S.r); if (!L.length) return false; for (const e of L) abilityHit(W, e, S.mul * k, { knock: S.knock, mix: true }); W.wsk = { kind: 'cleave', t: S.gap, k }; },
   lunge(W, S, k) {
-    const p = W.player; faceNearest(W, S.dist + 2);
-    Object.assign(p, { state: 'dash', dashT: 0, dashDur: S.time, dashV: S.dist / S.time, dashX: Math.sin(p.face), dashZ: Math.cos(p.face), dashHit: [], dashMul: S.mul * k, dashKnock: 1, dashMix: true, dashW: S.width, atkT: 0 });
+    const p = W.player, e = faceNearest(W, S.dist + 2), dist = e ? Math.max(1.2, Math.min(S.dist, len(e.x - p.x, e.z - p.z) - W.cfg.enemies[e.type].radius - .7)) : S.dist;     // встаёт перед ближним врагом и остаётся с края группы, а не пролетает её (3.98)
+    Object.assign(p, { state: 'dash', dashT: 0, dashDur: S.time * dist / S.dist, dashV: S.dist / S.time, dashX: Math.sin(p.face), dashZ: Math.cos(p.face), dashHit: [], dashMul: S.mul * k, dashKnock: 1, dashMix: true, dashW: S.width, atkT: 0 });
     p.inv = Math.max(p.inv, S.time);
   },
   shatter(W, S, k) { const L = near(W, S.r); for (const e of L) { abilityHit(W, e, S.mul * k, { knock: .5, mix: true }); if (!e.dead) { applyStatus(W, e, 'stun', 0, e.boss ? Math.min(S.stun, W.cfg.elements.bossStun) : S.stun); applyStatus(W, e, 'crack', 0, S.crack); } } W.shake = Math.max(W.shake, W.cfg.fx.shake * 2.2); },

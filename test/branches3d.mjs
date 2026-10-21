@@ -30,9 +30,9 @@ function fight(hero, ids, n, extra, wsk) {
   const spots = n === 1 ? [[0, 2.4]] : [[0, 2.4], [1.6, 3.2], [-1.6, 3.2], [0, 4.2]], dummies = spots.map(([dx, dz]) => { const e = spawnEnemy(W, 'brute', X0 + dx, Z0 - dz); e.hp = e.maxhp = 2e5; e.cd = 1e9; e.alert = true; e.x0 = e.x; e.z0 = e.z; return e; });
   let t = 0;
   for (let i = 0; i < SEC * 60; i++) {
-    for (const e of dummies) { e.x = e.x0; e.z = e.z0; e.vx = e.vz = 0; e.state = 'rec'; e.t = -1e9; e.cd = 1e9; if (e.hp < 1e3) e.hp = e.maxhp; }
+    for (const e of dummies) { e.x = e.x0; e.z = e.z0; e.vx = e.vz = 0; e.state = 'rec'; e.t = -1e9; e.cd = 1e9; if (e.hp < 1e3) e.hp = e.maxhp; e.face = Math.atan2(W.player.x - e.x, W.player.z - e.z); }     // смотрит на героя, как живой враг: удар в спину кинжала — только из-за спины
     const p = W.player; p.hp = p.maxhp; let tg = dummies[0], bd = 1e9; for (const e of dummies) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; tg = e; } }
-    const far = bd > (RANGED(hero) ? 9 : 2.2), aim = { x: tg.x, z: tg.z }; W.aimPt = aim;
+    const reach = W.cfg.player.attackRange + W.gear.reach + W.cfg.enemies[tg.type].radius * .5, far = bd > (RANGED(hero) ? 9 : reach), aim = { x: tg.x, z: tg.z }; W.aimPt = aim;     // к цели — на дальность своего оружия (у кинжала она короче: до 3.97 бот бил мимо)
     if ((t -= 1 / 60) <= 0) { t = .1; if (wsk) useWeaponSkill(W); for (const { i: k } of order) if (useAbility(W, k) === 'ok') break; }
     step(W, 1 / 60, { mx: far ? (tg.x - p.x) / bd : 0, mz: far ? (tg.z - p.z) / bd : 0, attackPress: !far && i % 6 === 0, aimPt: aim });     // короткие удары, к цели — шагом
   }
@@ -50,7 +50,8 @@ for (const hero of HEROES) {
     row['+ камни'] = { one: fight(hero, [], 1, gems), four: fight(hero, [], 4, gems) };
     row['+ умение оружия'] = { one: fight(hero, [], 1, arm, true), four: fight(hero, [], 4, arm, true) };
     const w0 = row['клеймёное'];
-    for (const key of ['+ камни', '+ умение оружия']) { const x = row[key], k1 = x.one / w0.one, k4 = x.four / w0.four; ok(Math.max(k1, k4) >= .98 && Math.max(k1, k4) <= 3, `${hero}: ${key} меняет урон в ${k1.toFixed(2)}/${k4.toFixed(2)} раза (ждём 0,98–3)`); } }     // замер 3.96: камни +1…8%, умение оружия +6…8% — прибавка мала, решение за владельцем
+    const LIM = { '+ камни': [1.1, 1.3], '+ умение оружия': [1.06, 1.25] };     // 3.98, решение владельца: камни +10–20%, умение оружия +10–15% (среднее по двум сценам; запас на шум)
+    for (const key of ['+ камни', '+ умение оружия']) { const x = row[key], k1 = x.one / w0.one, k4 = x.four / w0.four, k = (k1 + k4) / 2, [lo, hi] = LIM[key]; ok(k >= lo && k <= hi, `${hero}: ${key} в среднем ×${k.toFixed(2)} (${k1.toFixed(2)}/${k4.toFixed(2)}), ждём ${lo}–${hi}`); } }
   else ok(false, `${hero}: нет клеймёного оружия с гнездом и умением`);
   out[hero] = row;
   console.log(hero.padEnd(8), Object.entries(row).map(([k, v]) => `${k}: ${Math.round(v.one)}/${Math.round(v.four)}`).join(' | '));

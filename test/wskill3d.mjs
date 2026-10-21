@@ -25,7 +25,7 @@ const hurt = e => e.maxhp - e.hp;
   ok(!weaponSkillOf(mk('w_bow_blood', 'thorn')) && weaponSkillOf(mk('w_bow_blood', 'jay')), 'чужое оружие даёт умение'); }
 
 // ---------- 2. каждое умение бьёт, перезарядка общая ----------
-const CASES = [['cleave', 'w_sword_blood', 'thorn', [[0, 1.8], [1.8, 0], [-1.8, 0]]], ['lunge', 'w_spear_blood', 'thorn', [[0, 2.5], [0, 4.5]]], ['shatter', 'w_hammer_blood', 'thorn', [[0, 2], [2.5, 0], [-2.5, 0]]],
+const CASES = [['cleave', 'w_sword_blood', 'thorn', [[0, 1.8], [1.8, 0], [-1.8, 0]]], ['lunge', 'w_spear_blood', 'thorn', [[0, 4.5]]], ['shatter', 'w_hammer_blood', 'thorn', [[0, 2], [2.5, 0], [-2.5, 0]]],
   ['reap', 'w_greatsword_blood', 'thorn', [[0, 2], [1.5, 2], [-1.5, 2]]], ['tempest', 'w_flail_blood', 'thorn', [[0, 2], [2, 0]]], ['elemshot', 'w_longbow_blood', 'jay', [[0, 4], [0, 7], [1.5, 7]]], ['orb', 'w_staff_blood', 'irga', [[0, 4], [1.2, 6], [-1.2, 7]]]];
 for (const [id, wid, hero, spots] of CASES) {
   const W = mk(wid, hero), es = spots.map(([x, z]) => foe(W, x, z));
@@ -36,7 +36,7 @@ for (const [id, wid, hero, spots] of CASES) {
   ok(es.every(e => hurt(e) > 0), `${id}: не все враги задеты: ${es.map(hurt)}`);
   ok(Math.abs(W.wcd - (S.cd - 3 - 1 / 60)) < .1 && useWeaponSkill(W) === 'cd', `${id}: перезарядка не идёт: ${W.wcd}`);
 }
-{ const W = mk('w_spear_blood'); foe(W, 0, 2.5); const z0 = W.player.z; useWeaponSkill(W); run(W, .5); ok(W.player.z - z0 > S.lunge.dist * .7, 'выпад не несёт героя вперёд: ' + (W.player.z - z0).toFixed(1)); }
+{ const W = mk('w_spear_blood'); const e = foe(W, 0, 4); const z0 = W.player.z; useWeaponSkill(W); run(W, .5); const dz = W.player.z - z0; ok(dz > 1.5 && W.player.z < e.z, 'выпад не несёт героя к цели или пролетает её: ' + dz.toFixed(1)); }     // 3.98: встаёт перед дальним врагом на линии
 { const W = mk('w_flail_blood'), e = foe(W, 0, 2); useWeaponSkill(W); run(W, .3); const h1 = hurt(e); run(W, 1.5); ok(hurt(e) > h1 * 2, '«Цепная буря» бьёт один раз'); }
 { const W = mk('w_sword_blood'); ok(useWeaponSkill(W) === 'target' && !W.wcd, 'без врагов умение тратит перезарядку'); }
 { const W = mk('w_sword_blood'); foe(W, 0, 1.8); useWeaponSkill(W); W.inv.eq.weapon = 'w_axe_blood'; refreshGear(W); ok(useWeaponSkill(W) === 'cd', 'смена оружия сбрасывает перезарядку'); }
