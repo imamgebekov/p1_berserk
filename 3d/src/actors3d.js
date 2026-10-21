@@ -131,7 +131,7 @@ export function makeActor(key, kit, kind = 'actor') {
     if (kindO === 'shield') { const big = form === 'tower', M2 = new THREE.MeshLambertMaterial({ color: ({ iron: '#9a9890', tempered: '#b8b4a8', steel: '#cfc9bb', black: '#3e3a46' })[mat] || '#9a9890' });
       o.add(new THREE.Mesh(new THREE.BoxGeometry(.08, big ? 1.1 : .6, big ? .7 : .6), new THREE.MeshLambertMaterial({ color: '#5a3e26' })), new THREE.Mesh(new THREE.BoxGeometry(.03, big ? 1.14 : .64, big ? .74 : .64), M2).translateX(-.05)); o.rotation.y = Math.PI / 2; }
     else { const w = makeWeapon(kindO, mat); o.add(w.group); if (kit.wRot) o.rotation.set(...kit.wRot); }
-    o.scale.multiplyScalar(scaleFix() * (kit.wScale || .55)); A.handL.add(o); A.off = o;
+    o.scale.multiplyScalar(scaleFix() * (kit.wScale || .55) * (kindO === 'shield' ? 1.35 : 1)); A.handL.add(o); A.off = o;     // щит крупнее: у готовых моделей кисть меньше, сверху щит виден ребром
   };
   // облик по броне: шлем/шляпа видны, если надето на голову; цвет плаща
   A.setLook = L => { for (const n of kit.helm || []) { const o = byName(obj, n); if (o) o.visible = !!(L && L.helm); } for (const n of kit.cape || []) { const o = byName(obj, n); if (o && L && L.cape && o.material) o.material.color.set(L.cape).lerp(new THREE.Color('#ffffff'), .45); } };
@@ -160,8 +160,8 @@ export function driveHero(A, p, dt, cfg, swingMul = 1) {
   else if (p.state === 'roll') A.play('roll', { once: true, fade: N.roll, speed: A.dur('roll') / P.rollTime, restart: A.curName !== 'roll' });
   else if (p.state === 'atk') {
     const ch = CHAIN[famKey(A.family)], step = p.heavy > 0 || p.fin ? 2 : ((p.chain || 0) % 2), a = ch[step], len = P.attackTime * swingMul;
-    const fresh = A.atkMark !== p.atkId && (A.lastAtkT === undefined || p.atkT < A.lastAtkT || A.curName !== a);
-    if (fresh) { A.atkMark = p.atkId; A.play(a, { once: true, fade: N.atk, speed: Math.max(.6, A.dur(a) * .8 / len), restart: true }); }
+    const fresh = A.lastAtkT === undefined || p.atkT < A.lastAtkT - 1e-6;     // удар начался или следующий в серии (время удара пошло заново); atkId игра не задаёт — до 3.95 удар не проигрывался
+    if (fresh) A.play(a, { once: true, fade: N.atk, speed: Math.max(.6, A.dur(a) * .8 / len), restart: true });
     A.lastAtkT = p.atkT;
   } else if (p.state === 'charge') A.play('charge', { fade: N.atk });
   else if (p.state === 'dash') A.play('run', { fade: N.roll, speed: 1.6 });

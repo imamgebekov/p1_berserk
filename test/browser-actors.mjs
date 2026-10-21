@@ -34,8 +34,9 @@ try {
   await page.keyboard.down('Space'); await page.waitForTimeout(300); await page.keyboard.up('Space'); await page.waitForTimeout(500);
   await page.locator('#bagBtn').click(); await page.waitForTimeout(1500);
   if (!(await page.locator('canvas.herov').count())) bad('в сумке нет холста героя');
+  await page.locator('#bagClose').click().catch(() => {}); await page.waitForFunction(() => { const c = {}; window.__b3d.renderer.dbg.scene.traverse(o => { if (o.userData.actor) c[o.userData.actor] = 1; }); return ['q_farmer', 'kk_barbarian', 'q_warrior'].every(k => c[k]); }, null, { timeout: 60000 }).catch(() => {});     // жители получают модели раз в секунду игры — при 3 кадр/с это долго; сумка ставит игру на паузу
   const keys = await page.evaluate(() => { const c = {}; window.__b3d.renderer.dbg.scene.traverse(o => { if (o.userData.actor) c[o.userData.actor] = 1; }); return Object.keys(c); });
-  for (const k of ['q_farmer', 'kk_barbarian', 'q_warrior']) if (!keys.includes(k)) bad('нет модели жителя ' + k);     // торговец, кузнец, капитан (3.81)
+  for (const k of ['q_farmer', 'kk_barbarian', 'q_warrior']) if (!keys.includes(k)) bad('нет модели жителя ' + k + ' (есть: ' + keys.join(', ') + ')');     // торговец, кузнец, капитан (3.81)
   console.log(`  моделей со скелетом: герой ${n0}, с врагами ${n1}; виды: ${keys.length}`);
   if (process.env.SHOTS) await page.screenshot({ path: join(process.env.SHOTS, 'actors-bag.png') });
 } finally { await browser.close(); await dev.close(); }
