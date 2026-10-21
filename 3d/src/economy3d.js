@@ -75,9 +75,9 @@ export function sellItem(W, idx, n = 1) {
     const tmp = { bag: JSON.parse(JSON.stringify(W.inv.bag)) }; tmp.bag.splice(idx, 1);
     const max = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
     for (const g of s.g) if (g && addItem(tmp, g, 1, max) > 0) return 'full';
-    W.inv.bag = tmp.bag; W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade, s.il, s.af); W.ev.push({ k: 'unsocket', n: s.g.filter(Boolean).length }); return 'ok';
+    W.inv.bag = tmp.bag; W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade, s.il, s.af); W.ev.push({ k: 'unsocket', n: s.g.filter(Boolean).length }, { k: 'sell', id: it.id }); return 'ok';
   }
-  W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade, s.il, s.af) * q; removeAt(W.inv, idx, q); return 'ok';
+  W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade, s.il, s.af) * q; removeAt(W.inv, idx, q); W.ev.push({ k: 'sell', id: it.id }); return 'ok';
 }
 // продать снаряжение хуже надетого (этап 4 «круче»): только то, что герой носит; без замка, заточки и камней; клеймёное и золотое —
 // вручную. Вернёт { sum, n } или −1 (торговца рядом нет)
@@ -90,13 +90,13 @@ export function sellWorse(W) {
     if (scoreUp(it, 0, B, s.il, s.af) + .5 >= scoreUp(BY_ID[cur], inv.up[it.slot] || 0, B, inv.il && inv.il[it.slot], inv.af && inv.af[it.slot])) continue;
     sum += sellPrice(it, W.cfg, 0, W.gear.trade, s.il || 0, s.af); inv.bag.splice(i, 1); n++;
   }
-  inv.ash += sum; return { sum, n };
+  inv.ash += sum; if (n) W.ev.push({ k: 'sell' }); return { sum, n };
 }
 // продать весь хлам разом: безделушки, деньги, записки и материалы (оружие, броня, ключи и расходники остаются)
 export function sellJunk(W) {
   if (!W.nearMerchant || closed(W)) return -1;
   let sum = 0;
   for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if ((it.cat === 'curio' || it.cat === 'material') && it.pool !== 'arcane') { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
-  W.inv.ash += sum; return sum;
+  W.inv.ash += sum; if (sum) W.ev.push({ k: 'sell' }); return sum;
 }
 

@@ -1,4 +1,4 @@
-// Тест «Первой искры» и первых минут 3D (шаг 12 аудита): цепочка торговец → враги за оградой → костёр → очко навыка,
+// Тест «Первой искры» и первых минут 3D (шаг 12 аудита): цепочка торговец → враги за оградой → сбор (4.01) → костёр → очко навыка,
 // убийства в лагере не считаются, награда один раз; строка цели не пустая и у шагов есть точка; после цепочки цель —
 // ближайший неоткрытый костёр; ветерану цепочка не нужна; мусор в сохранении не ломает; Торн и Вейл не с кулаками;
 // у лагеря в начале стайки «молодые» (здоровье ×0,5), с 3-го уровня — обычные.
@@ -19,8 +19,10 @@ const mk = (seed = 1, tweak) => { const c = JSON.parse(JSON.stringify(CFG3)); c.
   g = goalOf(W); ok(/0\/3/.test(g.text) && g.at, 'шаг «враги» без счётчика или точки: ' + g.text);
   sparkEvent(W, { k: 'die', x: 0, z: 0 }); ok(W.spark.kills === 0, 'убийство в лагере засчитано');
   for (let i = 0; i < 3; i++) sparkEvent(W, { k: 'die', x: 200, z: 40 }); ok(sparkTick(W) === 'step' && W.spark.i === 2, 'три врага за оградой не засчитаны');
+  g = goalOf(W); ok(/соберите/.test(g.text) && g.at && Number.isFinite(g.at.x), 'шаг «сбор» без текста или точки: ' + JSON.stringify(g));     // 4.01
+  ok(sparkTick(W) === null, 'сбор засчитан без дела'); sparkEvent(W, { k: 'gather' }); ok(sparkTick(W) === 'step' && W.spark.i === 3, 'сбор не засчитан');
   W.player.x = 30; W.player.z = 30; ok(sparkTick(W) === null && /костру/.test(goalOf(W).text), 'костёр засчитан издалека');
-  W.player.x = 1; W.player.z = 1; ok(sparkTick(W) === 'step' && W.spark.i === 3, 'костёр не засчитан');
+  W.player.x = 1; W.player.z = 1; ok(sparkTick(W) === 'step' && W.spark.i === 4, 'костёр не засчитан');
   W.sp = 0; ok(/опыт/.test(goalOf(W).text), 'без очков — не про опыт'); W.sp = 1; ok(/навыки/.test(goalOf(W).text), 'с очком — не про навыки');
   const ash0 = W.inv.ash; W.skills = { might: 1 }; ok(sparkTick(W) === 'done' && W.spark.done && W.inv.ash === ash0 + CFG3.spark.ash, 'награда за цепочку');
   ok(sparkTick(W) === null && W.inv.ash === ash0 + CFG3.spark.ash, 'награда выдана дважды');

@@ -51,6 +51,7 @@ import { loadTweaks, createTweakPanel } from './tweak.js';
 import { setIconText, applyIcons } from './uiicons.js';
 import { QUALITY_IDS, QUALITY_NAMES, makeAutoRes } from './quality3d.js';
 import { sparkFresh, sparkEvent, sparkTick, goalOf, sanitizeSpark } from './spark3d.js';
+import { mentorFresh, sanitizeMentor, mentorEvent, mentorTick, mentorLine, MENTOR_WHO } from './mentor3d.js';
 import { PATH, pathFresh, sanitizePath, pathEvent, pathTick, pathGoal, pathIndex, unlocks, lockedHint } from './ashpath3d.js';
 
 const $ = id => document.getElementById(id);
@@ -90,7 +91,8 @@ const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded
 if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
 if (saved) { W.questFocus = saved.qf || null; W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (saved.ach) W.ach = saved.ach; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
-W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
+W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);
+W.mentor = saved && saved.prog.mentor ? sanitizeMentor(saved.prog.mentor) : mentorFresh();     // советы первопроходцу (4.01)     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
 W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);
 if (W.treeReset) { delete W.treeReset; setTimeout(() => toast('Новое древо умений: все очки возвращены — распределите их в окне умений', '', '#e8c04a', 'skills'), 2500); }     // переход на древо (2026-10-20)     // «Путь пепла» (шаг 13): старому сохранению — по уже сделанному
 let saveFailT = -1e9;     // ошибка записи (кончилось место): сообщаем не чаще раза в минуту
@@ -211,6 +213,7 @@ function showLevelCard(lv) {                                                    
 function onEvent(v) {
   { const fs = feel.event(v, W.player.maxhp); if (fs) { sfx(fs); if (fs === 'streak') { const n = feel.state().shown; streakEl.textContent = `Серия ×${n}`; streakEl.hidden = false; streakEl.classList.remove('pop'); void streakEl.offsetWidth; streakEl.classList.add('pop'); } } }
   sparkEvent(W, v);     // «Первая искра»: враги за оградой (шаг 12)
+  mentorEvent(W, v);    // советы: сбор, ковка, продажа, библиотека (4.01)
   pathEvent(W, v);      // «Путь пепла»: первая победа над боссом-вехой (шаг 13)
   if (v.k === 'hurt') buzz(P, 35); else if (v.k === 'level' || v.k === 'questdone') buzz(P, [40, 40, 70]); else if (v.k === 'bossaggro' || v.k === 'bossblast') buzz(P, 90);
   sfx(v.k, v.x === undefined ? null : { x: v.x, z: v.z, px: W.player.x, pz: W.player.z, yaw: cfg.view.camYaw });     // звук мира: тише вдали, панорама по экрану (шаг 8)
@@ -803,15 +806,16 @@ function frame(now) {
   if ((goalT -= real) <= 0) { goalT = .25;
     { const pr = pathTick(W); if (pr && pr.k === 'step') { toast(`Путь пепла ${pr.i + 1}/${PATH.length - 1}: ${pr.text}`, '', '#e8c04a', 'fire'); sfx('questready'); saver.write(); } else if (pr && pr.k === 'end') { saver.write(); showEnd(); } }
     applyLocks();
+    { const mr = mentorTick(W); if (mr && mr.k === 'start') { const who = MENTOR_WHO[mr.L.who]; for (const l of mr.L.lines) toast(`${who.name.split(',')[0]}: «${l}»`, '', '#f0d8a8', 'hint'); sfx('questready'); } else if (mr && mr.k === 'done') { toast(`Совет выполнен: +${mr.ash} пепла`, '', '#e8c04a', 'hint'); sfx('questdone'); saver.write(); } }
     const sp = W.spark && !W.spark.done, pg = pathGoal(W), crypt = pg && PATH[pathIndex(W)].id === 'crypt';
     const sg = !sp && W.story ? storyGoal(W) : null;     // сюжет (этап 3) — главнее «Пути пепла»
     const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : String(W.lvl).startsWith('up:') ? { text: 'Второй этаж: сундуки; вниз — по лестнице', at: null } : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null };
     // трекер (этап 5 «круче»): главная строка (событие, искра, сюжет, путь) и до трёх заданий; цель на карте не пропадает
     const surf = W.lvl === 'surface', ev = eventLine(W) || abyssLine(W), main = ev || (sp || sg || pg || !surf ? g.text : ''), ql = trackerLines(W, 3);
     W.qmarks = surf ? questMarks(W, storyActors(W)) : [];
-    const tl = [main || (ql.length ? '' : g.text), ...ql].filter(Boolean).join('\n');
+    const mt = surf ? mentorLine(W) : null, tl = [main || (ql.length || mt ? '' : g.text), mt && mt.text, ...ql].filter(Boolean).join('\n');     // совет — второй строкой
     const fm = W.questFocus && W.qmarks.find(m => m.id === W.questFocus);     // выбранное задание (кнопка «Вести» в «Моих») — главнее
-    W.goal = ev && W.event ? eventAt(W) : ev ? null : fm ? fm : main ? (g.at || W.qmarks[0] || null) : W.qmarks.length ? W.qmarks[0] : g.at; W.goalFocus = !!fm && !ev;     // метки на земле — только к выбранному заданию
+    W.goal = ev && W.event ? eventAt(W) : ev ? null : fm ? fm : main ? (g.at || W.qmarks[0] || null) : W.qmarks.length ? W.qmarks[0] : mt && mt.at ? mt.at : g.at; W.goalFocus = !!fm && !ev;     // метки на земле — только к выбранному заданию
     if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }
