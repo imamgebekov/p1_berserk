@@ -26,8 +26,8 @@ export function refreshAlly(W, a) {
   a.maxhp = mh; a.hp = Math.max(1, Math.min(mh, Math.round(mh * frac)));
 }
 // запас здоровья бойца: по уровню героя, без вещей — меньше, плюс здоровье вещей
-export const allyMaxHpOf = (W, a) => { const T = W.cfg.squad.types[a.type]; return allyGearOn(W) && !a.story && !a.guest ? Math.max(1, Math.round(allyHp(W, T) * W.cfg.squad.gear.naked.hp + (a.ghp || 0))) : allyHp(W, T); };
-export const allyDmgOf = (W, a) => { const T = W.cfg.squad.types[a.type], G = W.cfg.squad.gear; return allyGearOn(W) && !a.story && !a.guest ? allyDmg(W, T) * G.naked.dmg + (a.gdmg || 0) * G.dmgK : allyDmg(W, T); };
+export const allyMaxHpOf = (W, a) => { const T = W.cfg.squad.types[a.type]; return allyGearOn(W) && !a.story && !a.guest && !a.lfg ? Math.max(1, Math.round(allyHp(W, T) * W.cfg.squad.gear.naked.hp + (a.ghp || 0))) : allyHp(W, T); };     // наёмник подземелья (4.07) — в полную силу
+export const allyDmgOf = (W, a) => { const T = W.cfg.squad.types[a.type], G = W.cfg.squad.gear; return allyGearOn(W) && !a.story && !a.guest && !a.lfg ? allyDmg(W, T) * G.naked.dmg + (a.gdmg || 0) * G.dmgK : allyDmg(W, T); };
 // вещи павшего или уволенного бойца — на землю
 export function dropAllyGear(W, a) {
   if (!a.eq) return;

@@ -216,6 +216,7 @@ function flatGeo(src) {
   for (const n of ['position', 'normal', 'uv', 'color']) { const at = geo.attributes[n]; if (!at) continue; const sz = n === 'color' ? 3 : at.itemSize; if (at.normalized || !(at.array instanceof Float32Array) || at.isInterleavedBufferAttribute || at.itemSize !== sz) { const a = new Float32Array(at.count * sz); for (let i = 0; i < at.count; i++) for (let j = 0; j < sz; j++) a[i * sz + j] = at.getComponent(i, j); geo.setAttribute(n, new THREE.BufferAttribute(a, sz)); } }
   if (!geo.attributes.uv) geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
   geo.computeBoundingBox(); const B = geo.boundingBox; geo.userData.w = B.max.x - B.min.x; geo.userData.d = B.max.z - B.min.z; geo.userData.h = B.max.y - B.min.y;
+  geo.translate(-(B.min.x + B.max.x) / 2, -B.min.y, -(B.min.z + B.max.z) / 2); geo.computeBoundingBox();     // 4.08: низом на землю, центром в начало — опора моделей посередине, дома и декор уходили под землю
   return geo;
 }
 export async function loadNature() {

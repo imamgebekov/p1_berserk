@@ -749,6 +749,13 @@ const BASE = {
     ]
   },
 
+  // сбор группы (4.07, решение владельца): подземелье отряда — на 4, рейд — на 10; состав по ролям; heroRole — роль героя;
+  // bots — какими спутниками добирать роль; roleName и names — подписи наёмников
+  party: { on: true, dungeon: { tank: 1, heal: 1, melee: 1, ranged: 1 }, raid: { tank: 2, heal: 3, melee: 3, ranged: 2 },
+    heroRole: { thorn: 'tank', vale: 'melee', jay: 'ranged', irga: 'ranged', warlock: 'ranged' },
+    bots: { tank: ['c_thorn', 'soldier'], heal: ['c_irga'], melee: ['c_vale', 'veteran'], ranged: ['c_jay'] },
+    roleName: { tank: 'защитник', heal: 'лекарь', melee: 'боец', ranged: 'стрелок' },
+    names: { tank: ['Гронт', 'Борвин', 'Ульф', 'Хаген', 'Дарек'], heal: ['Велла', 'Мирна', 'Ведана', 'Агна', 'Зоряна', 'Лада'], melee: ['Кай', 'Рагнар', 'Ивар', 'Торвин', 'Ярош'], ranged: ['Эйра', 'Стрибог', 'Нежка', 'Олаф', 'Сигрун'] } },
   squad: {
     baseMax: 1, perLevels: 8, cap: 4, follow: 2.8, leash: 30, sight: 13, regen: 1.2, fireRegen: 7, xpShare: .5,
     // отряд-спутники (этап 4): бойцы растут с уровнем героя — здоровье и урон × (1 + lvHp/lvDmg × (ур − 1))

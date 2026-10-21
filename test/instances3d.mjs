@@ -71,11 +71,11 @@ const lab = (type, only, f) => { const W = mk(7); const b = BL.find(q => q.type 
 // ---------- 5. бой: герой-бот и отряд против каждого босса ----------
 const KIT = { weapon: 'w_sword_black', body: 'a_body_plate_black', head: 'a_head_helm_black', boots: 'a_boots_greaves_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' };
 function fight(b, seed, party) {
-  const W = mk(seed * 131 + 7); W.hero = 'vale'; const d = I.find(q => q.id === b.inst), lv = d.level; W.lv = lv;
+  const W = mk(seed * 131 + 7, party ? null : c => { c.party.on = false; }); W.hero = 'vale'; const d = I.find(q => q.id === b.inst), lv = d.level; W.lv = lv;     // 4.07: «с отрядом» — группа сбором (4, рейд — 10), «в одиночку» — без сбора
   Object.assign(W.inv.eq, KIT); W.inv.il = Object.fromEntries(Object.keys(KIT).map(k => [k, lv])); refreshGear(W); W.player.hp = W.player.maxhp;
   enter(W, d.id); W.enemies = W.levels[d.id].enemies = W.enemies.filter(e => e.boss && e.type === b.type);
   const e0 = W.enemies[0], room = d.rooms.find(r => r.id === b.room), p = W.player; p.x = room.x - room.w * .35; p.z = room.z;
-  if (party) for (const t of ['c_thorn', 'c_irga', 'c_jay', 'veteran'].slice(0, d.raid ? 4 : Math.min(3, squadMax(W)))) { const a = spawnAlly(W, t); a.x = p.x - 1; a.z = p.z + 1; }     // рейд — четыре бойца
+  if (party) W.allies.forEach((a, k) => { a.x = p.x - 1 - (k % 3) * .8; a.z = p.z + 1 + Math.floor(k / 3) * .8; });     // группа сбора — рядом с героем
   const dodge = mulberry32(seed + 5);
   for (let i = 0; i < 60 * 180; i++) {
     const e = W.enemies.find(x => x.boss && !x.dead); if (!e) return { win: true, t: i / 60 }; const dx = e.x - p.x, dz = e.z - p.z, dd = Math.hypot(dx, dz) || 1, C = CFG3.enemies[e.type];

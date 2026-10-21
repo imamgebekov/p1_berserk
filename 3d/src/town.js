@@ -97,7 +97,9 @@ export function buildTown(map, cfg, rnd) {
       const b = it.b, name = it.ruin ? 'destroyed' : (b.npc && NPC_SHELL[b.npc.kind]) || SHELL[b.kind] || 'home_B_red', src = lib[name]; if (!src || it.shell) continue;
       const side = b.door.side, yaw = YAW[side] ?? 0, swap = side === 'e' || side === 'w', W0 = src.userData.w, D0 = src.userData.d;
       const sx = (swap ? b.d : b.w) / W0 * 1.04, sz = (swap ? b.w : b.d) / D0 * 1.04, sy = Math.max(H * 1.25 / src.userData.h, (sx + sz) / 2 * (it.tall ? .95 : .8));
-      const g = src.clone(); g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(b.x, 0, b.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), new THREE.Vector3(sx, sy, sz)));
+      const g = src.clone(); if (!g.boundingBox) g.computeBoundingBox(); const B0 = g.boundingBox;
+      g.translate(-(B0.min.x + B0.max.x) / 2, -B0.min.y, -(B0.min.z + B0.max.z) / 2);     // 4.08: низом на землю и центром на дом (у моделей опора посередине — дома проваливались и съезжали со стен)
+      g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(b.x, 0, b.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), new THREE.Vector3(sx, sy, sz)));
       const c = g.attributes.color; for (let i = 0; i < c.count; i++) { const r = c.getX(i), gg = c.getY(i), bb = c.getZ(i), red = r > gg * 1.6 && r > bb * 1.6; c.setXYZ(i, r * (red ? .55 : .85), gg * (red ? .5 : .85), bb * (red ? .5 : .85)); }     // крыши KayKit темнее (мрачная палитра)
       it.shell = new THREE.Mesh(g, mat); it.shell.visible = !it.far; group.add(it.shell);
     }

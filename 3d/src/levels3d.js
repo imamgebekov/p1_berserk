@@ -133,6 +133,7 @@ export function travel(W, id, x, z) {
   W.allies.forEach((a, i) => { if (a.dead || a.guest) return; const ang = p.face + Math.PI + (i - 1) * .9; a.x = p.x + Math.sin(ang) * 1.4; a.z = p.z + Math.cos(ang) * 1.4; a.vx = a.vz = 0; a.state = 'idle'; a.tg = null; resolve(W.map, a, .45); });
   reveal(W, p.x, p.z, W.revR); W.revealT = .3;
   W.ev.push({ k: 'travel', to: id, up: id === SURFACE });
+  if (W.partyHook) W.partyHook(W, id);     // сбор группы (4.07): в подземелье отряда — добор наёмников, наверх — роспуск
   return true;
 }
 // героическая сложность подземелья (этап 5): переключение заново наполняет его — враги и боссы другой силы

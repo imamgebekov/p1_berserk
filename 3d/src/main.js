@@ -216,6 +216,8 @@ function onEvent(v) {
   sparkEvent(W, v);     // «Первая искра»: враги за оградой (шаг 12)
   mentorEvent(W, v);    // советы: сбор, ковка, продажа, библиотека (4.01)
   pathEvent(W, v);      // «Путь пепла»: первая победа над боссом-вехой (шаг 13)
+  if (v.k === 'partyFill') toast(`Группа собрана (${v.size}): ${v.list.map(q => q.name).join(', ')}`, '', '#9ad0ff', 'horn');     // сбор группы (4.07)
+  else if (v.k === 'partyLeave') toast(`Наёмники подземелья ушли (${v.n})`, '', '#c8c0b0', 'horn');
   if (v.k === 'wear') { const it = BY_ID[v.id]; if (it) toast(v.at === 'broken' ? `${it.name}: прочность на нуле — сила вдвое ниже. Почините у кузнеца` : `${it.name} изношен: сила падает. Почините у кузнеца или ремкомплектом`, 'bad', '#e8a04a', 'warn'); }     // прочность (4.03)
   else if (v.k === 'repair') toast(v.kit ? `Ремкомплект: надетое прочнее` : `Кузнец починил ${v.n}`, '', '#e8c04a', 'anvil');
   if (v.k === 'hurt') buzz(P, 35); else if (v.k === 'level' || v.k === 'questdone') buzz(P, [40, 40, 70]); else if (v.k === 'bossaggro' || v.k === 'bossblast') buzz(P, 90);
@@ -765,7 +767,7 @@ function drawParty() {
   if (key !== partyKey) {
     partyKey = key; partyList.textContent = '';
     for (const a of live) { const T = cfg.squad.types[a.type], r = document.createElement('div'), nm = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span'), bar = document.createElement('div');
-      r.className = 'pm'; nm.className = 'nm'; bar.className = 'bar'; b.textContent = T.name; b.style.color = T.tint === '#2e2e34' ? '#c8c8d8' : T.tint; sp.textContent = PROLE[T.role] || ''; nm.append(b, sp); bar.append(document.createElement('i')); r.append(nm, bar); partyList.append(r); }
+      r.className = 'pm'; nm.className = 'nm'; bar.className = 'bar'; b.textContent = a.name || T.name; b.style.color = T.tint === '#2e2e34' ? '#c8c8d8' : T.tint; sp.textContent = PROLE[T.role] || ''; nm.append(b, sp); bar.append(document.createElement('i')); r.append(nm, bar); partyList.append(r); }
     document.documentElement.style.setProperty('--ph', partyEl.offsetHeight + 8 + 'px');     // сообщения уходят ниже рамок отряда
   }
   live.forEach((a, i) => { const r = partyList.children[i], k = Math.max(0, Math.min(1, a.hp / a.maxhp)); r.lastChild.firstChild.style.transform = `scaleX(${k})`; r.classList.toggle('low', k < .35); });

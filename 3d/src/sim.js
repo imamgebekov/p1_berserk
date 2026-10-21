@@ -45,6 +45,7 @@ import { makeWeather, weatherAt } from './weather3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS, talentMods } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain, roomFor, ilMul, scoreUp, qOf, socketsOf } from './inv.js';
 import { affixFor, gemsFor } from './affix3d.js';
+import { partyTravel } from './party3d.js';
 import { wearHit, wearHurt, wearDeath, repairKit } from './dur3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
@@ -53,7 +54,7 @@ import { resGain } from './resource3d.js';
 const critBonus = W => (W.abuf && W.abuf.hawk > 0 ? W.abuf.hawkCrit : 0);     // «Ястребиный глаз» Сойки: шанс крита на время
 
 export function createWorld(cfg, rng = Math.random) {
-  const W = makeWorld(cfg, rng); attachFx(W);
+  const W = makeWorld(cfg, rng); attachFx(W); W.partyHook = partyTravel;     // сбор группы при входе в подземелье отряда (4.07)
   const cell = cfg.map.cell, n = Math.ceil(2 * cfg.world.radius / cell) + 2; W.seenN = n; W.seen = new Uint8Array(n * n);
   initLevels(W);
   for (const id of Object.keys(W.levels)) withLevel(W, id, () => { for (const c of W.map.containers) if (c.far) c.t = cfg.map.containerRespawn; else refill(W, c); });     // дальние — когда герой подойдёт
