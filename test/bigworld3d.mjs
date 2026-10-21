@@ -78,7 +78,7 @@ function lineRef(map, x0, z0, x1, z1) {
 }
 // ---------- 2. сон и забывание врагов ----------
 {
-  const c = clone(); c.enemies.count = 0; c.bosses.list = []; c.map.places = [];
+  const c = clone(); c.enemies.count = 0; c.bosses.list = []; c.map.places = []; c.map.buildings = c.map.buildings.filter(b => Math.hypot(b.x + 50, b.z) > 30);     // поле без домов (ядро раздвинуто в 3.93)
   const W = createWorld(c, mulberry32(3)), S = c.enemies.sleep; W.player.x = -60; W.player.z = 0; W.player.inv = 1e9;
   const far = spawnEnemy(W, 'brute', -60 + S.r + 5, 0), near = spawnEnemy(W, 'imp', -60 + 20, 0); near.alert = true; far.alert = true;
   far.st = { burn: { t: 3, dps: 1 } }; const fx = far.x, fhp = far.hp;
@@ -100,7 +100,8 @@ function lineRef(map, x0, z0, x1, z1) {
 // ---------- 3. кривая глубины ----------
 {
   const core = CFG3.worldgen.coreR, R = CFG3.world.radius, M = CFG3.world.depthMax;
-  let bad = 0; for (let d = 0; d <= core; d += .37) if (Math.abs(depthCurve(CFG3, d) - clamp(d / core, 0, 1)) > 1e-12) bad++;
+  const { unwarpDist } = await import('../3d/src/coremap3d.js');     // ядро раздвинуто (3.93): глубина — по прежнему расстоянию
+  let bad = 0; for (let d = 0; d <= core; d += .37) if (Math.abs(depthCurve(CFG3, d) - clamp(unwarpDist(CFG3, d) / core, 0, 1)) > 1e-12) bad++;
   ok(!bad, 'в ядре кривая глубины не совпадает со старой формулой: ' + bad);
   let up = true; for (let d = core; d < R + 50; d += 3) up = up && depthCurve(CFG3, d + 3) >= depthCurve(CFG3, d);
   ok(up && Math.abs(depthCurve(CFG3, R) - M) < 1e-9 && depthCurve(CFG3, R + 100) === M, 'за ядром глубина не растёт до depthMax');

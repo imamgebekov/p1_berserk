@@ -36,8 +36,8 @@ const fillers = Object.keys(BY_ID).filter(id => BY_ID[id].slot);   // снаря
 // ---------- 2. добыча с врага ----------
 {
   const W = mk(3); let drops = 0, ids = new Set();
-  for (let i = 0; i < 40; i++) { const e = spawnEnemy(W, 'brute', 10 + i, 10); W.ev.length = 0; killEnemy(W, e, 1); for (const v of W.ev) if (v.k === 'drop') { drops++; ok(BY_ID[v.id], 'событие drop с неизвестной вещью'); ids.add(v.id); } }
-  ok(drops >= 20 && W.drops.length === drops, `добыча с рогачей: событий ${drops}, на земле ${W.drops.length}`);
+  for (let i = 0; i < 60; i++) { const e = spawnEnemy(W, 'brute', 10 + i % 40, 10 + (i >= 40 ? 3 : 0)); W.ev.length = 0; killEnemy(W, e, 1); for (const v of W.ev) if (v.k === 'drop') { drops++; ok(BY_ID[v.id], 'событие drop с неизвестной вещью'); ids.add(v.id); } }
+  ok(drops >= 25 && W.drops.length === drops, `добыча с рогачей: событий ${drops}, на земле ${W.drops.length}`);
 }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }

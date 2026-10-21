@@ -8,7 +8,7 @@ const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
 const clone = () => JSON.parse(JSON.stringify(CFG3));
 const P = CFG3.enemies.posts;
-const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; c.bosses.list = []; c.map.places = []; if (tweak) tweak(c); const W = createWorld(c, mulberry32(seed)); W.player.x = 40; W.player.z = 40; W.player.hp = W.player.maxhp = 1e6; return W; };
+const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; c.bosses.list = []; c.map.places = []; if (tweak) tweak(c); const W = createWorld(c, mulberry32(seed)); W.player.x = 46.5; W.player.z = 46.5; /* (40, 40) после растяжения ядра (3.93) */ W.player.hp = W.player.maxhp = 1e6; return W; };
 const run = (W, sec, input = {}) => { for (let i = 0; i < Math.round(sec * 60); i++) step(W, 1 / 60, typeof input === 'function' ? input(i) : input); };
 const guard = (W, dist, faceToHero, type = 'brute', mode = 'guard') => { const p = W.player, e = spawnEnemy(W, type, p.x, p.z + dist, mode); e.look = e.face = faceToHero ? Math.PI : 0; e.cd = 99; return e; };
 
@@ -49,12 +49,12 @@ const guard = (W, dist, faceToHero, type = 'brute', mode = 'guard') => { const p
 }
 // ---------- 5. патрульный обходит маршрут ----------
 {
-  const W = mk(7); W.player.x = -10; W.player.z = 40;     // в 50 м: дальше обзора сторожа, но ближе границы сна врагов
-  const e = spawnEnemy(W, 'imp', 40, 40, 'patrol'); e.cd = 99;
+  const W = mk(7); W.player.x = -3.5; W.player.z = 46.5;     // в 50 м: дальше обзора сторожа, но ближе границы сна врагов
+  const e = spawnEnemy(W, 'imp', 46.5, 46.5, 'patrol'); e.cd = 99;
   ok(e.route && e.route.length === P.patrolPts, 'у патрульного нет маршрута');
   const visited = new Set(); for (let i = 0; i < 60 * 40; i++) { step(W, 1 / 60, {}); visited.add(e.ri); }
   ok(visited.size === P.patrolPts && !e.alert, `патрульный не обошёл маршрут (${visited.size})`);
-  ok(Math.hypot(e.x - 40, e.z - 40) < P.patrolR + 2, 'патрульный ушёл с маршрута');
+  ok(Math.hypot(e.x - 46.5, e.z - 46.5) < P.patrolR + 2, 'патрульный ушёл с маршрута');
 }
 // ---------- 6. поводок: бросает погоню и возвращается ----------
 {
@@ -73,7 +73,7 @@ const guard = (W, dist, faceToHero, type = 'brute', mode = 'guard') => { const p
 }
 // ---------- 7. в областях появляются сторожа и патрули; modes: false — нет ----------
 {
-  const count = modes => { let posted = 0; for (let s = 0; s < 3; s++) { const W = mk(20 + s, c => { c.enemies.count = 8; c.enemies.posts.modes = modes; }); W.player.x = 56; W.player.z = -44; W.player.inv = 1e9; run(W, 30); posted += W.enemies.filter(e => e.mode === 'guard' || e.mode === 'patrol').length; } return posted; };
+  const count = modes => { let posted = 0; for (let s = 0; s < 3; s++) { const W = mk(20 + s, c => { c.enemies.count = 8; c.enemies.posts.modes = modes; }); W.player.x = 59.5; W.player.z = -46.8; W.player.inv = 1e9; run(W, 30); posted += W.enemies.filter(e => e.mode === 'guard' || e.mode === 'patrol').length; } return posted; };
   ok(count(true) > 0, 'в лагере Ржавых нет сторожей и патрулей');
   ok(count(false) === 0, 'при modes: false сторожа появились');
 }

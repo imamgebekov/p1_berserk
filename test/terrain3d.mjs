@@ -38,7 +38,7 @@ for (const c of map.containers) flat(c.x, c.z, 'сундук');
 for (const b of rv.bridges) { const B = CFG3.terrain.bridge, s = Math.sin(b.ang), c = Math.cos(b.ang), e = b.len / 2 - .01;
   ok(Math.abs(heightAt(hf, b.x, b.z) - B.deck - B.arch) < 1e-6 && Math.abs(heightAt(hf, b.x + s * e, b.z + c * e) - B.deck) < .01, 'мост не дугой: середина выше концов на arch');
   let up = true; for (let k = -e; k < 0; k += .5) up = up && heightAt(hf, b.x + s * (k + .5), b.z + c * (k + .5)) >= heightAt(hf, b.x + s * k, b.z + c * k) - 1e-9; ok(up, 'дуга моста не растёт к середине'); }
-ok(heightAt(hf, rv.pts[rv.pts.length >> 1].x, rv.pts[rv.pts.length >> 1].z) < CFG3.terrain.water, 'дно реки не ниже воды');
+{ const q = rv.pts.find((p, i) => i >= rv.pts.length >> 2 && rv.bridges.every(b => Math.hypot(b.x - p.x, b.z - p.z) > 6)); ok(q && heightAt(hf, q.x, q.z) < CFG3.terrain.water, 'дно реки не ниже воды'); }     // точка русла не под мостом
 { const c = clone(); c.terrain.on = false; const h0 = buildHeights(c, makeMap(c)); ok(grid(h0).every(v => v === 0), 'выключенный рельеф не плоский'); }
 
 // ---------- 3. проходимость от лагеря ----------

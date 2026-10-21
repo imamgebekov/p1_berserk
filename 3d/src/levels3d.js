@@ -8,6 +8,7 @@ import { bossAway } from './boss3d.js';
 import { zoneLevel } from './zones3d.js';
 import { initAbyss, abyssGo } from './abyss3d.js';
 import { floorsOf, floorMap, isFloor } from './floors3d.js';
+import { unwarpDist, warpOf } from './coremap3d.js';
 
 export const SURFACE = 'surface';
 export const onSurface = W => W.lvl === SURFACE;
@@ -67,6 +68,7 @@ export function levelAt(W, x, z) {
   const zl = zoneLevel(W.cfg, x, z); return zl ?? levelOfDepth(W.cfg, depthAt(W, x, z));
 }
 export function depthCurve(cfg, d) {
+  d = unwarpDist(cfg, d);     // ядро раздвинуто (3.93): опасность — по прежнему расстоянию
   const P = cfg.world.depth || [[0, 0], [cfg.world.radius, 1]], M = cfg.world.depthMax || 1;     // за ядром большого мира глубина растёт до depthMax (C3b)
   if (d <= P[0][0]) return clamp(P[0][1], 0, M);
   for (let i = 1; i < P.length; i++) if (d <= P[i][0]) { const [a, da] = P[i - 1], [b, db] = P[i]; return clamp((d - a) / (b - a) * (db - da) + da, 0, M); }
@@ -76,7 +78,7 @@ export function depthCurve(cfg, d) {
 export function pointAtDepth(cfg, depth, ang = 0) {
   const P = cfg.world.depth || [[0, 0], [cfg.world.radius, 1]]; let d = P[P.length - 1][0];
   for (let i = 1; i < P.length; i++) if (depth <= P[i][1]) { const [a, da] = P[i - 1], [b, db] = P[i]; d = db === da ? a : a + (depth - da) / (db - da) * (b - a); break; }
-  return { x: Math.sin(ang) * d, z: Math.cos(ang) * d };
+  const w = warpOf(cfg), q = { x: Math.sin(ang) * d, z: Math.cos(ang) * d }; return w ? w(q) : q;     // ядро раздвинуто (3.93): точка — на растянутом месте
 }
 
 // люк или лестница рядом с героем (для кнопки «Спуститься» / «Подняться»)

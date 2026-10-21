@@ -41,7 +41,7 @@ ok(MAX_RANKS > (CFG3.level.max - 1), 'не все навыки можно взя
 { const W = mk(6); W.skills = { step: 5, nose: 5, eye: 3, sneak: 3, haggle: 3 }; W.lv = 30; refreshGear(W); ok(W.gear.spd === 10 && W.gear.luck === 20 && Math.abs(W.gear.reach - .6) < 1e-9 && W.gear.stealth === 18 && W.gear.trade === 15, 'ветка скитальца: ' + JSON.stringify(W.gear));
   const it = { value: 100 }; ok(sellPrice(it, W.cfg, 0, W.gear.trade) > sellPrice(it, W.cfg, 0, 0), 'торговая жилка не поднимает цену');
   // тишина: враг не слышит стоящего героя на прежней дальности
-  const hear = (sk, dist) => { const Wx = mk(7); Wx.skills = sk; Wx.player.x = 60; Wx.player.z = 0; Wx.player.inv = 1e9; const e = spawnEnemy(Wx, 'imp', 60, dist); e.cd = 99; for (let i = 0; i < 5; i++) step(Wx, 1 / 60, { mx: 1 }); return e.alert; };
+  const hear = (sk, dist) => { const Wx = mk(7); Wx.skills = sk; Wx.player.x = 75; Wx.player.z = 5; Wx.player.inv = 1e9; const e = spawnEnemy(Wx, 'imp', 75, 5 + dist); e.cd = 99; for (let i = 0; i < 5; i++) step(Wx, 1 / 60, { mx: 1 }); return e.alert; };     // за Заставой (ядро раздвинуто в 3.93)
   const run = CFG3.enemies.hear.run; ok(hear({}, run - 1) && !hear({ sneak: 4 }, run - 1), 'тихий шаг не уменьшает дальность слуха'); }
 // сброс
 { const W = mk(8); W.lv = 10; W.sp = 0; W.skills = { th_hand: 3, th_skin: 2 }; W.inv.ash = respecCost(W) - 1; ok(respec(W) === 'ash' && W.skills.th_hand === 3, 'сброс без пепла'); W.inv.ash = respecCost(W) + 7; ok(respec(W) === 'ok' && W.sp === 5 && !Object.keys(W.skills).length && W.inv.ash === 7, 'сброс: очки не вернулись'); ok(respec(W) === 'none', 'сброс пустого древа'); }

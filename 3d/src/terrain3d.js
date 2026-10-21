@@ -3,6 +3,7 @@
 // логова и входы в подземелья). Вода непроходима для героя, врагов и бойцов; мосты — проходимые полосы поперёк русла.
 // Высоты нужны только рендеру: бой остаётся плоским.
 
+import { warpOf } from './coremap3d.js';
 import { plateauH } from './cliffs3d.js';
 
 // ---- река ----
@@ -15,6 +16,7 @@ export function riverOf(cfg) {
   const A = { x: Math.sin(a1) * R, z: Math.cos(a1) * R }, B = { x: Math.sin(a2) * R, z: Math.cos(a2) * R }, nx = -(B.z - A.z), nz = B.x - A.x, L = Math.hypot(nx, nz);
   const pts = [];
   for (let i = 0; i <= RV.n; i++) { const t = i / RV.n, s = Math.sin(Math.PI * t) * RV.bend + Math.sin(3 * Math.PI * t) * RV.bend * .15; pts.push({ x: A.x + (B.x - A.x) * t + nx / L * s, z: A.z + (B.z - A.z) * t + nz / L * s }); }
+  { const w = warpOf(cfg); if (w) for (const p of pts) w(p); }     // ядро раздвинуто (лагерь крупнее) — река с ним
   // длины по ломаной — для мостов по доле пути
   const acc = [0]; for (let i = 1; i < pts.length; i++) acc.push(acc[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z));
   const at = f => { const s = f * acc[acc.length - 1]; let i = 1; while (i < acc.length - 1 && acc[i] < s) i++; const a = pts[i - 1], b = pts[i], k = (s - acc[i - 1]) / (acc[i] - acc[i - 1] || 1); return { x: a.x + (b.x - a.x) * k, z: a.z + (b.z - a.z) * k, ang: Math.atan2(b.x - a.x, b.z - a.z) }; };

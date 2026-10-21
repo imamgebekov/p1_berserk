@@ -77,7 +77,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 // ---------- 4. враги: наверху ждут, внизу кольцом не рождаются ----------
 {
   const W = mk(3, c => { c.enemies.count = 6; });
-  W.player.x = 60; W.player.z = 60; run(W, 4);
+  W.player.x = 50; W.player.z = 50; run(W, 4);     // ближе к раздвинутому лагерю (3.93): враги не уходят за предел дальних
   const before = W.enemies.filter(e => !e.boss).length;
   toHatch(W); const up = W.enemies;
   usePortal(W);
@@ -174,7 +174,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
     run(W, 20, i => ({ attack: i % 15 < 3, roll: i % 97 === 0 }));
     return { k: W.kills, s: JSON.stringify({ x: p.x.toFixed(4), hp: p.hp.toFixed(4), e: W.enemies.map(e => e.hp), r: W.rng() }) };
   };
-  const a = mk(5), b = mk(5, c => { c.dungeons.list = []; });
+  const a = mk(5, c => { c.map.bScale = 1; }), b = mk(5, c => { c.dungeons.list = []; c.map.bScale = 1; });     // рост домов зависит от входов в подземелья (3.90) — здесь проверяем только случайные числа
   ok(sig(a) === sig(b), 'подземелья не сдвигают случайные числа поверхности');
   const pa = play(mk(6)), pb = play(mk(6, c => { c.dungeons.list = []; }));
   ok(pa.k > 0 && pa.k === pb.k && pa.s === pb.s, 'бой наверху одинаков с подземельями и без них: ' + pa.k + ' / ' + pb.k);

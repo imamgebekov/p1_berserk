@@ -12,7 +12,7 @@ import { BY_ID } from '../3d/src/data/items.js';
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
 const mk = (lv = 30, twist = true) => {
-  const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.bosses.list = []; c.map.places = []; c.events.on = false; c.wanderer.on = false; c.ambient.on = false; c.abilities.mastery.twist = twist;
+  const c = JSON.parse(JSON.stringify(CFG3)); c.map.buildings = c.map.buildings.filter(b => Math.hypot(b.x - 40, b.z - 40) > 30); c.map.zones = (c.map.zones || []).filter(z => Math.hypot(z.x - 40, z.z - 40) > 30); c.map.spots = (c.map.spots || []).filter(q => Math.hypot(q.x - 40, q.z - 40) > 30); /* поле боя у (40, 40) — без домов и заборов (ядро раздвинуто в 3.93) */ c.enemies.count = 0; c.bosses.list = []; c.map.places = []; c.events.on = false; c.wanderer.on = false; c.ambient.on = false; c.abilities.mastery.twist = twist;
   c.abilities.res.warlock = { ...c.abilities.res.warlock, max: 1e6, start: 1e6 };
   const W = createWorld(c, mulberry32(5)); W.hero = 'warlock'; W.lv = lv; W.ap = abilityPoints(lv, c); W.inv.eq.weapon = 'w_scythe_iron'; refreshGear(W);
   for (const a of ABILITIES.warlock) while (upgradeAbility(W, a.id) === 'ok');

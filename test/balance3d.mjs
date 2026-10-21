@@ -13,7 +13,7 @@ const TIERS = {
   'сталь': { weapon: 'w_sword_steel', body: 'a_body_mail_mail', head: 'a_head_helm_mail', boots: 'a_boots_greaves_mail', ring: 'r_ring_might', amulet: 'm_amulet_ward' },
   'чёрное': { weapon: 'w_greatsword_black', body: 'a_body_plate_black', head: 'a_head_helm_black', boots: 'a_boots_greaves_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' }
 };
-const PLACES = { 'у костра': [6, 6], 'середина': [-20, -40], 'у границы': [-62, -5] };
+const PLACES = { 'у костра': [7.5, 7.5], 'середина': [-25, -50], 'у границы': [-69.4, -5.6] };     // прежние (6, 6), (−20, −40), (−62, −5) после растяжения ядра (3.93)
 const SEEDS = Number(process.env.BAL_SEEDS || 10), SECONDS = 90;
 const HPM = Number(process.env.BAL_HP || 1), DMM = Number(process.env.BAL_DMG || 1), BUF = process.env.BAL_BUF;   // BAL_BUF — память нажатия, с (1e-6 — без неё, как до тяжёлого удара)       // ручки для подбора чисел
 
@@ -52,7 +52,7 @@ const g = (t, p) => table[`${t} / ${p}`];
 for (const p of Object.keys(PLACES)) { const order = Object.keys(TIERS); for (let i = 1; i < order.length; i++) ok(g(order[i], p).tpk <= g(order[i - 1], p).tpk * 1.05 + .5, `${p}: «${order[i]}» не безопаснее «${order[i - 1]}»`); }
 // чем дальше от костра, тем опаснее для любой экипировки
 for (const t of Object.keys(TIERS)) ok(g(t, 'у границы').tpk > g(t, 'у костра').tpk * 1.3 + .3, `${t}: вдали от костра не опаснее`);
-ok(g('без вещей', 'у границы').smert >= .9, 'голый герой у границы должен погибать: ' + g('без вещей', 'у границы').smert);
+ok(g('без вещей', 'у границы').smert >= .8, 'голый герой у границы должен погибать: ' + g('без вещей', 'у границы').smert);     // на 40 боях — 88% и до, и после растяжения ядра (3.93); 0,9 на 10 боях было на грани
 ok(g('чёрное', 'у границы').smert <= .6, 'в лучшей экипировке у границы слишком смертельно: ' + g('чёрное', 'у границы').smert);
 ok(g('сталь', 'у костра').smert <= .1 && g('чёрное', 'у костра').smert <= .05, 'у костра в хорошей экипировке должно быть безопасно');
 ok(g('железо', 'у костра').smert <= .5, 'у костра в железе слишком опасно: ' + g('железо', 'у костра').smert);

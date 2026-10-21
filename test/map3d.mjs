@@ -74,7 +74,7 @@ for (const b of map.buildings) for (const r of [.5, .8]) {
 // слух: враг не слышит стоящего героя далеко, слышит бегущего и бьющего; ударенный всегда слышит
 {
   const c = clone(); c.enemies.count = 0; const H = c.enemies.hear;
-  const at = (dist, inp) => { const W = createWorld(c, mulberry32(9)); W.player.x = 60; W.player.z = 0; W.player.inv = 1e9; const e = spawnEnemy(W, 'imp', 60, dist); e.cd = 99; for (let i = 0; i < 5; i++) step(W, 1 / 60, inp); return e.alert; };
+  const at = (dist, inp) => { const W = createWorld(c, mulberry32(9)); W.player.x = 75; W.player.z = 5; W.player.inv = 1e9; const e = spawnEnemy(W, 'imp', 75, 5 + dist); e.cd = 99; for (let i = 0; i < 5; i++) step(W, 1 / 60, inp); return e.alert; };     // за Заставой (ядро раздвинуто в 3.93)
   ok(!at(H.idle + 3, {}), 'стоящего героя услышали слишком далеко'); ok(at(H.idle - 2, {}), 'стоящего вплотную не услышали');
   ok(!at(H.run - 3 + 6, { mz: 0, mx: 0 }), 'шум без движения');
   ok(at(H.run - 2, { mx: 1 }), 'бегущего не услышали'); ok(at(H.fight - 2, { attack: true }), 'бьющего не услышали');
@@ -110,7 +110,7 @@ for (const yaw of [0, 38, 90]) {
 }
 // враги не рождаются в домах
 {
-  const c = clone(); c.enemies.count = 30; c.enemies.ring = [3, 40]; c.enemies.roam.on = false; const W = createWorld(c, mulberry32(5)); W.player.inv = 1e9; W.player.x = 5; W.player.z = 0;
+  const c = clone(); c.enemies.count = 30; c.enemies.ring = [3, 60]; c.enemies.roam.on = false; const W = createWorld(c, mulberry32(5)); W.player.inv = 1e9; W.player.x = 5; W.player.z = 0;     // лагерь крупнее (3.93): кольцо шире частокола
   const seen = new Set(); let spawned = 0;
   for (let i = 0; i < 60 * 40; i++) { step(W, 1 / 60, {}); for (const e of W.enemies) if (!seen.has(e.id)) { seen.add(e.id); spawned++; ok(insideOf(W.map, e.x, e.z) === -1, 'враг родился в доме'); } }
   ok(spawned > 10, 'враги почти не появлялись: ' + spawned);

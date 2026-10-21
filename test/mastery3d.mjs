@@ -8,7 +8,7 @@ import { abilityPoints, upgradeAbility, useAbility, abilityView } from '../3d/sr
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
 const mk = (hero, twist = true) => {
-  const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.bosses.list = []; c.map.places = []; c.events.on = false; c.wanderer.on = false; c.ambient.on = false; c.abilities.mastery.twist = twist;
+  const c = JSON.parse(JSON.stringify(CFG3)); c.map.buildings = c.map.buildings.filter(b => Math.hypot(b.x - 40, b.z - 40) > 30); c.map.zones = (c.map.zones || []).filter(z => Math.hypot(z.x - 40, z.z - 40) > 30); c.map.spots = (c.map.spots || []).filter(q => Math.hypot(q.x - 40, q.z - 40) > 30); /* поле боя у (40, 40) — без домов и заборов (ядро раздвинуто в 3.93) */ c.enemies.count = 0; c.bosses.list = []; c.map.places = []; c.events.on = false; c.wanderer.on = false; c.ambient.on = false; c.abilities.mastery.twist = twist;
   for (const R of Object.values(c.abilities.res)) Object.assign(R, { max: 1e9, start: 1e9, decay: 0 });
   const W = createWorld(c, mulberry32(3)); W.hero = hero; W.lv = 60; W.ap = abilityPoints(60, c); refreshGear(W);
   for (const a of ABILITIES[hero]) while (upgradeAbility(W, a.id) === 'ok');
