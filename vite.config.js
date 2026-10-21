@@ -18,7 +18,7 @@ function swPlugin() {
     configResolved(c) { outDir = resolve(c.root, c.build.outDir); },
     closeBundle() {
       // служебные файлы хостинга (_headers, _redirects) и точечные не кэшируем: их нет в ответах сервера, addAll упал бы
-      const files = walk(outDir).filter(f => f !== 'sw.js' && !f.endsWith('.glb') && !f.split('/').pop().startsWith('_') && !f.split('/').pop().startsWith('.')).sort();
+      const files = walk(outDir).filter(f => f !== 'sw.js' && !f.endsWith('.glb') && !f.endsWith('.mp3') && !f.split('/').pop().startsWith('_') && !f.split('/').pop().startsWith('.')).sort();
       const h = createHash('md5');
       for (const f of files) h.update(f).update(readFileSync(join(outDir, f)));
       const tpl = readFileSync(join(here, 'tools', 'sw.template.js'), 'utf8');

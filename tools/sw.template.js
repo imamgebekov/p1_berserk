@@ -23,7 +23,7 @@ self.addEventListener('fetch', e => {
   if (url.origin !== self.location.origin) return;
   e.respondWith(
     caches.match(req, { ignoreSearch: true, ignoreVary: true }).then(hit => hit || fetch(req).then(r => {
-      if (r.ok && url.pathname.endsWith('.glb')) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); }     // 3D-модели (8 МБ) не качаются при установке — кэшируются, когда понадобились
+      if (r.ok && /\.(glb|mp3)$/.test(url.pathname)) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); }     // 3D-модели (8 МБ) не качаются при установке — кэшируются, когда понадобились
       return r;
     }).catch(() => caches.match('./index.html')))
   );

@@ -67,5 +67,12 @@ for (const h of HEROES) for (const d of NEW_ACTIVES[h]) {
   const J = mk('jay'); while (upgradeAbility(J, 'rain') === 'ok'); setBar(J, 0, 'rain'); ok(abilityAim(J, 0), 'у «Града стрел» нет прицела');
 }
 
+// ---------- 4. рисованные значки (Painterly Spell Icons) и треки оркестра: у магии — картинка, файлы на месте ----------
+{ const { ART } = await import('../3d/src/data/spellart3d.js'), { existsSync } = await import('node:fs');
+  const n = Object.keys(ART).length; ok(n >= 120, `рисованных значков мало: ${n}`);
+  for (const f of new Set(Object.values(ART))) ok(existsSync(new URL(`../3d/src/art/spell/${f}.webp`, import.meta.url)), `нет файла значка ${f}`);
+  ok(!ART['n:charge'] && ART['n:fireball'] && ART['n:ir_flame'], 'удар оружием получил картинку или магия — нет');
+  const T = CFG3.audio.tracks; for (const t of [T.intro, T.boss, ...T.roam]) ok(existsSync(new URL(`../3d/music/${t}.mp3`, import.meta.url)), `нет трека ${t}`); }
+
 if (fails.length) { console.log('ПРОВАЛ (' + fails.length + '):\n' + fails.slice(0, 40).join('\n')); process.exit(1); }
 console.log('новые умения древа: 110 умений, по 10 активных в ветке — ок');

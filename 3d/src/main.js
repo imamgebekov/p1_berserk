@@ -27,6 +27,8 @@ import { abilityView, resView, barOf, abilityAim } from './abilities3d.js';
 import { createFeel, unlocksAt } from './feel3d.js';
 import { ABILITIES, abilityPointsAt } from './data/abilities3d.js';
 import { giKeyOf } from './itemicons.js';
+import { artURL } from './spellicons3d.js';
+import { createTracks } from './music3d.js';
 import { weaponSkillView } from './weaponskill3d.js';
 import { comboReady } from './combos3d.js';
 import { ELEMENT_COLOR } from './elements3d.js';
@@ -171,7 +173,7 @@ function drawAbil() {
   if (key === abilKey) return; abilKey = key;
   // ячейки панели (выбор — в окне «Навыки»): на компьютере 5 ячеек, как в Minecraft (пустые видны); на телефоне — только занятые, у кнопки удара
   abilBtns.forEach((b, i) => { const a = v[i], show = (!!a || desk) && !panelOpen && !landscape && !W.player.dead; if (b.hidden === show) b.hidden = !show; if (!show) return;
-    const tag = a ? a.id + a.rank : 'empty'; if (b.dataset.id !== tag) { b.dataset.id = tag; b.textContent = ''; if (a) { const g = GI['n:' + a.id], own = ownIcon('n:' + a.id); if (own) b.insertAdjacentHTML('beforeend', `<img class="abgi own" src="${own}" alt="">`); else if (g) b.insertAdjacentHTML('beforeend', `<svg class="abgi" viewBox="0 0 512 512" aria-hidden="true"><path d="${g}"/></svg>`); else b.textContent = a.icon; } const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k);
+    const tag = a ? a.id + a.rank : 'empty'; if (b.dataset.id !== tag) { b.dataset.id = tag; b.textContent = ''; if (a) { const g = GI['n:' + a.id], own = ownIcon('n:' + a.id) || artURL('n:' + a.id); if (own) b.insertAdjacentHTML('beforeend', `<img class="abgi own" src="${own}" alt="">`); else if (g) b.insertAdjacentHTML('beforeend', `<svg class="abgi" viewBox="0 0 512 512" aria-hidden="true"><path d="${g}"/></svg>`); else b.textContent = a.icon; } const k = document.createElement('span'); k.className = 'k'; k.textContent = i + 1; b.append(k);     // свой значок игрока, потом рисованный, потом силуэт
       if (a) { const c = document.createElement('span'); c.className = 'c'; c.textContent = a.cost; b.append(c); } else if (next) { const l = document.createElement('span'); l.className = 'lv'; l.textContent = 'ур. ' + next.lv; b.append(l); }
       b.setAttribute('aria-label', a ? `${a.name} (${i + 1}), цена ${a.cost}` : 'Пустая ячейка: умение ставится в древе'); b.title = a ? `${a.name} · клавиша ${i + 1} · цена ${a.cost}` : 'Пусто: поставьте умение на панель в древе (карточка умения)'; }
     b.classList.toggle('empty', !a); b.classList.toggle('poor', !!a && !a.enough); { const c = a && cr.find(q => q.id === a.id); b.classList.toggle('combo', !!c); if (c) b.dataset.combo = c.combo.name; else delete b.dataset.combo; } if (!a) { b.style.setProperty('--cd', 0); return; }
@@ -431,6 +433,7 @@ for (const ev of ['pointerdown', 'touchstart', 'keydown']) addEventListener(ev, 
 const muteBtn = $('muteBtn');
 const showMute = () => { setIconText(muteBtn, isMuted() ? 'mute' : 'sound', isMuted() ? 'Звук выключен' : 'Звук включён'); };
 // своё с устройства (2026-10-21): музыка и значки игрока — только в этом браузере (custom3d.js)
+let ownActive = false, tracksQuiet = false; const tracks = createTracks(cfg, q => { tracksQuiet = q; setOwnMusicOn(ownActive || q); });     // треки оркестра (music3d.js)
 let ownMusicOn = true; try { ownMusicOn = localStorage.getItem('berserk3d.ownMusic') !== '0'; } catch (e) { /* без сохранения */ }
 let iconKey = null; const iconIn = $('ownIconFile'), musicIn = $('ownMusicFile');
 function pickOwnIcon(key) { if (!key) return; iconKey = key; iconIn.value = ''; iconIn.click(); }
@@ -441,13 +444,14 @@ $('ownMusicBtn').addEventListener('click', () => { ownMusicOn = !ownMusicOn; try
 $('ownMusicClear').addEventListener('click', () => clearOwnMusic().then(syncOwnMusic));
 $('ownIconsClear').addEventListener('click', () => clearOwnIcons());
 function syncOwnMusic() {
-  const n = ownMusic().length, on = ownMusicOn && n > 0 && !isMuted(); setOwnMusicOn(on); if (on) ownPlayer.start(); else ownPlayer.stop();
+  const n = ownMusic().length, on = ownMusicOn && n > 0 && !isMuted(); ownActive = on; setOwnMusicOn(on || tracksQuiet); if (on) ownPlayer.start(); else ownPlayer.stop();
   $('ownMusicBtn').hidden = !n; setIconText($('ownMusicBtn'), 'sound', ownMusicOn ? `Своя музыка играет (${n})` : `Своя музыка выключена (${n})`);
   $('ownMusicClear').hidden = !n; $('ownMusicClear').textContent = 'Удалить свою музыку'; $('ownIconsClear').hidden = !ownIconCount(); $('ownIconsClear').textContent = `Вернуть значки игры (своих: ${ownIconCount()})`;
 }
 onOwnChange(() => { abilKey = ''; if (skills.isOpen()) skills.render(); if (!$('bag').hidden) bag.render(); try { syncOwnMusic(); } catch (e) { console.warn('своя музыка:', e && e.message); } });
 loadOwn();
-addEventListener('pointerdown', () => { if (ownPlayer.playing()) ownPlayer.pause(false); }, { once: true });     // браузер играет звук только после жеста
+addEventListener('pointerdown', () => { if (ownPlayer.playing()) ownPlayer.pause(false); }, { once: true });
+for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { if (!ownActive && !isMuted()) tracks.intro(); }, { once: true });     // вступление — по первому жесту     // браузер играет звук только после жеста
 muteBtn.addEventListener('click', () => { setMuted(!isMuted()); try { localStorage.setItem('berserk3d.mute', isMuted() ? '1' : '0'); } catch (e) { /* без сохранения */ } showMute(); ensureAudio(); sfx('pickup'); syncOwnMusic(); });
 showMute();
 const bagFill = $('bagFill');
@@ -800,7 +804,7 @@ function frame(now) {
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }
   if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0); }
-  if ((atmoT += real) > .2) { atmoT = 0; const mx = mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null); setScene(mx, cfg.audio); tickAudio(); if (ownPlayer.playing()) ownPlayer.setVolume(cfg.audio.ownMusic * (mx.fight > 0 ? .45 : 1) * (W.player.dead ? .3 : 1)); }     // своя музыка: в бою тише     // атмосфера: река, птицы, музыка
+  if ((atmoT += real) > .2) { atmoT = 0; const mx = mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null); setScene(mx, cfg.audio); tickAudio(); tracks.tick(mx, ownActive || isMuted(), performance.now() / 1000, cfg.audio.musicVol); if (ownPlayer.playing()) ownPlayer.setVolume(cfg.audio.ownMusic * (mx.fight > 0 ? .45 : 1) * (W.player.dead ? .3 : 1)); }     // своя музыка: в бою тише     // атмосфера: река, птицы, музыка
   if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; sfx('step'); }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
   if (!reliefDone) reliefDone = tickRelief(document, W);

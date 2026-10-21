@@ -728,3 +728,5 @@ html,body{font-family:var(--sans);font-size:15.5px}
 /* свои значки игрока (2026-10-21): картинка вместо силуэта */
 img.gi.own,img.abgi.own{object-fit:contain;border-radius:6px}.tnode img.gi.own{width:100%;height:100%}#abil .ab img.abgi.own{inset:10%;width:80%;height:80%;filter:none}
 .tcard .tbuy.own{min-height:40px;font-size:14px;margin-top:4px;background:linear-gradient(180deg,#3a2a1c,#22170f)!important;border-color:var(--line)!important}
+/* рисованные значки умений (Painterly Spell Icons): квадрат с мягкими углами */
+img.gi.own,img.abgi.own{image-rendering:auto}

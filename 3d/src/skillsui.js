@@ -7,6 +7,7 @@ import { treeOf, rankOf, canBuy, buy, needText, spentInTree, ROWS, COLS, ROW_STE
 import { MASTERY_TEXT } from './data/abilities3d.js';
 import { GI } from './data/gicons.js';
 import { ownIcon } from './custom3d.js';
+import { artURL } from './spellicons3d.js';
 import { refreshGear } from './sim.js';
 
 // разница рангов (шаг 10): у описаний одинаковый текст, меняются числа — показываем только их: «×1,4 → ×1,6 · 9 с → 8,5 с»;
@@ -28,7 +29,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange, onOwnIcon
   let sel = null;     // выбранный узел древа
   const buildTabs = () => { tabsHero = W.hero; tabsEl.textContent = ''; tabsEl.hidden = true; branch = 'tree'; };     // окно умений убрано (2026-10-20): всё в древе
   // древо (2026-10-20): три ветки рядом, узлы-значки с рангом; выбор — карточка с описанием и кнопкой
-  const gi = (k, cls) => { { const own = ownIcon(k); if (own) { const im = doc.createElement('img'); im.src = own; im.alt = ''; im.className = (cls || 'gi') + ' own'; return im; } }     // свой значок игрока
+  const gi = (k, cls) => { { const own = ownIcon(k) || artURL(k); if (own) { const im = doc.createElement('img'); im.src = own; im.alt = ''; im.className = (cls || 'gi') + ' own'; return im; } }     // свой значок игрока
     const d = GI[k], sv = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.setAttribute('viewBox', '0 0 512 512'); sv.setAttribute('class', cls || 'gi'); if (d) { const pa = doc.createElementNS('http://www.w3.org/2000/svg', 'path'); pa.setAttribute('d', d); sv.appendChild(pa); } return sv; };
   function nodeInfo(n) {
     const ab = n.kind !== 'talent' ? abilityView(W).find(a => a.id === n.id) : null, r = rankOf(W, n), out = [], rv = resView(W);

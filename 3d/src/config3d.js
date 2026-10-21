@@ -944,6 +944,9 @@ const BASE = {
     combat: { hear: .7, sight: .73, fire: .6, storm: 1.5 } },
   // звук: громкость всего, музыки и природы; атмосфера (D1) — журчание у реки, птицы и сова, своя музыка «лесная сказка»
   audio: {
+    // треки оркестра (2026-10-21, авторы — 3d/ART-CREDITS.md): vol — доля громкости музыки; duck — в бою; fade — сек плавности;
+    // first — сек до первого спокойного трека; gap — сек между их началами [от, до]; chance — доля пауз с треком; intro — при начале; boss — на босса
+    tracks: { on: true, vol: .75, duck: .45, fade: 2.5, first: 45, gap: [70, 160], chance: .6, intro: 'intro', boss: 'boss_sunrise', roam: ['roam_peractorum', 'roam_piano', 'roam_solitudine', 'roam_article169'] },
     ownMusic: .55,     // громкость своей музыки игрока (custom3d.js), 0–1; в бою — меньше вдвое
     volume: .7, musicVol: .55, natureVol: .8, voices: 24, look: 1.2,          // предел одновременных голосов; ноты ставятся вперёд на look с
     water: { near: 2, far: 25, vol: .09, plips: 6 },                     // полная громкость у берега, тишина дальше far м; бульков в секунду
