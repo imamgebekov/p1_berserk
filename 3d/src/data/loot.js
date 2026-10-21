@@ -24,7 +24,7 @@ export const CONTAINERS = {
 };
 // витрина торговца
 export const SHOP = { name: 'Витрина', q: .8, slots: [11, 13], pools: [['weapon', 2], ['ranged', 1], ['body', 1], ['shield', .8], ['head', 1], ['boots', 1], ['cloak', 1], ['ring', 1], ['amulet', 1], ['potion', 3], ['medic', 2], ['food', 2], ['material', 1], ['key', 1], ['tome', 1]] };
-export const SHOP_STAPLES = [['p_heal1', 3], ['h_rag_bandage', 5], ['f_rye', 6], ['key_rust', 2]];
+export const SHOP_STAPLES = [['p_heal1', 3], ['h_rag_bandage', 5], ['f_rye', 6], ['key_rust', 2], ['u_repair_kit', 2]];
 // трофеи и книги боссов: trophy — материал, n — сколько (минимум и шанс лишнего), tomes — книги по порядку (выпадает первая неизвестная)
 export const BOSS_DROPS = {
   devourer: { trophy: 'm_devourer_heart', n: [2, .5], tomes: ['set_pogost', 'blades_pogost'] },

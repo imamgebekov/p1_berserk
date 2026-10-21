@@ -2,7 +2,7 @@
 // за пыль и пепел — добавить свойство, перековать одно свойство или поднять качество. Счётчик зачарований вещи хранится в af.en
 // и поднимает цену. Свой генератор (счётчик W.enN + зерно мира): бой и его случайности не сдвигаются. Числа — cfg.enchant. Чистая логика.
 import { BY_ID } from './data/items.js';
-import { removeAt, addItem, hasGems, qOf, ilOf, countOf } from './inv.js';
+import { removeAt, addItem, hasGems, rawQ as qOf, ilOf, countOf } from './inv.js';     // качество без износа
 import { rng, rollValue, poolOf, kindOf, affixCount } from './affix3d.js';
 import { reagentsFor } from './craft3d.js';
 

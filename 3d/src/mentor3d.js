@@ -7,6 +7,7 @@ import { betterThanWorn, hasGems } from './inv.js';
 import { canWield } from './data/heroes3d.js';
 import { unlocks } from './ashpath3d.js';
 import { SPEAKERS } from './data/story3d.js';
+import { wearOf } from './dur3d.js';
 
 const surf = W => (W.levels ? W.levels.surface.map : W.map);
 const npc = kind => W => { const b = surf(W).buildings.find(q => q.npc && q.npc.kind === kind); return b ? { x: b.npc.x, z: b.npc.z } : null; };
@@ -15,6 +16,7 @@ const bag = W => W.inv.bag.map(s => BY_ID[s.id]).filter(Boolean);
 const sparkDone = W => !W.spark || W.spark.done;
 const nearestNode = W => { const p = W.player; let best = null, bd = Infinity; for (const n of surf(W).nodes || []) { const d = Math.hypot(n.x - p.x, n.z - p.z); if (d < bd) { bd = d; best = n; } } return best ? { x: best.x, z: best.z } : null; };
 const gemIn = W => Object.values(W.inv.gem || {}).some(hasGems);
+const worn = W => Object.keys(W.inv.eq).some(sl => W.inv.eq[sl] && wearOf(W.inv.af && W.inv.af[sl]) >= W.cfg.mentor.wearAt);     // надетое заметно износилось
 const hired = W => (W.allies || []).some(a => !a.decoy && !a.guest && !a.story);
 export const MENTOR_WHO = { hostess: SPEAKERS.hostess, captain: SPEAKERS.captain, merchant: { name: 'Торговец у костра', tint: '#6a5a20' }, smith: { name: 'Кузнец лагеря', tint: '#6a4a3a' }, scribe: { name: 'Книжница Агата', tint: '#2e3e6a' } };
 
@@ -44,6 +46,12 @@ export const LESSONS = [
   { id: 'tome', who: 'hostess', when: W => bag(W).some(it => it.cat === 'tome'),
     lines: ['Книги не для растопки. В них — рецепты, места и звери.', 'Прочти — и кузнец сможет больше.'],
     task: 'прочитайте книгу: сумка → книга → «Прочитать»', at: () => null, done: W => seen(W, 'tome') > 0 || !bag(W).some(it => it.cat === 'tome') },
+  { id: 'kit', who: 'merchant', when: W => worn(W) && !unlocks(W).smith,
+    lines: ['Клинок тупится, ремни трутся. После семидесяти из ста вещь слабеет.', 'Горн у кузнеца пока холодный. Бери ремкомплект — латает в поле.'],
+    task: 'купите ремкомплект у торговца и используйте его из сумки', at: npc('merchant'), done: W => seen(W, 'repair') > 0 },
+  { id: 'repair', who: 'smith', when: W => worn(W) && unlocks(W).smith,
+    lines: ['Покажи-ка… Зазубрины, трещины. Ещё немного — и меч станет вдвое слабее.', 'Неси всё разом: починю за пепел.'],
+    task: 'почините снаряжение у кузнеца («Починить всё»)', at: npc('smith'), done: W => seen(W, 'repair') > 0 && !worn(W) },
   { id: 'squad', who: 'captain', when: W => unlocks(W).squad,
     lines: ['Одному за ограду ходят только дураки и покойники.', 'Найму тебе людей — за пепел. Одень их из своей сумки, и они проживут дольше.'],
     task: 'наймите бойца у капитана в казарме', at: npc('captain'), done: W => hired(W) || seen(W, 'hire') > 0 },
@@ -62,7 +70,7 @@ export function sanitizeMentor(s) {
   const cur = LESSONS.some(L => L.id === s.cur) && !done[s.cur] ? s.cur : null; return { done, cur, seen: sn };
 }
 // событие мира → счётчик для советов
-const EV = { gather: 'gather', upgrade: 'upgrade', socket: 'socket', tome: 'tome', hire: 'hire', enchant: 'enchant', disenchant: 'disenchant', sell: 'sell' };
+const EV = { repair: 'repair', gather: 'gather', upgrade: 'upgrade', socket: 'socket', tome: 'tome', hire: 'hire', enchant: 'enchant', disenchant: 'disenchant', sell: 'sell' };
 export function mentorEvent(W, v) {
   const M = W.mentor; if (!M) return;
   let k = EV[v.k]; if (v.k === 'craft') k = String(v.id || '').startsWith('p_') ? 'brew' : W.nearNpc === 'smith' ? 'forge' : 'craft';

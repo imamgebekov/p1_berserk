@@ -36,6 +36,7 @@ R('alch_haste', 'p_haste', 1, [['m_amber', 1], ['m_grave_moss', 2]], 10, null, '
 R('alch_heal3', 'p_heal3', 2, [['m_grave_moss', 3], ['m_amber', 1], ['m_ash_salt', 1]], 14, null, 'Крепкий отвар для долгого боя.');
 R('alch_rage', 'p_rage', 1, [['m_tallow', 1], ['m_amber', 1], ['m_ash_salt', 2]], 18, null, 'Тёмный жир и соль — злость на дне склянки.');
 R('alch_skin', 'p_skin', 1, [['m_ore', 2], ['m_grave_moss', 2], ['m_amber', 1]], 22, null, 'Рудная пыль ложится на кожу камнем.');
+R('lt_repairkit', 'u_repair_kit', 2, [['m_leather', 2], ['m_nails', 3], ['m_flint', 1]], 6, null, 'Латки из кожи на гвоздях, кремень — точить клинок. Чинит в поле.');     // 4.03: кожа, гвозди и кремень наконец в деле
 R('lt_sinew', 'm_tempered_sinew', 1, [['m_sinew', 2], ['m_tallow', 1]], 4, null, 'Жила, вываренная в жиру, тянется и не рвётся.');
 R('lt_pelt', 'a_cloak_pelt_black', 1, [['m_beast_hide', 4], ['m_black_resin', 1], ['m_tempered_sinew', 1]], 60, null, 'Плащ из шкур, пропитанных чёрной смолой.');
 // мастера ремесла (этап 3 «круче»): навык 110–140 — дело для высоких уровней (раньше после 100 нечего было учить)

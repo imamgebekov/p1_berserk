@@ -104,7 +104,7 @@ export const TEMPLATE_CHARS = '.badecrw';
 
 const WEAPON_T = { sword: 'sword', rapier: 'sword', knife: 'dagger', dagger: 'dagger', greatsword: 'greatsword', axe: 'axe', war_axe: 'axe', sickle: 'scythe', scythe: 'scythe',
   spear: 'polearm', halberd: 'polearm', bow: 'bow', longbow: 'bow', crossbow: 'crossbow', staff: 'staff', wand: 'wand', hammer: 'hammer', club: 'mace', mace: 'mace', pick: 'hammer', flail: 'flail', chain_ball: 'flail', fists: 'fists' };
-const CAT_T = { arcane: 'gem', food: 'food', potion: 'potion', fairy: 'potion', medic: 'medic', coin: 'coin', material: 'ingot', craftmat: 'ingot', monstermat: 'hide', trophy: 'skull', tome: 'book', bosstome: 'book', book: 'book', curio: 'gem', key: 'key' };
+const CAT_T = { kit: 'medic', arcane: 'gem', food: 'food', potion: 'potion', fairy: 'potion', medic: 'medic', coin: 'coin', material: 'ingot', craftmat: 'ingot', monstermat: 'hide', trophy: 'skull', tome: 'book', bosstome: 'book', book: 'book', curio: 'gem', key: 'key' };
 export function templateOf(it) {
   if (!it) return 'gem';
   if (it.slot === 'weapon') return WEAPON_T[it.kind] || 'sword';

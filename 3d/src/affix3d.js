@@ -43,5 +43,5 @@ export const gemsFor = (W, id, sockets) => { W.afN = (W.afN || 0) + 1; return ro
 // для мира: свойства новой вещи с земли или из сундука (счётчик W.afN — каждая вещь своя)
 export const affixFor = (W, id, il) => { W.afN = (W.afN || 0) + 1; return rollAffixes(W.cfg, id, il, (W.cfg.world.seed * 7919 + W.afN * 2654435761 + Math.floor(W.t * 1000)) >>> 0); };
 // строки для подсказки: «+5 крит %»
-export const affixLines = (af, names) => Object.entries(af || {}).filter(([k]) => k !== 'en').sort((x, y) => (y[0] === 'q') - (x[0] === 'q')).map(([k, v]) => (k === 'q' ? `Качество ${Math.round(v * 100)}%` : `${v < 0 ? '' : '+'}${v} ${names[k] || k}`));     // качество — первой строкой (порядок ключей: q кладётся первым)
-export const affixCount = af => Object.keys(af || {}).filter(k => k !== 'q' && k !== 'en').length;     // свойства без качества
+export const affixLines = (af, names) => Object.entries(af || {}).filter(([k, v]) => k !== 'en' && !(k === 'wr' && v < 1)).sort((x, y) => (y[0] === 'q') - (x[0] === 'q') || (y[0] === 'wr') - (x[0] === 'wr')).map(([k, v]) => (k === 'q' ? `Качество ${Math.round(v * 100)}%` : k === 'wr' ? `Прочность ${Math.max(0, Math.round(100 - v))}%` : `${v < 0 ? '' : '+'}${v} ${names[k] || k}`));     // качество — первой строкой (порядок ключей: q кладётся первым)
+export const affixCount = af => Object.keys(af || {}).filter(k => k !== 'q' && k !== 'en' && k !== 'wr').length;     // свойства без качества

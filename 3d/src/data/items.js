@@ -200,6 +200,7 @@ const FAIRY = [
   ['p_fairy_might', 'Сказочная сила', { buff: { stat: 'dmg', amt: 30, t: 60 } }, 4, 320, 'Урон +30 на минуту.'],
   ['u_recall', 'Свиток возврата', { recall: true }, 2, 150, 'Прочитать: мгновенно перенестись в лагерь (и из подземелья тоже).']
 ];
+add({ id: 'u_repair_kit', name: 'Ремкомплект', cat: 'consumable', pool: 'kit', rar: 1, stack: 5, value: 30, tint: '#a07a4a', use: { repair: true }, text: 'Кожа, гвозди и кремень. Использовать: надетое снаряжение прочнее на 40% (полная починка — у кузнеца).' });     // 4.03: делается кожевником, продаётся у торговца
 for (const [id, name, use, rar, val, text] of FAIRY) add({ id, name, cat: 'consumable', pool: 'fairy', rar, stack: 5, value: val, use, text, ...(use.recall ? { icon: 'book' } : {}) });
 const MEDIC = [
   ['rag_bandage', 'Тряпичный бинт', 12, 0, 6], ['linen_bandage', 'Льняная перевязка', 22, 1, 14], ['salve', 'Мазь из пепла', 40, 2, 38], ['poultice', 'Припарка', 18, 0, 9], ['stitch', 'Набор для шитья ран', 55, 2, 60]

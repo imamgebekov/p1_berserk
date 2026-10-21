@@ -8,6 +8,7 @@ import { canWield, NOT_FOR } from './data/heroes3d.js';
 import { RECIPES } from './data/recipes3d.js';
 import { TOME_BY_ID } from './data/tomes3d.js';
 import { craft, craftStatus, missing, recipeKnown, reagentsFor, masterQ } from './craft3d.js';
+import { repairList, repairAll, wearOf } from './dur3d.js';
 import { allyHp, allyDmg, hireable, liveAllies } from './squad3d.js';
 import { sellWorse } from './economy3d.js';
 import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, stockPrice, shopOf, priceMulOf, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
@@ -93,7 +94,8 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
     const it = BY_ID[id], max = lvl >= cfg.smith.max, cost = upgradeCost(it, lvl, cfg);
     const r = el('div', 'srow'), info = el('div', 'sinfo'); r.append(icoOf(doc, it));
     const nm = el('span', 'nm', nameOf(id, lvl)); nm.style.color = RARITY[it.rar].color; info.append(nm, el('span', 'up', tag));
-    info.append(el('div', 'sub', (statLine(it) || '') + (max ? ' · предел' : ` · +${lvl} → +${lvl + 1}: статы +${Math.round(cfg.smith.bonus * 100)}%`)));
+    const wr = wearOf(where.slot ? W.inv.af && W.inv.af[where.slot] : W.inv.bag[where.idx] && W.inv.bag[where.idx].af);     // прочность (4.03)
+    info.append(el('div', 'sub', (statLine(it) || '') + (max ? ' · предел' : ` · +${lvl} → +${lvl + 1}: статы +${Math.round(cfg.smith.bonus * 100)}%`) + (wr >= 1 ? ` · прочность ${Math.round(100 - wr)}%` : '')));
     const b = el('button', 'buy' + (max || W.inv.ash < cost ? ' no' : ''), max ? 'Максимум' : `Улучшить · ${cost}`); b.type = 'button';
     b.addEventListener('click', () => { const res = upgradeItem(W, where); if (res === 'ash') flash('Не хватает пепла'); else if (res === 'max') flash('Выше некуда'); else if (res === 'far') flash('Подойдите к кузнецу'); render(); onChange && onChange(); });
     r.append(info, b); return r;
@@ -185,7 +187,10 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
       if (!list.length) listEl.appendChild(el('div', 'emptyl', `Нечего ковать из того, что в сумке. Известных рецептов: ${known.length} из ${RECIPES.length}. Покажите все, чтобы увидеть, что нужно.`));
       return;
     }
-    noteEl.textContent = 'Каждый уровень даёт +10% к урону, броне, здоровью, криту и вампиризму вещи. Уровней до +5.';
+    noteEl.textContent = 'Каждый уровень даёт +10% к урону, броне, здоровью, криту и вампиризму вещи. Уровней до +5. Изношенное снаряжение чинится здесь: после 70% износа вещь слабеет.';
+    { const L = repairList(W), cost = L.reduce((a, x) => a + x.cost, 0);     // починка (4.03): всё надетое и в сумке разом
+      if (L.length) { const b = el('button', 'junk' + (W.inv.ash < cost ? ' no' : ''), `Починить всё · ${cost} пепла (${L.length} ${L.length === 1 ? 'вещь' : L.length < 5 ? 'вещи' : 'вещей'})`); b.type = 'button';
+        b.addEventListener('click', () => { const r = repairAll(W); flash(r && r.n ? `Починено: ${r.n}, −${r.cost} пепла` : r === 'ash' ? 'Не хватает пепла' : r === 'far' ? 'Подойдите к кузнецу' : 'Чинить нечего'); render(); onChange && onChange(); }); listEl.appendChild(b); } }
     let n = 0;
     for (const slot of SLOTS) { const id = W.inv.eq[slot]; if (id) { listEl.appendChild(rowFor(id, W.inv.up[slot] || 0, { slot }, SLOT_NAME[slot] + ' · надето')); n++; } }
     W.inv.bag.forEach((s, i) => { if (BY_ID[s.id].slot) { listEl.appendChild(rowFor(s.id, s.up || 0, { idx: i }, 'в сумке')); n++; } });

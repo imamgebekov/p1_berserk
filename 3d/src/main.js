@@ -215,6 +215,8 @@ function onEvent(v) {
   sparkEvent(W, v);     // «Первая искра»: враги за оградой (шаг 12)
   mentorEvent(W, v);    // советы: сбор, ковка, продажа, библиотека (4.01)
   pathEvent(W, v);      // «Путь пепла»: первая победа над боссом-вехой (шаг 13)
+  if (v.k === 'wear') { const it = BY_ID[v.id]; if (it) toast(v.at === 'broken' ? `${it.name}: прочность на нуле — сила вдвое ниже. Почините у кузнеца` : `${it.name} изношен: сила падает. Почините у кузнеца или ремкомплектом`, 'bad', '#e8a04a', 'warn'); }     // прочность (4.03)
+  else if (v.k === 'repair') toast(v.kit ? `Ремкомплект: надетое прочнее` : `Кузнец починил ${v.n}`, '', '#e8c04a', 'anvil');
   if (v.k === 'hurt') buzz(P, 35); else if (v.k === 'level' || v.k === 'questdone') buzz(P, [40, 40, 70]); else if (v.k === 'bossaggro' || v.k === 'bossblast') buzz(P, 90);
   sfx(v.k, v.x === undefined ? null : { x: v.x, z: v.z, px: W.player.x, pz: W.player.z, yaw: cfg.view.camYaw });     // звук мира: тише вдали, панорама по экрану (шаг 8)
   if (v.k === 'fireFound') { toast('Открыт костёр: ' + v.name, '', '#ffb060', 'fire'); sfx('evDone'); }

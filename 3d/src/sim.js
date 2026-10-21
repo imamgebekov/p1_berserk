@@ -45,6 +45,7 @@ import { makeWeather, weatherAt } from './weather3d.js';
 import { skillStats, canRank, SKILLS, MAX_RANKS, talentMods } from './data/skills3d.js';
 import { createInv, addItem, removeAt, gearStats, setBonus, equipAt, entryOf, isPlain, roomFor, ilMul, scoreUp, qOf, socketsOf } from './inv.js';
 import { affixFor, gemsFor } from './affix3d.js';
+import { wearHit, wearHurt, wearDeath, repairKit } from './dur3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
@@ -285,6 +286,7 @@ function killPlayer(W) {
   const lost = Math.floor(W.inv.ash * D.ash); W.inv.ash -= lost;
   if (D.tomb && lost > 0) W.tomb = { x: p.x, z: p.z, ash: lost, lvl: W.lvl };
   let burned = 0; if (D.gear) for (const sl of Object.keys(W.inv.up)) if (W.inv.up[sl] > 0) { W.inv.up[sl]--; burned++; if (!W.inv.up[sl]) delete W.inv.up[sl]; }
+  if (wearDeath(W)) refreshGear(W);     // смерть изнашивает всё надетое (4.03)
   W.ev.push({ k: 'playerDead', x: p.x, z: p.z, lost, burned, iron: W.iron });
 }
 
@@ -318,7 +320,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
   const d = len(p.x - fromX, p.z - fromZ) || 1;
   p.vx += (p.x - fromX) / d * knock; p.vz += (p.z - fromZ) / d * knock;
-  W.ev.push({ k: 'hurt', x: p.x, z: p.z, dmg }); resGain(W, 'hurt', dmg);     // ярость копится от урона
+  W.ev.push({ k: 'hurt', x: p.x, z: p.z, dmg }); resGain(W, 'hurt', dmg); if (dmg > 0 && wearHurt(W)) refreshGear(W);     // износ брони (4.03)     // ярость копится от урона
   if (on && W.rng() < on[1]) applyPlayer(W, on[0], on[2], on[3]);
   const fx = W.setFx;
   if (att && !att.dead) {
@@ -403,7 +405,7 @@ function strike(W, e, dmg, o) {
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
   if (e.state === 'wind' && !heavy && gm >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах (щит — нет)
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: o.crit, fin: !!o.fin, id: e.id, fx: o.fx || null });
-  if (!o.ab) resGain(W, 'hit');     // ресурс героя: удар оружием
+  if (!o.ab) { resGain(W, 'hit'); if (wearHit(W, p.hand === 1 ? 'offhand' : 'weapon')) refreshGear(W); }     // износ оружия (4.03)     // ресурс героя: удар оружием
   e.alert = true;
   if (e.hp <= 0) killEnemy(W, e, 1);
 }
@@ -913,6 +915,7 @@ export function useItem(W, idx) {
     travel(W, SURFACE, 0, 4);
     W.ev.push({ k: 'recall', x: p.x, z: p.z }); removeAt(W.inv, idx, 1); return true;
   }
+  if (u.repair) { if (!repairKit(W, W.cfg.dur.kit)) return false; refreshGear(W); removeAt(W.inv, idx, 1); return true; }     // ремкомплект (4.03)
   if (u.cleanse) { if (!cleansePlayer(W, u.cleanse) && !u.heal && !u.buff) return false; W.ev.push({ k: 'cleanse', x: p.x, z: p.z }); }
   if (u.heal) { const h = Math.min(u.heal, p.maxhp - p.hp); if (h <= 0 && !u.buff && !u.ash) return false; p.hp += Math.max(0, h); if (h > 0) W.ev.push({ k: 'heal', x: p.x, z: p.z, n: Math.round(h) }); }
   if (u.ash) { const n = Math.round(u.ash[0] + W.rng() * (u.ash[1] - u.ash[0])); W.inv.ash += n; W.ev.push({ k: 'ash', x: p.x, z: p.z, n }); }
