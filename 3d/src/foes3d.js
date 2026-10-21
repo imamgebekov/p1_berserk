@@ -5,6 +5,7 @@ import { hurtAlly } from './squad3d.js';
 import { speedMul } from './status3d.js';
 import { ngMul } from './ng3d.js';
 import { slide, resolve, roomAt, insideOf } from './map.js';
+import { zoneAt } from './zones3d.js';
 
 // ---- элитные враги: шанс по глубине, опасности и ночи; считается от номера врага, без расхода генератора случайных чисел ----
 const hash01 = (id, seed) => { const s = Math.sin(id * 12.9898 + seed * 78.233) * 43758.5453; return s - Math.floor(s); };
@@ -12,13 +13,14 @@ export const affOf = (W, id) => W.cfg.elite.affixes[id] || (W.cfg.elite.affixes2
 export const hasAff = (e, id) => e.aff === id || e.aff2 === id;     // второе свойство элиты (этап 2 «круче»)
 export function rollElite(W, e, depth, danger) {
   const K = W.cfg.elite, C = W.cfg.enemies[e.type]; if (!K || C.boss || C.noElite) return false;
-  const G = W.ng ? ngMul(W) : null, p = K.chance + K.depthK * depth + K.dangerK * danger + (W.night ? K.nightK : 0) + (G ? G.elite : 0);     // «Новый круг» — элита чаще
+  const zr = (!W.lvl || W.lvl === 'surface') && K.outerK ? zoneAt(W.cfg, e.x, e.z) : null, outer = zr && zr.ring >= 2 ? zr.ring - 1 : 0;     // мир ×2 (4.06): кольца 60–70 и 70–80 — элита чаще и всегда с двумя свойствами
+  const G = W.ng ? ngMul(W) : null, p = K.chance + K.depthK * depth + K.dangerK * danger + (W.night ? K.nightK : 0) + (G ? G.elite : 0) + outer * (K.outerK || 0);     // «Новый круг» — элита чаще
   if (hash01(e.id, W.cfg.world.seed) >= p) return false;
   const ids = Object.keys(K.affixes).concat(K.extra && K.affixes2 ? Object.keys(K.affixes2) : []), id = ids[Math.floor(hash01(e.id + .5, W.cfg.world.seed) * ids.length) % ids.length], A = affOf(W, id);     // extra — новые свойства (этап 2 «круче»)
   e.elite = true; e.aff = id; e.affName = C.g === 'f' && A.nameF ? A.nameF : A.name; e.affColor = A.color;      // «Пылающая Гончая», а не «Пылающий»
   e.hp = e.maxhp = Math.round(e.maxhp * K.hp * (A.hp || 1)); e.dmgMul *= K.dmg; e.scaleMul = K.scale; e.spdMul = A.speed || 1;
   if (A.on) e.onx = A.on; if (A.immune) e.imm = A.immune;
-  if (K.extra && (depth >= K.dual || (G && G.dual))) {                                           // глубоко — второе свойство: «Быстрый и ледяной Бес»
+  if (K.extra && (depth >= K.dual || (G && G.dual) || outer > 0)) {                                           // глубоко — второе свойство: «Быстрый и ледяной Бес»
     const rest = ids.filter(x => x !== id), id2 = rest[Math.floor(hash01(e.id + .25, W.cfg.world.seed) * rest.length) % rest.length], B = affOf(W, id2);
     e.aff2 = id2; e.affName += ' и ' + (C.g === 'f' && B.nameF ? B.nameF : B.name).toLowerCase(); e.hp = e.maxhp = Math.round(e.maxhp * (B.hp || 1)); e.spdMul *= B.speed || 1;
     if (B.on && !e.onx) e.onx = B.on; if (B.immune) e.imm = (e.imm || []).concat(B.immune);

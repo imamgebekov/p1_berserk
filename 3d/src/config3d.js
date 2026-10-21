@@ -88,6 +88,13 @@ const BASE = {
           phases: [{ at: .7, summon: { type: 'ghoul', n: 3 } }, { at: .4, summon: { type: 'shade', n: 2 } }, { at: .3, enrage: true }] }
       ] },
     villagesMore: { extra: [2, 4], ring: 16 },
+    // боссы колец мира ×2 (4.06): логово — опасное место своей зоны (zone), приёмы и фазы — как у боссов городов
+    ringBosses: [
+      { type: 'brandlord', zone: 'brandridge', lair: 'Логово Клеймёного Владыки', attacks: [{ kind: 'charge', wind: .8, len: 16, width: 3, mul: 1.2, cd: 5, range: 18 }, { kind: 'slam', wind: .7, r: 4.6, mul: 1.15, cd: 3, range: 5 }, { kind: 'nova', wind: 1.1, r: 9, inner: 3, mul: 1, cd: 8, range: 99 }],
+        phases: [{ at: .7, summon: { type: 'brandshade', n: 3 } }, { at: .45, summon: { type: 'royal_guard', n: 2 } }, { at: .3, enrage: true }] },
+      { type: 'abyssking', zone: 'scorched', lair: 'Трон Короля Бездны', attacks: [{ kind: 'nova', wind: 1, r: 10, inner: 3, mul: 1.05, cd: 7, range: 99 }, { kind: 'slam', wind: .6, r: 4, mul: 1.1, cd: 2.6, range: 4.4 }, { kind: 'slam', wind: 1.4, r: 8, mul: 1.4, cd: 11, range: 99 }],
+        phases: [{ at: .7, summon: { type: 'eclipse_fiend', n: 3 } }, { at: .45, summon: { type: 'shade', n: 3 } }, { at: .3, enrage: true }] }
+    ],
     // замки (C4): вход в кольце r м от костра, этажей floors; foes — кто живёт в залах; depth и danger — по этажам
     castles: [
       { id: 'castle_ash', name: 'Пепельная Твердыня', keyName: 'Ключ Твердыни', r: [260, 380], floors: 3, guard: { type: 'shield', hp: 7, dmg: 1.4 },
@@ -255,7 +262,7 @@ const BASE = {
   stones: {
     sockets: [0, 0, 1, 1, 2, 2], drop: .05, danger: .02, elite: .5, rain: 'water',
     of: { imp: 'fire', brute: 'earth', hound: 'blood', ghoul: 'venom', archer: 'storm', witch: 'fire', shield: 'earth', bomber: 'fire', lunger: 'blood', shade: 'ice' },
-    hearts: { lampwarden: 'fire', tidecaller: 'ice', tidewyrm: 'storm', devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', gatebeast: 'fire', hand_womb: 'venom', hand_whisper: 'storm', hand_net: 'blood', hand_lord: 'fire', swampelder: 'venom', feeder: 'venom', swarm: 'blood', nestlord: 'venom', abbeyshriek: 'fire', choir: 'storm', abbot: 'fire', ap_serpent: 'venom', ap_boar: 'earth', ap_moth: 'fire', garm_beast: 'blood', towerwarden: 'earth', keymaster: 'storm', towerhound: 'blood', bloodbanner: 'blood', namelessking: 'ice', gravewight: 'venom', sapper: 'fire', drownedmaid: 'water', silt: 'venom', gatewarden: 'earth', gneis: 'storm', borot: 'blood', armorer: 'earth', firegolem: 'fire', smelter: 'fire', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
+    hearts: { brandlord: 'blood', abyssking: 'venom', lampwarden: 'fire', tidecaller: 'ice', tidewyrm: 'storm', devourer: 'venom', lord: 'fire', chief: 'blood', castellan: 'earth', queen: 'ice', ashking: 'fire', bonetyrant: 'blood', gatebeast: 'fire', hand_womb: 'venom', hand_whisper: 'storm', hand_net: 'blood', hand_lord: 'fire', swampelder: 'venom', feeder: 'venom', swarm: 'blood', nestlord: 'venom', abbeyshriek: 'fire', choir: 'storm', abbot: 'fire', ap_serpent: 'venom', ap_boar: 'earth', ap_moth: 'fire', garm_beast: 'blood', towerwarden: 'earth', keymaster: 'storm', towerhound: 'blood', bloodbanner: 'blood', namelessking: 'ice', gravewight: 'venom', sapper: 'fire', drownedmaid: 'water', silt: 'venom', gatewarden: 'earth', gneis: 'storm', borot: 'blood', armorer: 'earth', firegolem: 'fire', smelter: 'fire', gravekeeper: 'venom', ashsister: 'fire', boneshepherd: 'blood', mossbeast: 'earth', thornwitch: 'venom', greywolf: 'blood', oakking: 'earth' },
     fuse: { n: 3, ash: [40, 150] }, unsocket: [15, 50, 150],
     // гнёзда в броне (2026-10-18): шлем, доспех, плащ, сапоги; гнёзд по редкости sockets; камень даёт характеристику стихии по рангу (stat),
     // огонь, яд и кровь ещё ослабляют на герое горение, яд и кровотечение (res по рангу, сумма не больше resMax)
@@ -285,7 +292,7 @@ const BASE = {
     mastery: { on: true, twist: true, lv: [33, 36, 39, 42, 45, 48, 51, 54] },     // twist — мастерство меняет поведение умения (false — только сила)     // 4-й ранг «Мастерство» (этап 3 «круче»): сила продолжает рост рангов
     // новые умения древа (2026-10-20): вид действия → числа; у умения в data/actives3d.js — стихия, состояние и поправки p.
     // genLv — уровень 1-го ранга j-го нового умения ветки (+номер ветки); genStep — шаг до 2-го и 3-го ранга; slots — всего умений героя
-    genLv: [3, 6, 10, 15, 21, 28, 36, 45], genStep: 5, slots: 30,
+    genLv: [3, 6, 10, 15, 21, 28, 36, 45, 61, 65], genStep: 5, slots: 36,     // 4.06: два умения ветки на 61 и 65 (+ветка), всего 36
     // dps — урон в секунду от горения, яда, крови (t с); sd — длительность контроля, с; slowK — сила замедления; amt — прибавка усиления по stat
     gen: {
       nova:   { cd: [8, 7, 6], cost: 35, r: 3.8, mul: [1, 1.3, 1.6], sd: [1.5, 2, 2.5], dps: [5, 8, 11], t: 4, knock: 1 },
@@ -796,7 +803,7 @@ const BASE = {
       { coast: { id: 'abyssshore', name: 'Берег Бездны', lv: [70, 72] }, forest: { id: 'hanged', name: 'Лес Повешенных', lv: [72, 74] }, swamp: { id: 'rift', name: 'Гнилой Разлом', lv: [74, 76] },
         mountains: { id: 'peaks', name: 'Пики Длани', lv: [76, 78] }, waste: { id: 'scorched', name: 'Выжженный Предел', lv: [78, 80] } }
     ], hub: { npcs: ['merchant', 'smith'], names: { moss: 'Ставка короля', grey: 'Велиград', dusk: 'Приют у скал', war: 'Стан у курганов', rot: 'Топкая Деревня', mute: 'Кузня под перевалом', heart: 'Последний Стан' } }, floorStep: 2 },     // names — свои имена узлов (Акт II: Ставка в Мшистых топях)     // floorStep — этаж замка выше зоны у входа на столько уровней
-  level: { max: 60, base: 28, pow: 1.3, hpPer: 6, dmgPer: .6, healOnUp: .3,
+  level: { max: 70, base: 28, pow: 1.3, hpPer: 6, dmgPer: .6, healOnUp: .3,
     // темп (этап 3 «круче»): 60-й уровень — к концу Акта IV. За задание — не больше fq уровня, за сцену — не больше fs (от нужного
     // на текущем уровне); обгоняешь сюжет (уровень текущей сцены) больше чем на ahead — награда меньше, до min; враг ниже героя
     // на grey и больше уровней — «серый»: опыт за него меньше на greyK за уровень, до min. on: false — как раньше
@@ -812,7 +819,7 @@ const BASE = {
   // xp — опыт, buy — цены торговца, boss — множитель времени возрождения боссов, death — штраф: ash — доля теряемого пепла (остаётся «могила»), gear — теряется уровень улучшения у надетого
   // элитные враги: шанс = chance + глубина × depthK + опасность × dangerK (+ nightK ночью). hp/dmg/xp — множители, luck и lootRolls — добыча.
   drops: { brandK: .25, chanceK: .5, slots: 1 },     // chanceK — доля прежнего шанса добычи с врага, slots — не больше вещей за бросок (просьба владельца: меньше мусора)
-  loot: { on: true, q: .25, lv: 1.0, base: [60, 28, 9, 2.5, .5], goldKinds: ['chest', 'ironchest', 'locked', 'cache', 'altar'], gold: [[0, 0], [30, .01], [40, .02], [50, .03]] },     // добыча по уровню края: base — веса редкостей, lv — сдвиг к 60-му; золото с сундука по уровню [с уровня, шанс]     // добыча с врагов: вес оранжевых (клеймёных) ×brandK — их было до половины снаряжения; сундуков и боссов не касается
+  loot: { on: true, q: .25, lv: 1.0, base: [60, 28, 9, 2.5, .5], goldKinds: ['chest', 'ironchest', 'locked', 'cache', 'altar'], gold: [[0, 0], [30, .01], [40, .02], [50, .03], [65, .045], [75, .06]] },     // добыча по уровню края: base — веса редкостей, lv — сдвиг к 60-му; золото с сундука по уровню [с уровня, шанс]     // добыча с врагов: вес оранжевых (клеймёных) ×brandK — их было до половины снаряжения; сундуков и боссов не касается
   // случайные свойства вещей (этап 4 «круче»): count — сколько у редкости (2 — редкий, 3 — великий, 4 — клеймёный, 5 — золотой);
   // base — [начало, рост за уровень вещи]; q — разброс качества; max — предел свойства. on: false — вещи как раньше
   ach: { on: true },
@@ -845,7 +852,7 @@ const BASE = {
       bleedCh: 'm_wolf_claw', armor: 'm_mail_scrap', hp: 'm_bone', regen: 'm_tar', stealth: 'm_rotten_cloth' } },
   enchant: { on: true, npc: 'scribe', item: 'm_arcane_dust', yield: [1, 1, 2, 4, 6, 9], upYield: 1, dust: [1, 1, 2, 3, 4, 5], base: 20, valueK: .35, grow: .6, extra: 1, cap: 4 },
   elite: {
-    chance: .04, depthK: .03, dangerK: .03, nightK: .03, hp: 1.9, dmg: 1.2, xp: 3, scale: 1.2, luck: 10, lootRolls: 2,
+    chance: .04, outerK: .03, depthK: .03, dangerK: .03, nightK: .03, hp: 1.9, dmg: 1.2, xp: 3, scale: 1.2, luck: 10, lootRolls: 2,
     affixes: {
       swift:     { name: 'Быстрый',       nameF: 'Быстрая',       speed: 1.45, color: '#7ad0ff' },
       armored:   { name: 'Бронированный', nameF: 'Бронированная', hp: 1.6, color: '#c8c8d8' },
@@ -892,7 +899,7 @@ const BASE = {
     heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'q_wizard' },
     foes: { imp: 'q_demonfly', bomber: 'q_demonfly', ash_thief: 'q_demonfly', hound: 'q_wolf', blackdog: 'q_wolf', garm: 'q_wolf', eclipse_fiend: 'q_wolf', garm_beast: 'q_wolf', greywolf: 'q_wolf', towerhound: 'q_wolf',
       lunger: 'kk_skel_warrior', war_ghost: 'kk_skel_minion', witch: 'kk_skel_mage', archer: 'kk_rogue_hooded', kad_xbow: 'kk_rogue_hooded', shield: 'kk_knight', kad_soldier: 'kk_knight', kad_spear: 'kk_knight', kad_banner: 'kk_knight',
-      royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'q_yeti', castellan: 'q_king', ashking: 'q_king', oakking: 'q_king',
+      royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'q_yeti', castellan: 'q_king', ashking: 'q_king', brandlord: 'kk_knight', abyssking: 'q_king', oakking: 'q_king',
       brute: 'sf_mino', ghoul: 'sf_ghoul', devourer: 'sf_ghoul', golem: 'sf_drugdor', firegolem: 'sf_drugdor', drowned: 'sf_fish', drownedmaid: 'sf_fish', silt: 'sf_fish', swampelder: 'sf_fish',
       demon_guard: 'sf_minob', lord: 'sf_minob', gatebeast: 'sf_minob', hand_lord: 'sf_minob', chief: 'sf_minob', tidewyrm: 'sf_skdragon', bonetyrant: 'sf_sklord', namelessking: 'sf_sklord', gravewight: 'sf_sklord', abbot: 'sf_sklord' },
     npcs: { merchant: 'q_farmer', smith: 'kk_barbarian', captain: 'q_warrior', villager: 'q_farmer', villagerF: 'q_adv_f', traveler: 'q_hooded' },     // жители (выбор владельца 2026-10-20)
@@ -1122,6 +1129,8 @@ const BASE = {
     castellan: { boss: true, name: 'Кастелян Пепла',   xp: 2200, hp: 9000, speed: 3.3, damage: 46, range: 3.4, wind: .7, recover: .9, radius: 1.6, scale: 2.6, heavy: true, immune: ['stun', 'fear'], on: ['burn', .55, 3, 4] },     // замки (C4)
     queen:     { boss: true, name: 'Королева Пустоши', g: 'f', xp: 2800, hp: 10000, speed: 4.4, damage: 44, range: 2.9, wind: .6, recover: .8, radius: 1.3, scale: 2.3, heavy: true, immune: ['stun', 'freeze', 'poison'], on: ['poison', .7, 4, 5] },
     ashking:   { boss: true, name: 'Пепельный Король', xp: 3600, hp: 15000, speed: 3.6, damage: 66, range: 3.5, wind: .7, recover: .85, radius: 1.7, scale: 2.9, heavy: true, immune: ['stun', 'fear'], on: ['burn', .7, 5, 6] },     // павшие города (2026-10-18)
+    brandlord: { boss: true, name: 'Клеймёный Владыка', xp: 9000, hp: 15000, speed: 3.8, damage: 66, range: 3.6, wind: .7, recover: .85, radius: 1.8, scale: 3, heavy: true, immune: ['stun', 'fear'], on: ['bleed', .6, 6, 6] },     // боссы колец мира ×2 (4.06): сила — по уровню места (60–80)
+    abyssking: { boss: true, name: 'Король Бездны', xp: 14000, hp: 15000, speed: 3.6, damage: 66, range: 3.8, wind: .75, recover: .85, radius: 1.9, scale: 3.2, heavy: true, immune: ['stun', 'fear', 'freeze'], on: ['poison', .7, 6, 6] },
     // боссы подземелий (этап 5): здоровье и урон — под уровень base из instances (выше — рост ×grow, героическая — ×heroic)
     gravekeeper:  { boss: true, name: 'Могильщик Ольм',     xp: 900,  hp: 5200,  speed: 2.8, damage: 34, range: 3.0, wind: .65, recover: .9, radius: 1.3, scale: 2.2, heavy: true, immune: ['stun'], on: ['poison', .7, 3, 5] },
     ashsister:    { boss: true, name: 'Сестра Пепла', g: 'f', xp: 900, hp: 8000, speed: 3.8, damage: 30, range: 2.6, wind: .55, recover: .8, radius: 1.0, scale: 1.9, heavy: true, immune: ['stun', 'fear'], on: ['burn', .6, 3, 4] },

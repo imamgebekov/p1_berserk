@@ -153,11 +153,18 @@ const STAT_SETS = [
   [['Сила удара', 'dmg', 1.5, 5, '+1,5 урона', 'n:th_hand'], ['Точность', 'crit', 2, 5, '+2% шанс крита', 'n:th_roar'], ['Быстрый замах', 'swingMul', .97, 3, 'удары быстрее на 3%', 'n:th_frenzy'], ['Кровопийца', 'leech', 1, 4, '+1% вампиризма', 'n:th_thirst']],
   [['Быстрые ноги', 'spd', 1.5, 5, '+1,5% скорости', 'n:step'], ['Точность', 'crit', 2, 5, '+2% шанс крита', 'n:th_roar'], ['Крепость', 'hp', 8, 5, '+8 здоровья', 'n:th_temper'], ['Длинная рука', 'reach', .15, 3, '+0,15 дальности удара', 'n:eye']]
 ];
+// таланты рядов 9–10 (4.06, предел 70): сильнее прежних, для игры против врагов 70–80
+const HIGH_SETS = [
+  [['Ветеран', 'hp', 20, 5, '+20 здоровья', 'n:th_temper'], ['Закалённый', 'armor', 4, 5, '+4 брони', 'n:th_skin'], ['Мощь', 'dmg', 3, 5, '+3 урона', 'n:th_hand'], ['Живучесть', 'regen', .8, 3, '+0,8 здоровья в секунду', 'n:jy_breath']],
+  [['Мощь', 'dmg', 3, 5, '+3 урона', 'n:th_hand'], ['Смертельная точность', 'crit', 3, 5, '+3% шанс крита', 'n:th_roar'], ['Жажда', 'leech', 1.5, 4, '+1,5% вампиризма', 'n:th_thirst'], ['Ветеран', 'hp', 20, 5, '+20 здоровья', 'n:th_temper']],
+  [['Мощь', 'dmg', 3, 5, '+3 урона', 'n:th_hand'], ['Ветеран', 'hp', 20, 5, '+20 здоровья', 'n:th_temper'], ['Порыв', 'spd', 2, 4, '+2% скорости', 'n:step'], ['Смертельная точность', 'crit', 3, 5, '+3% шанс крита', 'n:th_roar']]
+];
 const DOT = new Set(['burn', 'poison', 'bleed']);
 const boostKeys = d => { const k = d.kind === 'buff' ? { amt: .1 } : d.kind === 'heal' ? { k: .1 } : d.kind === 'cloud' ? { dps: .1 } : { mul: .1 }; if (d.st && d.kind !== 'cloud') k[DOT.has(d.st) ? 'dps' : 'sd'] = .1; return k; };     // что усиливает талант: сила вида и его состояния
 for (const [hero, list] of Object.entries(NEW_ACTIVES)) TREES[hero].forEach((b, bi) => {
   for (const d of list.filter(x => x.br === bi)) b.skills.push({ ...T('g_' + d.id, 'Опыт: ' + d.name, 3, ab(d.id, boostKeys(d), .06), `«${d.name}»: сила +10%, перезарядка короче на 6% за ранг`), icon: 'n:' + d.id, boost: d.id });
   STAT_SETS[bi].forEach(([name, st, v, max, txt, icon], j) => b.skills.push({ ...T(b.id + '_s' + j, name, max, { stats: { [st]: v } }, txt + ' за ранг'), icon, gen: true }));
+  HIGH_SETS[bi].forEach(([name, st, v, max, txt, icon], j) => b.skills.push({ ...T(b.id + '_h' + j, name, max, { stats: { [st]: v } }, txt + ' за ранг'), icon, high: true }));
 });
 export const TIER_STEP = 3;           // очков в ветке на каждый следующий талант
 const DEFAULT = 'thorn';

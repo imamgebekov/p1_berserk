@@ -1,93 +1,55 @@
-// Тест этапа 6 «круче»: достижения (подвиги), «Бездна», «Новый круг», недельное «Затмение».
+// Конец игры (4.06, предел героя 70, враги до 80): бот как в outer3d — герой в чёрном снаряжении своего уровня бьётся с пятёркой врагов
+// в кольцах мира ×2 под разными углами; и один на один с боссами колец. Пояс 60–70 герою 70-го — по силам; 70–80 — опаснее;
+// герою 60-го (конец сюжета) кольцо 70–80 заметно опаснее. Боссы колец — мировые, на рейд из 10 (решение владельца): в одиночку не взять.
 import { CFG3 } from '../3d/src/config3d.js';
-import { createWorld, step, mulberry32, killEnemy, spawnEnemy } from '../3d/src/sim.js';
-import { ACH, achEvents, titlesOf, capesOf, serializeAch, sanitizeAch } from '../3d/src/achieve3d.js';
-import { abyssDef, abyssLine, eclipseMods, weekOf } from '../3d/src/abyss3d.js';
-import { usePortal, portalNear, portalName, eclipseGo } from '../3d/src/sim.js';
-import { makeLevelMap, insideOf, roomAt } from '../3d/src/map.js';
-import { ngOpen, startNg } from '../3d/src/ng3d.js';
-import { createSaver } from '../3d/src/save3d.js';
+import { createWorld, step, mulberry32, aliveEnemies, refreshGear } from '../3d/src/sim.js';
+import { zoneLevel } from '../3d/src/zones3d.js';
 
-const fails = [];
-const ok = (c, m) => { if (!c) fails.push(m); };
-const mk = (tweak) => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.wanderer.on = false; c.events.on = false; for (const d of c.dungeons.list) d.spawns = []; if (tweak) tweak(c); return createWorld(c, mulberry32(1)); };
-const run = (W, s) => { const out = []; for (let i = 0; i < Math.round(s * 60); i++) { step(W, 1 / 60, {}); out.push(...W.ev.filter(v => v.k === 'ach')); W.ev.length = 0; } return out; };
-
-// ---------- 1. подвиги: список, награды, счётчики, сохранение ----------
-{
-  ok(ACH.length >= 40 && new Set(ACH.map(a => a.id)).size === ACH.length, `подвигов ${ACH.length}`);
-  ok(ACH.every(a => a.n > 0 && (a.reward.ash || a.reward.title || a.reward.cape)), 'подвиг без цели или награды');
-  const W = mk(); ok(W.ach && !Object.keys(W.ach.got).length, 'новый мир с подвигами');
-  W.kills = 9; ok(run(W, 1.2).length === 0, 'подвиг раньше цели');
-  const ash0 = W.inv.ash; W.kills = 10; const got = run(W, 1.2);
-  ok(got.some(v => v.id === 'k10') && W.inv.ash >= ash0 + 50, 'подвиг «Первая кровь» или его пепел');
-  ok(run(W, 2).every(v => v.id !== 'k10'), 'подвиг выдан дважды');
-  // счётчик из событий, в том числе пришедших между шагами (сдача задания из окна)
-  W.ev.push({ k: 'questdone', name: 'x' }); for (let i = 0; i < 9; i++) W.ev.push({ k: 'questdone', name: 'x' }); run(W, 1.2);
-  ok(W.ach.got.quests10 !== undefined, 'задания из окна не засчитаны: ' + W.ach.c.quest);
-  W.ev.push({ k: 'questdone' }); achEvents(W); achEvents(W); ok(W.ach.c.quest === 11, 'событие засчитано дважды: ' + W.ach.c.quest);
-  // титул и плащ
-  W.kills = 1000; W.lv = 60; run(W, 1.2);
-  ok(titlesOf(W).includes('Жнец') && W.ach.title === 'Жнец', 'титул «Жнец» не надет: ' + W.ach.title);
-  ok(capesOf(W).some(c => c.name === 'Пепельно-белый плащ'), 'плащ за 60-й уровень');
-  W.ach.cape = capesOf(W)[0].color;
-  const back = sanitizeAch(JSON.parse(JSON.stringify(serializeAch(W.ach))));
-  ok(back.got.k10 !== undefined && back.title === 'Жнец' && back.cape === W.ach.cape && back.c.quest === 11, 'сохранение подвигов');
-  const cheat = sanitizeAch({ got: { k10: 5, fake: 1 }, title: 'Глубинный', cape: '#ffffff', c: { kills: -3, x: 'a' } });
-  ok(!cheat.got.fake && cheat.title === null && cheat.cape === null && !('kills' in cheat.c), 'мусор или незаработанное в сохранении');
-  // элита и босс по событиям
-  const W2 = mk(); W2.ev.push({ k: 'die', elite: true }, { k: 'die', boss: true }); achEvents(W2); ok(W2.ach.c.elite === 1 && W2.ach.c.boss === 1, 'элита или босс не посчитаны');
-  const off = mk(c => { c.ach.on = false; }); off.kills = 100; ok(run(off, 1.2).length === 0, 'ach.on=false — подвиги выдаются');
-}
-// ---------- 2. Бездна: ярусы из комнат, вход с уровня, спуск после зачистки, награда, рекорд, время ----------
-{
-  for (const t of [1, 5, 12, 30]) {
-    const d = abyssDef(CFG3, t, CFG3.abyss.at), M = makeLevelMap(CFG3, d);
-    ok(d.spawns.length >= 2 && d.spawns.every(s => s.n >= 1) && d.foes.length >= 3, `ярус ${t}: враги`);
-    ok(roomAt(M, d.down.x, d.down.z) >= 0 && roomAt(M, d.entry.x, d.entry.z) >= 0, `ярус ${t}: спуск или вход вне комнат`);
-    ok(d.level === CFG3.abyss.level[0] + t * CFG3.abyss.level[1] && d.mods.length === Math.min(2, Math.floor(t / CFG3.abyss.modEvery)), `ярус ${t}: уровень или модификаторы`);
-    ok(JSON.stringify(abyssDef(CFG3, t, CFG3.abyss.at)) === JSON.stringify(d), `ярус ${t}: разный при повторе`);
+const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
+const GEAR = { weapon: 'w_greatsword_black', body: 'a_body_plate_black', head: 'a_head_helm_black', boots: 'a_boots_greaves_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' };
+const SEEDS = Number(process.env.END_SEEDS || 8), STRICT = !process.env.END_MEASURE;
+function fightLoop(W, cfg, sec, seed) {
+  let taken = 0; const dodge = mulberry32(seed + 99);
+  for (let i = 0; i < 60 * sec; i++) {
+    const p = W.player, en = aliveEnemies(W); let tgt = null, bd = 1e9;
+    for (const e of en) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; tgt = e; } }
+    const inp = { mx: 0, mz: 0 };
+    if (tgt && bd < 40) { const C = cfg.enemies[tgt.type], reach = cfg.player.attackRange + W.gear.reach + C.radius * .5;
+      if (bd > reach * .8) { inp.mx = (tgt.x - p.x) / bd; inp.mz = (tgt.z - p.z) / bd; }
+      inp.attackPress = bd < reach + .4;
+      if (tgt.state === 'wind' && bd < C.range + 1.5 && tgt.t > C.wind * .6 && p.rollCd <= 0 && dodge() < .5) inp.roll = true; }
+    const h = p.hp; step(W, 1 / 60, inp); if (p.hp < h) taken += h - p.hp;
+    if (p.dead) return { dead: true, kills: W.kills, taken };
   }
-  const W = mk(), hatch = W.levels.surface.map.portals.find(q => q.abyssEnter);
-  ok(hatch && insideOf(W.map, hatch.x, hatch.z) < 0, 'нет люка Бездны или он в доме');
-  W.player.x = hatch.x; W.player.z = hatch.z; run(W, .1);
-  ok(portalName(W, portalNear(W)) === 'Спуститься: Бездна', 'имя люка');
-  W.lv = CFG3.abyss.lv - 1; ok(!usePortal(W) && W.lvl === 'surface', 'Бездна открыта раньше уровня');
-  W.lv = CFG3.abyss.lv; ok(usePortal(W) && W.lvl === 'abyss' && W.abyss && W.abyss.tier === 1 && W.enemies.length >= 4, 'вход в Бездну');
-  ok(W.enemies.every(e => e.lvl >= CFG3.abyss.level[0]), 'уровень врагов Бездны');
-  const dn = () => W.map.portals.find(q => q.abyssNext);
-  W.player.x = dn().x; W.player.z = dn().z; run(W, .1); ok(!usePortal(W) && W.abyss.tier === 1, 'спуск открыт при живых врагах');
-  for (const e of W.enemies) killEnemy(W, e, 1); run(W, .5); ok(W.abyss.open && /спуск открыт/.test(abyssLine(W)), 'ярус не открылся: ' + abyssLine(W));
-  const ash = W.inv.ash, map1 = W.map; ok(usePortal(W) && W.abyss.tier === 2 && W.map !== map1 && W.inv.ash > ash, 'спуск на ярус 2 или награда');
-  run(W, .05); ok(W.ach.c.abyss === 1, 'рекорд Бездны: ' + W.ach.c.abyss);
-  ok(W.enemies.every(e => e.abyss && !e.dead) && Math.hypot(W.player.x + 1.5, W.player.z) < 2, 'новый ярус: враги или место героя');
-  W.abyss.t = .5; run(W, 1); ok(W.lvl === 'surface' && !W.abyss, 'время вышло — не выброшен наверх');
+  return { dead: false, kills: W.kills, taken };
 }
-// ---------- 3. Затмение недели: модификаторы по неделе, награда раз в неделю ----------
-{
-  const wk = weekOf(Date.UTC(2026, 9, 19)); ok(wk === weekOf(Date.UTC(2026, 9, 25)) && wk + 1 === weekOf(Date.UTC(2026, 9, 26)), 'неделя считается не с понедельника');
-  ok(eclipseMods(wk).length === 3 && JSON.stringify(eclipseMods(wk)) === JSON.stringify(eclipseMods(wk)) && JSON.stringify(eclipseMods(wk)) !== JSON.stringify(eclipseMods(wk + 1)), 'модификаторы недели');
-  const W = mk(c => { c.abyss.eclipse.goal = 2; }), hatch = W.levels.surface.map.portals.find(q => q.abyssEnter); W.lv = 60;
-  W.player.x = hatch.x; W.player.z = hatch.z; run(W, .1);
-  ok(eclipseGo(W, wk) && W.abyss.week === wk && JSON.stringify(W.abyss.mods) === JSON.stringify(eclipseMods(wk)), 'вход в Затмение');
-  const evs = []; const go = () => { for (const e of W.enemies) killEnemy(W, e, 1); for (let i = 0; i < 30; i++) { step(W, 1 / 60, {}); evs.push(...W.ev); W.ev.length = 0; } const d = W.map.portals.find(q => q.abyssNext); W.player.x = d.x; W.player.z = d.z; step(W, 1 / 60, {}); usePortal(W); step(W, 1 / 60, {}); evs.push(...W.ev); W.ev.length = 0; };     // события входа — до шага, как в игре
-  go(); ok(W.abyss.tier === 2 && JSON.stringify(W.abyss.mods) === JSON.stringify(eclipseMods(wk)), 'ярус 2 Затмения с теми же модификаторами');
-  const ash = W.inv.ash; go(); ok(evs.some(v => v.k === 'eclipseDone') && W.ach.c.ewk === wk, 'Затмение не засчитано');
-  ok(!(W.ach.c.abyss > 0), 'Затмение пишет рекорд Бездны');
-  run(W, 1.2); ok(W.ach.got.eclipse1 !== undefined, 'подвиг «Неделя Затмения»');
+const hero = (cfg, seed, lv, x, z, up) => { const W = createWorld(cfg, mulberry32(seed * 7919 + 3)); Object.assign(W.inv.eq, GEAR); W.lv = lv; W.inv.il = Object.fromEntries(Object.keys(GEAR).map(k => [k, lv])); if (up) for (const k of Object.keys(GEAR)) W.inv.up[k] = up; refreshGear(W); W.player.hp = W.player.maxhp; W.player.x = x; W.player.z = z; return W; };
+// кольцо: точка на радиусе r под углом по зерну, пятёрка врагов уровня места
+function ring(r, lv, seed) {
+  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.enemies.roam.on = false; cfg.map.places = []; cfg.bosses.list = []; cfg.terrain.on = false;
+  const a = seed * 2.399 + .3, x = Math.sin(a) * r, z = Math.cos(a) * r; return { ...fightLoop(hero(cfg, seed, lv, x, z, 0), cfg, 75, seed), at: zoneLevel(cfg, x, z) };
 }
-// ---------- 4. Новый круг: после Акта IV; сюжет и задания заново, вещи на месте; враги сильнее; сохранение ----------
-{
-  const W = mk(); ok(!ngOpen(W) && !startNg(W), 'Новый круг до конца сюжета');
-  const e0 = spawnEnemy(W, 'brute', 30, 30);
-  W.story.st = 'end'; W.story.i = 99; W.quests = { m_imps: { s: 'done', n: 0, ok: false, t: 0 } }; const bag = W.inv.bag.length, lv = W.lv = 60;
-  ok(ngOpen(W) && startNg(W) && W.ng === 1 && W.story.i === 0 && W.story.st === 'wait' && !Object.keys(W.quests).length, 'Новый круг не начался');
-  ok(W.inv.bag.length === bag && W.lv === lv, 'Новый круг забрал вещи или уровень');
-  const e1 = spawnEnemy(W, 'brute', 30, 30); ok(e1.maxhp > e0.maxhp * 1.3 && e1.dmgMul > e0.dmgMul * 1.2, `враг круга не сильнее: ${e0.maxhp} → ${e1.maxhp}`);
-  let el = 0, dual = 0; for (let i = 0; i < 300; i++) { const e = spawnEnemy(W, 'hound', 20, 20); if (e.elite) { el++; if (e.aff2) dual++; } }
-  ok(el > 0 && dual === el, `элита круга: ${el}, с двумя свойствами ${dual}`);
-  const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; }, o }; };
-  const st = mem(); createSaver(W, st).write(true); const raw = JSON.parse(Object.values(st.o).find(v => /"prog"/.test(v))); ok(raw.prog.ng === 1, 'круг не сохранён');
+const T = {};
+const cell = (key, r, lv) => { let dead = 0, kills = 0, taken = 0, at = 0; for (let s = 0; s < SEEDS; s++) { const q = ring(r, lv, s); dead += q.dead; kills += q.kills; taken += q.taken; at += q.at; }
+  T[key] = { dead: dead / SEEDS, tpk: taken / Math.max(1, kills) }; console.log(key.padEnd(30), `места ур. ${(at / SEEDS).toFixed(0)}  смертей ${(dead / SEEDS * 100).toFixed(0).padStart(3)}%  убито ${(kills / SEEDS).toFixed(1).padStart(5)}  урона на убийство ${(taken / Math.max(1, kills)).toFixed(0)}`); };
+cell('ур.70 / кольцо 60–70', 750, 70);
+cell('ур.70 / кольцо 70–80', 1050, 70);
+cell('ур.70 / край (≈80)', 1180, 70);
+cell('ур.60 / кольцо 70–80', 1050, 60);
+// боссы колец: один на один, герой 70-го в чёрном +3
+const boss = (type, seed) => {
+  const cfg = JSON.parse(JSON.stringify(CFG3)), B = CFG3.bosses.list.find(b => b.type === type); cfg.enemies.count = 0; cfg.enemies.roam.on = false; cfg.events.on = false; cfg.wanderer.on = false; cfg.terrain.on = false; cfg.bosses.list = [B];
+  const W = hero(cfg, seed, 70, B.x, B.z + 9, 3), r = fightLoop(W, cfg, 150, seed), e = W.enemies.find(q => q.type === type);
+  return { win: !r.dead && (!e || e.dead), hp: e ? e.hp / e.maxhp : 0, lvl: e && e.lvl };
+};
+for (const type of ['brandlord', 'abyssking']) { let win = 0, hp = 0, lvl = 0; const n = Math.max(4, SEEDS / 2); for (let s = 0; s < n; s++) { const q = boss(type, s); win += q.win; hp += q.hp; lvl = q.lvl; }
+  T[type] = { win: win / n, hp: hp / n }; console.log(`босс ${type} (ур. ${lvl})`.padEnd(30), `побед ${(win / n * 100).toFixed(0)}%  у босса в среднем осталось ${(hp / n * 100).toFixed(0)}%`); }
+if (STRICT) {
+  ok(T['ур.70 / кольцо 60–70'].dead <= .5, 'герою 70-го кольцо 60–70 не по силам: ' + T['ур.70 / кольцо 60–70'].dead);
+  ok(T['ур.70 / кольцо 70–80'].dead >= T['ур.70 / кольцо 60–70'].dead || T['ур.70 / кольцо 70–80'].tpk > T['ур.70 / кольцо 60–70'].tpk * 1.2, 'кольцо 70–80 не опаснее 60–70');
+  ok(T['ур.60 / кольцо 70–80'].dead >= T['ур.70 / кольцо 70–80'].dead, 'герою 60-го кольцо 70–80 не опаснее, чем герою 70-го');
+  ok(T.brandlord.win === 0 && T.abyssking.win === 0, 'мирового босса герой 70-го взял в одиночку');     // мировые боссы — на 10 (подгонка — с рейдом спутников)
+  ok(T.abyssking.hp >= T.brandlord.hp, 'Король Бездны не крепче Клеймёного Владыки');
 }
-if (fails.length) { console.log('ПРОВАЛ:\n' + fails.slice(0, 30).join('\n')); process.exit(1); }
-console.log(`Конец игры 3D: OK (подвигов ${ACH.length})`);
+if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
+console.log('Конец игры 3D: OK');

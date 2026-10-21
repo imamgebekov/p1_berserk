@@ -12,7 +12,7 @@ import { createInv, equipAt, unequip, serialize, deserialize, gearStats, ilMul, 
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const L = CFG3.level;
-ok(L.max === 60 && Math.round(levelOfDepth(CFG3, 0)) === 1 && Math.round(levelOfDepth(CFG3, 1)) === L.core && Math.round(levelOfDepth(CFG3, 2)) === L.edge, 'уровни места не 1 / core / edge');
+ok(L.max === 70 && Math.round(levelOfDepth(CFG3, 0)) === 1 && Math.round(levelOfDepth(CFG3, 1)) === L.core && Math.round(levelOfDepth(CFG3, 2)) === L.edge, 'уровни места не 1 / core / edge');
 const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.map.places = []; c.bosses.list = []; c.events.on = false; c.wanderer.on = false; const W = createWorld(c, mulberry32(5)); W.player.hp = W.player.maxhp = 1e6; return W; };
 // враги: в ядре — как прежде, за ядром — крепче на grow за уровень
 { const W = mk(), E = CFG3.enemies, at = d => pointAtDepth(W.cfg, d, .3), a = at(.5), b = at(1.5);
@@ -22,7 +22,7 @@ const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count =
   ok(Math.abs(e1.maxhp - Math.round(E.brute.hp * (1 + E.depthHp * .5) * W.dif.hp)) <= 1, 'в ядре здоровье врага изменилось');
   ok(Math.abs(e2.maxhp - Math.round(E.brute.hp * (1 + E.depthHp) * (1 + (l2 - L.core) * L.grow) * W.dif.hp)) <= 1, 'за ядром здоровье не растёт по уровню'); }
 // опыт и потолок
-{ const W = mk(); for (let i = 0; i < 3000 && W.lv < 60; i++) gainXp(W, 1e5); ok(W.lv === 60 && W.xp === 0, 'потолок не 60-й уровень'); }
+{ const W = mk(); for (let i = 0; i < 4000 && W.lv < L.max; i++) gainXp(W, 1e5); ok(W.lv === L.max && W.xp === 0, `потолок не ${L.max}-й уровень`); }     // 4.06: предел 70
 // уровень вещи
 { const sw = BY_ID.w_sword_black, ir = BY_ID.w_sword_iron;
   ok(ilMul(sw, nomIl(sw)) === 1 && ilMul(sw, 0) === 1 && ilMul(sw, 50) > 1.3 && ilMul(sw, 5) < 1, 'множитель уровня вещи');
@@ -49,8 +49,8 @@ const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count =
       gain(paceXp(W, (c.reward || {}).xp || 0, 'scene')); ends[c.act] = W.lv; });
     return ends; };
   for (const k of [10, 25, 40]) { const e = play(k); console.log(`темп (${k} убийств на сцену): к концу актов уровни ${[1, 2, 3, 4].map(a => e[a]).join(' / ')}`);
-    ok(e[1] >= 16 && e[1] <= 26 && e[2] >= 32 && e[2] <= 42 && e[3] >= 43 && e[3] <= 52 && e[4] === 60, `темп при ${k} убийствах: ${JSON.stringify(e)}`); }
-  const old = play(25, { ...CFG3, level: { ...L, pace: { ...L.pace, on: false } } }); ok(old[2] === 60, 'выключено — темп не как раньше (60 к Акту II): ' + JSON.stringify(old));
+    ok(e[1] >= 16 && e[1] <= 26 && e[2] >= 32 && e[2] <= 42 && e[3] >= 43 && e[3] <= 52 && e[4] >= 58 && e[4] <= 64, `темп при ${k} убийствах: ${JSON.stringify(e)}`); }     // 4.06: сюжет кончается около 60, 61–70 — пояса мира ×2
+  const old = play(25, { ...CFG3, level: { ...L, pace: { ...L.pace, on: false } } }); ok(old[2] >= 60, 'выключено — темп не как раньше (60 к Акту II): ' + JSON.stringify(old));
   const W = { cfg: CFG3, lv: 40, story: { i: A.findIndex(c => c.lv >= 40) } }; ok(paceXp(W, 9000, 'quest') <= Math.round(L.pace.fq * xpNeed(40, CFG3)) && paceXp(W, 30, 'quest') === 30, 'потолок награды за задание не работает');
   const ahead = { ...W, lv: 40, story: { i: A.findIndex(c => c.lv >= 30) } }; ok(paceXp(ahead, 9000, 'quest') < paceXp(W, 9000, 'quest') * .5, 'обогнал сюжет — награда не меньше');
   ok(greyMul(W, 40) === 1 && greyMul(W, 39) === 1 && greyMul(W, 38) < 1 && greyMul(W, 10) === L.pace.min, '«серые» враги: ' + [40, 39, 38, 10].map(x => greyMul(W, x).toFixed(2))); }

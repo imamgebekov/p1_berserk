@@ -10,7 +10,7 @@ import { BY_ID } from '../3d/src/data/items.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const B = CFG3.bosses.list.filter(b => b.level && !b.inst), floors = CFG3.dungeons.list.filter(d => d.castle);
-const mk = (seed = 1) => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; return createWorld(c, mulberry32(seed)); };
+const mk = (seed = 1) => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.bosses.list = c.bosses.list.filter(b => !b.ring); return createWorld(c, mulberry32(seed)); };     // боссы колец (4.06) к замкам не относятся и сдвигают случайность боя
 
 // ---------- 1. где боссы и стражи ----------
 ok(B.length === 2 && B.every(b => floors.some(d => d.id === b.level && d.throne)), 'боссы не в тронных залах');

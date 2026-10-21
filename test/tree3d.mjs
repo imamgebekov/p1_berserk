@@ -14,13 +14,13 @@ import { createSaver, loadSave } from '../3d/src/save3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 for (const h of Object.keys(HEROES)) {
   const T = treeOf(h), nodes = T.flatMap(b => b.nodes), keys = new Set(nodes.map(n => n.key));
-  ok(T.length === 3 && nodeCount(h) === 96 && keys.size === 96, `${h}: веток ${T.length}, узлов ${nodeCount(h)}`);
+  ok(T.length === 3 && nodeCount(h) === 120 && keys.size === 120, `${h}: веток ${T.length}, узлов ${nodeCount(h)}`);
   for (const a of ABILITIES[h]) ok(keys.has('a:' + a.id) && (a.kind || keys.has('m:' + a.id)), `${h}: нет умения или мастерства ${a.id}`);
   for (const b of branchesOf(h)) for (const s of b.skills) ok(keys.has('t:' + s.id), `${h}: нет таланта ${s.id}`);
   for (const b of T) { const at = new Set(); for (const n of b.nodes) { const p = n.row + ':' + n.col; ok(!at.has(p) && n.row >= 1 && n.row <= ROWS && n.col >= 0 && n.col < COLS, `${h}/${b.name}: место ${p} занято или вне сетки`); at.add(p);
     if (n.req) { const q = b.nodes.find(x => x.key === n.req); ok(q && q.row < n.row, `${h}: мастерство ${n.id} не ниже своего умения`); }
     ok(GI[n.icon], `${h}: нет значка ${n.icon}`); }
-    ok(b.nodes.length === 32 && b.nodes.filter(n => n.kind === 'active').length === 10, `${h}/${b.name}: не 32 узла с 10 активными`);
+    ok(b.nodes.length === 40 && b.nodes.filter(n => n.kind === 'active').length === 12, `${h}/${b.name}: не 40 узлов с 12 активными`);     // 4.06: ряды 9–10
     ok(b.nodes.filter(n => n.row === 1).sort((u, v) => u.col - v.col)[0].kind === 'active', `${h}/${b.name}: ветка начинается не с активного`); }
 }
 // правила покупки
@@ -49,4 +49,4 @@ const mk = lv => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count =
   const was = loadSave(40, st); ok(was && !Object.keys(was.prog.ab).length && !Object.keys(was.prog.skills).length && was.prog.sp === 19 && was.prog.ap === abilityPoints(20, CFG3) && was.prog.treeReset, 'старое сохранение: сброс с возвратом ' + JSON.stringify(was && { ab: was.prog.ab, sp: was.prog.sp, ap: was.prog.ap }));
 }
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.slice(0, 30).join('\n')); process.exit(1); }
-console.log('Древо умений 3D: OK (5 героев × 96 узлов)');
+console.log('Древо умений 3D: OK (5 героев × 120 узлов)');

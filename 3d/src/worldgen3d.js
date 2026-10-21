@@ -146,6 +146,11 @@ export function expandBig(base) {
   }
   { const fr = places.filter(p => p.hub).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0];     // передовой стан: ближний к центру стан кольца — с книжницей
     if (fr && O.frontier) { fr.name = O.frontier; fr.frontier = true; const b = cfg.map.buildings.find(q => q.vil === fr.id && !q.npc); if (b) { b.npc = 'scribe'; b.chests = []; } } }
+  for (const RB of G.ringBosses || []) {     // боссы колец (4.06): логово — опасное место своей зоны, ближе к середине зоны
+    const cand = cfg.map.places.filter(p => p.id.startsWith('o') && p.type === 'danger' && !p.poi && !p.fort && !p.city && !p.boss).map(p => ({ p, q: zoneAt(cfg, p.x, p.z) })).filter(o => o.q && o.q.id === RB.zone).sort((a, b) => Math.abs(a.q.t - .5) - Math.abs(b.q.t - .5));
+    if (!cand.length) continue; const L = cand[0].p; L.name = RB.lair; L.boss = RB.type; L.danger = 3;
+    cfg.bosses.list.push({ type: RB.type, x: L.x, z: L.z, attacks: RB.attacks, phases: RB.phases, ring: true });
+  }
   cfg.world.props = Math.round(cfg.world.props * ((Rout - 1) ** 2 - 49) / ((Rin - 1) ** 2 - 49));     // та же плотность деревьев на всём круге
   cfg.world.depth = [...cfg.world.depth, [Rout, G.depthMax]];     // за прежним краем глубина ровная: уровень места — по зонам
   return cfg;

@@ -178,7 +178,9 @@ const LOOKS = {
   queen: { shape: 'imp', body: '#3a3428', dark: '#14100a', eye: '#a8ff60', crown: '#e8d890', ghost: true },
   alaric: { soldier: 'alaric' },     // поединок Акта I: модель бойца в белом
   chief: { shape: 'brute', body: '#5a2c24', dark: '#2a1210', eye: '#ffc030', crown: '#d8c8a8' },
-  ashking: { shape: 'brute', body: '#3a302c', dark: '#140e0c', eye: '#ffd040', crown: '#f0c040', prop: 'shield' },     // павшие города (2026-10-18)
+  ashking: { shape: 'brute', body: '#3a302c', dark: '#140e0c', eye: '#ffd040', crown: '#f0c040', prop: 'shield' },
+  brandlord: { shape: 'brute', body: '#3a1418', dark: '#120608', eye: '#ff3a3a', crown: '#8a1a1a', prop: 'shield' },     // боссы колец (4.06)
+  abyssking: { shape: 'brute', body: '#1c1828', dark: '#08060e', eye: '#a0ff6a', crown: '#4a3a6a', prop: 'shield' },     // павшие города (2026-10-18)
   kad_soldier: { soldier: 'kad_soldier' }, kad_xbow: { soldier: 'kad_xbow' }, kad_spear: { soldier: 'kad_spear' }, kad_banner: { soldier: 'kad_banner' }, alaric2: { soldier: 'alaric' },     // Акт II (этап 7): люди — облик бойца
   drowned: { shape: 'ghoul', body: '#3a5a5a', dark: '#14262a', eye: '#a8ffe0' }, golem: { shape: 'brute', body: '#3a2a22', dark: '#140c08', eye: '#ffa030', crown: '#ff7a20' },
   blackdog: { shape: 'hound', body: '#1e1a1c', dark: '#0a0808', eye: '#ff3a2a' }, garm: { shape: 'hound', body: '#2a1e1e', dark: '#0c0606', eye: '#ff2a1a', crown: '#4a3a30' },

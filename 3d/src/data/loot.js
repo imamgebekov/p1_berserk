@@ -32,7 +32,8 @@ export const BOSS_DROPS = {
   chief: { trophy: 'm_chief_fang', n: [2, .5], tomes: ['set_rust', 'blades_rust'] },
   castellan: { trophy: 'm_castellan_seal', n: [2, .6], tomes: [] },     // замки (C4)
   queen: { trophy: 'm_queen_veil', n: [2, .6], tomes: [] },
-  ashking: { trophy: 'm_ashking_crown', n: [2, .7], tomes: [], gold: .35 },     // павшие города (2026-10-18): gold — шанс золотой вещи
+  ashking: { trophy: 'm_ashking_crown', n: [2, .7], tomes: [], gold: .35 },
+  brandlord: { trophy: 'm_brand_ember', n: [2, .7], tomes: [], gold: .5 }, abyssking: { trophy: 'm_eclipse_shard', n: [2, .8], tomes: [], gold: .6 },     // боссы колец (4.06): трофей — редкий реагент     // павшие города (2026-10-18): gold — шанс золотой вещи
   bonetyrant: { trophy: 'm_tyrant_skull', n: [2, .7], tomes: [], gold: .35 },
   // Акт IV (этап 7): Отступники отдают сердце — его просит кузнец Гедеон
   swampelder: { trophy: 'm_apostle_heart', n: [1, 0], tomes: [] }, nestlord: { trophy: 'm_apostle_heart', n: [1, .3], tomes: [] }, abbot: { trophy: 'm_apostle_heart', n: [1, .3], tomes: [] },
