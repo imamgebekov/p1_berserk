@@ -222,6 +222,7 @@ const MATERIALS = [
 for (const [id, name, rar, val] of MATERIALS) add({ id: 'm_' + id, name, cat: 'material', pool: 'material', rar, stack: 20, value: val, text: 'Материал: пригодится для ковки и торговли.' });
 
 // материалы крафта: трофеи боссов (только с боссов), сплав (только крафтом), монстровые материалы (с врагов)
+add({ id: 'm_arcane_dust', name: 'Чародейская пыль', cat: 'material', pool: 'arcane', rar: 2, stack: 99, value: 6, tint: '#b48aff', text: 'Остаётся, когда книжница разбирает вещь. Нужна для зачарований в библиотеке лагеря.' });     // 4.00: сама не выпадает
 add({ id: 'm_devourer_heart', name: 'Сердце Пожирателя', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 240, text: 'Всё ещё тёплое. Трофей Пожирателя Погоста: нужен для именных вещей.' });
 add({ id: 'm_eclipse_cloak', name: 'Лоскут Затмения', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 240, text: 'Ткань тьмы, что не пропускает свет. Трофей Слуги Затмения.' });
 add({ id: 'm_chief_fang', name: 'Клык Вожака', cat: 'material', pool: 'trophy', rar: 4, stack: 20, value: 240, text: 'Желтоват и тяжёл. Трофей Вожака Ржавых.' });

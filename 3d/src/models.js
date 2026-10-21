@@ -465,7 +465,7 @@ export function makeNpc(kind = 'merchant', tint = '#5a4a3a') {
   if (VOL()) return npcVolume(kind, tint);
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const smith = kind === 'smith', cap = kind === 'captain', wand = kind === 'wanderer', trav = kind === 'traveler', m = c => lam(c);
-  root.add(box(.5, .8, .3, m(smith ? '#2a2420' : '#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : trav ? '#4a5a34' : tint), 0, 1.25, 0), box(.5, .5, .42, m(smith ? '#2a2420' : '#8a7a62'), 0, smith ? 1.1 : 1.0, .02), box(.42, .42, .42, m(smith ? '#b89a7a' : '#cdb89a'), 0, 1.95, 0));
+  root.add(box(.5, .8, .3, m(smith ? '#2a2420' : '#4a3a2c'), 0, .4, 0), box(.7, .9, .4, m(smith ? '#6a4a3a' : cap ? '#3a4a68' : kind === 'scribe' ? '#2e3e6a' : wand ? '#4a2e6e' : trav ? '#4a5a34' : tint), 0, 1.25, 0), box(.5, .5, .42, m(smith ? '#2a2420' : '#8a7a62'), 0, smith ? 1.1 : 1.0, .02), box(.42, .42, .42, m(smith ? '#b89a7a' : '#cdb89a'), 0, 1.95, 0));
   if (cap) root.add(box(.5, .3, .5, m('#8a8f98'), 0, 2.2, 0), box(.1, .35, .14, m('#a1121f'), 0, 2.5, 0), box(.1, 1.6, .1, m('#6a5a46'), .72, .8, .1));
   else if (kind === 'villager') root.add(box(.44, .16, .44, m('#3a2a1e'), 0, 2.2, 0));     // житель: простая шапка
   else if (trav) root.add(box(.6, .12, .6, m('#3a2a1a'), 0, 2.2, 0), box(.36, .7, .3, m('#6a4a2a'), 0, 1.3, -.32));     // шляпа и котомка
@@ -482,7 +482,7 @@ export function makeNpc(kind = 'merchant', tint = '#5a4a3a') {
 function npcVolume(kind, tint) {
   const g = new THREE.Group(), root = new THREE.Group(); g.add(root);
   const smith = kind === 'smith', cap = kind === 'captain', wand = kind === 'wanderer', trav = kind === 'traveler', m = c => lam(c);
-  const coat = P(m(smith ? '#6a4a3a' : cap ? '#3a4a68' : wand ? '#4a2e6e' : trav ? '#4a5a34' : tint), 'cloth'), legs = P(m(smith ? '#2a2420' : '#4a3a2c'), 'cloth'), skin = m(smith ? '#b89a7a' : '#cdb89a'), dark = P(m('#2a1c12'), 'leather');
+  const coat = P(m(smith ? '#6a4a3a' : cap ? '#3a4a68' : kind === 'scribe' ? '#2e3e6a' : wand ? '#4a2e6e' : trav ? '#4a5a34' : tint), 'cloth'), legs = P(m(smith ? '#2a2420' : '#4a3a2c'), 'cloth'), skin = m(smith ? '#b89a7a' : '#cdb89a'), dark = P(m('#2a1c12'), 'leather');
   const leg = s => limbV(legs, s * .14, .78, 0, .78, .11, .09, .08, mesh(blobGeo(.1, .07, .15, 0), legs, 0, .05, .04));     // сапог того же цвета — одна деталь на ногу (кадры в лагере)
   root.add(leg(1), leg(-1), mesh(barrelGeo(.36, .4, .82, 8, .72), coat, 0, 1.22, 0), mesh(barrelGeo(.34, .44, .5, 8, .74), coat, 0, .82, 0),     // туловище и полы
     mesh(barrelGeo(.37, .37, .08, 8, .72), dark, 0, 1.0, 0), mesh(barrelGeo(.09, .1, .14, 6), skin, 0, 1.68, 0));     // пояс, шея

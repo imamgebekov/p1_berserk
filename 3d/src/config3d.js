@@ -126,7 +126,7 @@ const BASE = {
       { x: 13,  z: -10, w: 7,  d: 6, door: 'w', kind: 'smithy',    chests: ['coffer', 'crate'], npc: 'smith' },      // кузнец переехал в лагерь
       { x: -4,  z: -20, w: 9,  d: 6, door: 's', kind: 'house',     chests: ['ironchest', 'rack', 'barrel'] },
       { x: 20,  z: 6,   w: 6,  d: 7, door: 'w', kind: 'barracks',  chests: ['sack', 'chest'], npc: 'captain' },     // и капитан
-      { x: -18, z: 14,  w: 7,  d: 7, door: 'e', kind: 'house',     chests: ['locked', 'shelf'] },
+      { x: -18, z: 14,  w: 7,  d: 7, door: 'e', kind: 'house',     chests: ['locked', 'shelf', 'shelf'], npc: 'scribe' },     // библиотека: книжница зачаровывает вещи (4.00)
       { x: 6,   z: 24,  w: 8,  d: 6, door: 'n', kind: 'house',     chests: ['medchest', 'crate', 'barrel'] },
       { x: -8,  z: 9,   w: 7,  d: 6, door: 'e', kind: 'shop',      chests: ['crate', 'coffer'], npc: 'merchant' },
       { x: -28, z: 30,  w: 9,  d: 7, door: 'n', kind: 'smithy',    chests: ['smithchest', 'smithchest', 'rack', 'ironchest'] },     // старая кузница
@@ -822,6 +822,10 @@ const BASE = {
     gems: { purple: .2, goldRank: 2, rank2: .25, els: ['fire', 'ice', 'storm', 'venom', 'blood', 'earth', 'water'] },
     base: { dmg: [1, .12], armor: [1, .1], hp: [4, .6], crit: [2, .06], leech: [1, .03], spd: [2, .04], luck: [3, .15], regen: [.5, .01], stealth: [4, .1], burnCh: [3, .1], poisonCh: [3, .1], shockCh: [3, .1], bleedCh: [3, .1] },
     max: { dmg: 12, armor: 10, hp: 45, crit: 8, leech: 4, spd: 6, luck: 15, regen: 1.5, stealth: 12, burnCh: 12, poisonCh: 12, shockCh: 12, bleedCh: 12 } },
+  // библиотека (4.00, просьба владельца): книжница в доме с полками в лагере (снаружи — вид церкви). Разбор ненужной вещи → чародейская пыль (yield по редкости);
+  // зачарование за пепел и пыль: добавить свойство (не больше своих по редкости + extra и не больше cap), перековать одно, поднять качество.
+  // Цена: пепел = base + цена вещи × valueK, пыль — dust по редкости; каждое зачарование вещи дороже на grow
+  enchant: { on: true, npc: 'scribe', item: 'm_arcane_dust', yield: [1, 1, 2, 4, 6, 9], upYield: 1, dust: [1, 1, 2, 3, 4, 5], base: 20, valueK: .35, grow: .6, extra: 1, cap: 4 },
   elite: {
     chance: .04, depthK: .03, dangerK: .03, nightK: .03, hp: 1.9, dmg: 1.2, xp: 3, scale: 1.2, luck: 10, lootRolls: 2,
     affixes: {

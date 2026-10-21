@@ -149,7 +149,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
     }
     if (it.perks && it.perks.length) cardEl.appendChild(el('div', 'cs', 'Свойства: ' + it.perks.map(id => PERKS[id].name).join(', ')));
     if (it.text) cardEl.appendChild(el('div', 'ct', it.text));
-    cardEl.appendChild(el('div', 'cv', `Продажа: ${sellPrice(it, cfg, up, W.gear.trade)} пепла (только у торговца)`));
+    cardEl.appendChild(el('div', 'cv', `Продажа: ${sellPrice(it, cfg, up, W.gear.trade, il, afSel)} пепла (только у торговца)`));
     const row = el('div', 'acts');
     const btn = (label, fn, cls) => { const b = el('button', cls || '', label); b.type = 'button'; b.addEventListener('click', () => { fn(); render(); onChange && onChange(); }); row.appendChild(b); };
     if (sel.from === 'eq') btn('Снять', () => { if (!unequip(TI(), sel.slot, bagSlots(W))) flash('Сумка полна'); else sel = null; }, 'main');
@@ -159,8 +159,8 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       if (it.slot === 'weapon' && canOff(TH(), it)) btn('Во вторую руку', () => { if (equipOff(TI(), sel.i, TH())) sel = null; }, 'main');
       if (it.cat === 'tome') btn('Прочитать', () => { const r = readTome(W, sel.i); if (r === 'known') flash('Эта книга уже прочитана'); else sel = null; }, 'main');
       if (it.use) btn('Использовать', () => { if (!useItem(W, sel.i)) flash('Сейчас не нужно'); else if (!W.inv.bag[sel.i] || W.inv.bag[sel.i].id !== it.id) sel = null; }, 'main');
-      btn(`Продать · ${sellPrice(it, cfg, up, W.gear.trade) * n}`, () => { if (sellItem(W, sel.i, n) === 'far') flash('Продавать можно только у торговца'); else sel = null; });
-      if (n > 1) btn(`Продать 1 · ${sellPrice(it, cfg, up, W.gear.trade)}`, () => { if (sellItem(W, sel.i, 1) === 'far') flash('Продавать можно только у торговца'); });
+      btn(`Продать · ${sellPrice(it, cfg, up, W.gear.trade, il, afSel) * n}`, () => { if (sellItem(W, sel.i, n) === 'far') flash('Продавать можно только у торговца'); else sel = null; });
+      if (n > 1) btn(`Продать 1 · ${sellPrice(it, cfg, up, W.gear.trade, il, afSel)}`, () => { if (sellItem(W, sel.i, 1) === 'far') flash('Продавать можно только у торговца'); });
       if (it.slot) { const s0 = W.inv.bag[sel.i]; btn(s0 && s0.lock ? 'Снять замок' : 'Замок', () => { const s = W.inv.bag[sel.i]; if (s) { if (s.lock) delete s.lock; else s.lock = true; } }); }     // замок: «продать хуже надетого» не тронет (этап 4 «круче»)
       btn('Выбросить', () => { dropItem(W, sel.i, n); sel = null; });
       if (onSource && /material|craftmat|monstermat|ore|trophy|gem/.test(it.pool || it.cat || '')) btn('Где взять', () => onSource(it.id));     // на телефоне нет клавиши G: источники материала — кнопкой

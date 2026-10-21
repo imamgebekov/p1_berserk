@@ -56,7 +56,7 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     const gb = el('div', 'tgridx'), gs = el('div', 'tgridx');
     sh.stock.forEach((s, i) => { const it = BY_ID[s.id], price = stockPrice(W, s); gb.append(tile(it, s.n, price, 'buy', i, (W.inv.ash < price ? ' poor' : '') + (it.slot && !canWield(W.hero, it) ? ' nope' : '') + (s.tier ? ' rare' : '') + (s.fresh ? ' fresh' : ''))); });
     if (!sh.stock.length) gb.append(el('div', 'emptyl', wand ? 'Всё раскуплено. Сказочный торговец скоро уедет.' : 'Всё раскуплено. Витрина обновится позже.'));
-    W.inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; gs.append(tile(it, s.n, sellPrice(it, cfg, s.up || 0, W.gear.trade) * s.n, 'sell', i, s.lock ? ' locked' : '')); });
+    W.inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; gs.append(tile(it, s.n, sellPrice(it, cfg, s.up || 0, W.gear.trade, s.il, s.af) * s.n, 'sell', i, s.lock ? ' locked' : '')); });
     if (!W.inv.bag.length) gs.append(el('div', 'emptyl', 'Сумка пуста.'));
     buyP.append(gb); sellP.append(gs, junkBtn, worseBtn); junkBtn.hidden = false; worseBtn.hidden = false;
     wrap.append(buyP, sellP); listEl.append(wrap);
@@ -68,7 +68,7 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       const im = doc.createElement('img'); im.src = iconURL(doc, it); im.alt = ''; const ic = el('span', 'tsi'); ic.style.setProperty('--rc', RARITY[it.rar].color); ic.append(im);
       const info = el('div', 'tsinfo'); info.append(nm, el('div', 'sub', `${RARITY[it.rar].name}${it.slot && !canWield(W.hero, it) ? ' · ' + NOT_FOR[W.hero] : ''}${it.slot && betterThanWorn(W.inv, it) ? ' · ▲ лучше надетого' : ''}`), el('div', 'sub', it.stats ? statLine(it) : it.text || ''));
       if (s.tier) info.append(el('div', 'sub g', cfg.shop.rare.tiers[s.tier - 1].name));
-      const price = sel.side === 'buy' ? stockPrice(W, s) : sellPrice(it, cfg, up, W.gear.trade) * s.n, key = s.id + ':' + sel.i;
+      const price = sel.side === 'buy' ? stockPrice(W, s) : sellPrice(it, cfg, up, W.gear.trade, s.il, s.af) * s.n, key = s.id + ':' + sel.i;
       const b = el('button', 'tact ' + sel.side + (sel.side === 'buy' && W.inv.ash < price ? ' no' : ''), sel.side === 'buy' ? `Купить · ${price}` : (it.rar >= 3 && armed !== key ? `Продать? · ${price}` : `Продать${s.n > 1 ? ' всё' : ''} · ${price}`));
       b.type = 'button'; b.addEventListener('click', act); card.append(ic, info, b);
     } else card.append(el('div', 'sub', 'Нажмите на вещь — подробности и цена. Двойной щелчок — сразу купить или продать.'));

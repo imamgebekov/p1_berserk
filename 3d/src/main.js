@@ -5,6 +5,7 @@ import { BY_ID, RARITY, STAT_NAME } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith, createCaptain } from './shop.js';
+import { createLibrary } from './libui.js';
 import { createSkills } from './skillsui.js';
 import { createJournal } from './journal.js';
 import { createQuests } from './questsui.js';
@@ -64,7 +65,7 @@ const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
 // iOS Safari местами игнорирует touch-action: страницу нельзя ни листать, ни тянуть, ни масштабировать, пока открыта не панель
-const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith, #skills, #map, #captain, #journal, #quests');
+const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith, #lib, #skills, #map, #captain, #journal, #quests');
 document.addEventListener('touchmove', e => { if (!inPanel(e)) e.preventDefault(); }, { passive: false });
 for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -369,13 +370,18 @@ const smith = createSmith(document, W, cfg, {
   onChange: () => { saver.write(); bag.render(); },
   onSource: id => { smith.close(); journal.open('sources', id); }
 });
+const library = createLibrary(document, W, cfg, {
+  onOpen: () => { panelOpen = true; input.release(); },
+  onClose: () => { panelOpen = false; saver.write(); },
+  onChange: () => { saver.write(); bag.render(); }
+});
 // книга рецептов: кнопка на HUD и клавиша R; G — «где взять» для вещи под курсором (data-item)
 $('bookBtn').addEventListener('click', () => { if (!panelOpen) journal.open('recipes'); });
 let hoverItem = null;
 addEventListener('mouseover', e => { const t = e.target.closest && e.target.closest('[data-item]'); hoverItem = t ? t.dataset.item : null; });
 function whereFrom() {
   const id = hoverItem; hideTipAll();
-  for (const s of document.querySelectorAll('#bag:not([hidden]) button.close, #smith:not([hidden]) button.close, #shop:not([hidden]) button.close')) s.click();
+  for (const s of document.querySelectorAll('#bag:not([hidden]) button.close, #smith:not([hidden]) button.close, #lib:not([hidden]) button.close, #shop:not([hidden]) button.close')) s.click();
   journal.open('sources', id || null);
 }
 const hideTipAll = () => { const t = $('bagTip'); if (t) t.hidden = true; };
@@ -529,7 +535,7 @@ $('impBtn').addEventListener('click', () => {
 const questBtn = $('questBtn'), trackerEl = $('tracker'); questBtn.addEventListener('click', e => { e.stopImmediatePropagation(); quests.open('here'); }, true);
 let lastTrack = '', lastMark = '';
 const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
-talk.addEventListener('click', e => { e.stopImmediatePropagation(); if (storyTalkable(W, W.nearNpc)) { dlgOpen(storyTalk(W, W.nearNpc)); return; } if (W.nearActor) { if (questsOf(W, W.nearNpc).length) quests.open('here'); else toast(`${W.nearActor.name.split(',')[0]}: «Потом. Делай, что должен.»`, '', W.nearActor.tint); return; } (W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : shop).open(); }, true);     // сюжет первым (этап 3)
+talk.addEventListener('click', e => { e.stopImmediatePropagation(); if (storyTalkable(W, W.nearNpc)) { dlgOpen(storyTalk(W, W.nearNpc)); return; } if (W.nearActor) { if (questsOf(W, W.nearNpc).length) quests.open('here'); else toast(`${W.nearActor.name.split(',')[0]}: «Потом. Делай, что должен.»`, '', W.nearActor.tint); return; } (W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : W.nearNpc === 'scribe' ? library : shop).open(); }, true);     // сюжет первым (этап 3)
 // костры (C3d): у костра — список открытых, перенос к выбранному
 const fireBtn = $('fireBtn'), firesSec = $('fires');
 function openFires() {
@@ -773,7 +779,7 @@ function frame(now) {
   { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
   const hud = (hudT += real) >= cfg.cull.hud || paused !== hudP; if (hud) { hudT = 0; hudP = paused; }     // кнопки, статусы и умения — 10 раз в секунду (и сразу при открытии меню)
   if (hud) { const show = !!W.nearNpc && (storyTalkable(W, W.nearNpc) || !npcLocked(W.nearNpc)) && !panelOpen && !landscape;     // сюжетный разговор — даже у закрытого жителя
-  if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
+  if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'scribe' ? 'Библиотека' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
   if (hud) { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : ''));
     const free = !f && !W.nearPortal && !panelOpen && !landscape && !W.player.dead, cn = free && W.life && coachNear(W), nd = free && !cn && W.life && nodeNear(W);     // этап 6: повозка, сбор, конь
     if (coachBtn.hidden === !!cn) coachBtn.hidden = !cn; if (cn) { const l = 'Повозка' + (desk ? ' · E' : ''); if (coachBtn.textContent !== l) coachBtn.textContent = l; }

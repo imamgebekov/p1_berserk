@@ -4,7 +4,7 @@ import { BY_ID } from './data/items.js';
 import { SHOP, SHOP_STAPLES, rollLoot, pickItem } from './data/loot.js';
 import { canWield } from './data/heroes3d.js';
 import { mulberry32 } from './sim.js';
-import { addItem, removeAt, hasGems, roomFor, entryOf, nomIl, ilMul, scoreUp } from './inv.js';
+import { addItem, removeAt, hasGems, roomFor, entryOf, nomIl, ilMul, scoreUp, qOf } from './inv.js';
 
 // ---- кузнец: улучшение вещей за пепел ----
 export const upgradeCost = (it, lvl, cfg) => Math.round(cfg.smith.base + it.value * cfg.smith.costK * Math.pow(lvl + 1, cfg.smith.pow));
@@ -23,7 +23,7 @@ export function upgradeItem(W, where) {
 }
 
 // ---- торговля ----
-export const sellPrice = (it, cfg, up = 0, trade = 0, il = 0) => Math.max(1, Math.round(it.value * cfg.shop.sellMul * (1 + up * .25) * ilMul(it, il) * (1 + trade / 100)));     // вещь выше уровнем — дороже
+export const sellPrice = (it, cfg, up = 0, trade = 0, il = 0, af = null) => Math.max(1, Math.round(it.value * cfg.shop.sellMul * (1 + up * .25) * ilMul(it, il) * qOf(af) * (1 + trade / 100)));     // вещь выше уровнем — дороже
 export const buyPrice = (it, cfg, mul = 1) => Math.max(2, Math.round(it.value * cfg.shop.buyMul * mul));
 // полка редкостей (G3): при каждом обновлении витрины — свой бросок по уровням (редкое, очень редкое, супер редкое);
 // только то, что герой может носить; свой генератор — бой не сдвигается. tier — номер уровня (1–3), fresh — «новинка»
@@ -75,9 +75,9 @@ export function sellItem(W, idx, n = 1) {
     const tmp = { bag: JSON.parse(JSON.stringify(W.inv.bag)) }; tmp.bag.splice(idx, 1);
     const max = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
     for (const g of s.g) if (g && addItem(tmp, g, 1, max) > 0) return 'full';
-    W.inv.bag = tmp.bag; W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade, s.il); W.ev.push({ k: 'unsocket', n: s.g.filter(Boolean).length }); return 'ok';
+    W.inv.bag = tmp.bag; W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade, s.il, s.af); W.ev.push({ k: 'unsocket', n: s.g.filter(Boolean).length }); return 'ok';
   }
-  W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade, s.il) * q; removeAt(W.inv, idx, q); return 'ok';
+  W.inv.ash += sellPrice(it, W.cfg, s.up || 0, W.gear.trade, s.il, s.af) * q; removeAt(W.inv, idx, q); return 'ok';
 }
 // продать снаряжение хуже надетого (этап 4 «круче»): только то, что герой носит; без замка, заточки и камней; клеймёное и золотое —
 // вручную. Вернёт { sum, n } или −1 (торговца рядом нет)
@@ -88,7 +88,7 @@ export function sellWorse(W) {
     const s = inv.bag[i], it = BY_ID[s.id]; if (!it || !it.slot || s.lock || s.up || hasGems(s.g) || it.rar >= 4 || !canWield(W.hero, it)) continue;
     const cur = inv.eq[it.slot]; if (!cur) continue;
     if (scoreUp(it, 0, B, s.il, s.af) + .5 >= scoreUp(BY_ID[cur], inv.up[it.slot] || 0, B, inv.il && inv.il[it.slot], inv.af && inv.af[it.slot])) continue;
-    sum += sellPrice(it, W.cfg, 0, W.gear.trade, s.il || 0); inv.bag.splice(i, 1); n++;
+    sum += sellPrice(it, W.cfg, 0, W.gear.trade, s.il || 0, s.af); inv.bag.splice(i, 1); n++;
   }
   inv.ash += sum; return { sum, n };
 }
@@ -96,7 +96,7 @@ export function sellWorse(W) {
 export function sellJunk(W) {
   if (!W.nearMerchant || closed(W)) return -1;
   let sum = 0;
-  for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if (it.cat === 'curio' || it.cat === 'material') { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
+  for (let i = W.inv.bag.length - 1; i >= 0; i--) { const s = W.inv.bag[i], it = BY_ID[s.id]; if ((it.cat === 'curio' || it.cat === 'material') && it.pool !== 'arcane') { sum += sellPrice(it, W.cfg, 0, W.gear.trade) * s.n; W.inv.bag.splice(i, 1); } }
   W.inv.ash += sum; return sum;
 }
 

@@ -25,6 +25,7 @@ const entryOf = (id, up, g, il, af) => { const e = { id, n: 1 }; if (up) e.up = 
 export function cleanAf(af, cfg = CFG3) {
   const A = cfg.affix; if (!A || !af || typeof af !== 'object') return null; const o = {};
   for (const [k, v] of Object.entries(af)) if (A.max[k] && Number.isFinite(v) && v > 0) o[k] = Math.min(A.max[k], Math.round(v * 10) / 10);
+  if (Number.isFinite(af.en) && af.en > 0) o.en = Math.min(99, Math.floor(af.en));     // сколько раз вещь зачарована в библиотеке (4.00)
   if (A.quality && Number.isFinite(af.q)) o.q = Math.min(A.quality[1], Math.max(A.quality[0], Math.round(af.q * 100) / 100));     // качество — в своём разбросе
   return Object.keys(o).length ? o : null;
 }
@@ -160,7 +161,7 @@ export function deserialize(data, maxSlots, hero, cfg) {
 // upIt, upWorn — уровни заточки (как в gearStats: урон, броня, здоровье, крит, вампиризм × (1 + уровень × bonus))
 const upped = (st, up, bonus, mi = 1, q = 1) => { const o = { ...st }; if (up || mi !== 1 || q !== 1) for (const k of UPS) if (o[k] > 0) o[k] = rnd(k, o[k] * (1 + up * bonus) * (IL_KEYS.includes(k) ? mi : 1) * q); return o; };
 const saneIl = v => (Number.isFinite(v) && v >= 1 ? Math.min(99, Math.floor(v)) : 0);
-const plusAf = (st, af) => { if (!af) return st; const o = { ...st }; for (const [k, v] of Object.entries(af)) if (k !== 'q') o[k] = (o[k] || 0) + v; return o; };     // свойства вещи — поверх её статов
+const plusAf = (st, af) => { if (!af) return st; const o = { ...st }; for (const [k, v] of Object.entries(af)) if (k !== 'q' && k !== 'en') o[k] = (o[k] || 0) + v; return o; };     // свойства вещи — поверх её статов
 export function statDiff(it, worn, upIt = 0, upWorn = 0, bonus = .1, ilIt = 0, ilWorn = 0, afIt = null, afWorn = null) {
   const a = plusAf(upped((worn && worn.stats) || {}, upWorn, bonus, ilMul(worn, ilWorn), qOf(afWorn)), afWorn), b = plusAf(upped((it && it.stats) || {}, upIt, bonus, ilMul(it, ilIt), qOf(afIt)), afIt), keys = [...new Set([...Object.keys(b), ...Object.keys(a)])];
   return keys.map(k => {

@@ -4,7 +4,7 @@ import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, killEnemy, equipBest, dropItem, spawnEnemy } from '../3d/src/sim.js';
 import { rollAffixes, affixFor, affixLines, affixCount, rollGems } from '../3d/src/affix3d.js';
 import { createInv, entryOf, gearStats, serialize, deserialize, scoreUp, socketsOf } from '../3d/src/inv.js';
-import { sellWorse } from '../3d/src/economy3d.js';
+import { sellWorse, sellPrice } from '../3d/src/economy3d.js';
 import { eventLine } from '../3d/src/events3d.js';
 import { CATALOG, BY_ID } from '../3d/src/data/items.js';
 
@@ -43,6 +43,7 @@ const A = CFG3.affix;
   const g0 = gearStats(inv).dmg; inv.af.weapon = { q: 1.15 }; const gHi = gearStats(inv).dmg; inv.af.weapon = { q: .85 }; const gLo = gearStats(inv).dmg;
   ok(gHi > g0 && gLo < g0, `качество не меняет урон: ${gLo} / ${g0} / ${gHi}`);
   ok(scoreUp(w, 0, .1, 20, { q: 1.15 }) > scoreUp(w, 0, .1, 20, { q: .85 }), 'качество не входит в оценку');
+  ok(sellPrice(w, CFG3, 0, 0, 20, { q: 1.15 }) > sellPrice(w, CFG3, 0, 0, 20, { q: .85 }), 'цена продажи не зависит от качества');
   inv.af.weapon = { burnCh: 7 }; ok(gearStats(inv).burnCh === 7, 'шанс поджога не в силе вещи');
   const qs = CATALOG.filter(i => i.slot === 'weapon' && i.rar === 2).slice(0, 20).map((it, i) => rollAffixes(CFG3, it.id, 20, 900 + i).q);
   ok(new Set(qs).size > 10, 'качество почти не меняется: ' + qs.join(','));
