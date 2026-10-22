@@ -526,7 +526,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   })();
   // ореолы ночью (V2c): светлые пятна к камере у фонарей и костров (без настоящих источников света); одним вызовом
   const HS = cfg.shaders && cfg.shaders.halo, haloSpots = [];
-  for (const d of map.decor) { if (d.t === 'lamp') { const c = Math.cos(d.rot || 0), s = Math.sin(d.rot || 0); haloSpots.push({ x: d.x + .28 * c, y: 2.75, z: d.z - .28 * s, k: 'lamp' }); } else if (d.t === 'campfire') haloSpots.push({ x: d.x, y: .7, z: d.z, k: 'fire' }); }
+  const LM = HS && !modelsOff() && HS.lampModel;     // 4.11: у модели фонаря светильник ниже и на кронштейне; фонари у дверей (детали) — тоже с ореолом
+  for (const d of map.decor.concat(surfaceDetails(map, cfg).filter(q => q.t === 'lamp'))) { if (d.t === 'lamp') { const c = Math.cos(d.rot || 0), s = Math.sin(d.rot || 0); haloSpots.push(LM ? { x: d.x + LM[1] * s, y: LM[0], z: d.z + LM[1] * c, k: 'lamp', sz: LM[2] } : { x: d.x + .28 * c, y: 2.75, z: d.z - .28 * s, k: 'lamp' }); } else if (d.t === 'campfire') haloSpots.push({ x: d.x, y: .7, z: d.z, k: 'fire' }); }
   for (const f of map.fires || []) haloSpots.push({ x: f.x, y: .7, z: f.z, k: 'fire' });
   const halos = (() => { if (!HS || !HS.on) return null;
     const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
@@ -536,7 +537,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function updateHalos(px, pz, night, t) {
     if (!halos) return; let n = 0;
     if (night > .02) for (const h of haloSpots) { if (n >= HS.max || Math.abs(h.x - px) > HS.near || Math.abs(h.z - pz) > HS.near) continue;
-      const sz = HS[h.k][0] * (h.k === 'fire' && !calm ? 1 + .08 * Math.sin(t * 9 + h.x) : 1); haloO.position.set(h.x, h.y + Y(h.x, h.z), h.z); haloO.quaternion.copy(camera.quaternion); haloO.scale.set(sz, sz, 1); haloO.updateMatrix();
+      const sz = (h.sz || HS[h.k][0]) * (h.k === 'fire' && !calm ? 1 + .08 * Math.sin(t * 9 + h.x) : 1); haloO.position.set(h.x, h.y + Y(h.x, h.z), h.z); haloO.quaternion.copy(camera.quaternion); haloO.scale.set(sz, sz, 1); haloO.updateMatrix();
       halos.setMatrixAt(n, haloO.matrix); halos.setColorAt(n, haloTmp.copy(haloC[h.k]).multiplyScalar(night * .55)); n++; }
     halos.count = n; halos.instanceMatrix.needsUpdate = true; if (halos.instanceColor) halos.instanceColor.needsUpdate = true;
   }
