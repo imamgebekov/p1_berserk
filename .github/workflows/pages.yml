@@ -28,8 +28,8 @@ jobs:
           cache: npm
       - name: Установка зависимостей
         run: npm ci
-      - name: Тесты ядра (предметы, экономика, прогресс, бой, headless)
-        run: npm test
+      - name: Быстрые тесты ядра (полный набор — у разработчика перед пушем, npm run check:full)
+        run: npm run test:ci
       - name: Сборка
         run: npm run build
       - uses: actions/configure-pages@v5
