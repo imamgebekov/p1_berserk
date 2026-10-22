@@ -24,7 +24,7 @@ const shot = (W, sec = 1.2) => { freeze(W); step(W, 1 / 60, { attackPress: true 
 // ---------- 1. каталог, добыча, вид ----------
 {
   const R = CATALOG.filter(i => i.pool === 'ranged');
-  ok(R.length === 21 && R.every(i => i.slot === 'weapon' && TRAITS[i.kind].ranged && KIND_NAME[i.kind] && i.text), `луков и арбалетов ${R.length}`);
+  ok(R.length === 24 && R.every(i => i.slot === 'weapon' && TRAITS[i.kind].ranged && KIND_NAME[i.kind] && i.text), `луков и арбалетов ${R.length}`);     // 4.20: +3 багровых
   ok(R.every(i => ['bow', 'crossbow'].includes(templateOf(i)) && familyOf(i.kind) === 'bow'), 'у лука не тот значок или поза');
   ok(!CATALOG.some(i => i.pool === 'weapon' && TRAITS[i.kind] && TRAITS[i.kind].ranged), 'лук в пуле ближнего оружия');
   const has = d => d.pools.some(p => p[0] === 'ranged' && p[1] > 0);

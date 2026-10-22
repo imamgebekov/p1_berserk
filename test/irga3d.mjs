@@ -29,7 +29,7 @@ const cast = (W, id) => useAbility(W, IDS.indexOf(id));
   ok(HEROES.irga.armorBan.length >= 6 && CFG3.abilities.res.irga.name === 'Мана', 'Ирга без запрета тяжёлой брони или без маны');     // хрупкость — лёгкая броня (здоровье ×1 после баланса)
   const heavy = CATALOG.filter(i => ['helm', 'sallet', 'cuirass', 'mail', 'plate', 'greaves'].includes(i.kind) && i.slot !== 'weapon'), light = CATALOG.filter(i => ['hood', 'cap', 'robe', 'jerkin', 'shoes', 'wraps', 'cloak'].includes(i.kind));
   ok(heavy.length > 20 && heavy.every(i => !canWield('irga', i)) && light.every(i => canWield('irga', i)) && heavy.every(i => canWield('thorn', i)), 'правило лёгкой брони неверно');
-  const mags = CATALOG.filter(i => i.pool === 'magic'); ok(mags.length === 14 && mags.every(i => canWield('irga', i) && !canWield('jay', i) && !canWield('thorn', i)), 'посохи и жезлы: 14 штук только для Ирги');
+  const mags = CATALOG.filter(i => i.pool === 'magic'); ok(mags.length === 16 && mags.every(i => canWield('irga', i) && !canWield('jay', i) && !canWield('thorn', i)), 'посохи и жезлы: 16 штук только для Ирги');     // 4.20: +2 багровых
   const W = mk(); W.inv.bag.push({ id: 'a_body_plate_iron', n: 1 }); const pl = CATALOG.find(i => i.slot === 'body' && i.kind === 'plate'); W.inv.bag = [{ id: pl.id, n: 1 }];
   ok(!equipAt(W.inv, 0, 'irga') && !W.inv.eq.body, 'Ирга надела латы');
   const T = mk('w_sword_iron'); T.hero = 'thorn'; T.inv.eq.body = pl.id; switchHero(T, 'irga'); ok(!T.inv.eq.body && T.inv.bag.some(s => s.id === pl.id), 'при смене на Иргу латы не ушли в сумку');

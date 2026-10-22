@@ -12,7 +12,8 @@ export const RARITY = [
   { id: 'rare', name: 'Редкий', color: '#5d9cec' },
   { id: 'epic', name: 'Великий', color: '#b388eb' },
   { id: 'brand', name: 'Клеймёный', color: '#e8643a' },
-  { id: 'gold', name: 'Золотой', color: '#f5c542' }                // G3b: только у торговца, со своей механикой
+  { id: 'gold', name: 'Золотой', color: '#f5c542' },
+  { id: 'crimson', name: 'Багровый', color: '#ff4d5e' }                // G3b: только у торговца, со своей механикой
 ];
 
 export const SLOTS = ['weapon', 'offhand', 'head', 'body', 'cloak', 'boots', 'ring', 'amulet'];
@@ -73,7 +74,8 @@ const WMATS = [
   ['bone', ['Костяной', 'Костяная', 'Костяное'], 1.4, 1, 28],
   ['steel', ['Стальной', 'Стальная', 'Стальное'], 1.65, 2, 70],
   ['black', ['Чёрный', 'Чёрная', 'Чёрное'], 2.05, 3, 160],
-  ['blood', ['Кровавый', 'Кровавая', 'Кровавое'], 2.5, 4, 380]
+  ['blood', ['Кровавый', 'Кровавая', 'Кровавое'], 2.5, 4, 380],
+  ['crimson', ['Багровый', 'Багровая', 'Багровое'], 2.97, 6, 620]     // 4.20: седьмая редкость — чёрное ×1,45, падает редко и только с 40-го
 ];
 for (const [t, nm, g, base, reach, crit, swing] of WTYPES) for (const [m, adj, mult, rar, val] of WMATS) {
   const stats = { dmg: Math.round(base * mult) };
@@ -140,7 +142,8 @@ const AMATS = [
   ['mail', ['Кольчужный', 'Кольчужная', 'Кольчужное', 'Кольчужные'], 1.55, 2, 60],
   ['plate', ['Пластинчатый', 'Пластинчатая', 'Пластинчатое', 'Пластинчатые'], 1.95, 3, 130],
   ['black', ['Чернёный', 'Чернёная', 'Чернёное', 'Чернёные'], 2.35, 3, 190],
-  ['ash', ['Пепельный', 'Пепельная', 'Пепельное', 'Пепельные'], 2.9, 4, 420]
+  ['ash', ['Пепельный', 'Пепельная', 'Пепельное', 'Пепельные'], 2.9, 4, 420],
+  ['crimson', ['Багровый', 'Багровая', 'Багровое', 'Багровые'], 3.41, 6, 700]     // 4.20: чернёное ×1,45
 ];
 for (const slot of Object.keys(ATYPES)) for (const [t, nm, g, base, extra] of ATYPES[slot]) for (const [m, adj, mult, rar, val] of AMATS) {
   const stats = { armor: Math.max(1, Math.round(base * mult)) };
@@ -462,7 +465,7 @@ export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
 export const item = id => BY_ID[id];
 // индекс «пул → редкость → вещи» для таблиц добычи
 export const BY_POOL = {};
-for (const it of ITEMS) ((BY_POOL[it.pool] ||= [[], [], [], [], [], []])[it.rar]).push(it);
+for (const it of ITEMS) ((BY_POOL[it.pool] ||= [[], [], [], [], [], [], []])[it.rar]).push(it);
 export const rarityColor = it => RARITY[it.rar].color;
 
 // короткое описание статов: «+7 урон · +3% крит»

@@ -261,12 +261,13 @@ function bossDefeated(W, e) {
   const bd = BOSS_DROPS[e.type] || { trophy: null, n: [0, 0], tomes: [] }, items = [];
   if (bd.trophy) items.push({ id: bd.trophy, n: bd.n[0] + (W.rng() < bd.n[1] ? 1 : 0) });
   { const own = [...((e.b && e.b.def && e.b.def.loot) || [])], I = W.cfg.instances;     // своя добыча босса подземелья (этап 5): одна вещь наверняка, вторая — с шансом, на героической — ещё extra
-    for (let k = own.length ? 1 + (W.rng() < I.loot2 ? 1 : 0) + (e.heroic ? I.heroic.extra : 0) : 0; k > 0 && own.length; k--) items.push({ id: own.splice((W.rng() * own.length) | 0, 1)[0], n: 1 }); }
+    const raid = W.levels && W.levels[W.lvl] && W.levels[W.lvl].def && W.levels[W.lvl].def.raid, l2 = raid && W.cfg.lootIl && W.cfg.lootIl.on ? W.cfg.lootIl.raid2 : I.loot2;     // 4.20: рейд — вторая вещь 50/50
+    for (let k = own.length ? 1 + (W.rng() < l2 ? 1 : 0) + (e.heroic ? I.heroic.extra : 0) : 0; k > 0 && own.length; k--) items.push({ id: own.splice((W.rng() * own.length) | 0, 1)[0], n: 1 }); }
   const tid = bd.tomes.find(t => !W.known.tomes[t] && !W.inv.bag.some(x => x.id === 'tome_' + t) && !W.drops.some(x => x.id === 'tome_' + t));
   if (tid) items.push({ id: 'tome_' + tid, n: 1 });                      // книга выпадает, пока не прочитана (первой по порядку)
   items.push({ id: 'key_black', n: 1 }, ...rollLoot(BOSS_LOOT, W.rng, 1, W.gear.luck));
   if (bd.gold && W.rng() < bd.gold) { const G = CATALOG.filter(i => i.pool === 'gold'); items.push({ id: G[(W.rng() * G.length) | 0].id, n: 1 }); }     // босс павшего города: шанс золотой вещи
-  items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: ilRoll(W, Math.max(e.lvl || 1, W.lv), e.id + i) + W.cfg.level.il.drop + (e.heroic ? W.cfg.instances.heroic.il : 0) } : {}) }); });     // с босса — не ниже уровня героя
+  items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: (lootIl(W, e, e.id + i) ?? ilRoll(W, Math.max(e.lvl || 1, W.lv), e.id + i) + W.cfg.level.il.drop) + (e.heroic ? W.cfg.instances.heroic.il : 0) } : {}) }); });     // с босса — не ниже уровня героя
   for (const m of e.b.minions) if (!m.dead) { m.dead = true; m.deadT = 0; }
   W.bossDead[e.type] = Math.round(W.cfg.bosses.respawn * W.dif.boss);
   W.ev.push({ k: 'bossdead', name: C.name, type: e.type, x: e.x, z: e.z });     // type — для «Пути пепла» (шаг 13)
@@ -340,7 +341,7 @@ export function killEnemy(W, e, share) {
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
   { const H = heroMul(W), kh = H.killHeal ? H.killHeal * clamp((H.healLv[1] - W.lv) / (H.healLv[1] - H.healLv[0]), 0, 1) : 0, p = W.player; if (kh && !p.dead && p.hp > 0 && len(p.x - e.x, p.z - e.z) < 6 && W.enemies.filter(o => !o.dead && len(o.x - p.x, o.z - p.z) < 6).length >= 2) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * kh); }     // «второе дыхание» Торна: убил рядом — подлечился
-  { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
+  { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: lootIl(W, e, e.id) ?? ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
   { const gid = gemDropOf(W, e); if (gid) { W.drops.push({ id: gid, n: 1, x: e.x + .5, z: e.z - .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: gid }); } }     // камень силы
   if (share >= 1) mixOnDeath(W, e);
   if (share >= 1 && W.gfx.midas && !e.boss && W.rng() < W.gfx.midas) dropLoot(W, e);                         // Перстень Мидаса: добыча дважды
@@ -357,9 +358,9 @@ function dropLoot(W, e) {
   if (e.noLoot || e.duel) return;     // сюжетные: поединок без добычи
   const depth = clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1);
   const rolls = e.elite ? W.cfg.elite.lootRolls : 1;
-  for (let r = 0; r < rolls; r++) for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck + (e.elite ? W.cfg.elite.luck : 0), W.cfg.drops.brandK, W.cfg.loot && W.cfg.loot.on ? { lvl: e.lvl, L: W.cfg.loot } : null, W.cfg.drops)) {
+  for (let r = 0; r < rolls; r++) for (const it of rollDrop(e.type, W.rng, depth, W.gear.luck + (e.elite ? W.cfg.elite.luck : 0), W.cfg.drops.brandK, W.cfg.loot && W.cfg.loot.on ? { lvl: W.cfg.lootIl && W.cfg.lootIl.on ? Math.min(W.lv, e.lvl + W.cfg.lootIl.over) : e.lvl, L: W.cfg.loot } : null, W.cfg.drops)) {     // 4.20: редкость — по уровню добычи
     const a = W.rng() * TAU;
-    W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * .7, z: e.z + Math.cos(a) * .7, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: ilRoll(W, e.lvl, e.id + r) } : {}) });
+    W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * .7, z: e.z + Math.cos(a) * .7, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: lootIl(W, e, e.id + r) ?? ilRoll(W, e.lvl, e.id + r) } : {}) });
     W.ev.push({ k: 'drop', x: e.x, z: e.z, id: it.id });
   }
 }
@@ -863,6 +864,15 @@ function refill(W, c) {
 export const bagSlots = W => W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
 export const bagCap = cfg => cfg.bag.slots + SKILLS.pockets.max * SKILLS.pockets.stats.bag;
 // уровень вещи: уровень места + 0…drop (без W.rng — бой не сдвигается)
+// уровень добычи (4.20): от героя по месту и роду врага (cfg.lootIl); выключено — null (как раньше: от уровня места)
+export function lootIl(W, e, salt) {
+  const G = W.cfg.lootIl; if (!G || !G.on) return null;
+  const L = W.levels && W.levels[W.lvl], d = L && L.def, src = d && d.raid ? 'raid' : d ? 'dungeon' : 'world', bd = e.boss && e.b && e.b.def;
+  const tier = e.boss ? (src === 'raid' || !bd || bd.final || bd.castle || !bd.level ? 'boss' : 'mini') : e.elite || e.guard ? 'mini' : 'mob';
+  let [a, b] = G[src][tier]; if (src === 'world' && W.lv <= G.low) { a = Math.max(0, a); b = Math.max(0, b); }
+  const base = Math.min(W.lv, (e.lvl || W.lv) + G.over), k = a + Math.abs(Math.round(salt * 7919 + W.t * 13)) % (b - a + 1);
+  return clamp(base + k, 1, G.cap);
+}
 const ilRoll = (W, lv, salt) => Math.max(1, Math.round(lv || 1) + Math.abs(Math.round(salt)) % (W.cfg.level.il.drop + 1));
 function give(W, id, n) { const left = addItem(W.inv, id, n, bagSlots(W)); if (n - left > 0) { W.ev.push({ k: 'pickup', id, n: n - left }); W.known.items[id] = 1; } return left; }
 

@@ -61,7 +61,7 @@ const BASE = [58, 27, 10, 4, 1];
 // lq = { lvl, L: cfg.loot } (null — прежний расчёт по глубине)
 export function rarityWeights(q, depth, luck, lq = null) {
   const L = lq && lq.L, lvl = lq && lq.lvl;
-  if (L && lvl != null) { const d = Math.max(0, Math.min(1, (lvl - 1) / 59)), shift = q * L.q + d * L.lv + luck * .03; return L.base.map((w, r) => w * Math.exp(shift * r)); }
+  if (L && lvl != null) { const d = Math.max(0, Math.min(1, (lvl - 1) / 59)), shift = q * L.q + d * L.lv + luck * .03, w = L.base.map((w, r) => w * Math.exp(shift * r)); if (L.red && lvl >= L.red[0]) { w[5] = 0; w[6] = L.red[1] * Math.exp(shift * 6); } return w; }     // 4.20: багровые — с red[0] уровня, вес red[1]
   const shift = q * .45 + depth * .7 + luck * .03;
   return BASE.map((w, r) => w * Math.exp(shift * r));
 }
@@ -88,7 +88,7 @@ export function rollLoot(def, rng, depth = 0, luck = 0, extraQ = 0, brandK = 1, 
     const pool = pickW(def.pools.filter(p => p[1] > 0 && BY_POOL[p[0]]), rng)[0];
     let rar = pickW(w.map((x, r) => [r, x]), rng)[0];
     if (def.minRar && i === 0) rar = Math.max(rar, def.minRar);
-    const it = pool === 'material' ? pickByItem(pool, w, rng, (lq && lq.L && lq.L.base) || BASE) : pickItem(pool, rar, rng); if (!it) continue;     // сырьё — вес у каждого материала (4.02)
+    const it = pool === 'material' ? pickByItem(pool, w.slice(0, 5), rng, (lq && lq.L && lq.L.base) || BASE) : pickItem(pool, rar, rng); if (!it) continue;     // сырьё — вес у каждого материала (4.02)
     const n = it.stack > 1 ? 1 + ((rng() * Math.min(it.stack, it.cat === 'curio' && it.pool === 'coin' ? 6 : 3)) | 0) : 1;
     const ex = out.find(o => o.id === it.id);
     if (ex) ex.n = Math.min(it.stack, ex.n + n); else out.push({ id: it.id, n });
