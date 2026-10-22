@@ -1064,7 +1064,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ap.needsUpdate = true; ash.position.set(cam.x, 0, cam.z);
 
     // герой
-    const py = liftY ?? Y(p.x, p.z); hero.group.position.set(p.x, py, p.z);
+    const py = liftY ?? Y(p.x, p.z); hero.group.position.set(p.x, py + (p.hopY || 0), p.z);     // Г8: прыжок Бесогона поднимает героя
+    { const ms = W.abuf && W.abuf.morph > 0 ? W.abuf.morphScale || 1.2 : 1, s0 = hero.group.scale.x; if (Math.abs(s0 - ms) > .001) hero.group.scale.setScalar(s0 + (ms - s0) * Math.min(1, dt * 6)); }     // облик демона — крупнее
     asciiLamp.visible = asciiOn && !under; if (asciiLamp.visible) asciiLamp.position.set(p.x, py + 2.6, p.z); { const BL = cfg.view.blend, early = p.state === 'atk' && p.atkT < cfg.player.attackHitAt * .6; hero.group.rotation.y = BL && hero.yawInit ? dampAngle(hero.group.rotation.y, p.face, early ? BL.yawWind : BL.yawHero, dt) : p.face; hero.yawInit = true; }     // поворот модели — плавно (шаг 3)
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); if (hero.wkey !== rimKey) { rimKey = hero.wkey; rimify(hero.group, RS && RS.hero); } }
     if (RS) RimU.uRim.value = RS.night + (RS.day - RS.night) * Math.min(1, Math.max(0, ((W.light ?? 1) - .15) / .6));
@@ -1187,6 +1188,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         else if (K === 'bolt') fx.flash(v.x + Math.sin(v.face) * .9, 1.2, v.z + Math.cos(v.face) * .9, 1.4, c);
         else if (K === 'strike') { fx.flash(v.x, 1.2, v.z, 2.2, c); burst(v.x, 1.2, v.z, 20, c, 4); }
         else if (K === 'dash') { burst(v.x, 1, v.z, 16, c, 3); fx.ash(v.x, .4, v.z, 10, [c, '#ffffff', c]); }
+        else if (K === 'beam') { zap(v.x, v.z, v.x2, v.z2, '#c8ff8a', c, 1.6); burst(v.x2, 1.2, v.z2, 4, c, 2); }     // Г8: огненный взор
+        else if (K === 'jump') { burst(v.x, .3, v.z, 14, '#7ae03a', 3); fx.ash(v.x, .3, v.z, 8, ['#2a3a1e', '#7ae03a', '#101010']); }
+        else if (K === 'morph') { ringFx(v.x, v.z, v.r, '#7ae03a'); burst(v.x, 1.4, v.z, 40, '#7ae03a', 6); burst(v.x, 1.4, v.z, 20, c, 4); fx.flash(v.x, 1.6, v.z, 3.2, '#9aff5a'); hooks.onText && hooks.onText(v.x, 3.4, v.z, 'Облик демона!', 'crit'); }
         else if (K === 'mark') { burst(v.x, 2.2, v.z, 14, c, 2); fx.flash(v.x, 1.6, v.z, 1.6, c); hooks.onText && hooks.onText(v.x, 3, v.z, 'Метка', 'alarm'); }
         else { for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; burst(v.x + Math.sin(a) * 1.1, .3, v.z + Math.cos(a) * 1.1, 2, c, 2.5); } fx.flash(v.x, 1.4, v.z, 2, c); if (K === 'heal' && hooks.onText) hooks.onText(v.x, 3, v.z, 'Лечение', 'loot'); }     // усиление и лечение — столб искр вокруг героя
       }

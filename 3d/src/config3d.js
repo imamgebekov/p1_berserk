@@ -320,6 +320,7 @@ const BASE = {
       jay: { name: 'Концентрация', color: '#e8c04a', max: 100, start: 100, hit: 4, hurt: 0, roll: 0, regen: 9, decay: 0, idle: 0, perLv: 2 },
       vale: { name: 'Концентрация', color: '#6ab0ff', max: 100, start: 0, hit: 2, hurt: 0, roll: 0, regen: 4, decay: 0, idle: 0, perLv: 2 },     // Вейл — скрытый дуэлянт: восстанавливается сама (пожелание 2026-10-18; было «Ритм» от ударов)
       irga: { name: 'Мана', color: '#7a8aff', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 },
+      hunter: { name: 'Гнев', color: '#7ae03a', max: 100, start: 40, hit: 5, hurt: 0, roll: 0, regen: 3, decay: 0, idle: 0, perLv: 2 },     // Г8: гнев Бесогона — от ударов и сам по себе
       brand: { name: 'Клеймо', color: '#c8282a', max: 100, start: 0, hit: 3, hurt: .5, roll: 0, regen: 0, decay: 5, idle: 4, perLv: 2 },     // 4.17: клеймо копится от ударов и боли, гаснет без боя
       priest: { name: 'Вера', color: '#ffe08a', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 },     // 4.16: вера Жреца
       warlock: { name: 'Души', color: '#b04aff', max: 100, start: 60, hit: 4, hurt: 3, roll: 0, regen: 5, decay: 0, idle: 0, perLv: 2 }     // души: копятся от ударов и боли
@@ -373,6 +374,16 @@ const BASE = {
       blizzard: { cd: [16, 14, 12], cost: 55, r: 4, t: 4, tick: .4, mul: [.3, .4, .5], slow: .6, range: 14, ahead: 6 },     // вьюга
       spear:    { cd: [18, 16, 14], cost: 50, mul: [3.5, 4.5, 5.5], range: 16, cone: 60 }     // копьё бездны
     },
+    hunter: {     // Бесогон, охотник на демонов (Г8): свои умения — из видов действия (kind); beam, jump, morph — новые виды
+      glaive:  { kind: 'bolt', el: 'steel', st: 'slow', cd: [5, 4.5, 4], cost: 15, mul: [1.2, 1.5, 1.8], n: 1, spread: 0, pierce: 3, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
+      felrush: { kind: 'dash', el: 'fire', st: 'burn', cd: [7, 6, 5], cost: 20, dist: 9, time: .25, width: 2.2, stop: .5, mul: [1, 1.3, 1.6], knock: .8, sd: [0, 0, 0], dps: [5, 8, 11], t: 3 },
+      chaos:   { kind: 'strike', el: 'shadow', st: 'crack', cd: [4, 3.5, 3], cost: 35, range: 3, cone: 100, mul: [2, 2.5, 3], knock: .8, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
+      djump:   { kind: 'jump', cd: [9, 8, 7], cost: 10, dist: 5, time: .42, h: 1.6, again: .4 },     // прыжок на dist м за time с высотой h м, неуязвим в воздухе; второй — в воздухе или в again с после приземления, без платы
+      blades:  { kind: 'nova', el: 'steel', st: 'bleed', cd: [9, 8, 7], cost: 30, r: 3.6, mul: [1.3, 1.7, 2.1], knock: .6, sd: [0, 0, 0], dps: [5, 8, 11], t: 4 },
+      eyebeam: { kind: 'beam', el: 'fire', st: 'burn', cd: [14, 12, 10], cost: 40, range: 12, w: 1.6, cone: 60, dur: 1.8, tick: .3, mul: [.5, .65, .8], sd: [0, 0, 0], dps: [5, 8, 11], t: 3 },     // луч на range м шириной w, dur с, удар каждые tick с; идёт за взглядом героя
+      sigil:   { kind: 'field', el: 'fire', st: null, cd: [12, 11, 10], cost: 25, r: 3, range: 12, ahead: 5, t: 5, tick: .5, mul: [.3, .4, .5], slow: 0 },
+      meta:    { kind: 'morph', el: 'shadow', st: 'stun', cd: [40, 36, 32], cost: 50, t: [10, 12, 15], dmg: [8, 12, 16], spd: [20, 25, 30], leech: [3, 4, 5], r: 4, mul: [1, 1.3, 1.6], knock: 1.2, sd: [1, 1.2, 1.5], scale: 1.25 }     // облик демона на t с: урон, скорость (%), вампиризм (%); при входе — удар и оглушение в r м; модель крупнее в scale раз
+    },
     brand: {     // Клеймёный рыцарь (Г4, 4.17): свои умения — из видов действия (kind), числа здесь
       cleaver:  { kind: 'cone', el: 'steel', st: 'bleed', cd: [7, 6, 5], cost: 30, r: 3.8, cone: 140, mul: [1.7, 2.2, 2.7], knock: 1.5, sd: [1, 1.3, 1.6], dps: [5, 8, 11], t: 4 },
       cannon:   { kind: 'bolt', el: 'fire', st: 'burn', cd: [9, 8, 7], cost: 35, mul: [2, 2.6, 3.2], n: 1, spread: 0, pierce: 1, sd: [1, 1, 1], dps: [6, 9, 12], t: 4 },
@@ -414,14 +425,15 @@ const BASE = {
     detonate: { k: 2, burn: [6, 4] }, frozenstorm: { add: { jumps: 2 }, slow: .6 }, icearmor: { mul: { r: 1.4 }, armor: 15, t: 6 }, breach: { k: 1.5 },
     verdict: { k: 1.5 }, feast: { k: 2 }, gravecall: { add: { n: 3 } }, bloodimp: { mul: { t: 1.5, mul: 1.3 } },
     blessedwave: { mul: { r: 1.4 } }, purge: { mul: { mul: 1.4 } }, sermon: { mul: { k: 1.3 } }, judgement: { mul: { mul: 1.3, t: 1.3 } },
-    brandrage: { mul: { mul: 1.4 } }, powder: { mul: { mul: 1.3 } }, ironhowl: { mul: { r: 1.4 } }, darkpain: { mul: { k: 1.4 } }
+    brandrage: { mul: { mul: 1.4 } }, powder: { mul: { mul: 1.3 } }, ironhowl: { mul: { r: 1.4 } }, darkpain: { mul: { k: 1.4 } },
+    glaivecut: { mul: { mul: 1.4 } }, burnmark: { mul: { mul: 1.4 } }, demonfall: { mul: { t: 1.4 } }, demonsight: { mul: { dur: 1.5 } }
   },
   // вторая рука (B2b): block.arc — ширина щита спереди, °; block.knock — доля отброса при блоке; dual.mul — доля урона второго клинка
   // к каждому удару, dual.swing — удары с двумя клинками быстрее (×)
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
   heroes: { thorn: { hp: 1.15, speed: 1, crit: 0, killHeal: .03, healLv: [8, 12] },     // Торн — защитник: здоровья больше; убийство рядом (до 6 м), когда вокруг ещё двое и больше, лечит на killHeal до healLv[0] ур., к healLv[1] — на нет (на «железе» гиб чаще всех)
-  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .95, speed: 1.05, crit: 3 }, priest: { hp: 1, speed: 1.05, crit: 1 }, brand: { hp: 1.1, speed: 1, crit: 2 } },
+  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .95, speed: 1.05, crit: 3 }, priest: { hp: 1, speed: 1.05, crit: 1 }, brand: { hp: 1.1, speed: 1, crit: 2 }, hunter: { hp: .95, speed: 1.12, crit: 4 } },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
     // rar — редкость вещи (3 — великий, фиолетовый; 4 — клеймёный, оранжевый; 5 — золотой, только здесь), mul — наценка;
@@ -913,7 +925,7 @@ const BASE = {
   // сбор группы (4.07, решение владельца): подземелье отряда — на 4, рейд — на 10; состав по ролям; heroRole — роль героя;
   // bots — какими спутниками добирать роль; roleName и names — подписи наёмников
   party: { on: true, dungeon: { tank: 1, heal: 1, melee: 1, ranged: 1 }, raid: { tank: 2, heal: 3, melee: 3, ranged: 2 },
-    heroRole: { thorn: 'tank', vale: 'melee', jay: 'ranged', irga: 'ranged', warlock: 'ranged', priest: 'heal', brand: 'tank' },
+    heroRole: { thorn: 'tank', vale: 'melee', jay: 'ranged', irga: 'ranged', warlock: 'ranged', priest: 'heal', brand: 'tank', hunter: 'melee' },
     bots: { tank: ['c_thorn', 'soldier'], heal: ['c_irga'], melee: ['c_vale', 'veteran'], ranged: ['c_jay'] },
     roleName: { tank: 'защитник', heal: 'лекарь', melee: 'боец', ranged: 'стрелок' },
     names: { tank: ['Гронт', 'Борвин', 'Ульф', 'Хаген', 'Дарек'], heal: ['Велла', 'Мирна', 'Ведана', 'Агна', 'Зоряна', 'Лада'], melee: ['Кай', 'Рагнар', 'Ивар', 'Торвин', 'Ярош'], ranged: ['Эйра', 'Стрибог', 'Нежка', 'Олаф', 'Сигрун'] } },
@@ -1072,7 +1084,7 @@ const BASE = {
     // hit — реакция на урон (не чаще hitGap с); пороги шага и бега — доли скорости героя/врага с запасом (on — включить, off — выключить);
     // sp — сглаживание оценки скорости (1/с)
     anim: { loco: .25, atk: .1, roll: .08, hit: .1, death: .15, hitGap: .8, walkOn: .1, walkOff: .05, runOn: .62, runOff: .48, sp: 10 },
-    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'q_wizard', priest: 'q_cleric', brand: 'kk_barbarian' },
+    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'q_wizard', priest: 'q_cleric', brand: 'kk_barbarian', hunter: 'q_warrior' },
     foes: { barghest: 'q_wolf', rootgnaw: 'sf_ghoul', thornlord: 'q_king', oldoak: 'sf_drugdor', saltwarden: 'sf_drugdor', cathkraken: 'sf_skdragon', drowngod: 'sf_fish',     // рейды 20 и 40 (4.18)
       bogwarden: 'sf_drugdor', leviathan: 'sf_skdragon', ashgolem: 'sf_drugdor', cinderlord: 'q_king', rotmaw: 'sf_ghoul', riftheart: 'sf_mino', voidwarden: 'sf_minob', abyssmaw: 'sf_skdragon', voidking: 'q_king',     // Г5 (4.18)
       imp: 'q_demonfly', bomber: 'q_demonfly', ash_thief: 'q_demonfly', hound: 'q_wolf', blackdog: 'q_wolf', garm: 'q_wolf', eclipse_fiend: 'q_wolf', garm_beast: 'q_wolf', greywolf: 'q_wolf', towerhound: 'q_wolf',
