@@ -32,6 +32,7 @@ try {
         [['front', 0], ['side', Math.PI / 2], ['back', Math.PI]].forEach(([v, r]) => { out['ref_' + nm + '_' + v] = S.shoot(R, W, [{ m: mk(), label: '', rot: r }], R0); });
       return out;
     }
+    if (only.startsWith('foes:')) { out.list = S.shoot(R, W, only.slice(5).split(',').map(t => ({ m: S.foeModel(t), label: cfg.enemies[t].name + ' · ' + A.foes[t] }))); return out; }     // ряд по списку видов: foes:вид1,вид2
     if (only.startsWith('pack:')) {     // просмотр набора: pack:<папка в _packs>:<файл1,файл2…>
       const [, dir, list] = only.split(':'), names = list.split(','), info = {};
       for (let i = 0; i < names.length; i += 9) { const part = []; for (const n of names.slice(i, i + 9)) { const m = await S.rawModel(`/_packs/${dir}/${n}.glb`, 2); info[n] = { clips: m.clips, tris: m.tris }; part.push({ m, label: n }); } out['pack_' + (i / 9 + 1)] = S.shoot(R, W, part, { w: 1800 }); }

@@ -2,7 +2,7 @@
 // Грузится в странице игры (?shot&models=1) через tools/shots-models.mjs. Только для снимков, в сборку не входит.
 import * as THREE from 'three';
 import { CFG3 as cfg } from '../3d/src/config3d.js';
-import { loadActor, makeActor, loadKkWeapons, soldierActor } from '../3d/src/actors3d.js';
+import { loadActor, makeActor, loadKkWeapons, soldierActor, boxOf } from '../3d/src/actors3d.js';
 import { makeHero, makeMonster, makeSoldier, makeNpc } from '../3d/src/models.js';
 import { makeWeapon, weaponKinds, kkWeapon } from '../3d/src/weaponview.js';
 import { heroOf } from '../3d/src/data/heroes3d.js';
@@ -28,7 +28,7 @@ export function shoot(R, W, items, { w = 1600, h = 520, elev = .32, gap = .5, bg
   const scene = R.scene, gl = R.gl, p = W.player; let y0 = 0;
   for (const c of scene.children) if (c.userData.actor && Math.hypot(c.position.x - p.x, c.position.z - p.z) < .6) y0 = c.position.y;     // высота земли — по модели героя
   const row = new THREE.Group(); row.position.set(p.x, y0, p.z);
-  const sizes = items.map(({ m }) => { m.group.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(m.group); return { w: Math.max(.6, b.max.x - b.min.x, b.max.z - b.min.z), h: Math.max(.3, b.max.y - b.min.y) }; });
+  const sizes = items.map(({ m }) => { m.group.updateMatrixWorld(true); let b = new THREE.Box3().setFromObject(m.group); if (!Number.isFinite(b.max.y - b.min.y)) b = boxOf(m.group); return { w: Math.max(.6, b.max.x - b.min.x, b.max.z - b.min.z), h: Math.max(.3, b.max.y - b.min.y) }; });
   const total = sizes.reduce((s, z) => s + z.w + gap, -gap); let x = -total / 2;
   const labels = [];
   items.forEach(({ m, label, rot }, i) => { const z = sizes[i]; m.group.position.set(x + z.w / 2, 0, 0); m.group.rotation.y = rot ?? yaw; row.add(m.group); labels.push({ label, x: x + z.w / 2, h: z.h }); x += z.w + gap; });
@@ -50,7 +50,8 @@ function count(items) { let t = 0; for (const { m } of items) m.group.traverse(o
 export function triOf(m) { return count([{ m }]); }
 export async function rawModel(url, height = 2) {     // модель из файла вне 3d/models (просмотр набора): рост height, первый клип «покоя»
   const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); const g = await new GLTFLoader().loadAsync(url);
-  const box = new THREE.Box3().setFromObject(g.scene), h = Math.max(.01, box.max.y - box.min.y), grp = new THREE.Group(); g.scene.scale.setScalar(height / h); g.scene.position.y = -box.min.y * height / h; grp.add(g.scene);
+  g.scene.updateMatrixWorld(true); const box = new THREE.Box3(); g.scene.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld)); } });     // рамка по геометрии без поз скелета
+  const h = Math.max(.01, box.max.y - box.min.y), grp = new THREE.Group(); g.scene.scale.setScalar(height / h); g.scene.position.y = -box.min.y * height / h; grp.add(g.scene);
   const c = g.animations.find(a => /idle/i.test(a.name)) || g.animations[0]; if (c) { const mx = new THREE.AnimationMixer(g.scene); mx.clipAction(c).play(); mx.update(.4); }
   let tris = 0; g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; } });
   return { group: grp, clips: g.animations.map(a => a.name), tris: Math.round(tris) };

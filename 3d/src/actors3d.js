@@ -18,8 +18,8 @@ const clipName = c => c.name.includes('|') ? c.name.slice(c.name.lastIndexOf('|'
 
 // действия → имена клипов по порядку предпочтения (первый найденный)
 const ACT = {
-  idle: ['Idle_A', 'Idle', 'idle', '@-Idle_01', 'travelidle', 'Warrior_Idle', 'Flying_Idle', 'Idle_Weapon', 'Skeletons_Idle'],
-  walk: ['Walking_A', 'Walk', '@-walk_01', 'travelmove', 'Warrior_Walk', 'Fast_Flying', 'Flying_Idle', 'Skeletons_Walking'],
+  idle: ['Idle_A', 'Idle', 'idle', '@-Idle_01', 'travelidle', 'Warrior_Idle', 'Flying_Idle', 'Idle_Weapon', 'Skeletons_Idle', 'Flying'],
+  walk: ['Walking_A', 'Walk', '@-walk_01', 'travelmove', 'Warrior_Walk', 'Fast_Flying', 'Flying_Idle', 'Skeletons_Walking', 'Flying'],
   run: ['Running_A', 'Run', '@-run_01', 'travelrun', 'Gallop', 'Run_Weapon', 'Fast_Flying', 'Walk'],
   hit: ['Hit_A', '@-hit_01', 'hurtsmall', 'Defence1', 'HitReact', 'RecieveHit', 'HitRecieve', 'Idle_HitReact_Left', 'Hit_B'],
   death: ['Death_A', 'Death', '@-death_01', 'dead', 'Skeletons_Death'],
@@ -57,6 +57,9 @@ function inPlace(clips, scene) {
       const v = t.values, n = t.times.length, T = t.times[n - 1] - t.times[0]; if (n < 2 || T <= 0) continue;
       for (let ax = 0; ax < 3; ax++) { const d = v[(n - 1) * 3 + ax] - v[ax]; let lo = Infinity, hi = -Infinity; for (let i = 0; i < n; i++) { lo = Math.min(lo, v[i * 3 + ax]); hi = Math.max(hi, v[i * 3 + ax]); }
         if (Math.abs(d) > (hi - lo) * .5 && Math.abs(d) > 1e-4) for (let i = 0; i < n; i++) v[i * 3 + ax] -= d * (t.times[i] - t.times[0]) / T; } } }
+}
+export function boxOf(o) {     // рамка по геометрии в покое: у части моделей со скелетом setFromObject даёт NaN (Animated Enemies)
+  o.updateMatrixWorld(true); const b = new THREE.Box3(), t = new THREE.Box3(); o.traverse(m => { if (m.isMesh) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); t.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld); if (Number.isFinite(t.min.y)) b.union(t); } }); return b;
 }
 const RC = new Map();     // перекрашенные текстуры: исходная текстура + ячейки → новая (общая для всех моделей)
 function recolorTex(src, cells, grid = [8, 4]) {     // перекраска KayKit (путь А, 2026-10-22): текстура — сетка ячеек-полос, ячейка — часть одежды; cells { 'столбец,строка': цвет }, перепад света в полосе сохраняется
@@ -112,7 +115,7 @@ export function loadActor(key, kit) {
     if (kit.mats || kit.glow) g.scene.traverse(o => { if (!o.isMesh) return; const m = o.material, c = kit.mats && kit.mats[m.name], e = kit.glow && kit.glow[m.name]; if (c) m.color.set(c); if (e) m.emissive.set(e); });     // монстры без текстур: цвет и свечение по имени материала
     if (kit.cut) cutAbove(g.scene, kit.cut);
     inPlace(clips, g.scene);
-    const box = new THREE.Box3().setFromObject(g.scene), h = Math.max(.01, box.max.y - box.min.y);
+    let box = new THREE.Box3().setFromObject(g.scene); if (!Number.isFinite(box.max.y - box.min.y)) box = boxOf(g.scene); const h = Math.max(.01, box.max.y - box.min.y);
     const v = { scene: g.scene, clips, h, minY: box.min.y }; lib.set(key, v); return v;
   })().catch(e => { console.warn('модель не загрузилась:', key, e && e.message); lib.set(key, null); return null; });
   lib.set(key, p); return p;
@@ -134,7 +137,7 @@ export function makeActor(key, kit, kind = 'actor') {
   if (kit.paint) for (const m of mats) if (m.map) m.map = recolorTex(m.map, kit.paint, kit.grid);     // перекраска одного экземпляра (цвет отряда)
   if (kit.attach) attachParts(root, obj, kit, mats);
   const mixer = new THREE.AnimationMixer(obj), names = new Map(src.clips.map(c => [clipName(c), c])), acts = new Map();
-  const clipOf = a => { const b = a.endsWith('#') ? a.slice(0, -1) : a; for (const n of ACT[b] || [b]) if (names.has(n)) return names.get(n); return null; };
+  const clipOf = a => { const b = a.endsWith('#') ? a.slice(0, -1) : a; for (const n of ACT[b] || [b]) if (names.has(n)) return names.get(n); for (const n of ACT[b] || [b]) for (const [k, c] of names) if (k.endsWith('_' + n)) return c; return null; };     // второй проход: клип с приставкой (Spider_Idle)
   const action = a => { if (acts.has(a)) return acts.get(a); const c = clipOf(a), x = c ? mixer.clipAction(a.endsWith('#') ? c.clone() : c) : null; acts.set(a, x); return x; };     // «имя#» — копия клипа: повтор того же удара смешивается сам с собой
   const A = { group: g, root, obj, mixer, mats, kind, gltf: true, key, kit, cur: null, curName: '', once: false, weapon: null, wkey: '', family: 'fists', okey: '', off: null, hurtT: 0,
     hand: byName(obj, kit.hand || 'handslot.r'), handL: byName(obj, kit.handL || 'handslot.l'), has: a => !!clipOf(a), dur: a => { const c = clipOf(a); return c ? c.duration : 1; } };
