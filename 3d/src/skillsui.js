@@ -3,7 +3,7 @@ import { branchesOf } from './data/skills3d.js';
 import { respec, respecCost, xpNeed, rankNeed } from './sim.js';
 import { combosOf } from './combos3d.js';
 import { abilityView, respecAbilities, respecAbilityCost, spentAbility, resView, barOf, setBar, BAR } from './abilities3d.js';
-import { treeOf, rankOf, canBuy, buy, needText, spentInTree, ROWS, COLS, ROW_STEP } from './tree3d.js';
+import { treeOf, rankOf, canBuy, buy, needText, spentInTree, rowNeed, ROWS, COLS, ROW_STEP } from './tree3d.js';
 import { MASTERY_TEXT } from './data/abilities3d.js';
 import { GI } from './data/gicons.js';
 import { ownIcon } from './custom3d.js';
@@ -38,23 +38,29 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange, onOwnIcon
     else if (ab) { if (r) out.push('Сейчас: ' + ab.now + (ab.cost ? ` Цена: ${ab.cost}${rv ? ' (' + rv.name.toLowerCase() + ')' : ''}.` : '')); if (r < 3 && ab.next) out.push(`${r ? 'Ранг ' + (r + 1) : 'Открыть'}${ab.nextLv > W.lv ? ' — с уровня ' + ab.nextLv : ''}: ${r && ab.now ? rankDiff(ab.now, ab.next) || ab.next : ab.next}`); }
     return out.filter(Boolean);
   }
+  // пояснение значков (вид WoW, 2026-10-22): форма — вид узла, рамка — состояние
+  const legend = () => { const lg = el('div', 'tleg');
+    for (const [cls, t] of [['active', 'умение'], ['talent', 'талант'], ['mastery', 'мастерство'], ['full', 'изучено'], ['can', 'можно изучить'], ['no', 'закрыто']]) { const it = el('span', 'tli'); it.append(el('span', 'tlm ' + cls), el('span', '', t)); lg.append(it); }
+    return lg; };
   function renderTree() {
     const T = treeOf(W.hero, W.cfg), wrap = el('div', 'tree'), card = el('div', 'tcard');
     T.forEach(br => {
       const spent = spentInTree(W, br), col = el('div', 'tbranch'); col.style.setProperty('--bc', br.color);
       { const fa = br.nodes.find(x => x.kind === 'active'); if (fa) col.append(gi(fa.icon, 'twm')); }     // знак ветки на фоне
-      col.append(el('div', 'tbh', `${br.name} · ${spent}`), el('div', 'tbr', br.role || ''));
+      const gate = Array.from({ length: ROWS }, (_, i) => i + 1).find(r => rowNeed(r) > spent);     // вид WoW (2026-10-22): ближайший закрытый ряд — черта и подпись в шапке
+      col.append(el('div', 'tbh', `${br.name} · ${spent}`), el('div', 'tbr', br.role || ''), el('div', 'tgt' + (gate ? '' : ' all'), gate ? `Ещё ${rowNeed(gate) - spent} оч. — откроется ряд ${gate}` : 'Все ряды открыты'));
       const grid = el('div', 'tgrid'); grid.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`; grid.style.gridTemplateRows = `repeat(${ROWS}, auto)`;
       const lines = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); lines.setAttribute('class', 'tlines'); lines.setAttribute('viewBox', `0 0 ${COLS * 10} ${ROWS * 10}`); lines.setAttribute('preserveAspectRatio', 'none');
       for (const n of br.nodes) {
         const r = rankOf(W, n), st = canBuy(W, n.key), b = el('button', 'tnode ' + n.kind + (r >= n.max ? ' full' : r ? ' some' : '') + (st === 'ok' ? ' can' : '') + (st === 'row' || st === 'req' ? ' lock' : '') + (sel === n.key ? ' sel' : ''));
         b.type = 'button'; b.dataset.key = n.key; b.style.gridColumn = String(n.col + 1); b.style.gridRow = String(n.row); b.title = n.name; b.setAttribute('aria-label', `${n.name}: ${r} из ${n.max}`);
-        b.append(gi(n.icon), el('span', 'trk', `${r}/${n.max}`));
+        b.append(gi(n.icon), el('span', 'trk', `${r}/${n.max}`), el('span', 'tnm', n.kind === 'mastery' ? 'Мастерство' : n.name));
         b.addEventListener('click', () => { sel = n.key; render(); });
         b.addEventListener('dblclick', () => { if (buy(W, n.key, refreshGear) === 'ok') { render(); onChange && onChange(); } });
         grid.append(b);
         if (n.req) { const q = br.nodes.find(x => x.key === n.req); if (q) { const ln = doc.createElementNS('http://www.w3.org/2000/svg', 'line'); ln.setAttribute('x1', q.col * 10 + 5); ln.setAttribute('y1', q.row * 10 - 3); ln.setAttribute('x2', n.col * 10 + 5); ln.setAttribute('y2', n.row * 10 - 7); ln.setAttribute('class', rankOf(W, q) >= 3 ? 'on' : ''); lines.append(ln); } }
       }
+      if (gate) { const g = el('div', 'tgate'); g.style.gridRow = String(gate); g.style.gridColumn = '1 / -1'; grid.append(g); }
       grid.prepend(lines); col.append(grid); wrap.append(col);
     });
     const view = el('div', 'tview'); view.append(wrap, card); listEl.append(view);
@@ -78,7 +84,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange, onOwnIcon
       if (n.kind === 'active') { const all = abilityView(W), nm = id => (all.find(a => a.id === id) || { name: id }).name, bar = barOf(W);     // связки этого умения (были во вкладке «Панель и связки»)
         for (const c of combosOf(W.hero).filter(c => c.a === n.id || c.b === n.id)) { const known = (W.ab[c.a] || 0) > 0 && (W.ab[c.b] || 0) > 0, onBar = bar.includes(c.a) && bar.includes(c.b);
           card.append(el('div', 'sub cmb', `Связка «${c.name}»: ${nm(c.a)} → ${nm(c.b)} не позже ${W.cfg.combos.window} с — ${c.text.replace(/\.$/, '')}. ${!known ? 'Нужны оба умения.' : onBar ? 'Оба на панели.' : 'Поставьте оба на панель.'}`)); } }
-    } else card.append(el('div', 'sub', 'Нажмите на узел — описание и кнопка «Вложить очко». Двойной щелчок — сразу вложить.'), el('div', 'sub', `Ряд открывается за каждые ${ROW_STEP} очка в ветке. Умения и мастерство — за очки умений, таланты — за очки талантов.`));
+    } else card.append(legend(), el('div', 'sub', 'Нажмите на узел — описание и кнопка «Вложить очко». Двойной щелчок — сразу вложить.'), el('div', 'sub', `Ряд открывается за каждые ${ROW_STEP} очка в ветке. Умения и мастерство — за очки умений, таланты — за очки талантов.`));
     const cost = respecCost(W) + respecAbilityCost(W), any = Object.values(W.skills).some(v => v > 0) || spentAbility(W.ab) > 0;
     resetBtn.textContent = armed ? 'Точно? Все очки вернутся, пепел спишется' : `Сбросить древо · ${cost} пепла`; resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !any;
   }

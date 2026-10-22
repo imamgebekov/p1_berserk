@@ -830,3 +830,24 @@ html:not([data-desk]) .bfoot{display:grid;grid-template-columns:repeat(2,minmax(
 #loot .lall{flex:1;min-height:44px;border-radius:22px;border:1px solid #d9b27a;background:#3a2a1a;color:#f0d3a0;font-family:var(--serif);font-size:16px}
 #loot .lkey{width:44px;height:44px;border-radius:8px;border:1px solid #4a3626;display:flex;align-items:center;justify-content:center;font-weight:700;color:#b8ad9a}
 html:not([data-desk]) #loot{left:12px;right:12px;width:auto;top:auto;bottom:calc(262px + env(safe-area-inset-bottom))}html:not([data-desk]) #loot .lkey{display:none}
+/* Древо в духе WoW (2026-10-22): умение — квадрат, талант — круг, мастерство — двойная рамка; цвет рамки — состояние; подпись под значком; черта ближайшего закрытого ряда */
+[data-desk] #skills .pbox{max-width:1240px}[data-desk] #skills .tview{grid-template-columns:minmax(0,1fr) 290px}
+#skills .tbranch{flex-basis:220px;padding:0 8px 10px}
+#skills .tgrid{row-gap:24px!important;column-gap:4px!important;padding-top:6px}
+#skills .tnode{--ring:#5a4836;width:44px!important;height:44px!important;padding:6px!important;overflow:visible;box-shadow:inset 0 0 0 2px var(--ring),inset 0 0 0 3px #0b0705,inset 0 2px 8px rgba(0,0,0,.8),0 0 0 1px #000!important}
+#skills .tnode.active{border-radius:8px!important}#skills .tnode.talent{border-radius:50%!important}
+#skills .tnode.some{--ring:#c9a24a}#skills .tnode.full{--ring:#f5c542;box-shadow:inset 0 0 0 2px var(--ring),inset 0 0 0 3px #0b0705,inset 0 0 10px rgba(245,197,66,.25),0 0 0 1px #000,0 0 10px rgba(245,197,66,.45)!important}
+#skills .tnode.can:not(.some):not(.full){--ring:#5fd35f;box-shadow:inset 0 0 0 2px var(--ring),inset 0 0 0 3px #0b0705,inset 0 2px 8px rgba(0,0,0,.6),0 0 0 1px #000,0 0 10px rgba(95,211,95,.5)!important}
+#skills .tnode.mastery{width:44px!important;height:44px!important;border-radius:6px!important;clip-path:none!important;padding:9px!important;background:radial-gradient(circle,#3a2a12,#0c0806 70%)!important;box-shadow:inset 0 0 0 2px var(--ring),inset 0 0 0 4px #0b0705,inset 0 0 0 6px var(--ring),0 0 0 1px #000!important}
+#skills .tnode.mastery .trk,#skills .tnode .trk{right:-9px!important;bottom:-6px!important}
+#skills .tnode.full .trk{color:#ffe08a!important;border-color:#b8892e}#skills .tnode.can:not(.some):not(.full) .trk{color:#9fe89f!important;border-color:#3f7f3f}
+#skills .tnode .tnm{position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);width:70px;text-align:center;font-family:var(--sans);font-size:10px;font-weight:500;line-height:12px;color:#dccbab;text-shadow:0 1px 0 #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+#skills .tnode.lock .tnm{color:#8f8070}
+#skills .tgate{position:relative;z-index:0;align-self:start;height:0;margin-top:-8px;border-top:2px dashed rgba(232,192,74,.55);pointer-events:none}
+#skills .tgt{text-align:center;font-size:12px;color:#e8c04a;margin:2px 0 4px}#skills .tgt.all{color:#8fbf6f}
+#skills .tcard{background:#0b0910!important;border:1px solid #8c88a2!important;box-shadow:0 6px 18px rgba(0,0,0,.6)!important;border-radius:8px}
+#skills .tcard .tcn{color:#fff!important}#skills .tcard .tck{color:#b8b4cc!important;text-transform:none;letter-spacing:0;font-size:12px}
+#skills .tcard .sub{color:#ffd100;opacity:1!important;font-size:13px}#skills .tcard .sub.z{color:#ff6a5a}#skills .tcard .sub.cmb{color:#7fe0c8}
+#skills .tleg{display:flex;flex-wrap:wrap;gap:6px 12px;margin-bottom:4px}#skills .tli{display:flex;align-items:center;gap:6px;font-size:12px;color:#dccbab}
+#skills .tlm{width:16px;height:16px;box-sizing:border-box;border:2px solid #8a7a66;background:#0c0806;border-radius:4px}#skills .tlm.talent{border-radius:50%}#skills .tlm.mastery{border:4px double #b8892e}
+#skills .tlm.full{border-color:#f5c542}#skills .tlm.can{border-color:#5fd35f}#skills .tlm.no{border-color:#4a3a2c;opacity:.6}
