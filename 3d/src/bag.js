@@ -4,7 +4,7 @@ import { betterThanWorn, equipAt, equipOff, unequip, scoreUp, nameOf, SET_OF, se
 import { canWield, canOff, heroOf, NOT_FOR, heavyFor } from './data/heroes3d.js';
 import { iconURL, slotIconURL } from './itemicons.js';
 import { PERKS } from './data/weapons3d.js';
-import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots, equipBest } from './sim.js';
+import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots, equipBest, sellJunk } from './sim.js';
 import { readTome } from './craft3d.js';
 import { socketsOf } from './inv.js';
 import { weaponMix, armorGemFx } from './stones3d.js';
@@ -191,7 +191,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       const b = el('button', 'slot' + (it ? ' r' + it.rar : ' none') + (sel && sel.from === 'eq' && sel.slot === slot ? ' sel' : '')); b.type = 'button'; b.style.gridArea = slot;
       if (it) { b.append(icon(it)); b.dataset.item = it.id; } else { const i = el('img', 'ic ghost'); i.alt = ''; i.src = slotIconURL(doc, slot); b.append(i); }
       if (it && up) b.append(el('span', 'upg', '+' + up));
-      b.append(el('span', 'sl', SLOT_NAME[slot]));
+      { const t = el('span', 'stx'), n = el('span', 'sn', it ? nameOf(it.id, up) : 'пусто'); if (it) n.style.color = RARITY[it.rar].color; t.append(el('span', 'sl', SLOT_NAME[slot]), n); b.append(t); if (['amulet', 'ring', 'weapon', 'offhand'].includes(slot)) b.classList.add('rt'); }     // сумка А (просьба владельца): место и имя вещи рядом со слотом
       b.setAttribute('aria-label', it ? SLOT_NAME[slot] + ': ' + nameOf(it.id, up) : SLOT_NAME[slot] + ': пусто');
       if (it) hoverable(b, () => ({ it, up, worn: null, g: TI().gem[slot], il: wIl(slot), af: wAf(slot) }));
       b.addEventListener('click', () => { sel = it ? { from: 'eq', slot } : { from: 'pick', slot }; render(); });     // пустой слот — список подходящих вещей
@@ -232,6 +232,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
   $('bagClose').addEventListener('click', close);
   $('bagQuests').addEventListener('click', () => { close(); onQuests && onQuests(); });
   $('bagBest').addEventListener('click', () => { const n = equipBest(W); flash(n ? `Надето лучшее: ${n}` : 'Лучше надетого нет'); sel = null; render(); onChange && onChange(); });     // этап 4 «круче»
+  $('bagJunk').addEventListener('click', () => { const sum = sellJunk(W); flash(sum < 0 ? (W.night ? 'Торговец спит до рассвета' : 'Хлам продаётся у торговца') : sum ? `Хлам продан за ${sum}` : 'Хлама нет'); sel = null; render(); onChange && onChange(); });     // сумка А
   $('bagJournal').addEventListener('click', () => { close(); onJournal && onJournal(); });
   return { open, close, render, isOpen: () => !root.hidden };
 }

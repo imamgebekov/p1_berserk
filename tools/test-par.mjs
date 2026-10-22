@@ -20,7 +20,7 @@ const one = c => new Promise(res => { const s = Date.now(); exec(c, { cwd: root,
 let i = 0; const worker = async () => { while (i < par.length) await one(par[i++]); };
 await Promise.all(Array.from({ length: N }, worker));
 for (const c of ser) await one(c);
-try { mkdirSync(dirname(TF), { recursive: true }); writeFileSync(TF, JSON.stringify(times, null, 1)); } catch (e) { /* без записи */ }
+if (!fast) try { mkdirSync(dirname(TF), { recursive: true }); writeFileSync(TF, JSON.stringify(times, null, 1)); } catch (e) { /* без записи */ }     // время пишет только полный прогон: под нагрузкой быстрый набор иначе сам себя сужает
 console.log(`\nтестов ${run.length}${skip.length ? ` (быстрый набор: пропущено долгих ${skip.length} — npm run check:full)` : ''} (параллельно ${par.length} в ${N} потоков, по одному ${ser.length}), упало ${bad.length}, время ${((Date.now() - t0) / 60000).toFixed(1)} мин`);
 for (const b of bad) console.log('\n--- ' + b);
 process.exit(bad.length ? 1 : 0);

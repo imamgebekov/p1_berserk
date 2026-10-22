@@ -22,7 +22,8 @@ import { ngOpen, startNg } from './ng3d.js';
 import { fireNear, knownFires, fastTravel, travelBlock, sanitizeFires } from './fires3d.js';
 import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
 import { isNight } from './daynight.js';
-import { bagUsed } from './inv.js';
+import { bagUsed, createInv } from './inv.js';
+import { createHeroView } from './bagview3d.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, eclipseGo, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView, resView, barOf, abilityAim } from './abilities3d.js';
@@ -131,22 +132,40 @@ function pickHero(id) {
   rerollRare(W); closeHeroPick(); saver.write(true);     // полка редкостей — под выбранного героя
 }
 function closeHeroPick() { $('heroPick').hidden = true; panelOpen = false; heroSwitching = false; }
+// выбор героя по макету А (выбор владельца 2026-10-22): слева — имя, роль, описание и «Войти в мир»; в центре — 3D-модель; справа — список
+let heroSel = null, heroView = null;
+const heroLv = id => (id === W.hero ? W.lv : (W.heroes && W.heroes[id] ? W.heroes[id].lv : 1));
+function drawHeroPick(switching = heroSwitching) {
+  const box = $('heroCards'), H = HEROES[heroSel], R = cfg.abilities.res[heroSel], role = cfg.party && cfg.party.heroRole[heroSel], el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+  box.textContent = '';
+  const info = el('div', 'hinfo'), cur = switching && heroSel === W.hero;
+  const go = el('button', 'hgo', cur ? 'Сейчас' : switching ? `Стать: ${H.name}` : 'Войти в мир'); go.type = 'button'; go.id = 'heroGo'; go.disabled = !H.open || cur; go.addEventListener('click', () => pickHero(heroSel));     // первая кнопка в #heroCards — выбрать (тесты жмут её)
+  info.append(el('div', 'hnm', H.name + (switching ? ` · ур. ${heroLv(heroSel)}` : '')), el('div', 'hrole', H.role), el('div', 'htxt', H.text));
+  const facts = el('div', 'hfacts'), fact = (k, v, c) => { const r = el('div', 'hf'), b = el('span', 'hv', v); if (c) { const d = el('i', 'hdot'); d.style.background = c; b.prepend(d); } r.append(el('span', 'hk', k), b); facts.append(r); };
+  if (role) fact('В отряде', cfg.party.roleName[role] || role);
+  if (R) fact('Ресурс', R.name, R.color);
+  fact('Оружие', H.kinds.length ? H.kinds.map(k => KIND_NAME[k]).join(', ') : H.soon);
+  info.append(facts, go);
+  const stage = el('div', 'hstage');
+  { const inv = createInv(); if (switching && heroSel === W.hero) Object.assign(inv.eq, W.inv.eq); else if (H.start) inv.eq.weapon = H.start;
+    const cv = (heroView || (heroView = createHeroView(document))).show({ hero: heroSel, inv, ach: W.ach }); if (cv) stage.append(cv); else { const p = document.createElement('canvas'); p.width = p.height = 16; p.className = 'hpix'; drawPortrait(p, H.look); stage.append(p); } }
+  const list = el('div', 'hlist'); list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Герои');
+  HERO_IDS.forEach((id, i) => {
+    const Q = HEROES[id], row = el('button', 'hcard' + (id === heroSel ? ' on' : '') + (Q.open ? '' : ' shut') + (switching && id === W.hero ? ' cur' : '')); row.type = 'button'; row.dataset.hero = id; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', String(id === heroSel));
+    const p = document.createElement('canvas'); p.width = p.height = 16; drawPortrait(p, Q.look);
+    const t = el('span', 'ht'); t.append(el('span', 'nm', Q.name + (switching ? ` · ${heroLv(id)}` : '')), el('span', 'role', Q.role));
+    row.append(p, t); if (desk) row.append(el('span', 'hkey', String(i + 1)));
+    row.addEventListener('click', () => { if (!Q.open) return; heroSel = id; drawHeroPick(); });
+    row.addEventListener('dblclick', () => { heroSel = id; pickHero(id); });
+    list.append(row);
+  });
+  box.append(info, stage, list);
+}
 function openHeroPick(switching = false) {
   heroSwitching = switching;
   $('heroCancel').hidden = !switching;
   $('heroNote').textContent = switching ? 'У каждого героя свой уровень, навыки и умения. Пепел, вещи и камни общие. Чужое оружие уйдёт в сумку.' : 'Героя можно сменить потом в меню: уровень, пепел и вещи останутся.';
-  const box = $('heroCards'); box.textContent = '';
-  HERO_IDS.forEach((id, i) => {
-    const H = HEROES[id], c = document.createElement('div'), add = (tag, cls, txt) => { const e = document.createElement(tag); e.className = cls; e.textContent = txt; c.append(e); return e; };
-    c.className = 'hcard' + (H.open ? '' : ' shut'); c.dataset.hero = id;
-    const cv = document.createElement('canvas'); cv.width = cv.height = 16; drawPortrait(cv, H.look); c.append(cv);
-    add('div', 'nm', H.name + (switching ? ` · ур. ${id === W.hero ? W.lv : (W.heroes && W.heroes[id] ? W.heroes[id].lv : 1)}` : '')); add('div', 'role', H.role); add('div', 'txt', H.text);
-    add('div', 'wk', H.kinds.length ? 'Оружие: ' + H.kinds.map(k => KIND_NAME[k]).join(', ') + '.' : H.soon);
-    const cur = switching && id === W.hero; if (cur) c.classList.add('cur');
-    const b = add('button', '', cur ? 'Сейчас' : H.open ? 'Выбрать' + (desk ? ' · ' + (i + 1) : '') : 'Скоро'); b.type = 'button'; b.disabled = !H.open || cur;
-    b.addEventListener('click', () => pickHero(id));
-    box.append(c);
-  });
+  heroSel = switching ? W.hero : HERO_IDS.find(id => HEROES[id].open); drawHeroPick(switching);
   $('heroPick').hidden = false; panelOpen = true; input.release();
 }
 const input = createInput(document, window);
@@ -433,7 +452,8 @@ if (desk) {
   addEventListener('keydown', e => {
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
     const c = e.code;
-    if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].indexOf(c); if (n >= 0 && HERO_IDS[n]) pickHero(HERO_IDS[n]); else if (c === 'Escape' && heroSwitching) closeHeroPick(); return; }
+    if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'].indexOf(c), k = HERO_IDS.indexOf(heroSel);     // выбор героя А: цифра — сразу, стрелки — по списку, Enter — войти
+      if (n >= 0 && HERO_IDS[n]) pickHero(HERO_IDS[n]); else if ((c === 'ArrowDown' || c === 'ArrowUp') && k >= 0) { heroSel = HERO_IDS[(k + (c === 'ArrowDown' ? 1 : HERO_IDS.length - 1)) % HERO_IDS.length]; drawHeroPick(); } else if (c === 'Enter') pickHero(heroSel); else if (c === 'Escape' && heroSwitching) closeHeroPick(); return; }
     if (!$('dead').hidden) { if (c === 'Enter' || c === 'KeyE') $('again').click(); return; }
     if (!$('dialog').hidden) { e.preventDefault(); const bs = [...$('dlgOpts').children], n = ['Digit1', 'Digit2', 'Digit3'].indexOf(c); if (n >= 0 && bs[n]) bs[n].click(); else if (c === 'KeyE' || c === 'Space' || c === 'Enter') bs[0] && bs[0].click(); else if (c === 'Escape') { dlg.i = dlg.lines.length; dlgClose(); } return; }     // разговор (этап 3)
     if (c === 'Escape' && aiming && !panelOpen) { e.preventDefault(); aimCancel = true; return; }     // Esc — отмена прицела
