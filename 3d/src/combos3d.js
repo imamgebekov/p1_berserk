@@ -20,6 +20,12 @@ export const COMBOS = {
     { id: 'riposte', a: 'parry', b: 'execute', name: 'Ответ мастера', text: 'Смертельный удар добивает с 40% здоровья.' },
     { id: 'twindance', a: 'shadow', b: 'dance', name: 'Двойной танец', text: 'Тень-двойник танцует вместе с Вейлом.' }
   ],
+  brand: [     // Клеймёный рыцарь (Г4, 4.17)
+    { id: 'brandrage', a: 'fury', b: 'cleaver', name: 'Ярость клейма', text: 'Рубка драконов в ярости бьёт в 1,4 раза сильнее.' },
+    { id: 'powder', a: 'volley', b: 'cannon', name: 'Порох и сталь', text: 'Пушка после залпа бьёт в 1,3 раза сильнее.' },
+    { id: 'ironhowl', a: 'endure', b: 'howl', name: 'Железный рёв', text: 'Рёв после «Стерпеть» шире в 1,4 раза.' },
+    { id: 'darkpain', a: 'darkcut', b: 'endure', name: 'Боль тьмы', text: '«Стерпеть» после удара тьмы лечит в 1,4 раза больше.' }
+  ],
   priest: [     // Жрец (Г3, 4.16)
     { id: 'blessedwave', a: 'sanctum', b: 'radiance', name: 'Святая волна', text: 'Сияние после Щита веры шире в 1,4 раза.' },
     { id: 'purge', a: 'vtouch', b: 'smite', name: 'Очищение', text: 'Кара по отмеченному тьмой бьёт в 1,4 раза сильнее.' },

@@ -67,6 +67,36 @@ export const NEW_ACTIVES = {
     L(2, 'ir_xvoid', 'Бездна', 'nova', 'shadow', 'fear', '', { k: 1.6 }),
     L(2, 'ir_xplague', 'Мор', 'cloud', 'venom', 'poison', '', { k: 2 })
   ],
+  brand: [     // Клеймёный рыцарь (Г4, 4.17): Клеймо — ярость и кровь, Сталь — защита, Тьма — тень и страх
+    L(0, 'bk_rend', 'Разрыв', 'cone', 'blood', 'bleed', 'lorc/sword-slice', { k: 1.2 }),
+    L(0, 'bk_frenzy', 'Неистовство', 'buff', 'blood', null, 'lorc/aura', { stat: 'spd' }),
+    L(0, 'bk_brand', 'Знак жертвы', 'mark', 'blood', null, 'lorc/bleeding-eye', { k: 1.1 }),
+    L(0, 'bk_wrath', 'Гнев', 'nova', 'fire', 'burn', 'lorc/fire-zone'),
+    L(0, 'bk_hunger', 'Голод клейма', 'buff', 'blood', null, 'lorc/heart-drop', { stat: 'leech' }),
+    L(0, 'bk_chase', 'Погоня', 'dash', 'steel', 'stun', 'lorc/sword-wound'),
+    L(0, 'bk_execute', 'Казнь', 'strike', 'steel', 'crack', 'lorc/hammer-drop', { k: 1.3 }),
+    L(1, 'bk_wall', 'Стена', 'buff', 'steel', null, 'lorc/checked-shield', { stat: 'armor' }),
+    L(1, 'bk_bash', 'Удар эфесом', 'cone', 'steel', 'stun', 'delapouite/shield-bash', { cone: 70, k: 1.2 }),
+    L(1, 'bk_stand', 'Выстоять', 'heal', 'steel', null, 'lorc/stone-sphere'),
+    L(1, 'bk_quake', 'Сотрясение', 'nova', 'earth', 'root', 'delapouite/stone-wall', { k: 1.2 }),
+    L(1, 'bk_iron', 'Железная кожа', 'buff', 'steel', null, 'lorc/aura', { stat: 'regen' }),
+    L(1, 'bk_hook', 'Крюк', 'pull', 'steel', 'slow', 'lorc/shouting', { k: 1.2 }),
+    L(1, 'bk_guard', 'Броня клейма', 'ward', 'steel', null, 'lorc/checked-shield'),
+    L(1, 'bk_bastion', 'Бастион', 'zone', 'earth', 'stun', 'lorc/hammer-drop', { k: 1.2 }),
+    L(2, 'bk_shade', 'Тень клинка', 'bolt', 'shadow', 'fear', 'lorc/shadow-grasp'),
+    L(2, 'bk_drain', 'Кровопийца', 'strike', 'blood', 'bleed', 'lorc/sword-wound', { range: 12, cone: 60 }),
+    L(2, 'bk_void', 'Бездна', 'field', 'shadow', null, 'lorc/portal'),
+    L(2, 'bk_dread', 'Ужас', 'nova', 'shadow', 'fear', 'lorc/screaming'),
+    L(2, 'bk_curse', 'Проклятие клейма', 'mark', 'shadow', null, 'lorc/eclipse'),
+    L(2, 'bk_eclipse', 'Затмение', 'zone', 'shadow', 'blind', 'lorc/magic-portal'),
+    L(2, 'bk_ghost', 'Призраки', 'cloud', 'venom', null, 'lorc/skull-bolt'),
+    L(0, 'bk_xberserk', 'Берсерк', 'nova', 'blood', 'bleed', '', { k: 2 }),     // ряд 9 (предел 70)
+    L(0, 'bk_xslayer', 'Убийца драконов', 'strike', 'steel', 'crack', '', { k: 2.2 }),     // вершина ветки
+    L(1, 'bk_xaegis', 'Несокрушимый', 'ward', 'steel', null, '', { boost: 1.6 }),
+    L(1, 'bk_xfortress', 'Крепость', 'nova', 'earth', 'stun', '', { k: 2 }),
+    L(2, 'bk_xabyss', 'Пасть бездны', 'field', 'shadow', null, '', { k: 2 }),
+    L(2, 'bk_xdarkness', 'Тьма', 'zone', 'shadow', 'blind', '', { k: 2.1 })
+  ],
   priest: [     // Жрец (Г3, 4.16): Свет — лечение, Щиты — обереги и защита, Тень — урон
     L(0, 'pr_flash', 'Быстрое исцеление', 'gheal', 'light', null, 'delapouite/heart-beats'),
     L(0, 'pr_renew', 'Обновление', 'heal', 'light', null, 'lorc/aura'),
@@ -194,6 +224,7 @@ export const OLD_BRANCH = {
   irga: { fireball: 0, meteor: 0, nova: 1, shield: 1, blizzard: 1, chain: 2, cloud: 2, spear: 2 },
   warlock: { hex: 0, souls: 0, doom: 0, drain: 1, pact: 1, summon: 2, terror: 2, grasp: 2 },
   priest: { mend: 0, hymn: 0, radiance: 0, sanctum: 1, penance: 1, smite: 2, vtouch: 2, hallow: 2 },
+  brand: { cleaver: 0, fury: 0, cannon: 0, endure: 1, rush: 1, volley: 2, darkcut: 2, howl: 2 },
   jay: { frost: 0, firearrow: 0, hawk: 0, leap: 1, trap: 1, volley: 2, venom: 2, rain: 2 },
   vale: { dance: 0, execute: 0, fan: 0, blink: 1, shadow: 1, smoke: 1, parry: 2, bloodlet: 2 }
 };
@@ -201,10 +232,16 @@ export const OLD_BRANCH = {
 export const OLD_AIM = new Set(['cloud', 'meteor', 'blizzard', 'grasp', 'rain', 'hallow']);
 // запасной значок game-icons для умений 61–70 (4.06): значок похожего умения той же ветки (основной — рисованный, spellart3d.js)
 // значки Жреца (4.16): копия уже собранных значков игры (gicons.json), без новых загрузок
-export const ICON_SAME = { smite: 'n:ir_ignite', mend: 'n:wl_tap', sanctum: 'n:th_iron', hymn: 'ui:bell', radiance: 'n:ir_blind', hallow: 'n:th_aegis', vtouch: 'n:wl_bolt', penance: 'n:th_judg',
+export const ICON_SAME = { cleaver: 'w:greatsword', cannon: 'n:fireball', volley: 'n:volley', fury: 'n:rage', endure: 'n:wl_hp', rush: 'n:charge', darkcut: 'n:wl_bolt', howl: 'n:wl_howl',     // Клеймёный (4.17)
+  bk_rend: 'n:th_cleave', bk_frenzy: 'n:th_lust', bk_brand: 'n:bloodlet', bk_wrath: 'n:th_madness', bk_hunger: 'n:wl_leech', bk_chase: 'n:charge', bk_execute: 'n:th_behead', bk_wall: 'n:th_wall', bk_bash: 'n:bash',
+  bk_stand: 'n:th_stone', bk_quake: 'n:quake', bk_iron: 'n:th_iron', bk_hook: 'n:th_taunt', bk_guard: 'n:th_stand', bk_bastion: 'n:th_rampart', bk_shade: 'n:vl_shadow', bk_drain: 'n:wl_tap', bk_void: 'n:wl_void',
+  bk_dread: 'n:th_howl', bk_curse: 'n:ir_jinx', bk_eclipse: 'n:wl_gate', bk_ghost: 'n:wl_blight',
+  bk_pain: 'n:th_hand', bk_cleave: 'w:greatsword', bk_fury: 'n:rage', bk_cannon: 'n:fireball', bk_blood: 'n:th_thirst', bk_last: 'n:th_stand', bk_skin: 'n:th_skin', bk_hp: 'n:th_temper', bk_endure: 'n:wl_hp',
+  bk_rush: 'n:charge', bk_regen: 'n:th_bloodrush', bk_thorns: 'n:wl_thorns', bk_dark: 'n:th_roar', bk_cut: 'n:wl_bolt', bk_howl: 'n:wl_howl', bk_volley: 'n:volley', bk_feed: 'n:wl_feed', bk_plague: 'n:wl_plague',
+  smite: 'n:ir_ignite', mend: 'n:wl_tap', sanctum: 'n:th_iron', hymn: 'ui:bell', radiance: 'n:ir_blind', hallow: 'n:th_aegis', vtouch: 'n:wl_bolt', penance: 'n:th_judg',
   pr_flash: 'n:th_bloodrush', pr_renew: 'p:potion', pr_prayer: 'ui:skills', pr_beacon: 'ui:sun', pr_halo: 'n:ir_blind', pr_grace: 'n:th_aegis', pr_dawn: 'n:ir_ignite',
   pr_bulwark: 'n:th_stand', pr_barrier: 'offhand:shield', pr_bash: 'n:bash', pr_iron: 'n:th_iron', pr_aegis: 'n:th_aegis', pr_martyr: 'n:wl_hp', pr_rebuke: 'n:wl_howl', pr_guard: 'n:th_stand',
   pr_pain: 'n:ir_jinx', pr_blast: 'n:vl_shadow', pr_plague: 'n:wl_blight', pr_sear: 'n:ir_heat', pr_fiend: 'n:wl_void', pr_dread: 'n:wl_howl', pr_spike: 'n:doom',
   pr_will: 'n:wl_hp', pr_mend: 'n:wl_tap', pr_hymn: 'ui:bell', pr_rad: 'n:ir_blind', pr_well: 'ui:sparkle', pr_saint: 'n:th_aegis', pr_skin: 'n:th_iron', pr_sanct: 'offhand:shield', pr_pen: 'w:mace',
   pr_hp: 'n:wl_hp', pr_regen: 'p:potion', pr_stand: 'n:th_stand', pr_dark: 'n:vl_shadow', pr_touch: 'n:wl_bolt', pr_smite: 'n:ir_ignite', pr_hallow: 'n:th_aegis', pr_crit: 'ui:eye', pr_plague: 'n:wl_blight' };
-export const ICON_ALIAS = { pr_xsalvation: 'pr_prayer', pr_xsun: 'pr_halo', pr_xsanctuary: 'pr_barrier', pr_xjudg: 'pr_aegis', pr_xvoid: 'pr_fiend', pr_xeclipse: 'pr_blast', th_xrift: 'th_rampart', th_xheaven: 'th_judg', th_xexecute: 'th_behead', th_xreaper: 'th_cleave', th_xfury: 'th_lust', th_xeclipse: 'th_howl', ir_xcomet: 'ir_pillar', ir_xsun: 'ir_wall', ir_xglacier: 'ir_cone', ir_xwinter: 'ir_glacier', ir_xvoid: 'ir_void', ir_xplague: 'ir_rot', wl_xwither: 'wl_agony', wl_xruin: 'wl_void', wl_xfeast: 'wl_tap', wl_xbloodstorm: 'wl_boil', wl_xhellfire: 'wl_fire', wl_xgate: 'wl_gate', jy_xlance: 'jy_pierce', jy_xdeadeye: 'jy_hunt', jy_xsnare: 'jy_net', jy_xwild: 'jy_bandage', jy_xbarrage: 'jy_thunder', jy_xskyfall: 'jy_peal', vl_xtempest: 'vl_flurry', vl_xdeathmark: 'vl_mark', vl_xvanish: 'vl_veil', vl_xumbra: 'vl_ambush', vl_xhemo: 'vl_hemo', vl_xsanguine: 'vl_dew' };
+export const ICON_ALIAS = { bk_xberserk: 'bk_wrath', bk_xslayer: 'bk_execute', bk_xaegis: 'bk_guard', bk_xfortress: 'bk_quake', bk_xabyss: 'bk_void', bk_xdarkness: 'bk_eclipse', pr_xsalvation: 'pr_prayer', pr_xsun: 'pr_halo', pr_xsanctuary: 'pr_barrier', pr_xjudg: 'pr_aegis', pr_xvoid: 'pr_fiend', pr_xeclipse: 'pr_blast', th_xrift: 'th_rampart', th_xheaven: 'th_judg', th_xexecute: 'th_behead', th_xreaper: 'th_cleave', th_xfury: 'th_lust', th_xeclipse: 'th_howl', ir_xcomet: 'ir_pillar', ir_xsun: 'ir_wall', ir_xglacier: 'ir_cone', ir_xwinter: 'ir_glacier', ir_xvoid: 'ir_void', ir_xplague: 'ir_rot', wl_xwither: 'wl_agony', wl_xruin: 'wl_void', wl_xfeast: 'wl_tap', wl_xbloodstorm: 'wl_boil', wl_xhellfire: 'wl_fire', wl_xgate: 'wl_gate', jy_xlance: 'jy_pierce', jy_xdeadeye: 'jy_hunt', jy_xsnare: 'jy_net', jy_xwild: 'jy_bandage', jy_xbarrage: 'jy_thunder', jy_xskyfall: 'jy_peal', vl_xtempest: 'vl_flurry', vl_xdeathmark: 'vl_mark', vl_xvanish: 'vl_veil', vl_xumbra: 'vl_ambush', vl_xhemo: 'vl_hemo', vl_xsanguine: 'vl_dew' };
