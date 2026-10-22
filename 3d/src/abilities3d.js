@@ -72,7 +72,7 @@ export function useAbility(W, i) {
   if (resNow(W) < cost) return 'res';
   const cb = comboFor(W, def.id);                    // связка: прошлое умение — первое в паре, окно открыто
   W.cmb = cb ? { id: cb.id, ...W.cfg.combos[cb.id] } : null;
-  let res; try { res = (ACT[def.id] || GEN[def.kind])(W, cb ? boosted(A, W.cfg.combos[cb.id]) : A, r); } finally { W.cmb = null; }
+  let res; try { res = (ACT[def.id] || GEN[def.kind] || GEN[A.kind])(W, cb ? boosted(A, W.cfg.combos[cb.id]) : A, r); } finally { W.cmb = null; }     // A.kind — свои умения Жреца (вид в конфиге)
   if (res === false) return 'target';
   resSpend(W, cost); W.acd[def.id] = A.cd[r]; noteAbility(W, def.id);
   W.ev.push({ k: 'ability', id: def.id, x: p.x, z: p.z, face: p.face });
@@ -283,7 +283,13 @@ const GEN = {
   pull(W, A, r) { const list = near(W, A.r), p = W.player; if (!list.length) return false; for (const e of list) { abilityHit(W, e, A.mul[r], { knock: 0 }); if (!e.dead) pull(W, e, 10); inflict(W, e, A, r); } gfx(W, A, { x: p.x, z: p.z, r: A.r }); },
   mark(W, A, r) { const { e } = aimAt(W, A.range, A.cone); if (!e) return false; (W.dooms = W.dooms || []).push({ id: e.id, t: A.delay, mul: A.mul[r], jump: false, lvl: W.lvl, el: A.el }); gfx(W, A, { x: e.x, z: e.z, r: 1.2 }); },
   buff(W, A, r) { const p = W.player; buffOn(W, 'gen:' + A.stat, A.stat, A.amt[r], A.t[r]); gfx(W, A, { x: p.x, z: p.z, r: 1.6 }); },
-  heal(W, A, r) { const p = W.player; heal(W, A.k[r]); gfx(W, A, { x: p.x, z: p.z, r: 1.6 }); }
+  heal(W, A, r) { const p = W.player; heal(W, A.k[r]); gfx(W, A, { x: p.x, z: p.z, r: 1.6 }); },
+  gheal(W, A, r) { const p = W.player, k = A.k[r] * (A.boost || 1); heal(W, k);     // 4.16 (Жрец): лечит и отряд рядом
+    for (const a of W.allies) { if (a.dead || len(a.x - p.x, a.z - p.z) > A.r) continue; const got = Math.min(Math.round(a.maxhp * k), a.maxhp - a.hp); if (got > 0) { a.hp += got; W.ev.push({ k: 'allyheal', x: a.x, z: a.z, amt: got, fx: p.x, fz: p.z }); } }
+    gfx(W, A, { x: p.x, z: p.z, r: A.r }); },
+  ward(W, A, r) { const p = W.player, k = A.abs[r] * (A.boost || 1); p.ward = Math.round(p.maxhp * k); p.wardT = A.t;     // 4.16 (Жрец): оберег героя и отряда — гасит урон
+    for (const a of W.allies) if (!a.dead && len(a.x - p.x, a.z - p.z) <= A.r) { a.ward = Math.round(a.maxhp * k); a.wardT = A.t; }
+    W.ev.push({ k: 'allySkill', x: p.x, z: p.z, s: 'ward' }); gfx(W, A, { x: p.x, z: p.z, r: A.r }); }
 };
 // рывок: двигает героя (sim.js, состояние 'dash') и бьёт каждого врага на пути один раз
 export function dashStep(W) {
@@ -297,6 +303,7 @@ export function dashStep(W) {
 }
 // перезарядки и действие баффов умений
 export function tickAbilities(W, dt) {
+  { const p = W.player; if (p.wardT > 0 && (p.wardT -= dt) <= 0) p.ward = 0; for (const a of W.allies) if (a.wardT > 0 && (a.wardT -= dt) <= 0) a.ward = 0; }     // 4.16: оберег гаснет
   resTick(W, dt);     // ресурс героя: восстановление и угасание
   for (const k of Object.keys(W.acd)) if ((W.acd[k] -= dt) <= 0) delete W.acd[k];
   const b = W.abuf, p = W.player;

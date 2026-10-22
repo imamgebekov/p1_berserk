@@ -50,6 +50,8 @@ for (const h of HEROES) for (const d of NEW_ACTIVES[h]) {
   const dmg = near(W);
   if (d.kind === 'buff') ok(W.buffs.some(b => b.src === 'gen:' + d.p.stat), `${h}/${d.id}: нет усиления ${d.p.stat}`);
   else if (d.kind === 'heal') ok(W.player.hp > W.player.maxhp * .5 + 1, `${h}/${d.id}: не лечит`);
+  else if (d.kind === 'gheal') ok(W.player.hp > W.player.maxhp * .5 + 1, `${h}/${d.id}: не лечит`);     // 4.16: лечение отряда (Жрец)
+  else if (d.kind === 'ward') ok(W.player.ward > 0, `${h}/${d.id}: нет оберега`);
   else ok(dmg > 0, `${h}/${d.id} (${d.kind}): никого не задело`);
   if (d.st && !['buff', 'heal', 'field', 'cloud'].includes(d.kind) && d.kind !== 'mark') ok(es.some(e => e.st && Object.keys(e.st).length) || d.st === 'stun' && d.kind === 'dash', `${h}/${d.id}: состояние ${d.st} не легло`);
   ok((W.acd[d.id] || 0) > 0 || d.kind === 'mark', `${h}/${d.id}: нет перезарядки`);

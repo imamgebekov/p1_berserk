@@ -68,6 +68,32 @@ export const TREES = {
       T('ir_plague', 'Мор', 1, { fx: { plague: 4 } }, 'враг, ударивший вас, отравлен на 4 с')
     ] }
   ],
+  priest: [     // Жрец (Г3, 4.16)
+    { id: 'pr_light', name: 'Свет', color: '#ffe08a', role: 'лечение отряда', skills: [
+      T('pr_will', 'Кроткая воля', 5, { stats: { hp: 10 } }, '+10 здоровья за ранг'),
+      T('pr_mend', 'Тёплые руки', 4, ab('mend', { k: .1 }), 'Исцеление: лечит на 10% больше за ранг'),
+      T('pr_hymn', 'Громкий гимн', 3, ab('hymn', { amt: .12, t: .1 }, .06), 'Гимн: сильнее и дольше, перезарядка короче на 6% за ранг'),
+      T('pr_rad', 'Яркое сияние', 3, ab('radiance', { mul: .12, sd: .1 }), 'Сияние: удар и слепота сильнее за ранг'),
+      T('pr_well', 'Неиссякаемая вера', 3, { res: { regen: 1 } }, '+1 веры в секунду за ранг'),
+      T('pr_saint', 'Святость', 1, { fx: { killHeal: .03 } }, 'убийство лечит на 3% здоровья')
+    ] },
+    { id: 'pr_shield', name: 'Щиты', color: '#9ad8ff', role: 'обереги и защита', skills: [
+      T('pr_skin', 'Освящённая кожа', 5, { stats: { armor: 3 } }, '+3 брони за ранг'),
+      T('pr_sanct', 'Крепкий оберег', 4, ab('sanctum', { abs: .12 }), 'Щит веры: гасит на 12% больше за ранг'),
+      T('pr_pen', 'Тяжёлое покаяние', 3, ab('penance', { mul: .12, sd: .1 }, .06), 'Покаяние: удар и оглушение сильнее, перезарядка короче на 6% за ранг'),
+      T('pr_hp', 'Стойкость', 4, { stats: { hp: 12 } }, '+12 здоровья за ранг'),
+      T('pr_regen', 'Тихая молитва', 3, { stats: { regen: 1 } }, '+1 к восстановлению здоровья за ранг'),
+      T('pr_stand', 'Последняя молитва', 1, { fx: { lastStand: .2 } }, 'при здоровье ниже 40% урон по вам −20%')
+    ] },
+    { id: 'pr_shadow', name: 'Тень', color: '#8a5ad0', role: 'урон тьмой', skills: [
+      T('pr_dark', 'Тёмное слово', 5, { stats: { dmg: 2 } }, '+2 урона за ранг'),
+      T('pr_touch', 'Глубокое касание', 4, ab('vtouch', { mul: .12 }), 'Касание тьмы: удар +12% за ранг'),
+      T('pr_smite', 'Гнев небес', 3, ab('smite', { mul: .12 }, .06), 'Кара: урон +12%, перезарядка короче на 6% за ранг'),
+      T('pr_hallow', 'Широкий круг', 3, ab('hallow', { mul: .1, r: .08 }), 'Освящение: сильнее и шире за ранг'),
+      T('pr_crit', 'Прозрение', 3, { stats: { crit: 2 } }, '+2% шанс крита за ранг'),
+      T('pr_plague', 'Чёрный мор', 1, { fx: { plague: 4 } }, 'враг, ударивший вас, отравлен на 4 с')
+    ] }
+  ],
   warlock: [     // Морок (2026-10-20)
     { id: 'wl_curse', name: 'Проклятия', color: '#8a4ad0', role: 'урон со временем', skills: [
       T('wl_rot', 'Гниль', 5, { stats: { dmg: 2 } }, '+2 урона за ранг'),
@@ -160,7 +186,7 @@ const HIGH_SETS = [
   [['Мощь', 'dmg', 3, 5, '+3 урона', 'n:th_hand'], ['Ветеран', 'hp', 20, 5, '+20 здоровья', 'n:th_temper'], ['Порыв', 'spd', 2, 4, '+2% скорости', 'n:step'], ['Смертельная точность', 'crit', 3, 5, '+3% шанс крита', 'n:th_roar']]
 ];
 const DOT = new Set(['burn', 'poison', 'bleed']);
-const boostKeys = d => { const k = d.kind === 'buff' ? { amt: .1 } : d.kind === 'heal' ? { k: .1 } : d.kind === 'cloud' ? { dps: .1 } : { mul: .1 }; if (d.st && d.kind !== 'cloud') k[DOT.has(d.st) ? 'dps' : 'sd'] = .1; return k; };     // что усиливает талант: сила вида и его состояния
+const boostKeys = d => { const k = d.kind === 'buff' ? { amt: .1 } : d.kind === 'heal' || d.kind === 'gheal' ? { k: .1 } : d.kind === 'ward' ? { abs: .1 } : d.kind === 'cloud' ? { dps: .1 } : { mul: .1 }; if (d.st && d.kind !== 'cloud') k[DOT.has(d.st) ? 'dps' : 'sd'] = .1; return k; };     // что усиливает талант: сила вида и его состояния
 for (const [hero, list] of Object.entries(NEW_ACTIVES)) TREES[hero].forEach((b, bi) => {
   for (const d of list.filter(x => x.br === bi)) b.skills.push({ ...T('g_' + d.id, 'Опыт: ' + d.name, 3, ab(d.id, boostKeys(d), .06), `«${d.name}»: сила +10%, перезарядка короче на 6% за ранг`), icon: 'n:' + d.id, boost: d.id });
   STAT_SETS[bi].forEach(([name, st, v, max, txt, icon], j) => b.skills.push({ ...T(b.id + '_s' + j, name, max, { stats: { [st]: v } }, txt + ' за ранг'), icon, gen: true }));

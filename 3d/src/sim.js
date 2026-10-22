@@ -314,6 +314,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   if (W.abuf.iron > 0) { dmg *= W.abuf.ironTaken; knock = 0; }          // несокрушимость: меньше урона, не отбрасывает
   dmg = Math.max(1, Math.round(dmg / (1 + Math.max(0, W.gear.armor) * W.cfg.gear.armorK)));
   if (W.abuf.mshield > 0) { const a = Math.min(Math.floor(dmg * W.abuf.mshieldK), Math.floor(W.res || 0)); if (a > 0) { W.res -= a; dmg = Math.max(0, dmg - a); W.ev.push({ k: 'mshield', x: p.x, z: p.z, n: a }); } }     // щит маны Ирги
+  if (p.ward > 0) { const a = Math.min(p.ward, dmg); p.ward -= a; dmg -= a; W.ev.push({ k: 'ward', x: p.x, z: p.z, n: a }); if (dmg <= 0) { p.inv = W.cfg.player.hurtInvuln; return false; } }     // 4.16: оберег Жреца
   p.lastHurt = W.t;
   if (W.gfx.aegis && W.aegis > 0) { const a = Math.min(W.aegis, dmg); W.aegis -= a; dmg -= a; W.ev.push({ k: 'aegis', x: p.x, z: p.z, left: W.aegis }); if (W.aegis <= 0) W.aegisT = W.gfx.aegis[0]; if (dmg <= 0) { p.inv = W.cfg.player.hurtInvuln; return true; } }     // Кираса Солнца: щит берёт удар первым
   p.calm = W.cfg.player.fire.calm;

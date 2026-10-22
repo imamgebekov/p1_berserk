@@ -308,6 +308,8 @@ const BASE = {
       mark:   { cd: [10, 9, 8], cost: 30, range: 12, cone: 60, delay: 2.5, mul: [2, 2.6, 3.2] },
       buff:   { cd: [18, 16, 14], cost: 20, t: [6, 8, 10], amt: { dmg: [4, 7, 10], armor: [8, 12, 16], spd: [15, 20, 25], crit: [10, 15, 20], leech: [4, 6, 8], regen: [3, 5, 7] } },
       heal:   { cd: [20, 18, 16], cost: 30, k: [.15, .2, .25] },
+      gheal:  { cd: [12, 11, 10], cost: 35, r: 10, k: [.14, .19, .24] },     // 4.16: лечение героя и отряда рядом (доля здоровья каждого)
+      ward:   { cd: [16, 14, 12], cost: 30, r: 10, abs: [.12, .17, .22], t: 8 },     // 4.16: оберег героя и отряда: abs — сколько урона гасит (доля здоровья), t с
       slowK: .4
     },
     // ресурс умений (2026-10-18): max — запас, start — с чего начинает, hit — за удар оружием, hurt — за 1 урона по герою,
@@ -318,6 +320,7 @@ const BASE = {
       jay: { name: 'Концентрация', color: '#e8c04a', max: 100, start: 100, hit: 4, hurt: 0, roll: 0, regen: 9, decay: 0, idle: 0, perLv: 2 },
       vale: { name: 'Концентрация', color: '#6ab0ff', max: 100, start: 0, hit: 2, hurt: 0, roll: 0, regen: 4, decay: 0, idle: 0, perLv: 2 },     // Вейл — скрытый дуэлянт: восстанавливается сама (пожелание 2026-10-18; было «Ритм» от ударов)
       irga: { name: 'Мана', color: '#7a8aff', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 },
+      priest: { name: 'Вера', color: '#ffe08a', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 },     // 4.16: вера Жреца
       warlock: { name: 'Души', color: '#b04aff', max: 100, start: 60, hit: 4, hurt: 3, roll: 0, regen: 5, decay: 0, idle: 0, perLv: 2 }     // души: копятся от ударов и боли
     },
     thorn: {
@@ -369,6 +372,16 @@ const BASE = {
       blizzard: { cd: [16, 14, 12], cost: 55, r: 4, t: 4, tick: .4, mul: [.3, .4, .5], slow: .6, range: 14, ahead: 6 },     // вьюга
       spear:    { cd: [18, 16, 14], cost: 50, mul: [3.5, 4.5, 5.5], range: 16, cone: 60 }     // копьё бездны
     },
+    priest: {     // Жрец (Г3, 4.16): свои умения собраны из видов действия (kind в data/abilities3d.js), числа — здесь
+      smite:    { kind: 'bolt', el: 'light', st: null, cd: [5, 4.5, 4], cost: 20, mul: [1.3, 1.7, 2.1], n: 1, spread: 0, pierce: 0, sd: [1, 1.5, 2], dps: [0, 0, 0], t: 0 },
+      mend:     { kind: 'gheal', cd: [8, 7, 6], cost: 30, r: 10, k: [.16, .22, .28] },
+      sanctum:  { kind: 'ward', cd: [14, 12, 10], cost: 30, r: 10, abs: [.15, .2, .25], t: 8 },
+      hymn:     { kind: 'buff', stat: 'dmg', cd: [18, 16, 14], cost: 20, t: [6, 8, 10], amt: [4, 7, 10] },
+      radiance: { kind: 'nova', el: 'light', st: 'blind', cd: [9, 8, 7], cost: 35, r: 4, mul: [1, 1.3, 1.6], knock: 1, sd: [1.5, 2, 2.5], dps: [0, 0, 0], t: 0 },
+      hallow:   { kind: 'field', el: 'light', st: null, cd: [14, 12, 10], cost: 35, r: 3.5, t: 6, tick: 1, mul: [.4, .55, .7], range: 12, ahead: 6, slow: 0 },
+      vtouch:   { kind: 'mark', el: 'shadow', st: null, cd: [12, 11, 10], cost: 30, range: 14, cone: 60, delay: 3, mul: [2.5, 3.2, 4] },
+      penance:  { kind: 'strike', el: 'light', st: 'stun', cd: [10, 9, 8], cost: 25, range: 3, cone: 60, mul: [1.6, 2, 2.4], knock: 1, sd: [.8, 1, 1.2], dps: [0, 0, 0], t: 0 }
+    },
     warlock: {     // Морок-чернокнижник (2026-10-20)
       hex:    { cd: [6, 5, 4], cost: 20, range: 12, cone: 60, crack: [.2, .3, .4], dps: [4, 6, 8], t: 6 },     // порча: трещина (урон по цели +crack) и яд
       drain:  { cd: [7, 6, 5], cost: 25, range: 10, cone: 60, mul: [1.3, 1.7, 2.1], heal: [.25, .3, .35], cap: [.08, .1, .12] },     // похищение жизни: heal — доля нанесённого урона, не больше cap здоровья
@@ -388,14 +401,15 @@ const BASE = {
     archerdance: { add: { n: 3 } }, snare: { mul: { mul: 1.4 } }, aimcold: { pierce: 99 }, icehail: { slow: .6 },
     shadowstrike: { crit: true }, bloodfan: { k: 1.5 }, riposte: { set: { kill: .4 } }, twindance: {},
     detonate: { k: 2, burn: [6, 4] }, frozenstorm: { add: { jumps: 2 }, slow: .6 }, icearmor: { mul: { r: 1.4 }, armor: 15, t: 6 }, breach: { k: 1.5 },
-    verdict: { k: 1.5 }, feast: { k: 2 }, gravecall: { add: { n: 3 } }, bloodimp: { mul: { t: 1.5, mul: 1.3 } }
+    verdict: { k: 1.5 }, feast: { k: 2 }, gravecall: { add: { n: 3 } }, bloodimp: { mul: { t: 1.5, mul: 1.3 } },
+    blessedwave: { mul: { r: 1.4 } }, purge: { mul: { mul: 1.4 } }, sermon: { mul: { k: 1.3 } }, judgement: { mul: { mul: 1.3, t: 1.3 } }
   },
   // вторая рука (B2b): block.arc — ширина щита спереди, °; block.knock — доля отброса при блоке; dual.mul — доля урона второго клинка
   // к каждому удару, dual.swing — удары с двумя клинками быстрее (×)
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
   heroes: { thorn: { hp: 1.15, speed: 1, crit: 0, killHeal: .03, healLv: [8, 12] },     // Торн — защитник: здоровья больше; убийство рядом (до 6 м), когда вокруг ещё двое и больше, лечит на killHeal до healLv[0] ур., к healLv[1] — на нет (на «железе» гиб чаще всех)
-  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .95, speed: 1.05, crit: 3 } },
+  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .95, speed: 1.05, crit: 3 }, priest: { hp: 1, speed: 1.05, crit: 1 } },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
     // rar — редкость вещи (3 — великий, фиолетовый; 4 — клеймёный, оранжевый; 5 — золотой, только здесь), mul — наценка;
@@ -771,7 +785,7 @@ const BASE = {
   // сбор группы (4.07, решение владельца): подземелье отряда — на 4, рейд — на 10; состав по ролям; heroRole — роль героя;
   // bots — какими спутниками добирать роль; roleName и names — подписи наёмников
   party: { on: true, dungeon: { tank: 1, heal: 1, melee: 1, ranged: 1 }, raid: { tank: 2, heal: 3, melee: 3, ranged: 2 },
-    heroRole: { thorn: 'tank', vale: 'melee', jay: 'ranged', irga: 'ranged', warlock: 'ranged' },
+    heroRole: { thorn: 'tank', vale: 'melee', jay: 'ranged', irga: 'ranged', warlock: 'ranged', priest: 'heal' },
     bots: { tank: ['c_thorn', 'soldier'], heal: ['c_irga'], melee: ['c_vale', 'veteran'], ranged: ['c_jay'] },
     roleName: { tank: 'защитник', heal: 'лекарь', melee: 'боец', ranged: 'стрелок' },
     names: { tank: ['Гронт', 'Борвин', 'Ульф', 'Хаген', 'Дарек'], heal: ['Велла', 'Мирна', 'Ведана', 'Агна', 'Зоряна', 'Лада'], melee: ['Кай', 'Рагнар', 'Ивар', 'Торвин', 'Ярош'], ranged: ['Эйра', 'Стрибог', 'Нежка', 'Олаф', 'Сигрун'] } },
@@ -930,7 +944,7 @@ const BASE = {
     // hit — реакция на урон (не чаще hitGap с); пороги шага и бега — доли скорости героя/врага с запасом (on — включить, off — выключить);
     // sp — сглаживание оценки скорости (1/с)
     anim: { loco: .25, atk: .1, roll: .08, hit: .1, death: .15, hitGap: .8, walkOn: .1, walkOff: .05, runOn: .62, runOff: .48, sp: 10 },
-    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'q_wizard' },
+    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'q_wizard', priest: 'q_cleric' },
     foes: { imp: 'q_demonfly', bomber: 'q_demonfly', ash_thief: 'q_demonfly', hound: 'q_wolf', blackdog: 'q_wolf', garm: 'q_wolf', eclipse_fiend: 'q_wolf', garm_beast: 'q_wolf', greywolf: 'q_wolf', towerhound: 'q_wolf',
       lunger: 'kk_skel_warrior', war_ghost: 'kk_skel_minion', witch: 'kk_skel_mage', archer: 'kk_rogue_hooded', kad_xbow: 'kk_rogue_hooded', shield: 'kk_knight', kad_soldier: 'kk_knight', kad_spear: 'kk_knight', kad_banner: 'kk_knight',
       royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'q_yeti', castellan: 'q_king', ashking: 'q_king', brandlord: 'kk_knight', abyssking: 'q_king', oakking: 'q_king',
@@ -948,7 +962,7 @@ const BASE = {
       kk_ranger: { anims: 'kk', height: 2.15, helm: ['Ranger_Hat'], cape: ['Ranger_Cape'] },
       kk_mage: { anims: 'kk', height: 2.2, helm: ['Mage_Hat'], cape: ['Mage_Cape'] },
       kk_skel_warrior: { anims: 'kk', height: 2.2, atk: 'p1' }, kk_skel_minion: { anims: 'kk', height: 2.0 }, kk_skel_mage: { anims: 'kk', height: 2.2, atk: 'cast', aim: 'spell' },
-      q_wizard: { height: 2.2, hand: 'WeaponR', handL: 'FistL', hide: ['Wizard_Staff'], wRot: [Math.PI, 0, 0] }, q_demonfly: { height: 1.8, atk: 'a1' }, q_wolf: { height: 1.3, atk: 'a1' }, q_ghostskull: { height: 1.8, atk: 'a1' },
+      q_wizard: { height: 2.2, hand: 'WeaponR', handL: 'FistL', hide: ['Wizard_Staff'], wRot: [Math.PI, 0, 0] }, q_cleric: { height: 2.15, hand: 'WeaponR', handL: 'FistL', hide: ['Cleric_Staff'], wRot: [Math.PI, 0, 0] }, q_demonfly: { height: 1.8, atk: 'a1' }, q_wolf: { height: 1.3, atk: 'a1' }, q_ghostskull: { height: 1.8, atk: 'a1' },
       q_yeti: { height: 2.1, atk: 'a1' }, q_king: { height: 2.0, atk: 'a1' },
       q_farmer: { height: 2.05 }, q_adv_f: { height: 1.95 }, q_hooded: { height: 1.95 }, kk_barbarian: { anims: 'kk', height: 2.3 }, q_warrior: { height: 2.15, hand: 'WeaponR', handL: 'FistL' },
       q_stag: { height: 2.2 }, q_fox: { height: .75 }, q_cow: { height: 1.35 }, q_chicken: { height: .45 }, q_pigeon: { height: .42 }, q_horse: { height: 2.7 },

@@ -20,6 +20,12 @@ export const COMBOS = {
     { id: 'riposte', a: 'parry', b: 'execute', name: 'Ответ мастера', text: 'Смертельный удар добивает с 40% здоровья.' },
     { id: 'twindance', a: 'shadow', b: 'dance', name: 'Двойной танец', text: 'Тень-двойник танцует вместе с Вейлом.' }
   ],
+  priest: [     // Жрец (Г3, 4.16)
+    { id: 'blessedwave', a: 'sanctum', b: 'radiance', name: 'Святая волна', text: 'Сияние после Щита веры шире в 1,4 раза.' },
+    { id: 'purge', a: 'vtouch', b: 'smite', name: 'Очищение', text: 'Кара по отмеченному тьмой бьёт в 1,4 раза сильнее.' },
+    { id: 'sermon', a: 'hymn', b: 'mend', name: 'Проповедь', text: 'Исцеление после Гимна лечит на 30% больше.' },
+    { id: 'judgement', a: 'penance', b: 'hallow', name: 'Суд', text: 'Освящение после Покаяния сильнее и держится дольше.' }
+  ],
   warlock: [
     { id: 'verdict', a: 'hex', b: 'doom', name: 'Приговор', text: 'Рок по проклятому бьёт в 1,5 раза сильнее.' },
     { id: 'feast', a: 'terror', b: 'drain', name: 'Пир страха', text: 'Похищение жизни по испуганному лечит вдвое.' },

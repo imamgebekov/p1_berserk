@@ -43,6 +43,7 @@ export function rareShelf(W) {
 export function restock(W) {
   const out = SHOP_STAPLES.map(([id, n]) => ({ id, n }));
   if (W.hero === 'irga') out.push({ id: 'w_staff_iron', n: 1 }, { id: 'w_wand_iron', n: 1 });
+  if (W.hero === 'priest') out.push({ id: 'w_mace_iron', n: 1 }, { id: 'w_staff_iron', n: 1 });     // Жрецу булава и посох всегда на витрине (4.16)
   if (W.hero === 'warlock') out.push({ id: 'w_scythe_iron', n: 1 }, { id: 'w_wand_iron', n: 1 });     // Мороку коса и жезл всегда на витрине     // Ирге посох и жезл всегда на витрине (без случайных чисел)
   for (const it of rollLoot(SHOP, W.rng, .12, W.gear.luck)) { const ex = out.find(o => o.id === it.id); if (ex) ex.n += it.n; else out.push({ ...it }); }
   const rare = rareShelf(W);
