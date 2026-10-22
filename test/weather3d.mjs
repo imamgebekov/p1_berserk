@@ -15,7 +15,7 @@ const S = makeWeather(CFG3.world.seed, C);
 ok(JSON.stringify(S) === JSON.stringify(makeWeather(CFG3.world.seed, C)) && JSON.stringify(S) !== JSON.stringify(makeWeather(CFG3.world.seed + 1, C)), 'расписание не повторяется или не зависит от зерна');
 for (let sd = 1; sd <= 20; sd++) { const Q = makeWeather(sd, C); ok(Q.segs[0].kind === 'clear' && weatherAt(Q, 0, C).rain === 0 && weatherAt(Q, 0, C).cloud === 0, 'игра начинается не с ясной погоды (зерно ' + sd + ')'); }
 ok(S.segs.every(s => { const [, a, b] = C.kinds[s.kind]; return s.t1 - s.t0 >= a - 1e-9 && s.t1 - s.t0 <= b + 1e-9; }), 'кусок погоды вне своей длины');
-{ const share = { clear: 0, cloudy: 0, rain: 0 }; for (let t = 0; t < S.total; t += 1) share[weatherAt(S, t, C).kind]++;
+{ const share = { clear: 0, cloudy: 0, rain: 0, fog: 0 }; for (let t = 0; t < S.total; t += 1) share[weatherAt(S, t, C).kind]++;
   const tot = Object.values(C.kinds).reduce((s, k) => s + k[0] * (k[1] + k[2]) / 2, 0);
   for (const k of Object.keys(share)) { const want = C.kinds[k][0] * (C.kinds[k][1] + C.kinds[k][2]) / 2 / tot, got = share[k] / Math.floor(S.total); ok(Math.abs(got - want) < .15, `доля «${k}» ${got.toFixed(2)} вместо ~${want.toFixed(2)}`); } }
 { let jump = 0, prev = weatherAt(S, 0, C); for (let t = .5; t < S.total * 2; t += .5) { const w = weatherAt(S, t, C); jump = Math.max(jump, Math.abs(w.rain - prev.rain), Math.abs(w.cloud - prev.cloud)); prev = w; }
@@ -26,6 +26,7 @@ const E0 = effectsOf({ rain: 0, cloud: 0 }, C), E1 = effectsOf({ rain: 1, cloud:
 ok(E0.fog === 1 && E0.light === 1 && E0.wet === 1 && E0.birds === 1 && E0.drops === 0, 'ясная погода что-то меняет');
 ok(E1.fog > 1.5 && E1.light < .3 && E1.wet < .9 && E1.birds === 0 && E1.drops === C.drops, 'дождь не меняет туман, свет, землю или птиц: ' + JSON.stringify(E1));
 ok(effectsOf(null, C).drops === 0, 'без погоды идут капли');
+{ const F = effectsOf({ rain: 0, cloud: .35, mist: 1 }, C); ok(F.fog > E1.fog && F.drops === 0 && F.wet === 1, 'туман (4.18г) не гуще дождя или мочит землю: ' + JSON.stringify(F)); }
 
 // ---------- 3. звук ----------
 { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.bosses.list = []; c.events.on = false; c.wanderer.on = false;

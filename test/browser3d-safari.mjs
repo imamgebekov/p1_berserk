@@ -70,7 +70,7 @@ try {
     await pg.goto(url + '?shot', { timeout: 30000 }); await pg.waitForTimeout(1500);
     const wide = await pg.evaluate(() => [...document.querySelectorAll('.hcard')].every(c => { const r = c.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }));
     if (!wide) bad('iPhone: карточки героев шире экрана');
-    await pg.locator('.hcard[data-hero="vale"] button').tap();
+    await pg.locator('.hcard[data-hero="vale"]').tap(); await pg.locator('#heroGo').tap();     // выбор героя А: строка списка, затем «Войти в мир»
     await pg.waitForFunction(() => window.__b3d.W.hero === 'vale', null, { timeout: 4000 }).catch(() => bad('iPhone: Вейл не выбирается касанием'));
     if (!(await runs(pg))) bad('iPhone: игра стоит');
     await pg.evaluate(() => { const b = window.__b3d, p = b.W.player; p.inv = 1e9; const e = b.spawn('brute', p.x, p.z + 1.6); e.hp = e.maxhp = 5000; e.cd = 99; });

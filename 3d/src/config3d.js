@@ -227,7 +227,7 @@ const BASE = {
     kinds: { forest: [['deer', 2], ['hare', 2], ['fox', 1]], swamp: [['heron', 2], ['hare', 1]], mountains: [['goat', 2], ['hare', 1]], waste: [['fox', 1], ['hare', 2]], coast: [['deer', 1], ['hare', 2], ['heron', 1]] },
     speed: { deer: 1.15, fox: 1.25, goat: 1, heron: .8, hare: 1 },
     ducks: { n: 4, near: 70, scare: 7, swim: .5, flee: 2.2 }, fish: [2, 5], fly: { n: 10, r: 10 } },
-  ambient: { on: true, villagers: 5, walk: 1.3, pause: [3, 9], fireGap: 3.2, birds: 12, scare: 6, flySpeed: 7, flyUp: 3.5, flyTime: 4, back: 45, smokeKinds: ['house', 'tavern', 'smithy'], chimneyH: 1.4, smoke: 6, fogPeak: .04, fogWidth: .1, fogAmp: 1.4 },
+  ambient: { on: true, villagers: 5, walk: 1.3, pause: [3, 9], fireGap: 3.2, birds: 12, scare: 6, flySpeed: 7, flyUp: 3.5, flyTime: 4, back: 45, smokeKinds: ['house', 'tavern', 'smithy'], chimneyH: 1.4, smoke: 6, fogPeak: .04, fogWidth: .1, fogAmp: 0 },     // 4.18г: утренний туман убран (пик был ровно в 07:00 — час пробуждения); туман — погода (weather.kinds.fog)
   // стрельба героя (луки и арбалеты): assist — наводка на врага в конусе ±assist° перед героем; заряд (тяжёлый удар) даёт
   // дальность ×(1 + chargeRange × заряд) и скорость стрелы ×(1 + chargeSpeed × заряд); hitR — запас попадания, м; spawn — откуда вылетает
   shoot: { assist: 25, chargeRange: .5, chargeSpeed: .4, hitR: .25, spawn: .8, stun: .5 },
@@ -1059,7 +1059,8 @@ const BASE = {
     sky: {
       // шаг 6 аудита: днём солнце сильнее неба (есть объём), свет тёплый, туман светлый и тёплый; ночь синяя, а не чёрная
       day:   { fog: '#a8ab92', hemiSky: '#dfe8e0', hemiGround: '#4a5034', hemiI: 1.4, sun: '#ffe2b8', sunI: 3.2, dome: '#ffffff' },
-      night: { fog: '#1c2433', hemiSky: '#7a8ab8', hemiGround: '#2a2a30', hemiI: 1.8, sun: '#8a9ad8', sunI: .7, dome: '#3a4258' }
+      night: { fog: '#1c2433', hemiSky: '#7a8ab8', hemiGround: '#2a2a30', hemiI: 1.8, sun: '#8a9ad8', sunI: .7, dome: '#3a4258' },
+      dusk: { k: .8, w: .85, fog: '#b07c78', hemiSky: '#f2b0a0', sun: '#ff8c4a', dome: '#ff9e7a' }     // 4.18г (просьба владельца): краски рассвета и заката; k — сила, w — ширина по свету
     },
     sunPos: [-30, 42, -40]     // откуда светит солнце (м): около 40° над горизонтом
 
@@ -1165,7 +1166,7 @@ const BASE = {
     // сила по видам (wood — и доски, и кора с камнем природы); plank — ширина доски, tile — ряд черепицы, м
     paint: { on: true, ground: .8, wood: 1, roof: 1, log: 1, masonry: 1, cloth: 1, metal: 1, leather: 1, hide: 1, fur: 1, bone: 1, scale: 1, model: 1.7, plank: .3, tile: .3 },     // model — множитель у героев, врагов и зверей: они мелкие     // кожа, шкура, шерсть, кость, чешуя — герои и враги (T4)
     rim: { on: true, day: .08, night: .45, pow: 5, hero: '#ffd8a8', foe: '#ff9078' }, halo: { on: true, lamp: [2.6, '#ffb35a'], fire: [4.4, '#ff8a3a'], near: 70, max: 128, lampModel: [1.14, .26, 2] } },     // 4.11: lampModel — высота светильника модели, вынос от столба, размер ореола
-  weather: { on: true, kinds: { clear: [.55, 150, 360], cloudy: [.25, 80, 200], rain: [.2, 70, 160] }, ramp: 14, fog: .6, wet: .7,
+  weather: { on: true, kinds: { clear: [.5, 150, 360], cloudy: [.22, 80, 200], rain: [.17, 70, 160], fog: [.11, 70, 170] }, ramp: 14, fog: .6, mist: 1.8, wet: .7,     // 4.18г: туман — погода, mist — насколько гуще
     drops: 900, fall: 16, box: [34, 18], splash: 26, ripples: 24, force: null,
     // дождь в бою (шаг R): при полном дожде враги слышат ×hear и видят ×sight, огонь (шанс и длительность поджога) ×fire,
     // молния («Гроза») срабатывает ×storm; между ясно и дождём — плавно по силе дождя
