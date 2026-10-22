@@ -50,7 +50,7 @@ const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count =
     return ends; };
   for (const k of [10, 25, 40]) { const e = play(k); console.log(`темп (${k} убийств на сцену): к концу актов уровни ${[1, 2, 3, 4].map(a => e[a]).join(' / ')}`);
     ok(e[1] >= 16 && e[1] <= 26 && e[2] >= 32 && e[2] <= 42 && e[3] >= 43 && e[3] <= 52 && e[4] >= 58 && e[4] <= 64, `темп при ${k} убийствах: ${JSON.stringify(e)}`); }     // 4.06: сюжет кончается около 60, 61–70 — пояса мира ×2
-  const old = play(25, { ...CFG3, level: { ...L, pace: { ...L.pace, on: false } } }); ok(old[2] >= 60, 'выключено — темп не как раньше (60 к Акту II): ' + JSON.stringify(old));
+  const old = play(25, { ...CFG3, level: { ...L, pow: 1.3, pace: { ...L.pace, on: false } } });     // 4.19: «как раньше» — и прежняя кривая опыта 1,3 ok(old[2] >= 60, 'выключено — темп не как раньше (60 к Акту II): ' + JSON.stringify(old));
   const W = { cfg: CFG3, lv: 40, story: { i: A.findIndex(c => c.lv >= 40) } }; ok(paceXp(W, 9000, 'quest') <= Math.round(L.pace.fq * xpNeed(40, CFG3)) && paceXp(W, 30, 'quest') === 30, 'потолок награды за задание не работает');
   const ahead = { ...W, lv: 40, story: { i: A.findIndex(c => c.lv >= 30) } }; ok(paceXp(ahead, 9000, 'quest') < paceXp(W, 9000, 'quest') * .5, 'обогнал сюжет — награда не меньше');
   ok(greyMul(W, 40) === 1 && greyMul(W, 39) === 1 && greyMul(W, 38) < 1 && greyMul(W, 10) === L.pace.min, '«серые» враги: ' + [40, 39, 38, 10].map(x => greyMul(W, x).toFixed(2))); }
