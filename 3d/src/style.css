@@ -756,3 +756,6 @@ img.gi.own,img.abgi.own{image-rendering:auto}
 [data-land] #heroCards .hcard{width:220px;padding:10px;gap:4px}
 #lib .sock.no{opacity:.5}     /* библиотека (4.00): недоступное действие — бледнее */
 #mapClouds{position:absolute;pointer-events:none;border-radius:10px}     /* облака над картой (4.05): место и размер — как у #mapCv (main.js) */
+
+/* Г7 (4.13): реплики спутников над головой */
+.num.say{animation:rise 2.4s ease-out forwards;color:#f4e2b8;font-size:15px;font-style:italic;font-weight:600;white-space:nowrap;text-shadow:0 1px 2px #000,0 0 6px #000}

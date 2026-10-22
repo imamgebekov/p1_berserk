@@ -44,11 +44,25 @@ export function pickAlly(W, e, dPlayer) {
 }
 export function hurtAlly(W, a, dmg, e) {
   if (a.dead) return;
-  a.hp -= dmg * (a.taken ?? 1) / (1 + Math.max(0, a.garmor || 0) * W.cfg.gear.armorK); a.flash = .12; a.calm = 3;     // подопечные событий получают меньше (taken); броня бойца — как у героя
+  { const L = liveOf(W); if (L && a.wallT > 0) dmg *= L.tank.wall.k; if (a.ward > 0) { const g = Math.min(a.ward, dmg); a.ward -= g; dmg -= g; } }     // Г7: стена щитов, оберег
+  a.hp -= dmg * (a.taken ?? 1) / (1 + Math.max(0, a.garmor || 0) * W.cfg.gear.armorK); a.flash = .12; a.calm = 3;
+  { const L = liveOf(W); if (L && a.hp > 0 && a.hp < a.maxhp * L.say.low) say(W, a, 'low'); }     // подопечные событий получают меньше (taken); броня бойца — как у героя
   const d = len(a.x - e.x, a.z - e.z) || 1; a.vx += (a.x - e.x) / d * 3; a.vz += (a.z - e.z) / d * 3;
   W.ev.push({ k: 'allyhurt', x: a.x, z: a.z, dmg });
   if (a.story && a.hp < 1) a.hp = 1;     // герои сюжета не гибнут: держатся на ногах
   if (a.hp <= 0) { a.hp = 0; a.dead = true; a.deadT = 0; if (!a.guest) W.ev.push({ k: 'allydead', x: a.x, z: a.z, name: W.cfg.squad.types[a.type].name }); }
+}
+// Г7 «Живые спутники» (4.13): навык бота — от номера и зерна мира, без генератора боя (бой и тесты не сдвигаются)
+const liveOf = W => { const L = W.cfg.squad.live; return L && L.on ? L : null; };
+const roleOfT = T => (T.role === 'tank' ? 'tank' : T.role === 'heal' ? 'heal' : T.ranged || T.role === 'ranged' ? 'ranged' : 'melee');
+const hash = (a, k) => Math.abs(Math.sin((a + 1) * 12.9898 + k * 78.233) * 43758.5453) % 1;
+export function skillOf(W, a) { const L = liveOf(W); if (!L) return 1; if (a.skill == null) a.skill = L.skill[0] + (L.skill[1] - L.skill[0]) * hash(a.id, W.cfg.world.seed % 997); return a.skill; }
+const reactOf = (W, a) => { const L = liveOf(W), k = skillOf(W, a); return L ? L.react[0] + (L.react[1] - L.react[0]) * (k - L.skill[0]) / Math.max(.01, L.skill[1] - L.skill[0]) : 0; };
+function say(W, a, kind) {
+  const L = liveOf(W); if (!L || a.story || a.guest) return; const Q = L.say; W.sayT = W.sayT || 0;
+  if ((a.sayCd || 0) > 0 || W.t < W.sayT) return; const lines = Q.lines[kind]; if (!lines) return;
+  a.sayN = (a.sayN || 0) + 1; a.sayCd = Q.cd; W.sayT = W.t + Q.gcd;
+  W.ev.push({ k: 'allySay', x: a.x, z: a.z, text: lines[Math.floor(hash(a.id + a.sayN * 31, 7) * lines.length)], kind });
 }
 // рост с уровнем героя (этап 4): бойцы не отстают от мира 1–60
 export const allyHp = (W, T) => Math.round(T.hp * (1 + W.cfg.squad.lvHp * (W.lv - 1)));
@@ -130,10 +144,10 @@ function allyHit(W, T, id, e, dmg, from, push = 1) {
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: false, id: e.id, ally: true });
   if (e.hp <= 0) killEnemy(W, e, W.cfg.squad.xpShare);
 }
-function allyShot(W, a, T, e) {
+function allyShot(W, a, T, e, k = 1) {
   const S = W.cfg.squad.shot, dx = e.x - a.x, dz = e.z - a.z, d = len(dx, dz) || 1;
   W.proj.push({ friendly: true, ally: a.id, type: a.type, kind: T.role === 'heal' ? 'orb' : 'arrow', x: a.x + dx / d * .6, z: a.z + dz / d * .6, vx: dx / d * S.speed, vz: dz / d * S.speed,
-    dmg: Math.round(allyDmgOf(W, a) * rr(W, .9, 1.1)), life: (T.range + 3) / S.speed, hit: [] });
+    dmg: Math.round(allyDmgOf(W, a) * k * rr(W, .9, 1.1)), life: (T.range + 3) / S.speed, hit: [] });
   W.ev.push({ k: 'allyshoot', x: a.x, z: a.z, heal: T.role === 'heal' });
 }
 // стрелы и искры спутников (свои стрелы героя летят в sim.js)
@@ -170,6 +184,7 @@ function tryTaunt(W, a, T) {
 }
 // опасность под ногами (этап 5): лужа босса или луч (горит или вот-вот загорится) — куда уходить, иначе null
 function dangerAway(W, a) {
+  if (liveOf(W)) { const r = reactOf(W, a); for (const h of W.haz) { if (h.t >= h.delay || h.t < r) continue; const ux = a.x - h.x, uz = a.z - h.z, d = len(ux, uz); if (d < h.r + .6) { say(W, a, 'dodge'); return d > 1e-3 ? { x: ux / d, z: uz / d } : { x: 1, z: 0 }; } } }     // Г7: круг атаки — прочь, когда заметил
   for (const z of W.bzones || []) { if (z.lvl !== W.lvl) continue; const ux = a.x - z.x, uz = a.z - z.z, d = len(ux, uz); if (d < z.r + .6) return d > 1e-3 ? { x: ux / d, z: uz / d } : { x: 1, z: 0 }; }
   for (const e of W.enemies) {
     const B = e.boss && !e.dead && e.b; if (!B || !B.atk || B.atk.kind !== 'beam' || (B.state !== 'beam' && B.state !== 'wind')) continue;
@@ -193,6 +208,41 @@ function pickTarget(W, a, T, P, enemies) {
   }
   return tgt;
 }
+// Г7: место у цели — бойцы расходятся веером со стороны отряда, защитник встаёт против остальных (враг отворачивается от группы)
+function slotDir(W, a, T, tgt, idx, live, L) {
+  let cx = W.player.x, cz = W.player.z; for (const b of live) { cx += b.x; cz += b.z; } cx /= live.length + 1; cz /= live.length + 1;
+  let ux = cx - tgt.x, uz = cz - tgt.z, u = len(ux, uz) || 1; ux /= u; uz /= u;
+  if (T.role === 'tank') return { x: -ux, z: -uz };
+  const k = (idx % 5 - 2) * L.spread + (skillOf(W, a) - .8) * .4, c = Math.cos(k), s = Math.sin(k); return { x: ux * c - uz * s, z: ux * s + uz * c };
+}
+// Г7: умения бойцов по роли (k1, k2 — перезарядки): защитник — стена щитов; боец — круговой удар и мощный по сильной цели; стрелок — залп и прицельный
+function roleSkills(W, a, T, tgt, enemies) {
+  const L = liveOf(W); if (!L || a.story) return false; const R = roleOfT(T), C = W.cfg.enemies[tgt.type], d = len(tgt.x - a.x, tgt.z - a.z), big = tgt.boss || tgt.elite, dmg = allyDmgOf(W, a);
+  if (R === 'tank') { const Q = L.tank.wall; if (!(a.k1 > 0) && a.hp < a.maxhp * Q.below) { a.wallT = Q.t; a.k1 = Q.cd; W.ev.push({ k: 'allySkill', x: a.x, z: a.z, s: 'wall' }); } return false; }
+  if (R === 'melee') {
+    if (d > T.range + C.radius + .3) return false;
+    const Q = L.melee.cleave, near = enemies.filter(e => len(e.x - a.x, e.z - a.z) < Q.r + W.cfg.enemies[e.type].radius);
+    if (!(a.k1 > 0) && near.length >= Q.min) { for (const e of near) allyHit(W, T, a.id, e, Math.round(dmg * Q.k), a); a.k1 = Q.cd; a.state = 'rec'; a.t = 0; W.ev.push({ k: 'allySkill', x: a.x, z: a.z, s: 'cleave', r: Q.r }); return true; }
+    const B = L.melee.burst; if (!(a.k2 > 0) && big) { allyHit(W, T, a.id, tgt, Math.round(dmg * B.k), a, 1.5); a.k2 = B.cd; a.state = 'rec'; a.t = 0; W.ev.push({ k: 'allySkill', x: tgt.x, z: tgt.z, s: 'burst' }); return true; }
+    return false;
+  }
+  if (R === 'ranged') {
+    if (d > T.range || lineBlocked(W.map, a.x, a.z, tgt.x, tgt.z)) return false;
+    const Q = L.ranged.volley, near = enemies.filter(e => len(e.x - tgt.x, e.z - tgt.z) < 4);
+    if (!(a.k1 > 0) && near.length >= Q.min) { const base = Math.atan2(tgt.x - a.x, tgt.z - a.z); for (let i = 0; i < Q.n; i++) { const g = base + (i - (Q.n - 1) / 2) * Q.fan; allyShot(W, a, T, { x: a.x + Math.sin(g) * 10, z: a.z + Math.cos(g) * 10 }); } a.k1 = Q.cd; a.state = 'rec'; a.t = 0; return true; }
+    const B = L.ranged.aimed; if (!(a.k2 > 0) && big) { allyShot(W, a, T, tgt, B.k); a.k2 = B.cd; a.state = 'rec'; a.t = 0; return true; }
+  }
+  return false;
+}
+// Г7: лекарь — общее лечение, когда ранены двое и больше; оберег на защитника (поглощает урон)
+function healSkills(W, a, T) {
+  const L = liveOf(W); if (!L || a.story) return false; const p = W.player, H = T.heal, G = L.heal.group, all = [...(p.dead ? [] : [p]), ...liveAllies(W)].filter(u => len(u.x - a.x, u.z - a.z) < H.r);
+  const hurt = all.filter(u => u.hp < u.maxhp * G.below);
+  if (!(a.k1 > 0) && hurt.length >= G.min) { const amt = Math.round(H.amt * G.k * (1 + W.cfg.squad.lvHp * (W.lv - 1))); for (const u of hurt) { const got = Math.min(amt, u.maxhp - u.hp); u.hp += got; W.ev.push({ k: 'allyheal', x: u.x, z: u.z, amt: got, fx: a.x, fz: a.z, me: u === p }); } a.k1 = G.cd; say(W, a, 'gheal'); return true; }
+  const tank = liveAllies(W).find(u => u !== a && W.cfg.squad.types[u.type].role === 'tank' && u.calm > 0 && !(u.ward > 0));
+  if (!(a.k2 > 0) && tank && len(tank.x - a.x, tank.z - a.z) < H.r) { tank.ward = Math.round(tank.maxhp * L.heal.ward.amt); a.k2 = L.heal.ward.cd; W.ev.push({ k: 'allySkill', x: tank.x, z: tank.z, s: 'ward' }); return true; }
+  return false;
+}
 export function updateAllies(W, dt) {
   const S = W.cfg.squad, p = W.player, P = partyOf(W), live = W.allies.filter(a => !a.dead && !a.guest), enemies = W.enemies.filter(e => !e.dead);     // в бою и строю — и герои сюжета (этап 7: раньше они стояли)
   for (let i = W.allies.length - 1; i >= 0; i--) { const a = W.allies[i]; if (a.dead) { a.deadT += dt; if (a.deadT > 1.4) { dropAllyGear(W, a); W.allies.splice(i, 1); } } }     // вещи павшего — на землю
@@ -204,12 +254,17 @@ export function updateAllies(W, dt) {
     const T = S.types[a.type];
     { const mh = allyMaxHpOf(W, a); if (mh !== a.maxhp) { a.hp = Math.max(1, a.hp + mh - a.maxhp); a.maxhp = mh; } }     // уровень героя вырос — боец крепче
     if (a.flash > 0) a.flash -= dt; if (a.calm > 0) a.calm -= dt; if (a.hcd > 0) a.hcd -= dt; if (a.tcd > 0) a.tcd -= dt;
+    if (a.sayCd > 0) a.sayCd -= dt; if (a.wallT > 0) a.wallT -= dt; if (a.k1 > 0) a.k1 -= dt; if (a.k2 > 0) a.k2 -= dt;     // Г7: реплики, стена щитов, два умения роли
     const px = a.x, pz = a.z;
     slide(W.map, a, a.vx * dt, a.vz * dt, .45); const kd = Math.exp(-8 * dt); a.vx *= kd; a.vz *= kd;
     { const v = a.state !== 'wind' && dangerAway(W, a); if (v) { a.state = 'idle'; a.face = Math.atan2(v.x, v.z); steer(W, a, v.x, v.z, T.speed * 1.2 * dt); a.moving = true; return; } }     // этап 5: из луж и с линии луча — прочь
+    if (T.heal && a.state === 'idle' && healSkills(W, a, T)) { a.moving = false; return; }
     if (T.heal && a.state === 'idle' && tryHeal(W, a, T)) { a.moving = false; return; }
     if (T.taunt) tryTaunt(W, a, T);
     const tgt = pickTarget(W, a, T, P, enemies);
+    if (tgt && a.state === 'idle' && roleSkills(W, a, T, tgt, enemies)) { a.moving = false; return; }
+    if (tgt && tgt.boss && T.role === 'tank' && a.btg !== tgt.id) { a.btg = tgt.id; say(W, a, 'pull'); }
+    if (a.btg && !tgt) { const b = W.enemies.find(e => e.id === a.btg); if (!b || b.dead) say(W, a, 'win'); a.btg = 0; }
     if (a.state === 'wind') {
       a.t += dt; if (a.tg && !a.tg.dead) a.face = Math.atan2(a.tg.x - a.x, a.tg.z - a.z);
       if (a.t >= T.wind) {
@@ -231,7 +286,9 @@ export function updateAllies(W, dt) {
         else { a.state = 'wind'; a.t = 0; a.tg = tgt; }
       } else {
         a.face = Math.atan2(dx, dz);
-        if (d > T.range + C.radius * .5) steer(W, a, dx / d, dz / d, T.speed * dt);
+        const L = liveOf(W), sl = L && d > T.range + C.radius + 1.2 && d < T.range + C.radius + 4 ? slotDir(W, a, T, tgt, idx, live, L) : null;     // Г7: подходят к своему месту, а не все в одну точку
+        if (sl && d > T.range + C.radius * .5) { const ox = tgt.x + sl.x * (T.range + C.radius * .5) * .75 - a.x, oz = tgt.z + sl.z * (T.range + C.radius * .5) * .75 - a.z, od = len(ox, oz) || 1e-6; steer(W, a, ox / od, oz / od, T.speed * dt); }
+        else if (d > T.range + C.radius * .5) steer(W, a, dx / d, dz / d, T.speed * dt);
         else { a.state = 'wind'; a.t = 0; a.tg = tgt; }
       }
     } else {
@@ -248,5 +305,7 @@ export function updateAllies(W, dt) {
       if (a.calm <= 0 && a.hp < a.maxhp) a.hp = Math.min(a.maxhp, a.hp + (W.lvl === 'surface' && len(a.x, a.z) < W.cfg.player.fire.radius ? S.fireRegen : S.regen) * dt);
     }
     a.moving = len(a.x - px, a.z - pz) > .4 * dt * 3;
+    { const L = liveOf(W); if (L && !tgt && P.cmd !== 'hold') { if (len(p.x - a.x, p.z - a.z) > L.stuck[1] && len(a.x - px, a.z - pz) < .3 * dt) a.stk = (a.stk || 0) + dt; else a.stk = 0;     // Г7: застрял в нише — к герою
+      if (a.stk > L.stuck[0]) { const g = p.face + Math.PI + (idx % 3 - 1) * .7; a.x = p.x + Math.sin(g) * 1.8; a.z = p.z + Math.cos(g) * 1.8; resolve(W.map, a, .45); a.stk = 0; } } }
   });
 }

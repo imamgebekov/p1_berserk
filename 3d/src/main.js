@@ -206,7 +206,7 @@ function onText(x, y, z, txt, cls) {
   d.className = 'num ' + cls; d.textContent = txt;
   d.style.left = p.x + 'px'; d.style.top = p.y + 'px';
   $('dmg').appendChild(d);
-  setTimeout(() => d.remove(), 900);
+  setTimeout(() => d.remove(), cls === 'say' ? 2500 : 900);     // реплики спутников (Г7) — дольше
 }
 function toast(txt, cls = '', color, ic) {     // ic — иконка из uiicons.js (шаг 10)
   const box = $('toasts'), d = document.createElement('div');
