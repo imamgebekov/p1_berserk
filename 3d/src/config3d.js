@@ -35,6 +35,7 @@ const BASE = {
     fov: 48,              // угол обзора камеры
     camPitch: 58,         // наклон камеры вниз: 90 — строго сверху, 30 — почти горизонтально
     camDist: 19,          // расстояние камеры до героя
+    zoom: { min: .6, max: 1.4, wheel: .0012, key: 1.12, ease: 8 },     // 4.12: приближение игрока — множитель camDist (колесо, + и −, щипок); max — по замеру: ×1,6 даёт 226 вызовов отрисовки против 139
     camLookUp: 1.0,       // на какую высоту над землёй смотрит камера
     camYaw: 38,           // поворот камеры вокруг героя: 0 — прямо, 45 — «изометрия» как в Project Zomboid
     camFollow: 7,         // «пружинность» слежения (больше — жёстче)
@@ -441,6 +442,7 @@ const BASE = {
     rugColors: ['#7a2a24', '#3a4a6a', '#6a5a2a'], danger: [3, 6], banner: .6,
     bannerColors: ['#8a2a1a', '#2a3a6a', '#4a5a2a'], candle: .45, wall: .55, floor: .5 },
   dungeons: {
+    bg: { on: true, size: 110, mist: '#5a2616', mistA: .5, mistY: -.45, embers: 220, emberBox: 60, emberH: 9, emberUp: .5, emberS: .09, emberC: '#ff8a3a', pillar: '#170f0c', pillarMax: 300, pillarStep: 8, pillarChance: .3, depth: 7 },     // 4.13: живой фон вокруг залов (dungeonbg3d.js)
     reach: 1.8,           // на каком расстоянии от люка или лестницы появляется кнопка
     wall: .6, wallH: 1.4, // толщина и высота стен (низкие: камера смотрит сверху)
     fade: .4,             // затемнение при переходе, с (при prefers-reduced-motion — без него)

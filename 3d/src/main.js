@@ -86,6 +86,19 @@ try {
 }
 
 const W = createWorld(cfg);
+// 4.12: приближение камеры — колесо, + и −, щипок двумя пальцами; запоминается в этом браузере
+if (renderer && cfg.view.zoom) {
+  const ZK = 'berserk3d.zoom', Z = cfg.view.zoom; let z0 = 1; try { z0 = Number(localStorage.getItem(ZK)) || 1; } catch (e) { /* без сохранения */ }
+  const setZ = z => { const v = renderer.camZoom(z); try { localStorage.setItem(ZK, String(Math.round(v * 100) / 100)); } catch (e) { /* без сохранения */ } };
+  { const zq = Number(new URLSearchParams(location.search).get('zoom')); if (zq) z0 = zq; }     // ?zoom=1.6 — для замера кадров
+  renderer.camZoom(z0);
+  canvas.addEventListener('wheel', e => { e.preventDefault(); setZ(renderer.camZoom() * Math.exp(e.deltaY * Z.wheel)); }, { passive: false });
+  addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey || (e.target && e.target.closest && e.target.closest('input, textarea'))) return; if (e.code === 'Equal' || e.code === 'NumpadAdd') setZ(renderer.camZoom() / Z.key); else if (e.code === 'Minus' || e.code === 'NumpadSubtract') setZ(renderer.camZoom() * Z.key); });
+  const tp = new Map(); let pd = 0, pz = 1;     // касания по полю: два пальца — щипок
+  canvas.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2) { const [a, b] = [...tp.values()]; pd = Math.hypot(a[0] - b[0], a[1] - b[1]); pz = renderer.camZoom(); } });
+  canvas.addEventListener('pointermove', e => { if (!tp.has(e.pointerId)) return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2 && pd > 20) { const [a, b] = [...tp.values()]; setZ(pz * pd / Math.max(20, Math.hypot(a[0] - b[0], a[1] - b[1]))); } });
+  for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, e => { tp.delete(e.pointerId); if (tp.size < 2) pd = 0; });
+}
 const BENCH = new URLSearchParams(location.search).has('bench');      // ?bench: замер на устройстве — новая игра, сохранение не трогаем
 const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; } }; })();
 const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)

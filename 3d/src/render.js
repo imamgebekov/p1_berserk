@@ -4,6 +4,7 @@ import { makeMap, addFires, propsBlocked, campGates, insideOf, insideCamp } from
 import { firesOf } from './fires3d.js';
 import { buildDecor } from './decor.js';
 import { buildTown, stoneLook } from './town.js';
+import { makeDungeonBG } from './dungeonbg3d.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
 import { buildHeights, heightAt, waterDist, lakeR, streamDist } from './terrain3d.js';
 import { createAscii, OVERLAY } from './ascii3d.js';
@@ -551,6 +552,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   const surfaceObjs = [land, sea, riverGroup, sunGroup, rainGroup, ohGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
+  const dbg = makeDungeonBG(cfg); scene.add(dbg.group); let dbgMap = null;     // 4.13: живой фон подземелий
   // второй этаж (2026-10-21): виден мир вокруг, как с первого этажа; этаж — над своим домом на высоте floors.lift
   let liftY = null;
   const floorL = W => { const L = W.levels && W.levels[W.lvl]; return L && L.map && L.map.floor ? L : null; };
@@ -938,7 +940,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
   }
 
-  let feelZoom = 0, cine = null, cineA = 0, cineT = 0;
+  let feelZoom = 0, cine = null, cineA = 0, cineT = 0, zoomT = 1, zoomC = 1;     // zoomT — приближение игрока (4.12), zoomC — плавное
   const cf = { x: 0, z: 0 };     // «кинокамера» сцен (этап 5 «круче»): точка, куда смотрит камера в разговоре
   function render(W, dt) {
     const t = W.t, p = W.player;
@@ -950,7 +952,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (cine) { const kc = 1 - Math.exp(-C.follow * rdt); cf.x += (cine.x - cf.x) * kc; cf.z += (cine.z - cf.z) * kc; } else { cf.x = cam.x; cf.z = cam.z; }
     const k = 1 - Math.exp(-cfg.view.camFollow * dt), cfx = p.x + (cf.x - p.x) * cineA, cfz = p.z + (cf.z - p.z) * cineA, ka = cineA > 0 ? Math.max(k, 1 - Math.exp(-C.follow * rdt)) : k;
     cam.x += (cfx - cam.x) * ka; cam.z += (cfz - cam.z) * ka; cam.y += ((liftY ?? Y(p.x, p.z)) - cam.y) * (cfg.view.blend ? 1 - Math.exp(-cfg.view.blend.camY * dt) : k);     // высота над холмами — медленнее (шаг 3)
-    const ca = calm ? 0 : cineA, pitch = (cfg.view.camPitch - C.pitch * ca) * Math.PI / 180, dist = cfg.view.camDist * (1 - feelZoom) * (1 - C.dist * ca);     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
+    zoomC += (zoomT - zoomC) * (1 - Math.exp(-((cfg.view.zoom && cfg.view.zoom.ease) || 8) * rdt));
+    const ca = calm ? 0 : cineA, pitch = (cfg.view.camPitch - C.pitch * ca) * Math.PI / 180, dist = cfg.view.camDist * zoomC * (1 - feelZoom) * (1 - C.dist * ca);     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
     const FV = cfg.fx.view, sh = calm || !FV ? 0 : W.shake * FV.amp, wt = performance.now() / 1000;     // тряска — плавная (шаг 4), при «уменьшить движение» — нет
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
     const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
@@ -965,12 +968,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     if (W.lvl !== shownLvl || (views.get(W.lvl) && views.get(W.lvl).map !== W.map)) showLevel(W);
     const under = W.lvl !== 'surface' && !FL;
+    { const L = W.levels && W.levels[W.lvl]; dbg.group.visible = !!(under && L && L.def); if (dbg.group.visible) { if (dbgMap !== L.map) { dbgMap = L.map; dbg.setMap(L.map); } dbg.update(t, p.x, p.z, calm); } }
     if (!under) { streamLand(cam.x, cam.z); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
     dome.position.set(cam.x, 0, cam.z);                              // небо — вокруг камеры (мир шире купола)
     { const k = actorKey(cfg, 'hero', W.hero); if ((k || '') !== (hero.key || '')) { const A = k && makeActor(k, kitOf(k), 'hero'); if (A || !k) { scene.remove(hero.group); if (hero.gltf) disposeActor(hero); disposeDeep(hero.group); hero = A || makeHero(); hero.key = k || ''; scene.add(hero.group); heroLook = null; rimKey = ''; if (shadowsOn) hero.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); } } }     // готовая модель героя пришла или герой сменился
     { const cp = W.ach && W.ach.cape, lk = lookKey(W.hero, W.inv, cp); if (lk !== heroLook) { heroLook = lk; hero.setLook(dressedLook(heroOf(W.hero).look, W.inv, cp)); } }     // облик по надетому и цвет плаща — награда подвига
     if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : 1, rain: WE.force === 'rain' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
-    scene.fog.density = under ? cfg.view.fogDensity * (String(W.lvl).startsWith('up:') ? .5 : 2.2) : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog;     // в дождь туман гуще     // на рассвете туман гуще
+    scene.fog.density = (under ? cfg.view.fogDensity * (String(W.lvl).startsWith('up:') ? .5 : 2.2) : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog) / zoomC;     // 4.12: туман — на приближение, иначе отдаление темнит     // в дождь туман гуще     // на рассвете туман гуще
     if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
     else if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток
       lastLight = W.light; const k = skyAt(W.light, cfg.daynight.sky);
@@ -1260,5 +1264,5 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function setDprMax(v) { dprMax = v; resize(); }
 
   const treesNear = (x, z) => { if (!WC) return 0; let n = 0; const r2 = WC.rustle.r * WC.rustle.r, count = A => { for (let i = 0; i < A.length; i += 2) { const dx = A[i] - x, dz = A[i + 1] - z; if (dx * dx + dz * dz < r2) n++; } }; count(treeXZ); for (const L of liveLand.values()) count(L.trees); return Math.min(1, n / WC.rustle.full); };
-  return { dbg: { scene, gl }, render, setZoom: z => { feelZoom = Math.max(0, Math.min(.4, z || 0)); }, setCine: f => { if (f && !cine) { cf.x = cam.x; cf.z = cam.z; } cine = f || null; }, cineAmt: () => cineA, resize, project, groundAt, setAim, setAscii, setRetro, setDprMax, setQuality, setResScale: v => { resScale = v; resize(); }, quality: () => ({ ...Q, shadowsOn: gl.shadowMap.enabled, resScale }), look: () => ({ retro, ascii: asciiOn, w: canvas.width, h: canvas.height, tone: gl.toneMapping }), vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
+  return { dbg: { scene, gl }, render, setZoom: z => { feelZoom = Math.max(0, Math.min(.4, z || 0)); }, camZoom: z => { const Z = cfg.view.zoom; if (z != null && Z) zoomT = Math.max(Z.min, Math.min(Z.max, Number(z) || 1)); return zoomT; }, setCine: f => { if (f && !cine) { cf.x = cam.x; cf.z = cam.z; } cine = f || null; }, cineAmt: () => cineA, resize, project, groundAt, setAim, setAscii, setRetro, setDprMax, setQuality, setResScale: v => { resScale = v; resize(); }, quality: () => ({ ...Q, shadowsOn: gl.shadowMap.enabled, resScale }), look: () => ({ retro, ascii: asciiOn, w: canvas.width, h: canvas.height, tone: gl.toneMapping }), vfx: () => ({ bolts: fxPool.filter(f => f.kind === 'bolt').length, ...fx.live() }), xray: () => XU, land: () => ({ live: liveLand.size, built: hf.built, keys: [...liveLand.keys()] }), wind: () => windNow, treesNear, weather: () => ({ ...wNow, drops: drops.visible ? drops.geometry.drawRange.count / 2 : 0, fog: scene.fog.density }), ascii: () => (asciiOn ? ascii : null), sun: () => (field ? { op: lightMat.opacity, shafts: shafts.filter(s => s.m.visible).length, on: sunGroup.visible !== false } : null), gl, camera, scene, town, info: () => gl.info.render, hero, fx, life: () => ({ villagers: villagers.map(({ v }) => ({ x: v.x, z: v.z, moving: v.moving })), crows: crows.map(({ b }) => ({ x: b.hx, z: b.hz, state: b.state })), puffs: puffs.count, fog: scene.fog.density }) };
 }
