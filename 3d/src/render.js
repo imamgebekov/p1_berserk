@@ -911,11 +911,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   function updateTele(W, t) {
     teleRing.visible = teleDisc.visible = teleInner.visible = teleLine.visible = false;
-    poolMeshes.forEach((m, i) => { const z = W.bzones && W.bzones[i]; m.visible = !!z && z.lvl === W.lvl; if (!m.visible) return; m.position.set(z.x, .07 + Y(z.x, z.z), z.z); m.scale.setScalar(z.r); m.material.opacity = Math.min(.45, z.t * .3) * (.85 + .15 * Math.sin(t * 6 + i)); });
+    poolMeshes.forEach((m, i) => { const z = W.bzones && W.bzones[i]; m.visible = !!z && z.lvl === W.lvl; if (!m.visible) return; m.position.set(z.x, .07 + Y(z.x, z.z), z.z); m.scale.setScalar(z.r); m.material.opacity = z.met ? .2 + .35 * (1 - Math.max(0, z.arm) / z.arm0) * (.6 + .4 * Math.sin(t * 24)) : Math.min(.45, z.t * .3) * (.85 + .15 * Math.sin(t * 6 + i)); });
     for (const e of W.enemies) {
       if (!e.boss || e.dead || !e.b || (e.b.state !== 'wind' && e.b.state !== 'beam')) continue;
       const a = e.b.atk, k = Math.min(1, a.t / a.wind), pulse = .25 + .25 * Math.sin(t * 30) + .2 * k, live = e.b.state === 'beam';
-      const col = a.kind === 'cast' ? '#b05aff' : live ? '#ffb040' : '#ff3a2a'; for (const m of [teleRing, teleDisc, teleLine]) m.material.color.set(col);
+      const col = a.kind === 'safe' ? '#4adf7a' : a.kind === 'cast' ? '#b05aff' : live ? '#ffb040' : '#ff3a2a'; for (const m of [teleRing, teleDisc, teleLine]) m.material.color.set(col);
       if (a.kind === 'beam') {     // луч (этап 5): замах — тонкая линия к цели, потом яркий горящий луч
         const x = live ? e.x : a.x, z = live ? e.z : a.z;
         teleLine.visible = true; teleLine.scale.set(live ? a.width : a.width * .5, a.len, 1); teleLine.position.set(x + a.dx * a.len / 2, .09 + Y(x, z), z + a.dz * a.len / 2);

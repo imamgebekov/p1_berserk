@@ -186,6 +186,12 @@ function tryTaunt(W, a, T) {
 function dangerAway(W, a) {
   if (liveOf(W)) { const r = reactOf(W, a); for (const h of W.haz) { if (h.t >= h.delay || h.t < r) continue; const ux = a.x - h.x, uz = a.z - h.z, d = len(ux, uz); if (d < h.r + .6) { say(W, a, 'dodge'); return d > 1e-3 ? { x: ux / d, z: uz / d } : { x: 1, z: 0 }; } } }     // Г7: круг атаки — прочь, когда заметил
   for (const z of W.bzones || []) { if (z.lvl !== W.lvl) continue; const ux = a.x - z.x, uz = a.z - z.z, d = len(ux, uz); if (d < z.r + .6) return d > 1e-3 ? { x: ux / d, z: uz / d } : { x: 1, z: 0 }; }
+  for (const e of W.enemies) {     // 4.18б: при «Укрытии» — в зелёный круг, при «Скачке» — прочь с метки
+    const B = e.boss && !e.dead && e.b, A = B && B.state === 'wind' && B.atk; if (!A || (A.kind !== 'safe' && A.kind !== 'blink')) continue;
+    const ux = A.x - a.x, uz = A.z - a.z, d = len(ux, uz);
+    if (A.kind === 'safe' && d > A.r * .6) return { x: ux / d, z: uz / d };
+    if (A.kind === 'blink' && d < A.r + .6) return d > 1e-3 ? { x: -ux / d, z: -uz / d } : { x: 1, z: 0 };
+  }
   for (const e of W.enemies) {
     const B = e.boss && !e.dead && e.b; if (!B || !B.atk || B.atk.kind !== 'beam' || (B.state !== 'beam' && B.state !== 'wind')) continue;
     const A = B.atk, ahead = (a.x - e.x) * A.dx + (a.z - e.z) * A.dz, side = (a.x - e.x) * A.dz - (a.z - e.z) * A.dx;

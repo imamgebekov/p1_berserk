@@ -28,7 +28,7 @@ import { BY_ID, CATALOG } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem, chestGold } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
 import { SETS } from './data/sets3d.js';
-import { initBoss, updateBoss, tickBossZones } from './boss3d.js';
+import { initBoss, updateBoss, tickBossZones, bossRise } from './boss3d.js';
 import { storyFresh, storyTick, storyKill, storyBoss, storyActors, duelGuard, brandTick } from './story3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent, questTick } from './quests3d.js';
@@ -336,6 +336,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
 
 export function killEnemy(W, e, share) {
   if (e.dead) return;
+  if (e.boss && e.b && e.b.def && e.b.def.stage2 && !e.b.st2) { bossRise(W, e); return; }     // вторая стадия (4.18б)
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
   { const H = heroMul(W), kh = H.killHeal ? H.killHeal * clamp((H.healLv[1] - W.lv) / (H.healLv[1] - H.healLv[0]), 0, 1) : 0, p = W.player; if (kh && !p.dead && p.hp > 0 && len(p.x - e.x, p.z - e.z) < 6 && W.enemies.filter(o => !o.dead && len(o.x - p.x, o.z - p.z) < 6).length >= 2) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * kh); }     // «второе дыхание» Торна: убил рядом — подлечился

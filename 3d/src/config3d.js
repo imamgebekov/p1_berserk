@@ -440,6 +440,39 @@ const BASE = {
     // механики (этап 5): tick — шаг урона луча и луж, с (дольше неуязвимости героя после удара); brk — доля здоровья босса, которую надо снять,
     // чтобы сбить чтение без тяжёлого удара; stun — сколько босс стоит, когда чтение сбито, с
     mech: { tick: .6, brk: .15, stun: 2.2 },
+    // свои приёмы боссов (4.18б, просьба владельца): добавка к attacks по виду босса. Виды: meteor — n меток под героем и отрядом (и вокруг
+    // на around м), через arm с удар радиусом r; pull — тянет всех в r м к боссу на force м, затем удар в inner; blink — скачок к цели, удар r;
+    // safe — удар по всему залу, кроме зелёного круга r в safeD м от босса. drain — лечение (доля в секунду), пока жива подмога.
+    // stage2 — вторая стадия: босс «умирает» и встаёт с долей hp здоровья, уроном × dmg, своими приёмами и фазами
+    sig: {
+      barghest: { attacks: [{ kind: 'blink', name: 'Прыжок из тени', wind: .75, r: 3.2, mul: 1.2, cd: 9, range: 24 }] },
+      rootgnaw: { attacks: [{ kind: 'pull', name: 'Корни тянут', wind: 1.1, r: 12, force: 6, inner: 3.6, mul: 1.3, cd: 12, range: 12 }] },
+      hagmother: { attacks: [{ kind: 'meteor', name: 'Порча с неба', wind: .6, n: 4, r: 2.4, arm: 1.6, mul: 1.2, cd: 11, range: 99, around: 6 }] },
+      thornlord: { attacks: [{ kind: 'safe', name: 'Терновая буря', wind: 2.6, r: 3.2, safeD: 7, mul: 1.8, cd: 20, range: 99 }], drain: 0.02 },
+      oldoak: { attacks: [{ kind: 'pull', name: 'Зов чащи', wind: 1.1, r: 14, force: 8, inner: 4, mul: 1.3, cd: 12, range: 14 }, { kind: 'meteor', name: 'Град желудей', wind: .6, n: 5, r: 2.4, arm: 1.6, mul: 1.4, cd: 13, range: 99, around: 6 }], drain: 0.015 },
+      saltwarden: { attacks: [{ kind: 'blink', name: 'Соляной скачок', wind: .75, r: 3.4, mul: 1.2, cd: 9, range: 24 }] },
+      drownchoir: { attacks: [{ kind: 'safe', name: 'Хорал прилива', wind: 2.6, r: 3.2, safeD: 7, mul: 2.2, cd: 20, range: 99 }] },
+      abbess: { attacks: [{ kind: 'meteor', name: 'Колокольный звон', wind: .6, n: 4, r: 2.6, arm: 1.6, mul: 1.4, cd: 11, range: 99, around: 6 }] },
+      cathkraken: { attacks: [{ kind: 'pull', name: 'Щупальца', wind: 1.1, r: 14, force: 8, inner: 3.6, mul: 1.3, cd: 12, range: 14 }] },
+      drowngod: { attacks: [{ kind: 'safe', name: 'Прилив', wind: 2.6, r: 3, safeD: 8, mul: 2.4, cd: 22, range: 99 }, { kind: 'meteor', name: 'Капель бездны', wind: .6, n: 5, r: 2.4, arm: 1.6, mul: 1.4, cd: 12, range: 99, around: 6 }], drain: 0.015 },
+      bogwarden: { attacks: [{ kind: 'pull', name: 'Трясина затягивает', wind: 1.1, r: 13, force: 7, inner: 3.6, mul: 1.3, cd: 12, range: 13 }] },
+      drownqueen: { attacks: [{ kind: 'blink', name: 'Шаг из глубины', wind: .75, r: 3.2, mul: 1.2, cd: 9, range: 24 }] },
+      leviathan: { attacks: [{ kind: 'meteor', name: 'Обвал свода', wind: .6, n: 5, r: 2.6, arm: 1.6, mul: 1.5, cd: 11, range: 99, around: 6 }] },
+      ashgolem: { attacks: [{ kind: 'meteor', name: 'Пепельный обвал', wind: .6, n: 4, r: 2.8, arm: 1.6, mul: 1.5, cd: 11, range: 99, around: 6 }] },
+      cinderpriest: { attacks: [{ kind: 'safe', name: 'Пепельная буря', wind: 2.6, r: 3.2, safeD: 7, mul: 2.2, cd: 20, range: 99 }] },
+      cinderlord: { attacks: [{ kind: 'blink', name: 'Шаг пламени', wind: .75, r: 3.4, mul: 1.3, cd: 9, range: 24 }], drain: 0.02 },
+      rotmaw: { attacks: [{ kind: 'pull', name: 'Пасть тянет', wind: 1.1, r: 13, force: 8, inner: 3.6, mul: 1.3, cd: 12, range: 13 }] },
+      sporemother: { attacks: [{ kind: 'meteor', name: 'Споровые нарывы', wind: .6, n: 4, r: 2.6, arm: 1.6, mul: 1.1, cd: 11, range: 99, around: 6 }], drain: .004 },
+      riftheart: { attacks: [{ kind: 'safe', name: 'Разлом', wind: 2.6, r: 3, safeD: 8, mul: 2.4, cd: 20, range: 99 }, { kind: 'blink', name: 'Сквозь разлом', wind: .75, r: 3.4, mul: 1.3, cd: 9, range: 24 }] },
+      voidwarden: { attacks: [{ kind: 'blink', name: 'Шаг Пустоты', wind: .75, r: 3.4, mul: 1.3, cd: 9, range: 24 }] },
+      twinflame: { attacks: [{ kind: 'meteor', name: 'Двойной огонь', wind: .6, n: 6, r: 2.4, arm: 1.6, mul: 1.4, cd: 10, range: 99, around: 6 }] },
+      hollowqueen: { attacks: [{ kind: 'pull', name: 'Пустой зов', wind: 1.1, r: 14, force: 8, inner: 3.6, mul: 1.3, cd: 12, range: 14 }], drain: 0.02 },
+      abyssmaw: { attacks: [{ kind: 'pull', name: 'Глотка Бездны', wind: 1.1, r: 15, force: 9, inner: 4, mul: 1.5, cd: 12, range: 15 }, { kind: 'meteor', name: 'Плевок Бездны', wind: .6, n: 4, r: 2.8, arm: 1.6, mul: 1.5, cd: 11, range: 99, around: 6 }] },
+      voidking: { attacks: [{ kind: 'safe', name: 'Тень Пустоты', wind: 3, r: 3.4, safeD: 8, mul: 2.4, cd: 22, range: 99 }], stage2: { name: 'Истинный облик', hp: .7, dmg: 1.15, pause: 2.5, say: 'Ты убил лишь мою тень. Теперь смотри на меня.',
+        attacks: [{ kind: 'slam', wind: .8, r: 4.6, mul: 1.2, cd: 3, range: 5.5 }, { kind: 'meteor', name: 'Звездопад Пустоты', wind: .6, n: 6, r: 2.6, arm: 1.5, mul: 1.5, cd: 10, range: 99, around: 7 }, { kind: 'pull', name: 'Притяжение Бездны', wind: 1.1, r: 15, force: 9, inner: 4, mul: 1.5, cd: 13, range: 15 },
+          { kind: 'blink', name: 'Шаг сквозь Пустоту', wind: .75, r: 3.4, mul: 1.3, cd: 8, range: 24 }, { kind: 'beam', wind: 1, len: 16, width: 2.2, dur: 4, sweep: 1.3, mul: 1, cd: 12, range: 99 }, { kind: 'safe', name: 'Последнее слово', wind: 3, r: 3, safeD: 9, mul: 3, cd: 24, range: 99 }],
+        phases: [{ at: .6, summon: { type: 'eclipse_fiend', n: 2 }, shield: true }, { at: .35, summon: { type: 'brandshade', n: 2 } }, { at: .25, enrage: true }] } },
+    },
     list: [
       { type: 'devourer', set: 'pogost', x: -44, z: -36,
         attacks: [{ kind: 'slam', wind: 1.0, r: 4.2, mul: 1, cd: 3, range: 5 }, { kind: 'slam', wind: 1.5, r: 7, mul: 1.5, cd: 10, range: 99 }],
@@ -818,7 +851,7 @@ const BASE = {
         bosses: [
           { type: 'ashgolem', room: 'b1', loot: ['d_hammer_colossus', 'd_plate_colossus'], attacks: [{ kind: 'slam', wind: .9, r: 4.8, mul: 1.2, cd: 3, range: 5.2 }, { kind: 'charge', wind: .9, len: 14, width: 3, mul: 1.2, cd: 6, range: 16 }, { kind: 'nova', wind: 1.2, r: 9, inner: 3, mul: 1, cd: 9, range: 99 }], phases: [{ at: .3, enrage: true }] },
           { type: 'cinderpriest', room: 'b2', loot: ['d_staff_cinder', 'd_robe_cinder'], attacks: [{ kind: 'cast', name: 'Пепельная молитва', wind: 2.6, r: 99, mul: 3.3, cd: 12, range: 99 }, { kind: 'pools', wind: .8, n: 4, r: 2.6, dur: 8, mul: .6, cd: 9, range: 99 }, { kind: 'beam', wind: 1.1, len: 14, width: 1.8, dur: 3.5, sweep: .8, mul: .9, cd: 11, range: 99 }], phases: [{ at: .5, summon: { type: 'brandshade', n: 3 } }, { at: .25, enrage: true }] },
-          { type: 'cinderlord', room: 'b3', loot: ['d_blade_cinder', 'd_crown_cinder'], attacks: [{ kind: 'nova', wind: 1.2, r: 9, inner: 3, mul: 1.05, cd: 9, range: 99 }, { kind: 'slam', wind: .8, r: 4.6, mul: 1.2, cd: 3, range: 5 }, { kind: 'charge', wind: .8, len: 15, width: 3, mul: 1.2, cd: 7, range: 17 }], phases: [{ at: .6, summon: { type: 'demon_guard', n: 3 }, shield: true }, { at: .3, enrage: true }] }
+          { type: 'cinderlord', room: 'b3', loot: ['d_blade_cinder', 'd_crown_cinder'], attacks: [{ kind: 'nova', wind: 1.2, r: 9, inner: 3, mul: 1.05, cd: 9, range: 99 }, { kind: 'slam', wind: .8, r: 4.6, mul: 1.2, cd: 3, range: 5 }, { kind: 'charge', wind: .8, len: 15, width: 3, mul: 1.2, cd: 7, range: 17 }], phases: [{ at: .6, summon: { type: 'brandshade', n: 3 }, shield: true }, { at: .3, enrage: true }] }
         ] },
       { id: 'inst_rift', name: 'Гнилой разлом', zone: 'rift', lv: 74, level: 75, base: 75, depth: 3.3, danger: 3,
         rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
@@ -830,7 +863,7 @@ const BASE = {
         bosses: [
           { type: 'rotmaw', room: 'b1', loot: ['d_cleaver_rot', 'd_hide_rot'], attacks: [{ kind: 'slam', wind: .8, r: 4.4, mul: 1.15, cd: 3, range: 5 }, { kind: 'pools', wind: .8, n: 5, r: 2.6, dur: 9, mul: .6, cd: 9, range: 99 }, { kind: 'charge', wind: .8, len: 14, width: 3, mul: 1.15, cd: 6, range: 16 }], phases: [{ at: .3, enrage: true }] },
           { type: 'sporemother', room: 'b2', loot: ['d_wand_spore', 'd_mask_spore'], attacks: [{ kind: 'cast', name: 'Облако спор', wind: 2.6, r: 99, mul: 3.4, cd: 12, range: 99 }, { kind: 'pools', wind: .8, n: 5, r: 2.6, dur: 9, mul: .6, cd: 9, range: 99 }, { kind: 'nova', wind: 1.1, r: 8, inner: 2.6, mul: 1, cd: 8, range: 99 }], phases: [{ at: .5, summon: { type: 'ghoul', n: 4 } }, { at: .25, enrage: true }] },
-          { type: 'riftheart', room: 'b3', loot: ['d_staff_rift', 'd_heart_rift'], attacks: [{ kind: 'beam', wind: 1.2, len: 16, width: 2, dur: 4, sweep: .8, mul: 1, cd: 11, range: 99 }, { kind: 'nova', wind: 1.2, r: 9, inner: 3, mul: 1.05, cd: 9, range: 99 }, { kind: 'slam', wind: .9, r: 4.8, mul: 1.2, cd: 3, range: 5.2 }], phases: [{ at: .6, summon: { type: 'troll', n: 2 }, shield: true }, { at: .3, enrage: true }] }
+          { type: 'riftheart', room: 'b3', loot: ['d_staff_rift', 'd_heart_rift'], attacks: [{ kind: 'beam', wind: 1.2, len: 16, width: 2, dur: 4, sweep: .8, mul: 1, cd: 11, range: 99 }, { kind: 'nova', wind: 1.2, r: 9, inner: 3, mul: 1.05, cd: 9, range: 99 }, { kind: 'slam', wind: .9, r: 4.8, mul: 1.2, cd: 3, range: 5.2 }], phases: [{ at: .6, summon: { type: 'ghoul', n: 3 }, shield: true }, { at: .3, enrage: true }] }
         ] },
       { id: 'raid_throne', name: 'Престол Бездны', raid: true, zone: 'scorched', lv: 78, level: 80, base: 80, depth: 3.6, danger: 3,
         rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
@@ -845,7 +878,7 @@ const BASE = {
           { type: 'twinflame', room: 'b2', loot: ['d_blades_twin', 'd_ring_twin'], attacks: [{ kind: 'beam', wind: 1.1, len: 15, width: 1.8, dur: 3.5, sweep: .9, mul: .95, cd: 10, range: 99 }, { kind: 'pools', wind: .8, n: 5, r: 2.6, dur: 8, mul: .6, cd: 9, range: 99 }, { kind: 'slam', wind: .7, r: 3.6, mul: 1, cd: 3, range: 4.2 }], phases: [{ at: .5, summon: { type: 'brandshade', n: 4 } }, { at: .25, enrage: true }] },
           { type: 'hollowqueen', room: 'b3', loot: ['d_bow_hollow', 'd_veil_hollow'], attacks: [{ kind: 'cast', name: 'Пустой зов', wind: 2.6, r: 99, mul: 3.4, cd: 12, range: 99 }, { kind: 'nova', wind: 1.1, r: 8.5, inner: 2.8, mul: 1.05, cd: 8, range: 99 }, { kind: 'pools', wind: .8, n: 5, r: 2.6, dur: 9, mul: .6, cd: 10, range: 99 }], phases: [{ at: .6, summon: { type: 'eclipse_fiend', n: 4 }, shield: true }, { at: .3, enrage: true }] },
           { type: 'abyssmaw', room: 'b4', loot: ['d_axe_maw', 'd_hide_maw'], attacks: [{ kind: 'slam', wind: .9, r: 5, mul: 1.2, cd: 3, range: 5.4 }, { kind: 'charge', wind: .9, len: 16, width: 3.2, mul: 1.25, cd: 6, range: 18 }, { kind: 'pools', wind: .8, n: 5, r: 2.8, dur: 9, mul: .6, cd: 9, range: 99 }], phases: [{ at: .5, summon: { type: 'troll', n: 2 } }, { at: .25, enrage: true }] },
-          { type: 'voidking', room: 'b5', loot: ['d_sword_voidking', 'd_crown_voidking'], attacks: [{ kind: 'beam', wind: 1.2, len: 18, width: 2.2, dur: 4.5, sweep: .9, mul: 1.05, cd: 11, range: 99 }, { kind: 'nova', wind: 1.2, r: 10, inner: 3.2, mul: 1.1, cd: 9, range: 99 }, { kind: 'cast', name: 'Слово Пустоты', wind: 2.8, r: 99, mul: 3.6, cd: 13, range: 99 }, { kind: 'slam', wind: .8, r: 4.8, mul: 1.2, cd: 3, range: 5.2 }], phases: [{ at: .7, summon: { type: 'demon_guard', n: 4 }, shield: true }, { at: .4, summon: { type: 'eclipse_fiend', n: 4 } }, { at: .2, enrage: true }] }
+          { type: 'voidking', room: 'b5', loot: ['d_sword_voidking', 'd_crown_voidking'], attacks: [{ kind: 'beam', wind: 1.2, len: 18, width: 2.2, dur: 4.5, sweep: .9, mul: 1.05, cd: 11, range: 99 }, { kind: 'nova', wind: 1.2, r: 10, inner: 3.2, mul: 1.1, cd: 9, range: 99 }, { kind: 'cast', name: 'Слово Пустоты', wind: 2.8, r: 99, mul: 3.6, cd: 13, range: 99 }, { kind: 'slam', wind: .8, r: 4.8, mul: 1.2, cd: 3, range: 5.2 }], phases: [{ at: .7, summon: { type: 'eclipse_fiend', n: 3 }, shield: true }, { at: .4, summon: { type: 'brandshade', n: 3 } }, { at: .2, enrage: true }] }
         ] },
       { id: 'raid_hand', name: 'Врата Длани', raid: true, zone: 'heart', lv: 58, level: 60, base: 60, depth: 2.4, danger: 3,
         rooms: [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }, { id: 'c1', x: 8, z: 0, w: 6, d: 2.4 }, { id: 'gallery', x: 17, z: 0, w: 12, d: 10 }, { id: 'c2', x: 26, z: 0, w: 6, d: 2.4 },
