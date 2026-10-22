@@ -4,7 +4,7 @@
 // biomeAt / biomeTint — какой биом в точке (пять секторов с волнистыми границами) и его оттенок земли с плавными стыками.
 import { riverOf, waterDist } from './terrain3d.js';
 import { castleFloors } from './castle3d.js';
-import { styleDungeons } from './dungeonstyle3d.js';
+import { styleDungeons, styleDef, styleOn } from './dungeonstyle3d.js';
 import { zoneAt, zoneLevel, allZones } from './zones3d.js';
 
 const TAU = Math.PI * 2;
@@ -150,6 +150,21 @@ export function expandBig(base) {
     const cand = cfg.map.places.filter(p => p.id.startsWith('o') && p.type === 'danger' && !p.poi && !p.fort && !p.city && !p.boss).map(p => ({ p, q: zoneAt(cfg, p.x, p.z) })).filter(o => o.q && o.q.id === RB.zone).sort((a, b) => Math.abs(a.q.t - .5) - Math.abs(b.q.t - .5));
     if (!cand.length) continue; const L = cand[0].p; L.name = RB.lair; L.boss = RB.type; L.danger = 3;
     cfg.bosses.list.push({ type: RB.type, x: L.x, z: L.z, attacks: RB.attacks, phases: RB.phases, ring: true });
+  }
+  { const ri = mul(base.world.seed * 4049 + 7), rv = riverOf(cfg), have = new Set(cfg.dungeons.list.map(d => d.id)), taken = [...cfg.map.places.map(p => ({ x: p.x, z: p.z, r: p.r || 8 })), ...cfg.dungeons.list.filter(d => d.at).map(d => ({ x: d.at.x, z: d.at.z, r: 10 }))];     // подземелья колец 60–80 (4.18): вход — в своей зоне за прежним краем
+    for (const I of (cfg.instances && cfg.instances.list) || []) {
+      if (have.has(I.id)) continue; let at = null;
+      for (let k = 0; !at && k < 4000; k++) {
+        const a = ri() * TAU, d = lim + 20 + ri() * (Rout - lim - 50), x = Math.sin(a) * d, z = Math.cos(a) * d, q = zoneAt(cfg, x, z);
+        if (!q || q.id !== I.zone || Math.abs(zoneLevel(cfg, x, z) - I.lv) > 1.5 || (rv && waterDist(rv, x, z) < 14) || taken.some(t => Math.hypot(t.x - x, t.z - z) < t.r + 22) || cfg.map.links.some(([p0, p1]) => segD(x, z, p0, p1) < 20)) continue;
+        at = { x, z };
+      }
+      if (!at) continue;
+      const def = { id: I.id, name: I.name, inst: true, raid: !!I.raid, at, back: I.back || { x: at.x, z: at.z + 3 }, level: I.level, depth: I.depth, danger: I.danger, rooms: I.rooms, doors: I.doors, foes: I.foes, spawns: I.spawns, entry: I.entry, exit: I.exit, chests: I.chests };
+      cfg.dungeons.list.push(def); taken.push({ x: at.x, z: at.z, r: 10 });
+      const bs = I.bosses.map((B, k) => { const rm = I.rooms.find(q => q.id === B.room); return { ...B, x: rm.x, z: rm.z, level: I.id, base: I.base, inst: I.id, final: k === I.bosses.length - 1 }; });
+      cfg.bosses.list.push(...bs); if (styleOn(cfg)) styleDef(cfg, def, bs);     // облик — только новым: styleDungeons второй раз расширил бы проходы
+    }
   }
   cfg.world.props = Math.round(cfg.world.props * ((Rout - 1) ** 2 - 49) / ((Rin - 1) ** 2 - 49));     // та же плотность деревьев на всём круге
   cfg.world.depth = [...cfg.world.depth, [Rout, G.depthMax]];     // за прежним краем глубина ровная: уровень места — по зонам

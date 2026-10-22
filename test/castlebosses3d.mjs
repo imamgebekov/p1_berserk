@@ -38,7 +38,7 @@ ok(B.length === 2 && B.every(b => floors.some(d => d.id === b.level && d.throne)
 const BLACK = { weapon: 'w_greatsword_black', body: 'a_body_plate_black', head: 'a_head_helm_black', boots: 'a_boots_greaves_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' };
 function fight(b, lv, seed) {
   const W = mk(seed * 131 + 7), top = floors.find(d => d.id === b.level), T = top.throne; W.lv = lv; Object.assign(W.inv.eq, BLACK); W.inv.il = Object.fromEntries(Object.keys(BLACK).map(k => [k, lv])); refreshGear(W); W.player.hp = W.player.maxhp;     // вещи уровня героя (этап 0)
-  travel(W, top.id, T.x - T.w * .3, T.z); W.enemies = W.levels[top.id].enemies = W.enemies.filter(e => e.boss); const dodge = mulberry32(seed + 5), p = W.player;
+  travel(W, top.id, T.x - T.w * .3, T.z); W.enemies = W.levels[top.id].enemies = W.enemies.filter(e => e.boss); const dodge = mulberry32(seed + 5), p = W.player; W.eid += seed * 13;     // 4.18: призыв стража — элита со свойством по номеру врага; разные номера — разные свойства в выборке
   for (let i = 0; i < 60 * 180; i++) {
     const e = W.enemies.find(x => x.boss && !x.dead); if (!e) return { win: true, t: i / 60 }; const d = Math.hypot(e.x - p.x, e.z - p.z), C = CFG3.enemies[e.type];
     const inp = { mx: 0, mz: 0 };

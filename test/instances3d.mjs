@@ -16,7 +16,7 @@ const enter = (W, id) => { const d = W.cfg.dungeons.list.find(q => q.id === id);
 const bossIn = (W, type) => W.enemies.find(e => e.boss && e.type === type);
 
 // ---------- 1. данные ----------
-const WANT = { inst_brod: 3, inst_olkh: 4, inst_moss: 3, inst_pass: 3, inst_forge: 3, inst_tower: 3, inst_barrow: 3, inst_nest: 3, inst_abbey: 3, inst_dusk: 3, raid_hand: 5 };     // и рейд (этап 8)     // Акт I — два, Акт II — три, Акт III и IV — по два (этап 7)
+const WANT = { inst_brod: 3, inst_olkh: 4, inst_moss: 3, inst_pass: 3, inst_forge: 3, inst_tower: 3, inst_barrow: 3, inst_nest: 3, inst_abbey: 3, inst_dusk: 3, raid_hand: 5, inst_drown: 3, inst_ash: 3, inst_rift: 3, raid_throne: 5, raid_oak: 5, raid_cathedral: 5 };     // 4.18: кольца 60–80 и рейды 20/40/60/80     // и рейд (этап 8)     // Акт I — два, Акт II — три, Акт III и IV — по два (этап 7)
 ok(I.length === Object.keys(WANT).length && Object.entries(WANT).every(([id, n]) => I.some(d => d.id === id) && BL.filter(b => b.inst === id).length === n), 'подземелья или число боссов не те');
 for (const d of I.filter(q => q.id !== 'inst_brod')) { const T = CFG3.instances.list.find(q => q.id === d.id), z = zoneAt(CFG3, d.at.x, d.at.z), lv = zoneLevel(CFG3, d.at.x, d.at.z); ok(z && z.id === T.zone && Math.abs(lv - T.lv) <= 1.5, `${d.id}: вход не в зоне ${T.zone} ур. ${T.lv} (${z && z.id}, ${lv && lv.toFixed(1)})`); }
 for (const b of BL) { ok(b.loot && b.loot.length >= 2 && b.loot.every(id => BY_ID[id] && ((BY_ID[id].boss === b.type && BY_ID[id].pool === 'dungeon') || (BY_ID[id].pool === 'raid' && BY_ID[id].raidBosses.includes(b.type)))), `${b.type}: своей добычи нет`); ok(CFG3.enemies[b.type] && CFG3.enemies[b.type].boss, `${b.type}: нет врага-босса`); }
