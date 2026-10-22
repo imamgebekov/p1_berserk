@@ -35,7 +35,8 @@ export function dropAllyGear(W, a) {
 }
 
 // ---- отряд ----
-export const squadMax = W => Math.min(W.cfg.squad.cap, W.cfg.squad.baseMax + Math.floor(W.lv / W.cfg.squad.perLevels));
+export const squadMax = W => { const S = W.cfg.squad; return S.slotLv ? S.slotLv.filter(l => W.lv >= l).length : Math.min(S.cap, S.baseMax + Math.floor(W.lv / S.perLevels)); };     // 4.18д: места по уровню героя
+export const nextSlotLv = W => { const S = W.cfg.squad; return S.slotLv ? S.slotLv.find(l => W.lv < l) || null : null; };
 export const liveAllies = W => W.allies.filter(a => !a.dead && !a.guest && !a.story);     // герои сюжета — не отряд     // подопечные событий (путник, обоз) — не отряд
 export function pickAlly(W, e, dPlayer) {
   let best = null, bd = 8;
@@ -87,7 +88,7 @@ export function hireAlly(W, type) {
 export function dismissAlly(W, id) { const i = W.allies.findIndex(a => a.id === id); if (i < 0) return false; dropAllyGear(W, W.allies[i]); W.allies.splice(i, 1); return true; }     // вещи уволенного — на землю
 export function restoreAllies(W, list) {
   W.allies.length = 0;
-  for (const s of Array.isArray(list) ? list : []) { if (liveAllies(W).length >= squadMax(W)) break; const T = s && W.cfg.squad.types[s.type]; if (T && hireable(W, s.type)) { const mh = allyHp(W, T), a = spawnAlly(W, s.type, clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : mh, 1, mh)); if (s.kit) { Object.assign(allyKit(a), { eq: { ...a.eq, ...s.kit.eq }, up: { ...s.kit.up }, il: { ...s.kit.il }, af: { ...s.kit.af } }); refreshAlly(W, a); a.hp = clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : a.maxhp, 1, a.maxhp); } } }     // снаряжение бойца — из сохранения
+  for (const s of Array.isArray(list) ? list : []) { if (liveAllies(W).length >= W.cfg.squad.cap) break; const T = s && W.cfg.squad.types[s.type]; if (T && hireable(W, s.type)) { const mh = allyHp(W, T), a = spawnAlly(W, s.type, clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : mh, 1, mh)); if (s.kit) { Object.assign(allyKit(a), { eq: { ...a.eq, ...s.kit.eq }, up: { ...s.kit.up }, il: { ...s.kit.il }, af: { ...s.kit.af } }); refreshAlly(W, a); a.hp = clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : a.maxhp, 1, a.maxhp); } } }     // снаряжение бойца — из сохранения     // 4.18д: уже нанятые остаются и сверх мест по уровню (их вещи), новых — по местам
 }
 // дом на пути: боец в другом доме, чем герой (или снаружи, когда герой внутри), — идёт через дверь, как враги
 function doorGoal(W, a, p) {

@@ -13,6 +13,7 @@ import { repairList, repairAll, wearOf } from './dur3d.js';
 import { allyHp, allyDmg, hireable, liveAllies } from './squad3d.js';
 import { sellWorse, isWorse, isJunk } from './economy3d.js';
 import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, stockPrice, shopOf, priceMulOf, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
+import { nextSlotLv } from './squad3d.js';
 
 // значок вещи в рамке редкости — для строк лавки и кузни
 const icoOf = (doc, it) => { const w = doc.createElement('span'), im = doc.createElement('img'); w.className = 'sico'; im.src = iconURL(doc, it); im.alt = ''; w.style.setProperty('--rc', RARITY[it.rar || 0].color); w.append(im); return w; };
@@ -245,7 +246,7 @@ export function createCaptain(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2400); };
   function render() {
     const live = liveAllies(W), max = squadMax(W);     // герои сюжета и подопечные — не отряд
-    headEl.textContent = `Застава · отряд ${live.length}/${max} · пепел ${W.inv.ash}`;
+    const nx = nextSlotLv(W); headEl.textContent = `Застава · отряд ${live.length}/${max}${nx ? ` · новое место с ${nx} ур.` : ''} · пепел ${W.inv.ash}`;     // 4.18д
     listEl.textContent = '';
     const ROLE = { tank: 'защитник', heal: 'лекарь', ranged: 'стрелок', melee: 'боец' };
     const row = (id, T) => {
@@ -253,7 +254,7 @@ export function createCaptain(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
       const nm = el('span', 'nm', T.name + (mate ? ' · ' + ROLE[T.role] : '')); nm.style.color = T.tint === '#2e2e34' ? '#c8c8d8' : T.tint;
       info.append(nm, el('div', 'sub', `${T.text} Без снаряжения: здоровье ${Math.round(allyHp(W, T) * (W.cfg.squad.gear && W.cfg.squad.gear.on ? W.cfg.squad.gear.naked.hp : 1))}, урон ${Math.round(allyDmg(W, T) * (W.cfg.squad.gear && W.cfg.squad.gear.on ? W.cfg.squad.gear.naked.dmg : 1))}. Одевайте в сумке.`));
       const full = live.length >= max, b = el('button', 'buy' + (own || full || W.inv.ash < T.cost ? ' no' : ''), own ? 'В отряде' : `Нанять · ${T.cost}`); b.type = 'button';
-      b.addEventListener('click', () => { const res = hireAlly(W, id); flash(res === 'ok' ? `${T.name} в отряде` : res === 'ash' ? 'Не хватает пепла' : res === 'full' ? `Отряд полон (мест: ${max}). Новые места открываются с уровнем` : res === 'taken' ? `${T.name} уже в отряде` : 'Подойдите к капитану'); render(); onChange && onChange(); });
+      b.addEventListener('click', () => { const res = hireAlly(W, id); flash(res === 'ok' ? `${T.name} в отряде` : res === 'ash' ? 'Не хватает пепла' : res === 'full' ? (max ? `Отряд полон (мест: ${max}).` : 'Пока мест нет.') + (nextSlotLv(W) ? ` Новое место — с ${nextSlotLv(W)} уровня` : '') : res === 'taken' ? `${T.name} уже в отряде` : 'Подойдите к капитану'); render(); onChange && onChange(); });
       r.append(info, b); listEl.appendChild(r);
     };
     listEl.appendChild(el('div', 'ssec', 'Спутники'));     // этап 4: герои, которыми вы не играете; растут с вашим уровнем

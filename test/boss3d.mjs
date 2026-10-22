@@ -7,7 +7,7 @@ import { applyStatus } from '../3d/src/status3d.js';
 import { placeAt, insideOf } from '../3d/src/map.js';
 import { createSaver, loadSave } from '../3d/src/save3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
-const mk = (seed = 1) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.player.autoAim = 0; cfg.player.hp = 100000; return createWorld(cfg, mulberry32(seed)); };
+const mk = (seed = 1) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.player.autoAim = 0; cfg.player.hp = 100000; cfg.squad.slotLv = null; return createWorld(cfg, mulberry32(seed)); };     // 4.18д: найм бойца — по прежним местам
 const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i++) step(W, 1 / 60, inp); };
 const boss = (W, type) => W.enemies.find(e => e.boss && e.type === type);
 const goto = (W, e, dx, dz = 0) => { W.player.x = e.x + dx; W.player.z = e.z + dz; W.player.inv = 0; W.player.hp = W.player.maxhp; };

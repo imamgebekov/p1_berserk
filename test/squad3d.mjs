@@ -7,7 +7,7 @@ import { allyHp } from '../3d/src/squad3d.js';
 import { insideOf } from '../3d/src/map.js';
 import { loadSave, createSaver } from '../3d/src/save3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
-const mk = (seed = 1, f) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; if (f) f(cfg); return createWorld(cfg, mulberry32(seed)); };
+const mk = (seed = 1, f) => { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.squad.slotLv = null; if (f) f(cfg); return createWorld(cfg, mulberry32(seed)); };     // 4.18д: бой и найм — по прежним местам; места по уровню — отдельной проверкой ниже
 // собрать отряд у героя: капитан теперь в лагере, ближе поводка, и бойцы сами за перенесённым героем не телепортируются
 const gather = W => { W.allies.forEach((a, i) => { a.x = W.player.x + 1.2 + i * .8; a.z = W.player.z + 1; }); };
 const atCaptain = W => { const b = W.map.buildings.find(b => b.npc && b.npc.kind === 'captain'); W.player.x = b.npc.x + 1; W.player.z = b.npc.z; W.player.inv = 1e9; step(W, 1 / 60, {}); return b; };
@@ -17,10 +17,13 @@ const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i+
 { const T = Object.fromEntries(Object.entries(CFG3.squad.types).filter(([, t]) => !t.story && !t.hero)); ok(Object.keys(T).length === 3, 'три вида бойцов (наём; герои сюжета и спутники-герои — отдельно)'); const ks = Object.values(T); for (let i = 1; i < ks.length; i++) ok(ks[i].cost > ks[i - 1].cost && ks[i].hp > ks[i - 1].hp && ks[i].dmg > ks[i - 1].dmg, 'лестница бойцов'); }
 // места в отряде растут с уровнем
 { const W = mk(); const m = lv => { W.lv = lv; return squadMax(W); }; ok(m(1) === 1 && m(8) === 2 && m(16) === 3 && m(24) === 4 && m(30) === 4, 'места в отряде по уровню'); }
+{ const W = mk(1, c => { c.squad.slotLv = CFG3.squad.slotLv; }); const m = lv => { W.lv = lv; return squadMax(W); }; ok(m(1) === 0 && m(19) === 0 && m(20) === 1 && m(39) === 1 && m(40) === 2 && m(60) === 3 && m(70) === 3, '4.18д: места наёмников — с 20, 40 и 60: ' + [1, 19, 20, 40, 60].map(m));
+  W.lv = 15; atCaptain(W); W.inv.ash = 1e6; ok(hireAlly(W, 'guard') === 'full', '4.18д: до 20-го нанять можно'); W.lv = 20; ok(hireAlly(W, 'guard') === 'ok' && hireAlly(W, 'soldier') === 'full', '4.18д: на 20-м не одно место');
+  ok(CFG3.squad.types.guard.cost === 6000 && CFG3.squad.types.veteran.cost === 38000, '4.18д: цены наёмников не ×10'); }
 // найм
 { const W = mk(2); W.inv.ash = 10000; W.lv = 16; ok(hireAlly(W, 'guard') === 'far', 'найм издалека'); atCaptain(W); ok(W.nearNpc === 'captain', 'капитан не определился');
   W.inv.ash = 100; ok(hireAlly(W, 'guard') === 'ash' && !W.allies.length, 'найм без денег'); W.inv.ash = 10000;
-  ok(hireAlly(W, 'нет') === 'none', 'неизвестный вид'); ok(hireAlly(W, 'guard') === 'ok' && W.inv.ash === 10000 - CFG3.squad.types.guard.cost && W.allies.length === 1, 'найм');
+  ok(hireAlly(W, 'нет') === 'none', 'неизвестный вид'); ok(hireAlly(W, 'guard') === 'ok' && W.inv.ash === 10000 - CFG3.squad.types.guard.cost && W.allies.length === 1, 'найм'); W.inv.ash = 1e6;     // 4.18д: цены ×10 — дальше пепла с запасом
   ok(hireAlly(W, 'soldier') === 'ok' && hireAlly(W, 'veteran') === 'ok', 'второй и третий'); ok(hireAlly(W, 'guard') === 'full', 'отряд переполнен');
   const id = W.allies[0].id; ok(dismissAlly(W, id) && W.allies.length === 2 && !dismissAlly(W, id), 'увольнение'); ok(hireAlly(W, 'guard') === 'ok', 'место освободилось'); }
 // следование: идут за героем, догоняют, телепорт при отрыве
@@ -49,7 +52,8 @@ const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i+
 { const mem = {}, st = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; }, removeItem: k => { delete mem[k]; } };
   const W = mk(8); W.lv = 16; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'guard'); hireAlly(W, 'veteran'); W.allies[1].hp = 77; createSaver(W, st).write(true);
   const l = loadSave(30, st); const W2 = mk(9); W2.lv = 16; restoreAllies(W2, l.squad); ok(W2.allies.length === 2 && W2.allies[1].type === 'veteran' && W2.allies[1].hp === 77, 'отряд не восстановился: ' + JSON.stringify(W2.allies.map(a => [a.type, a.hp])));
-  const W3 = mk(10); W3.lv = 1; restoreAllies(W3, [{ type: 'guard', hp: 5 }, { type: 'guard', hp: 5 }, { type: 'нет', hp: 5 }]); ok(W3.allies.length === 1, 'лишние бойцы сверх мест: ' + W3.allies.length);
+  const W3 = mk(10); W3.lv = 1; restoreAllies(W3, [{ type: 'guard', hp: 5 }, { type: 'guard', hp: 5 }, { type: 'нет', hp: 5 }]); ok(W3.allies.length === 2, '4.18д: нанятые при загрузке не остались (их вещи): ' + W3.allies.length);
+  { const W4 = mk(11); W4.lv = 1; restoreAllies(W4, Array.from({ length: 6 }, () => ({ type: 'guard', hp: 5 }))); ok(W4.allies.length === CFG3.squad.cap, 'при загрузке бойцов больше общего предела: ' + W4.allies.length); }
   const W4 = mk(11); W4.lv = 30; restoreAllies(W4, [{ type: 'veteran', hp: 1e9 }, { type: 'guard', hp: -4 }, { type: 'guard', hp: NaN }, null, 'x']); ok(W4.allies.length === 3 && W4.allies[0].hp === W4.allies[0].maxhp && W4.allies[1].hp === 1 && W4.allies[2].hp === W4.allies[2].maxhp, 'мусор в сохранении отряда: ' + JSON.stringify(W4.allies.map(a => a.hp))); }
 // возрождение героя: бойцы остаются и догоняют
 { const W = mk(12); W.lv = 8; atCaptain(W); W.inv.ash = 1e5; hireAlly(W, 'guard'); W.player.x = 60; W.player.z = 0; run(W, 1); W.player.hp = 0; W.player.dead = true; respawnPlayer(W); run(W, 1); ok(Math.hypot(W.allies[0].x - W.player.x, W.allies[0].z - W.player.z) < 8 && W.allies.length === 1, 'боец потерялся после возрождения героя'); }

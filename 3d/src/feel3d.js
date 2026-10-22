@@ -50,6 +50,6 @@ export function createFeel(cfg) {
 export function unlocksAt(lv, cfg, abilities) {
   const out = [];
   abilities.forEach((a, i) => { const ranks = rankLvs(cfg, i, a), k = ranks.indexOf(lv); if (k === 0) out.push({ kind: 'ability', name: a.name, icon: a.icon }); else if (k > 0) out.push({ kind: 'rank', name: a.name, rank: k + 1, icon: a.icon }); });
-  const S = cfg.squad; if (lv > 1 && lv % S.perLevels === 0 && S.baseMax + lv / S.perLevels <= S.cap) out.push({ kind: 'squad', n: S.baseMax + lv / S.perLevels });
+  const S = cfg.squad; if (S.slotLv) { const k = S.slotLv.indexOf(lv); if (k >= 0) out.push({ kind: 'squad', n: k + 1 }); } else if (lv > 1 && lv % S.perLevels === 0 && S.baseMax + lv / S.perLevels <= S.cap) out.push({ kind: 'squad', n: S.baseMax + lv / S.perLevels });     // 4.18д
   return out;
 }

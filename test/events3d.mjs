@@ -114,7 +114,7 @@ const roadMid = W => { for (const [a, b] of W.map.roads) for (let t = .2; t <= .
 }
 // ---------- 6. наём не считает подопечного, events.on: false — событий нет ----------
 {
-  const W = mk('caravan', 11); until(W, 'evStart', 7); W.inv.ash = 1e6;
+  const W = mk('caravan', 11); until(W, 'evStart', 7); W.inv.ash = 1e6; W.lv = Math.max(W.lv, 20);     // 4.18д: первое место наёмника — с 20-го
   const cap = W.map.buildings.find(b => b.npc && b.npc.kind === 'captain').npc; W.player.x = cap.x + 1; W.player.z = cap.z + 1; run(W, .1);
   ok(hireAlly(W, Object.keys(CFG3.squad.types)[0]) === 'ok' && liveAllies(W).length === 1, 'подопечный занял место в отряде');
   const W2 = mk('rescue', 12, c => { c.events.on = false; }); run(W2, 30); ok(!W2.event, 'при on: false событие стартовало');
