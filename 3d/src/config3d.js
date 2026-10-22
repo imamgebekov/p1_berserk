@@ -1072,31 +1072,52 @@ const BASE = {
     // hit — реакция на урон (не чаще hitGap с); пороги шага и бега — доли скорости героя/врага с запасом (on — включить, off — выключить);
     // sp — сглаживание оценки скорости (1/с)
     anim: { loco: .25, atk: .1, roll: .08, hit: .1, death: .15, hitGap: .8, walkOn: .1, walkOff: .05, runOn: .62, runOff: .48, sp: 10 },
-    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'q_wizard', priest: 'q_cleric', brand: 'kk_barbarian' },
-    foes: { barghest: 'q_wolf', rootgnaw: 'sf_ghoul', thornlord: 'q_king', oldoak: 'sf_drugdor', saltwarden: 'sf_drugdor', cathkraken: 'sf_skdragon', drowngod: 'sf_fish',     // рейды 20 и 40 (4.18)
-      bogwarden: 'sf_drugdor', leviathan: 'sf_skdragon', ashgolem: 'sf_drugdor', cinderlord: 'q_king', rotmaw: 'sf_ghoul', riftheart: 'sf_mino', voidwarden: 'sf_minob', abyssmaw: 'sf_skdragon', voidking: 'q_king',     // Г5 (4.18)
+    kw: { on: true, grey: .06, dark: .04,     // оружие KayKit в руках моделей KayKit (путь А, 2026-10-22; kk_weapons.glb): map — вид → меш, size — множитель, shield — форма щита → меш; grey — разброс каналов, ниже — металл (красится цветом материала); dark — темнее не красим
+      map: { sword: 'sword_1handed', greatsword: 'sword_2handed', rapier: 'Skeleton_Blade', dagger: 'dagger', knife: 'dagger', axe: 'axe_1handed', war_axe: 'axe_2handed',
+        bow: 'bow_withString', longbow: 'bow_withString', crossbow: 'crossbow_1handed', staff: 'staff', wand: 'wand' },
+      size: { knife: .8, longbow: 1.2, rapier: .95 },
+      shield: { def: 'shield_round', tower: 'shield_square', buckler: 'shield_round' } },
+    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'kk_warlock', priest: 'kk_priest', brand: 'kk_barbarian' },     // Морок и Жрец — KayKit с перекраской (путь А, 2026-10-22); Бесогону (ветка g8) — kk_hunter
+    foes: { mossbeast: 'kb_mossbeast', drownqueen: 'kb_drownqueen', smelter: 'kb_smelter', barghest: 'q_wolf', rootgnaw: 'um_ghoul', thornlord: 'kk_king', oldoak: 'q_golem', saltwarden: 'q_golem', cathkraken: 'um_dragon', drowngod: 'um_fish',     // рейды 20 и 40 (4.18)
+      bogwarden: 'q_golem', leviathan: 'um_dragon', ashgolem: 'q_golem', cinderlord: 'kk_king', rotmaw: 'um_ghoul', riftheart: 'um_demon', voidwarden: 'um_orc', abyssmaw: 'um_dragon', voidking: 'kk_king',     // Г5 (4.18)
       imp: 'q_demonfly', bomber: 'q_demonfly', ash_thief: 'q_demonfly', hound: 'q_wolf', blackdog: 'q_wolf', garm: 'q_wolf', eclipse_fiend: 'q_wolf', garm_beast: 'q_wolf', greywolf: 'q_wolf', towerhound: 'q_wolf',
       lunger: 'kk_skel_warrior', war_ghost: 'kk_skel_minion', witch: 'kk_skel_mage', archer: 'kk_rogue_hooded', kad_xbow: 'kk_rogue_hooded', shield: 'kk_knight', kad_soldier: 'kk_knight', kad_spear: 'kk_knight', kad_banner: 'kk_knight',
-      royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'q_yeti', castellan: 'q_king', ashking: 'q_king', brandlord: 'kk_knight', abyssking: 'q_king', oakking: 'q_king',
-      brute: 'sf_mino', ghoul: 'sf_ghoul', devourer: 'sf_ghoul', golem: 'sf_drugdor', firegolem: 'sf_drugdor', drowned: 'sf_fish', drownedmaid: 'sf_fish', silt: 'sf_fish', swampelder: 'sf_fish',
-      demon_guard: 'sf_minob', lord: 'sf_minob', gatebeast: 'sf_minob', hand_lord: 'sf_minob', chief: 'sf_minob', tidewyrm: 'sf_skdragon', bonetyrant: 'sf_sklord', namelessking: 'sf_sklord', gravewight: 'sf_sklord', abbot: 'sf_sklord' },
+      royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'q_yeti', castellan: 'kk_king', ashking: 'kk_king', brandlord: 'kk_knight', abyssking: 'kk_king', oakking: 'kk_king',
+      brute: 'um_demon', ghoul: 'um_ghoul', devourer: 'um_ghoul', golem: 'q_golem', firegolem: 'q_golem', drowned: 'um_fish', drownedmaid: 'um_fish', silt: 'um_fish', swampelder: 'um_fish',
+      demon_guard: 'um_orc', lord: 'um_orc', gatebeast: 'um_orc', hand_lord: 'um_orc', chief: 'um_orc', tidewyrm: 'um_dragon', bonetyrant: 'kk_skel_warrior', namelessking: 'kk_skel_mage', gravewight: 'kk_skel_warrior', abbot: 'kk_skel_mage' },
     npcs: { merchant: 'q_farmer', smith: 'kk_barbarian', captain: 'q_warrior', villager: 'q_farmer', villagerF: 'q_adv_f', traveler: 'q_hooded' },     // жители (выбор владельца 2026-10-20)
     beasts: { deer: 'q_stag', fox: 'q_fox', goat: 'q_cow', duck: 'q_chicken', heron: 'q_pigeon', crow: 'q_pigeon', horse: 'q_horse' },     // живность
     sizes: { heron: 1.3 },     // свой рост модели для вида (голубь в роли цапли)
     tints: { heron: '#c8d0d8', crow: '#3a3438', bomber: '#ffb070', ash_thief: '#e8d080', blackdog: '#404048', garm: '#a06050', eclipse_fiend: '#b080ff', garm_beast: '#c04838', greywolf: '#c8c8c0', towerhound: '#c09060',
       kad_soldier: '#8aa0ff', kad_spear: '#8aa0ff', kad_banner: '#a0b0ff', kad_xbow: '#a0b8ff', royal_guard: '#ff8a8a', masked_knight: '#605870', brandshade: '#ff6a6a', shrieker: '#ffe0b0', ashking: '#c0a080', oakking: '#a0d080', devourer: '#c0ffa0', firegolem: '#ff9a60', drownedmaid: '#a0e0d0', silt: '#b0c080', swampelder: '#c0a070', lord: '#ff9070', gatebeast: '#ff7060', hand_lord: '#c090ff', chief: '#ffc0a0', gravewight: '#c0d080', abbot: '#ffe0a0' },
     kits: {
-      kk_knight: { anims: 'kk', height: 2.25, helm: ['Knight_Helmet', 'Knight_HelmetVisor'], cape: ['Knight_Cape'] },
+      kk_knight: { anims: 'kk', height: 2.25, gear: ['sword', 'iron', 'shield', 'shield_badge'], helm: ['Knight_Helmet', 'Knight_HelmetVisor'], cape: ['Knight_Cape'] },
       kk_rogue: { anims: 'kk', height: 2.15, cape: ['Rogue_Cape'] },
-      kk_rogue_hooded: { anims: 'kk', height: 2.15, aim: 'aim', atk: 'bow' },
+      kk_rogue_hooded: { anims: 'kk', height: 2.15, aim: 'aim', atk: 'bow', gear: ['crossbow', 'iron'] },     // gear — оружие врага: вид или меш KayKit, материал, щит, форма щита
       kk_ranger: { anims: 'kk', height: 2.15, helm: ['Ranger_Hat'], cape: ['Ranger_Cape'] },
       kk_mage: { anims: 'kk', height: 2.2, helm: ['Mage_Hat'], cape: ['Mage_Cape'] },
-      kk_skel_warrior: { anims: 'kk', height: 2.2, atk: 'p1' }, kk_skel_minion: { anims: 'kk', height: 2.0 }, kk_skel_mage: { anims: 'kk', height: 2.2, atk: 'cast', aim: 'spell' },
-      q_wizard: { height: 2.2, hand: 'WeaponR', handL: 'FistL', hide: ['Wizard_Staff'], wRot: [Math.PI, 0, 0] }, q_cleric: { height: 2.15, hand: 'WeaponR', handL: 'FistL', hide: ['Cleric_Staff'], wRot: [Math.PI, 0, 0] }, q_demonfly: { height: 1.8, atk: 'a1' }, q_wolf: { height: 1.3, atk: 'a1' }, q_ghostskull: { height: 1.8, atk: 'a1' },
-      q_yeti: { height: 2.1, atk: 'a1' }, q_king: { height: 2.0, atk: 'a1' },
+      kk_warlock: { src: 'kk_rogue_hooded', anims: 'kk', height: 2.15, cape: ['RogueHooded_Cape'], recolor: { '0,1': '#3a2c48', '1,1': '#2a2232', '3,0': '#8a2230', '5,0': '#4a3438', '6,0': '#3e3036', '7,1': '#2a2430' } },     // перекраска: ячейка текстуры «столбец,строка» → цвет
+      kk_priest: { src: 'kk_mage', anims: 'kk', height: 2.2, hide: ['Mage_Hat'], cape: ['Mage_Cape'], recolor: { '0,1': '#e6dfcc', '7,1': '#b89a5a', '2,1': '#d8b04a', '5,0': '#7a5a3a', '2,2': '#8a6a4a', '1,0': '#8a6a4a' } },
+      kk_hunter: { src: 'kk_ranger', anims: 'kk', height: 2.15, hide: ['Ranger_Hat', 'Ranger_Quiver'], cape: ['Ranger_Cape'], recolor: { '0,1': '#5a2228', '1,1': '#3a3034', '7,0': '#3a3032', '6,0': '#5a4038', '5,0': '#a03030', '1,0': '#2a2224' } },
+      kk_skel_warrior: { anims: 'kk', height: 2.2, atk: 'p1', gear: ['Skeleton_Axe', 'iron', 'shield', 'Skeleton_Shield_Small_A'] }, kk_skel_minion: { anims: 'kk', height: 2.0, gear: ['Skeleton_Blade', 'iron'] }, kk_skel_mage: { anims: 'kk', height: 2.2, atk: 'cast', aim: 'spell', gear: ['Skeleton_Staff', 'iron'] },
+      q_demonfly: { height: 1.8, atk: 'a1', cut: [{ mat: 'Black', above: .6 }] }, q_wolf: { height: 1.3, atk: 'a1' }, q_ghostskull: { height: 1.8, atk: 'a1' },     // cut — без нимба
+      q_yeti: { height: 2.1, atk: 'a1' },
       q_farmer: { height: 2.05 }, q_adv_f: { height: 1.95 }, q_hooded: { height: 1.95 }, kk_barbarian: { anims: 'kk', height: 2.3 }, q_warrior: { height: 2.15, hand: 'WeaponR', handL: 'FistL' },
       q_stag: { height: 2.2 }, q_fox: { height: .75 }, q_cow: { height: 1.35 }, q_chicken: { height: .45 }, q_pigeon: { height: .42 }, q_horse: { height: 2.7 },
-      sf_mino: { height: 2.1 }, sf_ghoul: { height: 1.9 }, sf_drugdor: { height: 2.0 }, sf_fish: { height: 2.4 }, sf_minob: { height: 2.1 }, sf_skdragon: { height: 1.8 }, sf_sklord: { height: 2.1, split: { idle: [.1, 2.5], walk: [2.95, 4.33] } } } },
+      um_orc: { height: 2.3, atk: 'a1', mats: { Orc_Main: '#7a3a2a', Orc_Secondary: '#4a2620', Orc_Hair: '#2a2024', Belt: '#3a2a20', Gold: '#8a6a30', Eye_White: '#301008' }, glow: { Eye_White: '#c04010' } },     // Ultimate Monsters (CC0, путь А): mats — цвет по имени материала, glow — свечение (глаза)
+      um_demon: { height: 2.2, atk: 'a1', cut: [{ mat: 'Black', above: .62 }], attach: [{ p: 'tusk', bone: 'Head', at: [.22, .45, 0], rot: [0, 0, -.5], s: 1.3, c: ['#1a1416'] }, { p: 'tusk', bone: 'Head', at: [-.22, .45, 0], rot: [0, 0, .5], s: 1.3, c: ['#1a1416'] }], mats: { Demon_Main: '#5a2a22', Black: '#1a1416', Eye_White: '#301008' }, glow: { Eye_White: '#d05010' } },     // нимб срезан вместе с кончиками рогов — рога свои
+      um_ghoul: { height: 1.9, atk: 'a1', mats: { BlueDemon_Main: '#4a5a42', BlueDemon_Secondary: '#5a4a32', Straps: '#3a3030', Eye_White: '#1a2008' }, glow: { Eye_White: '#90c020' } },
+      um_fish: { height: 2.2, atk: 'a1', mats: { Fish_Main: '#1e3a40', Fish_Secondary: '#3a6a60', Fish_Flaps: '#5a6a4a', Eye_White: '#08201c' }, glow: { Eye_White: '#40c0b0' } },
+      um_dragon: { height: 2.0, atk: 'a1', mats: { Dragon_Main: '#2a4048', Dragon_Secondary: '#182428', Dragon_Horn: '#c8bea0', Eye_White: '#081820' }, glow: { Eye_White: '#60d0ff' } },
+      q_golem: { src: 'q_yeti', height: 2.1, atk: 'a1', mats: { Yeti_Main: '#6e6c68', Yeti_Secondary: '#3e3c44', Yeti_Teeth: '#8a8070', Eye_White: '#2a1408' }, glow: { Eye_White: '#ff7a20' } },
+      kb_mossbeast: { src: 'q_yeti', height: 2.3, atk: 'a1', mats: { Yeti_Main: '#55703a', Yeti_Secondary: '#5a4030', Yeti_Teeth: '#e6dcc0', Tongue: '#3a2020', Eye_White: '#2a1a04' }, glow: { Eye_White: '#f0b030' },     // боссы-пилот, сборка из частей (2026-10-22): основа + перекраска + детали на костях (attach)
+        attach: [{ p: 'moss', bone: 'Torso', at: [0, .2, -.42], s: 1.2 }, { p: 'moss', bone: 'Shoulder.L', at: [.15, .12, -.1], s: .75, c: ['#6a8a3a'] }, { p: 'moss', bone: 'Shoulder.R', at: [-.15, .1, -.1], s: .7 },
+          { p: 'mushroom', bone: 'Shoulder.L', at: [.2, .3, -.05], s: 1.3 }, { p: 'mushroom', bone: 'Torso', at: [-.25, .5, -.45], s: 1, rot: [-.4, 0, .3] }, { p: 'tusk', bone: 'Head', at: [.2, -.15, .45], rot: [.5, 0, -.3], s: 1.2 }, { p: 'tusk', bone: 'Head', at: [-.2, -.15, .45], rot: [.5, 0, .3], s: 1.2 }] },
+      kb_drownqueen: { src: 'kk_mage', anims: 'kk', height: 2.2, hide: ['Mage_Hat'], gear: ['wand', 'bone'], recolor: { '0,0': '#a8c4bc', '7,2': '#a8c4bc', '1,0': '#1e2a2e', '0,1': '#3f7f7f', '7,1': '#24484a', '2,1': '#4a6a3a', '5,0': '#a9b0b4', '3,2': '#2a3a3a', '2,2': '#4a6a3a' },
+        attach: [{ p: 'crown', bone: 'head', at: [0, .78, 0], s: 1.3 }] },
+      kb_smelter: { src: 'um_orc', height: 2.4, atk: 'a1', mats: { Orc_Main: '#5a4a44', Orc_Secondary: '#3a3430', Belt: '#7a4a2a', Gold: '#b08a3a', Orc_Hair: '#2a2420', Wood: '#3a2a20', Metal: '#6a3a1a', Eye_White: '#301008' }, glow: { Metal: '#ff6a10', Eye_White: '#ff8a2a' },
+        attach: [{ p: 'helm', bone: 'Head', at: [0, .42, .12], s: 1.15 }] },
+      kk_king: { src: 'kk_knight', anims: 'kk', height: 2.3, gear: ['greatsword'], recolor: { '3,0': '#8a7240', '7,0': '#d0a840', '0,1': '#4a2a5a', '6,0': '#3a2a2a', '7,1': '#2a2430' } } } },
   shapes: { grad: [.7, 1.08], contact: { r: 1.5, k: .25 }, round: { on: true, k: .2, max: .06, seg: 1 },
     roof: { colors: ['#8f7e5e', '#6e5e50', '#56606a'], top: 1.15 } },
   // зелень (2026-10-17): пятна по плавному шуму (масштабы scale м: сочная/сухая трава, проплешины, поляны); множители цвета

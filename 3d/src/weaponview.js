@@ -57,3 +57,32 @@ export function makeWeapon(kind, mat) {
   return { group: g, base, tip, kind: k };
 }
 export const weaponKinds = () => Object.keys(BUILD);
+
+let KW = null; const KWC = new Map();     // оружие KayKit (путь А, 2026-10-22): меши с цветом в вершинах (kk_weapons.glb), рукоять в нуле; материал красит только металл; нет меша — null, рисуется своё
+export function setKkWeapons(lib) { KW = lib; KWC.clear(); }
+export const kkReady = () => !!KW;
+const lin = c => new THREE.Color(c);
+function kkGeo(name, mat) {
+  const id = name + '|' + mat; if (KWC.has(id)) return KWC.get(id);
+  const src = KW && KW[name]; if (!src) return null;
+  const geo = src.clone(), col = geo.attributes.color, KC = CFG3.actors.kw;
+  if (col && mat !== 'steel' && METAL[mat]) {
+    const M = lin(METAL[mat]), lum = i => .3 * col.getX(i) + .55 * col.getY(i) + .15 * col.getZ(i), grey = i => Math.max(col.getX(i), col.getY(i), col.getZ(i)) - Math.min(col.getX(i), col.getY(i), col.getZ(i)) < KC.grey;
+    let s = 0, n = 0; for (let i = 0; i < col.count; i++) if (grey(i) && lum(i) > KC.dark) { s += lum(i); n++; }
+    const ref = n ? s / n : 1;
+    for (let i = 0; i < col.count; i++) if (grey(i) && lum(i) > KC.dark) { const k = Math.min(1.6, lum(i) / ref); col.setXYZ(i, M.r * k, M.g * k, M.b * k); }     // металл — цвет материала с тем же светом и тенью
+    col.needsUpdate = true;
+  }
+  KWC.set(id, geo); return geo;
+}
+export function kkWeapon(kind, mat = 'steel') {
+  const KC = CFG3.actors && CFG3.actors.kw; if (!KC || !KC.on || !KW) return null;
+  const name = KC.map[kind] || (KW[kind] ? kind : null); const geo = name && kkGeo(name, mat); if (!geo) return null;     // вид оружия или прямо имя меша KayKit
+  const g = new THREE.Group(), m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true })); m.castShadow = true; g.add(m);
+  const s = KC.size[kind] || 1; g.scale.setScalar(s);
+  geo.computeBoundingBox(); const B = geo.boundingBox, base = new THREE.Object3D(), tip = new THREE.Object3D();
+  const [a, b] = SPAN[kind] || SPAN.sword, k = B.max.y / b;     // след — та же доля рабочей части, что у своих моделей
+  tip.position.y = B.max.y; base.position.y = Math.max(a * k, B.max.y - BAND / s); g.add(base, tip);
+  return { group: g, base, tip, kind };
+}
+export function kkShield(form) { const KC = CFG3.actors && CFG3.actors.kw; if (!KC || !KC.on || !KW) return null; const geo = kkGeo(KC.shield[form] || (KW[form] ? form : KC.shield.def), 'steel'); if (!geo) return null; const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true })); m.castShadow = true; return m; }
