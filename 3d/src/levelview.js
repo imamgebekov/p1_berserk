@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildContainers } from './containers.js';
 import { roomAt } from './map.js';
 import { paintMat, paintOn } from './paint3d.js';
-import { buildDecor } from './decor.js';
+import { buildDecor, decorModel } from './decor.js';
 import { dungeonDetails } from './details3d.js';
 
 const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
@@ -111,18 +111,24 @@ export function buildLevelView(L, cfg) {
     group.add(new THREE.Mesh(mergeGeometries(glow), new THREE.MeshBasicMaterial({ color: '#7a1c0a', transparent: true, opacity: .22, depthWrite: false })));
     group.add(new THREE.Mesh(mergeGeometries(rim), mat('#5a5048', 'masonry')));
   }
+  // 4.10: модели KayKit Dungeon, если загружены (факелы, колонны, знамёна); иначе — прежние коробки
+  const kit = [], putKit = (name, x, y, z, rot, sx, sy = sx, sz = sx) => { const S = decorModel(name); if (!S) return false; const g = S.clone(); g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rot, 0)), new THREE.Vector3(sx, sy, sz))); kit.push(g); return true; };
   // колонны: база, ствол, капитель
   if ((M.pillars || []).length) {
     const col = [];
-    for (const c of M.pillars) col.push(box(c.r * 2.4, .25, c.r * 2.4, c.x, .125, c.z), new THREE.CylinderGeometry(c.r * .85, c.r, 2.6, 10).translate(c.x, 1.55, c.z), box(c.r * 2.2, .22, c.r * 2.2, c.x, 2.95, c.z));
-    group.add(new THREE.Mesh(mergeGeometries(col.map(g => g.index ? g.toNonIndexed() : g)), mat('#6a6058', 'masonry')));
+    for (const c of M.pillars) if (!putKit('pillar', c.x, 0, c.z, 0, c.r * 1.6, .78, c.r * 1.6)) col.push(box(c.r * 2.4, .25, c.r * 2.4, c.x, .125, c.z), new THREE.CylinderGeometry(c.r * .85, c.r, 2.6, 10).translate(c.x, 1.55, c.z), box(c.r * 2.2, .22, c.r * 2.2, c.x, 2.95, c.z));
+    if (col.length) group.add(new THREE.Mesh(mergeGeometries(col.map(g => g.index ? g.toNonIndexed() : g)), mat('#6a6058', 'masonry')));
   }
   // факелы на сплошных стенах комнат (не в проходах и не на ближней к камере стене; без источников света — свет даёт фонарь героя)
   const torches = [], flames = [], open = (x, z) => M.links.some(l => (l.vert ? Math.abs(x - l.line) < .2 && z > l.s0 - .6 && z < l.s1 + .6 : Math.abs(z - l.line) < .2 && x > l.s0 - .6 && x < l.s1 + .6));
   for (const r of M.rooms) if (!r.corridor) for (const [x, z, ex, ez] of [[r.x0, (r.z0 + r.z1) / 2, .12, 0], [r.x1, (r.z0 + r.z1) / 2, -.12, 0], [(r.x0 + r.x1) / 2, r.z0, 0, .12]]) {
     if (open(x, z)) continue;
-    torches.push(box(.1, .5, .1, x + ex, D.wallH * .55, z + ez)); flames.push(box(.16, .2, .16, x + ex, D.wallH * .55 + .32, z + ez));
+    if (!putKit('torch_mounted', x + ex * .6, D.wallH * .55 - .25, z + ez * .6, ex > 0 ? Math.PI / 2 : ex < 0 ? -Math.PI / 2 : 0, .6)) torches.push(box(.1, .5, .1, x + ex, D.wallH * .55, z + ez));
+    flames.push(box(.16, .2, .16, x + ex, D.wallH * .55 + .32, z + ez));
   }
+  for (let i = 0; i < M.rooms.length; i++) { const r = M.rooms[i]; if (r.corridor || r.x1 - r.x0 < 7 || i % 2) continue;     // знамёна на дальней стене каждого второго зала
+    for (const [k, name] of [[.25, 'banner_patternA_red'], [.75, 'banner_shield_red']]) { const x = r.x0 + k * (r.x1 - r.x0), S = decorModel(name); if (!S || open(x, r.z0)) continue; const s = D.wallH * .85 / S.userData.h; putKit(name, x, D.wallH * .1, r.z0 + .08 + S.userData.d * s / 2, 0, s); } }
+  if (kit.length) group.add(new THREE.Mesh(mergeGeometries(kit), paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto')));
   if (torches.length) group.add(new THREE.Mesh(mergeGeometries(torches), mat('#3a2a1a')));
   { const salt = [...String(M.level || '')].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7), det = dungeonDetails(M, cfg, salt);     // детали подземелья (T5)
     if (det.length) group.add(buildDecor({ decor: det }, null, null).group); }

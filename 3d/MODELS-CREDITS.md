@@ -8,7 +8,8 @@
 - **KayKit Medieval Hexagon Pack 1.0** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-medieval-hexagon — дома, кузница, рынок, казарма, таверна, церковь, мельницы, башни, стены, заборы, палатка, колодец, руины.
 - **KayKit Forest Nature Pack 1.0 (Free)** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-forest — деревья, кусты, камни.
 - **KayKit Halloween Bits 1.0** — Kay Lousberg, https://kaylousberg.itch.io/halloween-bits — мёртвые деревья, склеп, святилище, арка, ограды, надгробия, фонари.
-- **KayKit Dungeon Pack 1.1 (Free)** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-dungeon-pack — знамёна (patternA, shield, thin; красные), малая бочка, ящики. Скачан 2026-10-21; цвет текстуры перенесён в вершины (`tools/bake-kk.py`) → `townkit.glb`.
+- **KayKit Dungeon Pack 1.1 (Free)** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-dungeon-pack — знамёна (patternA, shield, thin; красные), малая бочка, ящики, меч со щитом, монеты, бутыль, настенный факел, колонна. Скачан 2026-10-21; цвет текстуры перенесён в вершины (`tools/bake-kk.py`) → `townkit.glb`.
+- **Quaternius Medieval Village MegaKit (Standard)** — Quaternius, https://quaternius.itch.io/medieval-village-megakit — повозка, ящик. Скачан 2026-10-21; цвет текстуры перенесён в вершины (`tools/bake-kk.py`) → `qkit.glb`.
 - **KayKit Character Animations 1.1** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-character-animations — клипы Rig_Medium.
 - **Quaternius RPG Characters (Nov 2020)** — Quaternius, https://quaternius.com — Wizard, Cleric (из FBX в glTF).
 - **Quaternius Ultimate Monsters / Animated Animals / Modular Men / Modular Women** — Quaternius, через https://poly.pizza — Demon (flying), Ghost Skull, Yeti, Wolf, King, Farmer, Adventurer (женщина), Hooded Adventurer, Stag, Fox, Cow, Chicken, Pigeon, Horse.

@@ -9,7 +9,9 @@ const PART_OF = { cwall: 'masonry', ctower: 'masonry', cgate: 'masonry', tower: 
 
 // готовые постройки KayKit (2026-10-20, выбор владельца): геометрии с цветом в вершинах (buildings.glb); пока нет — свои кубики
 let BLD = null;
+const SIGN_ICON = { smithy: ['sword_shield', .26], shop: ['coin_stack_small', .4], tavern: ['bottle_A_labeled_brown', .45], warehouse: ['box_small', .3] };     // модель и масштаб значка
 export function setDecorLib(lib) { BLD = lib; }
+export const decorModel = name => (BLD && BLD[name]) || null;     // 4.10: модели KayKit для подземелий (levelview.js)
 const TM = new THREE.Matrix4(), TQ = new THREE.Quaternion(), TE = new THREE.Euler(), TP = new THREE.Vector3(), TS = new THREE.Vector3();
 // модель name: центр в (x, z), поворот rot, масштаб по осям модели; dim — тёмнее/светлее
 function putModel(L, name, x, z, rot, sx, sy, sz, dim = 1, y = 0) {
@@ -20,6 +22,7 @@ function putModel(L, name, x, z, rot, sx, sy, sz, dim = 1, y = 0) {
 }
 // замена своего декора: true — заменили. Ряды (стены, частокол, ограды) — отрезками модели вдоль длинной стороны
 function swapDecor(d, L, rnd) {
+  if (!rnd) { const h = Math.abs(Math.sin(d.x * 12.9898 + d.z * 78.233) * 43758.5453) % 1; rnd = () => h; }     // 4.10: в подземельях декор строится без генератора — выбор по месту
   const s = d.s || 1, r = d.rot || 0;
   // ряд отрезков длиной около seg м вдоль длинной стороны; h — масштаб высоты, depth — масштаб толщины; длинная ось модели — x или z
   const tile = (name, len, seg, h, alongX, depth) => { const M = BLD[name]; if (!M) return false; const mx = M.userData.w >= M.userData.d, Ls = mx ? M.userData.w : M.userData.d, n = Math.max(1, Math.round(len / seg)), k = len / n;
@@ -35,8 +38,9 @@ function swapDecor(d, L, rnd) {
     case 'lamp': return putModel(L, 'post_lantern', d.x, d.z, r, 1, 1, 1, .9);
     case 'barrel_d': return putModel(L, 'barrel_small', d.x, d.z, r, .8 * s, .85 * s, .8 * s);     // 4.09: бочки и ящики KayKit Dungeon (лёгкие, ≈200 треугольников)
     case 'crate_d': return rnd() < .6 ? putModel(L, 'box_small', d.x, d.z, r, .78 * s, .72 * s, .78 * s) : putModel(L, 'box_large', d.x, d.z, r, .58 * s, .52 * s, .58 * s);
+    case 'wagon': return putModel(L, 'Prop_Wagon', d.x, d.z, r, .9, .9, .9, .85);     // 4.10: повозка Quaternius у лавки
     case 'kbanner': case 'banner': { const name = d.t === 'kbanner' ? (rnd() < .5 ? 'banner_patternA_red' : 'banner_shield_red') : 'banner_thin_red', M = BLD[name]; if (!M) return false;     // 4.09: знамя KayKit на столбе с перекладиной
-      const c = Math.cos(r), sn = Math.sin(r), k = 1.75 / M.userData.h, top = 3.5, at = (lx, lz) => [d.x + lx * c + lz * sn, d.z - lx * sn + lz * c];
+      const r = 0, c = 1, sn = 0, k = 1.75 / M.userData.h, top = 3.5, at = (lx, lz) => [d.x + lx * c + lz * sn, d.z - lx * sn + lz * c];     // 4.10: полотно лицом к камере — сверху не видно ребром
       { const [px, pz] = at(0, -.14); pushBox(L, .16, top + .2, .16, px, (top + .2) / 2, pz, 0, r, 0, '#2a2420'); pushBox(L, M.userData.w * k + .3, .1, .1, px, top, pz, 0, r, 0, '#2a2420'); }
       return putModel(L, name, d.x, d.z, r, k, k, k, 1, top - 1.75 - .02); }
     case 'fence': return d.grave ? putModel(L, 'fence', d.x, d.z, d.rot ? Math.PI / 2 : 0, (d.w || 2) / 4, .5, .6, .85) : putModel(L, 'fence_wood_straight', d.x, d.z, d.rot ? 0 : Math.PI / 2, 2.2, 2.2, (d.w || 2) / 1.15, .85);
@@ -125,7 +129,10 @@ export function buildDecor(map, rnd, grime = null) {
       case 'sack_d': f(0, 0, 0, .55, .45, .45, '#8a7a5a', 'cloth'); f(0, .45, 0, .22, .16, .22, '#7a6a4a', 'cloth'); break;     // детали мира (T5)
       case 'bucket': f(0, 0, 0, .36, .34, .36, '#5a3e26'); f(0, .1, 0, .38, .05, .38, '#2a2220', 'metal'); f(0, .26, 0, .38, .05, .38, '#2a2220', 'metal'); break;
       case 'sign': f(0, 0, 0, .12, 2.2, .12, '#3a281a'); f(.4, 1.9, 0, .9, .08, .08, '#3a281a'); f(.08, 1.85, 0, .08, .1, .04, '#2a2220', 'metal'); f(.62, 1.25, 0, .7, .5, .06, '#6a4a2c');
-        f(.62, 1.3, .04, .3, .22, .03, { smithy: '#8a8478', shop: '#c8a24a', tavern: '#8a5a2a', warehouse: '#7a6a4a' }[d.kind] || '#8a8478', 'metal'); break;
+        { const ic = SIGN_ICON[d.kind], c = Math.cos(d.rot || 0), sn = Math.sin(d.rot || 0);     // 4.10: значок ремесла KayKit на вывеске (меч со щитом, монеты, бутыль, ящик)
+          if (!(ic && BLD && BLD[ic[0]] && putModel(L, ic[0], d.x + .62 * c + .07 * sn, d.z - .62 * sn + .07 * c, d.rot || 0, ic[1], ic[1], ic[1] * .4, 1, 1.5 - BLD[ic[0]].userData.h * ic[1] / 2)))
+            f(.62, 1.3, .04, .3, .22, .03, { smithy: '#8a8478', shop: '#c8a24a', tavern: '#8a5a2a', warehouse: '#7a6a4a' }[d.kind] || '#8a8478', 'metal'); }
+        break;
       case 'rug': f(0, 0, 0, 1.4, .03, .9, d.c || '#7a2a24', 'cloth'); f(0, .01, 0, 1.15, .03, .65, '#c8b080', 'cloth'); f(0, .02, 0, 1.0, .03, .5, d.c || '#7a2a24', 'cloth'); break;
       case 'rusty_sword': f(0, 0, 0, .08, .9, .03, '#6a5a4a', 'metal'); f(0, .85, 0, .36, .06, .08, '#4a3a2a', 'metal'); f(0, .91, 0, .06, .24, .06, '#3a2618'); break;
       case 'skulls': f(0, 0, 0, .26, .22, .26, '#d8cfb8'); f(.3, 0, .12, .22, .2, .22, '#cfc6b0'); f(.12, .2, .05, .22, .2, .22, '#d8cfb8'); f(0, .07, .13, .16, .06, .02, '#2a2018', 'plain'); break;

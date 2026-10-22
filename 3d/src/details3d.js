@@ -31,6 +31,10 @@ export function surfaceDetails(map, cfg) {
     { const pr = PROUD.has(b.kind) || (!!b.npc && b.npc.kind !== 'merchant' && b.kind !== 'shop'), x = d.x + dx * .9 - dz * 1.7, z = d.z + dz * .9 + dx * 1.7, clear = (x, z) => !(map.decor || []).some(o => Math.hypot(o.x - x, o.z - z) < 1.8);     // 4.09: знамя по другую сторону двери от вывески; у простых домов — фонарь
       if (pr && rnd() < (D.kbanner ?? 0) && free(x, z) && !inB(x, z, .2) && clear(x, z)) out.push({ t: 'kbanner', x, z, rot, detail: true });
       else if (!pr && b.kind !== 'hut' && rnd() < (D.lamp ?? 0)) { const lx = d.x + dx * 1.3 - dz * 1.6, lz = d.z + dz * 1.3 + dx * 1.6; if (free(lx, lz) && !inB(lx, lz, .3) && clear(lx, lz)) out.push({ t: 'lamp', x: lx, z: lz, rot: rot + Math.PI / 2, detail: true }); } }
+    if ((b.kind === 'shop' || (b.npc && b.npc.kind === 'merchant')) && rnd() < (D.wagon ?? 0)) {     // 4.10: повозка у лавки — вдоль стены сбоку от двери
+      const s = pick(sides), h = s === 'e' || s === 'w', wx = s === 'e' ? b.x1 + 2.4 : s === 'w' ? b.x0 - 2.4 : b.x, wz = s === 's' ? b.z1 + 2.4 : s === 'n' ? b.z0 - 2.4 : b.z;
+      if (free(wx, wz) && !inB(wx, wz, 1.6) && !(map.decor || []).some(o => Math.hypot(o.x - wx, o.z - wz) < 2.6)) out.push({ t: 'wagon', x: wx, z: wz, rot: h ? 0 : Math.PI / 2, detail: true });
+    }
     if (RUG.has(b.kind) && rnd() < D.rug) { const x = d.x + dx * 1.1, z = d.z + dz * 1.1; if (!inB(x, z, .1)) out.push({ t: 'rug', x, z, rot, c: pick(D.rugColors), detail: true }); }
   }
   for (const p of map.cfg.places || []) {
