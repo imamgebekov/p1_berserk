@@ -442,6 +442,11 @@ const BASE = {
     rugColors: ['#7a2a24', '#3a4a6a', '#6a5a2a'], danger: [3, 6], banner: .6,
     bannerColors: ['#8a2a1a', '#2a3a6a', '#4a5a2a'], candle: .45, wall: .55, floor: .5 },
   dungeons: {
+    // 4.15 Подземелья 2.0: раскладка подземелий группы и рейда — генератором на каждый заход (dungeongen3d.js). cell — шаг сетки, м; room, bossRoom,
+    // first — размеры залов; mainShare — доля залов на главном пути; turn — доля поворотов; branch — длина ветви; loop — петли; foes — врагов
+    // на 150 м² зала; chest — сундук в тупике; dungeon, raid — число залов; bossAt — где на пути боссы (последний — в конце)
+    gen: { on: true, cell: 26, gapMin: 4, corr: 2.4, mainShare: .55, turn: .45, branch: 3, loop: .12, room: [10, 16], bossRoom: [16, 22], first: [10, 8],
+      foes: [3, 4.5], raidMul: .8, chest: .7, dungeon: [14, 20], raid: [30, 40], bossAt: [.3, .55, .75, .9] },
     // 4.14: стили подземелий — floor, wall, cap (верх стен), bg (фон и туман), fogK (плотность тумана), hemi [небо, земля, сила] (общий свет),
     // flame (огонь факелов), mist, mistA, ember, pillar (живой фон), glow { n — гроздей на зал, kind: crystal | mushroom | lava, color }
     themes: { on: true, def: 'crypt', abyss: 'crypt',

@@ -824,6 +824,7 @@ function updateEnemies(W, dt) {
 const P_RADIUS = W => W.cfg.player.radius;
 
 // наполнить контейнер заново: глубина (расстояние от костра или глубина подземелья) и удача героя улучшают добычу
+export function refillLevel(W, id) { withLevel(W, id, () => { for (const c of W.map.containers) refill(W, c); }); }     // 4.15: сундуки новой раскладки
 function refill(W, c) {
   const def = CONTAINERS[c.kind], depth = Math.min(1, depthAt(W, c.x, c.z));     // добыча — не выше глубины 1 и в большом мире
   const pl = placeAt(W.map, c.x, c.z);

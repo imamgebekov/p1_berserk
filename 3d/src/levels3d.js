@@ -3,11 +3,13 @@
 import { clamp, len } from './util3d.js';
 import { makeLevelMap, resolve, roomFree } from './map.js';
 import { reveal } from './places3d.js';
-import { mulberry32, spawnEnemy, spawnBoss } from './sim.js';
+import { mulberry32, spawnEnemy, spawnBoss, refillLevel } from './sim.js';
 import { bossAway } from './boss3d.js';
 import { zoneLevel } from './zones3d.js';
 import { initAbyss, abyssGo } from './abyss3d.js';
 import { floorsOf, floorMap, isFloor } from './floors3d.js';
+import { genDef } from './dungeongen3d.js';
+import { styleDef } from './dungeonstyle3d.js';
 import { unwarpDist, warpOf } from './coremap3d.js';
 
 export const SURFACE = 'surface';
@@ -122,8 +124,23 @@ export function spawnFoes(W, L) {
 }
 
 // перейти на уровень id в точку (x, z): отряд идёт следом, снаряды и отложенные удары пропадают
+// Подземелья 2.0 (4.15): подземелье группы и рейд — новая раскладка на каждый заход: залы, враги, сундуки, боссы на новых местах
+export function regenLevel(W, id) {
+  const cfg = W.cfg, G = cfg.dungeons.gen, L = W.levels[id]; if (!G || !G.on || !L || !L.def || !L.def.inst) return false;
+  const base = L.base || (L.base = L.def), bosses = cfg.bosses.list.filter(b => b.level === id).sort((a, b) => (a.final ? 1 : 0) - (b.final ? 1 : 0));
+  W.genN = (W.genN || 0) + 1; const seed = W.rng === Math.random ? (Math.random() * 2147483647) | 0 : (cfg.dungeons.seed * 977 + W.genN * 7919 + id.length * 131) | 0;
+  const def = genDef(cfg, { ...base, styled: false, bosses: bosses.map(b => ({ type: b.type })) }, seed);
+  bosses.forEach((b, k) => { const r = def.rooms.find(q => q.id === def.bosses[k].room); if (r) { b.x = r.x; b.z = r.z; } });
+  styleDef(cfg, def, bosses); delete def.bosses;
+  const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
+  Object.assign(L, { def, map, enemies: [], drops: [], spawnT: 1 }, fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal));
+  withLevel(W, id, () => { spawnFoes(W, L); for (const b of bosses) if (W.bossDead[b.type] === undefined) spawnBoss(W, b); });     // убитый босс ждёт своего срока, как раньше
+  refillLevel(W, id);
+  return true;
+}
 export function travel(W, id, x, z) {
   if (!W.levels[id]) return false;
+  if (id !== W.lvl && regenLevel(W, id)) { const e = W.levels[id].def.entry; x = e.x; z = e.z; }     // 4.15: новая раскладка — вход новый
   const p = W.player;
   leave(W); stash(W); load(W, id); arrive(W);
   Object.assign(p, { x, z, vx: 0, vz: 0, state: 'idle', atkT: 0, rollT: 0 });

@@ -10,7 +10,7 @@ import { spawnAlly, squadMax } from '../3d/src/squad3d.js';
 import { BY_ID } from '../3d/src/data/items.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const I = CFG3.dungeons.list.filter(d => d.inst), BL = CFG3.bosses.list.filter(b => b.inst);
-const mk = (seed = 1, f) => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; if (f) f(c); return createWorld(c, mulberry32(seed)); };
+const mk = (seed = 1, f) => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.dungeons.gen.on = false; if (f) f(c); return createWorld(c, mulberry32(seed)); };     // 4.15: бои боссов — в задуманных залах (сравнение от версии к версии); генератор — в dungeongen3d
 const run = (W, sec, inp = {}, each) => { for (let i = 0; i < Math.round(sec * 60); i++) { step(W, 1 / 60, inp); if (each) each(i); } };
 const enter = (W, id) => { const d = W.cfg.dungeons.list.find(q => q.id === id); travel(W, id, d.entry.x, d.entry.z); step(W, 1 / 60, {}); return d; };
 const bossIn = (W, type) => W.enemies.find(e => e.boss && e.type === type);
@@ -74,7 +74,7 @@ function fight(b, seed, party) {
   const W = mk(seed * 131 + 7, party ? null : c => { c.party.on = false; }); W.hero = 'vale'; const d = I.find(q => q.id === b.inst), lv = d.level; W.lv = lv;     // 4.07: «с отрядом» — группа сбором (4, рейд — 10), «в одиночку» — без сбора
   Object.assign(W.inv.eq, KIT); W.inv.il = Object.fromEntries(Object.keys(KIT).map(k => [k, lv])); refreshGear(W); W.player.hp = W.player.maxhp;
   enter(W, d.id); W.enemies = W.levels[d.id].enemies = W.enemies.filter(e => e.boss && e.type === b.type);
-  const e0 = W.enemies[0], room = d.rooms.find(r => r.id === b.room), p = W.player; p.x = room.x - room.w * .35; p.z = room.z;
+  const e0 = W.enemies[0], room = W.levels[d.id].map.rooms.find(r => e0.x > r.x0 && e0.x < r.x1 && e0.z > r.z0 && e0.z < r.z1), p = W.player; p.x = room.x0 + (room.x1 - room.x0) * .15; p.z = (room.z0 + room.z1) / 2;     // 4.15: зал босса — по новой раскладке
   if (party) W.allies.forEach((a, k) => { a.x = p.x - 1 - (k % 3) * .8; a.z = p.z + 1 + Math.floor(k / 3) * .8; });     // группа сбора — рядом с героем
   const dodge = mulberry32(seed + 5);
   for (let i = 0; i < 60 * 180; i++) {
