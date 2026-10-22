@@ -338,6 +338,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
 export function killEnemy(W, e, share) {
   if (e.dead) return;
   if (e.boss && e.b && e.b.def && e.b.def.stage2 && !e.b.st2) { bossRise(W, e); return; }     // вторая стадия (4.18б)
+  const d0 = W.drops.length;     // 4.21: добыча убитого — в его тело (corpseOf в конце)
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
   dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
   { const H = heroMul(W), kh = H.killHeal ? H.killHeal * clamp((H.healLv[1] - W.lv) / (H.healLv[1] - H.healLv[0]), 0, 1) : 0, p = W.player; if (kh && !p.dead && p.hp > 0 && len(p.x - e.x, p.z - e.z) < 6 && W.enemies.filter(o => !o.dead && len(o.x - p.x, o.z - p.z) < 6).length >= 2) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * kh); }     // «второе дыхание» Торна: убил рядом — подлечился
@@ -352,6 +353,41 @@ export function killEnemy(W, e, share) {
     const kh = (pm.killHeal || 0) + (W.setFx.killHeal || 0) + (W.wp.mix && W.wp.mix.a === 'blood' && W.wp.mix.b === 'blood' ? W.cfg.stones.thirst[1] : 0); if (kh) W.player.hp = Math.min(W.player.maxhp, W.player.hp + kh);
     if (pm.reaper) { W.reap.n = Math.min(pm.reaper[1], W.reap.n + 1); W.reap.t = pm.reaper[2]; W.reap.amt = pm.reaper[0]; }
   }
+  corpseOf(W, e, d0);
+}
+
+// добыча с тел (4.21): всё, что выпало при убийстве, — в теле врага (метка corpse у вещей в W.drops: шаг их не подбирает, к герою не тянет,
+// dropLife не гасит); окно добычи — lootCorpse; тело — в W.corpses (по уровню lvl), таймер и уборка — tickCorpses
+function corpseOf(W, e, d0) {
+  const C = W.cfg.corpse; if (!C || !C.on || W.drops.length <= d0) return;
+  const id = 'c' + e.id; for (let i = d0; i < W.drops.length; i++) { const q = W.drops[i]; q.corpse = id; q.x = e.x; q.z = e.z; }
+  (W.corpses || (W.corpses = [])).push({ id, x: e.x, z: e.z, type: e.type, name: W.cfg.enemies[e.type].name, boss: !!e.boss, t: 0, life: e.boss ? C.boss : C.life, empty: 0, lvl: W.lvl, fight: false });
+}
+export const corpseItems = (W, cid) => W.drops.filter(q => q.corpse === cid);
+export function tickCorpses(W, dt) {
+  const C = W.cfg.corpse, L = W.corpses, p = W.player; W.nearCorpse = null; if (!C || !C.on || !L || !L.length) return;
+  const fight = W.enemies.some(e => !e.dead && e.alert && len(e.x - p.x, e.z - p.z) < C.combatR);     // бой рядом — таймер тел стоит (босс: суета дольше 3 минут)
+  let bd = C.r;
+  for (let i = L.length - 1; i >= 0; i--) {
+    const c = L[i]; if (c.lvl !== W.lvl) continue; const left = W.drops.some(q => q.corpse === c.id); c.fight = fight;
+    if (!left) c.empty += dt; else if (!fight) c.t += dt;
+    if (c.empty > C.empty || c.t > c.life) { for (let k = W.drops.length - 1; k >= 0; k--) if (W.drops[k].corpse === c.id) W.drops.splice(k, 1); L.splice(i, 1); continue; }
+    const d = len(c.x - p.x, c.z - p.z); if (left && !p.dead && d < bd) { bd = d; W.nearCorpse = c; }
+  }
+}
+// взять вещь i из W.drops — по правилам подбора с земли: 'ok' — взята, 'part' — часть стопки, 'full' — сумка полна
+export function takeDrop(W, i) {
+  const q = W.drops[i]; if (!q) return 'none';
+  if (q.up || q.g || q.il) { if (!roomFor(W.inv, q.id, bagSlots(W))) return 'full'; W.inv.bag.push(entryOf(q.id, q.up, q.g || (q.up || q.af || q.mine ? null : gemsFor(W, q.id, socketsOf(BY_ID[q.id], W.cfg))), q.il, q.af || (q.up || q.g || q.mine ? null : affixFor(W, q.id, q.il)))); W.known.items[q.id] = 1; W.ev.push({ k: 'pickup', id: q.id, n: 1 }); W.drops.splice(i, 1); return 'ok'; }
+  const left = give(W, q.id, q.n); if (left >= q.n) return 'full'; q.n = left; if (!left) { W.drops.splice(i, 1); return 'ok'; } return 'part';
+}
+// окно добычи: k — номер вещи в теле (по порядку corpseItems), null — взять всё; вернёт { n — взято, full — не влезло }
+export function lootCorpse(W, cid, k = null) {
+  const ix = []; W.drops.forEach((q, i) => { if (q.corpse === cid) ix.push(i); });
+  const pick = k == null ? ix : (ix[k] != null ? [ix[k]] : []); let n = 0, full = false;
+  for (const i of pick.reverse()) { const r = takeDrop(W, i); if (r === 'ok' || r === 'part') n++; if (r === 'full' || r === 'part') full = true; }
+  if (full) { const c = (W.corpses || []).find(x => x.id === cid); W.ev.push({ k: 'full', x: c ? c.x : W.player.x, z: c ? c.z : W.player.z }); }
+  return { n, full };
 }
 
 function dropLoot(W, e) {
@@ -932,6 +968,7 @@ function updateHouses(W, dt) {
   // вещи на земле: подбираем вблизи (с «притягиванием»), по таймеру исчезают
   for (let i = W.drops.length - 1; i >= 0; i--) {
     const q = W.drops[i]; q.t += dt;
+    if (q.corpse) continue;     // 4.21: вещь в теле — только из окна добычи
     const d = len(p.x - q.x, p.z - q.z);
     if (!p.dead && d < W.cfg.gear.pickup * 2.2) { const k = Math.min(1, dt * 8); q.x += (p.x - q.x) * k * .5; q.z += (p.z - q.z) * k * .5; }
     if (!p.dead && d < W.cfg.gear.pickup * .8 && (q.up || q.g || q.il)) { if (roomFor(W.inv, q.id, bagSlots(W))) { W.inv.bag.push(entryOf(q.id, q.up, q.g || (q.up || q.af || q.mine ? null : gemsFor(W, q.id, socketsOf(BY_ID[q.id], W.cfg))), q.il, q.af || (q.up || q.g || q.mine ? null : affixFor(W, q.id, q.il)))); W.known.items[q.id] = 1; W.ev.push({ k: 'pickup', id: q.id, n: 1 }); W.drops.splice(i, 1); continue; } if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }     // вещь с заточкой или камнями — целиком     // свойства — у новой вещи с земли (этап 4 «круче»)
@@ -939,6 +976,7 @@ function updateHouses(W, dt) {
     if (q.cd > 0) q.cd -= dt;
     if (q.t > W.cfg.gear.dropLife) W.drops.splice(i, 1);
   }
+  tickCorpses(W, dt);
 }
 
 // использовать вещь из сумки (еда, зелья, мешочки пепла); возвращает true, если вещь потрачена

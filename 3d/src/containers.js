@@ -40,6 +40,7 @@ function chestBody(g, base, band, trim) {
 }
 
 export function buildContainers(map, Y = () => 0) {
+  const corpsePool = [];     // 4.21: метки тел с добычей
   const group = new THREE.Group(), items = [];
   const gemGeo = new THREE.OctahedronGeometry(.16);
   for (const c of map.containers) {
@@ -73,7 +74,7 @@ export function buildContainers(map, Y = () => 0) {
     }
     for (let i = 0; i < dropPool.length; i++) {
       const m = dropPool[i], q = dr[i], beam = m.userData.beam;
-      if (!q) { m.visible = beam.visible = false; continue; }
+      if (!q || q.corpse) { m.visible = beam.visible = false; continue; }     // 4.21: вещь в теле — рисует метка тела
       const rar = BY_ID[q.id].rar, hop = q.t < .45 ? Math.sin(q.t / .45 * Math.PI) * 1.3 : 0;
       const gy = Y(q.x, q.z); m.visible = true; m.position.set(q.x, gy + .45 + hop + Math.sin(t * 4 + i) * .08, q.z); m.rotation.y = t * 2.5;
       const col = RARITY[rar].color; if (m.userData.col !== col) { m.userData.col = col; m.material.color.set(col); beam.material.color.set(col); }
@@ -82,5 +83,20 @@ export function buildContainers(map, Y = () => 0) {
       beam.visible = rar >= 2; if (beam.visible) { const h = 1.6 + rar * 1.1; beam.scale.set(1 + rar * .4, h, 1 + rar * .4); beam.position.set(q.x, gy + h / 2, q.z); beam.material.opacity = (.25 + .1 * rar) * (.75 + .25 * Math.sin(t * 5 + i)) * blink; }
     }
   }
-  return { group, update, items };
+  return { group, update: (W, t) => { update(W, t); corpses(W, t); }, items };
+  // тела с добычей (4.21): кольцо на земле и ромб цвета лучшей вещи; редкое — со столбом света; последние 20 с — мигает
+  function corpses(W, t) {
+    const L = (W.corpses || []).filter(c => c.lvl === W.lvl);
+    while (corpsePool.length < L.length) { const m = new THREE.Mesh(dropGeo, new THREE.MeshBasicMaterial({ color: '#fff' })), ring = new THREE.Mesh(new THREE.RingGeometry(.55, .75, 28), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: .55, depthWrite: false, side: THREE.DoubleSide })), beam = new THREE.Mesh(geo(.09, 1, .09), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: .45, depthWrite: false, blending: THREE.AdditiveBlending })); ring.rotation.x = -Math.PI / 2; m.userData = { ring, beam }; group.add(m, ring, beam); corpsePool.push(m); }
+    for (let i = 0; i < corpsePool.length; i++) {
+      const m = corpsePool[i], c = L[i], { ring, beam } = m.userData;
+      if (!c) { m.visible = ring.visible = beam.visible = false; continue; }
+      let best = 0; for (const q of W.drops) if (q.corpse === c.id) best = Math.max(best, BY_ID[q.id].rar);
+      const col = RARITY[best].color, gy = Y(c.x, c.z), blink = c.life - c.t < 20 ? .5 + .5 * Math.abs(Math.sin(t * 10)) : 1;
+      if (m.userData.col !== col) { m.userData.col = col; m.material.color.set(col); ring.material.color.set(col); beam.material.color.set(col); }
+      m.visible = ring.visible = true; m.position.set(c.x, gy + .9 + Math.sin(t * 3 + i) * .08, c.z); m.rotation.y = t * 2; m.scale.setScalar((1 + best * .15) * blink);
+      ring.position.set(c.x, gy + .06, c.z); ring.scale.setScalar(1 + .08 * Math.sin(t * 4 + i)); ring.material.opacity = .45 * blink;
+      beam.visible = best >= 2; if (beam.visible) { const h = 1.6 + best * 1.1; beam.scale.set(1 + best * .4, h, 1 + best * .4); beam.position.set(c.x, gy + h / 2, c.z); beam.material.opacity = (.25 + .1 * best) * blink; }
+    }
+  }
 }

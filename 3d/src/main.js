@@ -1,7 +1,7 @@
 import { GI } from './data/gicons.js';     // значки game-icons.net на панели умений (2026-10-20)
 import { CFG3 } from './config3d.js';
-import { createWorld, step, respawnPlayer, spawnEnemy, spawnBoss, rerollRare } from './sim.js';
-import { BY_ID, RARITY, STAT_NAME } from './data/items.js';
+import { createWorld, step, respawnPlayer, spawnEnemy, spawnBoss, rerollRare, corpseItems, lootCorpse } from './sim.js';
+import { BY_ID, RARITY, STAT_NAME, SLOT_NAME } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith, createCaptain } from './shop.js';
@@ -29,7 +29,7 @@ import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView, resView, barOf, abilityAim } from './abilities3d.js';
 import { createFeel, unlocksAt } from './feel3d.js';
 import { ABILITIES, abilityPointsAt } from './data/abilities3d.js';
-import { giKeyOf } from './itemicons.js';
+import { giKeyOf, iconURL } from './itemicons.js';
 import { artURL } from './spellicons3d.js';
 import { createTracks } from './music3d.js';
 import { weaponSkillView } from './weaponskill3d.js';
@@ -467,7 +467,7 @@ if (desk) {
     if (c === 'KeyR') { if (vis('journal')) $('journalClose').click(); else if (!panelOpen) journal.open('recipes'); return; }
     if (c === 'KeyG') { if (!panelOpen || vis('bag') || vis('smith') || vis('shop') || vis('journal')) whereFrom(); return; }
     if (c === 'KeyB' && !panelOpen && vis('sleepBtn')) sleepBtn.click();
-    if (c === 'KeyE' && !panelOpen) { if (vis('portalBtn')) portalBtn.click(); else if (vis('fireBtn')) fireBtn.click(); else if (vis('coachBtn')) coachBtn.click(); else if (vis('gatherBtn')) gatherBtn.click(); else if (vis('talk')) talk.click(); }
+    if (c === 'KeyE' && !panelOpen) { if (lootOpen) $('lootAll').click(); else if (vis('lootBtn')) lootBtn.click(); else if (vis('portalBtn')) portalBtn.click(); else if (vis('fireBtn')) fireBtn.click(); else if (vis('coachBtn')) coachBtn.click(); else if (vis('gatherBtn')) gatherBtn.click(); else if (vis('talk')) talk.click(); }
     if (c === 'KeyV' && !panelOpen) mountBtn.click();     // конь (этап 6)
   });
 }
@@ -624,6 +624,29 @@ function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write()
 fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
 // жизнь мира (этап 6): повозка — окно костров без карты; сбор; конь
 const coachBtn = $('coachBtn'), gatherBtn = $('gatherBtn'), mountBtn = $('mountBtn');
+// окно добычи по макету А (4.21, выбор владельца): у тела с добычей — кнопка «Добыча · E»; окно — имя врага, таймер тела, вещи (клик — взять), «Взять всё» (E)
+const lootBtn = $('lootBtn'), lootBox = $('loot'); let lootOpen = null, lootKey = '';
+const lootEl = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+function openLoot() { const c = W.nearCorpse; if (!c) return; lootOpen = c.id; lootKey = ''; lootBox.hidden = false; drawLoot(c); }
+function closeLoot() { lootOpen = null; lootBox.hidden = true; }
+function drawLoot(c) {
+  const its = corpseItems(W, c.id), left = Math.max(0, Math.ceil(c.life - c.t)), tt = c.fight ? 'Бой идёт — таймер тела стоит' : `Тело исчезнет через ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const key = its.map(q => q.id + ':' + q.n).join(',') + '|' + tt; if (key === lootKey) return; lootKey = key;
+  $('lootName').textContent = c.name; $('lootTime').textContent = tt; const list = $('lootList'); list.textContent = '';
+  its.forEach((q, k) => { const it = BY_ID[q.id], b = lootEl('button', 'lrow'), ic = lootEl('span', 'lic'), im = lootEl('img'), tx = lootEl('span', 'ltx'), nm = lootEl('span', 'lnm', it.name);
+    b.type = 'button'; b.style.setProperty('--rc', RARITY[it.rar].color); im.alt = ''; im.src = iconURL(document, it); ic.append(im); if (q.n > 1) ic.append(lootEl('i', '', String(q.n))); nm.style.color = RARITY[it.rar].color;
+    tx.append(nm, lootEl('span', 'lsub', [it.slot ? SLOT_NAME[it.slot] : '', q.il ? 'ур. ' + q.il : '', RARITY[it.rar].name].filter(Boolean).join(' · '))); b.append(ic, tx);
+    b.addEventListener('click', () => { lootCorpse(W, c.id, k); lootKey = ''; }); list.append(b); });
+}
+function lootUi(free) {
+  const c = lootOpen && (W.corpses || []).find(x => x.id === lootOpen && x.lvl === W.lvl), p = W.player;
+  if (lootOpen && (!c || p.dead || Math.hypot(c.x - p.x, c.z - p.z) > cfg.corpse.r + 1.5 || !corpseItems(W, c.id).length)) closeLoot();
+  const nb = !!(free && W.nearCorpse && !lootOpen); if (lootBtn.hidden === nb) lootBtn.hidden = !nb; if (nb) { const l = 'Добыча' + (desk ? ' · E' : ''); if (lootBtn.textContent !== l) lootBtn.textContent = l; }
+  if (lootOpen && c) drawLoot(c);
+}
+lootBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openLoot(); }, true);
+$('lootAll').addEventListener('click', e => { e.stopImmediatePropagation(); if (lootOpen) { lootCorpse(W, lootOpen); lootKey = ''; } }, true);
+$('lootClose').addEventListener('click', e => { e.stopImmediatePropagation(); closeLoot(); }, true);
 const FLY = { far: 'Подойдите к повозке', unknown: 'Этот узел ещё не открыт', danger: 'Рядом враги', ash: 'Не хватает пепла' };
 function openCoach() {
   const here = coachNear(W), list = $('firesList'); if (!here) return; list.textContent = ''; firesSec.querySelector('h2').textContent = 'Повозка'; const pts = [];
@@ -852,6 +875,7 @@ function frame(now) {
   if (hud) { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : ''));
     const free = !f && !W.nearPortal && !panelOpen && !landscape && !W.player.dead, cn = free && W.life && coachNear(W), nd = free && !cn && W.life && nodeNear(W);     // этап 6: повозка, сбор, конь
     if (coachBtn.hidden === !!cn) coachBtn.hidden = !cn; if (cn) { const l = 'Повозка' + (desk ? ' · E' : ''); if (coachBtn.textContent !== l) coachBtn.textContent = l; }
+    lootUi(free);     // 4.21: окно и кнопка добычи
     if (gatherBtn.hidden === !!nd) gatherBtn.hidden = !nd; if (nd) { const l = 'Собрать: ' + cfg.life.gather.names[nd.kind] + (desk ? ' · E' : ''); if (gatherBtn.textContent !== l) gatherBtn.textContent = l; }
     const ms = !!(W.life && W.life.mount.owned) && W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mountBtn.hidden === ms) mountBtn.hidden = !ms; if (ms) { const l = (W.life.mount.on ? 'Спешиться' : 'Конь') + (desk ? ' · V' : ''); if (mountBtn.textContent !== l) mountBtn.textContent = l; } }
   if (hud) { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
