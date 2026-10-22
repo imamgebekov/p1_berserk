@@ -14,6 +14,7 @@
 - **Quaternius RPG Characters (Nov 2020)** — Quaternius, https://quaternius.com — Wizard, Cleric (из FBX в glTF).
 - **Quaternius Ultimate Monsters / Animated Animals / Modular Men / Modular Women** — Quaternius, через https://poly.pizza — Demon (flying), Ghost Skull, Yeti, Wolf, King, Farmer, Adventurer (женщина), Hooded Adventurer, Stag, Fox, Cow, Chicken, Pigeon, Horse.
 - **KayKit Adventurers** — Barbarian (кузнец); **Quaternius RPG Characters** — Warrior (капитан).
+- **Quaternius RPG Characters (Nov 2020)** — Rogue (Бесогон, Г8): скачан 2026-10-22 с https://opengameart.org/content/lowpoly-rpg-characters (`rpg_characters_-_nov_2020.zip`, 12,9 МБ, CC0). Из FBX в glTF через three.js (FBXLoader → GLTFExporter), текстура WebP 512, без кинжала и лишних клипов → `q_rogue.glb`.
 
 ## CC BY 4.0 (автор в титрах)
 Со Sketchfab, https://sketchfab.com:

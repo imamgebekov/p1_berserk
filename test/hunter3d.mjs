@@ -1,4 +1,4 @@
-// Бесогон, охотник на демонов (Г8): два клинка, 36 умений, гнев, в группе — боец, модель Warrior; рывок проходит сквозь врага и поджигает,
+// Бесогон, охотник на демонов (Г8): два клинка, 36 умений, гнев, в группе — боец, модель Rogue; рывок проходит сквозь врага и поджигает,
 // двойной прыжок (в воздухе неуязвим, второй — без перезарядки, на бегу — куда бежит), луч из глаз бьёт по линии, облик демона — сильнее и быстрее.
 import { CFG3 } from '../3d/src/config3d.js';
 import { HEROES, canWield, canOff } from '../3d/src/data/heroes3d.js';
@@ -17,7 +17,7 @@ const J = CFG3.abilities.hunter.djump;
 ok(HEROES.hunter && HEROES.hunter.open && canWield('hunter', BY_ID.w_sword_iron) && canOff('hunter', BY_ID.w_sickle_iron) && !canWield('hunter', BY_ID.w_bow_iron), 'Бесогон: нет героя, не то оружие или нет второго клинка');
 ok(ABILITIES.hunter.length === 36, 'Бесогон: умений ' + ABILITIES.hunter.length);
 ok(CFG3.abilities.res.hunter && CFG3.abilities.res.hunter.name === 'Гнев', 'Бесогон: нет гнева');
-ok(CFG3.actors.heroes.hunter === 'q_warrior' && CFG3.actors.kits.q_warrior, 'Бесогон: нет модели');
+ok(CFG3.actors.heroes.hunter === 'q_rogue' && CFG3.actors.kits.q_rogue, 'Бесогон: нет модели');
 { const W = mk(); ok(heroRole(W) === 'melee', 'Бесогон в группе — не боец'); }
 // рывок скверны: герой сдвинулся, враг на пути ранен и горит
 { const W = mk(), e = foe(W, 0, 5), z0 = W.player.z; ok(cast(W, 'felrush') === 'ok', 'рывок не пошёл'); run(W, .5); ok(W.player.z > z0 + 2 && W.player.z > e.z && e.hp < e.maxhp && e.st && e.st.burn, 'рывок не прошёл сквозь врага, не ударил или не поджёг'); }

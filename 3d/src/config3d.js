@@ -1084,7 +1084,7 @@ const BASE = {
     // hit — реакция на урон (не чаще hitGap с); пороги шага и бега — доли скорости героя/врага с запасом (on — включить, off — выключить);
     // sp — сглаживание оценки скорости (1/с)
     anim: { loco: .25, atk: .1, roll: .08, hit: .1, death: .15, hitGap: .8, walkOn: .1, walkOff: .05, runOn: .62, runOff: .48, sp: 10 },
-    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'q_wizard', priest: 'q_cleric', brand: 'kk_barbarian', hunter: 'q_warrior' },
+    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'q_wizard', priest: 'q_cleric', brand: 'kk_barbarian', hunter: 'q_rogue' },
     foes: { barghest: 'q_wolf', rootgnaw: 'sf_ghoul', thornlord: 'q_king', oldoak: 'sf_drugdor', saltwarden: 'sf_drugdor', cathkraken: 'sf_skdragon', drowngod: 'sf_fish',     // рейды 20 и 40 (4.18)
       bogwarden: 'sf_drugdor', leviathan: 'sf_skdragon', ashgolem: 'sf_drugdor', cinderlord: 'q_king', rotmaw: 'sf_ghoul', riftheart: 'sf_mino', voidwarden: 'sf_minob', abyssmaw: 'sf_skdragon', voidking: 'q_king',     // Г5 (4.18)
       imp: 'q_demonfly', bomber: 'q_demonfly', ash_thief: 'q_demonfly', hound: 'q_wolf', blackdog: 'q_wolf', garm: 'q_wolf', eclipse_fiend: 'q_wolf', garm_beast: 'q_wolf', greywolf: 'q_wolf', towerhound: 'q_wolf',
@@ -1106,7 +1106,7 @@ const BASE = {
       kk_skel_warrior: { anims: 'kk', height: 2.2, atk: 'p1' }, kk_skel_minion: { anims: 'kk', height: 2.0 }, kk_skel_mage: { anims: 'kk', height: 2.2, atk: 'cast', aim: 'spell' },
       q_wizard: { height: 2.2, hand: 'WeaponR', handL: 'FistL', hide: ['Wizard_Staff'], wRot: [Math.PI, 0, 0] }, q_cleric: { height: 2.15, hand: 'WeaponR', handL: 'FistL', hide: ['Cleric_Staff'], wRot: [Math.PI, 0, 0] }, q_demonfly: { height: 1.8, atk: 'a1' }, q_wolf: { height: 1.3, atk: 'a1' }, q_ghostskull: { height: 1.8, atk: 'a1' },
       q_yeti: { height: 2.1, atk: 'a1' }, q_king: { height: 2.0, atk: 'a1' },
-      q_farmer: { height: 2.05 }, q_adv_f: { height: 1.95 }, q_hooded: { height: 1.95 }, kk_barbarian: { anims: 'kk', height: 2.3 }, q_warrior: { height: 2.15, hand: 'WeaponR', handL: 'FistL' },
+      q_farmer: { height: 2.05 }, q_adv_f: { height: 1.95 }, q_hooded: { height: 1.95 }, kk_barbarian: { anims: 'kk', height: 2.3 }, q_warrior: { height: 2.15, hand: 'WeaponR', handL: 'FistL' }, q_rogue: { height: 2.1, hand: 'WeaponR', handL: 'FistL' },     // Г8: Бесогон — Rogue (Quaternius RPG Characters)
       q_stag: { height: 2.2 }, q_fox: { height: .75 }, q_cow: { height: 1.35 }, q_chicken: { height: .45 }, q_pigeon: { height: .42 }, q_horse: { height: 2.7 },
       sf_mino: { height: 2.1 }, sf_ghoul: { height: 1.9 }, sf_drugdor: { height: 2.0 }, sf_fish: { height: 2.4 }, sf_minob: { height: 2.1 }, sf_skdragon: { height: 1.8 }, sf_sklord: { height: 2.1, split: { idle: [.1, 2.5], walk: [2.95, 4.33] } } } },
   shapes: { grad: [.7, 1.08], contact: { r: 1.5, k: .25 }, round: { on: true, k: .2, max: .06, seg: 1 },
