@@ -5,7 +5,7 @@
 import { spawnAlly, refreshAlly } from './squad3d.js';
 
 export const roleOfType = T => (!T ? 'melee' : T.role === 'tank' ? 'tank' : T.role === 'heal' ? 'heal' : T.ranged || T.role === 'ranged' ? 'ranged' : 'melee');
-export const heroRole = W => (W.cfg.party && W.cfg.party.heroRole[W.hero]) || 'melee';
+export const heroRole = W => { const r = W.cfg.party && W.cfg.party.heroRole[W.hero]; return (Array.isArray(r) ? r[W.school || 0] : r) || 'melee'; };     // школы (2026-10-22): роль по школе
 const groupOf = def => (!def ? null : def.raid ? 'raid' : def.inst ? 'dungeon' : null);
 // сколько каждой роли не хватает: { tank, heal, melee, ranged }
 export function partyNeed(W, def) {

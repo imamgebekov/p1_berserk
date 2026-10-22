@@ -14,8 +14,8 @@ export const NEW_ACTIVES = {
     L(0, 'th_stone', 'Каменная плоть', 'heal', 'earth', null, 'lorc/stone-sphere'),
     L(0, 'th_aegis', 'Эгида', 'buff', 'light', null, 'lorc/aura', { stat: 'regen' }),
     L(0, 'th_rampart', 'Бастион', 'nova', 'earth', 'root', 'delapouite/stone-wall', { k: 1.3 }),
-    L(0, 'th_oath', 'Клятва стража', 'buff', 'blood', null, 'delapouite/sword-brandish', { stat: 'leech' }),
-    L(0, 'th_judg', 'Кара', 'zone', 'light', 'stun', 'lorc/hammer-drop', { k: 1.2 }),
+    L(0, 'th_oath', 'Натиск щита', 'dash', 'steel', 'stun', 'delapouite/sword-brandish'),     // школы (2026-10-22): у Стража — рывок к врагу
+    L(0, 'th_judg', 'Кара', 'strike', 'light', 'stun', 'lorc/hammer-drop', { k: 1.2 }),     // школы: удар по одной цели
     L(1, 'th_cleave', 'Рассечение', 'cone', 'blood', 'bleed', 'lorc/sword-slice'),
     L(1, 'th_pierce', 'Пронзающий выпад', 'strike', 'steel', 'crack', 'lorc/sword-wound'),
     L(1, 'th_hurl', 'Метательный топор', 'bolt', 'steel', 'bleed', 'lorc/thrown-daggers'),
@@ -25,11 +25,11 @@ export const NEW_ACTIVES = {
     L(1, 'th_warcry', 'Клич крови', 'buff', 'blood', null, 'delapouite/barbarian', { stat: 'crit' }),
     L(2, 'th_stomp', 'Топот', 'nova', 'earth', 'slow', 'lorc/foot-trip'),
     L(2, 'th_lust', 'Жажда битвы', 'buff', 'fire', null, 'delapouite/enrage', { stat: 'spd' }),
-    L(2, 'th_rend', 'Рваные раны', 'nova', 'blood', 'bleed', 'lorc/bloody-sword'),
-    L(2, 'th_jump', 'Прыжок берсерка', 'zone', 'earth', 'stun', 'delapouite/jump-across'),
+    L(2, 'th_rend', 'Рваная рана', 'strike', 'steel', 'bleed', 'lorc/bloody-sword'),     // школы: у Берсерка — удар по одной цели
+    L(2, 'th_jump', 'Прыжок берсерка', 'dash', 'earth', 'stun', 'delapouite/jump-across'),     // школы: рывок к врагу
     L(2, 'th_storm', 'Буря клинков', 'field', 'steel', null, 'lorc/spinning-blades'),
     L(2, 'th_howl', 'Рёв зверя', 'nova', 'shadow', 'fear', 'lorc/wolf-howl'),
-    L(2, 'th_wrath', 'Гнев', 'buff', 'fire', null, 'lorc/fist', { stat: 'dmg' }),
+    L(2, 'th_wrath', 'Кровожадность', 'buff', 'blood', null, 'lorc/fist', { stat: 'leech' }),     // школы: выживание Берсерка
     L(0, 'th_xrift', 'Раскол земли', 'nova', 'earth', 'root', '', { k: 1.5 }),     // ряд 9 (4.06, предел 70)
     L(0, 'th_xheaven', 'Молот небес', 'zone', 'light', 'stun', '', { k: 2 }),     // вершина ветки
     L(1, 'th_xexecute', 'Казнь', 'strike', 'blood', 'bleed', '', { k: 1.9 }),
@@ -42,7 +42,7 @@ export const NEW_ACTIVES = {
     L(0, 'ir_wave', 'Огненная волна', 'cone', 'fire', 'burn', 'lorc/fire-breath'),
     L(0, 'ir_ring', 'Кольцо огня', 'nova', 'fire', 'burn', 'lorc/fire-ring'),
     L(0, 'ir_pillar', 'Столп пламени', 'zone', 'fire', 'burn', 'lorc/fire-zone'),
-    L(0, 'ir_wall', 'Стена огня', 'field', 'fire', null, 'delapouite/firewall'),
+    L(0, 'ir_wall', 'Стена огня', 'field', 'fire', null, 'delapouite/firewall', { slow: .5 }),     // школы: контроль Огня
     L(0, 'ir_combust', 'Возгорание', 'mark', 'fire', null, 'carl-olsen/flame'),
     L(0, 'ir_phoenix', 'Крылья феникса', 'dash', 'fire', 'burn', 'lorc/fire-dash'),
     L(0, 'ir_inferno', 'Пекло', 'buff', 'fire', null, 'delapouite/fire-spell-cast', { stat: 'dmg' }),
@@ -59,7 +59,7 @@ export const NEW_ACTIVES = {
     L(2, 'ir_rot', 'Гнилой туман', 'cloud', 'venom', null, 'sbed/poison-cloud'),
     L(2, 'ir_blind', 'Ослепляющая вспышка', 'nova', 'light', 'blind', 'lorc/sun-radiations'),
     L(2, 'ir_jinx', 'Сглаз', 'strike', 'shadow', 'crack', 'skoll/evil-eyes', { range: 12, cone: 60 }),
-    L(2, 'ir_surge', 'Всплеск силы', 'buff', 'storm', null, 'lorc/power-lightning', { stat: 'crit' }),
+    L(2, 'ir_surge', 'Шаг сквозь бездну', 'dash', 'shadow', null, 'lorc/power-lightning'),     // школы: выживание Проклятий
     L(0, 'ir_xcomet', 'Комета', 'zone', 'fire', 'burn', '', { k: 1.9 }),     // ряд 9 (4.06, предел 70)
     L(0, 'ir_xsun', 'Падающее солнце', 'field', 'fire', null, '', { k: 2 }),     // вершина ветки
     L(1, 'ir_xglacier', 'Ледник', 'cone', 'ice', 'freeze', '', { k: 1.6 }),
@@ -72,7 +72,7 @@ export const NEW_ACTIVES = {
     L(0, 'dh_prey', 'Азарт охоты', 'buff', 'fire', null, 'lorc/run', { stat: 'spd' }),
     L(0, 'dh_annihil', 'Истребление', 'strike', 'shadow', 'crack', 'lorc/sword-wound', { k: 1.3 }),
     L(0, 'dh_whirl', 'Круговорот клинков', 'nova', 'steel', 'bleed', 'lorc/spinning-blades'),
-    L(0, 'dh_throw', 'Шквал клинков', 'bolt', 'steel', null, 'lorc/thrown-daggers', { n: 3, spread: 30 }),
+    L(0, 'dh_throw', 'Шквал клинков', 'bolt', 'steel', 'slow', 'lorc/thrown-daggers', { n: 3, spread: 30 }),     // школы: контроль Хаоса
     L(0, 'dh_essence', 'Сущность хаоса', 'buff', 'shadow', null, 'lorc/aura', { stat: 'crit' }),
     L(0, 'dh_lunge', 'Выпад скверны', 'dash', 'fire', 'burn', 'lorc/sprint'),
     L(1, 'dh_spikes', 'Шипы демона', 'buff', 'steel', null, 'lorc/spiked-armor', { stat: 'armor' }),
@@ -88,7 +88,7 @@ export const NEW_ACTIVES = {
     L(2, 'dh_burn', 'Пламя скверны', 'field', 'fire', null, 'lorc/flame'),
     L(2, 'dh_torment', 'Мучение', 'mark', 'shadow', null, 'lorc/eclipse'),
     L(2, 'dh_shards', 'Залп осколков', 'bolt', 'shadow', null, 'lorc/shards', { n: 5, spread: 50, k: .6 }),
-    L(2, 'dh_rage', 'Гнев демона', 'buff', 'fire', null, 'lorc/enrage', { stat: 'dmg' }),
+    L(2, 'dh_rage', 'Скачок скверны', 'dash', 'fire', 'burn', 'lorc/enrage'),     // школы: выживание Скверны
     L(2, 'dh_blast', 'Взрыв скверны', 'nova', 'fire', 'burn', 'lorc/explosion-rays'),
     L(0, 'dh_xfirst', 'Первый удар', 'strike', 'shadow', 'crack', '', { k: 2.2 }),     // ряд 9 (предел 70)
     L(0, 'dh_xstorm', 'Буря клинков', 'nova', 'steel', 'bleed', '', { k: 2 }),     // вершина ветки
@@ -106,7 +106,7 @@ export const NEW_ACTIVES = {
     L(0, 'bk_chase', 'Погоня', 'dash', 'steel', 'stun', 'lorc/sword-wound'),
     L(0, 'bk_execute', 'Казнь', 'strike', 'steel', 'crack', 'lorc/hammer-drop', { k: 1.3 }),
     L(1, 'bk_wall', 'Стена', 'buff', 'steel', null, 'lorc/checked-shield', { stat: 'armor' }),
-    L(1, 'bk_bash', 'Удар эфесом', 'cone', 'steel', 'stun', 'delapouite/shield-bash', { cone: 70, k: 1.2 }),
+    L(1, 'bk_bash', 'Удар эфесом', 'strike', 'steel', 'stun', 'delapouite/shield-bash', { k: 1.2 }),     // школы: у Стали — удар по одной цели
     L(1, 'bk_stand', 'Выстоять', 'heal', 'steel', null, 'lorc/stone-sphere'),
     L(1, 'bk_quake', 'Сотрясение', 'nova', 'earth', 'root', 'delapouite/stone-wall', { k: 1.2 }),
     L(1, 'bk_iron', 'Железная кожа', 'buff', 'steel', null, 'lorc/aura', { stat: 'regen' }),
@@ -119,7 +119,7 @@ export const NEW_ACTIVES = {
     L(2, 'bk_dread', 'Ужас', 'nova', 'shadow', 'fear', 'lorc/screaming'),
     L(2, 'bk_curse', 'Проклятие клейма', 'mark', 'shadow', null, 'lorc/eclipse'),
     L(2, 'bk_eclipse', 'Затмение', 'zone', 'shadow', 'blind', 'lorc/magic-portal'),
-    L(2, 'bk_ghost', 'Призраки', 'cloud', 'venom', null, 'lorc/skull-bolt'),
+    L(2, 'bk_ghost', 'Шаг тени', 'dash', 'shadow', 'fear', 'lorc/skull-bolt'),     // школы: выживание Тьмы
     L(0, 'bk_xberserk', 'Берсерк', 'nova', 'blood', 'bleed', '', { k: 2 }),     // ряд 9 (предел 70)
     L(0, 'bk_xslayer', 'Убийца драконов', 'strike', 'steel', 'crack', '', { k: 2.2 }),     // вершина ветки
     L(1, 'bk_xaegis', 'Несокрушимый', 'ward', 'steel', null, '', { boost: 1.6 }),
@@ -146,7 +146,7 @@ export const NEW_ACTIVES = {
     L(2, 'pr_pain', 'Слово боли', 'mark', 'shadow', null, 'lorc/bleeding-eye'),
     L(2, 'pr_blast', 'Удар разума', 'bolt', 'shadow', 'fear', 'lorc/shadow-grasp'),
     L(2, 'pr_plague', 'Мор', 'cloud', 'venom', null, 'lorc/skull-bolt'),
-    L(2, 'pr_sear', 'Опаление', 'cone', 'fire', 'burn', 'lorc/burning-meteor'),
+    L(2, 'pr_sear', 'Растворение во тьме', 'ward', 'shadow', null, 'lorc/burning-meteor'),     // школы: выживание Тени
     L(2, 'pr_fiend', 'Тень-изверг', 'zone', 'shadow', 'blind', 'lorc/portal'),
     L(2, 'pr_dread', 'Крик ужаса', 'nova', 'shadow', 'fear', 'lorc/screaming'),
     L(2, 'pr_spike', 'Шип тьмы', 'strike', 'shadow', 'crack', 'lorc/sword-wound', { range: 12, cone: 60 }),
@@ -164,7 +164,7 @@ export const NEW_ACTIVES = {
     L(0, 'wl_blight', 'Чума', 'cloud', 'venom', null, 'lorc/skull-bolt'),
     L(0, 'wl_corrupt', 'Скверна', 'strike', 'venom', 'poison', 'lorc/poison-bottle', { range: 12, cone: 60 }),
     L(0, 'wl_eclipse', 'Затмение', 'nova', 'shadow', 'blind', 'lorc/eclipse'),
-    L(0, 'wl_void', 'Пустота', 'zone', 'shadow', 'crack', 'lorc/portal'),
+    L(0, 'wl_void', 'Покров пустоты', 'ward', 'shadow', null, 'lorc/portal'),     // школы: выживание Проклятий Морока
     L(1, 'wl_leech', 'Кровавая пиявка', 'strike', 'blood', 'bleed', 'lorc/leeching-worm', { range: 12, cone: 60 }),
     L(1, 'wl_boil', 'Кипение крови', 'nova', 'blood', 'bleed', 'lorc/heart-drop'),
     L(1, 'wl_tap', 'Отворение жил', 'heal', 'blood', null, 'delapouite/heart-beats'),
@@ -194,9 +194,9 @@ export const NEW_ACTIVES = {
     L(0, 'jy_hunt', 'Метка охотника', 'mark', 'steel', null, 'lorc/target-arrows'),
     L(0, 'jy_barb', 'Зазубренная стрела', 'bolt', 'blood', 'bleed', 'lorc/barbed-arrow'),
     L(0, 'jy_pierce', 'Пробивная стрела', 'bolt', 'steel', null, 'lorc/striking-arrows', { pierce: 4 }),
-    L(0, 'jy_calm', 'Холодная голова', 'buff', 'ice', null, 'lorc/archery-target', { stat: 'crit' }),
+    L(0, 'jy_calm', 'Холодная голова', 'ward', 'ice', null, 'lorc/archery-target'),     // школы: выживание Меткости
     L(1, 'jy_net', 'Ловчая сеть', 'zone', 'earth', 'root', 'lorc/fishing-net', { k: 1.6 }),
-    L(1, 'jy_kick', 'Пинок', 'cone', 'earth', 'stun', 'lorc/boot-kick', { cone: 70, r: 2.8, k: 1.6 }),
+    L(1, 'jy_kick', 'Пинок', 'strike', 'earth', 'stun', 'lorc/boot-kick', { k: 1.6 }),     // школы: у Выживания — удар по одной цели
     L(1, 'jy_run', 'Стремительный бег', 'buff', 'storm', null, 'darkzaitzev/running-ninja', { stat: 'spd' }),
     L(1, 'jy_bandage', 'Перевязка', 'heal', 'light', null, 'delapouite/arm-bandage'),
     L(1, 'jy_stakes', 'Колья', 'field', 'earth', null, 'delapouite/spiked-wall', { slow: .45, k: 1.6 }),
@@ -219,7 +219,7 @@ export const NEW_ACTIVES = {
   ],
   vale: [
     L(0, 'vl_flurry', 'Шквал ударов', 'cone', 'steel', null, 'lorc/sword-spin', { k: 1.15 }),
-    L(0, 'vl_throw', 'Бросок кинжала', 'bolt', 'steel', 'crack', 'lorc/thrown-daggers'),
+    L(0, 'vl_throw', 'Бросок кинжала', 'bolt', 'steel', 'slow', 'lorc/thrown-daggers'),     // школы: контроль Клинков
     L(0, 'vl_spin', 'Вращение', 'nova', 'steel', 'bleed', 'lorc/spinning-blades'),
     L(0, 'vl_lunge', 'Выпад', 'dash', 'steel', null, 'lorc/sprint', { dist: 5 }),
     L(0, 'vl_sunder', 'Рассечь доспех', 'strike', 'steel', 'crack', 'lorc/broken-shield'),

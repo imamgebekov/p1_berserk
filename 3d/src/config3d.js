@@ -419,14 +419,14 @@ const BASE = {
   // set — замена; прочее — числа особых эффектов (stun — множитель оглушения испуганных, k — множитель урона по условию, …)
   combos: {
     window: 3,
-    bladestorm: { mul: { r: 1.4, mul: 1.3 } }, dread: { mul: { cone: 1.5 }, stun: 2 }, rift: { k: 1.6 }, frenzy: { mul: { t: 1.5 } },
-    archerdance: { add: { n: 3 } }, snare: { mul: { mul: 1.4 } }, aimcold: { pierce: 99 }, icehail: { slow: .6 },
-    shadowstrike: { crit: true }, bloodfan: { k: 1.5 }, riposte: { set: { kill: .4 } }, twindance: {},
-    detonate: { k: 2, burn: [6, 4] }, frozenstorm: { add: { jumps: 2 }, slow: .6 }, icearmor: { mul: { r: 1.4 }, armor: 15, t: 6 }, breach: { k: 1.5 },
-    verdict: { k: 1.5 }, feast: { k: 2 }, gravecall: { add: { n: 3 } }, bloodimp: { mul: { t: 1.5, mul: 1.3 } },
-    blessedwave: { mul: { r: 1.4 } }, purge: { mul: { mul: 1.4 } }, sermon: { mul: { k: 1.3 } }, judgement: { mul: { mul: 1.3, t: 1.3 } },
-    brandrage: { mul: { mul: 1.4 } }, powder: { mul: { mul: 1.3 } }, ironhowl: { mul: { r: 1.4 } }, darkpain: { mul: { k: 1.4 } },
-    glaivecut: { mul: { mul: 1.4 } }, burnmark: { mul: { mul: 1.4 } }, demonfall: { mul: { t: 1.4 } }, demonsight: { mul: { dur: 1.5 } }
+    dread: { mul: { cone: 1.5 } }, runup: { mul: { mul: 1.4 } }, rift: { k: 1.6 },     // школы (2026-10-22): одна связка на школу
+    aimcold: { pierce: 99 }, snaretrap: { mul: { root: 1.5 } }, poisonhail: { mul: { mul: 1.3 } },
+    riposte: { set: { kill: .4 } }, shadowstrike: { crit: true }, crimsonfan: { mul: { r: 1.4 } },
+    glaivecut: { mul: { mul: 1.4 } }, firefall: { mul: { r: 1.4 } }, demonsight: { mul: { dur: 1.5 } },
+    brandrage: { mul: { mul: 1.4 } }, ironram: { mul: { mul: 1.4 } }, darkpain: { mul: { mul: 1.4 } },
+    sermon: { mul: { k: 1.3 } }, judgement: { mul: { mul: 1.3, sd: 1.3 } }, purge: { mul: { mul: 1.4 } },
+    verdict: { k: 1.5 }, bloodfeast: { mul: { heal: 1.5, cap: 1.5 } }, bloodimp: { mul: { t: 1.5, mul: 1.3 } },
+    firerain: { mul: { r: 1.4 } }, icearmor: { mul: { r: 1.4 }, armor: 15, t: 6 }, breach: { k: 1.5 }
   },
   // вторая рука (B2b): block.arc — ширина щита спереди, °; block.knock — доля отброса при блоке; dual.mul — доля урона второго клинка
   // к каждому удару, dual.swing — удары с двумя клинками быстрее (×)
@@ -928,7 +928,7 @@ const BASE = {
   // сбор группы (4.07, решение владельца): подземелье отряда — на 4, рейд — на 10; состав по ролям; heroRole — роль героя;
   // bots — какими спутниками добирать роль; roleName и names — подписи наёмников
   party: { on: true, dungeon: { tank: 1, heal: 1, melee: 1, ranged: 1 }, raid: { tank: 2, heal: 3, melee: 3, ranged: 2 },
-    heroRole: { thorn: 'tank', vale: 'melee', jay: 'ranged', irga: 'ranged', warlock: 'ranged', priest: 'heal', brand: 'tank', hunter: 'melee' },
+    heroRole: { thorn: ['tank', 'melee', 'melee'], vale: ['melee', 'melee', 'melee'], jay: ['ranged', 'ranged', 'ranged'], irga: ['ranged', 'ranged', 'ranged'], warlock: ['ranged', 'ranged', 'ranged'], priest: ['heal', 'heal', 'ranged'], brand: ['melee', 'tank', 'melee'], hunter: ['melee', 'tank', 'melee'] },     // школы (2026-10-22): роль — по школе героя (0, 1, 2)
     bots: { tank: ['c_thorn', 'soldier'], heal: ['c_irga'], melee: ['c_vale', 'veteran'], ranged: ['c_jay'] },
     roleName: { tank: 'защитник', heal: 'лекарь', melee: 'боец', ranged: 'стрелок' },
     names: { tank: ['Гронт', 'Борвин', 'Ульф', 'Хаген', 'Дарек'], heal: ['Велла', 'Мирна', 'Ведана', 'Агна', 'Зоряна', 'Лада'], melee: ['Кай', 'Рагнар', 'Ивар', 'Торвин', 'Ярош'], ranged: ['Эйра', 'Стрибог', 'Нежка', 'Олаф', 'Сигрун'] } },

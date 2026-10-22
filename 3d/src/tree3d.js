@@ -44,9 +44,10 @@ export function rankOf(W, n) {
 }
 export const spentInTree = (W, br) => br.nodes.reduce((s, n) => s + rankOf(W, n), 0);
 const findNode = (hero, key, cfg) => { for (const b of treeOf(hero, cfg)) { const n = b.nodes.find(x => x.key === key); if (n) return { b, n }; } return null; };
-// можно ли вложить очко: 'ok' | 'max' | 'row' (мало очков в ветке) | 'req' (нет умения 3-го ранга) | 'level' | 'points' | 'none'
+// можно ли вложить очко: 'ok' | 'school' (ветка не своей школы) | 'max' | 'row' (мало очков в ветке) | 'req' (нет умения 3-го ранга) | 'level' | 'points' | 'none'
 export function canBuy(W, key) {
   const f = findNode(W.hero, key, W.cfg); if (!f) return 'none'; const { b, n } = f, r = rankOf(W, n);
+  if (treeOf(W.hero, W.cfg).indexOf(b) !== (W.school || 0)) return 'school';     // школы (2026-10-22): вкладывать — только в свою школу
   if (r >= n.max) return 'max';
   if (spentInTree(W, b) < rowNeed(n.row)) return 'row';
   if (n.kind === 'talent') return W.sp >= 1 ? 'ok' : 'points';
@@ -61,5 +62,5 @@ export function buy(W, key, refreshGear) {
 // что нужно для следующего ранга — для подсказки
 export function needText(W, key) {
   const f = findNode(W.hero, key, W.cfg); if (!f) return ''; const { b, n } = f, st = canBuy(W, key);
-  return st === 'row' ? `Нужно ${rowNeed(n.row)} очков в ветке «${b.name}» (сейчас ${spentInTree(W, b)})` : st === 'req' ? 'Нужно умение 3-го ранга' : st === 'level' ? 'Следующий ранг — с более высокого уровня' : st === 'points' ? (n.kind === 'talent' ? 'Нет очков талантов' : 'Нет очков умений') : st === 'max' ? 'Максимум' : '';
+  return st === 'school' ? 'Это не ваша школа. Сменить школу можно у костра.' : st === 'row' ? `Нужно ${rowNeed(n.row)} очков в ветке «${b.name}» (сейчас ${spentInTree(W, b)})` : st === 'req' ? 'Нужно умение 3-го ранга' : st === 'level' ? 'Следующий ранг — с более высокого уровня' : st === 'points' ? (n.kind === 'talent' ? 'Нет очков талантов' : 'Нет очков умений') : st === 'max' ? 'Максимум' : '';
 }

@@ -9,6 +9,8 @@ import { GI } from './data/gicons.js';
 import { ownIcon } from './custom3d.js';
 import { artURL } from './spellicons3d.js';
 import { refreshGear } from './sim.js';
+import { switchSchool, canSwitchSchool } from './school3d.js';
+import { fireNear } from './fires3d.js';
 
 // разница рангов (шаг 10): у описаний одинаковый текст, меняются числа — показываем только их: «×1,4 → ×1,6 · 9 с → 8,5 с»;
 // если текст рангов разный — null (тогда показываем следующий ранг целиком)
@@ -44,23 +46,29 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange, onOwnIcon
     return lg; };
   function renderTree() {
     const T = treeOf(W.hero, W.cfg), wrap = el('div', 'tree'), card = el('div', 'tcard');
-    T.forEach(br => {
-      const spent = spentInTree(W, br), col = el('div', 'tbranch'); col.style.setProperty('--bc', br.color);
+    const cur = W.school || 0, near = !!fireNear(W);
+    T.forEach((br, bi) => {
+      const mine = bi === cur, sch = (W.sch || {})[bi] || {}, RW = mine ? W : { ...W, ab: sch.ab || {}, skills: sch.skills || {} };     // школы (2026-10-22): чужая школа — её отложенные ранги
+      const spent = spentInTree(RW, br), col = el('div', 'tbranch ' + (mine ? 'mine' : 'off')); col.style.setProperty('--bc', br.color);
       { const fa = br.nodes.find(x => x.kind === 'active'); if (fa) col.append(gi(fa.icon, 'twm')); }     // знак ветки на фоне
       const gate = Array.from({ length: ROWS }, (_, i) => i + 1).find(r => rowNeed(r) > spent);     // вид WoW (2026-10-22): ближайший закрытый ряд — черта и подпись в шапке
-      col.append(el('div', 'tbh', `${br.name} · ${spent}`), el('div', 'tbr', br.role || ''), el('div', 'tgt' + (gate ? '' : ' all'), gate ? `Ещё ${rowNeed(gate) - spent} оч. — откроется ряд ${gate}` : 'Все ряды открыты'));
+      col.append(el('div', 'tbh', `${br.name} · ${spent}`), el('div', 'tbr', br.role || ''));
+      if (mine) col.append(el('div', 'tsch on', 'Ваша школа'), el('div', 'tgt' + (gate ? '' : ' all'), gate ? `Ещё ${rowNeed(gate) - spent} оч. — откроется ряд ${gate}` : 'Все ряды открыты'));
+      else { const can = canSwitchSchool(W, bi, near) === 'ok', sw = el('button', 'tsch', 'Сделать школой'); sw.type = 'button'; sw.disabled = !can; sw.title = can ? 'Сменить школу' : 'Сменить школу можно у костра';
+        sw.addEventListener('click', () => { if (switchSchool(W, bi, !!fireNear(W)) !== 'ok') { flash('Сменить школу можно у костра'); return; } refreshGear(W); sel = null; flash(`Школа: ${br.name}`); render(); onChange && onChange(); });
+        col.append(sw, el('div', 'tgt off', can ? 'Очки этой школы сохранены' : 'Сменить — у костра')); }
       const grid = el('div', 'tgrid'); grid.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`; grid.style.gridTemplateRows = `repeat(${ROWS}, auto)`;
       const lines = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); lines.setAttribute('class', 'tlines'); lines.setAttribute('viewBox', `0 0 ${COLS * 10} ${ROWS * 10}`); lines.setAttribute('preserveAspectRatio', 'none');
       for (const n of br.nodes) {
-        const r = rankOf(W, n), st = canBuy(W, n.key), b = el('button', 'tnode ' + n.kind + (r >= n.max ? ' full' : r ? ' some' : '') + (st === 'ok' ? ' can' : '') + (st === 'row' || st === 'req' ? ' lock' : '') + (sel === n.key ? ' sel' : ''));
+        const r = rankOf(RW, n), st = canBuy(W, n.key), b = el('button', 'tnode ' + n.kind + (r >= n.max ? ' full' : r ? ' some' : '') + (st === 'ok' ? ' can' : '') + (st === 'row' || st === 'req' ? ' lock' : '') + (sel === n.key ? ' sel' : ''));
         b.type = 'button'; b.dataset.key = n.key; b.style.gridColumn = String(n.col + 1); b.style.gridRow = String(n.row); b.title = n.name; b.setAttribute('aria-label', `${n.name}: ${r} из ${n.max}`);
         b.append(gi(n.icon), el('span', 'trk', `${r}/${n.max}`), el('span', 'tnm', n.kind === 'mastery' ? 'Мастерство' : n.name));
         b.addEventListener('click', () => { sel = n.key; render(); });
         b.addEventListener('dblclick', () => { if (buy(W, n.key, refreshGear) === 'ok') { render(); onChange && onChange(); } });
         grid.append(b);
-        if (n.req) { const q = br.nodes.find(x => x.key === n.req); if (q) { const ln = doc.createElementNS('http://www.w3.org/2000/svg', 'line'); ln.setAttribute('x1', q.col * 10 + 5); ln.setAttribute('y1', q.row * 10 - 3); ln.setAttribute('x2', n.col * 10 + 5); ln.setAttribute('y2', n.row * 10 - 7); ln.setAttribute('class', rankOf(W, q) >= 3 ? 'on' : ''); lines.append(ln); } }
+        if (n.req) { const q = br.nodes.find(x => x.key === n.req); if (q) { const ln = doc.createElementNS('http://www.w3.org/2000/svg', 'line'); ln.setAttribute('x1', q.col * 10 + 5); ln.setAttribute('y1', q.row * 10 - 3); ln.setAttribute('x2', n.col * 10 + 5); ln.setAttribute('y2', n.row * 10 - 7); ln.setAttribute('class', rankOf(RW, q) >= 3 ? 'on' : ''); lines.append(ln); } }
       }
-      if (gate) { const g = el('div', 'tgate'); g.style.gridRow = String(gate); g.style.gridColumn = '1 / -1'; grid.append(g); }
+      if (gate && mine) { const g = el('div', 'tgate'); g.style.gridRow = String(gate); g.style.gridColumn = '1 / -1'; grid.append(g); }
       grid.prepend(lines); col.append(grid); wrap.append(col);
     });
     const view = el('div', 'tview'); view.append(wrap, card); listEl.append(view);
@@ -84,13 +92,13 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange, onOwnIcon
       if (n.kind === 'active') { const all = abilityView(W), nm = id => (all.find(a => a.id === id) || { name: id }).name, bar = barOf(W);     // связки этого умения (были во вкладке «Панель и связки»)
         for (const c of combosOf(W.hero).filter(c => c.a === n.id || c.b === n.id)) { const known = (W.ab[c.a] || 0) > 0 && (W.ab[c.b] || 0) > 0, onBar = bar.includes(c.a) && bar.includes(c.b);
           card.append(el('div', 'sub cmb', `Связка «${c.name}»: ${nm(c.a)} → ${nm(c.b)} не позже ${W.cfg.combos.window} с — ${c.text.replace(/\.$/, '')}. ${!known ? 'Нужны оба умения.' : onBar ? 'Оба на панели.' : 'Поставьте оба на панель.'}`)); } }
-    } else card.append(legend(), el('div', 'sub', 'Нажмите на узел — описание и кнопка «Вложить очко». Двойной щелчок — сразу вложить.'), el('div', 'sub', `Ряд открывается за каждые ${ROW_STEP} очка в ветке. Умения и мастерство — за очки умений, таланты — за очки талантов.`));
+    } else card.append(legend(), el('div', 'sub', `Работает одна школа — «${T[W.school || 0].name}». Сменить школу можно у костра; очки каждой школы сохраняются.`), el('div', 'sub', 'Нажмите на узел — описание и кнопка «Вложить очко». Двойной щелчок — сразу вложить.'), el('div', 'sub', `Ряд открывается за каждые ${ROW_STEP} очка в ветке. Умения и мастерство — за очки умений, таланты — за очки талантов.`));
     const cost = respecCost(W) + respecAbilityCost(W), any = Object.values(W.skills).some(v => v > 0) || spentAbility(W.ab) > 0;
     resetBtn.textContent = armed ? 'Точно? Все очки вернутся, пепел спишется' : `Сбросить древо · ${cost} пепла`; resetBtn.classList.toggle('warn', armed); resetBtn.disabled = !any;
   }
   function render() {
     if (tabsHero !== W.hero) buildTabs();
-    headEl.textContent = `Древо · очков талантов: ${W.sp} · умений: ${W.ap}`;
+    headEl.textContent = `Древо · школа «${treeOf(W.hero, W.cfg)[W.school || 0].name}» · талантов: ${W.sp} · умений: ${W.ap}`;
     xpEl.textContent = W.lv >= cfg.level.max ? (cfg.level.ranks && cfg.level.ranks.on ? `Уровень ${W.lv} · пепельный ранг ${W.prank || 0}` + ((W.prank || 0) < cfg.level.ranks.cap ? ` · опыт ${W.pxp || 0}/${rankNeed(cfg)}` : ' (максимум)') : `Уровень ${W.lv} (максимум)`) : `Уровень ${W.lv} · опыт ${W.xp}/${xpNeed(W.lv, cfg)}`;
     for (const t of tabsEl.children) t.classList.toggle('on', t.dataset.tab === branch);
     listEl.textContent = '';

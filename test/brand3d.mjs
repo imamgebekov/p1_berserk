@@ -17,7 +17,7 @@ ok(HEROES.brand && HEROES.brand.open && canWield('brand', BY_ID.w_greatsword_iro
 ok(ABILITIES.brand.length === 36, 'Клеймёный: умений ' + ABILITIES.brand.length);
 ok(CFG3.abilities.res.brand && CFG3.abilities.res.brand.name === 'Клеймо', 'Клеймёный: нет клейма');
 ok(CFG3.actors.heroes.brand === 'kk_barbarian' && CFG3.actors.kits.kk_barbarian, 'Клеймёный: нет модели');
-{ const W = mk(); ok(heroRole(W) === 'tank', 'Клеймёный в группе — не защитник'); }
+{ const W = mk(); ok(heroRole(W) === 'melee', 'Клеймёный-Клеймо в группе — не боец'); W.school = 1; ok(heroRole(W) === 'tank', 'Клеймёный-Сталь в группе — не защитник'); }     // школы (2026-10-22): роль по школе
 // клеймо копится от боли
 { const W = mk(); W.res = 0; W.player.inv = 0; hurtPlayer(W, 20, W.player.x + 1, W.player.z); ok(W.res > 0, 'клеймо не копится от боли'); }
 // пушка: урон и горение

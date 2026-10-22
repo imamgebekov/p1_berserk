@@ -1,4 +1,4 @@
-// Тест связок умений (2026-10-18): 16 связок (по 4 у героя) — умение a, потом b не позже окна: событие «связка» и своё усиление
+// Тест связок умений (2026-10-18; школы 2026-10-22): 24 связки (по одной на школу) — умение a, потом b не позже окна: событие «связка» и своё усиление
 // (сравнение с тем же b без связки на одинаковом поле); окно закрывается; b без a — без связки; цифры умений не портятся.
 import { CFG3 } from '../3d/src/config3d.js';
 import { ABILITIES } from '../3d/src/data/abilities3d.js';
@@ -20,39 +20,33 @@ const run = (W, s) => { for (let i = 0; i < Math.round(s * 60); i++) step(W, 1 /
 const hurt = e => e.maxhp - e.hp;
 
 // поле и мера для каждой связки: setup(W) → ctx; measure(W, ctx) → число или флаг; better(с, без) — связка сделала своё
-const CASE = {
-  bladestorm: { setup: W => ({ e: foe(W, 4.3, 0) }), m: (W, c) => hurt(c.e), better: (a, b) => a > 0 && b === 0 },
-  dread: { setup: W => { const e = foe(W, 0, 2); return { e }; }, pre: (W, c) => {}, m: (W, c) => (c.e.st && c.e.st.stun ? c.e.st.stun.t : 0), better: (a, b) => a >= b * 1.9 },
+const h0 = (W, c) => { c.h0 = c.e.hp; }, dealt = (W, c) => c.h0 - c.e.hp;     // урон только второго умения (первое могло задеть цель)
+const last = k => W => { const L = W[k] || []; return L.length ? L[L.length - 1] : {}; };
+const CASE = {     // школы (2026-10-22): по связке на школу, обе части — в одной школе
+  dread: { setup: W => ({ near: foe(W, 0, 2), e: foe(W, Math.sin(.87) * 2.2, Math.cos(.87) * 2.2) }), m: (W, c) => hurt(c.e), better: (a, b) => a > 0 && b === 0, now: true },     // Торн-Страж: конус шире — задет сосед под 50°
+  runup: { setup: W => ({ e: foe(W, 0, 4) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.3, now: true },     // Торн-Палач
   rift: { setup: W => { const e = foe(W, 2, 0); return { e }; }, pre: (W, c) => applyStatus(W, c.e, 'root', 0, 9), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.5 },
-  frenzy: { setup: () => ({}), m: W => W.abuf.rage, better: (a, b) => a > b * 1.4 },
-  archerdance: { setup: W => ({ e: foe(W, 0, 8) }), m: W => W.proj.filter(q => q.friendly).length, better: (a, b) => a >= b + 3, now: true },     // со связкой — ещё и стрела отскока в полёте
-  snare: { setup: W => ({ near: foe(W, 0, 4), held: foe(W, 6, 9) }), pre: (W, c) => applyStatus(W, c.held, 'root', 0, 9), m: (W, c) => { const z = W.zones[W.zones.length - 1]; return z ? Math.hypot(z.x - c.held.x, z.z - c.held.z) < .5 ? 1 : 0 : 0; }, better: (a, b) => a === 1 && b === 0, now: true },
   aimcold: { setup: W => ({ e: foe(W, 0, 8) }), m: W => (W.proj.find(q => q.friendly && q.freeze) || { pierce: 0 }).pierce, better: (a, b) => a > 10 && b < 5, now: true },
-  icehail: { setup: W => ({ e: foe(W, 0, 6) }), m: W => (W.zones[W.zones.length - 1] || {}).slow || 0, better: (a, b) => a > 0 && !b, now: true },
+  snaretrap: { setup: () => ({}), m: W => last('traps')(W).root || 0, better: (a, b) => a > b * 1.4, now: true },     // Сойка-Выживание
+  poisonhail: { setup: () => ({}), m: W => last('zones')(W).mul || 0, better: (a, b) => a > b * 1.25, now: true },     // Сойка-Буря стрел
+  riposte: { setup: W => { const e = foe(W, 0, 1.8, 1000); e.hp = 350; return { e }; }, pre: (W, c) => { c.e.hp = 350; c.e.st = {}; }, m: (W, c) => (c.e.dead ? 1 : 0), better: (a, b) => a === 1 && b === 0, now: true },
   shadowstrike: { setup: W => ({ e: foe(W, 0, 5) }), m: (W, c) => (W.ev.some(v => v.k === 'hit' && v.crit && v.id === c.e.id) ? 1 : 0), better: (a, b) => a === 1 && b === 0, now: true, rng: .99 },
-  bloodfan: { setup: W => ({ e: foe(W, 2, 0) }), pre: (W, c) => applyStatus(W, c.e, 'bleed', 1, 9), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.4, now: true },
-  riposte: { setup: W => { const e = foe(W, 0, 1.8, 1000); e.hp = 350; return { e }; }, m: (W, c) => (c.e.dead ? 1 : 0), better: (a, b) => a === 1 && b === 0, now: true },
-  twindance: { setup: W => ({ e: foe(W, 2, 0), far: foe(W, -2, 0) }), m: (W, c) => hurt(c.far), better: (a, b) => a > b, time: 1.5 },
-  detonate: { setup: W => ({ e: foe(W, 0, 7), o: foe(W, 3.9, 7) }), m: (W, c) => (W.ezones.some(z => z.kind === 'cloud') ? 0 : hurt(c.o)), better: (a, b) => a > 0 && b === 0, time: .45 },     // сосед вне взрыва шара, но в облаке
-  frozenstorm: { setup: W => ({ es: [foe(W, 0, 5), foe(W, 2, 8), foe(W, 4, 11), foe(W, 6, 14), foe(W, 8, 17), foe(W, 10, 20), foe(W, 12, 23)] }), m: (W, c) => c.es.filter(e => hurt(e) > 0 && e.st && e.st.slow).length, better: (a, b) => a >= 6 && b < 6, now: true },
-  icearmor: { setup: W => ({ e: foe(W, 5, 0) }), m: (W, c) => (W.buffs.some(b => b.src === 'icearmor') ? 1 : 0) + (hurt(c.e) > 0 ? 1 : 0), better: (a, b) => a === 2 && b === 0, now: true },
-  breach: { setup: W => ({ e: foe(W, 0, 8) }), pre: (W, c) => applyStatus(W, c.e, 'shock', 10, 9), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.4, now: true },
-  verdict: { setup: W => ({ e: foe(W, 0, 6) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.5, time: 4.4 },     // Морок: рок по проклятому
-  feast: { setup: W => ({ e: foe(W, 0, 3) }), pre: W => { W.player.hp = W.player.maxhp * .4; }, m: W => W.player.hp, better: (a, b) => a > b, now: true },
-  gravecall: { setup: W => ({ e: foe(W, 0, 8) }), m: W => W.proj.filter(q => q.friendly).length, better: (a, b) => a >= b + 3, now: true },
-  bloodimp: { setup: () => ({}), m: W => (W.allies.find(a => a.imp) || { t: 0 }).t, better: (a, b) => a > b * 1.4, now: true },
-  blessedwave: { setup: W => ({ e: foe(W, 0, 5.1) }), m: (W, c) => hurt(c.e), better: (a, b) => a > 0 && b === 0, now: true },     // Жрец (4.16): сияние шире
-  purge: { setup: W => ({ e: foe(W, 0, 6) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, time: .8 },
+  crimsonfan: { setup: W => ({ e: foe(W, CFG3.abilities.vale.bloodlet.r * 1.2 + .8, 0) }), m: (W, c) => hurt(c.e), better: (a, b) => a > 0 && b === 0, now: true },     // Вейл-Кровь: шире
+  glaivecut: { setup: W => ({ e: foe(W, 0, 12.5) }), pre: h0, m: dealt, better: (a, b) => a > 0 && a > b * 1.3, now: true },     // Бесогон-Хаос: рывок вперёд к цели за пределом рывка
+  firefall: { setup: () => ({}), m: W => last('zones')(W).r || 0, better: (a, b) => a > b * 1.3, now: true },     // Бесогон-Месть
+  demonsight: { setup: () => ({}), m: W => (W.abuf.beam ? W.abuf.beam.t : 0), better: (a, b) => a > b * 1.4, now: true },
+  brandrage: { setup: W => ({ e: foe(W, 0, 2.5) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, now: true },
+  ironram: { setup: W => ({ e: foe(W, 0, 5) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.3, time: .6 },     // Клеймёный-Сталь
+  darkpain: { setup: W => ({ e: foe(W, 0, 2.5) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.3, now: true },     // Клеймёный-Тьма
   sermon: { setup: () => ({}), pre: W => { W.player.hp = W.player.maxhp * .3; }, m: W => W.player.hp, better: (a, b) => a > b + 1, now: true },
-  judgement: { setup: W => ({ e: foe(W, 0, 2.5) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, time: 2.5 },
-  brandrage: { setup: W => ({ e: foe(W, 0, 2.5) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, now: true },     // Клеймёный (4.17)
-  powder: { setup: W => ({ e: foe(W, 0, 7) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.2, time: .9 },
-  ironhowl: { setup: W => ({ e: foe(W, 5.6, 0) }), m: (W, c) => hurt(c.e), better: (a, b) => a > 0 && b === 0, now: true },
-  darkpain: { setup: W => ({ e: foe(W, 0, 2.5) }), pre: W => { W.player.hp = W.player.maxhp * .3; }, m: W => W.player.hp, better: (a, b) => a > b + 1, now: true },
-  glaivecut: { setup: W => ({ e: foe(W, 2.5, 0) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, now: true },     // Бесогон (Г8): враг сбоку — клинок летит мимо, удар хаоса достаёт
-  burnmark: { setup: W => ({ e: foe(W, 0, 14) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, time: 1.2 },     // печать — впереди, враг дальше неё
-  demonfall: { setup: () => ({}), m: W => W.abuf.morph || 0, better: (a, b) => a > b * 1.3, now: true },
-  demonsight: { setup: () => ({}), m: W => (W.abuf.beam ? W.abuf.beam.t : 0), better: (a, b) => a > b * 1.4, now: true }
+  judgement: { setup: W => ({ e: foe(W, 0, 2.5) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.2, now: true },     // Жрец-Щиты
+  purge: { setup: W => ({ e: foe(W, 0, 6) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, time: .8 },
+  verdict: { setup: W => ({ e: foe(W, 0, 6) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.5, time: 4.4 },
+  bloodfeast: { setup: W => ({ e: foe(W, 0, 4) }), pre: W => { W.player.hp = W.player.maxhp * .3; }, m: W => W.player.hp, better: (a, b) => a > b + 1, now: true },     // Морок-Кровь
+  bloodimp: { setup: () => ({}), m: W => (W.allies.find(a => a.imp) || { t: 0 }).t, better: (a, b) => a > b * 1.4, now: true },
+  firerain: { setup: () => ({}), m: W => last('meteors')(W).r || 0, better: (a, b) => a > b * 1.3, now: true },     // Ирга-Огонь
+  icearmor: { setup: W => ({ e: foe(W, 5, 0) }), m: (W, c) => (W.buffs.some(b => b.src === 'icearmor') ? 1 : 0) + (hurt(c.e) > 0 ? 1 : 0), better: (a, b) => a === 2 && b === 0, now: true },
+  breach: { setup: W => ({ e: foe(W, 0, 8) }), pre: (W, c) => applyStatus(W, c.e, 'shock', 10, 9), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.4, now: true }
 };
 // прогон: с первым умением (связка) или без; первое бьёт в пустоту далеко, чтобы не трогать цели
 function trial(hero, combo, withA) {
@@ -75,12 +69,15 @@ for (const [hero, list] of Object.entries(COMBOS)) for (const c of list) {
   ok(!b.combo, `${c.name}: связка без первого умения`);
   ok(CASE[c.id].better(a.v, b.v), `${c.name}: нет усиления — со связкой ${a.v}, без ${b.v}`);
 }
-ok(n === 32, 'связок не 32: ' + n);
+ok(n === 24, 'связок не 24: ' + n);
 
 // окно закрывается; подсветка; числа умения не портятся
-{ const W = mk('thorn'); foe(W, 2, 0); cast(W, 'charge'); ok(comboReady(W).some(q => q.id === 'whirl'), 'после рывка нет подсветки вихря');
-  run(W, X.window + .2); ok(!comboReady(W).length, 'подсветка не гаснет после окна'); W.ev.length = 0; cast(W, 'whirl'); ok(!W.ev.some(v => v.k === 'combo'), 'связка после окна'); }
-{ const A = CFG3.abilities.thorn.whirl, B = boosted(A, X.bladestorm); ok(B.r > A.r && B.mul[2] > A.mul[2] && CFG3.abilities.thorn.whirl.r === A.r, 'усиление портит числа умения'); }
+{ const W = mk('thorn'); foe(W, 2, 0); cast(W, 'charge'); ok(comboReady(W).some(q => q.id === 'bash'), 'после рывка нет подсветки сокрушающего удара');
+  run(W, X.window + .2); ok(!comboReady(W).length, 'подсветка не гаснет после окна'); W.ev.length = 0; W.acd = {}; cast(W, 'bash'); ok(!W.ev.some(v => v.k === 'combo'), 'связка после окна'); }
+{ const A = CFG3.abilities.thorn.whirl, B = boosted(A, { mul: { r: 1.4, mul: 1.3 } }); ok(B.r > A.r && B.mul[2] > A.mul[2] && CFG3.abilities.thorn.whirl.r === A.r, 'усиление портит числа умения'); }
+// школы (2026-10-22): обе части каждой связки — в одной школе героя
+{ const { schoolOfAbility } = await import('../3d/src/school3d.js');
+  for (const [h, L] of Object.entries(COMBOS)) { ok(L.length === 3, `${h}: связок не 3`); L.forEach((c, i) => ok(schoolOfAbility(h, c.a, CFG3) === i && schoolOfAbility(h, c.b, CFG3) === i, `${h}/${c.name}: части не в школе ${i}`)); } }
 
 if (fails.length) { console.error('Связки умений 3D: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
-console.log('Связки умений 3D: OK (20)');
+console.log('Связки умений 3D: OK (24, по одной на школу)');

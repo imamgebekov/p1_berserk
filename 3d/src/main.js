@@ -142,7 +142,7 @@ function drawHeroPick(switching = heroSwitching) {
   const go = el('button', 'hgo', cur ? 'Сейчас' : switching ? `Стать: ${H.name}` : 'Войти в мир'); go.type = 'button'; go.id = 'heroGo'; go.disabled = !H.open || cur; go.addEventListener('click', () => pickHero(heroSel));     // первая кнопка в #heroCards — выбрать (тесты жмут её)
   info.append(el('div', 'hnm', H.name + (switching ? ` · ур. ${heroLv(heroSel)}` : '')), el('div', 'hrole', H.role), el('div', 'htxt', H.text));
   const facts = el('div', 'hfacts'), fact = (k, v, c) => { const r = el('div', 'hf'), b = el('span', 'hv', v); if (c) { const d = el('i', 'hdot'); d.style.background = c; b.prepend(d); } r.append(el('span', 'hk', k), b); facts.append(r); };
-  if (role) fact('В отряде', cfg.party.roleName[role] || role);
+  if (role) fact('В отряде', (Array.isArray(role) ? [...new Set(role)] : [role]).map(r => cfg.party.roleName[r] || r).join(' / ') + (Array.isArray(role) && new Set(role).size > 1 ? ' — по школе' : ''));     // школы (2026-10-22)
   if (R) fact('Ресурс', R.name, R.color);
   fact('Оружие', H.kinds.length ? H.kinds.map(k => KIND_NAME[k]).join(', ') : H.soon);
   info.append(facts, go);
