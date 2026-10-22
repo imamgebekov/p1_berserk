@@ -666,7 +666,7 @@ function updatePlayer(W, dt, input) {
   }
   if (p.state === 'dash') {                                    // рывок умения: летит по прямой, бьёт всех на пути
     p.dashT += dt; p.vx = p.dashX * p.dashV; p.vz = p.dashZ * p.dashV; dashStep(W);
-    if (p.dashT >= p.dashDur) { p.state = 'idle'; p.vx *= .2; p.vz *= .2; p.dashMix = false; p.dashW = 0; p.dashSt = null; }
+    if (p.dashT >= p.dashDur) { p.state = 'idle'; p.vx *= .2; p.vz *= .2; p.dashMix = false; p.dashThru = false; p.dashW = 0; p.dashSt = null; }
   } else if (p.state === 'roll') {
     if (pressed) p.rollPress = true;
     if (p.atkBuf > 0) p.atkBuf -= dt;
@@ -798,7 +798,7 @@ function updateEnemies(W, dt) {
       if (d < 1e-6) { const ang = (i * 7 + j) * 2.399; dx = Math.cos(ang) * 1e-6; dz = Math.sin(ang) * 1e-6; d = 1e-6; }   // стояли в одной точке
       if (d < m) { const k = (m - d) / 2 / d; a.x -= dx * k; a.z -= dz * k; b.x += dx * k; b.z += dz * k; }
     }
-    if (!p.dead && !p.dashMix) {     // выпад умения оружия проходит сквозь врагов
+    if (!p.dead && !p.dashMix && !p.dashThru) {     // выпад умения оружия и рывок Бесогона (Г8) проходят сквозь врагов
       const dx = a.x - p.x, dz = a.z - p.z, d = len(dx, dz), m = ra + P_RADIUS(W);
       if (d < m && d > 1e-6) { const k = (m - d) / d; a.x += dx * k * .8; a.z += dz * k * .8; p.x -= dx * k * .2; p.z -= dz * k * .2; }
     }

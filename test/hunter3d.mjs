@@ -1,5 +1,5 @@
-// Бесогон, охотник на демонов (Г8): два клинка, 36 умений, гнев, в группе — боец, модель Warrior; рывок двигает и поджигает,
-// двойной прыжок (в воздухе неуязвим, второй — без перезарядки), луч из глаз бьёт по линии, облик демона — сильнее и быстрее.
+// Бесогон, охотник на демонов (Г8): два клинка, 36 умений, гнев, в группе — боец, модель Warrior; рывок проходит сквозь врага и поджигает,
+// двойной прыжок (в воздухе неуязвим, второй — без перезарядки, на бегу — куда бежит), луч из глаз бьёт по линии, облик демона — сильнее и быстрее.
 import { CFG3 } from '../3d/src/config3d.js';
 import { HEROES, canWield, canOff } from '../3d/src/data/heroes3d.js';
 import { ABILITIES } from '../3d/src/data/abilities3d.js';
@@ -20,7 +20,7 @@ ok(CFG3.abilities.res.hunter && CFG3.abilities.res.hunter.name === 'Гнев', '
 ok(CFG3.actors.heroes.hunter === 'q_warrior' && CFG3.actors.kits.q_warrior, 'Бесогон: нет модели');
 { const W = mk(); ok(heroRole(W) === 'melee', 'Бесогон в группе — не боец'); }
 // рывок скверны: герой сдвинулся, враг на пути ранен и горит
-{ const W = mk(), e = foe(W, 0, 5), z0 = W.player.z; ok(cast(W, 'felrush') === 'ok', 'рывок не пошёл'); run(W, .5); ok(W.player.z > z0 + 2 && e.hp < e.maxhp && e.st && e.st.burn, 'рывок не сдвинул, не ударил или не поджёг'); }
+{ const W = mk(), e = foe(W, 0, 5), z0 = W.player.z; ok(cast(W, 'felrush') === 'ok', 'рывок не пошёл'); run(W, .5); ok(W.player.z > z0 + 2 && W.player.z > e.z && e.hp < e.maxhp && e.st && e.st.burn, 'рывок не прошёл сквозь врага, не ударил или не поджёг'); }
 // удар хаоса: урон и трещина
 { const W = mk(), e = foe(W, 0, 2.2); ok(cast(W, 'chaos') === 'ok' && e.hp < e.maxhp && e.st && e.st.crack, 'удар хаоса не попал или нет трещины'); }
 // двойной прыжок: в воздухе выше земли и неуязвим; второе нажатие в воздухе — второй прыжок; третье — перезарядка
@@ -31,6 +31,8 @@ ok(CFG3.actors.heroes.hunter === 'q_warrior' && CFG3.actors.kits.q_warrior, 'Б�
   ok(cast(W, 'djump') === 'ok', 'второй прыжок в воздухе не пошёл'); run(W, J.time + .1);
   ok(p.z > z0 + J.dist * 1.5 && !(p.hopY > 0) && p.state !== 'dash', `два прыжка не унесли героя (${(p.z - z0).toFixed(1)} м) или он не приземлился`);
   ok(cast(W, 'djump') === 'cd', 'третий прыжок без перезарядки'); }
+// прыжок на бегу — туда, куда бежит герой, а не куда смотрит
+{ const W = mk(), p = W.player, z0 = p.z; p.face = 0; p.vx = 0; p.vz = -5; ok(cast(W, 'djump') === 'ok', 'прыжок на бегу не пошёл'); run(W, J.time + .1); ok(p.z < z0 - J.dist * .6, `прыжок на бегу ушёл не туда (${(p.z - z0).toFixed(1)} м)`); }
 // огненный взор: бьёт по линии впереди несколько раз и поджигает; сзади — нет
 { const W = mk(), e = foe(W, 0, 8), back = foe(W, 0, -4); ok(cast(W, 'eyebeam') === 'ok', 'взор не пошёл');
   run(W, .35); const h1 = e.maxhp - e.hp; run(W, 1); const h2 = e.maxhp - e.hp;

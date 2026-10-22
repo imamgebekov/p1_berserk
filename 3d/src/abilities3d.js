@@ -276,7 +276,7 @@ const GEN = {
     for (const e of W.enemies) { if (e.dead) continue; const d = len(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; best = e; } }
     if (W.aimPt && len(W.aimPt.x - p.x, W.aimPt.z - p.z) > .3) p.face = Math.atan2(W.aimPt.x - p.x, W.aimPt.z - p.z); else if (best && bd > .5) p.face = Math.atan2(best.x - p.x, best.z - p.z);
     const dist = best && !W.aimPt ? Math.max(1.5, Math.min(A.dist, bd - W.cfg.enemies[best.type].radius - A.stop)) : A.dist;
-    Object.assign(p, { state: 'dash', dashT: 0, dashDur: A.time * dist / A.dist, dashV: A.dist / A.time, dashX: Math.sin(p.face), dashZ: Math.cos(p.face), dashHit: [], dashMul: A.mul[r], dashKnock: A.knock, atkT: 0, dashStun: A.st === 'stun' ? A.sd[r] : 0, dashW: A.width, dashSt: A.st && A.st !== 'stun' ? [A, r] : null });
+    Object.assign(p, { state: 'dash', dashT: 0, dashDur: A.time * dist / A.dist, dashV: A.dist / A.time, dashX: Math.sin(p.face), dashZ: Math.cos(p.face), dashHit: [], dashMul: A.mul[r], dashKnock: A.knock, atkT: 0, dashStun: A.st === 'stun' ? A.sd[r] : 0, dashW: A.width, dashSt: A.st && A.st !== 'stun' ? [A, r] : null, dashThru: !!A.thru });     // thru — сквозь врагов (Г8)
     p.inv = Math.max(p.inv, A.time); gfx(W, A, { x: p.x, z: p.z, face: p.face, r: dist });
   },
   zone(W, A, r) { const at = spot(W, A); for (const e of W.enemies) if (!e.dead && len(e.x - at.x, e.z - at.z) < A.r + W.cfg.enemies[e.type].radius) { abilityHit(W, e, A.mul[r], { knock: .6 }); inflict(W, e, A, r); } gfx(W, A, { x: at.x, z: at.z, r: A.r }); W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4); },
@@ -290,7 +290,7 @@ const GEN = {
     for (const a of W.allies) { if (a.dead || len(a.x - p.x, a.z - p.z) > A.r) continue; const got = Math.min(Math.round(a.maxhp * k), a.maxhp - a.hp); if (got > 0) { a.hp += got; W.ev.push({ k: 'allyheal', x: a.x, z: a.z, amt: got, fx: p.x, fz: p.z }); } }
     gfx(W, A, { x: p.x, z: p.z, r: A.r }); },
   jump(W, A, r) { const p = W.player, again = W.abuf.hop2 > 0;     // Г8 (Бесогон): прыжок вперёд, в воздухе неуязвим; второе нажатие — второй прыжок
-    if (W.aimPt && len(W.aimPt.x - p.x, W.aimPt.z - p.z) > .3) p.face = Math.atan2(W.aimPt.x - p.x, W.aimPt.z - p.z);
+    if (len(p.vx, p.vz) > 1) p.face = Math.atan2(p.vx, p.vz); else if (W.aimPt && len(W.aimPt.x - p.x, W.aimPt.z - p.z) > .3) p.face = Math.atan2(W.aimPt.x - p.x, W.aimPt.z - p.z);     // куда бежит, стоя — к курсору или по взгляду
     Object.assign(p, { state: 'dash', dashT: 0, dashDur: A.time, dashV: A.dist / A.time, dashX: Math.sin(p.face), dashZ: Math.cos(p.face), dashHit: [], dashMul: 0, dashKnock: 0, atkT: 0, hop: A.h, hopY0: p.hopY || 0 });
     p.inv = Math.max(p.inv, A.time); W.abuf.hop2 = again ? 0 : A.time + A.again;
     gfx(W, A, { x: p.x, z: p.z, r: again ? 1.6 : 1.1 }); },

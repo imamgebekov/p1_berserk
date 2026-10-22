@@ -320,7 +320,7 @@ const BASE = {
       jay: { name: 'Концентрация', color: '#e8c04a', max: 100, start: 100, hit: 4, hurt: 0, roll: 0, regen: 9, decay: 0, idle: 0, perLv: 2 },
       vale: { name: 'Концентрация', color: '#6ab0ff', max: 100, start: 0, hit: 2, hurt: 0, roll: 0, regen: 4, decay: 0, idle: 0, perLv: 2 },     // Вейл — скрытый дуэлянт: восстанавливается сама (пожелание 2026-10-18; было «Ритм» от ударов)
       irga: { name: 'Мана', color: '#7a8aff', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 },
-      hunter: { name: 'Гнев', color: '#7ae03a', max: 100, start: 40, hit: 5, hurt: 0, roll: 0, regen: 3, decay: 0, idle: 0, perLv: 2 },     // Г8: гнев Бесогона — от ударов и сам по себе
+      hunter: { name: 'Гнев', color: '#7ae03a', max: 100, start: 60, hit: 6, hurt: 0, roll: 0, regen: 4, decay: 0, idle: 0, perLv: 2 },     // Г8: гнев Бесогона — от ударов и сам по себе
       brand: { name: 'Клеймо', color: '#c8282a', max: 100, start: 0, hit: 3, hurt: .5, roll: 0, regen: 0, decay: 5, idle: 4, perLv: 2 },     // 4.17: клеймо копится от ударов и боли, гаснет без боя
       priest: { name: 'Вера', color: '#ffe08a', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 },     // 4.16: вера Жреца
       warlock: { name: 'Души', color: '#b04aff', max: 100, start: 60, hit: 4, hurt: 3, roll: 0, regen: 5, decay: 0, idle: 0, perLv: 2 }     // души: копятся от ударов и боли
@@ -376,8 +376,8 @@ const BASE = {
     },
     hunter: {     // Бесогон, охотник на демонов (Г8): свои умения — из видов действия (kind); beam, jump, morph — новые виды
       glaive:  { kind: 'bolt', el: 'steel', st: 'slow', cd: [5, 4.5, 4], cost: 15, mul: [1.2, 1.5, 1.8], n: 1, spread: 0, pierce: 3, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
-      felrush: { kind: 'dash', el: 'fire', st: 'burn', cd: [7, 6, 5], cost: 20, dist: 9, time: .25, width: 2.2, stop: .5, mul: [1, 1.3, 1.6], knock: .8, sd: [0, 0, 0], dps: [5, 8, 11], t: 3 },
-      chaos:   { kind: 'strike', el: 'shadow', st: 'crack', cd: [4, 3.5, 3], cost: 35, range: 3, cone: 100, mul: [2, 2.5, 3], knock: .8, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
+      felrush: { kind: 'dash', el: 'fire', st: 'burn', cd: [7, 6, 5], cost: 20, dist: 9, time: .25, width: 2.2, stop: -5, thru: true, mul: [1, 1.3, 1.6], knock: .8, sd: [0, 0, 0], dps: [5, 8, 11], t: 3 },     // stop −5 и thru: проскакивает сквозь цель
+      chaos:   { kind: 'strike', el: 'shadow', st: 'crack', cd: [4, 3.5, 3], cost: 25, range: 3, cone: 100, mul: [2, 2.5, 3], knock: .8, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
       djump:   { kind: 'jump', cd: [9, 8, 7], cost: 10, dist: 5, time: .42, h: 1.6, again: .4 },     // прыжок на dist м за time с высотой h м, неуязвим в воздухе; второй — в воздухе или в again с после приземления, без платы
       blades:  { kind: 'nova', el: 'steel', st: 'bleed', cd: [9, 8, 7], cost: 30, r: 3.6, mul: [1.3, 1.7, 2.1], knock: .6, sd: [0, 0, 0], dps: [5, 8, 11], t: 4 },
       eyebeam: { kind: 'beam', el: 'fire', st: 'burn', cd: [14, 12, 10], cost: 40, range: 12, w: 1.6, cone: 60, dur: 1.8, tick: .3, mul: [.5, .65, .8], sd: [0, 0, 0], dps: [5, 8, 11], t: 3 },     // луч на range м шириной w, dur с, удар каждые tick с; идёт за взглядом героя
@@ -433,7 +433,7 @@ const BASE = {
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
   heroes: { thorn: { hp: 1.15, speed: 1, crit: 0, killHeal: .03, healLv: [8, 12] },     // Торн — защитник: здоровья больше; убийство рядом (до 6 м), когда вокруг ещё двое и больше, лечит на killHeal до healLv[0] ур., к healLv[1] — на нет (на «железе» гиб чаще всех)
-  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .95, speed: 1.05, crit: 3 }, priest: { hp: 1, speed: 1.05, crit: 1 }, brand: { hp: 1.1, speed: 1, crit: 2 }, hunter: { hp: .95, speed: 1.12, crit: 4 } },
+  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .95, speed: 1.05, crit: 3 }, priest: { hp: 1, speed: 1.05, crit: 1 }, brand: { hp: 1.1, speed: 1, crit: 2 }, hunter: { hp: 1, speed: 1.12, crit: 4 } },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
     // rar — редкость вещи (3 — великий, фиолетовый; 4 — клеймёный, оранжевый; 5 — золотой, только здесь), mul — наценка;

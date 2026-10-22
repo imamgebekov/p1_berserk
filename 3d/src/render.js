@@ -1073,7 +1073,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
     heroBlade.set(hero.weapon, bladeOn() ? bladeEls(W.wp).filter(hasBladeStyle) : []); heroBlade.update(dt, t, calm);
     updateChevs(W, p, t);
-    if (hero.gltf) { driveHero(hero, p, dt, cfg, p.swingMul || W.gear.swing || 1); hero.flash(p.inv > 0 && p.inv < 5 && p.state !== 'roll' ? .25 : 0); } else animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
+    if (hero.gltf) { driveHero(hero, p, dt, cfg, p.swingMul || W.gear.swing || 1); if (W.abuf && W.abuf.morph > 0) hero.flash(0, [.01, .07 + .03 * Math.sin(t * 6), .01]); else hero.flash(p.inv > 0 && p.inv < 5 && p.state !== 'roll' ? .25 : 0); }     // Г8: облик демона — зелёное свечение else animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);
     { const on = !!(W.life && W.life.mount.on) && !p.dead; horse.group.visible = on;     // верхом: конь под героем, герой выше и сидит
       if (on) { horse.group.position.set(p.x, py, p.z); horse.group.rotation.y = hero.group.rotation.y; horse.step(t, Math.hypot(p.vx, p.vz)); hero.group.position.y = py + .95; if (hero.legL) hero.legL.rotation.x = hero.legR.rotation.x = -1.2; } }
     updateNodes(W, dt); updateCoaches(W);
