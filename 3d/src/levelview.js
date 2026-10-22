@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildContainers } from './containers.js';
-import { roomAt } from './map.js';
+import { roomAt, GATE } from './map.js';
 import { paintMat, paintOn } from './paint3d.js';
 import { buildDecor, decorModel } from './decor.js';
 import { themeOf, glowParts } from './dungeontheme3d.js';
@@ -28,6 +28,17 @@ export function makeHatch(q) {
   g.add(new THREE.Mesh(mergeGeometries([box(.7, .08, 1.42, -.36, .05, 0), box(.7, .08, 1.42, .36, .05, 0)]), mat('#5a3f28', 'auto', { plank: .2 })));
   g.add(new THREE.Mesh(mergeGeometries([box(.06, .1, .3, -.06, .12, 0), box(.06, .1, .3, .06, .12, 0)]), mat('#8a8070', 'metal')));
   g.position.set(q.x, 0, q.z); return g;
+}
+
+// ворота подземелья и рейда (4.18в): каменный вход с тёмным проёмом и ступенями вниз; руны — синие (подземелье) или зелёные (рейд), у рейда — жаровни
+export function makeGate(q, y0 = 0) {
+  const g = new THREE.Group(), raid = q.gate === 'raid', rune = raid ? '#4adf7a' : '#4a9aff', st = mat(raid ? '#5a5650' : '#6a6460', 'masonry'), dark = new THREE.MeshBasicMaterial({ color: '#050403' });
+  g.add(new THREE.Mesh(mergeGeometries([box(5.2, 1.2, 4.6, 0, -.45, -.7), box(4.6, 3.6, 1.4, 0, 1.8, -1.8), box(.7, 3.3, 1.8, -1.95, 1.65, -.2), box(.7, 3.3, 1.8, 1.95, 1.65, -.2), box(4.9, .7, 1.2, 0, 3.55, -.1), box(3.4, .5, .9, 0, 4.1, -.5)]), st));
+  g.add(new THREE.Mesh(mergeGeometries([box(2.8, 2.6, .1, 0, 1.3, -1.05), box(2.8, .04, 1.3, 0, .17, -.45)]), dark));     // проём и спуск
+  g.add(new THREE.Mesh(mergeGeometries([0, 1, 2].map(i => box(2.6, .14, .4, 0, .12 - i * .05, .45 - i * .35))), mat('#4a4440', 'masonry')));     // ступени вниз
+  g.add(new THREE.Mesh(mergeGeometries([box(2, .22, .06, 0, 3.55, .52), box(.22, .22, .06, -1.95, 2.6, .72), box(.22, .22, .06, 1.95, 2.6, .72)]), new THREE.MeshBasicMaterial({ color: rune })));     // руны
+  if (raid) for (const sx of [-1, 1]) { g.add(new THREE.Mesh(box(.35, 1.1, .35, sx * 3, .55, 1.1), mat('#3a3430', 'metal'))); g.add(new THREE.Mesh(new THREE.SphereGeometry(.32, 10, 8).translate(sx * 3, 1.3, 1.1), new THREE.MeshBasicMaterial({ color: rune }))); }     // жаровни рейда
+  const [fx, fz] = q.face || [0, 1]; g.rotation.y = Math.atan2(fx, fz); g.scale.setScalar(GATE[q.gate] || 1); g.position.set(q.x, y0, q.z); return g;
 }
 
 // лестница в доме на второй этаж (2026-10-21): обычные ступени вдоль стены от подножия к верху, сбоку — тетива
@@ -156,6 +167,6 @@ export function buildLevelView(L, cfg) {
 // поверхность: контейнеры по карте мира и люки
 export function buildSurfaceView(L, Y) {
   const group = new THREE.Group(), conts = buildContainers(L.map, Y), stairs = []; group.add(conts.group);
-  for (const q of L.map.portals) { const m = q.stair ? makeStairs(q, Y ? Y((q.st.rect.x0 + q.st.rect.x1) / 2, (q.st.rect.z0 + q.st.rect.z1) / 2) : 0) : makeHatch(q); if (q.stair) { m.userData.house = q.house; m.visible = false; stairs.push(m); } group.add(m); }     // лестница на второй этаж — ступени в доме
+  for (const q of L.map.portals) { const m = q.stair ? makeStairs(q, Y ? Y((q.st.rect.x0 + q.st.rect.x1) / 2, (q.st.rect.z0 + q.st.rect.z1) / 2) : 0) : q.gate ? makeGate(q, Y ? Y(q.x, q.z) : 0) : makeHatch(q); if (q.stair) { m.userData.house = q.house; m.visible = false; stairs.push(m); } group.add(m); }     // лестница на второй этаж — ступени в доме
   return { group, conts, flame: null, stairs };
 }

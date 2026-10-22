@@ -31,6 +31,13 @@ function grown(cfg) {
   out.forEach((b, i) => { let k = K; while (k > 1.001 && hit(b, i, k)) k -= .05; b.w = Math.round(b.w * k * 10) / 10; b.d = Math.round(b.d * k * 10) / 10; });
   return out;
 }
+// ворота входа (4.18в): смотрят на выход (back), по ближней оси; размер — у рейда крупнее (GATE.raid)
+export const GATE = { inst: 1, raid: 1.35 };
+export const gateFace = d => { const dx = (d.back ? d.back.x : d.at.x) - d.at.x, dz = (d.back ? d.back.z : d.at.z + 1) - d.at.z; return Math.abs(dx) > Math.abs(dz) ? [Math.sign(dx), 0] : [0, Math.sign(dz) || 1]; };
+export function gateBlocks(q) {     // в своих осях: проём к +z, задняя стена и боковины; поворот по face
+  const s = GATE[q.gate] || 1, R = [[-2.3, 2.3, -2.5, -1.1], [-2.3, -1.6, -1.1, .7], [1.6, 2.3, -1.1, .7]].map(r => r.map(v => v * s)), [fx, fz] = q.face;
+  return R.map(([a0, a1, b0, b1]) => { const P = [[a0, b0], [a1, b1]].map(([u, v]) => fz ? [q.x + u * fz, q.z + v * fz] : [q.x + v * fx, q.z - u * fx]); return { x0: Math.min(P[0][0], P[1][0]), x1: Math.max(P[0][0], P[1][0]), z0: Math.min(P[0][1], P[1][1]), z1: Math.max(P[0][1], P[1][1]), gate: true }; });
+}
 export function makeMap(cfg) {
   const M = cfg.map, t = M.wall, hw = M.doorW / 2;
   const buildings = [], walls = [], containers = [];
@@ -75,7 +82,8 @@ export function makeMap(cfg) {
   { const coreR = cfg.worldgen && cfg.worldgen.on && cfg.world.radius > cfg.worldgen.coreR ? cfg.worldgen.coreR : Infinity; for (const c of containers) c.far = Math.hypot(c.x, c.z) > coreR; }     // сундуки пояса большого мира наполняются, когда герой рядом (C3b)
   const camp = campOf(cfg), { blocks, foeBlocks } = camp ? campWalls(camp) : { blocks: [], foeBlocks: [] };
   blocks.push(...gen.blocks);                                                          // стены замков (C4c)
-  const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden && !d.sub).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false }));
+  const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden && !d.sub).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false, ...(d.inst ? { gate: d.raid ? 'raid' : 'inst', face: gateFace(d) } : {}) }));
+  for (const q of portals) if (q.gate) blocks.push(...gateBlocks(q));     // ворота подземелий и рейдов (4.18в): стены — препятствия, проём открыт
   return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, paths: gen.paths, camp, blocks, foeBlocks, river: riverOf(cfg), plateaus: M.plateaus || [] };
 }
 export function addFires(map, cfg, firesOf) { map.fires = firesOf(map, cfg); for (const f of map.fires) if (!f.home) map.decor.push({ t: 'campfire', x: f.x, z: f.z, fire: true }); return map;     // костры быстрого перемещения (C3d): вид, не препятствия
@@ -307,6 +315,7 @@ export function propsBlocked(map, x, z) {
   for (const [a, b] of pathSegs(map)) if (distSegPt(x, z, a, b) < 2.4) return true;
   if (inCliff(map.plateaus, x, z, 1.8)) return true;                     // не у края обрыва
   for (const c of map.cfg.castles || []) if (Math.abs(x - c.x) < 19 && Math.abs(z - c.z) < 19) return true;     // не в замке и не у стен
+  for (const q of map.portals || []) if (q.gate && Math.hypot(q.x - x, q.z - z) < 6 * (GATE[q.gate] || 1)) return true;     // 4.18в: не у ворот подземелья и рейда
   for (const c of [...(map.cfg.forts || []), ...(map.cfg.cities || [])]) if (Math.abs(x - c.x) < c.H + 3 && Math.abs(z - c.z) < c.H + 3) return true;     // не в лагере врагов и не в городе (2026-10-18)
   for (const P of map.plateaus || []) { const d = Math.hypot(x - P.x, z - P.z), a = Math.atan2(x - P.x, z - P.z); if (d > P.r - 3 && d < P.r + P.len + 2 && P.ramps.some(q => { let v = Math.abs(a - q) % 6.2832; if (v > 3.1416) v = 6.2832 - v; return v < P.rw + .15; })) return true; }     // и на въезде
   for (const zn of map.cfg.zones || []) { const hw = zn.w ? zn.w / 2 + 2 : zn.r + 3, hd = zn.d ? zn.d / 2 + 2 : zn.r + 3; if (Math.abs(x - zn.x) < hw && Math.abs(z - zn.z) < hd) return true; }
