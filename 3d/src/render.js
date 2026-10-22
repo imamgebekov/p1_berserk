@@ -27,7 +27,7 @@ import { weaponMix, weaponElement } from './stones3d.js';
 import { loadNature, loadBaked, modelsOff } from './actors3d.js';
 import { setDecorLib } from './decor.js';
 import { setNature } from './models.js';
-import { makeActor, actorKey, actorReady, preloadActors, driveHero, driveFoe, disposeActor } from './actors3d.js';
+import { makeActor, actorKey, actorReady, preloadActors, driveHero, driveFoe, disposeActor, soldierActor, driveAlly } from './actors3d.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeHorse, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
 import { heroOf } from './data/heroes3d.js';
 import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul, makeBeasts, updateBeasts, makeDucks, updateDucks } from './ambient3d.js';
@@ -1115,8 +1115,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const a of W.allies) {
       aliveA.add(a.id);
       let en = allyEnts.get(a.id);
-      if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : cfg.squad.types[a.type] && cfg.squad.types[a.type].hero ? mateModel(cfg.squad.types[a.type]) : makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
+      if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : cfg.squad.types[a.type] && cfg.squad.types[a.type].hero ? mateModel(cfg.squad.types[a.type]) : soldierActor(cfg, a.type) || makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
       { const T1 = cfg.squad.types[a.type], k1 = T1 && T1.hero && !a.guest && !a.decoy && !en.m.gltf && actorKey(cfg, 'hero', T1.hero); if (k1 && actorReady(k1)) { scene.remove(en.m.group); disposeDeep(en.m.group); en.m = mateModel(T1); en.lk = null; scene.add(en.m.group); } }     // готовая модель спутника пришла позже
+      if (!en.m.gltf && !a.guest && !a.decoy && !(cfg.squad.types[a.type] || {}).hero) { const S1 = soldierActor(cfg, a.type); if (S1) { scene.remove(en.m.group); disposeDeep(en.m.group); en.m = S1; scene.add(en.m.group); if (shadowsOn) S1.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); } }     // солдат: готовая модель KayKit пришла позже
       const ay = liftY ?? Y(a.x, a.z);
       { const vis = inView(a.x, ay + 1, a.z, 2.5); if (!vis) { if (en.vis !== false) { en.vis = false; en.m.group.visible = false; if (en.sh) en.sh.visible = false; } continue; } if (en.vis === false) { en.vis = true; en.m.group.visible = !a.dead; if (en.sh) en.sh.visible = true; } }     // спутник вне кадра — не рисуется и не анимируется (экономия)
       en.m.group.position.set(a.x, ay, a.z); en.m.group.rotation.y = en.yawInit && cfg.view.blend ? dampAngle(en.m.group.rotation.y, a.face, cfg.view.blend.yawHero, dt) : a.face; en.yawInit = true;
@@ -1128,7 +1129,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         pp.atkT = a.state === 'wind' ? AT * .5 * Math.min(1, a.t / T.wind) : AT * (.5 + .5 * Math.min(1, a.t / T.recover));
         if (en.m.gltf) driveHero(en.m, pp, dt, cfg); else animateHero(en.m, pp, t, dt, cfg); en.m.group.rotation.y = en.yawInit && cfg.view.blend ? dampAngle(en.m.group.rotation.y, a.face, cfg.view.blend.yawHero, dt) : a.face; en.yawInit = true;
         if (bladeOn() && a.eq) { const bl = en.blade || (en.blade = makeBladeFx(scene)), wi = a.eq.weapon && BY_ID[a.eq.weapon]; bl.set(en.m.weapon, wi ? bladeEls({ mix: weaponMix(wi, a.gem && a.gem.weapon), el: weaponElement(wi) }).filter(hasBladeStyle) : []); bl.update(dt, t, calm); }     // стихия на клинке спутника
-      } else if (!a.guest) animateSoldier(en.m, a, t);
+      } else if (!a.guest) { if (en.m.gltf) driveAlly(en.m, en, a, cfg.squad.types[a.type], dt, cfg); else animateSoldier(en.m, a, t); }
       else { en.m.group.visible = !a.dead; if (en.m.root) en.m.root.position.y = calm ? 0 : Math.abs(Math.sin(t * (a.moving ? 9 : 2))) * (a.moving ? .08 : .02); } en.sh.position.set(a.x, .03 + ay, a.z); en.sh.visible = !a.dead;
       const b = bar({ id: 'a' + a.id }, a.guest ? '#d8b040' : '#3a8a4a'), show = (a.guest || a.hp < a.maxhp) && !a.dead;
       b.g.visible = show; if (show) { b.g.position.set(a.x, (a.cart ? 3.4 : 2.7) + ay, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }

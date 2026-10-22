@@ -2,9 +2,9 @@
 // Грузится в странице игры (?shot&models=1) через tools/shots-models.mjs. Только для снимков, в сборку не входит.
 import * as THREE from 'three';
 import { CFG3 as cfg } from '../3d/src/config3d.js';
-import { loadActor, makeActor, loadKkWeapons } from '../3d/src/actors3d.js';
+import { loadActor, makeActor, loadKkWeapons, soldierActor } from '../3d/src/actors3d.js';
 import { makeHero, makeMonster, makeSoldier, makeNpc } from '../3d/src/models.js';
-import { makeWeapon, weaponKinds } from '../3d/src/weaponview.js';
+import { makeWeapon, weaponKinds, kkWeapon } from '../3d/src/weaponview.js';
 import { heroOf } from '../3d/src/data/heroes3d.js';
 
 const A = cfg.actors, kitOf = k => A.kits[k];
@@ -17,7 +17,8 @@ function arm(m, id) { const [w, off] = HERO_W[id] || ['sword']; m.setWeapon(w, '
 export function heroModel(id, key) { const k = key === undefined ? A.heroes[id] : key, m = k ? makeActor(k, kitOf(k), 'hero') : null; if (m) return idle(arm(m, id)); const h = makeHero(); h.setLook(heroOf(id).look); return arm(h, id); }
 export function foeModel(type, procedural = false) { const k = A.foes[type], m = !procedural && k ? makeActor(k, { ...kitOf(k), tint: A.tints[type] }, type) : makeMonster(type, cfg); if (!m) throw new Error('нет модели ' + type + ' → ' + k); m.group.scale.setScalar(cfg.enemies[type].scale); return idle(m); }
 export function keyModel(k, tint) { const m = makeActor(k, { ...kitOf(k), ...(tint ? { tint } : {}) }); return idle(m); }
-export function soldierModel(t) { return makeSoldier(t, cfg); }
+export function soldierModel(t) { const A = soldierActor(cfg, t); return A ? idle(A) : makeSoldier(t, cfg); }
+export function kkWeaponModel(kind, mat = 'steel') { return kkWeapon(kind, mat) || makeWeapon(kind, mat); }
 export function npcModel(t) { const k = (A.npcs || {})[t]; return k ? keyModel(k) : makeNpc(t); }
 export function weaponModel(kind, mat = 'steel') { return makeWeapon(kind, mat); }
 export const weapons = () => weaponKinds();

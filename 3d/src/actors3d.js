@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { makeWeapon, kkWeapon, kkShield, setKkWeapons, kkReady } from './weaponview.js';
+import { makeWeapon, kkWeapon, kkShield, setKkWeapons, kkReady, kkPart } from './weaponview.js';
 import { familyOf } from './anim3d.js';
 
 const URLS = import.meta.glob('../models/*.glb', { query: '?url', import: 'default', eager: true });
@@ -58,19 +58,19 @@ function inPlace(clips, scene) {
       for (let ax = 0; ax < 3; ax++) { const d = v[(n - 1) * 3 + ax] - v[ax]; let lo = Infinity, hi = -Infinity; for (let i = 0; i < n; i++) { lo = Math.min(lo, v[i * 3 + ax]); hi = Math.max(hi, v[i * 3 + ax]); }
         if (Math.abs(d) > (hi - lo) * .5 && Math.abs(d) > 1e-4) for (let i = 0; i < n; i++) v[i * 3 + ax] -= d * (t.times[i] - t.times[0]) / T; } } }
 }
-function recolor(scene, kit) {     // перекраска KayKit (путь А, 2026-10-22): текстура — сетка grid ячеек-полос, ячейка — часть одежды; recolor { 'столбец,строка': цвет }, перепад света в полосе сохраняется
-  const done = new Map(), [gc, gr] = kit.grid || [8, 4], C = new THREE.Color();
-  scene.traverse(o => { if (!o.isMesh || !o.material.map) return; const src = o.material.map;
-    if (!done.has(src)) { const img = src.image, w = img.width, h = img.height, cv = document.createElement('canvas'); cv.width = w; cv.height = h; const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0);
-      const D = cx.getImageData(0, 0, w, h), d = D.data, cw = w / gc, ch = h / gr;
-      for (const [cell, col] of Object.entries(kit.recolor)) { const [c, r] = cell.split(',').map(Number), x0 = Math.round(c * cw), y0 = Math.round(r * ch), x1 = Math.round((c + 1) * cw), y1 = Math.round((r + 1) * ch); C.set(col);
-        const T = [C.r, C.g, C.b].map(v => Math.round(Math.pow(v, 1 / 2.2) * 255)), lum = i => .3 * d[i] + .55 * d[i + 1] + .15 * d[i + 2]; let sum = 0, n = 0;
-        for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { sum += lum((y * w + x) * 4); n++; }
-        const mean = Math.max(1, sum / n);
-        for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = (y * w + x) * 4, k = lum(i) / mean; for (let j = 0; j < 3; j++) d[i + j] = Math.min(255, T[j] * k); } }
-      cx.putImageData(D, 0, 0); const t = src.clone(); t.image = cv; t.needsUpdate = true; done.set(src, t); }
-    o.material.map = done.get(src); });
+const RC = new Map();     // перекрашенные текстуры: исходная текстура + ячейки → новая (общая для всех моделей)
+function recolorTex(src, cells, grid = [8, 4]) {     // перекраска KayKit (путь А, 2026-10-22): текстура — сетка ячеек-полос, ячейка — часть одежды; cells { 'столбец,строка': цвет }, перепад света в полосе сохраняется
+  const id = src.uuid + JSON.stringify(cells); if (RC.has(id)) return RC.get(id);
+  const img = src.image, w = img.width, h = img.height, cv = document.createElement('canvas'); cv.width = w; cv.height = h; const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0);
+  const D = cx.getImageData(0, 0, w, h), d = D.data, cw = w / grid[0], ch = h / grid[1], C = new THREE.Color();
+  for (const [cell, col] of Object.entries(cells)) { const [c, r] = cell.split(',').map(Number), x0 = Math.round(c * cw), y0 = Math.round(r * ch), x1 = Math.round((c + 1) * cw), y1 = Math.round((r + 1) * ch); C.set(col);
+    const T = [C.r, C.g, C.b].map(v => Math.round(Math.pow(v, 1 / 2.2) * 255)), lum = i => .3 * d[i] + .55 * d[i + 1] + .15 * d[i + 2]; let sum = 0, n = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { sum += lum((y * w + x) * 4); n++; }
+    const mean = Math.max(1, sum / n);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = (y * w + x) * 4, k = lum(i) / mean; for (let j = 0; j < 3; j++) d[i + j] = Math.min(255, T[j] * k); } }
+  cx.putImageData(D, 0, 0); const t = src.clone(); t.source = new (THREE.TextureSource || THREE.Source)(cv); t.needsUpdate = true; RC.set(id, t); return t;     // свой источник: clone() делит картинку с исходной текстурой
 }
+function recolor(scene, kit) { scene.traverse(o => { if (o.isMesh && o.material.map) o.material.map = recolorTex(o.material.map, kit.recolor, kit.grid); }); }
 function cutAbove(scene, cut) {     // убрать часть меша (нимб у демонов): треугольники материала mat выше доли above его высоты в мире
   scene.updateMatrixWorld(true); const v = new THREE.Vector3();
   scene.traverse(o => { if (!o.isMesh) return; const c = cut.find(x => x.mat === o.material.name); if (!c) return;
@@ -92,8 +92,9 @@ const PART = {
 };
 function attachParts(root, obj, kit, mats) {     // kit.attach: [{ p: вид детали, bone, at: [x, y, z] — смещение от кости в осях модели, м; rot — поворот в осях модели; s — размер; c — цвета }]
   root.updateMatrixWorld(true); const v = new THREE.Vector3();
-  for (const a of kit.attach) { const bone = byName(obj, a.bone); if (!bone || !PART[a.p]) continue; const grp = new THREE.Group();
-    for (const [geo, col, pos, sc, two, glow] of PART[a.p](a.c || [])) { const m = new THREE.MeshLambertMaterial({ color: col, side: two ? THREE.DoubleSide : THREE.FrontSide }); if (glow) m.emissive.set(col); mats.push(m);
+  for (const a of kit.attach) { const bone = byName(obj, a.bone), kw = a.p.startsWith('kw:') && kkPart(a.p.slice(3)); if (!bone || !(PART[a.p] || kw)) continue; const grp = new THREE.Group();     // kw:<меш> — деталь из kk_weapons.glb
+    if (kw) { mats.push(kw.material); grp.add(kw); }
+    for (const [geo, col, pos, sc, two, glow] of kw ? [] : PART[a.p](a.c || [])) { const m = new THREE.MeshLambertMaterial({ color: col, side: two ? THREE.DoubleSide : THREE.FrontSide }); if (glow) m.emissive.set(col); mats.push(m);
       const me = new THREE.Mesh(geo, m); me.position.set(...pos); if (sc) Array.isArray(sc) ? me.scale.set(...sc) : me.scale.setScalar(sc); me.castShadow = true; grp.add(me); }
     bone.getWorldPosition(v); root.worldToLocal(v); grp.position.copy(v).add(new THREE.Vector3(...(a.at || [0, 0, 0]))); grp.scale.setScalar(a.s || 1); if (a.rot) grp.rotation.set(...a.rot);
     root.add(grp); grp.updateMatrixWorld(true); bone.attach(grp); }     // в позе покоя ставим в осях модели, потом крепим к кости с тем же положением
@@ -103,6 +104,7 @@ export function loadActor(key, kit) {
   if (lib.has(key)) return lib.get(key);
   const u = urlOf(kit.src || key); if (!u) { lib.set(key, null); return null; }     // src — другой файл модели (вариант с перекраской)
   const p = (async () => {
+    if (kit.attach && kit.attach.some(a => a.p.startsWith('kw:'))) await loadKkWeapons();     // детали из набора оружия нужны до сборки
     const g = await ld().loadAsync(u), clips = [...g.animations, ...(kit.anims === 'kk' ? await loadKk() : [])];
     for (const [nm, [t0, t1]] of Object.entries(kit.split || {})) { const c = clips[0]; if (c) clips.push(THREE.AnimationUtils.subclip(c, nm, Math.round(t0 * 30), Math.round(t1 * 30), 30)); }     // одна склейка «поза-стойка-ходьба» → свои клипы
     g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.geometry.userData.shared = true; o.frustumCulled = false; const ms = Array.isArray(o.material) ? o.material : [o.material]; o.material = ms.map(m => new THREE.MeshLambertMaterial({ name: m.name, map: m.map || null, color: m.color ? m.color.clone() : 0xffffff, transparent: m.transparent, alphaTest: m.alphaTest || 0, emissive: m.emissive ? m.emissive.clone().multiplyScalar(m.emissiveIntensity ?? 1) : 0x000000, emissiveMap: m.emissiveMap || null }))[0]; } });
@@ -129,6 +131,7 @@ export function makeActor(key, kit, kind = 'actor') {
   const s = kit.height / src.h; obj.scale.setScalar(s); obj.position.y = -src.minY * s; if (kit.yaw) obj.rotation.y = kit.yaw;
   const mats = []; obj.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); mats.push(o.material); if (kit.tint) o.material.color.multiply(new THREE.Color(kit.tint)); } });
   for (const n of kit.hide || []) { const o = byName(obj, n); if (o) o.visible = false; }
+  if (kit.paint) for (const m of mats) if (m.map) m.map = recolorTex(m.map, kit.paint, kit.grid);     // перекраска одного экземпляра (цвет отряда)
   if (kit.attach) attachParts(root, obj, kit, mats);
   const mixer = new THREE.AnimationMixer(obj), names = new Map(src.clips.map(c => [clipName(c), c])), acts = new Map();
   const clipOf = a => { const b = a.endsWith('#') ? a.slice(0, -1) : a; for (const n of ACT[b] || [b]) if (names.has(n)) return names.get(n); return null; };
@@ -245,6 +248,21 @@ export function driveFoe(A, e, time, dt, cfg) {
     else if (!A.has(atkA) && e.state === 'wind') { const k = Math.min(1, Math.max(0, e.t) / Math.max(.15, C.wind || .5)); R.rotation.x = -.3 * k; R.position.z = -.15 * k; }
     else if (!A.has(atkA) && e.state === 'rec') { const k = Math.min(1, e.t / .25); R.rotation.x = .4 * (1 - k); R.position.z = .3 * (1 - k); } }
   A.update(dt);
+}
+export function soldierActor(cfg, type) {     // солдат отряда на модели KayKit (путь А, 2026-10-22): вид по cfg.actors.squad (тип или look), цвет отряда — в ячейках cells, своё оружие
+  const A0 = cfg.actors, T = cfg.squad.types[type]; if (!A0 || !A0.on || OFF || !T || !A0.squad) return null;
+  const S = A0.squad[type] || A0.squad[T.look] || A0.squad.veteran, kit = S && A0.kits[S.kit]; if (!kit || !actorReady(S.kit)) return null;
+  const paint = { ...(S.paint || {}) }; for (const c of S.cells || []) paint[c] = T.tint;
+  const A = makeActor(S.kit, { ...kit, paint, hide: [...(kit.hide || []), ...(S.hide || [])], gear: null }, 'ally');
+  A.setWeapon(S.w || 'sword', S.mat || 'iron'); if (S.off) A.setOff('s', S.off === 'shield' ? 'shield' : S.off, S.mat || 'iron', S.form);
+  return A;
+}
+export function driveAlly(A, en, a, T, dt, cfg) {     // спутник на готовой модели: анимация героя по «подставному» игроку (скорость — по сдвигу, удар — по замаху и отходу)
+  const AT = cfg.player.attackTime, k = dt > 0 ? 1 / dt : 0, pp = en.pp || (en.pp = { chain: 0, fin: false, heavy: 0, hand: 0, inv: 0, rollT: 0, chargeT: 0, dashT: 0, dashDur: 0 });
+  pp.vx = en.lx === undefined ? 0 : (a.x - en.lx) * k; pp.vz = en.lz === undefined ? 0 : (a.z - en.lz) * k; en.lx = a.x; en.lz = a.z;
+  pp.face = a.face; pp.dead = a.dead; pp.deadT = a.deadT; pp.state = a.state === 'wind' || a.state === 'rec' ? 'atk' : 'idle';
+  pp.atkT = a.state === 'wind' ? AT * .5 * Math.min(1, a.t / T.wind) : AT * (.5 + .5 * Math.min(1, a.t / T.recover));
+  A.flash(a.flash > 0 ? .8 : 0); driveHero(A, pp, dt, cfg);
 }
 export function disposeActor(A) { if (!A) return; A.mixer.stopAllAction(); A.mixer.uncacheRoot(A.obj); for (const m of A.mats) m.dispose(); }
 // ключ готовой модели героя (hero) или врага (foe) по виду; null — модели нет или готовые модели выключены

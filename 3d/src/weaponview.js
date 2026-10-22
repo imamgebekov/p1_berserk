@@ -61,6 +61,7 @@ export const weaponKinds = () => Object.keys(BUILD);
 let KW = null; const KWC = new Map();     // оружие KayKit (путь А, 2026-10-22): меши с цветом в вершинах (kk_weapons.glb), рукоять в нуле; материал красит только металл; нет меша — null, рисуется своё
 export function setKkWeapons(lib) { KW = lib; KWC.clear(); }
 export const kkReady = () => !!KW;
+export function kkPart(name) { const geo = KW && KW[name]; if (!geo) return null; const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true })); m.castShadow = true; return m; }     // деталь из набора (корона) для сборки боссов
 const lin = c => new THREE.Color(c);
 function kkGeo(name, mat) {
   const id = name + '|' + mat; if (KWC.has(id)) return KWC.get(id);

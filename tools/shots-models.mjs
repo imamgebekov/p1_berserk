@@ -41,13 +41,17 @@ try {
     const draft = { warlock: ['kk_mage', '#8a6ab0'], priest: ['kk_knight', '#fff2d0'], hunter: ['kk_rogue_hooded', '#9a8a8a'] };     // набросок пути А: все герои на KayKit, перекраска грубым оттенком
     add('heroes_a', heroIds.map(id => { const d = draft[id], m = d ? S.keyModel(d[0], d[1]) : S.heroModel(id); if (d) { const [w, off] = S.HERO_W[id]; m.setWeapon(w, 'steel'); if (off) m.setOff(off[0], off[0], off[1] || 'steel'); } return { m, label: id + ' · ' + (d ? d[0] + ' + оттенок' : A.heroes[id]) }; }));
     add('heroes_cubes', heroIds.map(id => ({ m: S.heroModel(id, null), label: id + ' · кубики' })));
-    add('squad', [...['guard', 'soldier', 'veteran'].map(t => ({ m: S.soldierModel(t), label: t + ' · кубики' })),
+    add('soldiers', ['guard', 'soldier', 'veteran', 'kad_xbow', 'royal_guard', 'irma', 'timka', 'kord', 'alaric'].map(t => ({ m: S.soldierModel(t), label: cfg.squad.types[t].name })));
+    add('kweapons', [{ m: S.heroModel('thorn'), label: 'thorn для размера' }, ...S.weapons().filter(k => k !== 'fists').map(k => ({ m: (() => { const w = S.kkWeaponModel(k); w.group.scale.multiplyScalar(.75); return w; })(), label: k, rot: 0 }))], { w: 2000, h: 520, elev: .15 });
+    add('squad', [...['guard', 'soldier', 'veteran'].map(t => ({ m: S.soldierModel(t), label: t })),
       ...['merchant', 'smith', 'captain', 'villager', 'villagerF', 'traveler'].map(t => ({ m: S.npcModel(t), label: t + ' · ' + ((A.npcs || {})[t] || 'кубики') }))]);
     const common = ['imp', 'hound', 'lunger', 'war_ghost', 'witch', 'archer', 'shield', 'shade', 'troll', 'brute', 'ghoul', 'golem', 'drowned'];
     add('foes', common.map(t => ({ m: S.foeModel(t), label: t + ' · ' + A.foes[t] })));
     add('foes_big', ['demon_guard', 'tidewyrm', 'namelessking', 'castellan', 'barghest', 'oldoak'].map(t => ({ m: S.foeModel(t), label: t + ' · ' + A.foes[t] })));
-    const bosses = Object.keys(cfg.enemies).filter(k => cfg.enemies[k] && cfg.enemies[k].boss && !A.foes[k]);
-    for (let i = 0; i < bosses.length; i += 10) add('bosses_cubes_' + (i / 10 + 1), bosses.slice(i, i + 10).map(t => ({ m: S.foeModel(t, true), label: t })));
+    const kbs = Object.keys(A.foes).filter(k => A.foes[k].startsWith('kb_') && cfg.enemies[k]);
+    for (let i = 0; i < kbs.length; i += 10) add('bosses_kb_' + (i / 10 + 1), kbs.slice(i, i + 10).map(t => ({ m: S.foeModel(t), label: t + ' · ' + A.foes[t] })));
+    const bosses = Object.keys(cfg.enemies).filter(k => cfg.enemies[k] && cfg.enemies[k].boss && (!A.foes[k] || A.foes[k].startsWith('kb_')));
+    if (/bosses_cubes/.test(only)) for (let i = 0; i < bosses.length; i += 10) add('bosses_cubes_' + (i / 10 + 1), bosses.slice(i, i + 10).map(t => ({ m: S.foeModel(t, true), label: t })));
     add('kits_raw', keys.filter(k => !/^q_(chicken|pigeon|cow|fox|stag|horse)$/.test(k)).map(k => ({ m: S.keyModel(k), label: k })), { h: 560, w: 2400 });
     const wk = S.weapons().filter(k => k !== 'fists');
     add('weapons', [{ m: S.heroModel('thorn'), label: 'thorn для размера' }, ...wk.map(k => { const w = S.weaponModel(k); return { m: w, label: k, rot: 0 }; })], { w: 2000, h: 520, elev: .15 });
