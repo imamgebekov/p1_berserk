@@ -8,7 +8,7 @@ import { COMBOS, comboReady, boosted } from '../3d/src/combos3d.js';
 import { applyStatus } from '../3d/src/status3d.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
-const WEAPON = { thorn: 'w_sword_iron', jay: 'w_bow_iron', vale: 'w_rapier_iron', irga: 'w_staff_iron', warlock: 'w_scythe_iron', priest: 'w_mace_iron', brand: 'w_greatsword_iron' }, X = CFG3.combos;
+const WEAPON = { thorn: 'w_sword_iron', jay: 'w_bow_iron', vale: 'w_rapier_iron', irga: 'w_staff_iron', warlock: 'w_scythe_iron', priest: 'w_mace_iron', brand: 'w_greatsword_iron', hunter: 'w_sword_iron' }, X = CFG3.combos;
 function mk(hero) {
   const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.weather.force = 'clear'; cfg.enemies.roam.on = false;
   const W = createWorld(cfg, () => .5); W.hero = hero; W.lv = 30; W.player.x = 300; W.player.z = 0; W.player.face = 0; W.player.inv = 1e9;
@@ -48,7 +48,11 @@ const CASE = {
   brandrage: { setup: W => ({ e: foe(W, 0, 2.5) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, now: true },     // Клеймёный (4.17)
   powder: { setup: W => ({ e: foe(W, 0, 7) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.2, time: .9 },
   ironhowl: { setup: W => ({ e: foe(W, 5.6, 0) }), m: (W, c) => hurt(c.e), better: (a, b) => a > 0 && b === 0, now: true },
-  darkpain: { setup: W => ({ e: foe(W, 0, 2.5) }), pre: W => { W.player.hp = W.player.maxhp * .3; }, m: W => W.player.hp, better: (a, b) => a > b + 1, now: true }
+  darkpain: { setup: W => ({ e: foe(W, 0, 2.5) }), pre: W => { W.player.hp = W.player.maxhp * .3; }, m: W => W.player.hp, better: (a, b) => a > b + 1, now: true },
+  glaivecut: { setup: W => ({ e: foe(W, 2.5, 0) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, now: true },     // Бесогон (Г8): враг сбоку — клинок летит мимо, удар хаоса достаёт
+  burnmark: { setup: W => ({ e: foe(W, 0, 14) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, time: 1.2 },     // печать — впереди, враг дальше неё
+  demonfall: { setup: () => ({}), m: W => W.abuf.morph || 0, better: (a, b) => a > b * 1.3, now: true },
+  demonsight: { setup: () => ({}), m: W => (W.abuf.beam ? W.abuf.beam.t : 0), better: (a, b) => a > b * 1.4, now: true }
 };
 // прогон: с первым умением (связка) или без; первое бьёт в пустоту далеко, чтобы не трогать цели
 function trial(hero, combo, withA) {
@@ -71,7 +75,7 @@ for (const [hero, list] of Object.entries(COMBOS)) for (const c of list) {
   ok(!b.combo, `${c.name}: связка без первого умения`);
   ok(CASE[c.id].better(a.v, b.v), `${c.name}: нет усиления — со связкой ${a.v}, без ${b.v}`);
 }
-ok(n === 28, 'связок не 28: ' + n);
+ok(n === 32, 'связок не 32: ' + n);
 
 // окно закрывается; подсветка; числа умения не портятся
 { const W = mk('thorn'); foe(W, 2, 0); cast(W, 'charge'); ok(comboReady(W).some(q => q.id === 'whirl'), 'после рывка нет подсветки вихря');

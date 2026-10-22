@@ -51,6 +51,13 @@ export const HEROES = {
     kinds: ['greatsword', 'war_axe', 'halberd', 'hammer', 'sword', 'axe'], off: [], start: 'w_greatsword_rust',
     look: { cloth: '#2a2a30', cape: '#3a0e12', hair: '#141414', legs: '#202024', shoulder: true, hood: false, quiver: false, capeLen: 1.05 },
     open: true
+  },
+  hunter: {     // Бесогон, охотник на демонов (Г8): два клинка, рывок, двойной прыжок, огненный взор, облик демона; Хаос, Месть, Скверна
+    name: 'Бесогон', role: 'Охотник на демонов',
+    text: 'Взял в себя частицу демона, чтобы бить демонов. Два клинка, рывок сквозь врагов, двойной прыжок и огненный взор; на время сам становится демоном — сильнее и быстрее. Мечи, топоры, серпы, тесаки и кинжалы; во второй руке — второй клинок.',
+    kinds: ['sword', 'axe', 'sickle', 'knife', 'dagger'], off: ['sword', 'axe', 'sickle', 'knife', 'dagger'], start: 'w_sword_rust',
+    look: { cloth: '#24261e', cape: '#1e3a14', hair: '#101010', legs: '#1c1c18', shoulder: true, hood: false, quiver: false, capeLen: .6 },
+    open: true
   }
 };
 export const HERO_IDS = Object.keys(HEROES);
@@ -64,4 +71,4 @@ export const heavyFor = (hero, it) => !!it && !!it.slot && it.slot !== 'weapon' 
 export const canOff = (hero, it) => !!it && (it.slot === 'offhand' || it.slot === 'weapon') && heroOf(hero).off.includes(it.kind);
 export const dualOf = hero => heroOf(hero).off.some(k => k !== 'shield');
 // названия видов оружия героя для карточки («меч, топор, …»)
-export const NOT_FOR = { thorn: 'Не для Торна', vale: 'Не для Вейла', jay: 'Не для Сойки', irga: 'Не для Ирги', warlock: 'Не для Морока', priest: 'Не для Жреца', brand: 'Не для Клеймёного' };
+export const NOT_FOR = { thorn: 'Не для Торна', vale: 'Не для Вейла', jay: 'Не для Сойки', irga: 'Не для Ирги', warlock: 'Не для Морока', priest: 'Не для Жреца', brand: 'Не для Клеймёного', hunter: 'Не для Бесогона' };

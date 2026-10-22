@@ -67,6 +67,36 @@ export const NEW_ACTIVES = {
     L(2, 'ir_xvoid', 'Бездна', 'nova', 'shadow', 'fear', '', { k: 1.6 }),
     L(2, 'ir_xplague', 'Мор', 'cloud', 'venom', 'poison', '', { k: 2 })
   ],
+  hunter: [     // Бесогон, охотник на демонов (Г8): Хаос — клинки в ближнем бою, Месть — печати и защита, Скверна — огонь и взор
+    L(0, 'dh_slash', 'Рассечение', 'cone', 'steel', 'bleed', 'lorc/sword-slice', { k: 1.2 }),
+    L(0, 'dh_prey', 'Азарт охоты', 'buff', 'fire', null, 'lorc/run', { stat: 'spd' }),
+    L(0, 'dh_annihil', 'Истребление', 'strike', 'shadow', 'crack', 'lorc/sword-wound', { k: 1.3 }),
+    L(0, 'dh_whirl', 'Круговорот клинков', 'nova', 'steel', 'bleed', 'lorc/spinning-blades'),
+    L(0, 'dh_throw', 'Шквал клинков', 'bolt', 'steel', null, 'lorc/thrown-daggers', { n: 3, spread: 30 }),
+    L(0, 'dh_essence', 'Сущность хаоса', 'buff', 'shadow', null, 'lorc/aura', { stat: 'crit' }),
+    L(0, 'dh_lunge', 'Выпад скверны', 'dash', 'fire', 'burn', 'lorc/sprint'),
+    L(1, 'dh_spikes', 'Шипы демона', 'buff', 'steel', null, 'lorc/spiked-armor', { stat: 'armor' }),
+    L(1, 'dh_vengeance', 'Метка мщения', 'mark', 'fire', null, 'lorc/targeted', { k: 1.1 }),
+    L(1, 'dh_soul', 'Осколок души', 'heal', 'shadow', null, 'lorc/soul-vessel'),
+    L(1, 'dh_silence', 'Печать немоты', 'zone', 'shadow', 'stun', 'lorc/rune-stone', { k: 1.1 }),
+    L(1, 'dh_tether', 'Печать цепей', 'pull', 'shadow', 'slow', 'lorc/chain', { k: 1.2 }),
+    L(1, 'dh_misery', 'Печать страдания', 'zone', 'shadow', 'fear', 'lorc/screaming'),
+    L(1, 'dh_veil', 'Покров скверны', 'ward', 'fire', null, 'lorc/checked-shield'),
+    L(1, 'dh_infernal', 'Удар инферно', 'zone', 'fire', 'burn', 'lorc/fire-zone', { k: 1.3 }),
+    L(2, 'dh_felbolt', 'Сгусток скверны', 'bolt', 'fire', 'burn', 'lorc/fire-ball'),
+    L(2, 'dh_gaze', 'Взгляд бездны', 'strike', 'shadow', 'fear', 'lorc/eye-target', { range: 10, cone: 60 }),
+    L(2, 'dh_burn', 'Пламя скверны', 'field', 'fire', null, 'lorc/flame'),
+    L(2, 'dh_torment', 'Мучение', 'mark', 'shadow', null, 'lorc/eclipse'),
+    L(2, 'dh_shards', 'Залп осколков', 'bolt', 'shadow', null, 'lorc/shards', { n: 5, spread: 50, k: .6 }),
+    L(2, 'dh_rage', 'Гнев демона', 'buff', 'fire', null, 'lorc/enrage', { stat: 'dmg' }),
+    L(2, 'dh_blast', 'Взрыв скверны', 'nova', 'fire', 'burn', 'lorc/explosion-rays'),
+    L(0, 'dh_xfirst', 'Первый удар', 'strike', 'shadow', 'crack', '', { k: 2.2 }),     // ряд 9 (предел 70)
+    L(0, 'dh_xstorm', 'Буря клинков', 'nova', 'steel', 'bleed', '', { k: 2 }),     // вершина ветки
+    L(1, 'dh_xhide', 'Шкура демона', 'ward', 'fire', null, '', { boost: 1.6 }),
+    L(1, 'dh_xsigil', 'Великая печать', 'zone', 'fire', 'stun', '', { k: 2 }),
+    L(2, 'dh_xpit', 'Пасть скверны', 'field', 'fire', null, '', { k: 2 }),
+    L(2, 'dh_xgaze', 'Взор бездны', 'bolt', 'shadow', 'fear', '', { k: 2.1, pierce: 4 })
+  ],
   brand: [     // Клеймёный рыцарь (Г4, 4.17): Клеймо — ярость и кровь, Сталь — защита, Тьма — тень и страх
     L(0, 'bk_rend', 'Разрыв', 'cone', 'blood', 'bleed', 'lorc/sword-slice', { k: 1.2 }),
     L(0, 'bk_frenzy', 'Неистовство', 'buff', 'blood', null, 'lorc/aura', { stat: 'spd' }),
@@ -225,14 +255,21 @@ export const OLD_BRANCH = {
   warlock: { hex: 0, souls: 0, doom: 0, drain: 1, pact: 1, summon: 2, terror: 2, grasp: 2 },
   priest: { mend: 0, hymn: 0, radiance: 0, sanctum: 1, penance: 1, smite: 2, vtouch: 2, hallow: 2 },
   brand: { cleaver: 0, fury: 0, cannon: 0, endure: 1, rush: 1, volley: 2, darkcut: 2, howl: 2 },
+  hunter: { chaos: 0, blades: 0, felrush: 0, sigil: 1, djump: 1, eyebeam: 2, glaive: 2, meta: 2 },
   jay: { frost: 0, firearrow: 0, hawk: 0, leap: 1, trap: 1, volley: 2, venom: 2, rain: 2 },
   vale: { dance: 0, execute: 0, fan: 0, blink: 1, shadow: 1, smoke: 1, parry: 2, bloodlet: 2 }
 };
 // прежние умения с прицелом по точке (кружок под мышью до удара)
-export const OLD_AIM = new Set(['cloud', 'meteor', 'blizzard', 'grasp', 'rain', 'hallow']);
+export const OLD_AIM = new Set(['cloud', 'meteor', 'blizzard', 'grasp', 'rain', 'hallow', 'sigil']);
 // запасной значок game-icons для умений 61–70 (4.06): значок похожего умения той же ветки (основной — рисованный, spellart3d.js)
 // значки Жреца (4.16): копия уже собранных значков игры (gicons.json), без новых загрузок
-export const ICON_SAME = { cleaver: 'w:greatsword', cannon: 'n:fireball', volley: 'n:volley', fury: 'n:rage', endure: 'n:wl_hp', rush: 'n:charge', darkcut: 'n:wl_bolt', howl: 'n:wl_howl',     // Клеймёный (4.17)
+export const ICON_SAME = { glaive: 'w:sickle', felrush: 'n:vl_rush', chaos: 'n:vl_slash', djump: 'n:th_jump', blades: 'n:vl_spin', eyebeam: 'n:jy_eye', sigil: 'n:wl_rite', meta: 'n:wl_imp',     // Бесогон (Г8)
+  dh_slash: 'n:th_rend', dh_prey: 'n:jy_run', dh_annihil: 'n:vl_sunder', dh_whirl: 'n:th_whirl', dh_throw: 'n:vl_throw', dh_essence: 'n:vl_crit', dh_lunge: 'n:vl_lunge', dh_spikes: 'n:wl_thorns', dh_vengeance: 'n:vl_mark',
+  dh_soul: 'n:wl_feed', dh_silence: 'n:ir_jinx', dh_tether: 'n:vl_hook', dh_misery: 'n:wl_terror', dh_veil: 'n:th_aegis', dh_infernal: 'n:ir_pillar', dh_felbolt: 'n:ir_ball', dh_gaze: 'n:ir_blind', dh_burn: 'n:ir_inferno',
+  dh_torment: 'n:wl_agony', dh_shards: 'n:jy_shrapnel', dh_rage: 'n:th_wrath', dh_blast: 'n:ir_combust',
+  dh_edge: 'w:sword', dh_twin: 'n:vl_dance', dh_cut: 'n:vl_slash', dh_dance: 'n:vl_spin', dh_rush: 'n:vl_rush', dh_first: 'n:vl_exec', dh_hide: 'n:th_skin', dh_hp: 'n:wl_hp', dh_sigil: 'n:wl_rite',
+  dh_leap: 'n:th_jump', dh_mend: 'n:wl_tap', dh_spite: 'n:wl_thorns', dh_eye: 'n:jy_eye', dh_beam: 'n:jy_eye', dh_glaive: 'w:sickle', dh_meta: 'n:wl_imp', dh_feast: 'n:vl_feast', dh_fel: 'n:ir_heat',
+  cleaver: 'w:greatsword', cannon: 'n:fireball', volley: 'n:volley', fury: 'n:rage', endure: 'n:wl_hp', rush: 'n:charge', darkcut: 'n:wl_bolt', howl: 'n:wl_howl',     // Клеймёный (4.17)
   bk_rend: 'n:th_cleave', bk_frenzy: 'n:th_lust', bk_brand: 'n:bloodlet', bk_wrath: 'n:th_madness', bk_hunger: 'n:wl_leech', bk_chase: 'n:charge', bk_execute: 'n:th_behead', bk_wall: 'n:th_wall', bk_bash: 'n:bash',
   bk_stand: 'n:th_stone', bk_quake: 'n:quake', bk_iron: 'n:th_iron', bk_hook: 'n:th_taunt', bk_guard: 'n:th_stand', bk_bastion: 'n:th_rampart', bk_shade: 'n:vl_shadow', bk_drain: 'n:wl_tap', bk_void: 'n:wl_void',
   bk_dread: 'n:th_howl', bk_curse: 'n:ir_jinx', bk_eclipse: 'n:wl_gate', bk_ghost: 'n:wl_blight',
@@ -244,4 +281,4 @@ export const ICON_SAME = { cleaver: 'w:greatsword', cannon: 'n:fireball', volley
   pr_pain: 'n:ir_jinx', pr_blast: 'n:vl_shadow', pr_plague: 'n:wl_blight', pr_sear: 'n:ir_heat', pr_fiend: 'n:wl_void', pr_dread: 'n:wl_howl', pr_spike: 'n:doom',
   pr_will: 'n:wl_hp', pr_mend: 'n:wl_tap', pr_hymn: 'ui:bell', pr_rad: 'n:ir_blind', pr_well: 'ui:sparkle', pr_saint: 'n:th_aegis', pr_skin: 'n:th_iron', pr_sanct: 'offhand:shield', pr_pen: 'w:mace',
   pr_hp: 'n:wl_hp', pr_regen: 'p:potion', pr_stand: 'n:th_stand', pr_dark: 'n:vl_shadow', pr_touch: 'n:wl_bolt', pr_smite: 'n:ir_ignite', pr_hallow: 'n:th_aegis', pr_crit: 'ui:eye', pr_plague: 'n:wl_blight' };
-export const ICON_ALIAS = { bk_xberserk: 'bk_wrath', bk_xslayer: 'bk_execute', bk_xaegis: 'bk_guard', bk_xfortress: 'bk_quake', bk_xabyss: 'bk_void', bk_xdarkness: 'bk_eclipse', pr_xsalvation: 'pr_prayer', pr_xsun: 'pr_halo', pr_xsanctuary: 'pr_barrier', pr_xjudg: 'pr_aegis', pr_xvoid: 'pr_fiend', pr_xeclipse: 'pr_blast', th_xrift: 'th_rampart', th_xheaven: 'th_judg', th_xexecute: 'th_behead', th_xreaper: 'th_cleave', th_xfury: 'th_lust', th_xeclipse: 'th_howl', ir_xcomet: 'ir_pillar', ir_xsun: 'ir_wall', ir_xglacier: 'ir_cone', ir_xwinter: 'ir_glacier', ir_xvoid: 'ir_void', ir_xplague: 'ir_rot', wl_xwither: 'wl_agony', wl_xruin: 'wl_void', wl_xfeast: 'wl_tap', wl_xbloodstorm: 'wl_boil', wl_xhellfire: 'wl_fire', wl_xgate: 'wl_gate', jy_xlance: 'jy_pierce', jy_xdeadeye: 'jy_hunt', jy_xsnare: 'jy_net', jy_xwild: 'jy_bandage', jy_xbarrage: 'jy_thunder', jy_xskyfall: 'jy_peal', vl_xtempest: 'vl_flurry', vl_xdeathmark: 'vl_mark', vl_xvanish: 'vl_veil', vl_xumbra: 'vl_ambush', vl_xhemo: 'vl_hemo', vl_xsanguine: 'vl_dew' };
+export const ICON_ALIAS = { dh_xfirst: 'dh_annihil', dh_xstorm: 'dh_whirl', dh_xhide: 'dh_veil', dh_xsigil: 'dh_infernal', dh_xpit: 'dh_burn', dh_xgaze: 'dh_gaze', bk_xberserk: 'bk_wrath', bk_xslayer: 'bk_execute', bk_xaegis: 'bk_guard', bk_xfortress: 'bk_quake', bk_xabyss: 'bk_void', bk_xdarkness: 'bk_eclipse', pr_xsalvation: 'pr_prayer', pr_xsun: 'pr_halo', pr_xsanctuary: 'pr_barrier', pr_xjudg: 'pr_aegis', pr_xvoid: 'pr_fiend', pr_xeclipse: 'pr_blast', th_xrift: 'th_rampart', th_xheaven: 'th_judg', th_xexecute: 'th_behead', th_xreaper: 'th_cleave', th_xfury: 'th_lust', th_xeclipse: 'th_howl', ir_xcomet: 'ir_pillar', ir_xsun: 'ir_wall', ir_xglacier: 'ir_cone', ir_xwinter: 'ir_glacier', ir_xvoid: 'ir_void', ir_xplague: 'ir_rot', wl_xwither: 'wl_agony', wl_xruin: 'wl_void', wl_xfeast: 'wl_tap', wl_xbloodstorm: 'wl_boil', wl_xhellfire: 'wl_fire', wl_xgate: 'wl_gate', jy_xlance: 'jy_pierce', jy_xdeadeye: 'jy_hunt', jy_xsnare: 'jy_net', jy_xwild: 'jy_bandage', jy_xbarrage: 'jy_thunder', jy_xskyfall: 'jy_peal', vl_xtempest: 'vl_flurry', vl_xdeathmark: 'vl_mark', vl_xvanish: 'vl_veil', vl_xumbra: 'vl_ambush', vl_xhemo: 'vl_hemo', vl_xsanguine: 'vl_dew' };
