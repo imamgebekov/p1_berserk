@@ -442,6 +442,17 @@ const BASE = {
     rugColors: ['#7a2a24', '#3a4a6a', '#6a5a2a'], danger: [3, 6], banner: .6,
     bannerColors: ['#8a2a1a', '#2a3a6a', '#4a5a2a'], candle: .45, wall: .55, floor: .5 },
   dungeons: {
+    // 4.14: стили подземелий — floor, wall, cap (верх стен), bg (фон и туман), fogK (плотность тумана), hemi [небо, земля, сила] (общий свет),
+    // flame (огонь факелов), mist, mistA, ember, pillar (живой фон), glow { n — гроздей на зал, kind: crystal | mushroom | lava, color }
+    themes: { on: true, def: 'crypt', abyss: 'crypt',
+      by: { cellar_cooper: 'crypt', crypt_pogost: 'crypt', castle_ash_1: 'forge', castle_ash_2: 'forge', castle_ash_3: 'forge', castle_waste_1: 'ice', castle_waste_2: 'ice', castle_waste_3: 'ice',
+        inst_brod: 'crypt', inst_olkh: 'cave', inst_moss: 'temple', inst_pass: 'ice', inst_forge: 'forge', inst_tower: 'crypt', inst_dusk: 'temple', inst_barrow: 'cave', inst_nest: 'cave', inst_abbey: 'ice', raid_hand: 'forge' },
+      list: {
+        crypt: { name: 'склеп', floor: '#2c2622', wall: '#4a4038', cap: '#141010', bg: '#070504', fogK: 1, hemi: ['#6a5a50', '#1a1210', .9], flame: '#ffb050', mist: '#5a2616', mistA: .5, ember: '#ff8a3a', pillar: '#170f0c', glow: null },
+        cave: { name: 'зелёная пещера', floor: '#41603a', wall: '#557a48', cap: '#1e2e18', bg: '#1c3222', fogK: .4, hemi: ['#c4f4a8', '#2c4c26', 2.2], flame: '#d8ff9a', mist: '#6ad08a', mistA: .32, ember: '#c8ff9a', pillar: '#1a2a18', glow: { n: 3, kind: 'mushroom', color: '#8affb8' } },
+        ice: { name: 'ледяной грот', floor: '#9ab4c6', wall: '#6a8aa8', cap: '#2a3a4a', bg: '#18283a', fogK: .5, hemi: ['#dcf2ff', '#3a5068', 1.9], flame: '#bfe8ff', mist: '#a8d8ff', mistA: .3, ember: '#eef8ff', pillar: '#1c2a3a', glow: { n: 2, kind: 'crystal', color: '#9ee8ff' } },
+        forge: { name: 'кузня', floor: '#3a2a22', wall: '#5a3a2a', cap: '#1a0e08', bg: '#1a0904', fogK: .8, hemi: ['#ffb070', '#3a1a0a', 1.35], flame: '#ffb050', mist: '#ff6a2a', mistA: .55, ember: '#ffb050', pillar: '#241008', glow: { n: 2, kind: 'lava', color: '#ff5a10' } },
+        temple: { name: 'затопленный храм', floor: '#2e4a48', wall: '#3e5c5a', cap: '#14201e', bg: '#0c1a1c', fogK: .6, hemi: ['#9ae0d8', '#1a3434', 1.55], flame: '#8affe8', mist: '#4ad0c0', mistA: .38, ember: '#b8fff0', pillar: '#0e2020', glow: { n: 2, kind: 'crystal', color: '#5affe0' } } } },
     bg: { on: true, size: 110, mist: '#5a2616', mistA: .5, mistY: -.45, embers: 220, emberBox: 60, emberH: 9, emberUp: .5, emberS: .09, emberC: '#ff8a3a', pillar: '#170f0c', pillarMax: 300, pillarStep: 8, pillarChance: .3, depth: 7 },     // 4.13: живой фон вокруг залов (dungeonbg3d.js)
     reach: 1.8,           // на каком расстоянии от люка или лестницы появляется кнопка
     wall: .6, wallH: 1.4, // толщина и высота стен (низкие: камера смотрит сверху)

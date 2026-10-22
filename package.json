@@ -17,7 +17,9 @@
     "balance:heroes": "HB_SEEDS=30 node test/heroes-balance3d.mjs",
     "test:slow": "node test/world3d.mjs && node test/branches3d.mjs && node test/wanderer3d.mjs && node test/heroes-balance3d.mjs && node test/outer3d.mjs && node test/headless.mjs && node test/roam3d.mjs && node test/instances3d.mjs && FUN_MIN=10 FUN_HEROES=thorn,irga node test/fun3d.mjs && node test/endgame3d.mjs",
     "test:smoke": "node test/smoke3d.mjs",
-    "check": "npm test && npm run build && npm run test:smoke",
+    "check": "npm run test:par && npm run build && npm run test:smoke",
+    "check:serial": "npm test && npm run build && npm run test:smoke",
+    "test:par": "node tools/test-par.mjs",
     "bench:gpu": "node test/bench-gpu.mjs",
     "fun": "node test/fun3d.mjs"
   },

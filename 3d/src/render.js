@@ -5,6 +5,7 @@ import { firesOf } from './fires3d.js';
 import { buildDecor } from './decor.js';
 import { buildTown, stoneLook } from './town.js';
 import { makeDungeonBG } from './dungeonbg3d.js';
+import { themeOf } from './dungeontheme3d.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
 import { buildHeights, heightAt, waterDist, lakeR, streamDist } from './terrain3d.js';
 import { createAscii, OVERLAY } from './ascii3d.js';
@@ -552,7 +553,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   const surfaceObjs = [land, sea, riverGroup, sunGroup, rainGroup, ohGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
-  const dbg = makeDungeonBG(cfg); scene.add(dbg.group); let dbgMap = null;     // 4.13: живой фон подземелий
+  const dbg = makeDungeonBG(cfg); scene.add(dbg.group); let dbgMap = null, curTheme = null;     // 4.13: живой фон подземелий
   // второй этаж (2026-10-21): виден мир вокруг, как с первого этажа; этаж — над своим домом на высоте floors.lift
   let liftY = null;
   const floorL = W => { const L = W.levels && W.levels[W.lvl]; return L && L.map && L.map.floor ? L : null; };
@@ -566,7 +567,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (FL) views.get(id).group.position.y = floorBase(W, FL);
     const up = !L.def || !!FL; for (const o of surfaceObjs) o.visible = up;
     sun.visible = up; lantern.visible = !up;
-    if (!up) { scene.fog.color.set('#070504'); scene.background.set('#070504'); hemi.color.set('#6a5a50'); hemi.groundColor.set('#1a1210'); hemi.intensity = .9; }
+    curTheme = up ? null : themeOf(cfg, L.def);     // 4.14: стиль подземелья — свет и туман
+    if (!up) { const th = curTheme || { bg: '#070504', hemi: ['#6a5a50', '#1a1210', .9] }; scene.fog.color.set(th.bg); scene.background.set(th.bg); hemi.color.set(th.hemi[0]); hemi.groundColor.set(th.hemi[1]); hemi.intensity = th.hemi[2]; }
     lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts; fx.clear();
   }
   // ободок силуэта (V2c): край фигуры светлее (эмиссия по краю), ночью сильнее — героя и врагов видно в темноте
@@ -968,13 +970,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     if (W.lvl !== shownLvl || (views.get(W.lvl) && views.get(W.lvl).map !== W.map)) showLevel(W);
     const under = W.lvl !== 'surface' && !FL;
-    { const L = W.levels && W.levels[W.lvl]; dbg.group.visible = !!(under && L && L.def); if (dbg.group.visible) { if (dbgMap !== L.map) { dbgMap = L.map; dbg.setMap(L.map); } dbg.update(t, p.x, p.z, calm); } }
+    { const L = W.levels && W.levels[W.lvl]; dbg.group.visible = !!(under && L && L.def); if (dbg.group.visible) { if (dbgMap !== L.map) { dbgMap = L.map; dbg.setMap(L.map, curTheme); } dbg.update(t, p.x, p.z, calm); } }
     if (!under) { streamLand(cam.x, cam.z); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
     dome.position.set(cam.x, 0, cam.z);                              // небо — вокруг камеры (мир шире купола)
     { const k = actorKey(cfg, 'hero', W.hero); if ((k || '') !== (hero.key || '')) { const A = k && makeActor(k, kitOf(k), 'hero'); if (A || !k) { scene.remove(hero.group); if (hero.gltf) disposeActor(hero); disposeDeep(hero.group); hero = A || makeHero(); hero.key = k || ''; scene.add(hero.group); heroLook = null; rimKey = ''; if (shadowsOn) hero.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); } } }     // готовая модель героя пришла или герой сменился
     { const cp = W.ach && W.ach.cape, lk = lookKey(W.hero, W.inv, cp); if (lk !== heroLook) { heroLook = lk; hero.setLook(dressedLook(heroOf(W.hero).look, W.inv, cp)); } }     // облик по надетому и цвет плаща — награда подвига
     if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : 1, rain: WE.force === 'rain' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
-    scene.fog.density = (under ? cfg.view.fogDensity * (String(W.lvl).startsWith('up:') ? .5 : 2.2) : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog) / zoomC;     // 4.12: туман — на приближение, иначе отдаление темнит     // в дождь туман гуще     // на рассвете туман гуще
+    scene.fog.density = (under ? cfg.view.fogDensity * (String(W.lvl).startsWith('up:') ? .5 : 2.2) * (curTheme ? curTheme.fogK : 1) : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog) / zoomC;     // 4.12: туман — на приближение, иначе отдаление темнит     // в дождь туман гуще     // на рассвете туман гуще
     if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
     else if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток
       lastLight = W.light; const k = skyAt(W.light, cfg.daynight.sky);

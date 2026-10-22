@@ -29,7 +29,8 @@ export function makeDungeonBG(cfg) {
   for (let i = 0; i < pg.attributes.position.count; i++) { const k = .35 + .65 * (pg.attributes.position.getY(i) + 1); cols[i * 3] = k; cols[i * 3 + 1] = k; cols[i * 3 + 2] = k; }
   pg.setAttribute('color', new THREE.BufferAttribute(cols, 3));
   const pillars = new THREE.InstancedMesh(pg, new THREE.MeshBasicMaterial({ color: B.pillar, vertexColors: true, fog: false }), B.pillarMax); pillars.count = 0; group.add(pillars);
-  function setMap(M) {
+  function setMap(M, th) {
+    if (th) { MU.uC.value.set(th.mist); MU.uA.value = th.mistA; em.material.color.set(th.ember); pillars.material.color.set(th.pillar); }     // 4.14: стиль подземелья
     const b = M && M.bounds; let n = 0; if (!b) { pillars.count = 0; return; }
     const O = new THREE.Object3D(); let h = 2166136261;
     const rnd = () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };

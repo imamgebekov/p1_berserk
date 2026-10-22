@@ -5,6 +5,7 @@ import { buildContainers } from './containers.js';
 import { roomAt } from './map.js';
 import { paintMat, paintOn } from './paint3d.js';
 import { buildDecor, decorModel } from './decor.js';
+import { themeOf, glowParts } from './dungeontheme3d.js';
 import { dungeonDetails } from './details3d.js';
 
 const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
@@ -79,7 +80,7 @@ function buildFloorView(L, cfg) {
 }
 export function buildLevelView(L, cfg) {
   if (L.map.floor) return buildFloorView(L, cfg);
-  const M = L.map, D = cfg.dungeons, group = new THREE.Group();
+  const M = L.map, D = cfg.dungeons, group = new THREE.Group(), th = themeOf(cfg, L.def) || {};     // 4.14: стиль подземелья
   // пол: по прямоугольнику на комнату, с лёгкой «плиткой» из полос
   const floor = [], seams = [];
   const rings = [];     // круглые залы: швы кольцами и мозаика в центре
@@ -90,15 +91,15 @@ export function buildLevelView(L, cfg) {
     for (let x = r.x0 + 1.5; x < r.x1; x += 1.5) seams.push(box(.05, .01, d, x, .005, cz));
     for (let z = r.z0 + 1.5; z < r.z1; z += 1.5) seams.push(box(w, .01, .05, cx, .005, z));
   }
-  group.add(new THREE.Mesh(mergeGeometries(floor), mat('#2c2622', 'masonry')));
+  group.add(new THREE.Mesh(mergeGeometries(floor), mat(th.floor || '#2c2622', 'masonry')));
   if (seams.length && !paintOn()) group.add(new THREE.Mesh(mergeGeometries(seams), mat('#1a1614')));     // с материалами плиты рисует шейдер
   if (rings.length) group.add(new THREE.Mesh(mergeGeometries(rings), mat('#3a3029', 'masonry')));
   // стены одним мешем; сверху тёмный «срез», чтобы читалась толщина. Провалы — не стены; у круглых залов поверх заливки — гладкая линия стены
   const solid = M.blocks.filter(w => !w.pit), arc = (a, h, y) => { const L = Math.hypot(a.x1 - a.x0, a.z1 - a.z0), mx = (a.x0 + a.x1) / 2, mz = (a.z0 + a.z1) / 2, n = Math.hypot(mx - a.cx, mz - a.cz) || 1, t = D.wall; return new THREE.BoxGeometry(L + .06, h, t).rotateY(-Math.atan2(a.z1 - a.z0, a.x1 - a.x0)).translate(mx + (mx - a.cx) / n * t / 2, y, mz + (mz - a.cz) / n * t / 2); };
   const walls = solid.map(w => box(w.x1 - w.x0, D.wallH, w.z1 - w.z0, (w.x0 + w.x1) / 2, D.wallH / 2, (w.z0 + w.z1) / 2)).concat((M.arcs || []).map(a => arc(a, D.wallH, D.wallH / 2)));
-  group.add(new THREE.Mesh(mergeGeometries(walls), mat('#4a4038', 'masonry')));
+  group.add(new THREE.Mesh(mergeGeometries(walls), mat(th.wall || '#4a4038', 'masonry')));
   const caps = solid.map(w => box(w.x1 - w.x0, .04, w.z1 - w.z0, (w.x0 + w.x1) / 2, D.wallH + .02, (w.z0 + w.z1) / 2)).concat((M.arcs || []).map(a => arc(a, .04, D.wallH + .03)));
-  group.add(new THREE.Mesh(mergeGeometries(caps), new THREE.MeshBasicMaterial({ color: '#141010' })));
+  group.add(new THREE.Mesh(mergeGeometries(caps), new THREE.MeshBasicMaterial({ color: th.cap || '#141010' })));
   // провалы: чёрная пустота с каменной кромкой и багровым отсветом из глубины
   if ((M.pits || []).length) {
     const hole = [], rim = [], glow = [];
@@ -132,7 +133,8 @@ export function buildLevelView(L, cfg) {
   if (torches.length) group.add(new THREE.Mesh(mergeGeometries(torches), mat('#3a2a1a')));
   { const salt = [...String(M.level || '')].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7), det = dungeonDetails(M, cfg, salt);     // детали подземелья (T5)
     if (det.length) group.add(buildDecor({ decor: det }, null, null).group); }
-  const fl = flames.length ? new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })) : null; if (fl) group.add(fl);
+  const fl = flames.length ? new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: th.flame || '#ffb050' })) : null; if (fl) group.add(fl);
+  { const gp = glowParts(M, th, open); if (gp) group.add(new THREE.Mesh(mergeGeometries(gp), new THREE.MeshBasicMaterial({ color: th.glow.color, fog: false, toneMapped: false }))); }     // 4.14: кристаллы, грибы, лава — светятся сквозь туман
   for (const q of M.portals) { const ri = roomAt(M, q.x, q.z); group.add(stairs(q, ri >= 0 ? M.rooms[ri] : M.bounds)); }
   // двери: створка на петле у края проёма, открывается внутрь дальней комнаты
   const doorMat = mat('#5a3f28', 'auto', { plank: .25 }), bandMat = mat('#2a2018', 'metal'), doors = [];
