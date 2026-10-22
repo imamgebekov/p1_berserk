@@ -24,8 +24,10 @@ def node_mat(nd):
     M = np.eye(4); M[:3, :3] = R * s; M[:3, 3] = t; return M
 
 def bake(path):
-    g = json.load(open(path)); d = os.path.dirname(path)
-    bins = [open(os.path.join(d, b['uri']), 'rb').read() for b in g['buffers']]
+    d = os.path.dirname(path)
+    if path.endswith('.glb'):     # .glb: JSON и двоичный блок в одном файле
+        raw = open(path, 'rb').read(); n = struct.unpack('<I', raw[12:16])[0]; g = json.loads(raw[20:20 + n]); o = 20 + n; ln = struct.unpack('<I', raw[o:o + 4])[0]; bins = [raw[o + 8:o + 8 + ln]]
+    else: g = json.load(open(path)); bins = [open(os.path.join(d, b['uri']), 'rb').read() for b in g['buffers']]
     tex = {}
     P, N, C, I = [], [], [], []
     def walk(ni, M):
@@ -70,7 +72,11 @@ def write_glb(out, meshes):
 if __name__ == '__main__':
     src, out, names = sys.argv[1], sys.argv[2], sys.argv[3:]
     meshes = []
-    for n in names:
-        P, N, C, I = bake(os.path.join(src, n + '.gltf')); meshes.append((n, (P, N, C, I)))
+    for spec in names:     # имя[=файл:длина:рукоять] — переименовать, привести длину по y и поставить рукоять (доля от низа) в ноль
+        n, _, opt = spec.partition('='); f, ln, grip = (opt.split(':') + ['', '', ''])[:3] if opt else (n, '', '')
+        fp = os.path.join(src, f + '.gltf'); fp = fp if os.path.exists(fp) else os.path.join(src, f + '.glb')
+        P, N, C, I = bake(fp)
+        if ln: lo, hi = P[:, 1].min(), P[:, 1].max(); k = float(ln) / (hi - lo); c = (P[:, [0, 2]].max(0) + P[:, [0, 2]].min(0)) / 2; P = P.copy(); P[:, 0] -= c[0]; P[:, 2] -= c[1]; P[:, 1] -= lo + (hi - lo) * float(grip or 0); P *= k
+        meshes.append((n, (P, N, C, I)))
         print(f'{n}: {len(P)} вершин, {len(I) // 3} треуг., размер {np.round(P.max(0) - P.min(0), 2).tolist()}')
     write_glb(out, meshes); print(out, os.path.getsize(out) // 1024, 'КБ')

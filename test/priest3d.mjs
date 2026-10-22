@@ -15,7 +15,7 @@ const cast = (W, id) => { W.res = 1e4; return useAbility(W, ABILITIES.priest.fin
 ok(HEROES.priest && HEROES.priest.open && canWield('priest', BY_ID.w_mace_iron) && !canWield('priest', BY_ID.w_sword_iron), 'Жрец: нет героя или не то оружие');
 ok(ABILITIES.priest.length === 36, 'Жрец: умений ' + ABILITIES.priest.length);
 ok(CFG3.abilities.res.priest && CFG3.abilities.res.priest.name === 'Вера', 'Жрец: нет веры');
-ok(CFG3.actors.heroes.priest === 'q_cleric' && CFG3.actors.kits.q_cleric, 'Жрец: нет модели Cleric');
+ok(CFG3.actors.heroes.priest === 'kk_priest' && CFG3.actors.kits.kk_priest, 'Жрец: нет модели KayKit (kk_priest)');
 { const W = mk(); ok(heroRole(W) === 'heal', 'Жрец в группе — не лекарь'); }
 // Исцеление: лечит себя и бойца рядом, дальнего — нет
 { const W = mk(), p = W.player, a = spawnAlly(W, 'c_vale'), far = spawnAlly(W, 'c_jay'); a.x = p.x + 3; a.z = p.z; far.x = p.x + 30; far.z = p.z;

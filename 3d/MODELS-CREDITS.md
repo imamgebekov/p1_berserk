@@ -11,23 +11,16 @@
 - **KayKit Dungeon Pack 1.1 (Free)** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-dungeon-pack — знамёна (patternA, shield, thin; красные), малая бочка, ящики, меч со щитом, монеты, бутыль, настенный факел, колонна. Скачан 2026-10-21; цвет текстуры перенесён в вершины (`tools/bake-kk.py`) → `townkit.glb`.
 - **Quaternius Medieval Village MegaKit (Standard)** — Quaternius, https://quaternius.itch.io/medieval-village-megakit — повозка, ящик. Скачан 2026-10-21; цвет текстуры перенесён в вершины (`tools/bake-kk.py`) → `qkit.glb`.
 - **KayKit Character Animations 1.1** — Kay Lousberg, https://kaylousberg.itch.io/kaykit-character-animations — клипы Rig_Medium.
-- **Quaternius RPG Characters (Nov 2020)** — Quaternius, https://quaternius.com — Wizard, Cleric (из FBX в glTF).
-- **Quaternius Ultimate Monsters / Animated Animals / Modular Men / Modular Women** — Quaternius, через https://poly.pizza — Demon (flying), Ghost Skull, Yeti, Wolf, King, Farmer, Adventurer (женщина), Hooded Adventurer, Stag, Fox, Cow, Chicken, Pigeon, Horse.
-- **KayKit Adventurers** — Barbarian (кузнец); **Quaternius RPG Characters** — Warrior (капитан).
-- **Quaternius RPG Characters (Nov 2020)** — Rogue (Бесогон, Г8): скачан 2026-10-22 с https://opengameart.org/content/lowpoly-rpg-characters (`rpg_characters_-_nov_2020.zip`, 12,9 МБ, CC0). Из FBX в glTF через three.js (FBXLoader → GLTFExporter), текстура WebP 512, без кинжала и лишних клипов → `q_rogue.glb`.
+- **Quaternius Ultimate Monsters / Animated Animals** — Quaternius, через https://poly.pizza — Demon (flying), Ghost Skull, Yeti, Wolf, Stag, Fox, Cow, Chicken, Pigeon, Horse.
+- **KayKit Adventurers** — Barbarian (кузнец).
+- **KayKit Adventurers 2.0 (Free)** и **KayKit Skeletons 1.1 (Free)** — оружие и щиты (мечи, кинжал, топоры, лук, арбалет, посох, жезл, щиты; оружие скелетов). Скачаны 2026-10-22; цвет текстуры перенесён в вершины (`tools/bake-kk.py`) → `kk_weapons.glb`.
+- **Quaternius Ultimate Monsters** — Quaternius, https://quaternius.com/packs/ultimatemonsters.html (файлы — с https://poly.pizza) — Orc, Demon, Blue Demon, Fish, Dragon Evolved, Ghost, Mushroom King, Frog, Armabee Evolved, Alien, Dino, Hywirl, Monkroose, Ninja (`um_*.glb`). Скачаны 2026-10-22.
+- **Quaternius Ultimate RPG Items** — Quaternius, https://poly.pizza (CC0) — коса, копьё, двусторонний молот, двойной топор, корона. Скачаны 2026-10-22; цвет перенесён в вершины → `kk_weapons.glb` (`rpg_*`).
+- Варианты с перекраской (путь А, 2026-10-22): Морок, Жрец, Бесогон, короли, жители, солдаты отряда — модели KayKit с другими цветами; голем — йети Quaternius; боссы — модель KayKit или Ultimate Monsters + перекраска + свои детали.
+- **Quaternius RPG Characters (Nov 2020)** — Rogue (Бесогон, Г8): скачан 2026-10-22 с https://opengameart.org/content/lowpoly-rpg-characters (`rpg_characters_-_nov_2020.zip`, 12,9 МБ, CC0). Из FBX в glTF через three.js (FBXLoader → GLTFExporter), текстура WebP 512, без кинжала и лишних клипов → `q_rogue.glb`. Сейчас — запасной облик (в едином стиле Бесогон — kk_hunter).
 
-## CC BY 4.0 (автор в титрах)
-Со Sketchfab, https://sketchfab.com:
-- «Minataur Low Poly» — C. Anastasiadis (bagatir), /3d-models/minataur-low-poly-cf453c95639e49d58e4cd1637df85aee
-- «Goblin Ghoul» — rodrigobento, /3d-models/goblin-ghoul-a6c6fffee3d34823b6d87a7054782577
-- «Drugdör The Golem Animated» — Phons, /3d-models/drugdor-the-golem-animated-19c1855bdb2c4cdc89da2cfb64da48cf
-- «fishman» — PixelDynamix, /3d-models/fishman-26bb758a58b949eb8639e5338b939646
-- «Minotaur Berserker - Free Game-Ready Character» — Tim0, /3d-models/minotaur-berserker-free-game-ready-character-42da47ae59574ed5a6b86b49734294cc
-- «Skeleton Dragon» — LivindorCreation, /3d-models/skeleton-dragon-0ae92a30d2c242069acd61ed432f6c32
-- «Skeleton Lord» — bumstrum, /3d-models/none-a3f7b44275cf4c489ad62c535268ac16
-
-Изменения: сжатие, лишние клипы убраны, материалы переведены в Lambert, у «Skeleton Dragon» — specular-glossiness в metal-rough.
-Внимание: у «fishman» нет описания, у «Skeleton Dragon» имя меша похоже на модель из чужой игры — владелец решил брать.
+## CC BY 4.0
+Моделей CC BY больше нет: семь моделей Sketchfab заменены на CC0 (2026-10-22, путь А).
 
 ## Текстуры земли (CC0)
 - **Tiny Texture Pack 1 и 2** — Screaming Brain Studios, https://opengameart.org/content/tiny-texture-pack — Grass 12, Dirt 02, Stone 11.
