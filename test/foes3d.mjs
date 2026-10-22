@@ -38,7 +38,7 @@ const foe = (W, type, dx, dz = 0) => { const e = spawnEnemy(W, type, W.player.x 
   const W = mk(4); const b = W.map.buildings[0]; W.player.x = b.x0 - 6; W.player.z = b.z; W.proj.push({ x: b.x0 - 3, z: b.z + 1.5, vx: 10, vz: 0, dmg: 20, on: null, life: 3, from: 0, kind: 'arrow' }); const hp0 = W.player.hp;
   run(W, .8); ok(W.proj.length === 0 && W.ev.some(v => v.k === 'projend') && W.player.hp === hp0, 'стрела должна упасть у стены'); }
 { // стрела ранит союзника на пути
-  const W = mk(5); const bar = W.map.buildings.find(b => b.npc && b.npc.kind === 'captain'); W.player.x = bar.npc.x + 1; W.player.z = bar.npc.z; step(W, 1 / 60, {}); W.inv.ash = 999; ok(hireAlly(W, Object.keys(CFG3.squad.types)[0]) === 'ok', 'наём'); W.player.x = 36; W.player.z = 40; const a = W.allies[0]; a.x = 40; a.z = 40; const hp0 = a.hp;
+  const W = mk(5); const bar = W.map.buildings.find(b => b.npc && b.npc.kind === 'captain'); W.player.x = bar.npc.x + 1; W.player.z = bar.npc.z; step(W, 1 / 60, {}); W.inv.ash = 1e6; W.lv = Math.max(W.lv, 20); ok(hireAlly(W, Object.keys(CFG3.squad.types)[0]) === 'ok', 'наём'); W.player.x = 36; W.player.z = 40; const a = W.allies[0]; a.x = 40; a.z = 40; const hp0 = a.hp;     // 4.18д: наёмник — с 20-го, цены ×10
   W.proj.push({ x: 39.4, z: 40, vx: 12, vz: 0, dmg: 15, on: null, life: 2, from: 0, kind: 'arrow' }); step(W, 1 / 60, {}); ok(a.hp < hp0, 'союзник ранен стрелой'); }
 { // колдун: пятно с задержкой; кто ушёл, тот цел; кто остался, горит
   const W = mk(6); W.inv.eq.weapon = null; foe(W, 'witch', 9); let haz = null; const hp0 = W.player.hp;

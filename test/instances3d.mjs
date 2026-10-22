@@ -66,7 +66,7 @@ const lab = (type, only, f) => { const W = mk(7); const b = BL.find(q => q.type 
   enter(W, 'inst_brod'); const e = bossIn(W, 'gravekeeper'), t = W.enemies.find(q => !q.boss);
   ok(e && e.lvl === 60 && e.heroic && e.maxhp > CFG3.enemies.gravekeeper.hp * 1.6 * 2 && t && t.lvl === 60 && levelAt(W, 0, 0) === 60, 'героическая: босс и враги не 60-го уровня или слабы');
   W.drops.length = 0; killEnemy(W, e, 1); const own = W.drops.filter(d => BY_ID[d.id].boss === 'gravekeeper'), il = Math.max(...own.map(d => d.il));
-  ok(own.length >= 2 && il >= 60 + CFG3.instances.heroic.il, 'героическая: добыча не богаче'); travel(W, 'surface', 0, 4);
+  ok(own.length >= 2 && il >= 60 + CFG3.lootIl.dungeon.mini[0] + CFG3.instances.heroic.il, 'героическая: добыча не богаче'); travel(W, 'surface', 0, 4);     // 4.20: уровень вещи от героя (первый босс Брода — промежуточный)
   ok(setHeroic(W, 'inst_brod', false), 'героическая не выключилась'); enter(W, 'inst_brod'); ok(bossIn(W, 'boneshepherd').lvl === 14, 'после выключения уровень не 14'); }
 // ---------- 5. бой: герой-бот и отряд против каждого босса ----------
 const KIT = { weapon: 'w_sword_black', body: 'a_body_plate_black', head: 'a_head_helm_black', boots: 'a_boots_greaves_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' };
