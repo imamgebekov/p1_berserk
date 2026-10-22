@@ -15,6 +15,7 @@ ok(minL < .05 && maxL > .95, `есть настоящая ночь и день: 
 ok(Math.abs(lightOf(10, D) - lightOf(10 + D.len, D)) < 1e-9, 'сутки периодичны'); ok(phaseOf(-5, D) >= 0 && phaseOf(-5, D) < 1, 'фаза при отрицательном времени');
 ok(/^\d\d:\d\d$/.test(clockText(123, D)) && clockText(0, { ...D, start: 0 }) === '06:00', 'часы: ' + clockText(0, { ...D, start: 0 }));
 ok(mix('#000000', '#ffffff', .5) === '#808080' && mix('#102030', '#102030', .3) === '#102030', 'смешение цветов');
+{ const a = skyAt(.5, D.sky), b = skyAt(1, D.sky), r = h => parseInt(h.slice(1, 3), 16) - parseInt(h.slice(5, 7), 16); ok(r(a.dome) > r(b.dome) + 20, 'рассвет и закат не розово-оранжевые (4.18г): ' + a.dome); }
 for (const L of [0, .3, 1]) { const k = skyAt(L, D.sky); ok(/^#[0-9a-f]{6}$/.test(k.fog) && /^#[0-9a-f]{6}$/.test(k.sun) && k.hemiI > 0 && k.sunI > 0, 'небо при ' + L); }
 ok(skyAt(0, D.sky).hemiI + skyAt(0, D.sky).sunI < skyAt(1, D.sky).hemiI + skyAt(1, D.sky).sunI && skyAt(0, D.sky).fog === D.sky.night.fog && skyAt(1, D.sky).fog === D.sky.day.fog, 'ночь темнее дня');
 

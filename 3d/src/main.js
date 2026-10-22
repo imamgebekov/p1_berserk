@@ -13,7 +13,7 @@ import { createQuests } from './questsui.js';
 import { ensureAudio, setVolume, setUserMix, setMuted, isMuted, suspendAudio, setAmbient, sfx, setScene, tickAudio, audioStats, setOwnMusicOn } from './audio3d.js';
 import { loadOwn, onOwnChange, ownIcon, ownMusic, ownIconCount, setOwnIcon, clearOwnIcon, clearOwnIcons, addOwnMusic, clearOwnMusic, player as ownPlayer } from './custom3d.js';
 import { mixOf } from './soundscape3d.js';
-import { clockText } from './daynight.js';
+import { clockText, lightOf, phaseOf, mix } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLines, questMarks, questMark, questsOf } from './quests3d.js';
 import { eventLine, eventAt } from './events3d.js';
@@ -741,6 +741,10 @@ const comboEl = $('combo'), statusRow = $('statusRow');
 let lastCombo = 0, lastSt = '', hudT = 1, hudP = false;
 $('smithJournal').addEventListener('click', () => { smith.close(); journal.open(); });
 const hpFill = $('hpFill'), hpGhost = $('hpGhost'), hpTxt = $('hpTxt'), hudLv = $('hudLv'), hudAsh = $('hudAsh'), hudTime = $('hudTime');
+// диск времени (4.18г, просьба владельца): сутки по кругу — день, рассвет и закат, ночь; диск крутится, метка сверху — сейчас
+const dialEl = (() => { const D = cfg.daynight, st = []; for (let i = 0; i <= 48; i++) { const ph = i / 48, L = lightOf((ph - D.start + 1) % 1 * D.len, D), c = L < .5 ? mix('#1c2650', '#f08a5a', L * 2) : mix('#f08a5a', '#f6d77a', (L - .5) * 2); st.push(`${c} ${(ph * 360).toFixed(1)}deg`); }
+  hudTime.textContent = ''; const d = document.createElement('span'), i = document.createElement('i'); d.className = 'dial'; i.style.background = `conic-gradient(${st.join(',')})`; d.append(i); hudTime.append(d); return i; })();
+function timeDial(W) { const ph = phaseOf(W.t, cfg.daynight), txt = `${clockText(W.t, cfg.daynight)} · ${W.night ? 'ночь' : 'день'}`; dialEl.style.transform = `rotate(${(-ph * 360).toFixed(1)}deg)`; hudTime.title = txt; hudTime.setAttribute('aria-label', 'Время: ' + txt); }
 // прицел умения по площади (2026-10-20, просьба владельца): клавиша — кружок под мышью; клик или та же клавиша — удар; правый клик или Esc — отмена
 let aiming = null, aimCancel = false, atkHold = false;
 function aimStep(inp) {
@@ -890,7 +894,7 @@ function frame(now) {
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; const k = `scaleX(${Math.max(0, W.player.hp / W.player.maxhp)})`; hpFill.style.transform = k; hpGhost.style.transform = k; hpTxt.textContent = Math.ceil(W.player.hp); }     // след потерянного здоровья догоняет с задержкой (шаг 5)
-  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; hudLv.textContent = `Ур. ${W.lv}${W.ng ? ` · круг ${W.ng + 1}` : ''}`; setIconText(hudAsh, 'ash', String(W.inv.ash)); hudAsh.title = 'Пепел'; setIconText(hudTime, W.night ? 'moon' : 'sun', clockText(W.t, cfg.daynight)); xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
+  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; hudLv.textContent = `Ур. ${W.lv}${W.ng ? ` · круг ${W.ng + 1}` : ''}`; setIconText(hudAsh, 'ash', String(W.inv.ash)); hudAsh.title = 'Пепел'; timeDial(W); xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
 }
 requestAnimationFrame(loop);
