@@ -36,7 +36,7 @@ import { achFresh, achEvents, achTick } from './achieve3d.js';
 import { abyssTick } from './abyss3d.js';
 import { ngMul } from './ng3d.js';
 import { lightOf, isNight } from './daynight.js';
-import { rollElite, makeChief, eliteOnHit, eliteOnDeath, eliteTick, hasAff, affOf, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall } from './foes3d.js';
+import { rollElite, makeChief, eliteOnHit, eliteOnDeath, eliteTick, hasAff, affOf, rangedMove, rangedFire, updateFoes, foeAI, guardMul, turnTo, hitsWall, smartFoes } from './foes3d.js';
 import { applyStatus, tickEnemy, tickPlayer, applyPlayer, cleansePlayer, speedMul, isStunned, rainK } from './status3d.js';
 import { tickZones, isWet } from './elements3d.js';
 import { weaponMix, gemDropOf, weaponElement, magicDropOf, armorGems } from './stones3d.js';
@@ -714,6 +714,24 @@ function updatePlayer(W, dt, input) {
   W.inside = insideOf(W.map, p.x, p.z);
 }
 
+// Г9: шаг к цели; рядом с целью другой враг впереди — обходит его сбоку (встают кольцом, а не в очередь), только при отряде
+function approach(W, e, C, tx, tz, spd, dt) {
+  const S = smartFoes(W), gx = tx - e.x, gz = tz - e.z, gd = len(gx, gz) || 1e-6; let ux = gx / gd, uz = gz / gd;
+  if (S && S.ring && gd < 5 && W.allies.some(a => !a.dead && !a.guest)) for (const o of W.enemies) {     // только при отряде: в одиночку бой прежний
+    if (o === e || o.dead || o.boss) continue; const ox = o.x - e.x, oz = o.z - e.z, od = len(ox, oz);
+    if (od < S.ring + C.radius && ox * ux + oz * uz > .3 * od && len(o.x - tx, o.z - tz) < gd) { const sg = e.id & 1 ? 1 : -1, vx = ux * .45 + uz * sg, vz = uz * .45 - ux * sg, n = len(vx, vz); ux = vx / n; uz = vz / n; break; }
+  }
+  slide(W.map, e, ux * spd * dt, uz * spd * dt, C.radius);
+}
+// Г9: раненый стрелок или колдун один раз отходит от ближнего противника; true — кадр занят отходом
+function retreat(W, e, C, spd, dt) {
+  const S = smartFoes(W), R = S && S.retreat; if (!R || !C.ranged || e.boss) return false;
+  if (!(e.retT > 0)) { if (e.retDone || e.hp > e.maxhp * R.below) return false; e.retDone = true; e.retT = R.t; }
+  e.retT -= dt; const p = W.player; let n = p.dead ? null : p, nd = n ? len(p.x - e.x, p.z - e.z) : 1e9;
+  for (const a of W.allies) { if (a.dead) continue; const d = len(a.x - e.x, a.z - e.z); if (d < nd) { nd = d; n = a; } }
+  if (!n || nd > R.near * 2) { e.retT = 0; return false; }
+  const ux = e.x - n.x, uz = e.z - n.z, u = len(ux, uz) || 1e-6; e.face = Math.atan2(-ux, -uz); slide(W.map, e, ux / u * spd * dt, uz / u * spd * dt, C.radius); return true;
+}
 function updateEnemies(W, dt) {
   const p = W.player, E = W.cfg.enemies;
   for (const e of W.enemies) {
@@ -754,11 +772,12 @@ function updateEnemies(W, dt) {
       if (posted && wasAlert && !e.alert && !cool0) W.ev.push({ k: 'lost', x: e.x, z: e.z, id: e.id });
       if (posted && !e.alert) { keepPost(W, e, C, spd, dt); continue; }
       if (C.ai && foeAI(W, e, C, d, dx, dz, dt, hops === 0 && insideOf(W.map, e.x, e.z) === W.inside)) continue;   // особое поведение: щит, фитиль, рывок, тень
+      if (e.alert && retreat(W, e, C, spd, dt)) continue;     // Г9: раненый стрелок отходит
       const al = threatPick(W, e, d, dt);                               // угроза (этап 4): бьёт опасного союзника; без угрозы — близкого
       if (al) {
         e.alert = true; e.tgt = al.id;
         const ax = al.x - e.x, az = al.z - e.z, ad = len(ax, az) || 1e-6; e.face = Math.atan2(ax, az);
-        if (ad > C.range * .85) slide(W.map, e, ax / ad * spd * dt, az / ad * spd * dt, C.radius);
+        if (ad > C.range * .85) approach(W, e, C, al.x, al.z, spd, dt);     // Г9: встают вокруг, а не в кучу
         else { e.cd -= dt; if (e.cd <= 0) { e.state = 'wind'; e.t = 0; } }
         continue;
       }
@@ -770,7 +789,7 @@ function updateEnemies(W, dt) {
         const g = goalOf(W, e, dt);                                   // к герою напрямик или к двери дома
         if (g !== p) { const gx = g.x - e.x, gz = g.z - e.z, gd = len(gx, gz) || 1e-6; e.face = Math.atan2(gx, gz); slide(W.map, e, gx / gd * spd * dt, gz / gd * spd * dt, C.radius); }
         else if (C.ranged) rangedMove(W, e, C, d, dx, dz, spd, dt);
-        else if (d > C.range * .85) { slide(W.map, e, dx / d * spd * dt, dz / d * spd * dt, C.radius); }
+        else if (d > C.range * .85) approach(W, e, C, p.x, p.z, spd, dt);
         else { e.cd -= dt; if (e.cd <= 0) { e.state = 'wind'; e.t = 0; } }
       }
     } else if (e.state === 'wind') {
@@ -778,7 +797,8 @@ function updateEnemies(W, dt) {
       if (e.t >= C.wind) {
         e.state = 'rec'; e.t = 0;
         const ta = e.tgt && W.allies.find(a => a.id === e.tgt && !a.dead);
-        if (ta) { if (len(ta.x - e.x, ta.z - e.z) <= C.range + .9) hurtAlly(W, ta, Math.round(C.damage * (e.dmgMul || 1) * auraMul(W, e)), e); }
+        if (ta && C.ranged && smartFoes(W)) rangedFire(W, e, C);     // Г9: стрелок бьёт спутника стрелой или порчей, а не «в упор»
+        else if (ta) { if (len(ta.x - e.x, ta.z - e.z) <= C.range + .9) hurtAlly(W, ta, Math.round(C.damage * (e.dmgMul || 1) * auraMul(W, e)), e); }
         else if (C.ranged) { if (!p.dead) rangedFire(W, e, C); }
         else if (!p.dead && d <= C.range + P_RADIUS(W) + .35 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z)) { const dm = Math.round(C.damage * (e.dmgMul || 1) * auraMul(W, e)); if (hurtPlayer(W, dm, e.x, e.z, e.onx || C.on, e)) eliteOnHit(W, e, dm); }
         W.ev.push({ k: 'strike', x: e.x, z: e.z, id: e.id });

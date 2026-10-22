@@ -10,7 +10,7 @@ export function initBoss(W, e, def) {
   const S = W.cfg.bosses.sig && W.cfg.bosses.sig[def.type];     // свои приёмы и вторая стадия (4.18б)
   if (S) def = { ...def, attacks: def.attacks.concat(S.attacks || []), drain: S.drain || 0, stage2: S.stage2 || null };
   e.boss = true; e.alert = false;
-  e.b = { def, extra: [], home: { x: e.x, z: e.z }, t: 0, cd: 1.5, atk: null, state: 'idle', done: new Set(), enraged: false, cds: {}, last: -1, dash: null, minions: [] };
+  e.b = { def, extra: [], home: { x: e.x, z: e.z }, t: 0, cd: 1.5, atk: null, state: 'idle', done: new Set(), enraged: false, cds: {}, last: -1, dash: null, minions: [], hunt: true };
 }
 // новый приём на первой фазе (этап 2 «круче», cfg.bosses.phaseMoves): первый из луж, кольца, рывка и луча, которого у босса нет (луч долгий — последним)
 const PHASE_MOVES = ['pools', 'nova', 'charge', 'beam'], MOVE_NAME = { beam: 'луч', pools: 'огненные лужи', nova: 'кольцо', charge: 'рывок' };
@@ -37,7 +37,7 @@ export function updateBoss(W, e, dt, spd) {
   const frac = e.hp / e.maxhp;
   b.def.phases.forEach((ph, i) => {
     if (b.done.has(i) || frac > ph.at) return;
-    b.done.add(i);
+    b.done.add(i); b.hunt = true;     // Г9: на новой фазе — снова можно прыгнуть на дальнего
     if (B.phaseMoves && b.done.size === 1 && !b.newMove) { const a = phaseMove(b.def, B.phaseMoves); if (a) { b.newMove = a.kind; (b.extra || (b.extra = [])).push(a); W.ev.push({ k: 'bossphase', name: C.name, what: 'новый приём: ' + MOVE_NAME[a.kind], x: e.x, z: e.z }); } }
     if (ph.enrage) { b.enraged = true; W.ev.push({ k: 'bossphase', name: C.name, what: 'ярость', x: e.x, z: e.z }); }
     if (ph.summon) summon(W, e, ph.summon.type, ph.summon.n);
@@ -89,8 +89,11 @@ export function updateBoss(W, e, dt, spd) {
   if (b.cd > 0) return;
   const opts = atkList(b).map((a, i) => ({ a, i })).filter(o => !b.cds[o.i] && d <= o.a.range && o.i !== b.last);
   if (!opts.length) { const m = atkList(b).map((a, i) => ({ a, i })).filter(o => !b.cds[o.i] && d <= o.a.range); if (!m.length) return; opts.push(m[0]); }
-  const pick = opts[Math.floor(W.rng() * opts.length)];
-  beginAttack(W, e, pick.a, pick.i, dx, dz, d);
+  const wt = opts.map(o => smartW(W, e, o.a)), sum = wt.reduce((q, v) => q + v, 0);     // Г9: веса по раскладке отряда (без отряда — все 1, как раньше)
+  let r = W.rng() * sum, pick = opts[opts.length - 1]; for (let k = 0; k < opts.length; k++) { if ((r -= wt[k]) < 0) { pick = opts[k]; break; } }
+  const far = (pick.a.kind === 'charge' || pick.a.kind === 'blink') && huntTarget(W, e);     // раз в фазу — на дальнего лекаря или стрелка
+  if (far) { b.hunt = false; const hx = far.x - e.x, hz = far.z - e.z, hd = len(hx, hz) || 1e-6; beginAttack(W, e, pick.a, pick.i, hx, hz, hd); W.ev.push({ k: 'bossHunt', x: far.x, z: far.z, id: far.id }); }
+  else beginAttack(W, e, pick.a, pick.i, dx, dz, d);
 }
 
 function beginAttack(W, e, a, i, dx, dz, d) {
@@ -118,7 +121,8 @@ function strikeAttack(W, e, a, dmgMul, C) {
   if (a.kind === 'meteor') { dropMeteors(W, e, a, dmgMul, C); b.state = 'rec'; b.t = 0; b.atk = null; return; }
   if (a.kind === 'safe') { safeBlast(W, e, a, dmgMul, C); b.state = 'rec'; b.t = 0; b.atk = null; return; }
   if (a.kind === 'blink') { W.ev.push({ k: 'bossblast', x: e.x, z: e.z, r: 1.5, kind: 'blink' }); const g = Math.atan2(a.x - e.x, a.z - e.z), D = len(a.x - e.x, a.z - e.z); if (D > 1.4) W.fx.slide(e, Math.sin(g) * (D - 1.4), Math.cos(g) * (D - 1.4), C.radius); }     // скачок: встаёт у метки
-  if (a.kind === 'pull') { const pull = q => { const qx = e.x - q.x, qz = e.z - q.z, d = len(qx, qz), m = Math.min(a.force, Math.max(0, d - C.radius - 1)); if (d <= a.r && m > 0) W.fx.slide(q, qx / d * m, qz / d * m, W.cfg.player.radius); }; if (!p.dead) pull(p); for (const al of W.allies) if (!al.dead) pull(al); a.x = e.x; a.z = e.z; a.r = a.inner; }     // притяжение: потом удар рядом с боссом
+  if (a.kind === 'pull') { const pull = q => { const qx = e.x - q.x, qz = e.z - q.z, d = len(qx, qz), m = Math.min(a.force, Math.max(0, d - C.radius - 1)); if (d <= a.r && m > 0) W.fx.slide(q, qx / d * m, qz / d * m, W.cfg.player.radius); }; if (!p.dead) pull(p); for (const al of W.allies) if (!al.dead) pull(al); a.x = e.x; a.z = e.z; a.r = a.inner;     // притяжение: потом удар рядом с боссом
+    const H = W.cfg.bosses.mech.pullHit; if (H) { W.ev.push({ k: 'bossPull', x: e.x, z: e.z }); b.atk = { kind: 'slam', wind: H, t: 0, mul: a.mul, r: a.inner, inner: 0, x: e.x, z: e.z, i: a.i, after: true }; return; } }     // Г9: удар — через pullHit с, успеть откатиться
   const dmg = Math.round(C.damage * a.mul * dmgMul);
   const inArea = (x, z) => { const d = len(x - a.x, z - a.z); return a.kind === 'nova' ? d <= a.r && d >= a.inner : d <= a.r; };
   W.ev.push({ k: 'bossblast', x: a.x, z: a.z, r: a.kind === 'cast' ? 10 : a.r, kind: a.kind });     // чтение бьёт весь зал — вспышка по размеру экрана
@@ -145,7 +149,7 @@ function dropPools(W, e, a, dmgMul, C) {
   const p = W.player, at = [...(p.dead ? [] : [p]), ...W.allies.filter(x => !x.dead && !x.guest)].slice(0, a.n);
   while (at.length < a.n) { const g = W.rng() * Math.PI * 2, r = 2 + W.rng() * 5; at.push({ x: e.x + Math.sin(g) * r, z: e.z + Math.cos(g) * r }); }
   W.bzones = W.bzones || [];
-  for (const q of at) { const g = W.rng() * Math.PI * 2, r = W.rng() * a.spread; W.bzones.push({ x: q.x + Math.sin(g) * r, z: q.z + Math.cos(g) * r, r: a.r, t: a.dur, dps: C.damage * a.mul * dmgMul, tick: 0, by: e.id, lvl: W.lvl, mv: a.mv }); }
+  for (const q of at) { const g = W.rng() * Math.PI * 2, r = W.rng() * a.spread; W.bzones.push({ x: q.x + Math.sin(g) * r, z: q.z + Math.cos(g) * r, r: a.r, t: a.dur, dps: C.damage * a.mul * dmgMul, tick: W.cfg.bosses.mech.poolFirst || 0, by: e.id, lvl: W.lvl, mv: a.mv, born: W.t }); }     // Г9: первый тик — не сразу
   W.ev.push({ k: 'bossPools', x: e.x, z: e.z, n: at.length });
 }
 // метеоры (4.18б): метки под героем и отрядом (и вокруг героя), через arm с — удар радиусом r; уйти с метки — без урона
@@ -153,7 +157,7 @@ function dropMeteors(W, e, a, dmgMul, C) {
   const p = W.player, src = p.dead ? e : p, at = [...(p.dead ? [] : [p]), ...W.allies.filter(x => !x.dead && !x.guest)].slice(0, a.n).map(q => ({ x: q.x, z: q.z }));
   while (at.length < a.n) { const g = W.rng() * TAU, r = 2 + W.rng() * a.around; at.push({ x: src.x + Math.sin(g) * r, z: src.z + Math.cos(g) * r }); }
   W.bzones = W.bzones || [];
-  for (const q of at) W.bzones.push({ x: q.x, z: q.z, r: a.rm, t: a.arm + .5, arm: a.arm, arm0: a.arm, hit: Math.round(C.damage * a.mul * dmgMul), dps: 0, tick: 0, by: e.id, lvl: W.lvl, met: true });
+  for (const q of at) W.bzones.push({ x: q.x, z: q.z, r: a.rm, t: a.arm + .5, arm: a.arm, arm0: a.arm, hit: Math.round(C.damage * a.mul * dmgMul), dps: 0, tick: 0, by: e.id, lvl: W.lvl, met: true, born: W.t });
   W.ev.push({ k: 'bossPools', x: e.x, z: e.z, n: at.length });
 }
 // укрытие (4.18б): удар по всему залу, кроме круга у босса — в круге без урона
@@ -198,6 +202,24 @@ function summon(W, e, type, n) {
     const m = W.fx.spawn(type, e.x + Math.sin(a) * 3.5, e.z + Math.cos(a) * 3.5);
     if (m) { m.alert = true; m.minion = true; b.minions.push(m); }     // помощник босса: без своих приёмов (этап 2 «круче»)
   }
+}
+
+// Г9 «босс читает отряд»: вес приёма по раскладке (без отряда — 1)
+function smartW(W, e, a) {
+  const S = W.cfg.bosses.smart, live = W.allies.filter(x => !x.dead && !x.guest); if (!S || !S.on || !live.length) return 1;
+  const pts = [...(W.player.dead ? [] : [W.player]), ...live], k = a.kind;
+  if (k === 'pools' || k === 'meteor' || k === 'nova') { let n = 0; for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) if (len(pts[i].x - pts[j].x, pts[i].z - pts[j].z) < 3) n++; return n >= 2 ? S.clump : 1; }     // стоят кучей — накрыть
+  if (k === 'pull') { const m = pts.reduce((q, u) => q + len(u.x - e.x, u.z - e.z), 0) / pts.length; return m > 7 ? S.spread : 1; }     // разбежались — стянуть
+  if (k === 'cast') { const t = live.find(x => W.cfg.squad.types[x.type].role === 'tank'); return !t || len(t.x - e.x, t.z - e.z) > 6 ? S.tank : 1; }     // защитник далеко — читать
+  if ((k === 'charge' || k === 'blink') && e.b.hunt && huntTarget(W, e)) return S.tank;
+  return 1;
+}
+// дальний лекарь или стрелок — цель охоты (раз в фазу); null — некого
+function huntTarget(W, e) {
+  const S = W.cfg.bosses.smart; if (!S || !S.on || !e.b.hunt) return null;
+  let best = null, bd = S.hunt;
+  for (const a of W.allies) { if (a.dead || a.guest || a.story) continue; const T = W.cfg.squad.types[a.type]; if (!(T.heal || T.ranged)) continue; const d = len(a.x - e.x, a.z - e.z); if (d > bd && !(W.fx.blocked && W.fx.blocked(e.x, e.z, a.x, a.z))) { bd = d; best = a; } }
+  return best;
 }
 
 function distSeg(x, z, ax, az, bx, bz) {

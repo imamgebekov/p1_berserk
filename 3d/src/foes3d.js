@@ -52,6 +52,9 @@ export function eliteOnDeath(W, e) {
   W.haz.push({ x: e.x, z: e.z, r: A.r, t: 0, delay: A.delay, dmg: Math.round(A.dmg * (e.dmgMul || 1)), on: ['burn', 1, 3, 4], by: 'elite' });
 }
 
+// Г9 «умные враги»: цель приёмов — тот, кого враг бьёт (спутник по угрозе), иначе герой; без отряда — всегда герой
+export const smartFoes = W => { const S = W.cfg.enemies.smart; return S && S.on ? S : null; };
+export function foeTgt(W, e) { if (!e.tgt || !smartFoes(W)) return W.player; const a = W.allies.find(x => x.id === e.tgt && !x.dead); return a || W.player; }
 // ---- дальний бой: держит дистанцию, замах, затем выстрел или заклинание ----
 export function rangedMove(W, e, C, d, dx, dz, spd, dt) {
   const R = C.ranged, [lo, hi] = R.keep, nx = dx / d, nz = dz / d;
@@ -63,7 +66,7 @@ export function rangedMove(W, e, C, d, dx, dz, spd, dt) {
 }
 
 export function rangedFire(W, e, C) {
-  const p = W.player, R = C.ranged, dmg = Math.round(C.damage * (e.dmgMul || 1));
+  const p = foeTgt(W, e), R = C.ranged, dmg = Math.round(C.damage * (e.dmgMul || 1));     // Г9: стрела и порча — в свою цель
   if (R.kind === 'arrow') {
     const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6;
     W.proj.push({ x: e.x + dx / d * .8, z: e.z + dz / d * .8, vx: dx / d * R.speed, vz: dz / d * R.speed, dmg, on: e.onx || C.on, life: C.range / R.speed + .5, from: e.id, kind: 'arrow' });
@@ -124,10 +127,11 @@ export function guardMul(W, e, C, o) {
 
 // погоня с особым поведением: true — кадр обработан здесь (общая погоня не нужна)
 export function foeAI(W, e, C, d, dx, dz, dt, see) {
-  const p = W.player;
+  const p = W.player, tg = foeTgt(W, e);
+  if (tg !== p) { dx = tg.x - e.x; dz = tg.z - e.z; d = len(dx, dz) || 1e-6; }     // Г9: приёмы — по своей цели
   if (e.state === 'aim') {                             // копейщик целится: лицо зафиксировано, полоса на земле
     e.t += dt;
-    if (e.t >= C.lunge.aim) { e.state = 'dash'; e.t = 0; e.dashLeft = e.tele && e.tele.mv ? Math.min(C.lunge.len, len(p.x - e.x, p.z - e.z) + .3) : C.lunge.len;     // прыжок-наскок (этап 2 «круче») — до героя, без перелёта
+    if (e.t >= C.lunge.aim) { e.state = 'dash'; e.t = 0; e.dashLeft = e.tele && e.tele.mv ? Math.min(C.lunge.len, len(tg.x - e.x, tg.z - e.z) + .3) : C.lunge.len;     // прыжок-наскок (этап 2 «круче») — до героя, без перелёта
       e.hitDone = false; W.ev.push({ k: 'lunge', x: e.x, z: e.z }); }
     return true;
   }
@@ -136,6 +140,7 @@ export function foeAI(W, e, C, d, dx, dz, dt, see) {
     slide(W.map, e, Math.sin(e.face) * stepLen, Math.cos(e.face) * stepLen, C.radius);
     const moved = len(e.x - x0, e.z - z0); e.dashLeft -= stepLen;
     if (!e.hitDone && !p.dead && len(p.x - e.x, p.z - e.z) < C.radius + W.cfg.player.radius + L.w * .5) { e.hitDone = true; hurtPlayer(W, Math.round(C.damage * L.mul * (e.dmgMul || 1)), e.x, e.z, e.onx || C.on, e); }
+    if (!e.hitDone && smartFoes(W)) for (const a of W.allies) if (!a.dead && len(a.x - e.x, a.z - e.z) < C.radius + .45 + L.w * .5) { e.hitDone = true; hurtAlly(W, a, Math.round(C.damage * L.mul * (e.dmgMul || 1)), e); break; }     // Г9: рывок задевает и спутника
     if (e.dashLeft <= 0 || moved < stepLen * .4) { e.state = 'rec'; e.t = 0; e.tele = null; e.lcd = L.cd; }
     return true;
   }
@@ -179,11 +184,13 @@ function blinkTo(W, e, C, B) {
 // howl — вой: стая рядом быстрее, pull — притягивает героя, skin — каменная кожа на половине здоровья, phase — сквозь тьму
 // (почти неуязвим и быстрее), ambush — прыжок за спину. true — кадр обработан здесь
 export function moveAI(W, e, C, d, dx, dz, dt) {
-  const M = C.move, p = W.player; if (!M || !W.cfg.enemies.moves || e.minion) return false;
+  const M = C.move, p = foeTgt(W, e), hero = p === W.player; if (!M || !W.cfg.enemies.moves || e.minion) return false;     // Г9: плевок и притяжение — по своей цели
   if (e.state === 'mcast') {
     e.t += dt; e.vx = e.vz = 0;
     if (e.t >= M.wind) { e.state = 'rec'; e.t = 0;
-      if (M.kind === 'pull' && !p.dead && len(p.x - e.x, p.z - e.z) <= M.max + 1) { W.ev.push({ k: 'pull', x: e.x, z: e.z, x2: p.x, z2: p.z }); const dd = len(p.x - e.x, p.z - e.z) || 1; if (hurtPlayer(W, Math.round(C.damage * M.mul * (e.dmgMul || 1)), p.x + (p.x - e.x), p.z + (p.z - e.z), null, e) !== false) { p.vx -= (p.x - e.x) / dd * M.force; p.vz -= (p.z - e.z) / dd * M.force; } } }     // увернулся — не тянет     // удар «из-за спины» героя толкает его к врагу
+      if (M.kind === 'pull' && !p.dead && len(p.x - e.x, p.z - e.z) <= M.max + 1) { W.ev.push({ k: 'pull', x: e.x, z: e.z, x2: p.x, z2: p.z }); const dd = len(p.x - e.x, p.z - e.z) || 1, dm = Math.round(C.damage * M.mul * (e.dmgMul || 1));
+        if (!hero) { hurtAlly(W, p, dm, { x: p.x + (p.x - e.x), z: p.z + (p.z - e.z) }); p.vx -= (p.x - e.x) / dd * M.force; p.vz -= (p.z - e.z) / dd * M.force; }
+        else if (hurtPlayer(W, dm, p.x + (p.x - e.x), p.z + (p.z - e.z), null, e) !== false) { p.vx -= (p.x - e.x) / dd * M.force; p.vz -= (p.z - e.z) / dd * M.force; } } }     // увернулся — не тянет     // удар «из-за спины» героя толкает его к врагу
     return true;
   }
   e.mcd = (e.mcd ?? (M.first ?? 1.5)) - dt; if (e.mcd > 0) return false;

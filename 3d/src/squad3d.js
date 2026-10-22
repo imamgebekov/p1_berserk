@@ -56,7 +56,8 @@ export function hurtAlly(W, a, dmg, e) {
 const liveOf = W => { const L = W.cfg.squad.live; return L && L.on ? L : null; };
 const roleOfT = T => (T.role === 'tank' ? 'tank' : T.role === 'heal' ? 'heal' : T.ranged || T.role === 'ranged' ? 'ranged' : 'melee');
 const hash = (a, k) => Math.abs(Math.sin((a + 1) * 12.9898 + k * 78.233) * 43758.5453) % 1;
-export function skillOf(W, a) { const L = liveOf(W); if (!L) return 1; if (a.skill == null) a.skill = L.skill[0] + (L.skill[1] - L.skill[0]) * hash(a.id, W.cfg.world.seed % 997); return a.skill; }
+export function skillOf(W, a) { const L = liveOf(W); if (!L) return 1; if (a.skill == null) { const h = hash(a.id, W.cfg.world.seed % 997), M = smartOf(W), lo = M && !a.lfg && !a.story && !a.guest ? Math.max(L.skill[0], M.hire) : L.skill[0]; a.skill = lo + (L.skill[1] - lo) * h; } return a.skill; }     // Г9: нанятый — не ниже hire
+const smartOf = W => { const L = liveOf(W); return L && L.smart && L.smart.on ? L.smart : null; };     // Г9 «как игрок»
 const reactOf = (W, a) => { const L = liveOf(W), k = skillOf(W, a); return L ? L.react[0] + (L.react[1] - L.react[0]) * (k - L.skill[0]) / Math.max(.01, L.skill[1] - L.skill[0]) : 0; };
 function say(W, a, kind) {
   const L = liveOf(W); if (!L || a.story || a.guest) return; const Q = L.say; W.sayT = W.sayT || 0;
@@ -138,7 +139,8 @@ export function squadCommand(W, cmd) {
 // удар спутника: урон, угроза, толчок, прерывание замаха; ranged — толчок слабее
 function allyHit(W, T, id, e, dmg, from, push = 1) {
   e.hp -= dmg; e.flash = .12; e.alert = true;
-  addThreat(W, e, id, dmg * (T.threat || 1)); if (e.b && T.role === 'tank') e.b.kick = true;     // защитник сбивает чтение босса (этап 5)
+  const al = W.allies.find(x => x.id === id), nk = al && !al.lfg ? Math.max(1, allyDmg(W, T) / Math.max(1e-6, allyDmgOf(W, al))) : 1;     // Г9: угроза нанятого — как у бота сбора
+  addThreat(W, e, id, dmg * (T.threat || 1) * nk); if (e.b && T.role === 'tank' && !smartOf(W)) e.b.kick = true;     // защитник сбивает чтение босса (этап 5); Г9 — умением «Пинок»
   const d = len(e.x - from.x, e.z - from.z) || 1, C = W.cfg.enemies[e.type], k = 3 * push / (C.scale > 1.2 ? 2.2 : 1); e.vx += (e.x - from.x) / d * k; e.vz += (e.z - from.z) / d * k;
   if (e.state === 'wind' && push >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: false, id: e.id, ally: true });
@@ -182,25 +184,55 @@ function tryTaunt(W, a, T) {
   for (const e of W.enemies) if (near(e)) taunt(W, e, a, U.t);
   a.tcd = U.cd; W.ev.push({ k: 'taunt', x: a.x, z: a.z, r: U.r, name: T.name });
 }
-// опасность под ногами (этап 5): лужа босса или луч (горит или вот-вот загорится) — куда уходить, иначе null
+// опасность под ногами (этап 5): лужа босса или луч (горит или вот-вот загорится) — куда уходить, иначе null.
+// Г9: замечает с задержкой по навыку; уходит и от замаха слама (кроме защитника), кольца (в «глаз» или наружу) и рывка (вбок)
 function dangerAway(W, a) {
-  if (liveOf(W)) { const r = reactOf(W, a); for (const h of W.haz) { if (h.t >= h.delay || h.t < r) continue; const ux = a.x - h.x, uz = a.z - h.z, d = len(ux, uz); if (d < h.r + .6) { say(W, a, 'dodge'); return d > 1e-3 ? { x: ux / d, z: uz / d } : { x: 1, z: 0 }; } } }     // Г7: круг атаки — прочь, когда заметил
-  for (const z of W.bzones || []) { if (z.lvl !== W.lvl) continue; const ux = a.x - z.x, uz = a.z - z.z, d = len(ux, uz); if (d < z.r + .6) return d > 1e-3 ? { x: ux / d, z: uz / d } : { x: 1, z: 0 }; }
+  const L = liveOf(W), M = smartOf(W), r = L ? reactOf(W, a) : 0, away = (ux, uz, d) => (d > 1e-3 ? { x: ux / d, z: uz / d } : { x: 1, z: 0 });
+  if (L) { for (const h of W.haz) { if (h.t >= h.delay || h.t < r) continue; const ux = a.x - h.x, uz = a.z - h.z, d = len(ux, uz); if (d < h.r + .6) { say(W, a, 'dodge'); return away(ux, uz, d); } } }     // Г7: круг атаки — прочь, когда заметил
+  for (const z of W.bzones || []) { if (z.lvl !== W.lvl || (M && z.born != null && W.t - z.born < r)) continue; const ux = a.x - z.x, uz = a.z - z.z, d = len(ux, uz); if (d < z.r + .6) return away(ux, uz, d); }
+  const tank = roleOfT(W.cfg.squad.types[a.type]) === 'tank';
   for (const e of W.enemies) {     // 4.18б: при «Укрытии» — в зелёный круг, при «Скачке» — прочь с метки
-    const B = e.boss && !e.dead && e.b, A = B && B.state === 'wind' && B.atk; if (!A || (A.kind !== 'safe' && A.kind !== 'blink')) continue;
+    const B = e.boss && !e.dead && e.b, A = B && (B.state === 'wind' || (M && B.state === 'dash')) && B.atk; if (!A || (M && A.t < r)) continue;     // Г9: и пока босс летит рывком
     const ux = A.x - a.x, uz = A.z - a.z, d = len(ux, uz);
     if (A.kind === 'safe' && d > A.r * .6) return { x: ux / d, z: uz / d };
-    if (A.kind === 'blink' && d < A.r + .6) return d > 1e-3 ? { x: -ux / d, z: -uz / d } : { x: 1, z: 0 };
+    if (A.kind === 'blink' && d < A.r + .6) return away(-ux, -uz, d);
+    if (!M) continue;
+    if (A.kind === 'slam' && !tank && d < A.r + .6) { say(W, a, 'dodge'); return away(-ux, -uz, d); }
+    if (A.kind === 'nova' && d > A.inner - .4 && d < A.r + .6) return A.inner >= 1.8 && d < (A.inner + A.r) / 2 ? { x: ux / d, z: uz / d } : away(-ux, -uz, d);     // ближе к «глазу» — внутрь
+    if (A.kind === 'charge') { const ahead = (a.x - A.x0) * A.dx + (a.z - A.z0) * A.dz, side = (a.x - A.x0) * A.dz - (a.z - A.z0) * A.dx; if (ahead > -A.width / 2 - 1 && ahead < A.len + 1 && Math.abs(side) < A.width / 2 + .8) { const s = side >= 0 ? 1 : -1; return { x: A.dz * s, z: -A.dx * s }; } }
   }
   for (const e of W.enemies) {
-    const B = e.boss && !e.dead && e.b; if (!B || !B.atk || B.atk.kind !== 'beam' || (B.state !== 'beam' && B.state !== 'wind')) continue;
+    const B = e.boss && !e.dead && e.b; if (!B || !B.atk || B.atk.kind !== 'beam' || (B.state !== 'beam' && B.state !== 'wind') || (M && B.state === 'wind' && B.atk.t < r)) continue;
     const A = B.atk, ahead = (a.x - e.x) * A.dx + (a.z - e.z) * A.dz, side = (a.x - e.x) * A.dz - (a.z - e.z) * A.dx;
     if (ahead > 0 && ahead < A.len + 1 && Math.abs(side) < A.width / 2 + .8) { const s = side >= 0 ? 1 : -1; return { x: A.dz * s, z: -A.dx * s }; }
   }
   return null;
 }
+// Г9: тяжёлый приём босса на замахе — лекарь лечит заранее, защитник поднимает щит
+function bigHit(W) { for (const e of W.enemies) { const A = e.boss && !e.dead && e.b && e.b.state === 'wind' && e.b.atk; if (A && (A.kind === 'cast' || A.kind === 'safe' || A.kind === 'meteor' || A.after || A.mul >= 1.4)) return true; } return false; }
+// Г9 «Пинок»: сбить чтение босса, когда заметил (защитник, боец, стрелок; свой откат)
+function tryKick(W, a, T) {
+  const M = smartOf(W), R = roleOfT(T); if (!M || a.story || R === 'heal' || a.k3 > 0) return false;
+  for (const e of W.enemies) {
+    const A = e.boss && !e.dead && e.b && e.b.state === 'wind' && e.b.atk; if (!A || A.kind !== 'cast' || e.b.kick || A.t < reactOf(W, a)) continue;
+    const d = len(e.x - a.x, e.z - a.z), C = W.cfg.enemies[e.type];
+    if (R === 'ranged' ? d > T.range || lineBlocked(W.map, a.x, a.z, e.x, e.z) : d > T.range + C.radius + 1) continue;
+    e.b.kick = true; a.k3 = R === 'tank' ? M.kick.tank : M.kick.cd; W.ev.push({ k: 'allySkill', x: e.x, z: e.z, s: 'kick' }); return true;
+  }
+  return false;
+}
+// Г9: куда идти лекарю — к раненому вне радиуса лечения, в бою — ближе к середине отряда; null — стоять, где стоит
+function healSpot(W, a, T) {
+  const M = smartOf(W); if (!M || a.story) return null;
+  const H = T.heal, p = W.player, all = [...(p.dead ? [] : [p]), ...liveAllies(W).filter(u => u !== a)]; if (!all.length) return null;
+  let best = null, br = H.below; for (const u of all) { const r = u.hp / u.maxhp; if (r < br && len(u.x - a.x, u.z - a.z) > H.r * M.healR) { br = r; best = u; } }
+  if (best) return best;
+  if (!W.enemies.some(e => !e.dead && e.alert && len(e.x - a.x, e.z - a.z) < W.cfg.squad.sight + 6)) return null;
+  let cx = 0, cz = 0; for (const u of all) { cx += u.x; cz += u.z; } cx /= all.length; cz /= all.length;
+  return len(cx - a.x, cz - a.z) > H.r * .6 ? { x: cx, z: cz } : null;
+}
 // цель спутника: «моя цель» — метка; «держать» — враги у точки; иначе ближайший рядом с ним и с героем. Защитник снимает врагов с других
-function pickTarget(W, a, T, P, enemies) {
+function pickTarget(W, a, T, P, enemies, prio) {
   const S = W.cfg.squad, p = W.player, ia = insideOf(W.map, a.x, a.z);
   if (P.cmd === 'assist') { const m = enemies.find(e => e.id === P.mark); if (m && insideOf(W.map, m.x, m.z) === ia) return m; }
   const hold = P.cmd === 'hold', reach = S.cmd.hold + (T.ranged ? T.range : 0);
@@ -209,7 +241,7 @@ function pickTarget(W, a, T, P, enemies) {
     const d = len(e.x - a.x, e.z - a.z);
     if (hold ? len(e.x - P.hx, e.z - P.hz) > reach : (d >= S.sight || len(e.x - p.x, e.z - p.z) >= S.sight + 8)) continue;
     if (insideOf(W.map, e.x, e.z) !== ia || roomHops(W.map, a.x, a.z, e.x, e.z) > 1) continue;   // в подземелье — враги своей и соседней комнаты
-    const s = d - (T.role === 'tank' && e.alert && e.tgt !== a.id ? 5 : 0);
+    const s = d - (T.role === 'tank' && e.alert && e.tgt !== a.id ? 5 : 0) - (prio && prio.has(e.id) ? 6 : 0) - (prio && T.role !== 'tank' && e.id === P.last ? 3 : 0);     // Г9: подмога щита и подпитки — первой; бойцы — по цели героя
     if (s < bs) { bs = s; tgt = e; }
   }
   return tgt;
@@ -224,7 +256,7 @@ function slotDir(W, a, T, tgt, idx, live, L) {
 // Г7: умения бойцов по роли (k1, k2 — перезарядки): защитник — стена щитов; боец — круговой удар и мощный по сильной цели; стрелок — залп и прицельный
 function roleSkills(W, a, T, tgt, enemies) {
   const L = liveOf(W); if (!L || a.story) return false; const R = roleOfT(T), C = W.cfg.enemies[tgt.type], d = len(tgt.x - a.x, tgt.z - a.z), big = tgt.boss || tgt.elite, dmg = allyDmgOf(W, a);
-  if (R === 'tank') { const Q = L.tank.wall; if (!(a.k1 > 0) && a.hp < a.maxhp * Q.below) { a.wallT = Q.t; a.k1 = Q.cd; W.ev.push({ k: 'allySkill', x: a.x, z: a.z, s: 'wall' }); } return false; }
+  if (R === 'tank') { const Q = L.tank.wall; if (!(a.k1 > 0) && (a.hp < a.maxhp * Q.below || (smartOf(W) && bigHit(W) && a.calm > 0))) { a.wallT = Q.t; a.k1 = Q.cd; W.ev.push({ k: 'allySkill', x: a.x, z: a.z, s: 'wall' }); } return false; }
   if (R === 'melee') {
     if (d > T.range + C.radius + .3) return false;
     const Q = L.melee.cleave, near = enemies.filter(e => len(e.x - a.x, e.z - a.z) < Q.r + W.cfg.enemies[e.type].radius);
@@ -243,11 +275,22 @@ function roleSkills(W, a, T, tgt, enemies) {
 // Г7: лекарь — общее лечение, когда ранены двое и больше; оберег на защитника (поглощает урон)
 function healSkills(W, a, T) {
   const L = liveOf(W); if (!L || a.story) return false; const p = W.player, H = T.heal, G = L.heal.group, all = [...(p.dead ? [] : [p]), ...liveAllies(W)].filter(u => len(u.x - a.x, u.z - a.z) < H.r);
-  const hurt = all.filter(u => u.hp < u.maxhp * G.below);
+  const big = !!smartOf(W) && bigHit(W), hurt = all.filter(u => u.hp < u.maxhp * (big ? smartOf(W).pre : G.below));     // Г9: до тяжёлого приёма — заранее
   if (!(a.k1 > 0) && hurt.length >= G.min) { const amt = Math.round(H.amt * G.k * (1 + W.cfg.squad.lvHp * (W.lv - 1))); for (const u of hurt) { const got = Math.min(amt, u.maxhp - u.hp); u.hp += got; W.ev.push({ k: 'allyheal', x: u.x, z: u.z, amt: got, fx: a.x, fz: a.z, me: u === p }); } a.k1 = G.cd; say(W, a, 'gheal'); return true; }
-  const tank = liveAllies(W).find(u => u !== a && W.cfg.squad.types[u.type].role === 'tank' && u.calm > 0 && !(u.ward > 0));
+  const tank = liveAllies(W).find(u => u !== a && W.cfg.squad.types[u.type].role === 'tank' && (u.calm > 0 || big) && !(u.ward > 0));
   if (!(a.k2 > 0) && tank && len(tank.x - a.x, tank.z - a.z) < H.r) { tank.ward = Math.round(tank.maxhp * L.heal.ward.amt); a.k2 = L.heal.ward.cd; W.ev.push({ k: 'allySkill', x: tank.x, z: tank.z, s: 'ward' }); return true; }
   return false;
+}
+// Г9: место бойца у босса — за спиной (босс смотрит на свою цель), веером на 3 места
+function behindSpot(a, T, tgt, C, idx) {
+  const g = tgt.face + Math.PI + (idx % 3 - 1) * .55, r = T.range + C.radius * .6;
+  return { x: tgt.x + Math.sin(g) * r, z: tgt.z + Math.cos(g) * r };
+}
+// Г9: разнос в бою — от своих и героя ближе sep м (бойцы — sep[0], дальники и лекарь — sep[1]) понемногу в сторону
+function spreadOut(W, a, T, live, dt, M) {
+  const sep = T.ranged ? M.sep[1] : M.sep[0]; let fx = 0, fz = 0;
+  for (const b of [W.player, ...live]) { if (b === a || b.dead) continue; const ux = a.x - b.x, uz = a.z - b.z, d = len(ux, uz); if (d < sep) { const k = (sep - d) / sep / (d || 1e-3); fx += ux * k; fz += uz * k; } }
+  const f = len(fx, fz); if (f > 1e-4) steer(W, a, fx / f, fz / f, Math.min(f, 1) * T.speed * .6 * dt);
 }
 export function updateAllies(W, dt) {
   const S = W.cfg.squad, p = W.player, P = partyOf(W), live = W.allies.filter(a => !a.dead && !a.guest), enemies = W.enemies.filter(e => !e.dead);     // в бою и строю — и герои сюжета (этап 7: раньше они стояли)
@@ -256,18 +299,22 @@ export function updateAllies(W, dt) {
   if (P.cmd === 'assist' && !enemies.some(e => e.id === P.mark)) back();                 // метка пала — снова за героем
   else if (P.cmd === 'hold' && (!liveAllies(W).length || len(p.x - P.hx, p.z - P.hz) > S.cmd.far)) back();     // герой ушёл далеко — догоняют
   updateShots(W, dt);
+  const M = smartOf(W), prio = M ? new Set() : null;     // Г9: подмога щита или подпитки босса — бить первой
+  if (prio) for (const e of enemies) if (e.boss && e.b && (e.b.shield || e.b.def.drain)) for (const m of e.b.minions) prio.add(m.id);
   live.forEach((a, idx) => {
     const T = S.types[a.type];
     { const mh = allyMaxHpOf(W, a); if (mh !== a.maxhp) { a.hp = Math.max(1, a.hp + mh - a.maxhp); a.maxhp = mh; } }     // уровень героя вырос — боец крепче
     if (a.flash > 0) a.flash -= dt; if (a.calm > 0) a.calm -= dt; if (a.hcd > 0) a.hcd -= dt; if (a.tcd > 0) a.tcd -= dt;
-    if (a.sayCd > 0) a.sayCd -= dt; if (a.wallT > 0) a.wallT -= dt; if (a.k1 > 0) a.k1 -= dt; if (a.k2 > 0) a.k2 -= dt;     // Г7: реплики, стена щитов, два умения роли
+    if (a.sayCd > 0) a.sayCd -= dt; if (a.wallT > 0) a.wallT -= dt; if (a.k1 > 0) a.k1 -= dt; if (a.k2 > 0) a.k2 -= dt; if (a.k3 > 0) a.k3 -= dt;     // Г7: реплики, стена щитов, два умения роли; Г9: «Пинок»
     const px = a.x, pz = a.z;
     slide(W.map, a, a.vx * dt, a.vz * dt, .45); const kd = Math.exp(-8 * dt); a.vx *= kd; a.vz *= kd;
-    { const v = a.state !== 'wind' && dangerAway(W, a); if (v) { a.state = 'idle'; a.face = Math.atan2(v.x, v.z); steer(W, a, v.x, v.z, T.speed * 1.2 * dt); a.moving = true; return; } }     // этап 5: из луж и с линии луча — прочь
+    { const v = (M || a.state !== 'wind') && dangerAway(W, a); if (v) { a.state = 'idle'; a.face = Math.atan2(v.x, v.z); steer(W, a, v.x, v.z, T.speed * 1.2 * dt); a.moving = true; return; } }     // этап 5: из луж и с линии луча — прочь
     if (T.heal && a.state === 'idle' && healSkills(W, a, T)) { a.moving = false; return; }
     if (T.heal && a.state === 'idle' && tryHeal(W, a, T)) { a.moving = false; return; }
+    if (T.heal && a.state === 'idle') { const g = healSpot(W, a, T); if (g) { const gx = g.x - a.x, gz = g.z - a.z, gd = len(gx, gz) || 1e-6; a.face = Math.atan2(gx, gz); steer(W, a, gx / gd, gz / gd, T.speed * dt); a.moving = true; return; } }     // Г9: к раненому, к отряду
+    if (a.state !== 'wind') tryKick(W, a, T);
     if (T.taunt) tryTaunt(W, a, T);
-    const tgt = pickTarget(W, a, T, P, enemies);
+    const tgt = pickTarget(W, a, T, P, enemies, prio);
     if (tgt && a.state === 'idle' && roleSkills(W, a, T, tgt, enemies)) { a.moving = false; return; }
     if (tgt && tgt.boss && T.role === 'tank' && a.btg !== tgt.id) { a.btg = tgt.id; say(W, a, 'pull'); }
     if (a.btg && !tgt) { const b = W.enemies.find(e => e.id === a.btg); if (!b || b.dead) say(W, a, 'win'); a.btg = 0; }
@@ -293,7 +340,9 @@ export function updateAllies(W, dt) {
       } else {
         a.face = Math.atan2(dx, dz);
         const L = liveOf(W), sl = L && d > T.range + C.radius + 1.2 && d < T.range + C.radius + 4 ? slotDir(W, a, T, tgt, idx, live, L) : null;     // Г7: подходят к своему месту, а не все в одну точку
-        if (sl && d > T.range + C.radius * .5) { const ox = tgt.x + sl.x * (T.range + C.radius * .5) * .75 - a.x, oz = tgt.z + sl.z * (T.range + C.radius * .5) * .75 - a.z, od = len(ox, oz) || 1e-6; steer(W, a, ox / od, oz / od, T.speed * dt); }
+        const bh = M && M.behind && T.role !== 'tank' && (tgt.boss || tgt.elite) && d < T.range + C.radius + 6 ? behindSpot(a, T, tgt, C, idx) : null;     // Г9: у босса — за спину
+        if (bh && len(bh.x - a.x, bh.z - a.z) > 1) { const ox = bh.x - a.x, oz = bh.z - a.z, od = len(ox, oz) || 1e-6; steer(W, a, ox / od, oz / od, T.speed * dt); }
+        else if (sl && d > T.range + C.radius * .5) { const ox = tgt.x + sl.x * (T.range + C.radius * .5) * .75 - a.x, oz = tgt.z + sl.z * (T.range + C.radius * .5) * .75 - a.z, od = len(ox, oz) || 1e-6; steer(W, a, ox / od, oz / od, T.speed * dt); }
         else if (d > T.range + C.radius * .5) steer(W, a, dx / d, dz / d, T.speed * dt);
         else { a.state = 'wind'; a.t = 0; a.tg = tgt; }
       }
@@ -310,6 +359,7 @@ export function updateAllies(W, dt) {
       // восстановление: вне боя понемногу, у костра быстро
       if (a.calm <= 0 && a.hp < a.maxhp) a.hp = Math.min(a.maxhp, a.hp + (W.lvl === 'surface' && len(a.x, a.z) < W.cfg.player.fire.radius ? S.fireRegen : S.regen) * dt);
     }
+    if (M && tgt) spreadOut(W, a, T, live, dt, M);     // Г9: не стоять кучей
     a.moving = len(a.x - px, a.z - pz) > .4 * dt * 3;
     { const L = liveOf(W); if (L && !tgt && P.cmd !== 'hold') { if (len(p.x - a.x, p.z - a.z) > L.stuck[1] && len(a.x - px, a.z - pz) < .3 * dt) a.stk = (a.stk || 0) + dt; else a.stk = 0;     // Г7: застрял в нише — к герою
       if (a.stk > L.stuck[0]) { const g = p.face + Math.PI + (idx % 3 - 1) * .7; a.x = p.x + Math.sin(g) * 1.8; a.z = p.z + Math.cos(g) * 1.8; resolve(W.map, a, .45); a.stk = 0; } } }
