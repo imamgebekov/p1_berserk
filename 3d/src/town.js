@@ -18,6 +18,20 @@ function pushGable(list, len, dep, h, x, y, z, alongX, color) {
 const flat = list => list.map(g => (g.index ? g.toNonIndexed() : g));     // призмы без индекса — коробки тоже, чтобы слить в один меш
 const STRAW = '#a88a4a', BEAM = '#2a1d16', SOOT = ['#3a302a', '#40342c', '#352c26'];
 
+// 4.09 «Камень и знамёна»: цвета вершин построек KayKit — красное (крыши) в сланец, остальное ближе к серому камню. Один раз на загрузку
+export function stoneLook(lib, T) {
+  if (!T || !T.on) return lib;
+  const sl = new THREE.Color(T.slate), keep = new Set(T.keep || []), [cr, cg, cb] = T.cool || [1, 1, 1];
+  for (const [name, g] of Object.entries(lib)) {
+    const c = g.attributes.color; if (!c || keep.has(name)) continue;
+    for (let i = 0; i < c.count; i++) {
+      const r = c.getX(i), gg = c.getY(i), bb = c.getZ(i), red = r > gg * 1.6 && r > bb * 1.6, l = (r + gg + bb) / 3;
+      if (red) { const k = Math.min(T.roofK[1], l / T.roofK[0]); c.setXYZ(i, sl.r * k, sl.g * k, sl.b * k); }
+      else c.setXYZ(i, (r + (l - r) * T.stone) * cr, (gg + (l - gg) * T.stone) * cg, (bb + (l - bb) * T.stone) * cb);
+    }
+  }
+  return lib;
+}
 export function buildTown(map, cfg, rnd) {
   const M = cfg.map, H = M.wallH, t = M.wall, hw = M.doorW / 2;
   const group = new THREE.Group();

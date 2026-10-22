@@ -8,6 +8,7 @@ import { roomFree } from './map.js';
 
 const YARD = ['barrel_d', 'crate_d', 'woodpile', 'sack_d', 'bucket'];
 const SIGNED = new Set(['shop', 'smithy', 'tavern', 'warehouse']);
+const PROUD = new Set(['smithy', 'tavern', 'barracks', 'chapel']);     // 4.09: у этих домов — знамя у входа (у рынка — нет: прилавки модели стоят перед дверью)
 const RUG = new Set(['house', 'tavern', 'chapel']);
 const BATTLE = ['rusty_sword', 'bones', 'skulls', 'wreck', 'rusty_sword', 'skulls'];
 
@@ -27,6 +28,9 @@ export function surfaceDetails(map, cfg) {
     }
     const d = b.door, dx = { e: 1, w: -1 }[d.side] || 0, dz = { s: 1, n: -1 }[d.side] || 0, rot = Math.atan2(dx, dz);
     if (SIGNED.has(b.kind)) { const x = d.x + dx * .9 + dz * 1.5, z = d.z + dz * .9 - dx * 1.5; if (free(x, z, 1)) out.push({ t: 'sign', x, z, rot, kind: b.kind, detail: true }); }
+    { const pr = PROUD.has(b.kind) || (!!b.npc && b.npc.kind !== 'merchant' && b.kind !== 'shop'), x = d.x + dx * .9 - dz * 1.7, z = d.z + dz * .9 + dx * 1.7, clear = (x, z) => !(map.decor || []).some(o => Math.hypot(o.x - x, o.z - z) < 1.8);     // 4.09: знамя по другую сторону двери от вывески; у простых домов — фонарь
+      if (pr && rnd() < (D.kbanner ?? 0) && free(x, z) && !inB(x, z, .2) && clear(x, z)) out.push({ t: 'kbanner', x, z, rot, detail: true });
+      else if (!pr && b.kind !== 'hut' && rnd() < (D.lamp ?? 0)) { const lx = d.x + dx * 1.3 - dz * 1.6, lz = d.z + dz * 1.3 + dx * 1.6; if (free(lx, lz) && !inB(lx, lz, .3) && clear(lx, lz)) out.push({ t: 'lamp', x: lx, z: lz, rot: rot + Math.PI / 2, detail: true }); } }
     if (RUG.has(b.kind) && rnd() < D.rug) { const x = d.x + dx * 1.1, z = d.z + dz * 1.1; if (!inB(x, z, .1)) out.push({ t: 'rug', x, z, rot, c: pick(D.rugColors), detail: true }); }
   }
   for (const p of map.cfg.places || []) {

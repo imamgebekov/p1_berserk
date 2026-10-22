@@ -12,9 +12,9 @@ let BLD = null;
 export function setDecorLib(lib) { BLD = lib; }
 const TM = new THREE.Matrix4(), TQ = new THREE.Quaternion(), TE = new THREE.Euler(), TP = new THREE.Vector3(), TS = new THREE.Vector3();
 // модель name: центр в (x, z), поворот rot, масштаб по осям модели; dim — тёмнее/светлее
-function putModel(L, name, x, z, rot, sx, sy, sz, dim = 1) {
+function putModel(L, name, x, z, rot, sx, sy, sz, dim = 1, y = 0) {
   const src = BLD && BLD[name]; if (!src) return false;
-  const g = src.clone(); TE.set(0, rot, 0); TQ.setFromEuler(TE); TP.set(x, 0, z); TS.set(sx, sy, sz); TM.compose(TP, TQ, TS); g.applyMatrix4(TM);
+  const g = src.clone(); TE.set(0, rot, 0); TQ.setFromEuler(TE); TP.set(x, y, z); TS.set(sx, sy, sz); TM.compose(TP, TQ, TS); g.applyMatrix4(TM);
   if (dim !== 1) { const c = g.attributes.color; for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * dim, c.getY(i) * dim, c.getZ(i) * dim); }
   L.push(g); return true;
 }
@@ -33,6 +33,12 @@ function swapDecor(d, L, rnd) {
     case 'bigtent': return putModel(L, 'tent', d.x, d.z, r, 8.5, 8.5, 8.5, .85);
     case 'shrine': return putModel(L, 'shrine_candles', d.x, d.z, r, 1.4, 1.4, 1.4, .9);
     case 'lamp': return putModel(L, 'post_lantern', d.x, d.z, r, 1, 1, 1, .9);
+    case 'barrel_d': return putModel(L, 'barrel_small', d.x, d.z, r, .8 * s, .85 * s, .8 * s);     // 4.09: бочки и ящики KayKit Dungeon (лёгкие, ≈200 треугольников)
+    case 'crate_d': return rnd() < .6 ? putModel(L, 'box_small', d.x, d.z, r, .78 * s, .72 * s, .78 * s) : putModel(L, 'box_large', d.x, d.z, r, .58 * s, .52 * s, .58 * s);
+    case 'kbanner': case 'banner': { const name = d.t === 'kbanner' ? (rnd() < .5 ? 'banner_patternA_red' : 'banner_shield_red') : 'banner_thin_red', M = BLD[name]; if (!M) return false;     // 4.09: знамя KayKit на столбе с перекладиной
+      const c = Math.cos(r), sn = Math.sin(r), k = 1.75 / M.userData.h, top = 3.5, at = (lx, lz) => [d.x + lx * c + lz * sn, d.z - lx * sn + lz * c];
+      { const [px, pz] = at(0, -.14); pushBox(L, .16, top + .2, .16, px, (top + .2) / 2, pz, 0, r, 0, '#2a2420'); pushBox(L, M.userData.w * k + .3, .1, .1, px, top, pz, 0, r, 0, '#2a2420'); }
+      return putModel(L, name, d.x, d.z, r, k, k, k, 1, top - 1.75 - .02); }
     case 'fence': return d.grave ? putModel(L, 'fence', d.x, d.z, d.rot ? Math.PI / 2 : 0, (d.w || 2) / 4, .5, .6, .85) : putModel(L, 'fence_wood_straight', d.x, d.z, d.rot ? 0 : Math.PI / 2, 2.2, 2.2, (d.w || 2) / 1.15, .85);
     case 'gate': return putModel(L, 'arch_gate', d.x, d.z, r, .7, .6, .7, .85);
     case 'cwall': { const ax = d.w >= d.d; return tile('wall_straight', Math.max(d.w, d.d), 7.8, 3.9, ax, Math.min(d.w, d.d) / .8 * 1.1); }

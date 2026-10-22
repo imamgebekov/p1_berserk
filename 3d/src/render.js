@@ -3,7 +3,7 @@ import { storyActors, storyTalkable } from './story3d.js';
 import { makeMap, addFires, propsBlocked, campGates, insideOf, insideCamp } from './map.js';
 import { firesOf } from './fires3d.js';
 import { buildDecor } from './decor.js';
-import { buildTown } from './town.js';
+import { buildTown, stoneLook } from './town.js';
 import { buildLevelView, buildSurfaceView } from './levelview.js';
 import { buildHeights, heightAt, waterDist, lakeR, streamDist } from './terrain3d.js';
 import { createAscii, OVERLAY } from './ascii3d.js';
@@ -577,7 +577,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const heroBlade = makeBladeFx(scene), bladeOn = () => !!(cfg.bladeFx && cfg.bladeFx.on);     // стихия на клинке (2026-10-20)
   if (actorKey(cfg, 'hero', 'thorn') !== null || Object.keys((cfg.actors && cfg.actors.foes) || {}).length) preloadActors(cfg);     // готовые модели (2026-10-20): грузятся в фоне
   const kitOf = k => cfg.actors.kits[k];
-  loadBaked('buildings').then(lib => { if (!lib) return; setDecorLib(lib); town.setShells(lib);     // постройки KayKit: декор пересобирается, у домов — наружный вид
+  Promise.all([loadBaked('buildings'), loadBaked('townkit').catch(() => null)]).then(([b0, kit]) => { if (!b0) return; const lib = { ...stoneLook(b0, cfg.look.town), ...(kit || {}) }; setDecorLib(lib); town.setShells(lib);     // 4.09: + знамёна, бочки, ящики KayKit Dungeon     // постройки KayKit: декор пересобирается, у домов — наружный вид
     const nd = mkDecor(); for (const c of decorCells) { if (c.parent) c.parent.remove(c); c.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); } decorCells.length = 0;
     for (const c of [...nd.group.children]) { decor.group.add(c); decorCells.push(c); c.traverse(m => { if (m.material) [].concat(m.material).forEach(xray); if (m.isMesh && shadowsOn) m.castShadow = true; }); } freeze(decor.group); }).catch(e => console.warn('постройки не загрузились:', e && e.message));
   loadNature().then(lib => { if (!lib) return; setNature(lib); for (const k of [...liveLand.keys()]) dropLand(k); }).catch(e => console.warn('природа не загрузилась:', e && e.message));     // готовые деревья и камни: участки пересобираются

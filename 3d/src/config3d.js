@@ -437,7 +437,8 @@ const BASE = {
   // детали мира (T5, только вид): house — сколько мелочей у стен дома [от, до]; road — не ближе к тропе, м; gap — между деталями, м;
   // rug — доля коврика у двери; danger — следов боя у опасного места [от, до]; banner — доля знамени в посёлке; в подземелье —
   // доли свечей в углу комнаты (candle), цепи или решётки на стене (wall), костей на полу (floor)
-  details: { on: true, house: [1, 3], road: 1.6, gap: .9, rug: .5, rugColors: ['#7a2a24', '#3a4a6a', '#6a5a2a'], danger: [3, 6], banner: .6,
+  details: { on: true, house: [1, 3], road: 1.6, gap: .9, rug: .5, kbanner: .85, lamp: .4,     // 4.09: знамя у важных домов, фонарь у двери обычного
+    rugColors: ['#7a2a24', '#3a4a6a', '#6a5a2a'], danger: [3, 6], banner: .6,
     bannerColors: ['#8a2a1a', '#2a3a6a', '#4a5a2a'], candle: .45, wall: .55, floor: .5 },
   dungeons: {
     reach: 1.8,           // на каком расстоянии от люка или лестницы появляется кнопка
@@ -946,6 +947,7 @@ const BASE = {
     clouds: { light: 70, lightSize: [40, 110], lightA: .55, shadowA: .22, shadowOff: 14, dark: 140, darkSize: [120, 420], darkA: .62, veil: 260, veilA: .5, wind: [3.5, 1.2], fps: 30 } },
   // палитра поверхности (E2): трава вместо пепла, деревья с кронами (bare — доля сухих), камни, небо (верх и горизонт)
   look: {
+    town: { on: true, slate: '#3c4658', stone: .35, cool: [.97, 1, 1.04], roofK: [.18, 1.15], keep: ['market_red', 'tent'] },     // 4.09 «Камень и знамёна»: красные крыши KayKit — в сланец, стены — к серому камню (stone — доля серого); roofK — опорная яркость крыши и предел; keep — не трогать
     ground: ['#2c4222', '#35502a', '#4c6c34'], sand: '#a08e5e',
     trunk: ['#3a2a1c', '#4a3524'], leaf: ['#2e5a28', '#3a6a2e', '#4a7a36'], bare: .2,
     rock: ['#5e5c54', '#6c6a60'], skyTop: '#2e4a6a', skyHor: '#c8c098',
