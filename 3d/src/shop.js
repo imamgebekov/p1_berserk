@@ -14,6 +14,7 @@ import { allyHp, allyDmg, hireable, liveAllies } from './squad3d.js';
 import { sellWorse, isWorse, isJunk } from './economy3d.js';
 import { buyItem, sellItem, sellJunk, sellPrice, buyPrice, stockPrice, shopOf, priceMulOf, refreshGear, upgradeItem, upgradeCost, hireAlly, dismissAlly, squadMax } from './sim.js';
 import { nextSlotLv } from './squad3d.js';
+import { smithShop, smithPrice, buySmith, sellSmith, smithBuys } from './smithtrade3d.js';     // лавка кузнеца (Мир 5.0, этап 3)
 
 // значок вещи в рамке редкости — для строк лавки и кузни
 const icoOf = (doc, it) => { const w = doc.createElement('span'), im = doc.createElement('img'); w.className = 'sico'; im.src = iconURL(doc, it); im.alt = ''; w.style.setProperty('--rc', RARITY[it.rar || 0].color); w.append(im); return w; };
@@ -142,7 +143,22 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
     b.addEventListener('click', () => { const res = upgradeItem(W, where); if (res === 'ash') flash('Не хватает пепла'); else if (res === 'max') flash('Выше некуда'); else if (res === 'far') flash('Подойдите к кузнецу'); render(); onChange && onChange(); });
     r.append(info, b); return r;
   }
-  for (const [id, label] of [['up', 'Улучшение'], ['craft', 'Ковка'], ['gems', 'Камни']]) { const b = el('button', 'tab', label); b.type = 'button'; b.dataset.tab = id; b.addEventListener('click', () => { tab = id; render(); }); tabsEl.appendChild(b); }
+  for (const [id, label] of [['up', 'Улучшение'], ['craft', 'Ковка'], ['gems', 'Камни'], ['trade', 'Лавка']]) { const b = el('button', 'tab', label); b.type = 'button'; b.dataset.tab = id; b.addEventListener('click', () => { tab = id; render(); }); tabsEl.appendChild(b); }
+  // лавка кузнеца (Мир 5.0, этап 3): купить камни, реагенты и материалы по уровню места; продать свои — тут же
+  function tradeTab() {
+    const sh = smithShop(W); if (!sh) { listEl.appendChild(el('div', 'emptyl', 'Подойдите к кузнецу.')); return; }
+    const left = Math.max(1, Math.ceil((cfg.shop.restock - (W.t - sh.at)) / 60));
+    noteEl.textContent = `${sh.name}: товар ${sh.lv} ур. (ступень ${sh.tier} из 3) — ${sh.tier === 1 ? 'осколки камней и простые материалы' : sh.tier === 2 ? 'камни до второго ранга и металлы получше' : 'сильные камни, редкие материалы, уголёк и осколок Затмения'}. Завоз через ${left} мин. Скупает камни и материалы из сумки.`;
+    const row = (it, sub, label, ok, fn, n) => { const r = el('div', 'srow'), info = el('div', 'sinfo'), nm = el('span', 'nm', it.name + (n > 1 ? ' ×' + n : '')); nm.style.color = RARITY[it.rar || 0].color; info.append(nm, el('div', 'sub', sub));
+      const b = el('button', 'buy' + (ok ? '' : ' no'), label); b.type = 'button'; b.addEventListener('click', () => { fn(); render(); onChange && onChange(); }); r.append(icoOf(doc, it), info, b); return r; };
+    const kind = it => (it.cat === 'gem' ? 'камень силы' : Object.values(cfg.craft.reag).includes(it.id) ? 'реагент: вписывает свойство при ковке' : it.id === cfg.craft.ember ? 'уголёк: качество скованной вещи на предел' : 'материал ковки');
+    listEl.appendChild(el('div', 'emptyl', 'Купить'));
+    sh.stock.forEach((s, i) => { const it = BY_ID[s.id], pr = smithPrice(W, sh, s); listEl.appendChild(row(it, kind(it), `Купить · ${pr}`, W.inv.ash >= pr, () => { const r = buySmith(W, i); flash(r === 'ok' ? `Куплено: ${it.name}` : r === 'ash' ? 'Не хватает пепла' : r === 'full' ? 'Сумка полна' : 'Подойдите к кузнецу'); }, s.n)); });
+    if (!sh.stock.length) listEl.appendChild(el('div', 'emptyl', 'Всё раскуплено. Завоз позже.'));
+    const mine = W.inv.bag.map((s, i) => ({ s, i })).filter(o => smithBuys(o.s));
+    listEl.appendChild(el('div', 'emptyl', mine.length ? 'Продать' : 'Камней и материалов в сумке нет.'));
+    for (const { s, i } of mine) { const it = BY_ID[s.id], pr = sellPrice(it, cfg); listEl.appendChild(row(it, kind(it), `Продать · ${pr}`, true, () => { const r = sellSmith(W, i, 1); flash(r === 'ok' ? `Продано: ${it.name} · +${pr}` : 'Не продаётся'); }, s.n)); }
+  }
   // камни силы: гнёзда оружия (вставить, вынуть за пепел) и сплав 3 одинаковых → 1 рангом выше
   let pick = null;
   const maxSlots = () => cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
@@ -220,6 +236,7 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
     headEl.textContent = `Кузнец · пепел ${W.inv.ash}`; listEl.textContent = '';
     if (tab === 'gems') { gemsTab(); return; }
+    if (tab === 'trade') { tradeTab(); return; }
     if (tab === 'craft') {
       noteEl.textContent = 'Материалы берутся из сумки. Заточенное, с камнями и зачарованное снаряжение на ковку не идёт. Скованная вещь — работа мастера: качество выше, чем у находки. Реагент из сумки задаёт свойство. Новые рецепты открывают книги.';
       const f = el('button', 'junk', onlyReady ? 'Показаны доступные сейчас. Показать все' : 'Показаны все. Только доступные'); f.type = 'button'; f.addEventListener('click', () => { onlyReady = !onlyReady; render(); }); listEl.appendChild(f);

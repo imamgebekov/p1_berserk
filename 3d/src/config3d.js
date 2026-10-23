@@ -507,6 +507,10 @@ const BASE = {
   paths: { on: true, bend: [2, 4.5], wave: 1.6, step: 2, minLen: 12 },
   // лагеря Мира 5.0 (этап 2, просьба владельца 2026-10-23): ещё три лагеря с частоколом на уровнях lv — костёр (лечение и ночлег), лавка,
   // кузня, таверна; витрина лавки — уровня лагеря: q — прибавка качества добычи и полки редкостей, price — множитель цен; r — радиус частокола
+  // лавка кузнеца (Мир 5.0, этап 3): по ступени места 1–3 (до 30, до 55, выше) — ранги камней [от, до], сколько видов камней и реагентов,
+  // какие материалы ковки; n — сколько штук каждого товара [от, до]. Код — smithtrade3d.js
+  smithTrade: { gemRank: [[1, 1], [1, 2], [2, 3]], gems: [4, 6, 6], reag: [5, 7, 9], n: { gem: [1, 3], reag: [2, 5], mat: [3, 8] },
+    mats: [['m_ore', 'm_ingot', 'm_leather', 'm_coal', 'm_nails', 'm_tallow', 'm_flint'], ['m_ingot', 'm_steel_ingot', 'm_leather', 'm_coal', 'm_amber', 'm_silver_thread', 'm_ash_salt'], ['m_steel_ingot', 'm_amber', 'm_silver_thread', 'm_black_resin', 'm_ash_alloy', 'm_sulfur']] },
   outposts: { on: true, r: 26, pad: 30, list: [
     { id: 'op_alder', name: 'Застава Ольхи', lv: 25, q: 1, price: 1.6 },
     { id: 'op_watch', name: 'Сторожевой Острог', lv: 45, q: 2, price: 2.6 },
