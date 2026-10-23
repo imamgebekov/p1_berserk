@@ -7,6 +7,7 @@ import { resolve, nearBuilding } from '../3d/src/map.js';
 import { fireNear, discoverFires, fastTravel, travelBlock, knownFires, sanitizeFires } from '../3d/src/fires3d.js';
 import { createSaver, loadSave, migrate } from '../3d/src/save3d.js';
 import { waterDist } from '../3d/src/terrain3d.js';
+import { wdist } from '../3d/src/geo3d.js';     // Мир 5.0: край — от центра мира
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.bosses.list = []; c.events.on = false; c.wanderer.on = false; return createWorld(c, mulberry32(2)); };
@@ -20,7 +21,7 @@ ok(new Set(F.map(f => f.id)).size === F.length && F.some(f => f.home && f.x === 
 for (const f of F) {
   if (f.home) continue;
   const o = { x: f.x, z: f.z }; ok(!resolve(W.map, o, .5) && !nearBuilding(W.map, f.x, f.z, 2) && waterDist(W.map.river, f.x, f.z) > 2.5, `костёр «${f.name}» в стене, доме или воде`);
-  ok(Math.hypot(f.x, f.z) < CFG3.world.radius - 3, 'костёр за краем мира');
+  ok(wdist(CFG3, f.x, f.z) < CFG3.world.radius - 3, 'костёр за краем мира');
   const pl = P.find(p => p.id === f.id); ok(pl && (pl.safe ? Math.hypot(pl.x - f.x, pl.z - f.z) < 15 : Math.hypot(pl.x - f.x, pl.z - f.z) > pl.r && Math.hypot(pl.x - f.x, pl.z - f.z) < pl.r + 20), `костёр «${f.name}» не у своего места`);
 }
 ok(W.map.decor.filter(d => d.fire).length === F.length - 1, 'не у каждого костра огонь');

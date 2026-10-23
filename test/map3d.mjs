@@ -3,6 +3,7 @@ import { CFG3 } from '../3d/src/config3d.js';
 import { makeMap, insideOf, resolve, slide, rotateInput } from '../3d/src/map.js';
 import { createWorld, step, spawnEnemy, mulberry32, useItem } from '../3d/src/sim.js';
 import { CONTAINERS } from '../3d/src/data/loot.js';
+import { wdist, wcOf } from '../3d/src/geo3d.js';     // Мир 5.0: край — от центра мира
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const clone = () => JSON.parse(JSON.stringify(CFG3));
@@ -11,7 +12,7 @@ const cfg = clone(), map = makeMap(cfg);
 // планировка
 for (const a of map.buildings) {
   ok(Math.hypot(a.x, a.z) - Math.hypot(a.w, a.d) / 2 > 6, `дом ${a.id} слишком близко к костру`);
-  ok(Math.hypot(a.x, a.z) < cfg.world.radius - 6, `дом ${a.id} у границы мира`);
+  ok(wdist(cfg, a.x, a.z) < cfg.world.radius - 6, `дом ${a.id} у границы мира`);
   for (const b of map.buildings) if (a.id < b.id) ok(a.x1 + 2 < b.x0 || b.x1 + 2 < a.x0 || a.z1 + 2 < b.z0 || b.z1 + 2 < a.z0, `дома ${a.id} и ${b.id} пересекаются`);
   // дверь: снаружи и внутри точки свободны
   ok(insideOf(map, a.door.in.x, a.door.in.z) === a.id, `дом ${a.id}: точка «внутри» двери не внутри`);

@@ -7,6 +7,7 @@ import { CONTAINERS, DROPS } from '../3d/src/data/loot.js';
 import { craft, craftStatus, readTome, sourcesOf, bestiaryEntry, newKnown, serializeKnown, sanitizeKnown, recipeKnown } from '../3d/src/craft3d.js';
 import { createWorld, step, mulberry32, spawnEnemy } from '../3d/src/sim.js';
 import { createSaver, loadSave } from '../3d/src/save3d.js';
+import { isSeen } from '../3d/src/places3d.js';     // Мир 5.0: сетка тумана — вокруг центра мира
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 
 // ---- целостность ----
@@ -61,7 +62,7 @@ const give = (W, id, n = 1) => W.inv.bag.push({ id, n });
 { const W = mk(6); give(W, 'tome_atlas_polya'); give(W, 'tome_medic'); give(W, 'tome_medic');
   const i = W.inv.bag.findIndex(s => s.id === 'tome_atlas_polya'); ok(readTome(W, i) === 'ok' && W.known.tomes.atlas_polya && W.known.bestiary.hound === 2 && W.known.places.polya && W.known.kinds.wagon, 'чтение атласа');
   ok(!W.inv.bag.some(s => s.id === 'tome_atlas_polya'), 'прочитанная книга не потрачена'); ok(W.ev.some(v => v.k === 'tome'), 'нет события чтения');
-  const seenAt = (x, z) => { const c = W.cfg.map.cell, R = W.cfg.world.radius, n = W.seenN; return W.seen[Math.floor((z + R) / c) * n + Math.floor((x + R) / c)] === 1; }; ok(seenAt(48, 40), 'атлас не открыл место на карте');
+  const seenAt = (x, z) => isSeen(W, x, z); ok(seenAt(48, 40), 'атлас не открыл место на карте');
   const j = W.inv.bag.findIndex(s => s.id === 'tome_medic'); ok(readTome(W, j) === 'ok' && recipeKnown(W.known, RECIPE_BY_ID.salve), 'книга открыла рецепты'); const cnt = W.inv.bag.filter(s => s.id === 'tome_medic').length;
   ok(readTome(W, W.inv.bag.findIndex(s => s.id === 'tome_medic')) === 'known' && W.inv.bag.filter(s => s.id === 'tome_medic').length === cnt, 'повторное чтение съело книгу'); ok(readTome(W, 99) === 'none', 'чтение несуществующего'); give(W, 'f_rye'); ok(readTome(W, W.inv.bag.length - 1) === 'none', 'еда читается как книга'); }
 // знания приходят сами: убийство, контейнер, вход в место, подбор

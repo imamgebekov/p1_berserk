@@ -5,6 +5,7 @@ import { buildHeights, reliefHeight, waterDist, streamDist, vnoise } from './ter
 import { biomeTint, biomeAt, BIOMES } from './worldgen3d.js';
 import { zoneAt } from './zones3d.js';
 import { inCliff } from './cliffs3d.js';
+import { puddleOn, puddleRange, allZones } from './zones3d.js';     // Мир 5.0
 
 const lin = h => [1, 3, 5].map(i => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); });
 const srgb = v => { v = Math.max(0, Math.min(1, v)); return Math.round((v <= .0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - .055) * 255); };
@@ -14,14 +15,15 @@ export function reliefSetup(cfg, map) {
   const V = cfg.mapView, R = cfg.world.radius, N = V.n;
   const g = cfg.look.ground, base = lin(g[0]).map((v, i) => v * .7 + lin(g[1])[i] * .3);     // средний цвет травы (как текстура земли)
   const step = 2 * R / N, RW = R * (V.wide || 1), RH = R * (V.tall || 1), NX = Math.round(2 * RW / step), NZ = Math.round(2 * RH / step);     // 4.05: подложка — прямоугольник шире круга мира
-  return { V, R, N, NX, NZ, X0: -NX * step / 2, Z0: -NZ * step / 2, step, hf: buildHeights(cfg, map), sand: lin(cfg.look.sand), map, cfg, base, water: lin(V.water), rock: lin(V.rock), L: (() => { const l = V.light, n = Math.hypot(...l); return l.map(v => v / n); })() };
+  return { V, R, N, NX, NZ, CX: (cfg.world.center || { x: 0 }).x, CZ: (cfg.world.center || { z: 0 }).z, X0: (cfg.world.center || { x: 0 }).x - NX * step / 2, Z0: (cfg.world.center || { z: 0 }).z - NZ * step / 2, step,     // подложка — вокруг центра мира (Мир 5.0)
+    hf: buildHeights(cfg, map), sand: lin(cfg.look.sand), map, cfg, base, water: lin(V.water), rock: lin(V.rock), L: (() => { const l = V.light, n = Math.hypot(...l); return l.map(v => v / n); })() };
 }
 // ряды j0..j1-1 в RGBA (out — Uint8ClampedArray на весь холст N×N); вне круга мира — прозрачно
 export function reliefRows(S, j0, j1, out) {
   const { V, R, NX, step, X0, Z0, hf, map, base, water, rock, L } = S, H = (x, z) => reliefHeight(hf, x, z);     // 4.05: облегчённая высота
   for (let j = j0; j < j1; j++) for (let i = 0; i < NX; i++) {
     const x = X0 + (i + .5) * step, z = Z0 + (j + .5) * step, k = (j * NX + i) * 4;
-    if (Math.hypot(x, z) > R) { farPixel(S, x, z, out, k); continue; }
+    if (Math.hypot(x - S.CX, z - S.CZ) > R) { farPixel(S, x, z, out, k); continue; }
     const h = H(x, z), hx = H(x + step, z), hz = H(x, z + step);
     let c;
     if (map.river && (waterDist(map.river, x, z) < V.waterIn || streamDist(map.river, x, z) < .4)) c = water.slice();     // и ручьи
@@ -40,7 +42,7 @@ export function reliefRows(S, j0, j1, out) {
 // Темнее мира (V.far) — сверху ещё тёмные облака (mapclouds.js). Пройти туда нельзя: граница — круг
 const fbm = (x, z) => (vnoise(x / 230, z / 230, 911) * .55 + vnoise(x / 90, z / 90, 912) * .3 + vnoise(x / 35, z / 35, 913) * .15);
 function farPixel(S, x, z, out, k) {
-  const { V, R, step, base, water, rock, sand, L } = S, n = fbm(x, z), hx = fbm(x + step, z), hz = fbm(x, z + step), d = Math.hypot(x, z), ex0 = x * (R - 2) / d, ez0 = z * (R - 2) / d, bio = biomeAt(S.cfg, ex0, ez0) || 'forest', e = Math.min(1, (d - R) / 260);     // биом — у края по тому же лучу: без полос от волны границы
+  const { V, R, step, base, water, rock, sand, L } = S, n = fbm(x, z), hx = fbm(x + step, z), hz = fbm(x, z + step), d = Math.hypot(x - S.CX, z - S.CZ), ex0 = S.CX + (x - S.CX) * (R - 2) / d, ez0 = S.CZ + (z - S.CZ) * (R - 2) / d, bio = biomeAt(S.cfg, ex0, ez0) || 'forest', e = Math.min(1, (d - R) / 260);     // биом — у края по тому же лучу: без полос от волны границы
   let c, hh = n;
   if (bio === 'coast' && n < .56) { c = water.map(v => v * (1 - .35 * e)); hh = .3; }
   else if (bio === 'coast' && n < .6) c = sand.slice();
@@ -54,6 +56,7 @@ function farPixel(S, x, z, out, k) {
 // подписи областей: середина сектора биома на среднем радиусе пояса (по пробам)
 export function regionLabels(cfg) {
   const G = cfg.worldgen; if (!G || !G.on) return [];
+  if (puddleOn(cfg)) return allZones(cfg).filter(z => z.ring >= 0).map(z => { const P = puddleRange(cfg, z.id); return P && { b: z.id, name: z.name, sub: `ур. ${P.lv[0]}–${P.lv[1]}`, x: P.x, z: P.z }; }).filter(Boolean);     // Мир 5.0: подпись — в середине лужи
   if (cfg.zones) {     // зоны по уровням (этап 1): имя и пояс уровней — в середине сектора кольца
     const Z = cfg.zones, B = [G.coreR + G.belt, Z.split, ...(Z.splits || []).filter(v => v < cfg.world.radius), cfg.world.radius], rings = B.slice(0, -1).map((v, i) => [(v + B[i + 1]) / 2, i]), out = [];     // кольца (мир ×2: четыре)
     for (const [r, ring] of rings) { const acc = {};

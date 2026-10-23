@@ -51,12 +51,13 @@ import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 import { resGain } from './resource3d.js';
+import { wcOf, clampWorld } from './geo3d.js';     // Мир 5.0
 import { relicMul, relicLeech, relicSpd, relicRoll, relicHurt, relicSave, relicHit, relicRollBlast, relicKill, relicTick } from './relic3d.js';     // дары Затмения (2026-10-23)
 const critBonus = W => (W.abuf && W.abuf.hawk > 0 ? W.abuf.hawkCrit : 0);     // «Ястребиный глаз» Сойки: шанс крита на время
 
 export function createWorld(cfg, rng = Math.random) {
   const W = makeWorld(cfg, rng); attachFx(W); W.partyHook = partyTravel;     // сбор группы при входе в подземелье отряда (4.07)
-  const cell = cfg.map.cell, n = Math.ceil(2 * cfg.world.radius / cell) + 2; W.seenN = n; W.seen = new Uint8Array(n * n);
+  const cell = cfg.map.cell, n = Math.ceil(2 * cfg.world.radius / cell) + 2, c0 = wcOf(cfg); W.seenN = n; W.seen = new Uint8Array(n * n); W.seenX = c0.x; W.seenZ = c0.z;     // туман — квадрат вокруг центра мира
   initLevels(W);
   for (const id of Object.keys(W.levels)) withLevel(W, id, () => { for (const c of W.map.containers) if (c.far) c.t = cfg.map.containerRespawn; else refill(W, c); });     // дальние — когда герой подойдёт
   restock(W);
@@ -186,7 +187,7 @@ function spawnRing(W) {
   const RM = roamOn(W) ? W.cfg.enemies.roam : null, [lo, hi] = RM ? RM.ring : W.cfg.enemies.ring, p = W.player;
   const a = rr(W, 0, TAU), d = rr(W, lo, hi), R = W.cfg.world.radius - 2;
   let x = p.x + Math.sin(a) * d, z = p.z + Math.cos(a) * d;
-  const l = len(x, z); if (l > R) { x *= R / l; z *= R / l; }
+  { const o = clampWorld(W.cfg, { x, z }, R); x = o.x; z = o.z; }     // Мир 5.0: круг мира — от его центра
   if (nearBuilding(W.map, x, z, 1.5)) return false;                 // не рождаем врагов в стенах
   if (W.map.camp && insideCamp(W.map.camp, x, z, -W.map.camp.spawnPad)) return false;   // и в лагере, и у самого частокола
   { const pl = placeAt(W.map, x, z); if (pl && pl.safe) return false; }   // и в безопасных местах
@@ -763,7 +764,7 @@ function updatePlayer(W, dt, input) {
   if (p.calm > 0) p.calm -= dt;
   else if (onSurface(W) && len(p.x, p.z) < P.fire.radius && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);
   slide(W.map, p, p.vx * dt, p.vz * dt, P.radius);
-  keepIn(W.map, p, W.cfg.world.radius);
+  keepIn(W.map, p, W.cfg.world.radius, wcOf(W.cfg));
   W.inside = insideOf(W.map, p.x, p.z);
 }
 
@@ -879,7 +880,7 @@ function updateEnemies(W, dt) {
   for (const e of live) { resolve(W.map, e, E[e.type].radius); blockFoe(W.map, e, E[e.type].radius); }     // ворота лагеря для врагов закрыты
   resolve(W.map, p, W.cfg.player.radius);
   blockCart(W, p, W.cfg.player.radius);
-  keepIn(W.map, p, W.cfg.world.radius);                         // расталкивание не выносит героя за границу
+  keepIn(W.map, p, W.cfg.world.radius, wcOf(W.cfg));                         // расталкивание не выносит героя за границу
   W.enemies = W.enemies.filter(e => !(e.dead && e.deadT > .6));
   // держим нужное число врагов (кольцом вокруг героя — только на поверхности; в подземельях свои правила)
   if (!onSurface(W)) return;

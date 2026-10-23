@@ -7,6 +7,7 @@ import { ngMul } from './ng3d.js';
 import { slide, resolve, roomAt, insideOf } from './map.js';
 import { zoneAt } from './zones3d.js';
 
+import { wdist, worldSpot } from './geo3d.js';     // Мир 5.0: круг мира — от его центра
 // ---- элитные враги: шанс по глубине, опасности и ночи; считается от номера врага, без расхода генератора случайных чисел ----
 const hash01 = (id, seed) => { const s = Math.sin(id * 12.9898 + seed * 78.233) * 43758.5453; return s - Math.floor(s); };
 export const affOf = (W, id) => W.cfg.elite.affixes[id] || (W.cfg.elite.affixes2 || {})[id];
@@ -168,7 +169,7 @@ function blinkTo(W, e, C, B) {
   {
     const tx = p.x - Math.sin(p.face) * B.behind, tz = p.z - Math.cos(p.face) * B.behind, o = { x: tx, z: tz };
     resolve(W.map, o, C.radius);
-    const okLevel = W.map.rooms ? roomAt(W.map, o.x, o.z) >= 0 : len(o.x, o.z) < W.cfg.world.radius - 2;
+    const okLevel = W.map.rooms ? roomAt(W.map, o.x, o.z) >= 0 : wdist(W.cfg, o.x, o.z) < W.cfg.world.radius - 2;
     if (okLevel && len(o.x - tx, o.z - tz) < .6 && insideOf(W.map, o.x, o.z) === W.inside) {
       W.ev.push({ k: 'blink', x: e.x, z: e.z, x2: o.x, z2: o.z });
       e.x = o.x; e.z = o.z; e.vx = e.vz = 0; e.face = Math.atan2(p.x - e.x, p.z - e.z);

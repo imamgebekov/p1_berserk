@@ -77,7 +77,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 // ---------- 4. враги: наверху ждут, внизу кольцом не рождаются ----------
 {
   const W = mk(3, c => { c.enemies.count = 6; });
-  W.player.x = 50; W.player.z = 50; run(W, 4);     // ближе к раздвинутому лагерю (3.93): враги не уходят за предел дальних
+  W.player.x = 0; W.player.z = 45; run(W, 4);     // ближе к люку погреба (3.93; Мир 5.0 — 2026-10-23): враги вокруг героя не дальше предела забывания (sleep.drop) от люка
   const before = W.enemies.filter(e => !e.boss).length;
   toHatch(W); const up = W.enemies;
   usePortal(W);

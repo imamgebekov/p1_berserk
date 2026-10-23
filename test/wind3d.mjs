@@ -8,6 +8,7 @@ import { pathSegs, distSeg } from '../3d/src/world3d.js';
 import { waterDist } from '../3d/src/terrain3d.js';
 import { createWorld, mulberry32 } from '../3d/src/sim.js';
 import { mixOf } from '../3d/src/soundscape3d.js';
+import { wdist, wcOf } from '../3d/src/geo3d.js';     // Мир 5.0: край — от центра мира
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
@@ -33,7 +34,7 @@ const C = CFG3.wind;
   ok(G.every(g => waterDist(map.river, g.x, g.z) >= 1.2), 'трава в воде');
   ok(G.every(g => !segs.some(([a, b]) => distSeg(g.x, g.z, a, b) < 1.4)), 'трава на тропе');
   ok(G.every(g => !map.buildings.some(b => g.x > b.x0 - .5 && g.x < b.x1 + .5 && g.z > b.z0 - .5 && g.z < b.z1 + .5)), 'трава в доме');
-  ok(G.every(g => Math.hypot(g.x, g.z) <= CFG3.world.radius - 2), 'трава за краем мира');
+  ok(G.every(g => wdist(CFG3, g.x, g.z) <= CFG3.world.radius - 2), 'трава за краем мира');
   ok(JSON.stringify(G.slice(0, 20)) === JSON.stringify(grassSpots(map, CFG3, CFG3.world.seed).slice(0, 20)), 'трава не повторяется'); }
 
 // ---------- 3. шелест ----------

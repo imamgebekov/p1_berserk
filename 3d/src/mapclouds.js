@@ -16,7 +16,8 @@ function sprite(doc, seed, tone) {
 const mul = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 
 export function createMapClouds(doc, cfg) {
-  const C = (cfg.mapView && cfg.mapView.clouds) || {}, R = cfg.world.radius, BW = R * ((cfg.mapView && cfg.mapView.wide) || 1), BH = R * ((cfg.mapView && cfg.mapView.tall) || 1);
+  const C = (cfg.mapView && cfg.mapView.clouds) || {}, R = cfg.world.radius, O = cfg.world.center || { x: 0, z: 0 },     // O — центр мира (Мир 5.0): облака — вокруг него
+    BW = R * ((cfg.mapView && cfg.mapView.wide) || 1), BH = R * ((cfg.mapView && cfg.mapView.tall) || 1);
   let light = null, dark = null, shadow = null; const r = mul(cfg.world.seed * 77 + 3);
   const lights = Array.from({ length: C.light || 0 }, () => ({ x: (r() * 2 - 1) * BW, z: (r() * 2 - 1) * BH, s: C.lightSize[0] + r() * (C.lightSize[1] - C.lightSize[0]), k: (r() * 4) | 0, a: .45 + r() * .3 }));
   const darks = []; for (let i = 0; darks.length < (C.dark || 0) && i < 5000; i++) { const x = (r() * 2 - 1) * BW, z = (r() * 2 - 1) * BH; if (Math.hypot(x, z) < R + 30) continue; darks.push({ x, z, s: C.darkSize[0] + r() * (C.darkSize[1] - C.darkSize[0]), k: (r() * 4) | 0, ph: r() * 6.28, sp: .6 + r() * .8 }); }
@@ -24,7 +25,7 @@ export function createMapClouds(doc, cfg) {
   // кадр: ctx — холст облаков (размер как у карты), view — { w, h, sc, cx, cz } той же карты, t — секунды
   function draw(ctx, view, t) {
     if (!light) { light = [0, 1, 2, 3].map(k => sprite(doc, 501 + k * 7, [255, 252, 246])); shadow = [0, 1, 2, 3].map(k => sprite(doc, 501 + k * 7, [20, 16, 12])); dark = [0, 1, 2, 3].map(k => sprite(doc, 601 + k * 7, [36, 30, 34])); }
-    const { w, h, sc, cx, cz } = view, X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc, wx = C.wind[0] * t, wz = C.wind[1] * t;
+    const { w, h, sc, cx, cz } = view, X = x => w / 2 + (x + O.x - cx) * sc, Y = z => h / 2 + (z + O.z - cz) * sc, wx = C.wind[0] * t, wz = C.wind[1] * t;
     ctx.clearRect(0, 0, w, h);
     // тёмные клубы — только за краем мира (клип: прямоугольник минус круг)
     ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.arc(X(0), Y(0), R * sc, 0, Math.PI * 2, true); ctx.clip('evenodd');

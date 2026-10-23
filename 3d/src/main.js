@@ -623,7 +623,7 @@ function travelShow(pts) { travelPick = pts; requestAnimationFrame(travelDraw); 
 function travelDraw() {
   const cv = $('firesMap'), pts = travelPick; if (!pts || firesSec.hidden) return;
   const r = cv.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1), w = Math.max(300, Math.round(r.width * d)), h = Math.max(240, Math.round(r.height * d)); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-  const cx = 0, cz = 0, sc = Math.min(w, h) / (cfg.world.radius * 2 + 12), ctx = cv.getContext('2d'), U = d * 1.2;     // 4.08: весь мир; неоткрытое — под туманом
+  const cx = WCN.x, cz = WCN.z, sc = Math.min(w, h) / (cfg.world.radius * 2 + 12), ctx = cv.getContext('2d'), U = d * 1.2;     // 4.08: весь мир; неоткрытое — под туманом
   drawMap(ctx, mapW(), { w, h, scale: sc, cx, cz, full: true, ui: U, dpr: d });
   const X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc;
   for (const q of pts) { q.px = X(q.x); q.py = Y(q.z);
@@ -724,13 +724,13 @@ function dlgOpen(t) { if (!t || !t.lines || !t.lines.length) { if (t) storyTalke
 const miniCtx = $('mini').getContext('2d'), mapCv = $('mapCv'), mapCtx = mapCv.getContext('2d'), mapEl = $('map');
 let miniT = 0;
 // на втором этаже карта — улица вокруг дома (2026-10-21)
-const mapW = () => { const L = W.levels && W.levels[W.lvl]; if (!(L && L.map && L.map.floor)) return W; const S = W.levels.surface; return { ...W, map: S.map, lvl: 'surface', seen: S.seen, seenN: S.seenN, seenR: S.seenR, seenC: S.seenC }; };
+const mapW = () => { const L = W.levels && W.levels[W.lvl]; if (!(L && L.map && L.map.floor)) return W; const S = W.levels.surface; return { ...W, map: S.map, lvl: 'surface', seen: S.seen, seenN: S.seenN, seenR: S.seenR, seenX: S.seenX || 0, seenZ: S.seenZ || 0, seenC: S.seenC }; };
 function drawMini() { drawMap(miniCtx, mapW(), { w: 128, h: 128, scale: 128 / cfg.mapView.miniSpan, cx: W.player.x, cz: W.player.z, full: false }); }     // miniSpan — сколько метров видно поперёк
 // большая карта (C3e): масштаб и прокрутка — вид mv { cx, cz, span (м на ширину) }; в подземелье — весь уровень
-const MAP_MIN = 60, mv = { cx: 0, cz: 0, span: 220 };
+const MAP_MIN = 60, mv = { cx: 0, cz: 0, span: 220 }, WCN = cfg.world.center || { x: 0, z: 0 };     // WCN — центр круга мира (Мир 5.0): вокруг него подложка и прокрутка
 const mapBox = () => { const R = cfg.world.radius, V = cfg.mapView; return [R * (V.wide || 1), R * (V.tall || 1)]; };     // 4.08: края подложки (полуширина, полувысота), м
 const mapMax = () => { const [RW, RH] = mapBox(), S = mapSide(); return Math.max(cfg.world.radius * 2 + 6, Math.min(2 * RW * S / mapCv.width, 2 * RH * S / mapCv.height)); };     // отдаление: весь круг мира или подложка во весь экран
-const mapClamp = () => { mv.span = Math.max(MAP_MIN, Math.min(mapMax(), mv.span)); const [RW, RH] = mapBox(), k = mv.span / mapSide(), mx = Math.max(0, RW - mapCv.width * k / 2), mz = Math.max(0, RH - mapCv.height * k / 2); mv.cx = Math.max(-mx, Math.min(mx, mv.cx)); mv.cz = Math.max(-mz, Math.min(mz, mv.cz)); };     // 4.08: сдвиг — до края подложки по ширине и высоте
+const mapClamp = () => { mv.span = Math.max(MAP_MIN, Math.min(mapMax(), mv.span)); const [RW, RH] = mapBox(), k = mv.span / mapSide(), mx = Math.max(0, RW - mapCv.width * k / 2), mz = Math.max(0, RH - mapCv.height * k / 2); mv.cx = Math.max(WCN.x - mx, Math.min(WCN.x + mx, mv.cx)); mv.cz = Math.max(WCN.z - mz, Math.min(WCN.z + mz, mv.cz)); };     // 4.08: сдвиг — до края подложки по ширине и высоте
 let mapRaf = 0; const mapRedraw = () => { if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; drawFull(); }); };
 // размер холста карты — по окну (почти весь экран, 2026-10-20), с плотностью пикселей; масштаб — метров на ширину
 const mapDpr = () => Math.min(2, window.devicePixelRatio || 1);

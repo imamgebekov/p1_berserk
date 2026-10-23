@@ -16,12 +16,12 @@ export const SURFACE = 'surface';
 export const onSurface = W => W.lvl === SURFACE;
 
 // сетка тумана войны для прямоугольника (или круга радиуса R вокруг нуля)
-function fogFor(R, c, rev) { const n = Math.ceil(2 * R / c) + 2; return { seenN: n, seenR: R, seenC: c, revR: rev, seen: new Uint8Array(n * n) }; }
+function fogFor(R, c, rev, cx = 0, cz = 0) { const n = Math.ceil(2 * R / c) + 2; return { seenN: n, seenR: R, seenX: cx, seenZ: cz, seenC: c, revR: rev, seen: new Uint8Array(n * n) }; }     // cx, cz — центр сетки (Мир 5.0: второй этаж — сетка вокруг дома, а не от нуля)
 
 export function initLevels(W) {
   const cfg = W.cfg;
   W.lvl = SURFACE;
-  W.levels = { [SURFACE]: { id: SURFACE, def: null, map: W.map, enemies: W.enemies, drops: W.drops, spawnT: W.spawnT, seen: W.seen, seenN: W.seenN, seenR: cfg.world.radius, seenC: cfg.map.cell, revR: cfg.map.reveal, rng: W.rng } };
+  W.levels = { [SURFACE]: { id: SURFACE, def: null, map: W.map, enemies: W.enemies, drops: W.drops, spawnT: W.spawnT, seen: W.seen, seenN: W.seenN, seenR: cfg.world.radius, seenX: W.seenX || 0, seenZ: W.seenZ || 0, seenC: cfg.map.cell, revR: cfg.map.reveal, rng: W.rng } };
   // у подземелья свой поток случайных чисел: новые подземелья не сдвигают добычу и бои наверху (в тестах с зерном — воспроизводимо, в игре — Math.random)
   ((cfg.dungeons && cfg.dungeons.list) || []).forEach((def, i) => {
     const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
@@ -30,8 +30,8 @@ export function initLevels(W) {
   });
   // вторые этажи (2026-10-21): уровень над домом; внизу — лестница (твёрдая, переход у подножия); сундук на месте лестницы — в свободный угол
   for (const f of floorsOf(cfg, W.map, (x, z) => levelAt(W, x, z))) {
-    const map = floorMap(cfg, f), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2, b = f.b, r = f.stair.rect;
-    W.levels[f.def.id] = { id: f.def.id, def: f.def, map, enemies: [], drops: [], spawnT: 1, rng: W.rng === Math.random ? Math.random : mulberry32(cfg.dungeons.seed + 1000 + b.id), ...fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal) };
+    const map = floorMap(cfg, f), B = map.bounds, fx = (B.x0 + B.x1) / 2, fz = (B.z0 + B.z1) / 2, R = Math.max(B.x1 - B.x0, B.z1 - B.z0) / 2 + 2, b = f.b, r = f.stair.rect;
+    W.levels[f.def.id] = { id: f.def.id, def: f.def, map, enemies: [], drops: [], spawnT: 1, rng: W.rng === Math.random ? Math.random : mulberry32(cfg.dungeons.seed + 1000 + b.id), ...fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal, fx, fz) };
     b.stairRect = r; b.floor = f.def.id;
     W.map.portals.push({ x: f.stair.foot.x, z: f.stair.foot.z, to: f.def.id, tx: f.stair.top.x, tz: f.stair.top.z, up: true, stair: true, st: f.stair, house: b.id });
     const inR = c => c.x > r.x0 - .7 && c.x < r.x1 + .7 && c.z > r.z0 - .7 && c.z < r.z1 + .7;
@@ -42,7 +42,7 @@ export function initLevels(W) {
 }
 
 function stash(W) { const L = W.levels[W.lvl]; L.enemies = W.enemies; L.drops = W.drops; L.spawnT = W.spawnT; }
-function load(W, id) { const L = W.levels[id]; W.lvl = id; W.map = L.map; W.enemies = L.enemies; W.drops = L.drops; W.spawnT = L.spawnT; W.seen = L.seen; W.seenN = L.seenN; W.seenR = L.seenR; W.seenC = L.seenC; W.revR = L.revR; W.rng = L.rng; }
+function load(W, id) { const L = W.levels[id]; W.lvl = id; W.map = L.map; W.enemies = L.enemies; W.drops = L.drops; W.spawnT = L.spawnT; W.seen = L.seen; W.seenN = L.seenN; W.seenR = L.seenR; W.seenX = L.seenX || 0; W.seenZ = L.seenZ || 0; W.seenC = L.seenC; W.revR = L.revR; W.rng = L.rng; }
 
 // выполнить fn так, будто текущий уровень — id (возрождение боссов, наполнение контейнеров на других уровнях)
 export function withLevel(W, id, fn) {

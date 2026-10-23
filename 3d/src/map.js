@@ -170,10 +170,10 @@ export function resolve(map, o, r) {
 }
 
 // удержать точку в пределах уровня: на поверхности — круг мира, в подземелье — его прямоугольник
-export function keepIn(map, o, R) {
+export function keepIn(map, o, R, c = null) {     // c — центр круга мира (Мир 5.0); без него — ноль
   const B = map.bounds;
   if (B) { o.x = clamp(o.x, B.x0, B.x1); o.z = clamp(o.z, B.z0, B.z1); return; }
-  const l = Math.hypot(o.x, o.z); if (l > R) { o.x *= R / l; o.z *= R / l; }
+  const cx = c ? c.x : 0, cz = c ? c.z : 0, l = Math.hypot(o.x - cx, o.z - cz); if (l > R) { o.x = cx + (o.x - cx) * R / l; o.z = cz + (o.z - cz) * R / l; }
 }
 
 // вытолкнуть круг из прямоугольника без дверей

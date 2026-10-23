@@ -19,14 +19,14 @@ let water = 0, land = 0, wrong = 0, lum = new Map();
 let farL = 0, farN = 0, inL = 0, inN = 0;
 for (let j = 0; j < N; j += 3) for (let i = 0; i < NX; i += 3) {
   const x = S.X0 + (i + .5) * S.step, z = S.Z0 + (j + .5) * S.step, k = (j * NX + i) * 4; if (!out[k + 3]) continue;
-  { const l = .3 * out[k] + .59 * out[k + 1] + .11 * out[k + 2]; if (Math.hypot(x, z) > R) { farL += l; farN++; continue; } inL += l; inN++; }     // за краем — дорисовка, считается отдельно
+  { const l = .3 * out[k] + .59 * out[k + 1] + .11 * out[k + 2]; if (Math.hypot(x - S.CX, z - S.CZ) > R) { farL += l; farN++; continue; } inL += l; inN++; }     // за краем — дорисовка, считается отдельно
   const c = [out[k], out[k + 1], out[k + 2]], wet = map.river && waterDist(map.river, x, z) < S.V.waterIn;
   if (wet) { water++; if (!blue(c)) wrong++; } else { land++; if (blue(c)) wrong++; }
   const b = biomeAt(CFG3, x, z) || 'core', l = .3 * c[0] + .59 * c[1] + .11 * c[2]; if (!lum.has(b)) lum.set(b, []); lum.get(b).push(l);
 }
 ok(water > 20 && land > water * 20, `вода и суша не в пропорции: вода ${water}, суша ${land}`);
 ok(wrong < (water + land) * .01, 'вода не синяя или суша синяя: ' + wrong);
-ok(at(R * 1.5, 0)[3] === 255 && at(0, R * 1.1)[3] === 255 && at(0, 0)[3] === 255, 'за краем мира не дорисовано или центр пуст');
+ok(at(S.CX + R * 1.5, S.CZ)[3] === 255 && at(S.CX, S.CZ + R * 1.1)[3] === 255 && at(S.CX, S.CZ)[3] === 255, 'за краем мира не дорисовано или центр пуст');
 ok(farN > inN && farL / farN < inL / inN * .9, `за краем не темнее мира: ${(farL / farN).toFixed(0)} против ${(inL / inN).toFixed(0)}`);
 // светотень: подложка без наклона склонов (exag 0) заметно отличается от обычной
 { const flat = new Uint8ClampedArray(NX * N * 4), S0 = reliefSetup({ ...CFG3, mapView: { ...CFG3.mapView, exag: 0 } }, map); reliefRows(S0, 0, N, flat);
@@ -34,7 +34,7 @@ ok(farN > inN && farL / farN < inL / inN * .9, `за краем не темне�
   ok(d / n > 2 && big / n > .05, `светотени почти нет: средняя разница ${(d / n).toFixed(2)}, заметная у ${(100 * big / n).toFixed(1)}%`); }
 void lum;
 // подписи областей
-{ const L = regionLabels(CFG3); ok(L.length === 20 && L.every(l => l.name && l.sub && Math.hypot(l.x, l.z) < R), 'подписи зон: ' + JSON.stringify(L)); }     // этап 1: подписи зон (имя и пояс уровней), 20 за ядром (мир ×2)
+{ const L = regionLabels(CFG3); ok(L.length === 20 && L.every(l => l.name && l.sub && Math.hypot(l.x - S.CX, l.z - S.CZ) < R), 'подписи зон: ' + JSON.stringify(L)); }     // этап 1: подписи зон (имя и пояс уровней), 20 за ядром (мир ×2)
 ok(CFG3.bag.slots === 40, 'сумка не на 40 мест: ' + CFG3.bag.slots);
 
 if (fails.length) { console.log('maprelief3d FAIL\n' + [...new Set(fails)].join('\n')); process.exit(1); }

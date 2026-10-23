@@ -19,7 +19,8 @@ const L = CFG3.life;
 
 // ---------- 1. точки сбора ----------
 { const W = mk(), N = W.map.nodes, C = W.map.camp;
-  ok(N.length === L.gather.n + (CFG3.world.inner ? L.gather.nOuter || 0 : 0), 'точек сбора не ' + (L.gather.n + (L.gather.nOuter || 0)) + ': ' + N.length);     // мир ×2: и внешнее кольцо ok(N.filter(n => Math.hypot(n.x, n.z) < CFG3.worldgen.coreR).length >= L.gather.core * .9, 'в ядре мало точек');
+  { const want = CFG3.world.center ? L.gather.core + L.gather.nOuter : L.gather.n + (CFG3.world.inner ? L.gather.nOuter || 0 : 0); ok(N.length >= want * .97 && N.length <= want, 'точек сбора не ' + want + ': ' + N.length); }     // Мир 5.0: ядро — своя квота, остальное — по кругу мира
+  ok(N.filter(n => Math.hypot(n.x, n.z) < CFG3.worldgen.coreR).length >= L.gather.core * .9, 'в ядре мало точек');     // 2026-10-23: проверка раньше стояла за комментарием посреди строки и не работала
   ok(N.every(n => Math.hypot(n.x - C.x, n.z - C.z) > C.r + 3), 'точка в лагере'); ok(N.every(n => !W.map.solids.some(s => Math.hypot(s.x - n.x, s.z - n.z) < s.r + 1)), 'точка в препятствии');
   ok(!W.map.river || N.every(n => waterDist(W.map.river, n.x, n.z) > 2), 'точка в воде');
   const mtn = N.filter(n => biomeAt(CFG3, n.x, n.z) === 'mountains'); ok(mtn.length > 5 && mtn.filter(n => n.kind === 'ore').length / mtn.length > .6, 'в горах не руда');

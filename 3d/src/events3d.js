@@ -8,6 +8,7 @@ import { CONTAINERS, rollLoot } from './data/loot.js';
 import { insideCamp, insideOf, placeAt, resolve, slide } from './map.js';
 import { distSeg, pathSegs } from './world3d.js';
 
+import { wdist, worldSpot } from './geo3d.js';     // Мир 5.0: круг мира — от его центра
 const between = (rng, [a, b]) => a + rng() * (b - a);
 const pickN = (rng, list, n) => { const a = list.slice(), out = []; while (out.length < n && a.length) out.push(a.splice(rng() * a.length | 0, 1)[0]); return out; };
 const GEAR = CATALOG.filter(i => i.slot && i.rar === 3 && i.pool !== 'unique' && i.pool !== 'setunique');
@@ -36,7 +37,7 @@ function spotNear(W, C, strict) {
       x = a.x + (b.x - a.x) * t - (b.z - a.z) / L * s; z = a.z + (b.z - a.z) * t + (b.x - a.x) / L * s;
     } else { const ang = rng() * TAU, d = between(rng, C.dist); x = p.x + Math.sin(ang) * d; z = p.z + Math.cos(ang) * d; }
     const d = len(x - p.x, z - p.z);
-    if (d < C.dist[0] || d > C.dist[1] || len(x, z) > R - 4) continue;
+    if (d < C.dist[0] || d > C.dist[1] || wdist(W.cfg, x, z) > R - 4) continue;
     if (M.camp && insideCamp(M.camp, x, z, -C.campPad)) continue;
     const pl = placeAt(M, x, z); if (pl && (pl.danger || strict)) continue;
     if (insideOf(M, x, z) >= 0 || resolve(M, { x, z }, C.r)) continue;
@@ -74,7 +75,7 @@ export const nearWanderer = W => { const w = W.wanderer, p = W.player; return !!
 // ---------- случайные события ----------
 // W.event — одно событие за раз: { id, kind, x, z, stage, t, foes: [id], guest, ... }; W.evT — таймер до следующего
 const pickW = (rng, t) => { let s = 0; for (const a of t) s += a[1]; let r = rng() * s; for (const a of t) if ((r -= a[1]) <= 0) return a[0]; return t[0][0]; };
-const free = (W, x, z, r) => insideOf(W.map, x, z) < 0 && !resolve(W.map, { x, z }, r) && len(x, z) < W.cfg.world.radius - 3 && !(W.map.camp && insideCamp(W.map.camp, x, z, -2));
+const free = (W, x, z, r) => insideOf(W.map, x, z) < 0 && !resolve(W.map, { x, z }, r) && wdist(W.cfg, x, z) < W.cfg.world.radius - 3 && !(W.map.camp && insideCamp(W.map.camp, x, z, -2));
 
 // враги события: свои случайные числа на рождение (элита, разброс), сразу встревожены
 function spawnFoes(W, ev, kind, cx, cz, r0, r1, ang0 = 0, spread = TAU) {

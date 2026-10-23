@@ -3,6 +3,7 @@
 import { campOf, insideCamp, insideOf } from './map.js';
 import { phaseOf } from './daynight.js';
 
+import { wdist, worldSpot } from './geo3d.js';     // Мир 5.0: круг мира — от его центра
 const TAU = Math.PI * 2;
 
 // остановки жителей: у двери каждого дома лагеря и «спица» той же дороги у костра (на дорогах свободно)
@@ -44,7 +45,7 @@ export function stepVillager(v, dt, stops, A, rnd) {
 export function makeBirds(map, cfg, rnd) {
   const A = cfg.ambient, C = campOf(cfg), R = cfg.world.radius, out = [];
   for (let k = 0; out.length < A.birds && k < A.birds * 40; k++) {
-    const a = rnd() * TAU, d = 20 + Math.sqrt(rnd()) * (R - 26), x = Math.sin(a) * d, z = Math.cos(a) * d;
+    const q = worldSpot(cfg, rnd, 20, 6) || { x: 0, z: 20 }, x = q.x, z = q.z;     // Мир 5.0: точка в круге мира
     if ((C && insideCamp(C, x, z, -4)) || insideOf(map, x, z, 1) >= 0 || map.solids.some(s => Math.hypot(s.x - x, s.z - z) < s.r + .5)) continue;
     out.push({ hx: x, hz: z, x, y: 0, z, vx: 0, vy: 0, vz: 0, face: rnd() * TAU, state: 'sit', t: 0, peck: rnd() * 3 });
   }

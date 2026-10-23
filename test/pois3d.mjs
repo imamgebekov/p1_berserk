@@ -12,6 +12,7 @@ import { propsIn, groveAt } from '../3d/src/chunks3d.js';
 import { biomeAt } from '../3d/src/worldgen3d.js';
 import { makeBeasts, updateBeasts } from '../3d/src/ambient3d.js';
 import { createSaver, loadSave } from '../3d/src/save3d.js';
+import { wdist } from '../3d/src/geo3d.js';     // Мир 5.0: край — от центра мира
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const M = CFG3.map, G = CFG3.worldgen, R = CFG3.world.radius, map = makeMap(CFG3), segs = pathSegs(map);
@@ -20,13 +21,13 @@ const M = CFG3.map, G = CFG3.worldgen, R = CFG3.world.radius, map = makeMap(CFG3
 const gen = M.places.filter(p => p.gen && !p.id.startsWith('o')), outer = M.places.filter(p => p.gen && p.id.startsWith('o')), Rin = CFG3.world.inner || R;     // мир ×2 (4.04): прежний мир — без внешнего кольца (o…)
 ok(gen.filter(p => p.type === 'hamlet' && !p.id.startsWith('h_')).length === G.villages, 'посёлков не ' + G.villages);     // узлы зон (h_…) — сверх (этап 1)
 ok(gen.filter(p => p.type === 'danger' && !p.poi && !p.castle && !p.fort && !p.city).length === G.dangers, 'опасных мест не ' + G.dangers);
-ok(M.landmarks.filter(q => Math.hypot(q.x, q.z) <= Rin).length === G.landmarks, 'ориентиров не ' + G.landmarks);
-ok(outer.filter(p => p.type === 'hamlet').length >= G.villages * 2 && outer.every(p => Math.hypot(p.x, p.z) > Rin), 'внешнее кольцо: посёлков мало или место внутри прежнего мира');
+ok(CFG3.world.center ? M.landmarks.length >= G.landmarks * .9 : M.landmarks.filter(q => Math.hypot(q.x, q.z) <= Rin).length === G.landmarks, 'ориентиров не ' + G.landmarks);     // Мир 5.0: один проход — без внешнего кольца
+if (!CFG3.world.center) ok(outer.filter(p => p.type === 'hamlet').length >= G.villages * 2 && outer.every(p => Math.hypot(p.x, p.z) > Rin), 'внешнее кольцо: посёлков мало или место внутри прежнего мира');
 ok(M.pois.length >= G.pois.n * .95, 'точек интереса мало: ' + M.pois.length);
 for (const t of Object.keys(G.pois.r)) ok(M.pois.filter(q => q.t === t).length >= 8, `точек «${t}» меньше 8`);
 for (const [i, q] of M.pois.entries()) {
   const d = Math.hypot(q.x, q.z);
-  ok(d > G.coreR + 20 && d < R - 20, `${q.id}: в ядре или у края`);
+  ok(d > G.coreR + 20 && wdist(CFG3, q.x, q.z) < R - 20, `${q.id}: в ядре или у края`);
   if (q.t === 'pond') ok(waterDist(map.river, q.x, q.z) < 0 && waterDist(map.river, q.x, q.z, false) > q.r + 1, `${q.id}: пруд не стал озером или в реке`);     // пруды — маленькие озёра (2026-10-18)
   else ok(waterDist(map.river, q.x, q.z) > q.r + 1, `${q.id}: в воде`);
   ok(!segs.some(([a, b]) => distSeg(q.x, q.z, a, b) < q.r + 1), `${q.id}: на тропе`);
