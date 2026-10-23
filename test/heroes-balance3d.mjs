@@ -12,11 +12,13 @@ import { abyssGo } from '../3d/src/abyss3d.js';
 import { pathStep, lineBlocked, resolve, insideOf } from '../3d/src/map.js';
 import { abilityPoints, upgradeAbility, useAbility, heroAbilities } from '../3d/src/abilities3d.js';
 import { resNow } from '../3d/src/resource3d.js';
+import { schoolOfAbility } from '../3d/src/school3d.js';
+import { ABILITIES } from '../3d/src/data/abilities3d.js';
 import { telegraphDodge } from './botsense.mjs';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const SEEDS = Number(process.env.HB_SEEDS || 12), SECONDS = 90, TOL = Number(process.env.HB_TOL || .15), CELL = Number(process.env.HB_CELL || .3), QUIET = !!process.env.HB_QUIET;
-const HEROES = ['thorn', 'jay', 'vale', 'irga', 'warlock'], NAME = { thorn: 'Торн', jay: 'Сойка', vale: 'Вейл', irga: 'Ирга', warlock: 'Морок' };
+const HEROES = ['thorn', 'jay', 'vale', 'irga', 'warlock', 'priest', 'brand', 'hunter'], NAME = { thorn: 'Торн', jay: 'Сойка', vale: 'Вейл', irga: 'Ирга', warlock: 'Морок', priest: 'Жрец', brand: 'Клеймёный', hunter: 'Бесогон' };     // 2026-10-23: + Жрец, Клеймёный, Бесогон
 const RANGED = h => h === 'jay' || h === 'irga';     // стрелки: держат дистанцию
 const ARMOR = {
   'железо': { body: 'a_body_jerkin_leather', head: 'a_head_cap_leather', boots: 'a_boots_boots_leather' },
@@ -34,16 +36,21 @@ const ARMS = {
   jay:   { 'железо': { weapon: 'w_bow_iron' }, 'сталь': { weapon: 'w_longbow_steel' }, 'чёрное': { weapon: 'w_longbow_black' } },
   irga:  { 'железо': { weapon: 'w_staff_iron' }, 'сталь': { weapon: 'w_staff_steel' }, 'чёрное': { weapon: 'w_staff_black' } },
   warlock: { 'железо': { weapon: 'w_scythe_iron' }, 'сталь': { weapon: 'w_scythe_steel' }, 'чёрное': { weapon: 'w_scythe_black' } },
-  vale:  { 'железо': { weapon: 'w_rapier_iron', offhand: 'w_dagger_iron' }, 'сталь': { weapon: 'w_sword_steel', offhand: 'w_rapier_steel' }, 'чёрное': { weapon: 'w_rapier_black', offhand: 'w_dagger_black' } }
+  vale:  { 'железо': { weapon: 'w_rapier_iron', offhand: 'w_dagger_iron' }, 'сталь': { weapon: 'w_sword_steel', offhand: 'w_rapier_steel' }, 'чёрное': { weapon: 'w_rapier_black', offhand: 'w_dagger_black' } },
+  priest: { 'железо': { weapon: 'w_mace_iron', offhand: 's_buckler_iron' }, 'сталь': { weapon: 'w_mace_steel', offhand: 's_buckler_steel' }, 'чёрное': { weapon: 'w_mace_black', offhand: 's_tower_black' } },
+  brand: { 'железо': { weapon: 'w_greatsword_iron' }, 'сталь': { weapon: 'w_greatsword_steel' }, 'чёрное': { weapon: 'w_greatsword_black' } },
+  hunter: { 'железо': { weapon: 'w_sword_iron', offhand: 'w_dagger_iron' }, 'сталь': { weapon: 'w_sword_steel', offhand: 'w_dagger_steel' }, 'чёрное': { weapon: 'w_sword_black', offhand: 'w_dagger_black' } }
 };
 const LV = { 'железо': 6, 'сталь': 12, 'чёрное': 22 }, TIERS = Object.keys(LV);
 const PLACES = { 'у костра': [6, 6], 'середина': [-20, -40], 'у границы': [-62, -5] };
 
 // очки умений: по одному в каждое открытое умение по порядку, остальное — до упора по порядку
-function spend(W) { const L = heroAbilities(W).slice(0, 8); for (let pass = 0; pass < 6; pass++) for (const a of L) upgradeAbility(W, a.id); }     // бот — на прежних 8 умениях (новые умения древа — test/actives3d.mjs)
+// школа бота (школы героев, 2026-10-22): боты написаны под все 8 базовых умений, поэтому по умолчанию школа не ограничивает; HB_SCHOOL=main — основная школа героя (больше базовых умений), HB_SCHOOL=n — школа n
+const mainSchool = (hero, cfg) => { const n = [0, 0, 0]; for (const a of ABILITIES[hero].slice(0, 8)) n[schoolOfAbility(hero, a.id, cfg) || 0]++; return process.env.HB_SCHOOL === 'main' ? n.indexOf(Math.max(...n)) : Number(process.env.HB_SCHOOL); };
+function spend(W) { const L = heroAbilities(W).slice(0, 8).filter(a => !process.env.HB_SCHOOL || (schoolOfAbility(W.hero, a.id, W.cfg) || 0) === (W.school || 0)); for (let pass = 0; pass < 6; pass++) for (const a of L) upgradeAbility(W, a.id); }     // бот — на прежних 8 умениях (новые умения древа — test/actives3d.mjs)
 function setup(cfg, hero, tier, seed) {
-  const W = createWorld(cfg, mulberry32(seed * 7919 + 3)); W.hero = hero; W.lv = LV[tier]; W.ap = abilityPoints(W.lv, cfg);
-  Object.assign(W.inv.eq, (hero === 'irga' || hero === 'warlock' ? LIGHT : ARMOR)[tier], ARMS[hero][tier]); spend(W); refreshGear(W); W.player.hp = W.player.maxhp; return W;
+  const W = createWorld(cfg, mulberry32(seed * 7919 + 3)); W.hero = hero; if (process.env.HB_SCHOOL) W.school = mainSchool(hero, cfg); W.lv = LV[tier]; W.ap = abilityPoints(W.lv, cfg);
+  Object.assign(W.inv.eq, (hero === 'irga' || hero === 'warlock' || hero === 'priest' ? LIGHT : ARMOR)[tier], ARMS[hero][tier]); spend(W); refreshGear(W); W.player.hp = W.player.maxhp; return W;
 }
 const baseCfg = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.events.on = false; c.wanderer.on = false; c.ambient.on = false; return c; };
 
@@ -71,6 +78,15 @@ function abilities(W, hero, tgt, bd) {
     if (p.hp < p.maxhp * .75 && bd < 9 && use(1)) return; if (near(W, 12) >= 2 && use(4)) return;
     if (bd < 11 && !(tgt.st && tgt.st.crack) && use(0)) return; if ((tgt.elite || tgt.boss || tgt.maxhp > 150) && bd < 13 && use(7)) return;
     if (bd < 12 && use(6)) return; if (resNow(W) < 30 && p.hp > p.maxhp * .7 && use(5)) return;
+  } else if (hero === 'priest' || hero === 'brand' || hero === 'hunter') {     // новые герои: общий бот по виду умения (лечение, оберег, по площади, выстрел, рывок)
+    const L = heroAbilities(W), kind = i => (L[i] && ((W.cfg.abilities[hero][L[i].id] || {}).kind || L[i].kind)) || '';
+    for (let i = 0; i < Math.min(8, L.length); i++) { const k = kind(i);
+      if ((k === 'heal' || k === 'gheal') && p.hp < p.maxhp * .6 && use(i)) return;
+      if ((k === 'ward' || k === 'buff') && (low || near(W, 8) >= 2) && use(i)) return;
+      if (['nova', 'cone', 'field', 'cloud', 'zone', 'pull'].includes(k) && near(W, 6) >= 2 && use(i)) return;
+      if (['bolt', 'mark'].includes(k) && bd < 12 && use(i)) return;
+      if (k === 'strike' && bd < 3 && use(i)) return;
+      if (k === 'dash' && bd > 4 && bd < 8 && use(i)) return; }
   } else {
     if (tgt.hp < tgt.maxhp * .35 && bd < 2.6 && use(4)) return; if ((low || near(W, 6) >= 3) && use(3)) return;
     if (near(W, 3) >= 2 && use(2)) return; if (bd > 4 && bd < 8 && use(0)) return;

@@ -396,7 +396,7 @@ const BASE = {
     },
     priest: {     // Жрец (Г3, 4.16): свои умения собраны из видов действия (kind в data/abilities3d.js), числа — здесь
       smite:    { kind: 'bolt', el: 'light', st: null, cd: [5, 4.5, 4], cost: 20, mul: [1.3, 1.7, 2.1], n: 1, spread: 0, pierce: 0, sd: [1, 1.5, 2], dps: [0, 0, 0], t: 0 },
-      mend:     { kind: 'gheal', cd: [8, 7, 6], cost: 30, r: 10, k: [.16, .22, .28] },
+      mend:     { kind: 'gheal', cd: [9, 8, 7], cost: 30, r: 10, k: [.12, .16, .2] },     // баланс героев (2026-10-23): Жрец в одиночку был живучее всех — лечение слабее и реже
       sanctum:  { kind: 'ward', cd: [14, 12, 10], cost: 30, r: 10, abs: [.15, .2, .25], t: 8 },
       hymn:     { kind: 'buff', stat: 'dmg', cd: [18, 16, 14], cost: 20, t: [6, 8, 10], amt: [4, 7, 10] },
       radiance: { kind: 'nova', el: 'light', st: 'blind', cd: [9, 8, 7], cost: 35, r: 4, mul: [1, 1.3, 1.6], knock: 1, sd: [1.5, 2, 2.5], dps: [0, 0, 0], t: 0 },
@@ -433,7 +433,7 @@ const BASE = {
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
   heroes: { thorn: { hp: 1.15, speed: 1, crit: 0, killHeal: .03, healLv: [8, 12] },     // Торн — защитник: здоровья больше; убийство рядом (до 6 м), когда вокруг ещё двое и больше, лечит на killHeal до healLv[0] ур., к healLv[1] — на нет (на «железе» гиб чаще всех)
-  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .95, speed: 1.05, crit: 3 }, priest: { hp: 1, speed: 1.05, crit: 1 }, brand: { hp: 1.1, speed: 1, crit: 2 }, hunter: { hp: 1, speed: 1.12, crit: 4 } },
+  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .95, speed: 1.05, crit: 3 }, priest: { hp: 1, speed: 1.05, crit: 1 }, brand: { hp: 1.2, speed: 1, crit: 2 }, hunter: { hp: 1, speed: 1.12, crit: 4 } },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
     // rar — редкость вещи (3 — великий, фиолетовый; 4 — клеймёный, оранжевый; 5 — золотой, только здесь), mul — наценка;
@@ -527,7 +527,7 @@ const BASE = {
       by: { cellar_cooper: 'crypt', crypt_pogost: 'crypt', castle_ash_1: 'forge', castle_ash_2: 'forge', castle_ash_3: 'forge', castle_waste_1: 'ice', castle_waste_2: 'ice', castle_waste_3: 'ice',
         inst_brod: 'crypt', inst_olkh: 'cave', inst_moss: 'temple', inst_pass: 'ice', inst_forge: 'forge', inst_tower: 'crypt', inst_dusk: 'temple', inst_barrow: 'cave', inst_nest: 'cave', inst_abbey: 'ice', raid_hand: 'forge', inst_drown: 'temple', inst_ash: 'forge', inst_rift: 'cave', raid_throne: 'crypt', raid_oak: 'cave', raid_cathedral: 'temple' },
       list: {
-        crypt: { name: 'склеп', floor: '#2c2622', wall: '#4a4038', cap: '#141010', bg: '#070504', fogK: 1, hemi: ['#6a5a50', '#1a1210', .9], flame: '#ffb050', mist: '#5a2616', mistA: .5, ember: '#ff8a3a', pillar: '#170f0c', glow: null },
+        crypt: { name: 'склеп', floor: '#4a4038', wall: '#6a5a4a', cap: '#1e1612', bg: '#140e0a', fogK: .6, hemi: ['#e0cca8', '#3a2a20', 1.6], flame: '#ffc070', mist: '#7a4a2a', mistA: .4, ember: '#ffb060', pillar: '#241a14', glow: { n: 2, kind: 'crystal', color: '#ffc870' } },     // Д4 (2026-10-23): крипта светлее — тёплый свет, янтарные кристаллы-светильники (была самой тёмной: свет .9, туман 1, без свечения)
         cave: { name: 'зелёная пещера', floor: '#41603a', wall: '#557a48', cap: '#1e2e18', bg: '#1c3222', fogK: .4, hemi: ['#c4f4a8', '#2c4c26', 2.2], flame: '#d8ff9a', mist: '#6ad08a', mistA: .32, ember: '#c8ff9a', pillar: '#1a2a18', glow: { n: 3, kind: 'mushroom', color: '#8affb8' } },
         ice: { name: 'ледяной грот', floor: '#9ab4c6', wall: '#6a8aa8', cap: '#2a3a4a', bg: '#18283a', fogK: .5, hemi: ['#dcf2ff', '#3a5068', 1.9], flame: '#bfe8ff', mist: '#a8d8ff', mistA: .3, ember: '#eef8ff', pillar: '#1c2a3a', glow: { n: 2, kind: 'crystal', color: '#9ee8ff' } },
         forge: { name: 'кузня', floor: '#3a2a22', wall: '#5a3a2a', cap: '#1a0e08', bg: '#1a0904', fogK: .8, hemi: ['#ffb070', '#3a1a0a', 1.35], flame: '#ffb050', mist: '#ff6a2a', mistA: .55, ember: '#ffb050', pillar: '#241008', glow: { n: 2, kind: 'lava', color: '#ff5a10' } },

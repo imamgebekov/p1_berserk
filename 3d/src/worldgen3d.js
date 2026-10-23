@@ -124,7 +124,7 @@ export function expandBig(base) {
     const d = Math.hypot(v.x, v.z); if (links.some(([a, b]) => (at(b, v) && Math.hypot(a.x, a.z) < d) || (at(a, v) && Math.hypot(b.x, b.z) < d))) continue;
     const blocks = [...cfg.map.places, ...(cfg.map.pois || []), ...(V.map.pois || []).filter(q => far(q.x, q.z, q.r || 0)), ...((RV && RV.lakes) || []).map(L => ({ x: L.x, z: L.z, r: L.r * 1.3 })), ...((V.terrain.river && V.terrain.river.lakes) || []).map(L => ({ x: L.x, z: L.z, r: L.r * 1.3 }))];
     const clear = (a, b) => blocks.every(q => (Math.abs(q.x - a.x) < .01 && Math.abs(q.z - a.z) < .01) || (Math.abs(q.x - b.x) < .01 && Math.abs(q.z - b.z) < .01) || segD(q.x, q.z, a, b) >= (q.r || 0) + 2);     // дорога не через места, точки интереса и озёра
-    const to = hamlets.filter(q => q !== v && Math.hypot(q.x, q.z) < d).sort((a, q) => Math.hypot(a.x - v.x, a.z - v.z) - Math.hypot(q.x - v.x, q.z - v.z)).find(q => clear(q, v));
+    const near = hamlets.filter(q => q !== v && Math.hypot(q.x, q.z) < d).sort((a, q) => Math.hypot(a.x - v.x, a.z - v.z) - Math.hypot(q.x - v.x, q.z - v.z)), hits = q => blocks.filter(b => !((Math.abs(b.x - q.x) < .01 && Math.abs(b.z - q.z) < .01) || (Math.abs(b.x - v.x) < .01 && Math.abs(b.z - v.z) < .01)) && segD(b.x, b.z, q, v) < (b.r || 0) + 2).length, to = near.find(q => clear(q, v)) || near.slice(0, 6).sort((a, b) => hits(a) - hits(b))[0];     // 2026-10-23: чистого пути нет — дорога к ближнему всё равно (иначе посёлок отрезан)
     if (to) { const lk = [{ x: to.x, z: to.z }, { x: v.x, z: v.z }]; links.push(lk); added.push(lk); }
   }
   cfg.map.links.push(...links);
