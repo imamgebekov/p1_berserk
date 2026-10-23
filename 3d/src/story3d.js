@@ -5,7 +5,9 @@ import { QUESTS } from './data/quests3d.js';
 import { ACT_ALL, ACTS, SPEAKERS, END_ACTORS } from './data/story3d.js';
 import { spawnEnemy, killEnemy, spawnBoss } from './sim.js';
 import { spawnAlly } from './squad3d.js';
-import { resolve } from './map.js';
+import { resolve, placeAt, insideOf } from './map.js';
+import { waterDist } from './terrain3d.js';
+import { wdist } from './geo3d.js';     // Мир 5.0
 import { addItem, entryOf, roomFor, nomIl, countOf, removeAt } from './inv.js';
 import { BY_ID } from './data/items.js';
 import { gainXp, paceXp } from './progress3d.js';
@@ -35,7 +37,16 @@ function spotOf(W, at) {
   const p = (M.places || []).find(q => q.id === at); return p ? { x: p.x, z: p.z } : { x: camp.x, z: camp.z };
 }
 export const storySpot = (W, at, off, x, z) => { if (at !== 'xy') return place(W, at, off); const o = { x, z }; try { resolve(surfMap(W), o, .5); } catch (e) { /* без карты — как есть */ } return o; };     // место по имени сюжета (для заданий: охота, оборона)
-const place = (W, at, off) => { const s = spotOf(W, at), o = { x: s.x + (off ? off[0] : 0), z: s.z + (off ? off[1] : 0) }; try { resolve(surfMap(W), o, .5); } catch (e) { /* без карты — как есть */ } return o; };
+const place = (W, at, off) => { const s = spotOf(W, at), o = { x: s.x + (off ? off[0] : 0), z: s.z + (off ? off[1] : 0) }; if (off && W.cfg.world.center) { const q = clearSpot(W, s, o, at + ':' + off); o.x = q.x; o.z = q.z; } try { resolve(surfMap(W), o, .5); } catch (e) { /* без карты — как есть */ } return o; };
+// Мир 5.0: смещение от узла задано вручную — в новом мире точка может попасть в чужой посёлок, дом, воду или за край; тогда ближайшая
+// свободная точка по спирали, не ближе 60% смещения к узлу (запоминается на карте)
+function clearSpot(W, s, o, key) {
+  const M = surfMap(W); if (!M || !M.buildings) return o; const C = M._spots || (M._spots = new Map()); if (C.has(key)) return C.get(key);
+  const need = .6 * Math.hypot(o.x - s.x, o.z - s.z), R = W.cfg.world.radius;
+  const free = (x, z) => wdist(W.cfg, x, z) < R - 15 && Math.hypot(x - s.x, z - s.z) >= need && insideOf(M, x, z, 2) < 0 && !(placeAt(M, x, z) || {}).safe && !(M.river && waterDist(M.river, x, z) < 4) && !(M.camp && Math.hypot(x - M.camp.x, z - M.camp.z) < M.camp.r + 6);
+  let q = o; if (!free(o.x, o.z)) { q = null; for (let r = 6; r < 220 && !q; r += 6) for (let a = 0; a < 6.28 && !q; a += 6 / r) { const x = o.x + Math.sin(a) * r, z = o.z + Math.cos(a) * r; if (free(x, z)) q = { x, z }; } }
+  q = q || o; C.set(key, q); return q;
+}
 
 // ---- кто стоит в мире: [{ kind, name, tint, x, z, mark: '!' | '?' | null }] ----
 export function storyActors(W) {

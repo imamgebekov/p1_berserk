@@ -6,7 +6,8 @@ import { addItem, removeAt, countOf } from './inv.js';
 import { spawnEnemy } from './sim.js';
 import { storySpot } from './story3d.js';
 import { len } from './util3d.js';
-import { insideOf, insideCamp } from './map.js';
+import { insideOf, insideCamp, placeAt } from './map.js';
+import { wdist } from './geo3d.js';     // Мир 5.0: следы не за край мира
 
 export const MAX_ACTIVE = 8;
 const stateOf = (W, id) => W.quests[id] || null;
@@ -103,7 +104,7 @@ export function trackPts(W, q) {
   let a = (c ? Math.atan2(out[0].x - c.x, out[0].z - c.z) : 0) + (r() - .5);     // следы уводят прочь от лагеря
   for (let i = 1; i < q.n; i++) {
     const d = T.step[0] + r() * (T.step[1] - T.step[0]), o = out[i - 1]; a += (r() - .5) * 1.2; let b = null;
-    for (let k = 0; k < 9 && !b; k++) { const ak = a + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * .45, t = storySpot(W, 'xy', null, o.x + Math.sin(ak) * d, o.z + Math.cos(ak) * d); if (insideOf(M, t.x, t.z) < 0 && !(c && insideCamp(c, t.x, t.z, -8))) b = t; }     // не в доме и не у частокола
+    for (let k = 0; k < 9 && !b; k++) { const ak = a + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * .45, t = storySpot(W, 'xy', null, o.x + Math.sin(ak) * d, o.z + Math.cos(ak) * d); if (insideOf(M, t.x, t.z) < 0 && !(c && insideCamp(c, t.x, t.z, -8)) && !(placeAt(M, t.x, t.z) || {}).safe && wdist(W.cfg, t.x, t.z) < W.cfg.world.radius - 15) b = t; }     // не в доме и не у частокола
     out.push(b || storySpot(W, 'xy', null, o.x + Math.sin(a) * d, o.z + Math.cos(a) * d));
   }
   return out;

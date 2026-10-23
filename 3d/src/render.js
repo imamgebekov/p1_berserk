@@ -116,9 +116,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let lastLight = -1;
 
   const gtex = groundTexture(cfg.look);
-  const GW = (cfg.world.radius + 200) * 2, gtex2 = gtex.clone(); gtex2.repeat.set(70 * GW / 500, 70 * GW / 500); gtex2.needsUpdate = true;
+  const WCEN = cfg.world.center || { x: 0, z: 0 }, GW = (cfg.world.radius + 200) * 2, gtex2 = gtex.clone(); gtex2.repeat.set(70 * GW / 500, 70 * GW / 500); gtex2.needsUpdate = true;
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(GW, GW), paintMat(new THREE.MeshLambertMaterial({ map: gtex2 }), 'ground'));     // под всем миром, тот же масштаб травы
-  ground.rotation.x = -Math.PI / 2; ground.position.y = -1.2; scene.add(ground);     // ниже дна реки: внутри мира землю рисуют холмы
+  ground.rotation.x = -Math.PI / 2; ground.position.set(WCEN.x, -1.2, WCEN.z); scene.add(ground);     // WCEN — центр круга мира (Мир 5.0)     // ниже дна реки: внутри мира землю рисуют холмы
 
   const map = addFires(makeMap(cfg), cfg, firesOf);     // костры вне лагеря — та же карта, что у мира (раньше рендер строил её без костров)
   // рельеф (C2): поле высот только для вида; Y — высота земли под точкой (в подземельях 0)
@@ -325,7 +325,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // деревья и камни одним мешем (один вызов отрисовки)
   const rnd = mulberry32(cfg.world.seed), parts = [], treeXZ = [];
   // граница мира: частокол из мёртвых стволов
-  for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2, R = cfg.world.radius + 1.5; addTree(parts, rnd, Math.cos(a) * R, Math.sin(a) * R, cfg.look); }
+  for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2, R = cfg.world.radius + 1.5; addTree(parts, rnd, WCEN.x + Math.cos(a) * R, WCEN.z + Math.sin(a) * R, cfg.look); }
   // объём слоями (F4): деревья с кроной над тропой — в общий меш (качаются); арки и перекладины ворот — отдельной группой
   const OH = overheadOf(map, cfg), crnd = mulberry32(cfg.world.seed + 31);
   for (const c of OH.canopy) { const k0 = parts.length; addCanopyTree(parts, crnd, c, cfg.look); const gy = Y(c.x, c.z); for (let k = k0; k < parts.length; k++) parts[k].translate(0, gy, 0); treeXZ.push(c.x + c.toX * c.reach, c.z + c.toZ * c.reach); }
@@ -403,7 +403,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // подгрузка: нужные участки вокруг камеры; если не хватает многих (старт, перенос) — все сразу, иначе по одному за кадр
   const LAND_VIEW = 96;
   function streamLand(x, z) {
-    const need = chunksAround(x, z, LAND_VIEW, cfg.world.radius), keys = new Set(need.map(q => q.ci + ',' + q.cj)), miss = need.filter(q => !liveLand.has(q.ci + ',' + q.cj));
+    const need = chunksAround(x, z, LAND_VIEW, cfg.world.radius, cfg.world.center), keys = new Set(need.map(q => q.ci + ',' + q.cj)), miss = need.filter(q => !liveLand.has(q.ci + ',' + q.cj));
     if (miss.length > 4) { for (const [k, j] of jobs) { for (const _ of j); jobs.delete(k); const L = liveLand.get(k); if (L) freeze(L.g); } for (const q of miss) { buildLand(q.ci, q.cj); const L = liveLand.get(q.ci + ',' + q.cj); if (L) freeze(L.g); } }
     else {                                                                    // на ходу: один шаг постройки за кадр, ближний участок — первым
       if (!jobs.size && miss.length) { const q = miss[0], k = q.ci + ',' + q.cj; jobs.set(k, landJob(q.ci, q.cj)); }
@@ -466,7 +466,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const crows = (AMB.on ? makeBirds(map, cfg, arnd) : []).map(b => { const m = makeCrow(); m.group.rotation.y = b.face; life.add(m.group); return { b, m }; });
   const swapIn = (old, A, parent) => { A.group.position.copy(old.group.position); A.group.rotation.copy(old.group.rotation); A.group.visible = old.group.visible; parent.remove(old.group); disposeDeep(old.group); parent.add(A.group); return A; };     // своя модель → готовая
   // звери (G2): вокруг героя, где можно стоять — не вода, не дом, не камень, не лагерь, не обрыв
-  const BEA = cfg.beasts, beastOk = (x, z) => Math.hypot(x, z) < cfg.world.radius - 4 && !(map.camp && insideCamp(map.camp, x, z, -3)) && !(river && waterDist(river, x, z) < 1.5) && insideOf(map, x, z, 1) < 0 && !map.solids.some(q => Math.abs(q.x - x) < q.r + .6 && Math.abs(q.z - z) < q.r + .6) && !(map.plateaus.length && inCliff(map.plateaus, x, z, 1));
+  const BEA = cfg.beasts, beastOk = (x, z) => Math.hypot(x - WCEN.x, z - WCEN.z) < cfg.world.radius - 4 && !(map.camp && insideCamp(map.camp, x, z, -3)) && !(river && waterDist(river, x, z) < 1.5) && insideOf(map, x, z, 1) < 0 && !map.solids.some(q => Math.abs(q.x - x) < q.r + .6 && Math.abs(q.z - z) < q.r + .6) && !(map.plateaus.length && inCliff(map.plateaus, x, z, 1));
   const beasts = (BEA && BEA.on ? makeBeasts(BEA.n) : []).map(b => { const m = makeBeast(b.kind); m.group.visible = false; life.add(m.group); return { b, m, ms: { [b.kind]: m } }; });     // ms — модели по видам (вид меняется по биому)
   const beastModel = c => { if (!c.ms[c.b.kind]) { const m = ambMake('beast', c.b.kind) || makeBeast(c.b.kind); life.add(m.group); c.ms[c.b.kind] = m; } for (const [k, m] of Object.entries(c.ms)) if (k !== c.b.kind) m.group.visible = false; c.m = c.ms[c.b.kind]; return c.m; };
   // утки на озере, рыба, бабочки и летучие мыши (2026-10-18) — только вид
@@ -498,11 +498,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // море (C3b): за краем мира в секторе побережья — вода до горизонта (берег — край мира)
   const sea = (() => {
     const G = cfg.worldgen; if (!G || !G.on || cfg.world.radius <= G.coreR || !waterMat) return new THREE.Group();
-    const R0 = cfg.world.radius - 3, R1 = cfg.world.radius + 260, i = BIOMES.indexOf('coast'), n = BIOMES.length, v = [], idx = [], y = cfg.terrain.water;
-    const t0 = i / n - G.turn - .02, t1 = (i + 1) / n - G.turn + .02, K = 48;
-    for (let k = 0; k <= K; k++) { const a = (t0 + (t1 - t0) * k / K) * Math.PI * 2; v.push(Math.sin(a) * R0, y, Math.cos(a) * R0, Math.sin(a) * R1, y, Math.cos(a) * R1); if (k) { const q = k * 2; idx.push(q - 2, q - 1, q, q - 1, q + 1, q); } }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals();
-    const bank = [], flow = []; for (let k = 0; k <= K; k++) { const a = (t0 + (t1 - t0) * k / K) * Math.PI * 2; bank.push(0, 1e4, R1 - R0, 1e4); flow.push(Math.sin(a) * .3, Math.cos(a) * .3, Math.sin(a) * .3, Math.cos(a) * .3); }     // прибой — к берегу
+    const R0 = cfg.world.radius - 3, R1 = cfg.world.radius + 260, v = [], idx = [], y = cfg.terrain.water, K = 360, bank = [], flow = [];     // Мир 5.0: море — за краем там, где у края биом «берег» (любые доли круга)
+    const coastAt = a => biomeAt(cfg, WCEN.x + Math.sin(a) * (cfg.world.radius - 2), WCEN.z + Math.cos(a) * (cfg.world.radius - 2)) === 'coast';
+    for (let k = 0; k < K; k++) { const a0 = k / K * Math.PI * 2, a1 = (k + 1) / K * Math.PI * 2; if (!coastAt(a0) && !coastAt(a1) && !coastAt((a0 + a1) / 2)) continue;
+      const q = v.length / 3; for (const a of [a0 - .004, a1 + .004]) { v.push(WCEN.x + Math.sin(a) * R0, y, WCEN.z + Math.cos(a) * R0, WCEN.x + Math.sin(a) * R1, y, WCEN.z + Math.cos(a) * R1); bank.push(0, 1e4, R1 - R0, 1e4); flow.push(Math.sin(a) * .3, Math.cos(a) * .3, Math.sin(a) * .3, Math.cos(a) * .3); }
+      idx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2); }
+    if (!v.length) return new THREE.Group();
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals();     // прибой — к берегу
     g.setAttribute('bank', new THREE.Float32BufferAttribute(bank, 2)); g.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2));
     const m = new THREE.Mesh(g, waterMat); scene.add(m); return m;
   })();
@@ -512,8 +514,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const HZ = cfg.world.horizon, G = cfg.worldgen; if (!HZ || !HZ.on || !G || !G.on || cfg.world.radius <= G.coreR) return null;
     const R = cfg.world.radius, F = HZ.far, rnd = mulberry32(cfg.world.seed * 13 + 7), parts = [], n = Math.round(Math.PI * 2 * (R + F.r[0]) / F.step);
     for (let row = 0; row < 2; row++) for (let k = 0; k < n; k++) {
-      const a = (k + rnd() * .8 + row * .5) / n * Math.PI * 2, d = R + F.r[0] + (F.r[1] - F.r[0]) * (row * .5 + rnd() * .5), x = Math.sin(a) * d, z = Math.cos(a) * d;
-      const bio = biomeAt(cfg, Math.sin(a) * (R - 2), Math.cos(a) * (R - 2)) || 'forest'; if (bio === 'coast') continue;
+      const a = (k + rnd() * .8 + row * .5) / n * Math.PI * 2, d = R + F.r[0] + (F.r[1] - F.r[0]) * (row * .5 + rnd() * .5), x = WCEN.x + Math.sin(a) * d, z = WCEN.z + Math.cos(a) * d;
+      const bio = biomeAt(cfg, WCEN.x + Math.sin(a) * (R - 2), WCEN.z + Math.cos(a) * (R - 2)) || 'forest'; if (bio === 'coast') continue;
       const rocky = bio === 'mountains' || bio === 'waste', h = (F.h[0] + rnd() * (F.h[1] - F.h[0])) * (rocky ? 1 : .45) * (row ? 1.25 : 1), w = h * (rocky ? .9 + rnd() * .5 : 1.8 + rnd());
       const g = new THREE.ConeGeometry(w, h, rocky ? 6 : 9, 3), p = g.attributes.position;
       for (let i = 0; i < p.count; i++) { const y = p.getY(i) + h / 2; if (y > .01 && y < h - .01) { p.setX(i, p.getX(i) * (.8 + rnd() * .4)); p.setZ(i, p.getZ(i) * (.8 + rnd() * .4)); p.setY(i, (y * (.9 + rnd() * .2)) - h / 2); } }     // неровные склоны

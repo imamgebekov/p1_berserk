@@ -120,7 +120,7 @@ export function vnoise(x, z, s) { const i = Math.floor(x), j = Math.floor(z), fx
 const CH = 64;
 export function buildHeights(cfg, map) {
   const T = cfg.terrain, HL = T && T.hills, R = cfg.world.radius + 24, cell = HL ? HL.cell : 2;
-  const hf = { R, cell, CH, chunks: new Map(), river: map.river, deck: T && T.bridge ? T.bridge.deck : .3, arch: T && T.bridge ? T.bridge.arch || 0 : 0, flat: !T || !T.on || !HL, built: 0 };
+  const hf = { R, cx: (cfg.world.center || { x: 0 }).x, cz: (cfg.world.center || { z: 0 }).z, cell, CH, chunks: new Map(), river: map.river, deck: T && T.bridge ? T.bridge.deck : .3, arch: T && T.bridge ? T.bridge.arch || 0 : 0, flat: !T || !T.on || !HL, built: 0 };
   if (hf.flat) return hf;
   const segD = (x, z, a, b) => segDist(x, z, a, b).d, B = HL.blend, keep = [];        // { f — расстояние до ровного места, рамка влияния }
   const add = (f, x0, x1, z0, z1, pad) => keep.push({ f, x0: x0 - pad - B, x1: x1 + pad + B, z0: z0 - pad - B, z1: z1 + pad + B });
@@ -153,14 +153,14 @@ function chunkOf(hf, ci, cj) {
 }
 // высота узла решётки: ks — ровные места, rv — река (null — далеко); box — пропускать места, чья рамка не задевает точку
 function nodeH(hf, x, z, ks, rv, box) {
-  const { R, T, HL } = hf;
-  if (Math.abs(x) > R || Math.abs(z) > R) return 0;
+  const { R, T, HL } = hf, ax = Math.abs(x - hf.cx), az = Math.abs(z - hf.cz);     // квадрат вокруг центра мира (Мир 5.0)
+  if (ax > R || az > R) return 0;
   let d = 1e9; for (const k of ks) { if (box && (x < k.x0 || x > k.x1 || z < k.z0 || z > k.z1)) continue; const v = k.f(x, z); if (v < d) d = v; if (d <= 0) break; }
   const kk = d <= 0 ? 0 : d >= HL.blend ? 1 : smooth(d / HL.blend);
   let h = 0; if (kk > 0) { let amp = 1, fr = 1 / HL.scale, sum = 0, norm = 0; for (let o = 0; o < HL.oct; o++) { sum += (vnoise(x * fr, z * fr, hf.seed + o) - .5) * 2 * amp; norm += amp; amp *= .5; fr *= 2; } h = sum / norm * HL.amp * kk; }
   if (rv && rv.streams && rv.streams.length) { const sd = streamDist(rv, x, z); if (sd < 1.2) h = Math.min(h, T.bed * .45 * smooth(Math.max(0, Math.min(1, 1 - sd / 1.2)))); }     // русло ручья
   if (rv) { const w = waterDist(rv, x, z); if (w < T.bank) { const t = Math.max(0, Math.min(1, w < 0 ? 0 : w / T.bank)); h = h * smooth(t) + T.bed * (1 - smooth(t)); } }
-  const e = R - Math.max(Math.abs(x), Math.abs(z)); if (e < 10) h *= Math.max(0, e / 10);     // к краю мира — ровно
+  const e = R - Math.max(ax, az); if (e < 10) h *= Math.max(0, e / 10);     // к краю мира — ровно
   return h;
 }
 // высота для подложки карты (4.05): без выравнивания под дома, тропы и места (на карте его не видно) — только холмы, река, ручьи и плато;
@@ -175,7 +175,7 @@ export function deckAt(b, x, z, deck, arch) { const a = (x - b.x) * Math.sin(b.a
 export function heightAt(hf, x, z, deck = true) {
   if (!hf) return 0;
   if (deck && hf.river) { const b = onBridge(hf.river, x, z); if (b) return deckAt(b, x, z, hf.deck, hf.arch || 0); }
-  if (hf.flat || x < -hf.R || z < -hf.R || x >= hf.R - hf.cell || z >= hf.R - hf.cell) return 0;
+  if (hf.flat || x - hf.cx < -hf.R || z - hf.cz < -hf.R || x - hf.cx >= hf.R - hf.cell || z - hf.cz >= hf.R - hf.cell) return 0;
   const ci = Math.floor(x / CH), cj = Math.floor(z / CH), C = chunkOf(hf, ci, cj), m = C.m;
   const fx = (x - ci * CH) / hf.cell, fz = (z - cj * CH) / hf.cell, i = Math.min(m - 2, Math.floor(fx)), j = Math.min(m - 2, Math.floor(fz));
   const tx = fx - i, tz = fz - j, D = C.data, a = D[j * m + i], b = D[j * m + i + 1], c = D[(j + 1) * m + i], d = D[(j + 1) * m + i + 1];

@@ -20,7 +20,7 @@ export function windAt(t, C, seed = 1) {
 }
 // пучки травы на весь мир — сборка из участков (рендер строит их по участкам вокруг героя, см. chunks3d.js)
 export function grassSpots(map, cfg) {
-  const segs = pathSegs(map), R = cfg.world.radius, n = Math.ceil(R / CHUNK), out = [];
-  for (let ci = -n; ci < n; ci++) for (let cj = -n; cj < n; cj++) out.push(...grassIn(map, cfg, ci, cj, segs));
+  const segs = pathSegs(map), R = cfg.world.radius, n = Math.ceil(R / CHUNK), C = cfg.world.center || { x: 0, z: 0 }, i0 = Math.round(C.x / CHUNK), j0 = Math.round(C.z / CHUNK), out = [];     // вокруг центра мира (Мир 5.0)
+  for (let ci = i0 - n; ci < i0 + n; ci++) for (let cj = j0 - n; cj < j0 + n; cj++) out.push(...grassIn(map, cfg, ci, cj, segs));
   return out;
 }

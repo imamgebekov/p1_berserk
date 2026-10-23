@@ -3,6 +3,7 @@
 
 import { campOf, campGates, insideCamp } from './map.js';
 import { riverOf, waterDist } from './terrain3d.js';
+import { wdist, worldSpot } from './geo3d.js';     // Мир 5.0: круг мира — от его центра
 const TAU = Math.PI * 2;
 export function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
@@ -13,7 +14,7 @@ export function genWorld(cfg, buildings) {
   const inSolid = (x, z, r) => solids.some(s => Math.hypot(s.x - x, s.z - z) < s.r + r);
   const nearRoad = (x, z, w) => roads.some(([a, b]) => distSeg(x, z, a, b) < w);
   const river = riverOf(cfg), wet = (x, z, pad) => !!river && waterDist(river, x, z) < pad;     // река (C2): декор не в воде
-  const free = (x, z, pad) => Math.hypot(x, z) < R - 4 && !inBuilding(x, z, pad) && !inSolid(x, z, pad) && !wet(x, z, pad);
+  const free = (x, z, pad) => wdist(cfg, x, z) < R - 4 && !inBuilding(x, z, pad) && !inSolid(x, z, pad) && !wet(x, z, pad);
   const doors = buildings.map(b => b.door);
   const blocksDoor = (x, z, r) => doors.some(d => Math.hypot(d.out.x - x, d.out.z - z) < r + 2.4 || Math.hypot(d.x - x, d.z - z) < r + 2.4);
   const put = (t, x, z, extra = {}) => { if (!wet(x, z, .3)) decor.push({ t, x, z, ...extra }); };

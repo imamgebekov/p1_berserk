@@ -6,6 +6,7 @@ import { insideCamp } from './map.js';
 import { pathSegs, distSeg } from './world3d.js';
 import { waterDist } from './terrain3d.js';
 
+import { wdist, worldSpot } from './geo3d.js';     // Мир 5.0: круг мира — от его центра
 // точка и направление тропы на доле пути f (0..1)
 function along(pts, f) {
   let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z);
@@ -24,7 +25,7 @@ export function overheadOf(map, cfg) {
   const inB = (x, z, pad) => map.buildings.some(b => x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad);
   const wet = (x, z, pad) => !!map.river && waterDist(map.river, x, z) < pad;
   const nearPath = (x, z, d) => segs.some(([a, b]) => distSeg(x, z, a, b) < d);
-  const ok = (x, z) => Math.hypot(x, z) < R - 3 && !inB(x, z, 1) && !wet(x, z, 1.5) && !map.solids.some(q => Math.hypot(q.x - x, q.z - z) < q.r + .6);
+  const ok = (x, z) => wdist(cfg, x, z) < R - 3 && !inB(x, z, 1) && !wet(x, z, 1.5) && !map.solids.some(q => Math.hypot(q.x - x, q.z - z) < q.r + .6);
   // арки: на изогнутых тропах, в середине; опоры по бокам тропы — обе должны стоять свободно
   for (const P of map.paths || []) {
     if (P.pts.length < 3) continue;

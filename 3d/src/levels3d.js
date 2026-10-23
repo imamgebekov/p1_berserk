@@ -21,7 +21,7 @@ function fogFor(R, c, rev) { const n = Math.ceil(2 * R / c) + 2; return { seenN:
 export function initLevels(W) {
   const cfg = W.cfg;
   W.lvl = SURFACE;
-  W.levels = { [SURFACE]: { id: SURFACE, def: null, map: W.map, enemies: W.enemies, drops: W.drops, spawnT: W.spawnT, seen: W.seen, seenN: W.seenN, seenR: cfg.world.radius, seenC: cfg.map.cell, revR: cfg.map.reveal, rng: W.rng } };
+  W.levels = { [SURFACE]: { id: SURFACE, def: null, map: W.map, enemies: W.enemies, drops: W.drops, spawnT: W.spawnT, seen: W.seen, seenN: W.seenN, seenR: cfg.world.radius, seenX: W.seenX || 0, seenZ: W.seenZ || 0, seenC: cfg.map.cell, revR: cfg.map.reveal, rng: W.rng } };
   // у подземелья свой поток случайных чисел: новые подземелья не сдвигают добычу и бои наверху (в тестах с зерном — воспроизводимо, в игре — Math.random)
   ((cfg.dungeons && cfg.dungeons.list) || []).forEach((def, i) => {
     const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
@@ -42,7 +42,7 @@ export function initLevels(W) {
 }
 
 function stash(W) { const L = W.levels[W.lvl]; L.enemies = W.enemies; L.drops = W.drops; L.spawnT = W.spawnT; }
-function load(W, id) { const L = W.levels[id]; W.lvl = id; W.map = L.map; W.enemies = L.enemies; W.drops = L.drops; W.spawnT = L.spawnT; W.seen = L.seen; W.seenN = L.seenN; W.seenR = L.seenR; W.seenC = L.seenC; W.revR = L.revR; W.rng = L.rng; }
+function load(W, id) { const L = W.levels[id]; W.lvl = id; W.map = L.map; W.enemies = L.enemies; W.drops = L.drops; W.spawnT = L.spawnT; W.seen = L.seen; W.seenN = L.seenN; W.seenR = L.seenR; W.seenX = L.seenX || 0; W.seenZ = L.seenZ || 0; W.seenC = L.seenC; W.revR = L.revR; W.rng = L.rng; }
 
 // выполнить fn так, будто текущий уровень — id (возрождение боссов, наполнение контейнеров на других уровнях)
 export function withLevel(W, id, fn) {

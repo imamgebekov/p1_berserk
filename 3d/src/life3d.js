@@ -8,6 +8,7 @@ import { zoneAt, zoneLevel } from './zones3d.js';
 import { levelOfDepth, depthCurve } from './levels3d.js';
 import { BY_ID } from './data/items.js';
 
+import { worldSpot } from './geo3d.js';     // Мир 5.0
 const len = (x, z) => Math.hypot(x, z);
 const mul = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 export const PROFS = { smith: 'Кузнечное дело', alch: 'Алхимия', leather: 'Кожевенное дело' };
@@ -20,8 +21,8 @@ const safeNow = (W, r) => !W.enemies.some(e => !e.dead && e.alert && len(e.x - W
 export function nodesOf(map, cfg) {
   const G = cfg.life && cfg.life.on && cfg.life.gather; if (!G) return [];
   const r = mul(cfg.world.seed * 6131 + 17), R = (cfg.world.inner || cfg.world.radius) - 6, out = [], camp = map.camp, coreR = cfg.worldgen && cfg.worldgen.on ? Math.min(cfg.worldgen.coreR, R) : R;     // мир ×2: прежний круг — как был
-  const nCore = R > coreR ? Math.min(G.core, G.n) : G.n;     // ядро — своя квота: иначе почти всё уходит в дальние пояса (их площадь больше)
-  for (let k = 0; k < G.n * 30 && out.length < G.n; k++) {
+  const nCore = R > coreR ? Math.min(G.core, G.n) : G.n, nFirst = cfg.world.center ? nCore : G.n;     // Мир 5.0: первым проходом — только ядро     // ядро — своя квота: иначе почти всё уходит в дальние пояса (их площадь больше)
+  for (let k = 0; k < G.n * 30 && out.length < nFirst; k++) {
     const inCore = out.length < nCore, a = r() * Math.PI * 2, d = inCore ? Math.sqrt(r()) * (coreR - 4) : coreR + Math.sqrt(r()) * (R - coreR), x = Math.sin(a) * d, z = Math.cos(a) * d;
     if (camp && len(x - camp.x, z - camp.z) < camp.r + 4) continue;
     if (out.some(q => len(q.x - x, q.z - z) < (inCore ? G.gapCore : G.gap))) continue;
@@ -31,6 +32,16 @@ export function nodesOf(map, cfg) {
     const lv = zoneLevel(cfg, s.x, s.z) ?? levelOfDepth(cfg, depthCurve(cfg, len(s.x, s.z)));
     out.push({ id: 'n' + out.length, kind, x: s.x, z: s.z, tier: lv < 20 ? 0 : lv < 40 ? 1 : 2 });
   }
+  // Мир 5.0: за ядром — точки по всему кругу мира (центр не в лагере), ступень — по уровню места
+  if (cfg.world.center && G.nOuter) { const r2 = mul(cfg.world.seed * 6131 + 29); let made = 0;
+    for (let k = 0; k < G.nOuter * 30 && made < G.nOuter; k++) {
+      const q = worldSpot(cfg, r2, coreR + 4, 6); if (!q || out.some(o => len(o.x - q.x, o.z - q.z) < G.gap)) continue;
+      const s = freeNear(map, q.x, q.z, 3); if (!s) continue;
+      const zn = zoneAt(cfg, s.x, s.z), w = G.kinds[zn && zn.ring >= 0 && zn.bio ? zn.bio : bioOf(cfg, zn)] || G.kinds.core, tot = Object.values(w).reduce((t, v) => t + v, 0);
+      let pick = r2() * tot, kind = Object.keys(w)[0]; for (const [kk, v] of Object.entries(w)) { if ((pick -= v) <= 0) { kind = kk; break; } }
+      const lv = zoneLevel(cfg, s.x, s.z) ?? 20; out.push({ id: 'n' + out.length, kind, x: s.x, z: s.z, tier: lv < 20 ? 0 : lv < 40 ? 1 : 2 }); made++;
+    }
+    return out; }
   // внешнее кольцо (мир ×2, 4.04): своё зерно, nOuter мест не ближе gap; всё высшей ступени
   const Rin = cfg.world.inner, R2 = cfg.world.radius - 6;
   if (Rin && R2 > Rin && G.nOuter) { const r2 = mul(cfg.world.seed * 6131 + 29); let made = 0;

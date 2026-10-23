@@ -18,14 +18,14 @@ const bossIn = (W, type) => W.enemies.find(e => e.boss && e.type === type);
 // ---------- 1. данные ----------
 const WANT = { inst_brod: 3, inst_olkh: 4, inst_moss: 3, inst_pass: 3, inst_forge: 3, inst_tower: 3, inst_barrow: 3, inst_nest: 3, inst_abbey: 3, inst_dusk: 3, raid_hand: 5, inst_drown: 3, inst_ash: 3, inst_rift: 3, raid_throne: 5, raid_oak: 5, raid_cathedral: 5 };     // 4.18: кольца 60–80 и рейды 20/40/60/80     // и рейд (этап 8)     // Акт I — два, Акт II — три, Акт III и IV — по два (этап 7)
 ok(I.length === Object.keys(WANT).length && Object.entries(WANT).every(([id, n]) => I.some(d => d.id === id) && BL.filter(b => b.inst === id).length === n), 'подземелья или число боссов не те');
-for (const d of I.filter(q => q.id !== 'inst_brod')) { const T = CFG3.instances.list.find(q => q.id === d.id), z = zoneAt(CFG3, d.at.x, d.at.z), lv = zoneLevel(CFG3, d.at.x, d.at.z); ok(z && z.id === T.zone && Math.abs(lv - T.lv) <= 1.5, `${d.id}: вход не в зоне ${T.zone} ур. ${T.lv} (${z && z.id}, ${lv && lv.toFixed(1)})`); }
+for (const d of I.filter(q => q.id !== 'inst_brod')) { const T = CFG3.instances.list.find(q => q.id === d.id), z = zoneAt(CFG3, d.at.x, d.at.z), lv = zoneLevel(CFG3, d.at.x, d.at.z); ok(z && z.id === T.zone && Math.abs(lv - T.lv) <= (CFG3.world.center ? 2.5 : 1.5), `${d.id}: вход не в зоне ${T.zone} ур. ${T.lv} (${z && z.id}, ${lv && lv.toFixed(1)})`); }     // Мир 5.0: вход — лучший по уровню среди проб у дорог и воды (±2,5); уровень подземелья задан в конфиге
 for (const b of BL) { ok(b.loot && b.loot.length >= 2 && b.loot.every(id => BY_ID[id] && ((BY_ID[id].boss === b.type && BY_ID[id].pool === 'dungeon') || (BY_ID[id].pool === 'raid' && BY_ID[id].raidBosses.includes(b.type)))), `${b.type}: своей добычи нет`); ok(CFG3.enemies[b.type] && CFG3.enemies[b.type].boss, `${b.type}: нет врага-босса`); }
 { const kinds = new Set(BL.flatMap(b => b.attacks.map(a => a.kind))), ph = BL.flatMap(b => b.phases);
   for (const k of ['slam', 'nova', 'charge', 'beam', 'pools', 'cast']) ok(kinds.has(k), 'механика не используется: ' + k);
   ok(ph.some(p => p.shield) && ph.some(p => p.summon) && ph.some(p => p.enrage), 'фазы: щит, подмога, ярость'); }
 // ---------- 2. вход в своей зоне, путь до каждого босса ----------
 { const brod = I.find(d => d.id === 'inst_brod'), olkh = I.find(d => d.id === 'inst_olkh'), lo = zoneLevel(CFG3, olkh.at.x, olkh.at.z);
-  ok(zoneAt(CFG3, brod.at.x, brod.at.z).id === 'brod', 'Катакомбы не в Пепельном Броде'); ok(zoneAt(CFG3, olkh.at.x, olkh.at.z).id === 'olkh' && lo >= 20.5 && lo <= 23.5, 'Курган не в Ольховом лесу 21–23: ' + lo);
+  ok(zoneAt(CFG3, brod.at.x, brod.at.z).id === 'brod', 'Катакомбы не в Пепельном Броде'); ok(zoneAt(CFG3, olkh.at.x, olkh.at.z).id === 'olkh' && lo >= 20.5 && lo <= (CFG3.world.center ? 24.5 : 23.5), 'Курган не в Ольховом лесу 21–23: ' + lo);
   const W = mk(); for (const d of I) { ok(W.map.portals.some(q => q.to === d.id && Math.hypot(q.x - d.at.x, q.z - d.at.z) < .1), d.id + ': нет входа наверху'); ok(!W.map.solids.some(s => Math.hypot(s.x - d.at.x, s.z - d.at.z) < s.r + 1.5), d.id + ': вход загорожен'); }
   for (const d of I) {
     enter(W, d.id); ok(W.lvl === d.id && W.enemies.some(e => !e.boss), d.id + ': внутри нет врагов');

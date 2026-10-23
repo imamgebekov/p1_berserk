@@ -12,6 +12,7 @@ import { HEROES, DEFAULT_HERO } from './data/heroes3d.js';
 import { ABILITIES, abilityPointsAt, ranksOpenAt } from './data/abilities3d.js';
 import { schoolsOf } from './school3d.js';
 import { packSquad } from './squad3d.js';
+import { wdist } from './geo3d.js';     // Мир 5.0
 const KEY = 'berserk3d.save', VERSION = 6;
 // шаг 11 аудита: две резервные копии (раз в cfg.save.bakEvery с прошлое сохранение уходит в bak1, прежняя bak1 — в bak2);
 // испорченное основное откладывается в BROKEN для разбора
@@ -109,7 +110,7 @@ export function applyDungeonState(W, saved) {
 }
 
 // позиция героя на поверхности: числа в пределах мира
-const sanePos = p => (p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.hypot(p.x, p.z) < CFG3.world.radius ? { x: p.x, z: p.z } : null);
+const sanePos = p => (p && Number.isFinite(p.x) && Number.isFinite(p.z) && wdist(CFG3, p.x, p.z) < CFG3.world.radius ? { x: p.x, z: p.z } : null);     // от центра мира (Мир 5.0)
 // снаряжение бойца отряда (2026-10-20): только существующие вещи в своих слотах, уровни и заточка в пределах, свойства — очищенные
 function cleanKit(k) {
   if (!k || typeof k !== 'object' || !k.eq || typeof k.eq !== 'object') return null;
@@ -158,7 +159,7 @@ export function loadSave(slots, storage = globalThis.localStorage) {
     const sameWorld = d.gen === CFG3.world.gen;        // другой мир (номер world.gen) — туман, позиция и таймеры боссов не переносятся
     const heroes = {};     // отложенные герои (2026-10-18): свой уровень и умения; старое сохранение — пусто (уровень у текущего)
     if (d.heroes && typeof d.heroes === 'object') for (const h of Object.keys(HEROES)) if (h !== hero && HEROES[h].open && d.heroes[h] && typeof d.heroes[h] === 'object') heroes[h] = parkedOf(d.heroes[h], h, fresh, slots, sameWorld);
-    return { hero, heroes, life: sanitizeLife(d.life, CFG3), story: sanitizeStory(d.story), ach: sanitizeAch(d.ach), inv: deserialize(d.inv, slots, hero, CFG3), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(growSeen(d.seen, CFG3), seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: sanitizeTomb(d.tomb), dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sanitizeKnown(d.known, CFG3), quests: sanitizeQuests(d.quests), qf: typeof d.qf === 'string' && d.qf.length < 40 ? d.qf : null, t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: sanitizeSquad(d.squad), fires: sameWorld && Array.isArray(d.fires) ? d.fires.filter(x => typeof x === 'string').slice(0, 200) : [], shrines: sameWorld && d.shrines && typeof d.shrines === 'object' ? Object.fromEntries(Object.entries(d.shrines).filter(([k, v]) => /^p\d+$/.test(k) && Number.isFinite(v)).slice(0, 300)) : {} };
+    return { hero, heroes, life: (L => (sameWorld ? L : { ...L, coaches: { camp: 1 }, nodes: {} }))(sanitizeLife(d.life, CFG3)), story: sanitizeStory(d.story), ach: sanitizeAch(d.ach), inv: deserialize(d.inv, slots, hero, CFG3), kills: Number.isFinite(d.kills) ? d.kills : 0, prog, seen: sameWorld ? sanitizeSeenChunks(growSeen(d.seen, CFG3), seenSize(CFG3)) : null, pos: sameWorld ? sanePos(d.pos) : null, gen: d.gen, bosses: sameWorld && d.bosses && typeof d.bosses === 'object' ? d.bosses : {}, difficulty: typeof d.difficulty === 'string' ? d.difficulty : null, iron: d.iron === true, tomb: sameWorld ? sanitizeTomb(d.tomb) : null, dseen: sanitizeDseen(d.dseen), keys: sanitizeKeys(d.keys), unlocked: sanitizeUnlocked(d.unlocked), known: sameWorld ? sanitizeKnown(d.known, CFG3) : { ...sanitizeKnown(d.known, CFG3), places: {} }, quests: sanitizeQuests(d.quests), qf: typeof d.qf === 'string' && d.qf.length < 40 ? d.qf : null, t: Number.isFinite(d.t) && d.t > 0 ? d.t : 0, squad: sanitizeSquad(d.squad), fires: sameWorld && Array.isArray(d.fires) ? d.fires.filter(x => typeof x === 'string').slice(0, 200) : [], shrines: sameWorld && d.shrines && typeof d.shrines === 'object' ? Object.fromEntries(Object.entries(d.shrines).filter(([k, v]) => /^o?p\d+$/.test(k) && Number.isFinite(v)).slice(0, 300)) : {} };     // Мир 5.0: другой мир (world.gen) — знакомые места, повозки, узлы сбора и могила заново (id и места генератора)
   } catch (e) { return null; }
 }
 // загрузка с откатом на резервные копии: { save, from: 'main' | 'bak1' | 'bak2' } или null; из копии — она же становится основной
