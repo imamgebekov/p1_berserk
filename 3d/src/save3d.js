@@ -94,7 +94,7 @@ export function importSave(text, slots, storage = globalThis.localStorage) {
 const levelId = v => (typeof v === 'string' && CFG3.dungeons.list.some(d => d.id === v) ? v : 'surface');
 // строка тумана подземелья: «размер сетки:биты»; если сетка не совпала (подземелье перестроили, старый формат) — туман не переносится
 function sanitizeDseen(o) { const r = {}; if (o && typeof o === 'object') for (const d of CFG3.dungeons.list) if (typeof o[d.id] === 'string' && o[d.id].length < CFG3.dungeons.seenMax && /^\d+:/.test(o[d.id])) r[d.id] = o[d.id]; return r; }
-function packDseen(W) { const r = {}; if (W.levels) for (const L of Object.values(W.levels)) if (L.def && !L.def.abyss && !L.def.gen && L.seen.some(v => v)) r[L.id] = L.seenN + ':' + packSeen(L.seen); return r; }
+function packDseen(W) { const r = {}; if (W.levels) for (const L of Object.values(W.levels)) if (L.def && !L.def.abyss && !L.def.gen && !String(L.id).startsWith('up:') && L.seen.some(v => v)) r[L.id] = L.seenN + ':' + packSeen(L.seen); return r; }     // вторые этажи (up:…) не пакуются: при загрузке sanitizeDseen их всё равно отбрасывает (2026-10-23: сотни сеток тормозили сохранение)
 export function applyDseen(W, dseen) {
   for (const [id, s] of Object.entries(dseen || {})) { const L = W.levels[id], k = s.indexOf(':'); if (L && Number(s.slice(0, k)) === L.seenN) unpackSeen(s.slice(k + 1), L.seen); }
 }
