@@ -145,7 +145,7 @@ export function betterThanWorn(inv, it) {
 }
 
 // сохранение: только проверенные id; чужое и неизвестное отбрасываем
-export function serialize(inv) { return { bag: inv.bag.map(s => { const o = { id: s.id, n: s.n }; if (s.up) o.up = s.up; if (hasGems(s.g)) o.g = s.g.slice(); if (s.il) o.il = s.il; if (s.af) o.af = { ...s.af }; if (s.lock) o.lock = true; return o; }), eq: { ...inv.eq }, up: { ...inv.up }, il: { ...(inv.il || {}) }, af: JSON.parse(JSON.stringify(inv.af || {})), gem: JSON.parse(JSON.stringify(inv.gem || {})), ash: inv.ash }; }
+export function serialize(inv) { return { bag: inv.bag.map(s => { const o = { id: s.id, n: s.n }; if (s.up) o.up = s.up; if (hasGems(s.g)) o.g = s.g.slice(); if (s.il) o.il = s.il; if (s.af) o.af = { ...s.af }; if (s.lock) o.lock = true; return o; }), eq: { ...inv.eq }, up: { ...inv.up }, il: { ...(inv.il || {}) }, af: JSON.parse(JSON.stringify(inv.af || {})), gem: JSON.parse(JSON.stringify(inv.gem || {})), ash: inv.ash, ...(inv.seals ? { seals: inv.seals } : {}), ...(inv.perk ? { perk: inv.perk } : {}) }; }     // печати и дар Затмения (2026-10-23)
 // hero — чьё сохранение: чужое оружие в руке уходит в сумку (даже сверх размера — вещи не пропадают)
 export function deserialize(data, maxSlots, hero, cfg) {
   const inv = createInv();
@@ -153,6 +153,8 @@ export function deserialize(data, maxSlots, hero, cfg) {
   for (const s of Array.isArray(data.bag) ? data.bag : []) if (s && BY_ID[s.id] && Number.isFinite(s.n) && s.n > 0) { const n = Math.min(Math.floor(s.n), BY_ID[s.id].stack), up = BY_ID[s.id].slot && Number.isFinite(s.up) && s.up > 0 ? Math.min(UP_MAX, Math.floor(s.up)) : 0, g = cleanGems(s.g, socketsOf(BY_ID[s.id], cfg)), il = BY_ID[s.id].slot ? saneIl(s.il) : 0, af = BY_ID[s.id].slot ? cleanAf(s.af) : null; if (up || g || il || af) { if (inv.bag.length < maxSlots) { const e = entryOf(s.id, up, g, il, af); if (s.lock === true && BY_ID[s.id].slot) e.lock = true; inv.bag.push(e); } }  else addItem(inv, s.id, n, maxSlots); }     // lock — замок от «продать хуже» (этап 4 «круче»)
   for (const slot of SLOTS) { const id = data.eq && data.eq[slot]; if (id && BY_ID[id] && (BY_ID[id].slot === slot || (slot === 'offhand' && BY_ID[id].slot === 'weapon'))) { inv.eq[slot] = id; const u = data.up && data.up[slot]; if (Number.isFinite(u) && u > 0) inv.up[slot] = Math.min(UP_MAX, Math.floor(u)); const g = cleanGems(data.gem && data.gem[slot], socketsOf(BY_ID[id], cfg)); if (g) inv.gem[slot] = g; const li = saneIl(data.il && data.il[slot]); if (li) inv.il[slot] = li; const fa = cleanAf(data.af && data.af[slot]); if (fa) inv.af[slot] = fa; } }
   inv.ash = Number.isFinite(data.ash) && data.ash > 0 ? Math.floor(data.ash) : 0;
+  if (Number.isFinite(data.seals) && data.seals > 0) inv.seals = Math.min(1e6, Math.floor(data.seals));     // печати Затмения
+  if (typeof data.perk === 'string' && (!cfg || !cfg.relic || cfg.relic.perks[data.perk])) inv.perk = data.perk;     // дар Затмения героя
   const back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot], inv.il[slot], inv.af[slot])); delete inv.eq[slot]; delete inv.up[slot]; delete inv.gem[slot]; delete inv.il[slot]; delete inv.af[slot]; };
   if (hero && inv.eq.weapon && !canWield(hero, BY_ID[inv.eq.weapon])) back('weapon');
   if (hero) for (const sl of ['head', 'body', 'cloak', 'boots']) if (inv.eq[sl] && !canWield(hero, BY_ID[inv.eq[sl]])) back(sl);     // запрещённая герою броня — в сумку

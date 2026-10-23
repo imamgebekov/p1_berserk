@@ -143,7 +143,7 @@ const BASE = {
       { x: -8,  z: 9,   w: 7,  d: 6, door: 'e', kind: 'shop',      chests: ['crate', 'coffer'], npc: 'merchant' },
       { x: -28, z: 30,  w: 9,  d: 7, door: 'n', kind: 'smithy',    chests: ['smithchest', 'smithchest', 'rack', 'ironchest'] },     // старая кузница
       { x: 28,  z: -26, w: 12, d: 8, door: 'w', kind: 'tavern',    chests: ['barrel', 'barrel', 'crate', 'chest'] },
-      { x: -34, z: -20, w: 7,  d: 11, door: 's', kind: 'chapel',   chests: ['altar', 'shelf', 'coffer'] },
+      { x: -34, z: -20, w: 7,  d: 11, door: 's', kind: 'chapel',   chests: ['altar', 'shelf', 'coffer'], npc: 'keeper' },     // хранительница печатей — дары Затмения (2026-10-23)
       { x: 48,  z: 8,   w: 11, d: 7, door: 'w', kind: 'barracks',  chests: ['rack', 'rack', 'armorstand', 'ironchest'] },     // старая застава
       { x: 30,  z: 40,  w: 10, d: 8, door: 'n', kind: 'warehouse', chests: ['crate', 'crate', 'barrel', 'locked'] },
       { x: 36,  z: -8,  w: 6,  d: 6, door: 'w', kind: 'house',     chests: ['cache', 'corpse'] },
@@ -1048,6 +1048,19 @@ const BASE = {
   craft: { q: [1, 1.1, 1.15], reagN: [1, 1, 1, 2, 2, 3], ember: 'm_brand_ember', shard: 'm_eclipse_shard',
     reag: { dmg: 'm_horn', crit: 'm_imp_fang', leech: 'm_bone_dust', spd: 'm_raven_feather', luck: 'm_dark_glass', burnCh: 'm_sulfur', poisonCh: 'm_web', shockCh: 'm_copper_wire',
       bleedCh: 'm_wolf_claw', armor: 'm_mail_scrap', hp: 'm_bone', regen: 'm_tar', stealth: 'm_rotten_cloth' } },
+  // дары Затмения (просьба владельца 2026-10-23): 8 общих навыков у хранительницы печатей (часовня лагеря); печати — с боссов: подземелье drop.dungeon,
+  // рейд drop.raid; купить с minLv за price; у героя один дар, новый вытесняет прежний без возврата. Код — relic3d.js, окно — relicui.js
+  relic: { on: true, npc: 'keeper', minLv: 40, price: 100, drop: { dungeon: 1, raid: 3 },
+    perks: {
+      undying: { name: 'Второе дыхание', text: 'Смертельный удар не убивает: здоровье 35%, 2 с неуязвимости, врагов рядом отбрасывает. Раз в 120 с.', cd: 120, hp: .35, inv: 2, r: 4, knock: 9 },
+      mirror: { name: 'Зеркальный щит', text: 'Раз в 10 с удар по вам целиком ловится и возвращается атакующему тройным.', cd: 10, mul: 3 },
+      reap: { name: 'Жатва', text: 'Каждое убийство лечит 5% здоровья и даёт +6% урона на 6 с; до 5 зарядов.', heal: .05, dmg: .06, max: 5, t: 6 },
+      frenzy: { name: 'Ярость берсерка', text: 'Ниже 40% здоровья: урон +35%, бег +20%, удары лечат 8% нанесённого.', at: .4, dmg: .35, spd: 20, leech: 8 },
+      chain: { name: 'Цепная молния', text: 'Каждый 5-й удар бьёт молнией до 4 врагов рядом на 60% урона удара.', every: 5, mul: .6, n: 4, r: 6 },
+      ashstep: { name: 'Пепельный шаг', text: 'Перекат перезаряжается быстрее и взрывается огнём под ногами.', rollcd: .25, mul: 1.2, r: 3.5 },
+      storm: { name: 'Пепельная буря', text: 'Раз в 12 с в бою вокруг вас вспыхивает огненное кольцо: двойной урон и отброс.', cd: 12, mul: 2, r: 4.5, knock: 7 },
+      bounty: { name: 'Охотник за головами', text: 'Элита и боссы получают +25% урона; за них — пепел сверху.', dmg: .25, ash: .6, ashBoss: 6 }
+    } },
   enchant: { on: true, npc: 'scribe', item: 'm_arcane_dust', yield: [1, 1, 2, 4, 6, 9], upYield: 1, dust: [1, 1, 2, 3, 4, 5], base: 20, valueK: .35, grow: .6, extra: 1, cap: 4 },
   elite: {
     chance: .04, outerK: .03, depthK: .03, dangerK: .03, nightK: .03, hp: 1.9, dmg: 1.2, xp: 3, scale: 1.2, luck: 10, lootRolls: 2,
@@ -1110,7 +1123,7 @@ const BASE = {
       royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'q_yeti', castellan: 'kk_king', ashking: 'kk_king', brandlord: 'kk_knight', abyssking: 'kk_king', oakking: 'kk_king',
       brute: 'um_demon', ghoul: 'um_ghoul', devourer: 'um_ghoul', golem: 'q_golem', firegolem: 'q_golem', drowned: 'um_fish', drownedmaid: 'um_fish', silt: 'um_fish', swampelder: 'um_fish',
       demon_guard: 'um_orc', lord: 'um_orc', gatebeast: 'um_orc', hand_lord: 'um_orc', chief: 'um_orc', tidewyrm: 'um_dragon', bonetyrant: 'kk_skel_warrior', namelessking: 'kk_skel_mage', gravewight: 'kk_skel_warrior', abbot: 'kk_skel_mage' },
-    npcs: { merchant: 'kk_merchant', smith: 'kk_barbarian', captain: 'kk_captain', villager: 'kk_villager', villagerF: 'kk_villagerF', traveler: 'kk_traveler' },     // жители — KayKit с перекраской (путь А, 2026-10-22)
+    npcs: { keeper: 'kk_keeper', merchant: 'kk_merchant', smith: 'kk_barbarian', captain: 'kk_captain', villager: 'kk_villager', villagerF: 'kk_villagerF', traveler: 'kk_traveler' },     // жители — KayKit с перекраской (путь А, 2026-10-22)
     squad: { guard: { kit: 'kk_knight', w: 'spear', cells: ['0,1', '7,0'] }, soldier: { kit: 'kk_knight', w: 'sword', off: 'shield', form: 'shield_round', cells: ['0,1', '7,0'] },     // солдаты отряда: модель, оружие, щит; cells — ячейки текстуры в цвет отряда (tint типа)
       veteran: { kit: 'kk_knight', w: 'greatsword', cells: ['0,1', '7,0'], paint: { '3,0': '#4a4a52' } }, kad_xbow: { kit: 'kk_knight', w: 'crossbow', cells: ['0,1', '7,0'] },
       irma: { kit: 'kk_rogue', w: 'sword', cells: ['0,1', '1,1'] }, timka: { kit: 'kk_ranger', w: 'dagger', cells: ['0,1'], hide: ['Ranger_Hat'] }, kord: { kit: 'kk_barbarian', w: 'hammer' },
@@ -1150,6 +1163,7 @@ const BASE = {
       kk_merchant: { src: 'kk_rogue', anims: 'kk', height: 2.1, hide: ['Rogue_Cape'], recolor: { '0,1': '#8a6a3a', '1,1': '#6a4a2a', '5,0': '#5a3a24', '3,0': '#c8a050', '7,1': '#4a3a2a' } },     // жители — варианты KayKit
       kk_villager: { src: 'kk_ranger', anims: 'kk', height: 2.05, hide: ['Ranger_Hat', 'Ranger_Quiver', 'Ranger_Cape'], recolor: { '0,1': '#8a7a5a', '1,1': '#6a5a42', '7,0': '#5a4a36', '6,0': '#4a3a2a', '5,0': '#6a4a30', '7,1': '#4a4034' } },
       kk_villagerF: { src: 'kk_mage', anims: 'kk', height: 2.0, hide: ['Mage_Hat', 'Mage_Cape'], recolor: { '0,1': '#8a4a3a', '7,1': '#5a3a30', '2,2': '#6a5a3a', '5,0': '#6a4a2a', '1,0': '#5a3a24' } },
+      kk_keeper: { src: 'kk_mage', anims: 'kk', height: 2.1, hide: ['Mage_Hat'], recolor: { '0,1': '#5a1a22', '7,1': '#3a1218', '2,2': '#7a5a3a', '5,0': '#4a1a1e', '1,0': '#3a1418' } },     // хранительница печатей (2026-10-23): багровая ряса
       kk_traveler: { src: 'kk_rogue_hooded', anims: 'kk', height: 2.1, recolor: { '0,1': '#5a5448', '1,1': '#4a443a', '3,0': '#5a4a36', '5,0': '#4a3a2a', '6,0': '#3e3428', '7,1': '#3a342c' } },
       kk_captain: { src: 'kk_knight', anims: 'kk', height: 2.25, hide: ['Knight_Helmet', 'Knight_HelmetVisor'], recolor: { '0,1': '#2c4a7a' } },
       kb_queen: { src: 'kk_mage', anims: 'kk', height: 2.2, hide: ['Mage_Hat'], recolor: { '0,1': '#cfe2ea', '7,1': '#7a9ab0', '2,1': '#e8f2f6', '5,0': '#a9c4d0', '1,0': '#e8eef0', '0,0': '#d8e4ea', '7,2': '#d8e4ea' }, gear: ['wand', 'tempered'], attach: [{ p: 'crown', bone: 'head', at: [0, .78, 0], s: 1.3, c: ['#cfe8f0', '#9fdcff'] }] },     // остальные боссы — сборка из частей (2026-10-22): KayKit/Ultimate Monsters + перекраска + детали

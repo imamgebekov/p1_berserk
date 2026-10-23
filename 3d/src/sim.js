@@ -51,6 +51,7 @@ import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 import { resGain } from './resource3d.js';
+import { relicMul, relicLeech, relicSpd, relicRoll, relicHurt, relicSave, relicHit, relicRollBlast, relicKill, relicTick } from './relic3d.js';     // дары Затмения (2026-10-23)
 const critBonus = W => (W.abuf && W.abuf.hawk > 0 ? W.abuf.hawkCrit : 0);     // «Ястребиный глаз» Сойки: шанс крита на время
 
 export function createWorld(cfg, rng = Math.random) {
@@ -283,6 +284,7 @@ export function restoreBosses(W, dead) {
 
 // смерть героя: потеря пепла (остаётся могила), уровни улучшения на высокой сложности, конец игры в железном режиме
 function killPlayer(W) {
+  if (relicSave(W)) return;     // дар «Второе дыхание»
   const p = W.player, D = W.dif.death;
   p.hp = 0; p.dead = true; p.state = 'dead'; p.deadT = 0;
   const lost = Math.floor(W.inv.ash * D.ash); W.inv.ash -= lost;
@@ -305,6 +307,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
     if (p.state === 'roll' && p.dodgeCd <= 0) { p.dodgeCd = .3; p.riposteT = .7; W.ev.push({ k: 'dodge', x: p.x, z: p.z }); }
     return false;
   }
+  if (relicHurt(W, dmg, att)) return false;     // дар «Зеркальный щит»
   if (W.setFx.lastStand && p.hp < p.maxhp * .4) dmg *= 1 - W.setFx.lastStand;
   // щит: удар спереди ослаблен на блок %, отброс меньше; пока герой бьёт или заряжает — щит не закрывает
   let knock = 5;
@@ -340,7 +343,7 @@ export function killEnemy(W, e, share) {
   if (e.boss && e.b && e.b.def && e.b.def.stage2 && !e.b.st2) { bossRise(W, e); return; }     // вторая стадия (4.18б)
   const d0 = W.drops.length;     // 4.21: добыча убитого — в его тело (corpseOf в конце)
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
-  dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e);
+  dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e); relicKill(W, e, share);     // дары Затмения: жатва, охотник, печати с боссов
   { const H = heroMul(W), kh = H.killHeal ? H.killHeal * clamp((H.healLv[1] - W.lv) / (H.healLv[1] - H.healLv[0]), 0, 1) : 0, p = W.player; if (kh && !p.dead && p.hp > 0 && len(p.x - e.x, p.z - e.z) < 6 && W.enemies.filter(o => !o.dead && len(o.x - p.x, o.z - p.z) < 6).length >= 2) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * kh); }     // «второе дыхание» Торна: убил рядом — подлечился
   { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: lootIl(W, e, e.id) ?? ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
   { const gid = gemDropOf(W, e); if (gid) { W.drops.push({ id: gid, n: 1, x: e.x + .5, z: e.z - .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: gid }); } }     // камень силы
@@ -438,9 +441,10 @@ function strike(W, e, dmg, o) {
   if (C.guard && o.heavy) applyStatus(W, e, 'stun', 0, C.guard.breakStun);                          // тяжёлый удар ломает защиту
   dmg = cracked(W, e, dmg);
   e.hp -= dmg; e.flash = .12; p.calm = P.fire.calm; addThreat(W, e, 0, dmg); W.party.last = e.id;
+  relicHit(W, e, dmg);     // дар «Цепная молния»
   if (hasAff(e, 'mirror') && dmg > 0 && !p.dead) { const r = Math.max(1, Math.round(dmg * affOf(W, 'mirror').k)); p.hp -= r; W.ev.push({ k: 'mirror', x: p.x, z: p.z, dmg: r }); if (p.hp <= 0) { p.hp = 0; killPlayer(W); } }     // зеркальная элита возвращает часть удара (этап 2 «круче»)
   if (e.b && (o.heavy || o.ab)) e.b.kick = true;     // тяжёлый удар или умение сбивает чтение босса (этап 5)     // угроза героя (этап 4); последняя цель — для «моей цели»
-  { const thirst = W.wp.mix && W.wp.mix.a === 'blood' && W.wp.mix.b === 'blood' ? W.cfg.stones.thirst[0] : 0, lch = (W.gear.leech + thirst + (W.abuf.blood > 0 ? W.abuf.bloodLeech : 0)) * (e.st && e.st.bleed && W.cfg.elements.react && isWet(W, e) ? W.cfg.elements.mix.tide : 1); if (lch > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * lch / 100); }     // «Кровавый прилив»: мокрый и кровоточащий     // «Кровавый порыв» Торна добавляет вампиризм
+  { const thirst = W.wp.mix && W.wp.mix.a === 'blood' && W.wp.mix.b === 'blood' ? W.cfg.stones.thirst[0] : 0, lch = (W.gear.leech + thirst + relicLeech(W) + (W.abuf.blood > 0 ? W.abuf.bloodLeech : 0)) * (e.st && e.st.bleed && W.cfg.elements.react && isWet(W, e) ? W.cfg.elements.mix.tide : 1); if (lch > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * lch / 100); }     // «Кровавый прилив»: мокрый и кровоточащий     // «Кровавый порыв» Торна добавляет вампиризм
   const heavy = C.heavy || hasAff(e, 'armored'), k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
   if (e.state === 'wind' && !heavy && gm >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах (щит — нет)
@@ -532,7 +536,7 @@ function shoot(W, mult = 1, echo = false) {
   let best = null, bd = range;
   for (const e of W.enemies) { if (e.dead) continue; const dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz); if (d < bd && Math.abs(angDiff(Math.atan2(dx, dz), p.face)) < S.assist * DEG && !lineBlocked(W.map, p.x, p.z, e.x, e.z)) { bd = d; best = e; } }
   if (best) p.face = Math.atan2(best.x - p.x, best.z - p.z);
-  let m = mult * (1 + Math.min(.3, W.combo.n * .02)) * rageMul(W);
+  let m = mult * (1 + Math.min(.3, W.combo.n * .02)) * rageMul(W) * relicMul(W, best);
   if (p.fin && !echo) m *= tr.finisherMul || 1.5;
   if (hk) m *= 1 + (H.mul - 1) * hk;
   if (W.setFx.rage && p.hp < p.maxhp * .4) m *= 1 + W.setFx.rage;
@@ -547,7 +551,7 @@ function shoot(W, mult = 1, echo = false) {
 // стрела умения (Сойка): летит как из её лука (без лука — как из короткого), урон героя × mult; extra: pierce, poison [dps, t], kind
 export function abilityArrow(W, ang, mult, extra = {}) {
   const p = W.player, S = W.cfg.shoot, tr = W.wp.trait.ranged ? W.wp.trait : TRAITS.bow, pm = W.wp.pm;
-  let dmg = Math.round((W.cfg.player.attackDamage + W.gear.dmg) * mult * rageMul(W) * rr(W, .9, 1.15));
+  let dmg = Math.round((W.cfg.player.attackDamage + W.gear.dmg) * mult * rageMul(W) * relicMul(W, null) * rr(W, .9, 1.15));
   const crit = W.rng() < .12 + W.gear.crit / 100 + critBonus(W); if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));
   const fx = pm.burn ? 'fire' : pm.freeze ? 'frost' : pm.poison ? 'venom' : pm.shock ? 'storm' : null, sx = Math.sin(ang), sz = Math.cos(ang);
   const sk = extra.speedK || 1, q = { friendly: true, x: p.x + sx * S.spawn, z: p.z + sz * S.spawn, vx: sx * tr.speed * sk, vz: sz * tr.speed * sk, dmg, crit, fx, hk: 0, fin: false, knock: tr.knock || 1, pierce: (tr.pierce || 0) + (extra.pierce || 0), hit: [], life: tr.range / (tr.speed * sk), kind: extra.kind || (tr.bolt ? 'bolt' : 'arrow'), poison: extra.poison, freeze: extra.freeze, burn: extra.burn, bleed: extra.bleed, blast: extra.blast, mixAll: !!extra.mixAll, eblast: extra.eblast, pulse: extra.pulse || null, detonate: extra.detonate || null, st: extra.st || null, el: extra.el || null };     // st — состояние снаряда нового умения древа, el — его стихия (цвет)
@@ -617,7 +621,7 @@ const rageMul = W => (W.abuf.rage > 0 ? W.abuf.rageMul : 1);
 // удар умением по врагу: урон героя (с оружием, вторым клинком, яростью и критом) × mult, отброс, оглушение
 export function abilityHit(W, e, mult, o = {}) {
   const p = W.player, P = W.cfg.player, tr = W.wp.trait, dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz) || 1;
-  let dmg = Math.round((P.attackDamage + W.gear.dmg + offDmg(W)) * mult * rageMul(W) * rr(W, .9, 1.15));
+  let dmg = Math.round((P.attackDamage + W.gear.dmg + offDmg(W)) * mult * rageMul(W) * relicMul(W, e) * rr(W, .9, 1.15));
   const crit = (W.rng() < .12 + W.gear.crit / 100 + critBonus(W)) || !!o.forceCrit; if (crit) dmg = Math.round(dmg * (tr.critMul || 1.7));     // forceCrit — «Удар из тени»
   strike(W, e, dmg, { crit, dx, dz, d, knock: o.knock || 1, fx: o.fx || null, fin: true, heavy: !!o.heavy, ab: true });     // ab — удар умения: ресурса не даёт
   if (!e.dead && o.stun) applyStatus(W, e, 'stun', 0, o.stun);
@@ -635,7 +639,7 @@ function attackHit(W, mult = 1, echo = false) {
     const C = W.cfg.enemies[e.type], dx = e.x - p.x, dz = e.z - p.z, d = len(dx, dz);
     if (d > reach + C.radius) continue;
     if (Math.abs(angDiff(Math.atan2(dx, dz), p.face)) > half) continue;
-    let m = mult * cb * rageMul(W);
+    let m = mult * cb * rageMul(W) * relicMul(W, e);
     if (p.fin && !echo) m *= tr.finisherMul || 1.5;
     if (p.rollAtk && !echo) m *= 1.4;
     if (hk) m *= 1 + (H.mul - 1) * hk;
@@ -696,10 +700,11 @@ function updatePlayer(W, dt, input) {
   if (input.roll && p.state !== 'roll' && p.state !== 'dash' && p.rollCd <= 0) {
     const dl = moving ? ml : 0;
     p.rollDirX = moving ? mx / dl : Math.sin(p.face); p.rollDirZ = moving ? mz / dl : Math.cos(p.face);
-    resGain(W, 'roll'); p.state = 'roll'; p.rollT = 0; p.rollCd = Math.max(.25, P.rollCooldown - W.gear.rollcd); p.inv = Math.max(p.inv, P.rollInvuln);
+    resGain(W, 'roll'); p.state = 'roll'; p.rollT = 0; p.rollCd = Math.max(.25, P.rollCooldown - W.gear.rollcd - relicRoll(W)); p.inv = Math.max(p.inv, P.rollInvuln);
     p.face = Math.atan2(p.rollDirX, p.rollDirZ);
     W.ev.push({ k: 'roll', x: p.x, z: p.z });
     if (W.setFx.rollBlast) { W.ev.push({ k: 'boom', x: p.x, z: p.z, r: 3 }); for (const o of W.enemies) if (!o.dead && len(o.x - p.x, o.z - p.z) < 3) dealDamage(W, o, W.setFx.rollBlast, 'storm'); }
+    relicRollBlast(W);     // дар «Пепельный шаг»
   }
   if (p.state === 'dash') {                                    // рывок умения: летит по прямой, бьёт всех на пути
     p.dashT += dt; p.vx = p.dashX * p.dashV; p.vz = p.dashZ * p.dashV; dashStep(W);
@@ -735,7 +740,7 @@ function updatePlayer(W, dt, input) {
     // бег с разгоном; при ударе медленнее
     const wet = W.map.river && inStream(W.map.river, p.x, p.z);     // ручей (2026-10-18): медленнее, горение гаснет
     if (wet && W.pst.burn) { delete W.pst.burn; W.ev.push({ k: 'douse', x: p.x, z: p.z }); }
-    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd, -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
+    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd + relicSpd(W), -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
     const tx = moving ? mx * sp : 0, tz = moving ? mz * sp : 0;
     const a = P.accel * dt;
     const dvx = tx - p.vx, dvz = tz - p.vz, dl = len(dvx, dvz);
@@ -1083,7 +1088,7 @@ export function step(W, dt, input = {}) {
     W.wsched = W.wsched || makeWeather(W.cfg.world.seed, C); W.rain = C.force ? (C.force === 'rain' ? 1 : 0) : weatherAt(W.wsched, W.t, C).rain;
     if (!W.rainOn && W.rain > .5) { W.rainOn = true; W.ev.push({ k: 'rainStart' }); } else if (W.rainOn && W.rain < .3) { W.rainOn = false; W.ev.push({ k: 'rainStop' }); }
   } else W.rain = 0; }
-  refreshGear(W);
+  refreshGear(W); relicTick(W, dt);     // дары Затмения: перезарядки, пепельная буря
   { const g = W.gfx, p = W.player;                                             // золото: щит кирасы заряжается, знак лечит вне боя
     if (g.aegis) { if (!(W.aegis > 0) && (W.aegisT = (W.aegisT ?? 0) - dt) <= 0) { W.aegis = g.aegis[1]; W.ev.push({ k: 'aegisUp', x: p.x, z: p.z }); } } else W.aegis = 0;
     if (g.sunheal && !p.dead && p.hp < p.maxhp && W.t - (p.lastHurt ?? -1e9) > g.sunheal[0]) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * g.sunheal[1] * dt); }
