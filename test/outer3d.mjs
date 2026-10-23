@@ -8,6 +8,11 @@ import { zoneLevel } from '../3d/src/zones3d.js';
 import { makeMap } from '../3d/src/map.js';
 import { waterDist } from '../3d/src/terrain3d.js';
 import { biomeAt, BIOMES } from '../3d/src/worldgen3d.js';
+import { addItem } from '../3d/src/inv.js';
+import { abilityPoints } from '../3d/src/abilities3d.js';
+import { useItem } from '../3d/src/sim.js';
+import { spend, bot } from './herobot.mjs';
+import { telegraphDodge } from './botsense.mjs';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const TIERS = {
@@ -15,21 +20,30 @@ const TIERS = {
   'чёрное': { weapon: 'w_greatsword_black', body: 'a_body_plate_black', head: 'a_head_helm_black', boots: 'a_boots_greaves_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' }
 };
 const SEEDS = Number(process.env.OUT_SEEDS || 8), SECONDS = 75;
+const BOT = !process.env.OUT_PLAIN, POT = ['p_heal3', 4, .4, 1.5];     // 2026-10-23: бот героя (умения, перекат от подсветки, 4 крепких зелья ниже 40%); OUT_PLAIN=1 — прежний бот (только удар)
 function run(tier, depth, seed, lv) {
   const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 5; cfg.enemies.roam.on = false; cfg.map.places = []; cfg.bosses.list = []; cfg.terrain.on = false;
   const W = createWorld(cfg, mulberry32(seed * 7919 + 3)), pt = pointAtDepth(cfg, depth, seed * 1.37 + .4);
   if (lv === 'зона') lv = Math.round(zoneLevel(cfg, pt.x, pt.z) ?? levelOfDepth(cfg, depth));     // этап 1: уровень героя — уровень зоны в точке
   Object.assign(W.inv.eq, TIERS[tier]); W.lv = lv; W.inv.il = Object.fromEntries(Object.keys(TIERS[tier]).map(k => [k, lv])); refreshGear(W); W.player.hp = W.player.maxhp; W.player.x = pt.x; W.player.z = pt.z;     // уровень, с которым сюда приходят
   let taken = 0; const dodge = mulberry32(seed + 99);
+  if (BOT) { W.hero = 'thorn'; W.ap = abilityPoints(W.lv, cfg); spend(W); refreshGear(W); W.player.hp = W.player.maxhp; addItem(W.inv, POT[0], POT[1]); }     // бот героя (2026-10-23): умения по уровню и зелья, как у живого игрока
+  let potT = 0;
   for (let i = 0; i < 60 * SECONDS; i += 1) {
-    const p = W.player, en = aliveEnemies(W); let tgt = null, bd = 1e9;
-    for (const e of en) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; tgt = e; } }
-    const inp = { mx: 0, mz: 0, attack: false, roll: false };
-    if (tgt && bd < 30) {
-      const C = cfg.enemies[tgt.type], reach = cfg.player.attackRange + W.gear.reach + C.radius * .5;
-      if (bd > reach * .8) { inp.mx = (tgt.x - p.x) / bd; inp.mz = (tgt.z - p.z) / bd; }
-      inp.attackPress = bd < reach + .4;
-      if (tgt.state === 'wind' && bd < C.range + 1.2 && tgt.t > C.wind * .6 && p.rollCd <= 0 && dodge() < .5) inp.roll = true;
+    const p = W.player, en = aliveEnemies(W); let inp;
+    if (BOT) {
+      inp = bot(W, cfg, 'thorn', en, dodge); telegraphDodge(W, inp, dodge);
+      if (p.hp < p.maxhp * POT[2] && W.t > potT) { const k = W.inv.bag.findIndex(q => q.id === POT[0]); if (k >= 0 && useItem(W, k)) potT = W.t + POT[3]; }     // пьёт ниже 40% здоровья, не чаще раза в POT[3] с
+    } else {
+      let tgt = null, bd = 1e9;
+      for (const e of en) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd) { bd = d; tgt = e; } }
+      inp = { mx: 0, mz: 0, attack: false, roll: false };
+      if (tgt && bd < 30) {
+        const C = cfg.enemies[tgt.type], reach = cfg.player.attackRange + W.gear.reach + C.radius * .5;
+        if (bd > reach * .8) { inp.mx = (tgt.x - p.x) / bd; inp.mz = (tgt.z - p.z) / bd; }
+        inp.attackPress = bd < reach + .4;
+        if (tgt.state === 'wind' && bd < C.range + 1.2 && tgt.t > C.wind * .6 && p.rollCd <= 0 && dodge() < .5) inp.roll = true;
+      }
     }
     const h = p.hp; step(W, 1 / 60, inp); if (p.hp < h) taken += h - p.hp;
     if (p.dead) return { dead: true, kills: W.kills, taken };
