@@ -183,12 +183,42 @@ function expandPuddles(base) {
   G.pois.n = Math.round(G.pois.n * k); if (G.plateaus) G.plateaus.n = Math.round(G.plateaus.n * k); if (G.forts) G.forts.n = Math.round(G.forts.n * k);
   if (b.water) { b.water.lakes.n = Math.round(b.water.lakes.n * k); b.water.streams.n = Math.round(b.water.streams.n * k); }
   const cfg = expandWorld(b);
+  placeOutposts(cfg);
   for (const RB of cfg.worldgen.ringBosses || []) {
     const cand = cfg.map.places.filter(p => p.type === 'danger' && !p.poi && !p.fort && !p.city && !p.boss && !p.castle).map(p => ({ p, q: zoneAt(cfg, p.x, p.z) })).filter(o => o.q && o.q.id === RB.zone).sort((a, c) => Math.abs(a.q.t - .5) - Math.abs(c.q.t - .5));
     if (!cand.length) continue; const L = cand[0].p; L.name = RB.lair; L.boss = RB.type; L.danger = 3;
     cfg.bosses.list.push({ type: RB.type, x: L.x, z: L.z, attacks: RB.attacks, phases: RB.phases, ring: true });
   }
   return cfg;
+}
+// лагеря Мира 5.0 (этап 2): место с уровнем lv (±2), сухое, не у мест, домов, точек интереса, плато и дорог; внутри — лавка, кузня и
+// таверна дверями к костру в середине; дорога из ближних ворот — к ближайшему посёлку
+function placeOutposts(cfg) {
+  const O = cfg.outposts; cfg.map.outposts = []; if (!O || !O.on) return;
+  const R = cfg.world.radius, rv = cfg.terrain && cfg.terrain.on ? riverOf(cfg) : null, RV = (cfg.terrain && cfg.terrain.river) || {}, r0 = O.r, pad = O.pad, rr = mul(cfg.world.seed * 9157 + 31);
+  const wet = (x, z, p) => (rv && waterDist(rv, x, z) < p) || (RV.lakes || []).some(q => Math.hypot(q.x - x, q.z - z) < q.r * 1.3 + p) || (RV.streams || []).some(st => st.pts.some(q => Math.hypot(q.x - x, q.z - z) < p));
+  const clear = (x, z) => wdist(cfg, x, z) < R - r0 - 40 && !wet(x, z, r0 + 10) && !cfg.map.places.some(p => Math.hypot(p.x - x, p.z - z) < (p.r || 8) + r0 + pad) && !cfg.map.buildings.some(b => Math.hypot(b.x - x, b.z - z) < r0 + pad)
+    && !(cfg.map.pois || []).some(q => Math.hypot(q.x - x, q.z - z) < q.r + r0 + 10) && !(cfg.map.plateaus || []).some(q => Math.hypot(q.x - x, q.z - z) < q.r + q.len + r0 + 10) && !cfg.map.links.some(([a, b]) => segD(x, z, a, b) < r0 + 14)
+    && !(cfg.dungeons.list || []).some(d => d.at && Math.hypot(d.at.x - x, d.at.z - z) < r0 + 30);
+  const gatesOf = (x, z) => [0, 90, 180, 270].map(g => { const a = g * Math.PI / 180, d = r0 + (cfg.camp.roadOut || 7); return { x: x + Math.sin(a) * d, z: z + Math.cos(a) * d }; });
+  for (const D of O.list) {
+    let best = null, bd = 1e9;
+    for (let k = 0; k < 6000; k++) { const q = worldSpot(cfg, rr, 300, r0 + 40); if (!q) continue; const L = zoneLevel(cfg, q.x, q.z); if (L == null || Math.abs(L - D.lv) > 2 || Math.abs(L - D.lv) > bd || !clear(q.x, q.z)) continue; best = q; bd = Math.abs(L - D.lv); if (bd < .3) break; }
+    if (!best) continue;
+    const { x, z } = best, id = D.id;
+    cfg.map.places.push({ id, name: D.name, type: 'hamlet', x, z, r: r0 + 6, safe: true, gen: 1, outpost: D.lv });
+    for (const [ox, oz, kind, npc, door] of [[-12, -12, 'shop', 'merchant', 'e'], [12, -12, 'smithy', 'smith', 'w'], [12, 12, 'tavern', null, 'w']]) cfg.map.buildings.push({ x: x + ox, z: z + oz, w: 8, d: 7, door, kind, chests: kind === 'tavern' ? ['barrel', 'crate'] : [], vil: id, ...(npc ? { npc } : {}) });
+    cfg.map.outposts.push({ ...cfg.camp, place: id, id, name: D.name, x, z, r: r0, lv: D.lv, q: D.q, price: D.price });
+    const hs = cfg.map.places.filter(p => p.type === 'hamlet' && p.id !== id && !p.outpost), gs = gatesOf(x, z);
+    let to = null, tg = null, td = 1e9; for (const h of hs) for (const g of gs) { const d = Math.hypot(h.x - g.x, h.z - g.z); if (d < td) { td = d; to = h; tg = g; } }
+    if (to) { const lk = [{ x: to.x, z: to.z }, { x: tg.x, z: tg.z }]; cfg.map.links.push(lk);
+      const gone = (cfg.map.pois || []).filter(p => segD(p.x, p.z, lk[0], lk[1]) < p.r + 14), ids = new Set(gone.map(p => p.place).filter(Boolean));
+      cfg.map.pois = (cfg.map.pois || []).filter(p => !gone.includes(p)); cfg.map.places = cfg.map.places.filter(p => !ids.has(p.id)); cfg.map.zones = cfg.map.zones.filter(zn => !(zn.poi && gone.some(p => Math.abs(p.x - zn.x) < .01 && Math.abs(p.z - zn.z) < .01)));
+      if (RV.lakes) RV.lakes = RV.lakes.filter(L => !gone.some(p => p.t === 'pond' && Math.abs(L.x - p.x) < .01 && Math.abs(L.z - p.z) < .01));
+      if (rv) { const B = cfg.terrain.bridge, extra = RV.extraBridges || (RV.extraBridges = []); for (let i = 1; i < rv.pts.length; i++) { const t = cross(lk[0], lk[1], rv.pts[i - 1], rv.pts[i]); if (t < 0) continue;     // мост на дороге к лагерю
+        const bx = lk[0].x + (lk[1].x - lk[0].x) * t, bz = lk[0].z + (lk[1].z - lk[0].z) * t, P = rv.pts[i - 1], Q = rv.pts[i]; if ([...rv.bridges, ...extra].some(q => Math.hypot(q.x - bx, q.z - bz) < 15)) continue;
+        extra.push({ x: bx, z: bz, ang: Math.atan2(Q.x - P.x, Q.z - P.z) + Math.PI / 2, len: RV.w + B.over * 2, w: B.w }); } } }
+  }
 }
 // расстояние от точки до отрезка ab
 const segD = (x, z, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2)); return Math.hypot(x - a.x - dx * t, z - a.z - dz * t); };

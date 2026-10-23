@@ -28,10 +28,10 @@ export const buyPrice = (it, cfg, mul = 1) => Math.max(2, Math.round(it.value * 
 // полка редкостей (G3): при каждом обновлении витрины — свой бросок по уровням (редкое, очень редкое, супер редкое);
 // только то, что герой может носить; свой генератор — бой не сдвигается. tier — номер уровня (1–3), fresh — «новинка»
 const srng = W => W.srng || (W.srng = W.rng === Math.random ? Math.random : mulberry32((W.cfg.world.seed || 1) * 7907 + 3));
-export function rareShelf(W) {
+export function rareShelf(W, boost = 0) {     // boost — лагерь Мира 5.0 выше уровнем: шанс полки × (1 + boost)
   const R = W.cfg.shop.rare, out = []; if (!R) return out; const rng = srng(W);
   R.tiers.forEach((T, k) => {
-    if (rng() >= T.chance) return;
+    if (rng() >= Math.min(1, T.chance * (1 + boost))) return;
     const n = T.n[0] + ((rng() * (T.n[1] - T.n[0] + 1)) | 0);
     for (let j = 0; j < n; j++) for (let a = 0; a < 16; a++) {
       const P = T.pools || R.pools, it = pickItem(P[(rng() * P.length) | 0], T.rar, rng);
@@ -56,9 +56,26 @@ export function restock(W) {
 // полку редкостей — заново под выбранного героя (при старте и загрузке), без сообщения
 export function rerollRare(W) { W.shop.stock = [...rareShelf(W), ...W.shop.stock.filter(s => !s.tier)]; }
 // цена товара на витрине: наценка сказочного торговца, сложность и уровень редкости полки
-export const stockPrice = (W, s) => buyPrice(BY_ID[s.id], W.cfg, W.dif.buy * priceMulOf(W) * (s.tier ? W.cfg.shop.rare.tiers[s.tier - 1].mul : 1));
+export const stockPrice = (W, s) => buyPrice(BY_ID[s.id], W.cfg, W.dif.buy * priceMulOf(W) * (s.tier ? W.cfg.shop.rare.tiers[s.tier - 1].mul : 1) * (s.pm || 1));     // pm — цены лагеря Мира 5.0
 // у повозки сказочного торговца — его витрина, наценка и торговля ночью
-export const shopOf = W => (W.nearNpc === 'wanderer' && W.wanderer) || W.shop;
+export const shopOf = W => (W.nearNpc === 'wanderer' && W.wanderer) || outpostShop(W) || W.shop;
+// лагеря Мира 5.0 (этап 2): у лавки лагеря своя витрина уровня лагеря — вещи уровня lv, качество и полка редкостей выше на q, цены × price;
+// обновляется раз в shop.restock с; свой генератор (бой не сдвигается)
+export function outpostOf(W) { if (!W.nearVil) return null; const M = W.levels ? W.levels.surface.map : W.map; return (M.outposts || []).find(o => o.id === W.nearVil) || null; }
+function outpostShop(W) {
+  const O = W.nearNpc === 'merchant' && outpostOf(W); if (!O) return null;
+  const S = W.shops || (W.shops = {}); let sh = S[O.id];
+  if (!sh || W.t - sh.at > W.cfg.shop.restock) sh = S[O.id] = restockOutpost(W, O);
+  return sh;
+}
+export function restockOutpost(W, O) {
+  const rng = srng(W), q = O.q || 1, heal = q >= 2 ? 'p_heal3' : 'p_heal2', out = [{ id: heal, n: 3 + q }, { id: 'u_repair_kit', n: 2 + q }, { id: 'h_rag_bandage', n: 5 }];
+  if (q >= 3) out.push({ id: 'p_elixir', n: 1 });
+  for (const it of rollLoot(SHOP, rng, .12 + .22 * q, W.gear.luck + 8 * q, q)) { const ex = out.find(o => o.id === it.id); if (ex) ex.n += it.n; else out.push({ ...it }); }
+  const rare = rareShelf(W, .5 * q), stock = [...rare, ...out.filter(o => !rare.some(r => r.id === o.id))].filter(s => BY_ID[s.id]);
+  for (const s of stock) { s.pm = O.price || 1; if (BY_ID[s.id].slot) s.il = O.lv; }
+  return { stock, at: W.t, t: 0, lv: O.lv, name: O.name };
+}
 export const priceMulOf = W => (W.nearNpc === 'wanderer' ? W.cfg.wanderer.priceMul : 1) * (W.life ? priceRep(W) : 1);     // скидка за репутацию у Пепельного Брода (этап 6)
 const closed = W => W.night && W.nearNpc !== 'wanderer';
 export function buyItem(W, i) {
@@ -66,7 +83,7 @@ export function buyItem(W, i) {
   const price = stockPrice(W, s);
   if (W.inv.ash < price) return 'ash';
   const mx = W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
-  if (BY_ID[s.id].slot) { if (!roomFor(W.inv, s.id, mx)) return 'full'; W.inv.bag.push(entryOf(s.id, 0, null, Math.max(nomIl(BY_ID[s.id]), W.lv))); }     // снаряжение у торговца — уровня героя (не ниже родного)
+  if (BY_ID[s.id].slot) { if (!roomFor(W.inv, s.id, mx)) return 'full'; W.inv.bag.push(entryOf(s.id, 0, null, Math.max(nomIl(BY_ID[s.id]), W.lv, s.il || 0))); }     // в лагере Мира 5.0 — не ниже уровня лагеря     // снаряжение у торговца — уровня героя (не ниже родного)
   else if (addItem(W.inv, s.id, 1, mx) > 0) return 'full';
   W.inv.ash -= price; s.n -= 1; if (s.n <= 0) sh.stock.splice(i, 1);
   W.ev.push({ k: 'pickup', id: s.id, n: 1 }); return 'ok';

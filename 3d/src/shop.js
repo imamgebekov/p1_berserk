@@ -62,8 +62,8 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   }
   function render() {
     refreshGear(W);
-    const wand = W.nearNpc === 'wanderer' && W.wanderer, sh = shopOf(W), left = Math.max(0, cfg.shop.restock - (W.shop.t || 0));
-    headEl.textContent = wand ? 'Сказочный торговец' : 'Торговец';
+    const wand = W.nearNpc === 'wanderer' && W.wanderer, sh = shopOf(W), left = Math.max(0, cfg.shop.restock - (sh.at != null ? W.t - sh.at : W.shop.t || 0));     // sh.at — витрина лагеря Мира 5.0
+    headEl.textContent = wand ? 'Сказочный торговец' : sh.lv ? `Торговец · вещи ${sh.lv} ур.` : 'Торговец';
     subEl.textContent = wand ? `уедет через ${Math.max(0, Math.ceil(wand.t))} с` : `${W.place ? W.place.name + ' · ' : ''}завоз новинок через ${Math.max(1, Math.ceil(left / 60))} мин`;
     ashEl.textContent = `${W.inv.ash} пепла`; ashEl.prepend(coin());
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);

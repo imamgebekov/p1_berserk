@@ -2,8 +2,8 @@
 import { len, clamp, rr } from './util3d.js';
 import { pathGoal } from './path3d.js';
 import { questEvent } from './quests3d.js';
-import { insideOf, resolve, slide, pathStep, roomHops, insideCamp, campGates, lineBlocked } from './map.js';
-import { killEnemy } from './sim.js';
+import { insideOf, resolve, slide, pathStep, roomHops, insideCamp, campGates, lineBlocked, campAt } from './map.js';
+import { killEnemy, atCampFire } from './sim.js';
 import { hitsWall } from './foes3d.js';
 import { addThreat, taunt } from './threat3d.js';
 import { gearStats } from './inv.js';
@@ -112,7 +112,7 @@ function steer(W, a, ux, uz, dist) {
 }
 // частокол лагеря: боец и герой по разные стороны — через удобные ворота (сначала к точке перед проёмом, потом за него)
 function campGoal(W, a, p) {
-  const C = W.map.camp; if (!C) return null;
+  const C = campAt(W.map, a.x, a.z) || campAt(W.map, p.x, p.z); if (!C) return null;     // Мир 5.0: и лагеря-заставы
   const ia = insideCamp(C, a.x, a.z), ip = insideCamp(C, p.x, p.z); if (ia === ip) return null;
   const g = campGates(C).reduce((b, q) => (len(q.x - a.x, q.z - a.z) + len(q.x - p.x, q.z - p.z) < len(b.x - a.x, b.z - a.z) + len(b.x - p.x, b.z - p.z) ? q : b));
   const nx = (g.x - C.x) / C.r, nz = (g.z - C.z) / C.r, s = ia ? 1 : -1, before = { x: g.x - nx * 2 * s, z: g.z - nz * 2 * s }, past = { x: g.x + nx * 2.5 * s, z: g.z + nz * 2.5 * s };
@@ -359,7 +359,7 @@ export function updateAllies(W, dt) {
       else if (wp) { const wx = wp.x - a.x, wz = wp.z - a.z, wd = len(wx, wz) || 1e-6; a.face = Math.atan2(wx, wz); steer(W, a, wx / wd, wz / wd, T.speed * 1.5 * dt); }
       else if (d > .9) { const sp = T.speed * (d > 6 ? 1.5 : 1); a.face = Math.atan2(dx, dz); steer(W, a, dx / d, dz / d, sp * dt); }
       // восстановление: вне боя понемногу, у костра быстро
-      if (a.calm <= 0 && a.hp < a.maxhp) a.hp = Math.min(a.maxhp, a.hp + (W.lvl === 'surface' && len(a.x, a.z) < W.cfg.player.fire.radius ? S.fireRegen : S.regen) * dt);
+      if (a.calm <= 0 && a.hp < a.maxhp) a.hp = Math.min(a.maxhp, a.hp + (W.lvl === 'surface' && atCampFire(W, a.x, a.z) ? S.fireRegen : S.regen) * dt);
     }
     if (M && tgt) spreadOut(W, a, T, live, dt, M);     // Г9: не стоять кучей
     a.moving = len(a.x - px, a.z - pz) > .4 * dt * 3;

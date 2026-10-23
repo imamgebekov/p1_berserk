@@ -23,7 +23,7 @@ import { waterDist, inStream } from './terrain3d.js';
 import { pathGoal } from './path3d.js';
 import { inCliff } from './cliffs3d.js';
 import { firesOf, discoverFires } from './fires3d.js';
-import { addFires } from './map.js';
+import { addFires, campAt } from './map.js';
 import { BY_ID, CATALOG } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem, chestGold } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
@@ -123,6 +123,8 @@ function foeSupport(W, dt) {
     }
   }
 }
+// у костра лагеря (главного или лагеря Мира 5.0) — лечение
+export const atCampFire = (W, x, z) => { const R = W.cfg.player.fire.radius; if (len(x, z) < R) return true; const M = W.levels ? W.levels.surface.map : W.map, F = M._campFires || (M._campFires = (M.fires || []).filter(f => f.camp)); return F.some(f => len(x - f.x, z - f.z) < R); };     // _campFires — кэш: костров в мире сотни
 // знаменосец (этап 7): враги рядом с живым знаменосцем бьют сильнее (aura.dmg), сам знаменосец — нет
 function auraMul(W, e) {
   let k = 1; for (const o of W.enemies) { const A = !o.dead && o !== e && W.cfg.enemies[o.type].aura; if (A && len(o.x - e.x, o.z - e.z) < A.r) k = Math.max(k, 1 + A.dmg); }
@@ -189,7 +191,7 @@ function spawnRing(W) {
   let x = p.x + Math.sin(a) * d, z = p.z + Math.cos(a) * d;
   { const o = clampWorld(W.cfg, { x, z }, R); x = o.x; z = o.z; }     // Мир 5.0: круг мира — от его центра
   if (nearBuilding(W.map, x, z, 1.5)) return false;                 // не рождаем врагов в стенах
-  if (W.map.camp && insideCamp(W.map.camp, x, z, -W.map.camp.spawnPad)) return false;   // и в лагере, и у самого частокола
+  if (campAt(W.map, x, z, -W.cfg.camp.spawnPad)) return false;   // и в лагере, и у самого частокола (и у лагерей Мира 5.0)
   { const pl = placeAt(W.map, x, z); if (pl && pl.safe) return false; }   // и в безопасных местах
   if (W.map.river && waterDist(W.map.river, x, z) < 1) return false;      // и в реке
   if (inCliff(W.map.plateaus, x, z, 1)) return false;                     // и в стене обрыва
@@ -762,7 +764,7 @@ function updatePlayer(W, dt, input) {
   }
   if (W.gear.regen > 0 && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + W.gear.regen * dt);
   if (p.calm > 0) p.calm -= dt;
-  else if (onSurface(W) && len(p.x, p.z) < P.fire.radius && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);
+  else if (onSurface(W) && atCampFire(W, p.x, p.z) && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);
   slide(W.map, p, p.vx * dt, p.vz * dt, P.radius);
   keepIn(W.map, p, W.cfg.world.radius, wcOf(W.cfg));
   W.inside = insideOf(W.map, p.x, p.z);
@@ -812,7 +814,7 @@ function updateEnemies(W, dt) {
       const H = E.hear, noise = (p.state === 'atk' || p.state === 'roll' || p.state === 'charge' ? H.fight : p.state === 'run' ? H.run : H.idle) * (1 - clamp(W.gear.stealth, 0, 60) / 100) * (W.place && W.place.safe ? .5 : 1) * W.dif.hear * rainK(W, 'hear');
       const pe = placeAt(W.map, e.x, e.z), deep = pe && pe.safe && len(e.x - pe.x, e.z - pe.z) < pe.r - 4;    // в глубине безопасного места враги теряют след и не слышат
       if (deep) e.alert = false;
-      const sheltered = !!W.map.camp && insideCamp(W.map.camp, p.x, p.z) && !insideCamp(W.map.camp, e.x, e.z);   // герой за частоколом: враг снаружи его теряет
+      const pc = campAt(W.map, p.x, p.z), sheltered = !!pc && !insideCamp(pc, e.x, e.z);   // герой за частоколом: враг снаружи его теряет
       if (sheltered) e.alert = false;
       const hops = roomHops(W.map, e.x, e.z, p.x, p.z);           // в подземелье слышно только через немного комнат
       const shut = hops > 0 && !!W.map.adj && !pathStep(W.map, e.x, e.z, p.x, p.z);   // запертая дверь глушит: к герою не пройти — не тревожится и не толпится у двери
@@ -953,7 +955,7 @@ function updateHouses(W, dt) {
     d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
   }
   { const nb = p.dead ? null : W.map.buildings.find(b => b.npc && len(p.x - b.npc.x, p.z - b.npc.z) < W.cfg.shop.reach), na = p.dead || nb ? null : storyActors(W).find(a => len(p.x - a.x, p.z - a.z) < W.cfg.shop.reach); W.nearActor = na || null;     // герои сюжета — как жители (этап 3)
-    W.nearNpc = nb ? nb.npc.kind : na ? na.kind : nearWanderer(W) ? 'wanderer' : null; W.nearMerchant = W.nearNpc === 'merchant' || W.nearNpc === 'wanderer'; }
+    W.nearNpc = nb ? nb.npc.kind : na ? na.kind : nearWanderer(W) ? 'wanderer' : null; W.nearVil = nb ? nb.vil || null : null; W.nearMerchant = W.nearNpc === 'merchant' || W.nearNpc === 'wanderer'; }
   if ((W.shop.t += dt) > W.cfg.shop.restock) restock(W);
   updateWanderer(W, dt);
   updateEvents(W, dt);

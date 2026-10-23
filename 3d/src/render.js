@@ -438,8 +438,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // виды уровней строятся при первом входе; поверхность прячется, пока герой внизу
   // частокол лагеря: брёвна по кругу одним мешем, у ворот — столбы с перекладиной и факелы
   const palisade = new THREE.Group();
-  if (map.camp) {
-    const C = map.camp, logs = [], tops = [], rnd = mulberry32(cfg.world.seed + 9), gapA = (C.gateW / 2) / C.r, n = Math.ceil(2 * Math.PI * C.r / (C.step * .55));
+  for (const C of [map.camp, ...(map.outposts || [])].filter(Boolean)) {     // и лагеря Мира 5.0 (этап 2)
+    const logs = [], tops = [], rnd = mulberry32(cfg.world.seed + 9 + Math.round(C.x)), gapA = (C.gateW / 2) / C.r, n = Math.ceil(2 * Math.PI * C.r / (C.step * .55));
     for (let i = 0; i < n; i++) {
       const a = i / n * 2 * Math.PI;
       if (C.gates.some(g => { let d = Math.abs(a - g * Math.PI / 180) % (2 * Math.PI); if (d > Math.PI) d = 2 * Math.PI - d; return d < gapA; })) continue;
@@ -456,8 +456,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       beams.push(new THREE.BoxGeometry(C.gateW + 1.2, .4, .5).rotateY(a + Math.PI / 2).translate(g.x, C.h + .9, g.z));
     }
     palisade.add(new THREE.Mesh(mergeGeometries(posts), paintMat(new THREE.MeshLambertMaterial({ color: '#4a3220' }), 'log')), new THREE.Mesh(mergeGeometries(beams), paintMat(new THREE.MeshLambertMaterial({ color: '#3a2618' }))), new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })));
-    scene.add(palisade); freeze(palisade);
   }
+  if (palisade.children.length) { scene.add(palisade); freeze(palisade); }
   const cart = makeCart(); cart.group.visible = false; scene.add(cart.group);   // повозка сказочного торговца
   const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   // оживление: жители лагеря, вороны, дым из труб (только вид; числа — cfg.ambient)

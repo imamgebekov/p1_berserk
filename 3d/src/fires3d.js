@@ -19,6 +19,7 @@ export function firesOf(map, cfg) {
   if (camp) out.push({ id: 'camp', name: 'Костёр лагеря', x: 0, z: 0, home: true });
   for (const p of cfg.map.places || []) {
     if (camp && p.id === camp.place) continue;
+    if (p.outpost) { out.push({ id: p.id, name: 'Костёр: ' + p.name, x: p.x, z: p.z, camp: true }); continue; }     // лагерь Мира 5.0: костёр в середине — лечит, как костёр лагеря
     if (p.safe) { const s = freeNear(map, p.x, p.z); if (s) out.push({ id: p.id, name: p.name, x: s.x, z: s.z }); continue; }
     const a0 = Math.atan2(-p.x, -p.z); let s = null;                            // у входа: со стороны лагеря, а если там занято — дальше по кругу
     for (let k = 0; k < 16 && !s; k++) { const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 8; s = freeNear(map, p.x + Math.sin(a) * (p.r + F.gate), p.z + Math.cos(a) * (p.r + F.gate), 4); }
@@ -30,7 +31,7 @@ export function firesOf(map, cfg) {
   const rank = f => f.home ? 0 : place(f.id).hub || place(f.id).city ? 1 : place(f.id).safe ? 2 : 3 - (f.danger || 0) * .1;
   const keep = [];
   for (const f of [...out].sort((a, b) => rank(a) - rank(b) || Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))) {
-    const must = f.home || place(f.id).hub || place(f.id).city;     // узлы зон и города — всегда с костром
+    const must = f.home || f.camp || place(f.id).hub || place(f.id).city;     // узлы зон и города — всегда с костром
     if (!must && Math.hypot(f.x - cx, f.z - cz) < F.campR) continue;
     if (!must && keep.some(k => Math.hypot(k.x - f.x, k.z - f.z) < F.gap)) continue;
     keep.push(f);
