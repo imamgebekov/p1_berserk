@@ -11,7 +11,9 @@ import { actorKey, makeActor, disposeActor } from './actors3d.js';
 import { makeBladeFx, bladeEls, hasBladeStyle } from './bladefx3d.js';
 import { weaponMix, weaponElement } from './stones3d.js';
 
-export function createHeroView(doc) {
+const VIEWS = new WeakMap();     // один показ героя на документ: сумка и выбор героя не открыты разом, а лишний WebGL-контекст на телефоне выбивает основной (перезапуск игры)
+export function createHeroView(doc) { let v = VIEWS.get(doc); if (!v) VIEWS.set(doc, v = makeHeroView(doc)); return v; }
+function makeHeroView(doc) {
   let r = null, scene, cam, hero, raf = 0, key = '', W = null, last = 0, blade = null;
   const canvas = doc.createElement('canvas'); canvas.className = 'herov'; canvas.width = 240; canvas.height = 320;
   try {

@@ -25,10 +25,10 @@ try {
   if (!before || before.prog.lv !== 17) bad('прогресс до новой игры не сохранился: ' + JSON.stringify(before && before.prog));
   await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.getElementById('panel').hidden);
   const bb = await page.locator('#saveReset').boundingBox();
-  const nav = page.waitForNavigation({ timeout: 20000 });
-  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.waitForTimeout(1900);
-  await nav; await page.mouse.up();
-  await page.waitForFunction(() => window.__b3d && window.__b3d.W);
+  const nav = page.waitForEvent('framenavigated', { predicate: f => f === page.mainFrame(), timeout: 60000 });     // 2026-10-23: ждём саму перезагрузку, а не «load» — загрузка с vite бывает дольше 20 с
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.waitForTimeout(2500);
+  await nav; await page.mouse.up().catch(() => {});
+  await page.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 60000 });
   await page.waitForTimeout(1500);
   const after = await page.evaluate(() => ({ lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash, pick: !document.getElementById('heroPick').hidden, save: JSON.parse(localStorage.getItem('berserk3d.save') || 'null'), mute: localStorage.getItem('berserk3d.mute') }));
   if (after.lv !== 1) bad(`после новой игры уровень ${after.lv}, а не 1`);
