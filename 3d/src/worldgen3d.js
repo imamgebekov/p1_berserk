@@ -218,6 +218,7 @@ export function expandWorld(base) {
     rv = riverOf(cfg);
   }
   const wetAt = (x, z, pad) => !!rv && waterDist(rv, x, z) < pad;
+  const dropPonds = gone => { if (!PUD || !T || !T.river || !T.river.lakes) return; T.river.lakes = T.river.lakes.filter(L => !gone.some(p => p.t === 'pond' && Math.abs(L.x - p.x) < .01 && Math.abs(L.z - p.z) < .01)); };     // Мир 5.0: пруд на новой дороге уходит вместе с озером
   const taken = [...cfg.map.places.map(p => ({ x: p.x, z: p.z, r: p.r }))];
   const pspot = (rng, dMin, dMax, cap = false) => { if (!PUD) { const a = rng() * TAU, d = dMin + Math.sqrt(rng()) * (dMax - dMin); return { x: Math.sin(a) * d, z: Math.cos(a) * d }; } return worldSpot(cfg, rng, dMin, cap ? 20 : R - dMax, cap ? dMax : Infinity) || { x: 1e9, z: 1e9 }; };     // Мир 5.0: точка в круге мира; cap — dMax предел от старта, иначе R − dMax — запас до края
   const freeSpot = (dMin, dMax, gap, pad, cap = false) => { for (let k = 0; k < 400; k++) { const { x, z } = pspot(r, dMin, dMax, cap); if (x > 1e8) continue;
@@ -232,6 +233,7 @@ export function expandWorld(base) {
     for (let j = 0; j < k; j++) {
       const a = a0 + j * TAU / k + (r() - .5) * .3, bx = s.x + Math.sin(a) * 8.5, bz = s.z + Math.cos(a) * 8.5, w = 6 + ((r() * 3) | 0), d = 5 + ((r() * 2) | 0);
       const door = Math.abs(Math.sin(a)) > Math.abs(Math.cos(a)) ? (Math.sin(a) > 0 ? 'w' : 'e') : (Math.cos(a) > 0 ? 'n' : 's');
+      if (cfg.map.buildings.some(q => q.vil === id && Math.abs(q.x - bx) < (q.w + w) / 2 * 1.35 + 2.5 && Math.abs(q.z - bz) < (q.d + d) / 2 * 1.35 + 2.5)) { r(); continue; }     // 2026-10-23: дома посёлка не налезают друг на друга (с запасом на рост bScale)
       cfg.map.buildings.push({ x: Math.round(bx * 2) / 2, z: Math.round(bz * 2) / 2, w, d, door, kind: ['house', 'hut', 'warehouse'][(r() * 3) | 0], chests: ['chest', 'crate', 'barrel', 'sack', 'wardrobe'].filter(() => r() < .4).slice(0, 2), vil: id });
     }
   }
@@ -321,7 +323,7 @@ export function expandWorld(base) {
       const pts = [{ x: x0, z: z0 }]; let ang = Math.atan2(tgt.x - x0, tgt.z - z0), ok = false, bad = false;
       for (let k = 0; k < ST.max; k++) { const p = pts[pts.length - 1], want = Math.atan2(tgt.x - p.x, tgt.z - p.z); ang += (want - ang) * .35 + (rl() - .5) * ST.wobble * 2;
         const q = { x: p.x + Math.sin(ang) * ST.step, z: p.z + Math.cos(ang) * ST.step }; pts.push(q);
-        if (taken.some(t => Math.hypot(t.x - q.x, t.z - q.z) < t.r) || wdist(cfg, q.x, q.z) > R - 8) { bad = true; break; }
+        if (taken.some(t => Math.hypot(t.x - q.x, t.z - q.z) < t.r) || wdist(cfg, q.x, q.z) > R - 8 || (PUD && cfg.map.links.some(([A, B]) => segD(q.x, q.z, A, B) < 16))) { bad = true; break; }     // Мир 5.0: ручей не пересекает дорогу (тропа петляет до ~12 м)
         if (waterNear(q.x, q.z) < 0) { ok = true; break; } }
       if (!ok || bad) continue;
       streams.push({ pts, w: ST.w[0] + rl() * (ST.w[1] - ST.w[0]) }); i++;
@@ -373,7 +375,7 @@ export function expandWorld(base) {
       cfg.map.cities.push({ id, x: s.x, z: s.z, H, gate: CI.gate, name: cfg.map.places[cfg.map.places.length - 1].name }); taken.push({ x: s.x, z: s.z, r: H * 1.45 + 10 });
       const to = villages.reduce((a, v) => (!a || Math.hypot(v.x - s.x, v.z - s.z) < Math.hypot(a.x - s.x, a.z - s.z) ? v : a), null);     // дорога — к ближайшему посёлку, из ворот на его сторону
       if (to) { const dx = to.x - s.x, dz = to.z - s.z, gs = [['s', 0, 1], ['n', 0, -1], ['e', 1, 0], ['w', -1, 0]].reduce((a, q) => (q[1] * dx + q[2] * dz > a[1] * dx + a[2] * dz ? q : a)); const lk = [{ x: to.x, z: to.z }, { x: s.x + gs[1] * (H + 6), z: s.z + gs[2] * (H + 6) }]; cfg.map.links.push(lk);
-        const gone = cfg.map.pois.filter(p => p.t !== 'pond' && segD(p.x, p.z, lk[0], lk[1]) < p.r + 14), ids = new Set(gone.map(p => p.place).filter(Boolean));     // точки интереса на новой дороге убираются (тропа гнётся до ~12 м)
+        const gone = cfg.map.pois.filter(p => (PUD || p.t !== 'pond') && segD(p.x, p.z, lk[0], lk[1]) < p.r + 14), ids = new Set(gone.map(p => p.place).filter(Boolean)); dropPonds(gone);     // точки интереса на новой дороге убираются (тропа гнётся до ~12 м)
         cfg.map.pois = cfg.map.pois.filter(p => !gone.includes(p)); cfg.map.places = cfg.map.places.filter(p => !ids.has(p.id)); cfg.map.zones = cfg.map.zones.filter(zn => !(zn.poi && gone.some(p => Math.abs(p.x - zn.x) < .01 && Math.abs(p.z - zn.z) < .01))); }
     }
     // города-узлы зон (этап 1, 2026-10-19): в каждой зоне за ядром — посёлок с торговцем и кузнецом; ближайший к внутренней границе зоны,
@@ -391,7 +393,7 @@ export function expandWorld(base) {
             cfg.map.buildings.push({ x: bx, z: bz, w: 6 + (j % 2), d: 5, door: doorTo(bx - s.x, bz - s.z), kind: j < 2 ? 'house' : ['hut', 'warehouse'][j % 2], chests: j > 1 ? ['chest'] : [], vil: hub.id }); }
           const to = [...villages, ...gates.map(g => ({ x: g.x, z: g.z }))].reduce((a, v) => (!a || Math.hypot(v.x - s.x, v.z - s.z) < Math.hypot(a.x - s.x, a.z - s.z) ? v : a), null);
           const lk = [{ x: to.x, z: to.z }, { x: s.x, z: s.z }]; cfg.map.links.push(lk); villages.push(hub);
-          const gone = cfg.map.pois.filter(p => p.t !== 'pond' && segD(p.x, p.z, lk[0], lk[1]) < p.r + 14), ids = new Set(gone.map(p => p.place).filter(Boolean));     // точки интереса на новой дороге убираются
+          const gone = cfg.map.pois.filter(p => (PUD || p.t !== 'pond') && segD(p.x, p.z, lk[0], lk[1]) < p.r + 14), ids = new Set(gone.map(p => p.place).filter(Boolean)); dropPonds(gone);     // точки интереса на новой дороге убираются
           cfg.map.pois = cfg.map.pois.filter(p => !gone.includes(p)); cfg.map.places = cfg.map.places.filter(p => !ids.has(p.id)); cfg.map.zones = cfg.map.zones.filter(zn => !(zn.poi && gone.some(p => Math.abs(p.x - zn.x) < .01 && Math.abs(p.z - zn.z) < .01))); }
         hub.hub = zone.id; if (Z.hub.names && Z.hub.names[zone.id]) hub.name = Z.hub.names[zone.id];     // своё имя узла (Ставка короля — Акт II)
         const hb = cfg.map.buildings.filter(b => b.vil === hub.id && !b.npc);

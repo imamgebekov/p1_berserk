@@ -5,7 +5,8 @@ import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, spawnEnemy } from '../3d/src/sim.js';
 import { makeMap } from '../3d/src/map.js';
 import { pathSegs } from '../3d/src/world3d.js';
-import { riverOf, onBridge, waterDist, buildHeights, heightAt } from '../3d/src/terrain3d.js';
+import { riverOf, onBridge, waterDist, buildHeights, heightAt, streamDist } from '../3d/src/terrain3d.js';
+import { wdist, wcOf } from '../3d/src/geo3d.js';     // Мир 5.0: край — от центра мира
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
@@ -23,7 +24,7 @@ for (const p of CFG3.map.places || []) if (p.safe) dry(p.x, p.z, p.r, 'мест�
 for (const b of CFG3.bosses.list.filter(q => !q.level)) dry(b.x, b.z, 6, 'логово ' + b.id);
 for (const q of map.portals || []) dry(q.x, q.z, 3, 'вход');
 for (const c of map.containers) dry(c.x, c.z, 1.5, 'сундук');
-for (const b of rv.bridges) ok(Math.hypot(b.x, b.z) < R - 4 && waterDist(rv, b.x, b.z) < 0 && onBridge(rv, b.x, b.z), 'мост не над водой или за краем мира');
+for (const b of rv.bridges) ok(wdist(CFG3, b.x, b.z) < R - 4 && waterDist(rv, b.x, b.z) < 0 && onBridge(rv, b.x, b.z), 'мост не над водой или за краем мира');
 
 // ---------- 2. высоты ----------
 const hf = buildHeights(CFG3, map);
@@ -33,7 +34,7 @@ ok(maxH > .5 && maxH <= CFG3.terrain.hills.amp + 1e-6 + Math.abs(CFG3.terrain.be
 const flat = (x, z, m) => ok(Math.abs(heightAt(hf, x, z)) < 1e-6, `${m}: земля не ровная (${heightAt(hf, x, z).toFixed(3)})`);
 flat(0, 0, 'костёр'); if (map.camp) flat(map.camp.x + map.camp.r * .7, map.camp.z, 'лагерь');
 for (const b of map.buildings) flat((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2, 'дом ' + b.kind);
-for (const [a, b] of pathSegs(map)) if (waterDist(rv, (a.x + b.x) / 2, (a.z + b.z) / 2) > CFG3.terrain.bank + 1) flat((a.x + b.x) / 2, (a.z + b.z) / 2, 'дорога');
+for (const [a, b] of pathSegs(map)) if (waterDist(rv, (a.x + b.x) / 2, (a.z + b.z) / 2) > CFG3.terrain.bank + 1 && streamDist(rv, (a.x + b.x) / 2, (a.z + b.z) / 2) > 3) flat((a.x + b.x) / 2, (a.z + b.z) / 2, 'дорога');     // Мир 5.0: брод через ручей (дорога к узлу проложена после ручья) — не ровная земля
 for (const c of map.containers) flat(c.x, c.z, 'сундук');
 for (const b of rv.bridges) { const B = CFG3.terrain.bridge, s = Math.sin(b.ang), c = Math.cos(b.ang), e = b.len / 2 - .01;
   ok(Math.abs(heightAt(hf, b.x, b.z) - B.deck - B.arch) < 1e-6 && Math.abs(heightAt(hf, b.x + s * e, b.z + c * e) - B.deck) < .01, 'мост не дугой: середина выше концов на arch');
@@ -43,9 +44,9 @@ for (const b of rv.bridges) { const B = CFG3.terrain.bridge, s = Math.sin(b.ang)
 
 // ---------- 3. проходимость от лагеря ----------
 {
-  const S = 1, N = Math.ceil(2 * R / S) + 1, idx = (x, z) => Math.round((z + R) / S) * N + Math.round((x + R) / S);
+  const S = 1, N = Math.ceil(2 * R / S) + 1, O = wcOf(CFG3), idx = (x, z) => Math.round((z - O.z + R) / S) * N + Math.round((x - O.x + R) / S);     // сетка — вокруг центра мира
   const free = new Uint8Array(N * N), seen = new Uint8Array(N * N);
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = -R + i * S, z = -R + j * S; free[j * N + i] = Math.hypot(x, z) < R - .5 && (waterDist(rv, x, z) > .5 || !!onBridge(rv, x, z)) ? 1 : 0; }
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = O.x - R + i * S, z = O.z - R + j * S; free[j * N + i] = Math.hypot(x - O.x, z - O.z) < R - .5 && (waterDist(rv, x, z) > .5 || !!onBridge(rv, x, z)) ? 1 : 0; }
   const start = idx(map.camp ? map.camp.x : 0, map.camp ? map.camp.z : 0), q = [start]; seen[start] = 1;
   while (q.length) { const k = q.pop(), i = k % N, j = (k / N) | 0; for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= N || b >= N) continue; const n = b * N + a; if (free[n] && !seen[n]) { seen[n] = 1; q.push(n); } } }
   const reach = (x, z, m) => { for (let r = 0; r <= 3; r++) for (let a = 0; a < 8; a++) { const k = idx(x + Math.sin(a * .785) * r, z + Math.cos(a * .785) * r); if (seen[k]) return; } fails.push(`${m} не достижимо от лагеря (${x.toFixed(0)}, ${z.toFixed(0)})`); };

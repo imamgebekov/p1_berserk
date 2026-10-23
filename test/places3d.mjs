@@ -4,13 +4,14 @@ import { CFG3 } from '../3d/src/config3d.js';
 import { placeAt } from '../3d/src/map.js';
 import { createWorld, step, mulberry32, spawnEnemy, reveal, isSeen, gainXp } from '../3d/src/sim.js';
 import { packSeen, unpackSeen, unpackSeenChunks, loadSave, createSaver } from '../3d/src/save3d.js';
+import { wdist, wcOf } from '../3d/src/geo3d.js';     // Мир 5.0: край — от центра мира
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const mk = (seed = 1, f) => { const cfg = JSON.parse(JSON.stringify(CFG3)); if (f) f(cfg); return createWorld(cfg, mulberry32(seed)); };
 const W0 = mk(); const places = W0.cfg.map.places;
 // данные
 ok(places.length >= 9 && new Set(places.map(p => p.id)).size === places.length, 'мест мало или id повторяются');
 ok(places.filter(p => p.safe).length >= 5 && places.filter(p => p.danger).length >= 4, 'нужно ≥5 безопасных и ≥4 опасных мест');
-for (const p of places) { ok(Math.hypot(p.x, p.z) + p.r <= W0.cfg.world.radius + 6, `место ${p.id} вылезает за мир`); ok(p.safe ? !p.danger : p.danger >= 1 && p.danger <= 3, 'safe и danger: ' + p.id); ok(p.name && /[а-яё]/i.test(p.name), 'название ' + p.id); }
+for (const p of places) { ok(wdist(W0.cfg, p.x, p.z) + p.r <= W0.cfg.world.radius + 6, `место ${p.id} вылезает за мир`); ok(p.safe ? !p.danger : p.danger >= 1 && p.danger <= 3, 'safe и danger: ' + p.id); ok(p.name && /[а-яё]/i.test(p.name), 'название ' + p.id); }
 // безопасные места не пересекаются с опасными
 for (const a of places) for (const b of places) if (a.safe && b.danger) ok(Math.hypot(a.x - b.x, a.z - b.z) >= a.r + b.r - 6, `безопасное «${a.name}» пересекается с опасным «${b.name}»`);
 // каждое здание и контейнер принадлежат месту либо стоят в глуши; торговец, кузнец — в безопасных местах
