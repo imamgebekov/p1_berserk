@@ -195,7 +195,7 @@ try {
   await page.keyboard.press('Digit1'); await page.waitForTimeout(150); await page.keyboard.press('Digit1');     // с 3.88 у части умений клавиша сначала включает прицел, второе нажатие — удар
   if (!(await waitFor(() => Object.values(window.__b3d.W.acd).some(v => v > 0)))) bad('клавиша 1 не запустила умение');
   await page.keyboard.press('Digit3'); await page.waitForTimeout(400); await page.screenshot({ path: join(out, '3d-desk-ability-bar.png') });
-  // смена героя из меню: уровень и пепел остаются, Esc отменяет, 2 — Вейл
+  // смена героя из меню: Esc отменяет, 2 — Вейл; у Вейла свои уровень, пепел и место, у Торна они остаются в его слоте (отдельные герои, 2026-10-23)
   await ev(() => { window.__b3d.W.inv.ash = 4321; });
   await page.keyboard.press('Escape'); await page.waitForTimeout(250);
   if (!/Торн/.test(await ev(() => document.getElementById('heroNow').textContent))) bad('в меню не показан текущий герой');
@@ -207,7 +207,8 @@ try {
   await page.keyboard.press('Escape'); await page.waitForTimeout(200); await page.locator('#heroSwitch').click(); await page.waitForTimeout(200);
   await page.keyboard.press('Digit2'); await waitFor(() => window.__b3d.W.hero === 'vale' && !window.__b3d.ui().panelOpen);
   const sw = await ev(() => ({ hero: window.__b3d.W.hero, lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash, panel: window.__b3d.ui().panelOpen }));
-  if (sw.hero !== 'vale' || sw.lv !== 1 || sw.ash < 4321 || sw.panel || (await ev(() => (window.__b3d.W.heroes.thorn || {}).lv)) !== 30) bad('смена героя: у Вейла не свой уровень, пропал пепел или уровень Торна не сохранён: ' + JSON.stringify(sw));     // у каждого героя свой уровень (2026-10-18)
+  const th = await ev(() => { const t = window.__b3d.W.heroes.thorn || {}; return { lv: t.lv, ash: t.inv && t.inv.ash, pos: !!t.pos }; });
+  if (sw.hero !== 'vale' || sw.lv !== 1 || sw.ash !== 0 || sw.panel || th.lv !== 30 || th.ash !== 4321 || !th.pos) bad('смена героя: у Вейла не свои уровень и пепел или слот Торна не сохранён: ' + JSON.stringify({ sw, th }));     // у каждого героя свой уровень (2026-10-18), сумка и место (2026-10-23)
   await ev(() => { window.__b3d.W.lv = 30; });     // дальше проверки умений Вейла на 30-м уровне
   // окна не выходят за экран (высота в пикселях под zoom)
   await page.keyboard.press('KeyI'); await page.waitForTimeout(250);
@@ -435,9 +436,15 @@ try {
     await pg.keyboard.press('Digit4');
     await pg.waitForFunction(() => window.__b3d.W.allies.some(a => a.decoy), null, { timeout: 4000 }).catch(() => bad('клавиша 4 не вызвала тень'));
     await pg.waitForTimeout(400); await pg.screenshot({ path: join(out, '3d-desk-vale-shadow.png') });
-    await pg.reload(); await booted(pg);     // без выбора героя игра идёт сразу
-    const r2 = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, shown: !document.getElementById('heroPick').hidden }));
-    if (r2.hero !== 'vale' || r2.shown) bad('после перезагрузки герой не Вейл или снова выбор: ' + JSON.stringify(r2));
+    await pg.evaluate(() => { window.__b3d.saver.write(true); });
+    const vAt = await pg.evaluate(() => ({ x: window.__b3d.W.player.x, z: window.__b3d.W.player.z }));
+    await pg.reload(); await booted(pg, false); await waitFor(() => !document.getElementById('heroPick').hidden && !!document.getElementById('heroGo'), null, 10000, pg);     // с сохранением — меню выбора героя (как в WoW)
+    const m = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, sel: (document.querySelector('.hcard.on') || {}).dataset?.hero, go: !document.getElementById('heroGo').disabled, cancel: !document.getElementById('heroCancel').hidden, place: [...document.querySelectorAll('#heroCards .hf')].some(r => /Место/.test(r.textContent)) }));
+    if (m.hero !== 'vale' || m.sel !== 'vale' || !m.go || m.cancel || !m.place) bad('меню при запуске: не Вейл, нет «Войти в мир», есть «Отмена» или нет места героя: ' + JSON.stringify(m));
+    await pg.screenshot({ path: join(out, '3d-desk-launch-menu.png') });
+    await pg.locator('#heroGo').click(); await waitFor(() => document.getElementById('heroPick').hidden && !window.__b3d.ui().panelOpen, null, 10000, pg);
+    const r2 = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, x: window.__b3d.W.player.x, z: window.__b3d.W.player.z }));
+    if (r2.hero !== 'vale' || Math.hypot(r2.x - vAt.x, r2.z - vAt.z) > 1) bad('после перезагрузки и «Войти в мир» не Вейл или не на своём месте: ' + JSON.stringify({ r2, vAt }));
     await c2.close(); }
   // Сойка: 3 — выбрать, в руке ржавый лук; выстрел по врагу — своя стрела летит и попадает
   { const c4 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false }), pg = await c4.newPage(); pg.setDefaultTimeout(90000);

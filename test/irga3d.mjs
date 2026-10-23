@@ -32,7 +32,7 @@ const cast = (W, id) => useAbility(W, IDS.indexOf(id));
   const mags = CATALOG.filter(i => i.pool === 'magic'); ok(mags.length === 16 && mags.every(i => canWield('irga', i) && !canWield('jay', i) && !canWield('thorn', i)), 'посохи и жезлы: 16 штук только для Ирги');     // 4.20: +2 багровых
   const W = mk(); W.inv.bag.push({ id: 'a_body_plate_iron', n: 1 }); const pl = CATALOG.find(i => i.slot === 'body' && i.kind === 'plate'); W.inv.bag = [{ id: pl.id, n: 1 }];
   ok(!equipAt(W.inv, 0, 'irga') && !W.inv.eq.body, 'Ирга надела латы');
-  const T = mk('w_sword_iron'); T.hero = 'thorn'; T.inv.eq.body = pl.id; switchHero(T, 'irga'); ok(!T.inv.eq.body && T.inv.bag.some(s => s.id === pl.id), 'при смене на Иргу латы не ушли в сумку');
+  const T = mk('w_sword_iron'); T.hero = 'thorn'; T.inv.eq.body = pl.id; switchHero(T, 'irga'); ok(!T.inv.eq.body && T.heroes.thorn.inv.eq.body === pl.id, 'при смене на Иргу латы не остались у Торна');     // отдельные герои (2026-10-23)
   const d = deserialize({ bag: [], eq: { body: pl.id, weapon: 'w_staff_iron' } }, 40, 'irga', CFG3); ok(!d.eq.body && d.bag.some(s => s.id === pl.id) && d.eq.weapon === 'w_staff_iron', 'сохранение Ирги с латами'); }
 
 // ---------- 2. посох и жезл ----------
