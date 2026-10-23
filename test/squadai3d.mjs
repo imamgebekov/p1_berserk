@@ -49,11 +49,12 @@ const T = CFG3.squad.types;
   run(W2, 10, {}, () => { if (!far.dead) for (const a of qs) { if (a.state === 'wind') { n++; if (a.tg === far) onMark++; } } if (W2.ev.some(v => v.k === 'squadCmd' && v.auto)) back = true; });
   ok(far.dead, 'отряд не убил метку'); ok(n && onMark / n > .9, 'отряд бьёт не метку'); ok(back && W2.party.cmd === 'follow', 'после метки не вернулись к «за мной»');
   const W3 = mk(9); ok(squadCommand(W3, 'hold') === 'empty', 'команда без отряда'); party(W3, 'c_vale'); ok(squadCommand(W3, 'assist') === 'none', '«моя цель» без врагов'); }
-// рост с уровнем; один спутник-герой; смена героя отпускает своего спутника и возвращает пепел
+// рост с уровнем; один спутник-герой; при смене героя отряд ждёт прежнего героя (отдельные герои, 2026-10-23)
 { const W = mk(10, 'thorn', 1); const [a] = party(W, 'c_jay'); const h1 = a.maxhp; W.lv = 30; run(W, .1); ok(a.maxhp === allyHp(W, T.c_jay) && a.maxhp > h1 * 2, 'спутник не растёт с уровнем');
   const b = W.map.buildings.find(q => q.npc && q.npc.kind === 'captain'); W.player.x = b.npc.x + 1; W.player.z = b.npc.z; run(W, .1); W.inv.ash = 1e5;
   ok(hireAlly(W, 'c_jay') === 'taken', 'второй такой же спутник'); ok(hireAlly(W, 'c_thorn') === 'taken', 'нанят свой же герой');
-  const ash = W.inv.ash; switchHero(W, 'jay'); ok(!W.allies.some(q => q.type === 'c_jay') && W.inv.ash === ash + T.c_jay.cost, 'Сойка-спутник осталась, став героем');
+  const ash = W.inv.ash; switchHero(W, 'jay'); ok(!W.allies.some(q => q.type === 'c_jay') && W.inv.ash === 0 && W.heroes.thorn.squad.some(q => q.type === 'c_jay') && W.heroes.thorn.inv.ash === ash, 'Сойка-спутник осталась, став героем, или отряд ушёл от Торна');
+  ok(switchHero(W, 'thorn') && W.allies.some(q => q.type === 'c_jay') && W.inv.ash === ash, 'Торну не вернулся его отряд или пепел');
   const W2 = mk(11, 'vale', 30); restoreAllies(W2, [{ type: 'c_vale', hp: 50 }, { type: 'c_irga', hp: 50 }, { type: 'c_irga', hp: 50 }]); ok(W2.allies.length === 1 && W2.allies[0].type === 'c_irga', 'сохранение: свой герой или двойник в отряде'); }
 // бот: отряд из трёх сам разбирает стаю, никто не стоит без дела, не гибнет и после боя идёт за героем
 { let kills = 0, deaths = 0, idle = 0, total = 0, lost = 0;

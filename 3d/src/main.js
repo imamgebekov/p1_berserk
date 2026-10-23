@@ -47,7 +47,7 @@ import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSaveAny, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave, saveFileName } from './save3d.js';
 import { createRenderer } from './render.js';
 import { runBench } from './bench3d.js';
-import { rotateInput, resolve } from './map.js';
+import { rotateInput, resolve, placeAt } from './map.js';
 import { createInput } from './input.js';
 import { loadTweaks, createTweakPanel } from './tweak.js';
 import { setIconText, applyIcons } from './uiicons.js';
@@ -123,37 +123,45 @@ function drawPortrait(cv, L) {
   if (L.shoulder) { r('#4a463f', 2, 8, 3, 2); }
   if (L.quiver) { r('#6a4a2a', 12, 6, 2, 7); r('#c8b890', 12, 4, 1, 2); r('#c8b890', 13, 5, 1, 1); }
 }
-let heroSwitching = false;      // экран выбора открыт из меню: смена героя с сохранением прогресса
+let heroSwitching = false, heroLaunch = false;      // экран выбора открыт из меню: смена героя с сохранением прогресса; heroLaunch — меню при запуске игры с сохранением
 function pickHero(id) {
   const H = HEROES[id]; if (!H || !H.open || $('heroPick').hidden) return;
   input.release();
+  if (heroSwitching && id === W.hero) { closeHeroPick(); saver.write(true); return; }     // тот же герой — просто войти в мир
   if (heroSwitching) { if (!switchHero(W, id)) return; toast(`Теперь вы — ${H.name}, уровень ${W.lv}`, '', '#e8c04a'); }
   else { W.hero = id; if (H.start && !W.inv.eq.weapon) W.inv.eq.weapon = H.start; refreshGear(W); W.player.hp = W.player.maxhp; toast(`${H.name} выходит из пепла`, '', '#e8c04a'); }
   rerollRare(W); closeHeroPick(); saver.write(true);     // полка редкостей — под выбранного героя
 }
-function closeHeroPick() { $('heroPick').hidden = true; panelOpen = false; heroSwitching = false; }
+function closeHeroPick() { $('heroPick').hidden = true; panelOpen = false; heroSwitching = false; heroLaunch = false; }
 // выбор героя по макету А (выбор владельца 2026-10-22): слева — имя, роль, описание и «Войти в мир»; в центре — 3D-модель; справа — список
 let heroSel = null, heroView = null;
 const heroLv = id => (id === W.hero ? W.lv : (W.heroes && W.heroes[id] ? W.heroes[id].lv : 1));
+// где стоит герой (отдельные герои, 2026-10-23): селение или зона; в подземелье — его имя; не начатый — null
+const spotName = (x, z) => { const pl = placeAt(W.levels ? W.levels.surface.map : W.map, x, z), q = zoneAt(cfg, x, z); return (pl && pl.name) || (q && q.name) || 'Пустошь'; };
+function heroPlace(id) {
+  if (id === W.hero) { const L = W.levels && W.levels[W.lvl]; return L && L.def ? L.def.name || 'Подземелье' : spotName(W.player.x, W.player.z); }
+  const h = W.heroes && W.heroes[id]; if (!h) return null; const p = h.pos || cfg.player.start; return spotName(p.x, p.z);
+}
 function drawHeroPick(switching = heroSwitching) {
   const box = $('heroCards'), H = HEROES[heroSel], R = cfg.abilities.res[heroSel], role = cfg.party && cfg.party.heroRole[heroSel], el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   box.textContent = '';
   const info = el('div', 'hinfo'), cur = switching && heroSel === W.hero;
-  const go = el('button', 'hgo', cur ? 'Сейчас' : switching ? `Стать: ${H.name}` : 'Войти в мир'); go.type = 'button'; go.id = 'heroGo'; go.disabled = !H.open || cur; go.addEventListener('click', () => pickHero(heroSel));     // первая кнопка в #heroCards — выбрать (тесты жмут её)
+  const go = el('button', 'hgo', 'Войти в мир'); go.type = 'button'; go.id = 'heroGo'; go.disabled = !H.open; if (cur) go.classList.add('cur'); go.addEventListener('click', () => pickHero(heroSel));     // первая кнопка в #heroCards — выбрать (тесты жмут её)
   info.append(el('div', 'hnm', H.name + (switching ? ` · ур. ${heroLv(heroSel)}` : '')), el('div', 'hrole', H.role), el('div', 'htxt', H.text));
   const facts = el('div', 'hfacts'), fact = (k, v, c) => { const r = el('div', 'hf'), b = el('span', 'hv', v); if (c) { const d = el('i', 'hdot'); d.style.background = c; b.prepend(d); } r.append(el('span', 'hk', k), b); facts.append(r); };
   if (role) fact('В отряде', (Array.isArray(role) ? [...new Set(role)] : [role]).map(r => cfg.party.roleName[r] || r).join(' / ') + (Array.isArray(role) && new Set(role).size > 1 ? ' — по школе' : ''));     // школы (2026-10-22)
   if (R) fact('Ресурс', R.name, R.color);
+  if (switching) fact('Место', heroPlace(heroSel) || 'новый герой: ' + spotName(cfg.player.start.x, cfg.player.start.z));
   fact('Оружие', H.kinds.length ? H.kinds.map(k => KIND_NAME[k]).join(', ') : H.soon);
   info.append(facts, go);
   const stage = el('div', 'hstage');
-  { const inv = createInv(); if (switching && heroSel === W.hero) Object.assign(inv.eq, W.inv.eq); else if (H.start) inv.eq.weapon = H.start;
+  { const inv = createInv(), own = !switching ? null : heroSel === W.hero ? W.inv : W.heroes && W.heroes[heroSel] && W.heroes[heroSel].inv; if (own) Object.assign(inv.eq, own.eq); else if (H.start) inv.eq.weapon = H.start;     // модель в своих вещах
     const cv = (heroView || (heroView = createHeroView(document))).show({ hero: heroSel, inv, ach: W.ach }); if (cv) stage.append(cv); else { const p = document.createElement('canvas'); p.width = p.height = 16; p.className = 'hpix'; drawPortrait(p, H.look); stage.append(p); } }
   const list = el('div', 'hlist'); list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Герои');
   HERO_IDS.forEach((id, i) => {
     const Q = HEROES[id], row = el('button', 'hcard' + (id === heroSel ? ' on' : '') + (Q.open ? '' : ' shut') + (switching && id === W.hero ? ' cur' : '')); row.type = 'button'; row.dataset.hero = id; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', String(id === heroSel));
     const p = document.createElement('canvas'); p.width = p.height = 16; drawPortrait(p, Q.look);
-    const t = el('span', 'ht'); t.append(el('span', 'nm', Q.name + (switching ? ` · ${heroLv(id)}` : '')), el('span', 'role', Q.role));
+    const t = el('span', 'ht'), at = switching && heroPlace(id); t.append(el('span', 'nm', Q.name + (switching ? ` · ${heroLv(id)}` : '')), el('span', 'role', at || Q.role));     // начатый герой — где стоит
     row.append(p, t); if (desk) row.append(el('span', 'hkey', String(i + 1)));
     row.addEventListener('click', () => { if (!Q.open) return; heroSel = id; drawHeroPick(); });
     row.addEventListener('dblclick', () => { heroSel = id; pickHero(id); });
@@ -161,10 +169,11 @@ function drawHeroPick(switching = heroSwitching) {
   });
   box.append(info, stage, list);
 }
-function openHeroPick(switching = false) {
-  heroSwitching = switching;
-  $('heroCancel').hidden = !switching;
-  $('heroNote').textContent = switching ? 'У каждого героя свой уровень, навыки и умения. Пепел, вещи и камни общие. Чужое оружие уйдёт в сумку.' : 'Героя можно сменить потом в меню: уровень, пепел и вещи останутся.';
+function openHeroPick(mode = false) {     // false — новая игра, true — «Сменить героя» в меню, 'launch' — запуск игры с сохранением
+  const switching = !!mode; heroSwitching = switching; heroLaunch = mode === 'launch';
+  $('heroCancel').hidden = !switching || heroLaunch;
+  $('heroNote').textContent = switching ? 'У каждого героя свои уровень, сумка, вещи, пепел, отряд и место в мире. Сюжет, карта и костры общие.' : 'Героя можно сменить потом в меню. У каждого героя свои вещи, пепел и место в мире.';
+  if (switching && !heroLaunch) saver.write(true);     // выход в меню: место героя записано
   heroSel = switching ? W.hero : HERO_IDS.find(id => HEROES[id].open); drawHeroPick(switching);
   $('heroPick').hidden = false; panelOpen = true; input.release();
 }
@@ -215,7 +224,7 @@ function drawAbil() {
     b.classList.toggle('empty', !a); b.classList.toggle('poor', !!a && !a.enough); { const c = a && cr.find(q => q.id === a.id); b.classList.toggle('combo', !!c); if (c) b.dataset.combo = c.combo.name; else delete b.dataset.combo; } if (!a) { b.style.setProperty('--cd', 0); return; }
     b.style.setProperty('--cd', a.cd > 0 ? (a.cd / a.cdMax).toFixed(3) : 0); });
 }
-{ const q = new URLSearchParams(location.search).get('hero') || (BENCH ? 'thorn' : null); if (!saved) { openHeroPick(); if (q) pickHero(q); } }
+{ const q = new URLSearchParams(location.search).get('hero') || (BENCH ? 'thorn' : null); if (!saved) { openHeroPick(); if (q) pickHero(q); } else if (!q) openHeroPick('launch'); }     // с сохранением — меню выбора героя (как в WoW); ?hero= — сразу в мир (тесты)
 
 function onText(x, y, z, txt, cls) {
   if (!renderer) return;

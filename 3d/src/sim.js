@@ -9,7 +9,7 @@ export function mulberry32(a) {
 
 import { TAU, DEG, clamp, len, rr } from './util3d.js';
 import { biomeAt } from './worldgen3d.js';
-import { hurtAlly, updateAllies } from './squad3d.js';
+import { hurtAlly, updateAllies, packSquad, restoreAllies } from './squad3d.js';
 import { threatPick, addThreat } from './threat3d.js';
 import { zoneAt } from './zones3d.js';
 import { lifeFresh, nodesOf, coachesOf, mountMul, mountInput, dismount, repEvents, discoverCoaches } from './life3d.js';
@@ -103,7 +103,7 @@ function makeWorld(cfg, rng) {
   const P = cfg.player;
   return {
     cfg, rng, map: withLife(addFires(makeMap(cfg), cfg, firesOf), cfg), life: lifeFresh(), ach: achFresh(), story: cfg.story && cfg.story.on ? storyFresh() : null, fires: {}, gfx: {}, hero: DEFAULT_HERO, heroes: {}, ap: 0, ab: {}, bar: [], school: 0, sch: {}, acd: {}, abuf: {}, traps: [], zones: [], ezones: [], inside: -1, difficulty: cfg.difficulty.default, dif: cfg.difficulty.levels[cfg.difficulty.default], iron: false, tomb: null, known: newKnown(), quests: {}, proj: [], haz: [], light: 1, night: false, setFx: {}, allies: [], aid: 1, party: { cmd: 'follow', hx: 0, hz: 0, mark: 0, last: 0 }, wp: weaponCtx(null), combo: { n: 0, t: 0 }, reap: { n: 0, t: 0, amt: 0 }, bul: { n: 0, t: 0, amt: 0 }, pst: {}, echoQ: [], fx: null, bossDead: {}, hudBoss: null, place: null, seen: null, revealT: 0, lv: 1, xp: 0, sp: 0, skills: {}, shop: { stock: [], t: 0 }, nearMerchant: false, nearNpc: null, nearPortal: null, keys: {}, inv: createInv(), buffs: [], drops: [], gear: gearStats(createInv()), dropId: 1, t: 0, kills: 0, eid: 1, spawnT: 1, freeze: 0, shake: 0, ev: [],
-    player: { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
+    player: { x: P.start.x, z: P.start.z, vx: 0, vz: 0, face: Math.PI, hp: P.hp, maxhp: P.hp, state: 'idle', atkT: 0, atkHit: false, rollT: 0, rollDirX: 0, rollDirZ: 1, rollCd: 0, inv: 0, dead: false, deadT: 0, dodgeCd: 0, chain: 0, fin: false, rollAtk: false, lastAtkEnd: -9, lastRollEnd: -9, riposteT: 0, atkHeld: false, holdT: 0, atkBuf: 0, chargeT: 0, heavy: 0, swingMul: 1, rollPress: false },
     enemies: []
   };
 }
@@ -1028,24 +1028,30 @@ function goalOf(W, e, dt = 1 / 60) {
 // input: { mx, mz (−1..1), attack (держится), roll (нажатие) }
 // пересчёт характеристик от надетого и баффов (вызывается каждый шаг и при смене экипировки в сумке)
 // смена героя (2026-10-18): у каждого героя свой уровень, опыт, очки, навыки и панель умений (W.heroes — отложенные);
-// новый герой — с 1-го уровня; общее — сумка, пепел, камни, костры, отряд;
-// чужое оружие и вторая рука уходят в сумку (даже сверх размера), в руку — лучшее своё из сумки или стартовое оружие героя
+// отдельные герои (2026-10-23): ещё свои сумка с надетым и пеплом, место в мире, могила, наёмники и здоровье; общее — сюжет, карта, костры, ремёсла;
+// новый герой — с 1-го уровня, пустой сумкой и стартовым оружием, в точке player.start; из подземелья прежний герой уходит к месту спуска
 export function switchHero(W, id) {
-  const H = HEROES[id]; if (!H || !H.open || id === W.hero) return false;
-  W.heroes = W.heroes || {}; W.heroes[W.hero] = { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab, bar: W.bar, school: W.school || 0, sch: W.sch || {} };     // школы (2026-10-22)
+  const H = HEROES[id], p = W.player; if (!H || !H.open || id === W.hero || p.dead) return false;
+  W.heroes = W.heroes || {};
+  const here = W.lvl === SURFACE ? { x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100 } : W.surfPos || null;
+  W.heroes[W.hero] = { lv: W.lv, xp: W.xp, sp: W.sp, skills: W.skills, ap: W.ap, ab: W.ab, bar: W.bar, school: W.school || 0, sch: W.sch || {}, inv: W.inv, pos: here, tomb: W.tomb, squad: packSquad(W), hp: Math.round(p.hp) };     // школы (2026-10-22)
   const nx = W.heroes[id] || { lv: 1, xp: 0, sp: 0, skills: {}, ap: abilityPointsAt(1, W.cfg), ab: {}, bar: [], school: 0, sch: {} }; delete W.heroes[id];
   W.hero = id; Object.assign(W, { lv: nx.lv, xp: nx.xp, sp: nx.sp, skills: nx.skills, ap: nx.ap, ab: nx.ab, bar: nx.bar, school: nx.school || 0, sch: nx.sch || {} }); W.acd = {}; W.abuf = {}; W.traps = []; W.zones = []; W.ezones = []; W.wsk = null; W.meteors = [];
-  W.allies = W.allies.filter(a => !a.decoy);
-  for (const a of W.allies.filter(a => (W.cfg.squad.types[a.type] || {}).hero === id)) { const T = W.cfg.squad.types[a.type]; W.inv.ash += T.cost; W.allies.splice(W.allies.indexOf(a), 1); W.ev.push({ k: 'allyleft', name: T.name, ash: T.cost }); }     // спутник-герой стал героем: уходит из отряда, найм возвращается
+  W.allies = W.allies.filter(a => !a.decoy && (a.guest || a.story || a.lfg));     // наёмники ушли в слот прежнего героя
+  const to = nx.pos || W.cfg.player.start;
+  if (W.lvl !== SURFACE) travel(W, SURFACE, to.x, to.z);
+  else { Object.assign(p, { x: to.x, z: to.z, vx: 0, vz: 0, state: 'idle', atkT: 0, rollT: 0 }); resolve(W.map, p, W.cfg.player.radius); W.inside = -1; W.proj.length = 0; W.haz.length = 0; W.echoQ.length = 0; W.hudBoss = null; reveal(W, p.x, p.z, W.revR); }
+  const keep = W.allies.filter(a => a.guest || a.story); restoreAllies(W, nx.squad || []); W.allies.push(...keep);     // сюжетные спутники и подопечные — общие
+  W.inv = nx.inv || createInv(); W.tomb = nx.tomb || null;
   const inv = W.inv, back = slot => { inv.bag.unshift(entryOf(inv.eq[slot], inv.up[slot], inv.gem[slot], inv.il && inv.il[slot], inv.af && inv.af[slot])); inv.eq[slot] = null; delete inv.up[slot]; delete inv.gem[slot]; if (inv.af) delete inv.af[slot]; if (inv.il) delete inv.il[slot]; };
-  if (inv.eq.weapon && !canWield(id, BY_ID[inv.eq.weapon])) back('weapon');
+  if (inv.eq.weapon && !canWield(id, BY_ID[inv.eq.weapon])) back('weapon');     // старое сохранение и испорченный слот: чужое — в сумку
   if (inv.eq.offhand && !canOff(id, BY_ID[inv.eq.offhand])) back('offhand');
   for (const sl of ['head', 'body', 'cloak', 'boots']) if (inv.eq[sl] && !canWield(id, BY_ID[inv.eq[sl]])) back(sl);     // тяжёлая броня — в сумку (Ирге только лёгкая)
   if (!inv.eq.weapon) {
     let bi = -1, bd = -1; inv.bag.forEach((s, i) => { const it = BY_ID[s.id]; if (it.slot !== 'weapon' || !canWield(id, it)) return; const v = it.stats.dmg * (1 + (s.up || 0) * W.cfg.smith.bonus) * ilMul(it, s.il) * qOf(s.af); if (v > bd) { bd = v; bi = i; } });
     if (bi >= 0) equipAt(inv, bi, id); else if (H.start) inv.eq.weapon = H.start;
   }
-  refreshGear(W); W.player.hp = Math.min(W.player.hp, W.player.maxhp);
+  refreshGear(W); p.hp = Number.isFinite(nx.hp) && nx.hp > 0 ? Math.min(nx.hp, p.maxhp) : p.maxhp;
   W.ev.push({ k: 'heroSwitch', id });
   return true;
 }
@@ -1112,7 +1118,7 @@ export function step(W, dt, input = {}) {
 export function respawnPlayer(W) {
   const P = W.cfg.player, p = W.player;
   backToSurface(W);
-  Object.assign(p, { x: 0, z: 4, vx: 0, vz: 0, face: Math.PI, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0, atkBuf: 0, chargeT: 0, heavy: 0 });
+  Object.assign(p, { x: P.start.x, z: P.start.z, vx: 0, vz: 0, face: Math.PI, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0, atkBuf: 0, chargeT: 0, heavy: 0 });
   W.enemies = W.enemies.filter(e => e.boss && !e.dead); W.proj.length = 0; W.haz.length = 0; W.spawnT = 1.2; W.pst = {}; W.echoQ.length = 0; W.combo.n = 0;
 }
 

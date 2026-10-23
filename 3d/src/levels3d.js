@@ -141,7 +141,7 @@ export function regenLevel(W, id) {
 export function travel(W, id, x, z) {
   if (!W.levels[id]) return false;
   if (id !== W.lvl && regenLevel(W, id)) { const e = W.levels[id].def.entry; x = e.x; z = e.z; }     // 4.15: новая раскладка — вход новый
-  const p = W.player;
+  const p = W.player; if (W.lvl === SURFACE && id !== SURFACE) W.surfPos = { x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100 };     // место спуска: здесь герой встанет после загрузки и смены героя
   leave(W); stash(W); load(W, id); arrive(W);
   Object.assign(p, { x, z, vx: 0, vz: 0, state: 'idle', atkT: 0, rollT: 0 });
   p.inv = Math.max(p.inv, .8);

@@ -86,6 +86,7 @@ export function hireAlly(W, type) {
   W.inv.ash -= T.cost; spawnAlly(W, type); questEvent(W, 'hire'); W.ev.push({ k: 'hire', name: T.name }); return 'ok';
 }
 export function dismissAlly(W, id) { const i = W.allies.findIndex(a => a.id === id); if (i < 0) return false; dropAllyGear(W, W.allies[i]); W.allies.splice(i, 1); return true; }     // вещи уволенного — на землю
+export const packSquad = W => W.allies.filter(a => !a.dead && !a.guest && !a.story && !a.lfg).map(a => ({ type: a.type, hp: Math.round(a.hp), ...(a.eq && Object.values(a.eq).some(Boolean) ? { kit: { eq: a.eq, up: a.up, il: a.il, af: a.af } } : {}) }));     // наёмники героя: в сохранение и в слот героя при смене
 export function restoreAllies(W, list) {
   W.allies.length = 0;
   for (const s of Array.isArray(list) ? list : []) { if (liveAllies(W).length >= W.cfg.squad.cap) break; const T = s && W.cfg.squad.types[s.type]; if (T && hireable(W, s.type)) { const mh = allyHp(W, T), a = spawnAlly(W, s.type, clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : mh, 1, mh)); if (s.kit) { Object.assign(allyKit(a), { eq: { ...a.eq, ...s.kit.eq }, up: { ...s.kit.up }, il: { ...s.kit.il }, af: { ...s.kit.af } }); refreshAlly(W, a); a.hp = clamp(Number.isFinite(s.hp) ? Math.floor(s.hp) : a.maxhp, 1, a.maxhp); } } }     // снаряжение бойца — из сохранения     // 4.18д: уже нанятые остаются и сверх мест по уровню (их вещи), новых — по местам
