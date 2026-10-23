@@ -112,6 +112,7 @@ export function createJournal(doc, W, cfg, { onOpen, onClose, onCraft } = {}) {
       if (s.containers.length) lines.push('Контейнеры: ' + s.containers.map(kindName).join(', '));
       if (s.drops.length) lines.push('С врагов: ' + s.drops.map(enemyName).join(', '));
       if (s.bosses.length) lines.push('С боссов: ' + s.bosses.map(enemyName).join(', '));
+      if (it.zone) { const Z = cfg.zones, z = [Z.core, ...Z.rings.flatMap(r => Object.values(r))].find(q => q.id === it.zone); if (z) lines.push(`С врагов земли «${z.name}» (ур. ${z.lv[0]}–${z.lv[1]}): чаще с элиты и боссов`); }     // вещи земель (2026-10-23)
       if (s.shop) lines.push('Продаётся у торговца');
       if (s.fairy) lines.push('Продаётся у сказочного торговца' + (it.pool === 'gold' ? ' (одна-две золотые вещи всегда)' : ''));
       if (s.craft.length) lines.push('Куётся: ' + s.craft.map(id => RECIPES.find(r => r.id === id)).map(r => (recipeKnown(K(), r) ? 'рецепт известен' : 'нужна книга «' + TOME_BY_ID[r.needs].name + '»')).join('; '));

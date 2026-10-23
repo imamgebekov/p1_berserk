@@ -19,7 +19,7 @@ ok(meanRar(CONTAINERS.ironchest, 0, 0) > base, 'окованный сундук 
 // запертый сундук: всегда хотя бы одна вещь редкости ≥ 2 (кроме случаев, когда пул пуст)
 { const rng = mulberry32(11); let bad = 0; for (let i = 0; i < 500; i++) { const r = rollLoot(CONTAINERS.locked, rng, .2, 0); if (!r.some(x => BY_ID[x.id].rar >= 2)) bad++; } ok(bad === 0, `запертый сундук без ценного: ${bad}/500`); }
 // разнообразие: за 4000 бросков выпадает большая часть каталога
-{ const rng = mulberry32(21), seen = new Set(); for (let i = 0; i < 4000; i++) { const keys = Object.keys(CONTAINERS); for (const x of rollLoot(CONTAINERS[keys[i % keys.length]], rng, rng(), 0)) seen.add(x.id); } ok(seen.size > CATALOG.length * .6, `выпала лишь часть каталога: ${seen.size}/${CATALOG.length}`); console.log('выпало разных вещей:', seen.size, 'из', CATALOG.length); }
+{ const rng = mulberry32(21), seen = new Set(); for (let i = 0; i < 4000; i++) { const keys = Object.keys(CONTAINERS); for (const x of rollLoot(CONTAINERS[keys[i % keys.length]], rng, rng(), 0)) seen.add(x.id); } const pool = CATALOG.filter(i => !i.zone).length; ok(seen.size > pool * .6, `выпала лишь часть каталога: ${seen.size}/${pool}`); console.log('выпало разных вещей:', seen.size, 'из', CATALOG.length); }     // вещи земель (4.26) — только с врагов своей земли, не из сундуков
 // монстры: шанс выпадения
 { const rng = mulberry32(3); let imp = 0, br = 0; for (let i = 0; i < 2000; i++) { if (rollDrop('imp', rng).length) imp++; if (rollDrop('brute', rng).length) br++; } ok(imp > 700 && imp < 1100, 'шанс бесов ' + imp); ok(br > 1550, 'шанс рогачей ' + br); }
 ok(rarityWeights(0, 0, 0)[0] > rarityWeights(0, 0, 0)[4] * 20, 'в обычной добыче должно быть много обычного');

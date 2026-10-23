@@ -343,7 +343,7 @@ export function killEnemy(W, e, share) {
   if (e.boss && e.b && e.b.def && e.b.def.stage2 && !e.b.st2) { bossRise(W, e); return; }     // вторая стадия (4.18б)
   const d0 = W.drops.length;     // 4.21: добыча убитого — в его тело (corpseOf в конце)
   e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
-  dropLoot(W, e); addXp(W, e, share); eliteOnDeath(W, e); relicKill(W, e, share);     // дары Затмения: жатва, охотник, печати с боссов
+  dropLoot(W, e); zoneDrop(W, e); addXp(W, e, share); eliteOnDeath(W, e); relicKill(W, e, share);     // дары Затмения: жатва, охотник, печати с боссов
   { const H = heroMul(W), kh = H.killHeal ? H.killHeal * clamp((H.healLv[1] - W.lv) / (H.healLv[1] - H.healLv[0]), 0, 1) : 0, p = W.player; if (kh && !p.dead && p.hp > 0 && len(p.x - e.x, p.z - e.z) < 6 && W.enemies.filter(o => !o.dead && len(o.x - p.x, o.z - p.z) < 6).length >= 2) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * kh); }     // «второе дыхание» Торна: убил рядом — подлечился
   { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: lootIl(W, e, e.id) ?? ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
   { const gid = gemDropOf(W, e); if (gid) { W.drops.push({ id: gid, n: 1, x: e.x + .5, z: e.z - .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: gid }); } }     // камень силы
@@ -402,6 +402,17 @@ function dropLoot(W, e) {
     W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * .7, z: e.z + Math.cos(a) * .7, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: lootIl(W, e, e.id + r) ?? ilRoll(W, e.lvl, e.id + r) } : {}) });
     W.ev.push({ k: 'drop', x: e.x, z: e.z, id: it.id });
   }
+}
+// вещи земель (2026-10-23): с врага на поверхности — с шансом вещь его земли (data/items.js → ZONE_SETS)
+const ZONE_ITEMS = {}; for (const it of CATALOG) if (it.zone) (ZONE_ITEMS[it.zone] ||= []).push(it.id);
+export function zoneDrop(W, e) {
+  const Z = W.cfg.zoneLoot; if (!Z || !Z.on || e.noLoot || e.duel || W.lvl !== SURFACE) return null;
+  const q = zoneAt(W.cfg, e.x, e.z), list = q && ZONE_ITEMS[q.id]; if (!list) return null;
+  const h = k => { let x = Math.imul((e.id + 1) ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(k + Math.floor(W.t * 7), 0xc2b2ae35); x ^= x >>> 15; x = Math.imul(x, 0x2c1b3c6d); x ^= x >>> 12; return (x >>> 0) / 4294967296; };     // свой хеш: общий W.rng не трогаем — бой и замеры не сдвигаются
+  if (h(1) >= (e.boss ? Z.boss : e.elite ? Z.elite : e.guard ? Z.guard : Z.mob)) return null;
+  const id = list[Math.floor(h(2) * list.length)];
+  W.drops.push({ id, n: 1, x: e.x, z: e.z - .6, t: 0, cd: 0, il: lootIl(W, e, e.id + 7) ?? ilRoll(W, e.lvl, e.id + 7) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id });
+  return id;
 }
 
 function attackStart(W, heavy = 0) {

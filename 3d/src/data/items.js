@@ -460,6 +460,52 @@ for (const [id, b, name, stats, text] of [
 ]) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'story', rar: 3, stats, value: B.value * 4, text }); }     // «Великая»: клеймёные — мерило золотых
 for (const [slot, name, stats] of RAID_ARMOR) add({ id: 'rs_hand_' + slot, name, cat: 'armor', slot, pool: 'raid', rar: 3, stats: { ...stats }, value: 900 + (stats.armor || 0) * 20, kind: 'set', mat: 'set_hand', tint: '#4a1a2a', raidBosses: ['gatebeast', 'hand_womb', 'hand_whisper', 'hand_net', 'hand_lord'], text: 'Часть «Доспеха Затмения». Падает с боссов Врат Длани.' });     // рейд (этап 8)
 for (const [id, b, name, boss, stats, text, tint] of DUN) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'dungeon', rar: 3, boss, stats, value: B.value * 2.2, text, ...(tint ? { tint } : {}) }); }     // tint — свой цвет значка у кольца и амулета
+// вещи земель (2026-10-23, «каталог по данным мира»): у каждой из 21 земли свой набор — 4 брони, перстень, оберег и 7 видов оружия
+// (на всех героев); выпадают только в своей земле (sim.js → zoneDrop, cfg.zoneLoot). Основа — вещь своего материала, сверху — дух земли
+// по биому; кольцо мира — материал и редкость: ядро — сталь, 1–2 кольца — чёрное, 3–4 — кровавое
+const ZONE_SETS = [
+  ['brod', 'Пепельного Брода', 'core', -1, 'Брод выжил там, где сгорели города. Его вещи — из того, что не сгорело.'],
+  ['olkh', 'Ольхового леса', 'forest', 0, 'Ольха шепчет тем, кто идёт тихо.'],
+  ['moss', 'Мшистых топей', 'swamp', 0, 'Мох растёт и на мёртвых. Особенно на мёртвых.'],
+  ['foot', 'Предгорий', 'mountains', 0, 'Камень Предгорий держит удар лучше людей.'],
+  ['rust', 'Ржавых пустошей', 'waste', 0, 'Ржавчина ест железо, но не злость.'],
+  ['grey', 'Серого берега', 'coast', 0, 'Серое море возвращает только то, что не нужно ему самому.'],
+  ['dusk', 'Затмённого побережья', 'coast', 1, 'Здесь солнце однажды не взошло — и берег это помнит.'],
+  ['war', 'Полей Великой войны', 'forest', 1, 'На этих полях лес вырос из копий.'],
+  ['rot', 'Гнилых топей', 'swamp', 1, 'Топь не убивает сразу. Она ждёт.'],
+  ['mute', 'Гор Безмолвия', 'mountains', 1, 'В горах Безмолвия даже эхо молчит.'],
+  ['heart', 'Сердца Затмения', 'waste', 1, 'Земля здесь бьётся, как сердце, и жжёт, как клеймо.'],
+  ['blackwood', 'Чернолесья', 'forest', 2, 'Чернолесье не пропускает свет — и не выпускает гостей.'],
+  ['drown', 'Трясины Утопленников', 'swamp', 2, 'Утопленники отдают своё неохотно.'],
+  ['brandridge', 'Хребта Клейма', 'mountains', 2, 'Хребет помечен, как и те, кто по нему ходит.'],
+  ['ashdesert', 'Пепельной пустыни', 'waste', 2, 'Пепел здесь глубже, чем память.'],
+  ['wrecks', 'Берега Кораблекрушений', 'coast', 2, 'Каждый корабль привёз сюда чью-то последнюю надежду.'],
+  ['abyssshore', 'Берега Бездны', 'coast', 3, 'За этим берегом нет моря — только Бездна.'],
+  ['hanged', 'Леса Повешенных', 'forest', 3, 'Ветви здесь гнутся не от ветра.'],
+  ['rift', 'Гнилого Разлома', 'swamp', 3, 'Разлом гниёт изнутри мира.'],
+  ['peaks', 'Пиков Длани', 'mountains', 3, 'Пики похожи на пальцы, которые вот-вот сожмутся.'],
+  ['scorched', 'Выжженного Предела', 'waste', 3, 'Дальше Предела ничего не горит: гореть уже нечему.']
+];
+const ZONE_FLAVOR = { core: { hp: 8, luck: 2 }, forest: { spd: 3, crit: 3 }, swamp: { hp: 12, leech: 1 }, mountains: { armor: 3, hp: 6 }, waste: { dmg: 2, crit: 2 }, coast: { crit: 4, luck: 3 } };
+const ZONE_ARMOR = { core: ['helm', 'mail', 'cloak', 'boots'], forest: ['hood', 'jerkin', 'cape', 'boots'], swamp: ['mask', 'robe', 'shroud', 'boots'], mountains: ['helm', 'plate', 'pelt', 'greaves'], waste: ['sallet', 'cuirass', 'cloak', 'greaves'], coast: ['cap', 'mail', 'cape', 'boots'] };
+const ZONE_TINT = { core: '#d8b860', forest: '#7ac070', swamp: '#6aa080', mountains: '#a8b0c0', waste: '#d08040', coast: '#70a8d0' };     // цвет перстня и оберега земли
+const ZONE_WEAPONS = [['greatsword', 'Двуручник'], ['sword', 'Клинок'], ['rapier', 'Рапира'], ['longbow', 'Лук'], ['staff', 'Посох'], ['scythe', 'Коса'], ['mace', 'Булава']];
+const ZONE_NOUN = { head: { helm: 'Шлем', hood: 'Капюшон', mask: 'Маска', sallet: 'Шишак', cap: 'Шапка' }, body: { mail: 'Кольчуга', jerkin: 'Куртка', robe: 'Роба', plate: 'Панцирь', cuirass: 'Кираса' }, cloak: { cloak: 'Плащ', cape: 'Накидка', shroud: 'Саван', pelt: 'Шкура' }, boots: { boots: 'Сапоги', greaves: 'Поножи' } };
+const ZONE_TIER = { '-1': ['steel', 'mail', 2, 1], 0: ['black', 'black', 3, 1.3], 1: ['black', 'black', 3, 1.7], 2: ['blood', 'ash', 4, 2.1], 3: ['blood', 'ash', 4, 2.5] };     // [мат. оружия, мат. брони, редкость, сила духа земли]
+const BY_ID_TMP = Object.fromEntries(ITEMS.map(i => [i.id, i]));
+for (const [zid, gen, bio, ring, lore] of ZONE_SETS) {
+  const [wm, am, rar, fk] = ZONE_TIER[ring], fl = ZONE_FLAVOR[bio], text = `${lore} Выпадает только в землях ${gen}.`;
+  const mk = (base, id, name, weapon) => { const B = BY_ID_TMP[base]; if (!B) throw new Error('нет основы ' + base);
+    const stats = {}; for (const [k, v] of Object.entries(B.stats || {})) stats[k] = typeof v === 'number' && ['dmg', 'armor', 'hp'].includes(k) ? Math.round(v * 1.1) : v;
+    for (const [k, v] of Object.entries(fl)) { const kk = weapon && (k === 'armor' || k === 'hp') ? 'dmg' : k, add = Math.max(1, Math.round((kk === 'dmg' && weapon && k !== 'dmg' ? v / 4 : v) * fk)); stats[kk] = Math.round(((stats[kk] || 0) + add) * 100) / 100; }
+    if (stats.armor > 30) stats.armor = 30; if (stats.dmg > 40) stats.dmg = 40;     // потолок каталога (test/items3d)
+    add({ ...B, id, name, pool: 'zone', zone: zid, rar, stats, value: Math.round(B.value * 2), text, perks: B.perks ? B.perks.slice() : B.perks, ...(B.slot === 'ring' || B.slot === 'amulet' ? { tint: ZONE_TINT[bio] } : {}) }); };
+  const [h, b, c, f] = ZONE_ARMOR[bio];
+  mk(`a_head_${h}_${am}`, `z_${zid}_head`, `${ZONE_NOUN.head[h]} ${gen}`); mk(`a_body_${b}_${am}`, `z_${zid}_body`, `${ZONE_NOUN.body[b]} ${gen}`);
+  mk(`a_cloak_${c}_${am}`, `z_${zid}_cloak`, `${ZONE_NOUN.cloak[c]} ${gen}`); mk(`a_boots_${f}_${am}`, `z_${zid}_boots`, `${ZONE_NOUN.boots[f]} ${gen}`);
+  mk(ring >= 2 ? 'r_signet_aim' : 'r_ring_might', `z_${zid}_ring`, `Перстень ${gen}`); mk(ring >= 2 ? 'm_talisman_blood' : 'm_amulet_ward', `z_${zid}_amulet`, `Оберег ${gen}`);
+  for (const [w, nm] of ZONE_WEAPONS) mk(`w_${w}_${wm}`, `z_${zid}_${w}`, `${nm} ${gen}`, true);
+}
 export const CATALOG = ITEMS;
 export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
 export const item = id => BY_ID[id];

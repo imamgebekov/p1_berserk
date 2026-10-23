@@ -34,9 +34,9 @@ const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count =
   const b2 = deserialize(JSON.parse(JSON.stringify(serialize(inv))), 40, 'thorn', CFG3); ok(b2.bag[0].il === 45, 'сохранение потеряло уровень вещи в сумке'); }
 // добыча за ядром — уровня места; у торговца — уровня героя
 { const W = mk(), b = pointAtDepth(W.cfg, 1.5, .7); W.player.x = b.x; W.player.z = b.z; let got = null;
-  for (let k = 0; k < 400 && !got; k++) { const e = spawnEnemy(W, 'archer', b.x + 3, b.z); killEnemy(W, e); got = W.drops.find(q => BY_ID[q.id].slot); }
-  const lb = Math.round(levelAt(W, b.x + 3, b.z)), G = CFG3.lootIl, base = Math.min(W.lv, lb + G.over), [a0, a1] = W.lv <= G.low ? [0, 0] : G.world.mob;     // 4.20: уровень вещи — от героя (мир, обычный враг), не выше уровня врага + over
-  ok(got && got.il >= Math.max(1, base + a0) && got.il <= base + a1, 'снаряжение с врага не по уровню героя: ' + (got && got.il) + ' при герое ' + W.lv + ', месте ' + lb);
+  let lv0 = W.lv; for (let k = 0; k < 400 && !got; k++) { const e = spawnEnemy(W, 'archer', b.x + 3, b.z); lv0 = W.lv; killEnemy(W, e); got = W.drops.find(q => BY_ID[q.id].slot); }     // lv0 — уровень героя в миг выпадения (опыт за это убийство приходит после)
+  const lb = Math.round(levelAt(W, b.x + 3, b.z)), G = CFG3.lootIl, base = Math.min(lv0, lb + G.over), [a0, a1] = lv0 <= G.low ? [0, 0] : G.world.mob;     // 4.20: уровень вещи — от героя (мир, обычный враг), не выше уровня врага + over
+  ok(got && got.il >= Math.max(1, base + a0) && got.il <= base + a1, 'снаряжение с врага не по уровню героя: ' + (got && got.il) + ' при герое ' + lv0 + ', месте ' + lb);
   const W2 = mk(); W2.lv = 33; W2.nearMerchant = true; W2.inv.ash = 1e6; const i = W2.shop.stock.findIndex(s => BY_ID[s.id].slot && BY_ID[s.id].stats);
   ok(i >= 0 && buyItem(W2, i) === 'ok' && W2.inv.bag.some(s => BY_ID[s.id].slot && s.il === Math.max(33, nomIl(BY_ID[s.id]))), 'у торговца вещь не уровня героя'); }
 
