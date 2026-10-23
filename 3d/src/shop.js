@@ -30,6 +30,13 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   let sel = null, cat = 'all', bagF = 'all';     // выбранная ячейка; фильтры витрины и сумки (4.08, макет А)
   const catOf = it => (it.cat === 'weapon' ? 'weapon' : it.cat === 'armor' || it.cat === 'jewel' ? 'armor' : it.cat === 'consumable' ? 'food' : 'other');
   const CATS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['food', 'Зелья и еда'], ['other', 'Прочее'], ['new', 'Новинки']];
+  // сортировка (просьба владельца 2026-10-23): общая для витрины и сумки; номер ячейки остаётся прежним (покупка и продажа по нему)
+  const SORTS = [['none', 'Как есть'], ['price', 'Цена ↑'], ['priceD', 'Цена ↓'], ['rar', 'Редкость'], ['lv', 'Уровень']];
+  let sortBy = 'none'; try { sortBy = localStorage.getItem('shopSort') || 'none'; } catch (e) { }
+  const lvOfRow = r => (r.it.slot ? ilOf(r.it, r.s.il) : r.it.lv || 0);
+  const sortRows = rows => { const k = { price: (a, b) => a.price - b.price, priceD: (a, b) => b.price - a.price, rar: (a, b) => (b.it.rar || 0) - (a.it.rar || 0) || b.price - a.price, lv: (a, b) => lvOfRow(b) - lvOfRow(a) || (b.it.rar || 0) - (a.it.rar || 0) }[sortBy]; return k ? rows.slice().sort(k) : rows; };
+  const sortSel = () => { const q = el('select', 'tsort'); q.setAttribute('aria-label', 'Порядок'); for (const [id, label] of SORTS) { const o = el('option', null, label); o.value = id; q.append(o); } q.value = sortBy;
+    q.addEventListener('change', () => { sortBy = q.value; try { localStorage.setItem('shopSort', sortBy); } catch (e) { } sel = null; render(); }); return q; };
   const chip = (label, on, fn) => { const b = el('button', 'tchip' + (on ? ' on' : ''), label); b.type = 'button'; b.setAttribute('aria-pressed', String(on)); b.addEventListener('click', () => { fn(); sel = null; render(); }); return b; };
   const coin = () => { const c = el('span', 'tcoin'); c.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 7-3 13-3-13z"/></svg>'; return c; };
   const tile = (it, n, price, side, i, extra) => {
@@ -68,17 +75,17 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     // витрина: фильтр по виду вещи; номер ячейки остаётся прежним (покупка по нему)
     const rows = sh.stock.map((s, i) => ({ s, i, it: BY_ID[s.id] })), nNew = rows.filter(r => r.s.fresh).length;
     if (cat === 'new' && !nNew) cat = 'all';
-    { const c = el('div', 'tchips'); for (const [id, label] of CATS) { const n = id === 'new' ? nNew : id === 'all' ? 1 : rows.filter(r => catOf(r.it) === id).length; if (n) c.append(chip(id === 'new' ? `${label} · ${n}` : label, cat === id, () => { cat = id; })); } buyP.append(c); }
+    { const c = el('div', 'tchips'); for (const [id, label] of CATS) { const n = id === 'new' ? nNew : id === 'all' ? 1 : rows.filter(r => catOf(r.it) === id).length; if (n) c.append(chip(id === 'new' ? `${label} · ${n}` : label, cat === id, () => { cat = id; })); } c.append(sortSel()); buyP.append(c); }
     const gb = el('div', 'tgridx');
-    for (const { s, i, it } of rows) { if (cat === 'new' ? !s.fresh : cat !== 'all' && catOf(it) !== cat) continue; const price = stockPrice(W, s); gb.append(tile(it, s.n, price, 'buy', i, (W.inv.ash < price ? ' poor' : '') + (it.slot && !canWield(W.hero, it) ? ' nope' : '') + (s.tier ? ' rare' : '') + (s.fresh ? ' fresh' : ''))); }
+    for (const { s, i, it, price } of sortRows(rows.map(r => ({ ...r, price: stockPrice(W, r.s) })))) { if (cat === 'new' ? !s.fresh : cat !== 'all' && catOf(it) !== cat) continue; gb.append(tile(it, s.n, price, 'buy', i, (W.inv.ash < price ? ' poor' : '') + (it.slot && !canWield(W.hero, it) ? ' nope' : '') + (s.tier ? ' rare' : '') + (s.fresh ? ' fresh' : ''))); }
     if (!gb.children.length) gb.append(el('div', 'emptyl', !sh.stock.length ? (wand ? 'Всё раскуплено. Сказочный торговец скоро уедет.' : 'Всё раскуплено. Витрина обновится позже.') : 'Здесь пусто — выберите другой вид.'));
     // сумка: «всё», «хлам», «хуже надетого» — со счётом, как в кнопках продажи
     const junk = W.inv.bag.map((s, i) => ({ s, i })).filter(r => isJunk(W, r.s)), worse = W.inv.bag.map((s, i) => ({ s, i })).filter(r => isWorse(W, r.s));
     const junkSum = junk.reduce((a, r) => a + sellPrice(BY_ID[r.s.id], cfg, 0, W.gear.trade) * r.s.n, 0), worseSum = worse.reduce((a, r) => a + sellPrice(BY_ID[r.s.id], cfg, 0, W.gear.trade, r.s.il || 0, r.s.af), 0);
     if ((bagF === 'junk' && !junk.length) || (bagF === 'worse' && !worse.length)) bagF = 'all';
-    { const c = el('div', 'tchips'); c.append(chip('Всё', bagF === 'all', () => { bagF = 'all'; })); if (junk.length) c.append(chip(`Хлам · ${junkSum}`, bagF === 'junk', () => { bagF = 'junk'; })); if (worse.length) c.append(chip(`Хуже надетого · ${worse.length}`, bagF === 'worse', () => { bagF = 'worse'; })); sellP.append(c); }
+    { const c = el('div', 'tchips'); c.append(chip('Всё', bagF === 'all', () => { bagF = 'all'; })); if (junk.length) c.append(chip(`Хлам · ${junkSum}`, bagF === 'junk', () => { bagF = 'junk'; })); if (worse.length) c.append(chip(`Хуже надетого · ${worse.length}`, bagF === 'worse', () => { bagF = 'worse'; })); c.append(sortSel()); sellP.append(c); }
     const gs = el('div', 'tgridx'), only = bagF === 'junk' ? new Set(junk.map(r => r.i)) : bagF === 'worse' ? new Set(worse.map(r => r.i)) : null;
-    W.inv.bag.forEach((s, i) => { if (only && !only.has(i)) return; const it = BY_ID[s.id]; gs.append(tile(it, s.n, sellPrice(it, cfg, s.up || 0, W.gear.trade, s.il, s.af) * s.n, 'sell', i, s.lock ? ' locked' : '')); });
+    for (const { s, i, it, price } of sortRows(W.inv.bag.map((s, i) => { const it = BY_ID[s.id]; return { s, i, it, price: sellPrice(it, cfg, s.up || 0, W.gear.trade, s.il, s.af) * s.n }; }))) { if (only && !only.has(i)) continue; gs.append(tile(it, s.n, price, 'sell', i, s.lock ? ' locked' : '')); }
     if (!W.inv.bag.length) gs.append(el('div', 'emptyl', 'Сумка пуста.'));
     junkBtn.textContent = junk.length ? `Продать хлам · ${junkSum}` : 'Хлама нет'; junkBtn.disabled = !junk.length;
     worseBtn.textContent = worse.length ? `Продать хуже надетого · ${worse.length}` : 'Хуже надетого нет'; worseBtn.disabled = !worse.length;
