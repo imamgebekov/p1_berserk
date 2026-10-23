@@ -103,7 +103,7 @@ export function buildTown(map, cfg, rnd) {
   // наружный вид KayKit (2026-10-20, выбор владельца): модель по назначению дома, растянута по плану, вход — к двери.
   // Снаружи видна модель; внутри — прежние стены (срез), пол и мебель. Столкновения — прежние стены
   const SHELL = { hut: 'home_A_red', house: 'home_B_red', warehouse: 'lumbermill_red', smithy: 'blacksmith_red', shop: 'market_red', barracks: 'barracks_red', tavern: 'tavern_red', chapel: 'church_red' };
-  const NPC_SHELL = { smith: 'blacksmith_red', merchant: 'market_red', captain: 'barracks_red', scribe: 'church_red' };     // библиотека — с виду храм книжников
+  const NPC_SHELL = { smith: 'blacksmith_red', merchant: 'market_red', captain: 'barracks_red', scribe: 'church_red', keeper: 'church_red' };     // библиотека — с виду храм книжников
   const YAW = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 };
   function setShells(lib) {
     const mat = paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto', { plank: .2 });

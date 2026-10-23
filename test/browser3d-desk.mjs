@@ -362,7 +362,7 @@ try {
     if (cells !== 49 || card !== 'Пар') bad(`таблица сплавов: клеток ${cells}, выбрано «${card}»`);
     await page.screenshot({ path: join(out, '3d-desk-book.png') });
     await page.keyboard.press('KeyR'); await page.waitForTimeout(200); if (await shown('journal')) bad('R не закрыл книгу');
-    await ev(() => { const { W, smith } = window.__b3d; W.nearNpc = 'smith'; W.path.slain.devourer = true; smith.open(); });
+    await ev(() => { const { W, smith } = window.__b3d, b = W.map.buildings.find(q => q.npc && q.npc.kind === 'smith'); W.player.x = b.npc.x + .8; W.player.z = b.npc.z; W.nearNpc = 'smith'; W.path.slain.devourer = true; smith.open(); });     // герой — у кузнеца: симуляция пересчитывает nearNpc по месту героя каждый кадр
     await page.click('#smithTabs button[data-tab="gems"]'); await page.waitForTimeout(150);
     await page.locator('#smithList .sock').first().click(); await page.waitForTimeout(400); await page.locator('#smithList .gemopt').first().click(); await waitFor(() => !!(window.__b3d.W.inv.gem.weapon || [])[0], null, 5000);     // ждём саму вставку, а не паузу: окно кузнеца перерисовывается не сразу
     const g = await ev(() => ({ gem: (window.__b3d.W.inv.gem.weapon || [])[0], mix: window.__b3d.W.wp.mix, line: document.querySelector('#smithList .gemrow .sub').textContent, flash: (document.getElementById('smithFlash') || {}).textContent }));

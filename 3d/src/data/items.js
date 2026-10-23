@@ -491,7 +491,7 @@ const ZONE_ARMOR = { core: ['helm', 'mail', 'cloak', 'boots'], forest: ['hood', 
 const ZONE_TINT = { core: '#d8b860', forest: '#7ac070', swamp: '#6aa080', mountains: '#a8b0c0', waste: '#d08040', coast: '#70a8d0' };     // цвет перстня и оберега земли
 const ZONE_WEAPONS = [['greatsword', 'Двуручник'], ['sword', 'Клинок'], ['rapier', 'Рапира'], ['longbow', 'Лук'], ['staff', 'Посох'], ['scythe', 'Коса'], ['mace', 'Булава']];
 const ZONE_NOUN = { head: { helm: 'Шлем', hood: 'Капюшон', mask: 'Маска', sallet: 'Шишак', cap: 'Шапка' }, body: { mail: 'Кольчуга', jerkin: 'Куртка', robe: 'Роба', plate: 'Панцирь', cuirass: 'Кираса' }, cloak: { cloak: 'Плащ', cape: 'Накидка', shroud: 'Саван', pelt: 'Шкура' }, boots: { boots: 'Сапоги', greaves: 'Поножи' } };
-const ZONE_TIER = { '-1': ['steel', 'mail', 2, 1], 0: ['black', 'black', 3, 1.3], 1: ['black', 'black', 3, 1.7], 2: ['blood', 'ash', 4, 2.1], 3: ['blood', 'ash', 4, 2.5] };     // [мат. оружия, мат. брони, редкость, сила духа земли]
+const ZONE_TIER = { '-1': ['steel', 'mail', 2, 1], 0: ['black', 'black', 3, 1.3], 1: ['black', 'black', 3, 1.7], 2: ['blood', 'ash', 3, 2.1], 3: ['blood', 'ash', 3, 2.5] };     // 4.27: дальние кольца — «Великий», не «Клеймёный»: вершина каталога — клеймёные и золотые (test/gold3d, wskill3d)     // [мат. оружия, мат. брони, редкость, сила духа земли]
 const BY_ID_TMP = Object.fromEntries(ITEMS.map(i => [i.id, i]));
 for (const [zid, gen, bio, ring, lore] of ZONE_SETS) {
   const [wm, am, rar, fk] = ZONE_TIER[ring], fl = ZONE_FLAVOR[bio], text = `${lore} Выпадает только в землях ${gen}.`;

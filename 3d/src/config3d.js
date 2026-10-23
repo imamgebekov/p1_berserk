@@ -134,7 +134,7 @@ const BASE = {
     floors: { on: true, kinds: ['house', 'tavern', 'barracks', 'shop', 'warehouse'], minW: 6, minD: 5, run: 3.4, width: 1.15, h: 2.6, lift: 2.6, wallH: .9, chests: ['wardrobe', 'chest', 'shelf', 'coffer', 'crate'] },
     buildings: [
       // деревня вокруг костра
-      { x: -14, z: -6,  w: 8,  d: 6, door: 'e', kind: 'house',     chests: ['chest', 'wardrobe'] },
+      { x: -14, z: -6,  w: 8,  d: 6, door: 'e', kind: 'house',     chests: ['chest', 'wardrobe'], npc: 'keeper' },     // святилище хранительницы печатей — дары Затмения (4.25; с Погоста перенесена в Брод, 4.27)
       { x: 13,  z: -10, w: 7,  d: 6, door: 'w', kind: 'smithy',    chests: ['coffer', 'crate'], npc: 'smith' },      // кузнец переехал в лагерь
       { x: -4,  z: -20, w: 9,  d: 6, door: 's', kind: 'house',     chests: ['ironchest', 'rack', 'barrel'] },
       { x: 20,  z: 6,   w: 6,  d: 7, door: 'w', kind: 'barracks',  chests: ['sack', 'chest'], npc: 'captain' },     // и капитан
@@ -143,7 +143,7 @@ const BASE = {
       { x: -8,  z: 9,   w: 7,  d: 6, door: 'e', kind: 'shop',      chests: ['crate', 'coffer'], npc: 'merchant' },
       { x: -28, z: 30,  w: 9,  d: 7, door: 'n', kind: 'smithy',    chests: ['smithchest', 'smithchest', 'rack', 'ironchest'] },     // старая кузница
       { x: 28,  z: -26, w: 12, d: 8, door: 'w', kind: 'tavern',    chests: ['barrel', 'barrel', 'crate', 'chest'] },
-      { x: -34, z: -20, w: 7,  d: 11, door: 's', kind: 'chapel',   chests: ['altar', 'shelf', 'coffer'], npc: 'keeper' },     // хранительница печатей — дары Затмения (2026-10-23)
+      { x: -34, z: -20, w: 7,  d: 11, door: 's', kind: 'chapel',   chests: ['altar', 'shelf', 'coffer'] },
       { x: 48,  z: 8,   w: 11, d: 7, door: 'w', kind: 'barracks',  chests: ['rack', 'rack', 'armorstand', 'ironchest'] },     // старая застава
       { x: 30,  z: 40,  w: 10, d: 8, door: 'n', kind: 'warehouse', chests: ['crate', 'crate', 'barrel', 'locked'] },
       { x: 36,  z: -8,  w: 6,  d: 6, door: 'w', kind: 'house',     chests: ['cache', 'corpse'] },
@@ -397,7 +397,7 @@ const BASE = {
     priest: {     // Жрец (Г3, 4.16): свои умения собраны из видов действия (kind в data/abilities3d.js), числа — здесь
       smite:    { kind: 'bolt', el: 'light', st: null, cd: [5, 4.5, 4], cost: 20, mul: [1.3, 1.7, 2.1], n: 1, spread: 0, pierce: 0, sd: [1, 1.5, 2], dps: [0, 0, 0], t: 0 },
       mend:     { kind: 'gheal', cd: [9, 8, 7], cost: 30, r: 10, k: [.12, .16, .2] },     // баланс героев (2026-10-23): Жрец в одиночку был живучее всех — лечение слабее и реже
-      sanctum:  { kind: 'ward', cd: [14, 12, 10], cost: 30, r: 10, abs: [.15, .2, .25], t: 8 },
+      sanctum:  { kind: 'ward', cd: [14, 12, 10], cost: 30, r: 10, abs: [.1, .15, .2], t: 8 },     // 4.27: сталь у границы Жрец 5% — щит слабее
       hymn:     { kind: 'buff', stat: 'dmg', cd: [18, 16, 14], cost: 20, t: [6, 8, 10], amt: [4, 7, 10] },
       radiance: { kind: 'nova', el: 'light', st: 'blind', cd: [9, 8, 7], cost: 35, r: 4, mul: [1, 1.3, 1.6], knock: 1, sd: [1.5, 2, 2.5], dps: [0, 0, 0], t: 0 },
       hallow:   { kind: 'field', el: 'light', st: null, cd: [14, 12, 10], cost: 35, r: 3.5, t: 6, tick: 1, mul: [.4, .55, .7], range: 12, ahead: 6, slow: 0 },
@@ -433,7 +433,7 @@ const BASE = {
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
   heroes: { thorn: { hp: 1.15, speed: 1, crit: 0, killHeal: .03, healLv: [8, 12] },     // Торн — защитник: здоровья больше; убийство рядом (до 6 м), когда вокруг ещё двое и больше, лечит на killHeal до healLv[0] ур., к healLv[1] — на нет (на «железе» гиб чаще всех)
-  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .95, speed: 1.05, crit: 3 }, priest: { hp: 1, speed: 1.05, crit: 1 }, brand: { hp: 1.2, speed: 1, crit: 2 }, hunter: { hp: 1, speed: 1.12, crit: 4 } },
+  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1, speed: 1.05, crit: 2 }, warlock: { hp: .9, speed: 1.05, crit: 3 }, priest: { hp: .9, speed: 1.05, crit: 1 }, brand: { hp: 1.3, speed: 1, crit: 2 }, hunter: { hp: 1, speed: 1.12, crit: 4 } },     // 4.27 (2026-10-23): сталь у границы — Жрец 0% и Морок 17% против средних 52% (здоровье ×0,9), Клеймёный 92% (×1,3)
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
     // rar — редкость вещи (3 — великий, фиолетовый; 4 — клеймёный, оранжевый; 5 — золотой, только здесь), mul — наценка;
@@ -1049,7 +1049,7 @@ const BASE = {
   craft: { q: [1, 1.1, 1.15], reagN: [1, 1, 1, 2, 2, 3], ember: 'm_brand_ember', shard: 'm_eclipse_shard',
     reag: { dmg: 'm_horn', crit: 'm_imp_fang', leech: 'm_bone_dust', spd: 'm_raven_feather', luck: 'm_dark_glass', burnCh: 'm_sulfur', poisonCh: 'm_web', shockCh: 'm_copper_wire',
       bleedCh: 'm_wolf_claw', armor: 'm_mail_scrap', hp: 'm_bone', regen: 'm_tar', stealth: 'm_rotten_cloth' } },
-  // дары Затмения (просьба владельца 2026-10-23): 8 общих навыков у хранительницы печатей (часовня лагеря); печати — с боссов: подземелье drop.dungeon,
+  // дары Затмения (просьба владельца 2026-10-23): 8 общих навыков у хранительницы печатей (святилище у костра); печати — с боссов: подземелье drop.dungeon,
   // рейд drop.raid; купить с minLv за price; у героя один дар, новый вытесняет прежний без возврата. Код — relic3d.js, окно — relicui.js
   relic: { on: true, npc: 'keeper', minLv: 40, price: 100, drop: { dungeon: 1, raid: 3 },
     perks: {

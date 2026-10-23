@@ -17,7 +17,7 @@ for (const id of zones) {
 }
 ok(new Set(CATALOG.map(i => i.id)).size === CATALOG.length && new Set(CATALOG.map(i => i.name)).size === CATALOG.length, 'повтор id или имени в каталоге');
 ok(zi.every(i => i.pool === 'zone' && i.stats && i.text && BY_ID[i.id] === i), 'вещь земли без пула, свойств или текста');
-const rarOf = id => BY_ID[`z_${id}_head`].rar; ok(rarOf('brod') < rarOf('olkh') && rarOf('olkh') <= rarOf('heart') && rarOf('heart') < rarOf('scorched'), 'редкость не растёт к краю мира');
+const rarOf = id => BY_ID[`z_${id}_head`].rar; ok(rarOf('brod') < rarOf('olkh') && rarOf('olkh') <= rarOf('scorched') && rarOf('scorched') < 4 && BY_ID.z_scorched_greatsword.stats.dmg > BY_ID.z_olkh_greatsword.stats.dmg, 'вещи не крепнут к краю мира или выше «Великого»');     // 4.27: вершина — клеймёные и золотые
 
 // выпадение: только своя земля, шанс около cfg.zoneLoot, W.rng не трогается, в подземелье — нет
 const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.map.places = []; c.events.on = false; c.wanderer.on = false;
