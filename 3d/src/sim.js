@@ -53,7 +53,8 @@ import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, porta
 import { resGain } from './resource3d.js';
 import { wcOf, clampWorld } from './geo3d.js';     // Мир 5.0
 import { relicMul, relicLeech, relicSpd, relicRoll, relicHurt, relicSave, relicHit, relicRollBlast, relicKill, relicTick } from './relic3d.js';     // дары Затмения (2026-10-23)
-import { bossReward } from './lockout3d.js';     // откат награды подземелий и рейдов (план подземелий, 1б)
+import { bossReward } from './lockout3d.js';
+import { trapsTick } from './traps3d.js';     // план подземелий, 2в     // откат награды подземелий и рейдов (план подземелий, 1б)
 const critBonus = W => (W.abuf && W.abuf.hawk > 0 ? W.abuf.hawkCrit : 0);     // «Ястребиный глаз» Сойки: шанс крита на время
 
 export function createWorld(cfg, rng = Math.random) {
@@ -1107,6 +1108,7 @@ export function step(W, dt, input = {}) {
     if (!W.rainOn && W.rain > .5) { W.rainOn = true; W.ev.push({ k: 'rainStart' }); } else if (W.rainOn && W.rain < .3) { W.rainOn = false; W.ev.push({ k: 'rainStop' }); }
   } else W.rain = 0; }
   refreshGear(W); relicTick(W, dt);     // дары Затмения: перезарядки, пепельная буря
+  if (!onSurface(W)) trapsTick(W, hurtPlayer);     // ловушки подземелий (план подземелий, 2в)
   { const g = W.gfx, p = W.player;                                             // золото: щит кирасы заряжается, знак лечит вне боя
     if (g.aegis) { if (!(W.aegis > 0) && (W.aegisT = (W.aegisT ?? 0) - dt) <= 0) { W.aegis = g.aegis[1]; W.ev.push({ k: 'aegisUp', x: p.x, z: p.z }); } } else W.aegis = 0;
     if (g.sunheal && !p.dead && p.hp < p.maxhp && W.t - (p.lastHurt ?? -1e9) > g.sunheal[0]) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * g.sunheal[1] * dt); }

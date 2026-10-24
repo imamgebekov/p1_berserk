@@ -4,6 +4,7 @@
 // Числа — config3d.js → dungeons.gen; облик (стиль) — dungeons.themes.
 
 import { applyKeyRooms } from './keyrooms3d.js';     // план подземелий, 2а
+import { placeTraps } from './traps3d.js';     // план подземелий, 2в
 
 const DIRS = [[1, 0], [0, 1], [0, -1], [-1, 0]];
 const key = (i, j) => i + ',' + j;
@@ -65,8 +66,27 @@ export function genDef(cfg, def0, seed) {
   const first = L.cells[0], bosses = (def0.bosses || []).map((b, i) => ({ ...b, room: at[i] != null ? idOf(L.cells[at[i]]) : b.room }));
   const entry = { x: first.x - first.w / 2 + 2.5, z: first.z }, exit = { x: first.x - first.w / 2 + 1, z: first.z + 1.6 };
   const fire = fireN >= 0 ? { x: L.cells[fireN].x, z: L.cells[fireN].z } : null;
-  return { ...def0, rooms, doors: [], spawns, chests: (def0.chests || []).length ? chests.concat(bosses.length ? [{ kind: 'altar', x: L.cells[L.path[L.path.length - 1]].x, z: L.cells[L.path[L.path.length - 1]].z + 3 }] : []) : chests,
-    entry, exit, bosses, fire, props, gen: { seed, rooms: L.cells.length, main: L.path.length }, guard: null };
+  const doors = locks(cfg, def0, L, rooms, chests, bossCells, fireN, rnd);     // двери и ключи (план подземелий, 2б)
+  const traps = placeTraps(cfg, def0, L, rooms, rnd);     // ловушки в коридорах пути (план подземелий, 2в)
+  return { ...def0, rooms, doors, spawns, chests: (def0.chests || []).length ? chests.concat(bosses.length ? [{ kind: 'altar', x: L.cells[L.path[L.path.length - 1]].x, z: L.cells[L.path[L.path.length - 1]].z + 3 }] : []) : chests,
+    entry, exit, bosses, fire, props, traps, gen: { seed, rooms: L.cells.length, main: L.path.length }, guard: null };
+}
+
+// запертые тупики (план подземелий, 2б): дверь между коридором и залом тупика, ключ — в сундуке другого доступного зала,
+// за дверью — железный сундук. Ключи у подземелья свои: id_k1…; при новом заходе связка подземелья сбрасывается (levels3d)
+function locks(cfg, def0, L, rooms, chests, bossCells, fireN, rnd) {
+  const K = cfg.dungeons.locks; if (!K || !K.on || !bossCells.size) return [];
+  const lim = def0.raid ? K.raid : K.dungeon, want = lim[0] + Math.floor(rnd() * (lim[1] - lim[0] + 1)), doors = [];
+  const cand = L.cells.filter(c => c.dead && c.n !== 0 && c.n !== fireN && !bossCells.has(c.n) && !rooms[c.n].kind), pick = [];
+  while (pick.length < want && cand.length) pick.push(cand.splice(Math.floor(rnd() * cand.length), 1)[0]);
+  const shut = new Set(pick.map(c => c.n)), pool0 = L.cells.filter(o => !shut.has(o.n) && o.n !== 0 && !bossCells.has(o.n)), side = pool0.filter(o => !o.main), pool = side.length ? side : pool0;     // ключ — в открытом зале, лучше в стороне от пути
+  pick.forEach((c, i) => {
+    const li = L.links.findIndex(([a, b]) => a === c.n || b === c.n); if (li < 0) return;
+    const kid = `${def0.id}_k${i + 1}`, kc = pool.length ? pool[Math.floor(rnd() * pool.length)] : L.cells[L.path[1]];
+    doors.push({ a: 'k' + li, b: rooms[c.n].id, lock: kid }); chests.push({ kind: 'ironchest', x: c.x, z: c.z - c.d * .2 });
+    chests.push({ kind: 'coffer', x: kc.x + (rnd() - .5) * (kc.w - 4), z: kc.z + (rnd() - .5) * (kc.d - 4), key: kid });
+  });
+  return doors;
 }
 
 export function mulberry(a) { return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }

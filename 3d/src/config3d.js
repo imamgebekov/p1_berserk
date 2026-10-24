@@ -539,6 +539,10 @@ const BASE = {
       foes: [3, 4.5], raidMul: .8, chest: .7, dungeon: [14, 20], raid: [30, 40], bossAt: [.3, .55, .75, .9] },
     // ключевые залы (план подземелий, 2а, решение владельца 2026-10-24): залы боссов по порядку боссов (последний — главный) и особые залы
     // в тупиках — свои у каждого подземелья; архетипы и обстановка — keyrooms3d.js. special — сколько особых залов; specialMin — их размер, м
+    locks: { on: true, dungeon: [1, 2], raid: [2, 3] },
+    // ловушки (план подземелий, 2в): сколько в коридорах пути; minLen и span — коридор и зона удара до масштаба стиля, м; period, warn, hot — круг, предупреждение
+    // и удар, с; bladeR — радиус маятника; dmg — доля здоровья героя и отряда, dmgFoe — врагов; leverR — рычаг срабатывает ближе, м
+    traps: { on: true, dungeon: [2, 3], raid: [4, 5], minLen: 5, span: 3, period: { spikes: 3.2, fire: 4, blade: 2.6 }, warn: .8, hot: { spikes: .6, fire: 1 }, bladeR: .7, dmg: .12, dmgFoe: .1, leverR: 1.1 },     // запертые тупики (план подземелий, 2б): сколько дверей с ключом; за дверью — железный сундук
     keyRooms: { on: true, special: { dungeon: 1, raid: 2 }, specialMin: 14, list: {
       inst_brod: { boss: ['crypt', 'colonnade', 'arena'], special: ['ossuary'] },
       inst_olkh: { boss: ['crypt', 'chasm', 'colonnade', 'throne'], special: ['ossuary'] },

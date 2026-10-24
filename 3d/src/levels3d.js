@@ -138,6 +138,7 @@ export function spawnFoes(W, L) {
 export function regenLevel(W, id) {
   const cfg = W.cfg, G = cfg.dungeons.gen, L = W.levels[id]; if (!G || !G.on || !L || !L.def || !L.def.inst) return false;
   const base = L.base || (L.base = L.def), bosses = cfg.bosses.list.filter(b => b.level === id).sort((a, b) => (a.final ? 1 : 0) - (b.final ? 1 : 0));
+  for (let k = 1; k <= 3; k++) if (W.keys) delete W.keys[`${id}_k${k}`];     // новая раскладка — старые ключи от её дверей не подходят (план подземелий, 2б)
   W.genN = (W.genN || 0) + 1; const seed = W.rng === Math.random ? (Math.random() * 2147483647) | 0 : (cfg.dungeons.seed * 977 + W.genN * 7919 + id.length * 131) | 0;
   const def = genDef(cfg, { ...base, styled: false, bosses: bosses.map(b => ({ type: b.type })) }, seed);
   bosses.forEach((b, k) => { const r = def.rooms.find(q => q.id === def.bosses[k].room); if (r) { b.x = r.x; b.z = r.z; } });

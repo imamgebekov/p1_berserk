@@ -168,6 +168,7 @@ export function expandBig(base) {
       if (!at) continue;
       const def = { id: I.id, name: I.name, inst: true, raid: !!I.raid, at, back: I.back || { x: at.x, z: at.z + 3 }, level: I.level, depth: I.depth, danger: I.danger, rooms: I.rooms, doors: I.doors, foes: I.foes, spawns: I.spawns, entry: I.entry, exit: I.exit, chests: I.chests };
       cfg.dungeons.list.push(def); taken.push({ x: at.x, z: at.z, r: 10 });
+      for (let k = 1; k <= 3; k++) (cfg.dungeons.keys ||= {})[`${I.id}_k${k}`] = `${['Ржавый', 'Медный', 'Костяной'][k - 1]} ключ: ${I.name}`;     // ключи запертых тупиков (план подземелий, 2б)
       const bs = I.bosses.map((B, k) => { const rm = I.rooms.find(q => q.id === B.room); return { ...B, x: rm.x, z: rm.z, level: I.id, base: I.base, inst: I.id, final: k === I.bosses.length - 1 }; });
       cfg.bosses.list.push(...bs); if (styleOn(cfg)) styleDef(cfg, def, bs);     // облик — только новым: styleDungeons второй раз расширил бы проходы
     }
@@ -505,6 +506,7 @@ export function expandWorld(base) {
       }
       if (!at) continue;
       cfg.dungeons.list.push({ id: I.id, name: I.name, inst: true, raid: !!I.raid, at, back: I.back || { x: at.x, z: at.z + 3 }, level: I.level, depth: I.depth, danger: I.danger, rooms: I.rooms, doors: I.doors, foes: I.foes, spawns: I.spawns, entry: I.entry, exit: I.exit, chests: I.chests });
+      for (let k = 1; k <= 3; k++) (cfg.dungeons.keys ||= {})[`${I.id}_k${k}`] = `${['Ржавый', 'Медный', 'Костяной'][k - 1]} ключ: ${I.name}`;     // ключи запертых тупиков (план подземелий, 2б)
       taken.push({ x: at.x, z: at.z, r: 10 });
       I.bosses.forEach((B, k) => { const rm = I.rooms.find(q => q.id === B.room); cfg.bosses.list.push({ ...B, x: rm.x, z: rm.z, level: I.id, base: I.base, inst: I.id, final: k === I.bosses.length - 1 }); });     // final — главный босс подземелья
     }

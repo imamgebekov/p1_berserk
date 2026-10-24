@@ -7,6 +7,7 @@ import { paintMat, paintOn } from './paint3d.js';
 import { buildDecor, decorModel } from './decor.js';
 import { themeOf, glowParts } from './dungeontheme3d.js';
 import { dungeonDetails } from './details3d.js';
+import { trapPhase } from './traps3d.js';     // план подземелий, 2в
 
 const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
 const mat = (c, kind, opt) => (kind ? paintMat(new THREE.MeshLambertMaterial({ color: c }), kind, opt) : new THREE.MeshLambertMaterial({ color: c }));     // kind — материал (T3)
@@ -159,7 +160,25 @@ export function buildLevelView(L, cfg) {
     if (d.lock) { lock = new THREE.Group(); const gold = new THREE.MeshBasicMaterial({ color: '#d8a838' }); lock.add(new THREE.Mesh(new THREE.BoxGeometry(.3, .32, th + .3), gold), new THREE.Mesh(new THREE.BoxGeometry(.06, .2, th + .34), new THREE.MeshBasicMaterial({ color: '#2a1a08' })).translateY(-.02)); lock.position.set(w / 2, D.wallH * .5, 0); hinge.add(lock); }
     group.add(hinge); doors.push({ d, hinge, base: hinge.rotation.y, lock });
   }
-  function update() { for (const it of doors) { it.hinge.rotation.y = it.base + it.d.open * Math.PI / 2; if (it.lock) it.lock.visible = !!it.d.locked; } }
+  // ловушки (план подземелий, 2в): плиты светятся перед ударом, шипы и пламя выходят, маятник качается; рычаг опущен — ловушка выключена
+  const trapV = [], metal = mat('#3a3430', 'metal');
+  for (const q of M.traps || []) {
+    const plateM = new THREE.MeshLambertMaterial({ color: '#2e2824', emissive: '#ff3018', emissiveIntensity: 0 }), g = new THREE.Group(), it = { q, plateM, g };
+    if (q.kind !== 'blade') group.add(new THREE.Mesh(box(q.w, .05, q.d, q.x, .025, q.z), plateM));
+    if (q.kind === 'spikes') { const parts = []; for (let i = .5; i < q.w; i += .7) for (let k = .5; k < q.d; k += .7) parts.push(new THREE.ConeGeometry(.12, .7, 4).translate(q.x - q.w / 2 + i, .35, q.z - q.d / 2 + k)); it.part = new THREE.Mesh(mergeGeometries(parts), mat('#b8b0a4', 'metal')); g.add(it.part); }
+    if (q.kind === 'fire') { const parts = []; for (let i = .6; i < q.w; i += 1) for (let k = .6; k < q.d; k += 1) parts.push(box(.4, 1, .4, q.x - q.w / 2 + i, .5, q.z - q.d / 2 + k)); it.part = new THREE.Mesh(mergeGeometries(parts), new THREE.MeshBasicMaterial({ color: '#ff7a24', transparent: true, opacity: .85 })); g.add(it.part); }
+    if (q.kind === 'blade') { const H = D.wallH * .95, pv = new THREE.Group(); pv.position.set(q.x, H, q.z); pv.add(new THREE.Mesh(box(.12, H - .5, .12, 0, -(H - .5) / 2, 0), metal), new THREE.Mesh(q.along === 'x' ? box(.9, .5, .08, 0, -H + .6, 0) : box(.08, .5, .9, 0, -H + .6, 0), mat('#c8c0b4', 'metal'))); g.add(pv); it.pv = pv; it.H = H - .6; }
+    const lv = new THREE.Group(); lv.position.set(q.lever.x, 0, q.lever.z); lv.add(new THREE.Mesh(box(.3, .9, .3, 0, .45, 0), metal)); it.handle = new THREE.Mesh(box(.08, .7, .08, 0, .35, 0), new THREE.MeshBasicMaterial({ color: '#e8b838' })); it.handle.position.y = .85; lv.add(it.handle); g.add(lv);
+    group.add(g); trapV.push(it);
+  }
+  function update(W) {
+    for (const it of doors) { it.hinge.rotation.y = it.base + it.d.open * Math.PI / 2; if (it.lock) it.lock.visible = !!it.d.locked; }
+    for (const it of trapV) { const ph = W ? trapPhase(W.cfg, it.q, W.t) : { arm: 0, hot: false, swing: 0 };
+      it.plateM.emissiveIntensity = ph.arm * .9 + (ph.hot && it.q.kind !== 'blade' ? .5 : 0);
+      if (it.part) { it.part.visible = ph.hot; if (it.q.kind === 'fire') it.part.scale.y = .6 + .4 * Math.random(); }
+      if (it.pv) { const half = (it.q.along === 'x' ? it.q.d : it.q.w) / 2 - .4, a = Math.asin(Math.max(-1, Math.min(1, ph.swing * half / it.H))); if (it.q.along === 'x') it.pv.rotation.x = -a; else it.pv.rotation.z = a; }
+      it.handle.rotation.z = it.q.on ? -.6 : .6; }
+  }
   const conts = buildContainers(M); group.add(conts.group);
   return { group, conts, flame: fl, update };
 }

@@ -274,6 +274,7 @@ function onEvent(v) {
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
   else if (v.k === 'seal') toast(`Печать Затмения +${v.n}`, '', '#e8c04a');     // дары Затмения (2026-10-23)
+  else if (v.k === 'lever') toast(`Рычаг: ${{ spikes: 'шипы', fire: 'огненная решётка', blade: 'маятник' }[v.kind] || 'ловушка'} — выключено`, '', '#e8c04a');     // план подземелий, 2в
   else if (v.k === 'dfire') toast('Костёр зажжён: после гибели вы встанете здесь', '', '#ffb060', 'fire');     // план подземелий, 1е
   else if (v.k === 'lockout') toast(`${v.name}: награда уже взята — обновится ${W.levels[W.lvl] && W.levels[W.lvl].def && W.levels[W.lvl].def.raid ? 'в понедельник' : 'в полночь'}`, '', '#c8b8a0');     // откат (план подземелий, 1б)
   else if (v.k === 'relic' && v.id === 'undying') toast('Второе дыхание', '', '#e8c04a');

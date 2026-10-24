@@ -52,5 +52,18 @@ for (const base of I) for (const seed of [1, 7, 42]) {
       for (const b of def.bosses) { const r = def.rooms.find(o => o.id === b.room); ok(!def.props.some(q => q.r && Math.hypot(q.x - r.x, q.z - r.z) < q.r + 1.5), `${tag}: предмет на месте босса`); } }
     ok(kinds[0].split('|')[0] === kinds[1].split('|')[0], `${base.id}: залы боссов меняются от зерна`); } }
 
+// двери и ключи (план подземелий, 2б): ключ каждой двери лежит в зале, куда можно дойти от входа без запертых дверей;
+// железный сундук — за дверью; новый заход сбрасывает ключи подземелья
+{ const LK = CFG3.dungeons.locks;
+  for (const base of I) for (const seed of [5, 19]) {
+    const nb = CFG3.bosses.list.filter(b => b.level === base.id).length, def = genDef(CFG3, { ...base, bosses: Array.from({ length: nb }, () => ({})) }, seed), M = makeLevelMap(CFG3, def), tag = `${base.id}#${seed}`;
+    const lim = base.raid ? LK.raid : LK.dungeon; ok(M.doors.length >= lim[0] && M.doors.length <= lim[1] && M.doors.every(d => d.lock && d.locked), `${tag}: запертых дверей ${M.doors.length}`);
+    const reach = new Set([0]), q = [0]; while (q.length) { const r = q.shift(); for (const li of M.adj[r]) { const l = M.links[li]; if (M.doors.some(d => d.link === li && d.locked)) continue; const o = l.a === r ? l.b : l.a; if (!reach.has(o)) { reach.add(o); q.push(o); } } }
+    for (const d of M.doors) { const kc = M.containers.find(c => c.key === d.lock), ri = kc ? roomAt(M, kc.x, kc.z) : -1; ok(kc && reach.has(ri), `${tag}: ключ ${d.lock} не достать без дверей`);
+      const L = M.links[d.link], behind = reach.has(L.a) ? L.b : L.a; ok(!reach.has(behind) && M.containers.some(c => c.kind === 'ironchest' && roomAt(M, c.x, c.z) === behind), `${tag}: за дверью ${d.lock} нет железного сундука`); } }
+  const W = createWorld((() => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; return c; })(), mulberry32(4)), id = I[0].id;
+  travel(W, id, 0, 0); W.keys[id + '_k1'] = true; travel(W, 'surface', 0, 4); travel(W, id, 0, 0); ok(!W.keys[id + '_k1'], 'новый заход не сбросил ключи подземелья');
+  ok(CFG3.dungeons.keys[id + '_k1'] && /ключ/.test(CFG3.dungeons.keys[id + '_k1']), 'у ключа нет имени'); }
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Генератор подземелий 3D: OK');
