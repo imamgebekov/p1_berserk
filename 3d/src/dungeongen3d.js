@@ -3,6 +3,8 @@
 // коридор по оси клеток (стены и проёмы строит map.makeLevelMap: соседние прямоугольники с общим краем). Чистая логика.
 // Числа — config3d.js → dungeons.gen; облик (стиль) — dungeons.themes.
 
+import { applyKeyRooms } from './keyrooms3d.js';     // план подземелий, 2а
+
 const DIRS = [[1, 0], [0, 1], [0, -1], [-1, 0]];
 const key = (i, j) => i + ',' + j;
 
@@ -51,6 +53,8 @@ export function genDef(cfg, def0, seed) {
     if (!first && !boss) spawns.push({ room: idOf(c), n: Math.max(1, Math.round((G.foes[0] + rnd() * (G.foes[1] - G.foes[0])) * c.w * c.d / 150 * (raid ? G.raidMul : 1))) });
     if (c.dead && rnd() < G.chest) chests.push({ kind: rnd() < .5 ? 'coffer' : 'grave', x: c.x + (rnd() - .5) * (c.w - 3), z: c.z + (rnd() - .5) * (c.d - 3) });
   }
+  let fireN = -1; if (bossN && cfg.dungeons.fire && cfg.dungeons.fire.on) for (let i = L.path.length - 2; i > 0 && fireN < 0; i--) if (!bossCells.has(L.path[i])) fireN = L.path[i];     // костёр перед финальным боссом (план подземелий, 1е)
+  const props = applyKeyRooms(cfg, def0, rooms, L.cells, at, 0, fireN, rnd);     // ключевые залы (план подземелий, 2а) — до коридоров: размеры залов меняются
   // коридоры: между соседними клетками, по общей оси; длина — промежуток между краями залов
   let k = 0;
   for (const [a, b] of L.links) {
@@ -60,9 +64,9 @@ export function genDef(cfg, def0, seed) {
   }
   const first = L.cells[0], bosses = (def0.bosses || []).map((b, i) => ({ ...b, room: at[i] != null ? idOf(L.cells[at[i]]) : b.room }));
   const entry = { x: first.x - first.w / 2 + 2.5, z: first.z }, exit = { x: first.x - first.w / 2 + 1, z: first.z + 1.6 };
-  let fire = null; if (bossN && cfg.dungeons.fire && cfg.dungeons.fire.on) for (let i = L.path.length - 2; i > 0 && !fire; i--) { const c = L.cells[L.path[i]]; if (!bossCells.has(c.n)) fire = { x: c.x, z: c.z }; }     // костёр перед финальным боссом (план подземелий, 1е)
+  const fire = fireN >= 0 ? { x: L.cells[fireN].x, z: L.cells[fireN].z } : null;
   return { ...def0, rooms, doors: [], spawns, chests: (def0.chests || []).length ? chests.concat(bosses.length ? [{ kind: 'altar', x: L.cells[L.path[L.path.length - 1]].x, z: L.cells[L.path[L.path.length - 1]].z + 3 }] : []) : chests,
-    entry, exit, bosses, fire, gen: { seed, rooms: L.cells.length, main: L.path.length }, guard: null };
+    entry, exit, bosses, fire, props, gen: { seed, rooms: L.cells.length, main: L.path.length }, guard: null };
 }
 
 export function mulberry(a) { return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }

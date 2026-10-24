@@ -142,7 +142,7 @@ export function buildLevelView(L, cfg) {
     for (const [k, name] of [[.25, 'banner_patternA_red'], [.75, 'banner_shield_red']]) { const x = r.x0 + k * (r.x1 - r.x0), S = decorModel(name); if (!S || open(x, r.z0)) continue; const s = D.wallH * .85 / S.userData.h; putKit(name, x, D.wallH * .1, r.z0 + .08 + S.userData.d * s / 2, 0, s); } }
   if (kit.length) group.add(new THREE.Mesh(mergeGeometries(kit), paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto')));
   if (torches.length) group.add(new THREE.Mesh(mergeGeometries(torches), mat('#3a2a1a')));
-  { const salt = [...String(M.level || '')].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7), det = dungeonDetails(M, cfg, salt); if (M.fire) det.push({ t: 'campfire', x: M.fire.x, z: M.fire.z, fire: true });     // детали подземелья (T5); костёр перед финальным боссом (план подземелий, 1е)
+  { const salt = [...String(M.level || '')].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7), det = dungeonDetails(M, cfg, salt); if (M.fire) det.push({ t: 'campfire', x: M.fire.x, z: M.fire.z, fire: true }); for (const q of M.props || []) det.push({ ...q, detail: true });     // детали подземелья (T5); костёр перед финальным боссом (план подземелий, 1е)
     if (det.length) group.add(buildDecor({ decor: det }, null, null).group); }
   const fl = flames.length ? new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: th.flame || '#ffb050' })) : null; if (fl) group.add(fl);
   { const gp = glowParts(M, th, open); if (gp) group.add(new THREE.Mesh(mergeGeometries(gp), new THREE.MeshBasicMaterial({ color: th.glow.color, fog: false, toneMapped: false }))); }     // 4.14: кристаллы, грибы, лава — светятся сквозь туман

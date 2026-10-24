@@ -57,7 +57,7 @@ export function dungeonDetails(M, cfg, salt = 0) {
   const nearPortal = (x, z) => (M.portals || []).some(q => Math.hypot(q.x - x, q.z - z) < 2.5) || (M.containers || []).some(c => Math.hypot(c.x - x, c.z - z) < 1.2);
   const nearLink = (x, z, d) => (M.links || []).some(l => Math.hypot(l.x - x, l.z - z) < d);
   for (const r of M.rooms || []) {
-    if (r.corridor) continue;
+    if (r.corridor || r.kind) continue;     // ключевой зал — своя обстановка (план подземелий, 2а)
     const fr = (x, z, pad) => roomFree(r, x, z, pad);     // необычный зал: не в заливке углов, не в провале и не в колонне
     if (r.fill === 'empty') { rnd(); continue; }     // пустой зал — ни свечей, ни хлама (2026-10-20)
     if (r.fill === 'full') for (let k = 0, n = 5 + ((rnd() * 5) | 0), t = 0; k < n && t < 60; t++) {     // забитый зал: хлам вдоль стен

@@ -39,5 +39,18 @@ for (const base of I) for (const seed of [1, 7, 42]) {
   const cr = c.dungeons.list.find(q => q.id === 'crypt_pogost'), r0 = JSON.stringify(W.levels.crypt_pogost.map.rooms.map(r => [r.x0, r.z0]));
   travel(W, 'crypt_pogost', cr.entry.x, cr.entry.z); ok(JSON.stringify(W.levels.crypt_pogost.map.rooms.map(r => [r.x0, r.z0])) === r0, 'сюжетное подземелье поменяло раскладку'); }
 
+// ключевые залы (план подземелий, 2а): залы боссов — по таблице и по порядку боссов, особые — в стороне от пути; одни и те же
+// архетипы при любом зерне; обстановка внутри залов, твёрдые предметы — в карте и не на месте босса
+{ const K = CFG3.dungeons.keyRooms;
+  for (const base of I) { const T = K.list[base.id]; ok(T, `${base.id}: нет ключевых залов в таблице`); if (!T) continue;
+    const nb = CFG3.bosses.list.filter(b => b.level === base.id).length, kinds = [];
+    for (const seed of [3, 11]) { const def = genDef(CFG3, { ...base, bosses: Array.from({ length: nb }, () => ({})) }, seed), M = makeLevelMap(CFG3, def), tag = `${base.id}#${seed}`;
+      const bk = def.bosses.map(b => (def.rooms.find(r => r.id === b.room) || {}).kind); ok(bk.every((k, i) => k === T.boss[Math.min(i, T.boss.length - 1)]), `${tag}: залы боссов ${bk} вместо ${T.boss}`);
+      const sp = def.rooms.filter(r => r.kind && !def.bosses.some(b => b.room === r.id)).map(r => r.kind); ok(sp.length >= 1 && sp.every(k => T.special.includes(k)), `${tag}: особые залы ${sp}`); kinds.push(bk.join() + '|' + sp.join());
+      for (const q of def.props) { const r = M.rooms.find(o => !o.corridor && q.x > o.x0 && q.x < o.x1 && q.z > o.z0 && q.z < o.z1); ok(r && r.kind, `${tag}: предмет ${q.t} вне ключевого зала`); }
+      ok(def.props.filter(q => q.r).every(q => M.solids.some(o => o.x === q.x && o.z === q.z)), `${tag}: твёрдый предмет не в карте`);
+      for (const b of def.bosses) { const r = def.rooms.find(o => o.id === b.room); ok(!def.props.some(q => q.r && Math.hypot(q.x - r.x, q.z - r.z) < q.r + 1.5), `${tag}: предмет на месте босса`); } }
+    ok(kinds[0].split('|')[0] === kinds[1].split('|')[0], `${base.id}: залы боссов меняются от зерна`); } }
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Генератор подземелий 3D: OK');

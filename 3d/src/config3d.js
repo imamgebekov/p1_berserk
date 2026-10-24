@@ -537,6 +537,26 @@ const BASE = {
     // на 150 м² зала; chest — сундук в тупике; dungeon, raid — число залов; bossAt — где на пути боссы (последний — в конце)
     gen: { on: true, cell: 26, gapMin: 4, corr: 2.4, mainShare: .55, turn: .45, branch: 3, loop: .12, room: [10, 16], bossRoom: [16, 22], first: [10, 8],
       foes: [3, 4.5], raidMul: .8, chest: .7, dungeon: [14, 20], raid: [30, 40], bossAt: [.3, .55, .75, .9] },
+    // ключевые залы (план подземелий, 2а, решение владельца 2026-10-24): залы боссов по порядку боссов (последний — главный) и особые залы
+    // в тупиках — свои у каждого подземелья; архетипы и обстановка — keyrooms3d.js. special — сколько особых залов; specialMin — их размер, м
+    keyRooms: { on: true, special: { dungeon: 1, raid: 2 }, specialMin: 14, list: {
+      inst_brod: { boss: ['crypt', 'colonnade', 'arena'], special: ['ossuary'] },
+      inst_olkh: { boss: ['crypt', 'chasm', 'colonnade', 'throne'], special: ['ossuary'] },
+      inst_moss: { boss: ['colonnade', 'chasm', 'crypt'], special: ['shrine'] },
+      inst_pass: { boss: ['arena', 'colonnade', 'throne'], special: ['armory'] },
+      inst_forge: { boss: ['arena', 'chasm', 'throne'], special: ['armory'] },
+      inst_tower: { boss: ['colonnade', 'arena', 'throne'], special: ['prison'] },
+      inst_dusk: { boss: ['chasm', 'colonnade', 'arena'], special: ['shrine'] },
+      inst_barrow: { boss: ['crypt', 'arena', 'throne'], special: ['ossuary'] },
+      inst_nest: { boss: ['chasm', 'arena', 'throne'], special: ['prison'] },
+      inst_abbey: { boss: ['colonnade', 'crypt', 'throne'], special: ['shrine'] },
+      inst_drown: { boss: ['chasm', 'crypt', 'arena'], special: ['ossuary'] },
+      inst_ash: { boss: ['crypt', 'colonnade', 'throne'], special: ['ossuary'] },
+      inst_rift: { boss: ['chasm', 'arena', 'throne'], special: ['prison'] },
+      raid_oak: { boss: ['arena', 'chasm', 'colonnade', 'crypt', 'throne'], special: ['ossuary', 'shrine'] },
+      raid_cathedral: { boss: ['colonnade', 'chasm', 'crypt', 'arena', 'throne'], special: ['shrine', 'prison'] },
+      raid_hand: { boss: ['colonnade', 'arena', 'chasm', 'crypt', 'throne'], special: ['armory', 'shrine'] },
+      raid_throne: { boss: ['arena', 'chasm', 'colonnade', 'crypt', 'throne'], special: ['armory', 'prison'] } } },
     // 4.14: стили подземелий — floor, wall, cap (верх стен), bg (фон и туман), fogK (плотность тумана), hemi [небо, земля, сила] (общий свет),
     // flame (огонь факелов), mist, mistA, ember, pillar (живой фон), glow { n — гроздей на зал, kind: crystal | mushroom | lava, color }
     themes: { on: true, def: 'crypt', abyss: 'crypt',
