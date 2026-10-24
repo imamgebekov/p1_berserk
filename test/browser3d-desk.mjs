@@ -107,10 +107,10 @@ try {
   await ev(() => { const W = window.__b3d.W; W.wanderer = null; W.player.x = 0; W.player.z = 4; });
   // случайные события: обоз у ворот и путник в беде — модели рисуются, в трекере строка события
   for (const kind of ['caravan', 'rescue']) {
-    await ev(k => { const W = window.__b3d.W; W.event = null; W.allies = W.allies.filter(a => !a.guest); W.cfg.events.kinds = { [k]: 1 }; W.evT = 0; }, kind);
-    await page.waitForFunction(() => !!window.__b3d.W.event, null, { timeout: 4000 }).catch(() => bad('не стартовало событие ' + kind));
-    await ev(() => { const W = window.__b3d.W, g = W.allies.find(a => a.id === W.event.guest); W.player.x = g.x + 6; W.player.z = g.z + 6; });
-    await page.waitForFunction(re => new RegExp(re, 'i').test(document.getElementById('tracker').textContent), kind === 'caravan' ? 'обоз' : 'путник', { timeout: 4000 }).catch(() => {});     // строка обновляется по кадрам
+    await ev(k => { const W = window.__b3d.W; W.event = null; W.allies = W.allies.filter(a => !a.guest); W.cfg.events.kinds = { [k]: 1 }; W.evT = 0; W.player.x = 0; W.player.z = 4; }, kind);     // от лагеря: после обоза герой стоит у его гостя
+    await page.waitForFunction(() => !!window.__b3d.W.event, null, { timeout: 20000 }).catch(() => bad('не стартовало событие ' + kind));
+    if (!(await ev(() => { const W = window.__b3d.W, g = W.event && W.allies.find(a => a.id === W.event.guest); if (g) { W.player.x = g.x + 6; W.player.z = g.z + 6; } return !!g; }))) { bad('у события ' + kind + ' нет гостя'); continue; }
+    await page.waitForFunction(re => new RegExp(re, 'i').test(document.getElementById('tracker').textContent), kind === 'caravan' ? 'обоз' : 'путник', { timeout: 20000 }).catch(() => {});     // строка обновляется по кадрам
     const line = await ev(() => document.getElementById('tracker').textContent);
     if (!(kind === 'caravan' ? /обоз/i : /путник/i).test(line)) bad(`нет строки события ${kind}: ${line}`);
     const ov = await ev(() => { const a = document.getElementById('tracker').getBoundingClientRect(), b = document.getElementById('miniBtn').getBoundingClientRect(); return a.top < b.bottom && a.bottom > b.top && a.left < b.right && a.right > b.left; });
@@ -208,7 +208,7 @@ try {
   await page.keyboard.press('Digit2'); await waitFor(() => window.__b3d.W.hero === 'vale' && !window.__b3d.ui().panelOpen);
   const sw = await ev(() => ({ hero: window.__b3d.W.hero, lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash, panel: window.__b3d.ui().panelOpen }));
   const th = await ev(() => { const t = window.__b3d.W.heroes.thorn || {}; return { lv: t.lv, ash: t.inv && t.inv.ash, pos: !!t.pos }; });
-  if (sw.hero !== 'vale' || sw.lv !== 1 || sw.ash !== 0 || sw.panel || th.lv !== 30 || th.ash !== 4321 || !th.pos) bad('смена героя: у Вейла не свои уровень и пепел или слот Торна не сохранён: ' + JSON.stringify({ sw, th }));     // у каждого героя свой уровень (2026-10-18), сумка и место (2026-10-23)
+  if (sw.hero !== 'vale' || sw.lv !== 1 || sw.ash !== 0 || sw.panel || th.lv !== 30 || !(th.ash >= 4321) || !th.pos) bad('смена героя: у Вейла не свои уровень и пепел или слот Торна не сохранён: ' + JSON.stringify({ sw, th }));     // у каждого героя свой уровень (2026-10-18), сумка и место (2026-10-23); пепел Торна мог вырасти от наград за достижения
   await ev(() => { window.__b3d.W.lv = 30; });     // дальше проверки умений Вейла на 30-м уровне
   // окна не выходят за экран (высота в пикселях под zoom)
   await page.keyboard.press('KeyI'); await page.waitForTimeout(250);
@@ -237,9 +237,10 @@ try {
   { const s = await ev(() => window.__b3d.renderer.sun()); if (!s || !s.on || !(s.op > 0)) bad('нет света сквозь облака: ' + JSON.stringify(s)); else console.log('  свет: ' + JSON.stringify(s)); }
   // ветер (F2): при сильном ветре трава и кроны двигаются — между кадрами меняется заметно больше точек, чем в тишь
   { const grab = () => ev(() => { const c = document.getElementById('gl'), g = document.createElement('canvas'); g.width = c.width; g.height = c.height; const x = g.getContext('2d'); x.drawImage(c, 0, 0); return Array.from(x.getImageData(0, 0, g.width, g.height).data.filter((_, i) => i % 4 === 1)); });
-    await ev(() => { const b = window.__b3d, W = b.W; b.cfg.sunlight.wind = [0, 0]; W.enemies.length = 0; W.player.x = 20; W.player.z = 40; }); await page.waitForTimeout(5000);     // камера доехала (при 12 кадр/с — дольше)
+    await ev(() => { const b = window.__b3d, W = b.W; b.cfg.sunlight.wind = [0, 0]; W.enemies.length = 0; W.player.x = 20; W.player.z = 40; }); await ev(async () => { const b = window.__b3d, p = b.W.player; for (let t = 0; t < 30000; t += 100) { const c = b.renderer.project(p.x, 1, p.z); if (Math.abs(c.x - innerWidth / 2) < innerWidth * .1 && Math.abs(c.y - innerHeight / 2) < innerHeight * .1) break; await new Promise(r => setTimeout(r, 100)); } });     // камера доехала до героя
     const moved = async (s) => { await ev(s => { const C = window.__b3d.cfg.wind; C.calm = C.breeze = s; C.gust = 0; window.__b3d.W.enemies.length = 0; }, s);
-      await page.waitForTimeout(600); const a = await grab(); await page.waitForTimeout(450); const b2 = await grab(); let n = 0; for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b2[i]) > 6) n++; return n / a.length; };
+      const fr = k => ev(async k => { const b = window.__b3d, n0 = b.perf().n; for (let t = 0; t < 20000 && b.perf().n < n0 + k; t += 50) await new Promise(r => setTimeout(r, 50)); }, k);     // ждём кадры, а не миллисекунды (программный GL)
+      await fr(6); const a = await grab(); await fr(1); const b2 = await grab();  let n = 0; for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b2[i]) > 6) n++; return n / a.length; };     // ветер набирает силу плавно — шесть кадров
     const still = Math.min(await moved(0), await moved(0)), windy = await moved(1);     // тишь — меньшее из двух: камера могла ещё доезжать
     if (!(windy > still + .004)) bad(`ветер не двигает траву и кроны: ${windy.toFixed(4)} против ${still.toFixed(4)} в тишь`);
     console.log('  ветер: ' + JSON.stringify({ still: still.toFixed(4), windy: windy.toFixed(4), rustle: (await ev(() => window.__b3d.renderer.treesNear(20, 40))).toFixed(2) }));
@@ -279,10 +280,10 @@ try {
   // объём слоями (F4): под кроной у тропы окно у героя меняет кадр (прорезает листву), в открытом поле — нет
   { const cnt = await ev(() => { const E = window.__b3d.cfg.enemies, n = E.count; E.count = 0; return n; });     // без врагов, в полдень, без неуязвимости (герой мигает — safe() даёт её на 99 с) и без ввода — кадр у героя меняет только окно
     await ev(() => { const i = window.__b3d.input; window.__readKeep = i.read; i.read = () => ({ mx: 0, mz: 0, attack: false, attackPress: false, roll: false, ability: 0 }); });     // замер без ввода: герой стоит
-    const at = async q => { await ev(q => { const W = window.__b3d.W; W.t = 30; W.enemies.length = 0; if (W.proj) W.proj.length = 0; W.player.x = q.x; W.player.z = q.z; W.player.vx = W.player.vz = 0; W.player.inv = 0; window.__atQ = q; }, q); await page.waitForTimeout(2200); };
+    const at = async q => { await ev(q => { const W = window.__b3d.W; W.t = 30; W.enemies.length = 0; if (W.proj) W.proj.length = 0; W.player.x = q.x; W.player.z = q.z; W.player.vx = W.player.vz = 0; W.player.inv = 0; window.__atQ = q; }, q); await ev(async () => { const b = window.__b3d, p = b.W.player; for (let t = 0; t < 30000; t += 100) { const c = b.renderer.project(p.x, 1, p.z); if (Math.abs(c.x - innerWidth / 2) < innerWidth * .1 && Math.abs(c.y - innerHeight / 2) < innerHeight * .1) break; await new Promise(r => setTimeout(r, 100)); } }); };     // камера доехала до героя (программный GL — кадр в 1–2 с)
     const diff = () => ev(async () => { const b = window.__b3d, c = document.getElementById('gl'), U = b.renderer.xray(), cut = U.uXrCut.value;
       const grab = () => { const g = document.createElement('canvas'); g.width = c.width; g.height = c.height; const x = g.getContext('2d'); x.drawImage(c, 0, 0); const cx = (U.uHero.value.x * .5 + .5) * c.width, cy = (.5 - U.uHero.value.y * .5) * c.height, r = Math.round(c.height * .08); return Array.from(x.getImageData(Math.round(cx - r), Math.round(cy - r), 2 * r, 2 * r).data); };
-      const wait = () => new Promise(r => setTimeout(r, 250));
+      const wait = async () => { const n0 = b.perf().n; for (let t = 0; t < 20000 && b.perf().n < n0 + 2; t += 50) await new Promise(r => setTimeout(r, 50)); };     // два новых кадра, а не 250 мс
       const d = (A, B) => { let n = 0; for (let i = 0; i < A.length; i += 4) if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > 40) n++; return n / (A.length / 4); };
       U.uXrCut.value = 0; await wait(); const off = grab(); await wait(); const off2 = grab(); U.uXrCut.value = cut; await wait(); const on = grab();
       return d(on, off2) - d(off2, off); });     // за вычетом того, что меняется само (дыхание, пепел)
@@ -464,8 +465,9 @@ try {
     if (!fly || !hit) bad(`стрела Сойки не вылетела (${fly}) или не попала (${hit})`);
     // град стрел (клавиша 5) встаёт над врагом
     await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 30; W.ab = { rain: 1, trap: 1 }; W.bar = ['leap', 'volley', 'trap', 'venom', 'rain']; W.acd = {}; W.resHero = W.hero; W.res = 100; });
-    await pg.keyboard.press('Digit5'); await pg.waitForTimeout(150); await pg.keyboard.press('Digit5');     // град — с прицелом: второе нажатие — удар
-    await pg.waitForFunction(() => window.__b3d.W.zones.length > 0, null, { timeout: 4000 }).catch(() => bad('клавиша 5 не вызвала град стрел'));
+    const frames2 = () => pg.evaluate(async () => { const b = window.__b3d, n0 = b.perf().n; for (let t = 0; t < 20000 && b.perf().n < n0 + 2; t += 50) await new Promise(r => setTimeout(r, 50)); });
+    await pg.keyboard.press('Digit5'); await frames2(); await pg.keyboard.press('Digit5'); await frames2();     // град — с прицелом: второе нажатие — удар; между нажатиями — кадры
+    await pg.waitForFunction(() => window.__b3d.W.zones.length > 0, null, { timeout: 20000 }).catch(() => bad('клавиша 5 не вызвала град стрел'));
     await pg.keyboard.press('Digit3'); await pg.waitForTimeout(500); await pg.screenshot({ path: join(out, '3d-desk-jay-rain.png') });
     await c4.close(); }
   // телефон: веер кнопок умений не налезает на «Удар», «Перекат» и друг на друга, кнопки не меньше 44 px, касание запускает умение

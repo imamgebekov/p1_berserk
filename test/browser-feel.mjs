@@ -17,7 +17,7 @@ const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html?shot&hero=
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage(); page.setDefaultTimeout(20000);
   page.on('pageerror', e => bad('pageerror: ' + e.message));
-  await page.goto(url, { timeout: 30000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 180000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 180000 });     // холодный vite собирает модули дольше 30 с
   const ev = (f, a) => page.evaluate(f, a), op = id => ev(id => { const e = document.getElementById(id); return e.hidden ? 0 : Number(getComputedStyle(e).opacity); }, id);     // скрытый слой — 0
   await ev(() => { const W = window.__b3d.W; W.player.maxhp = W.player.hp = 1e6; W.enemies.forEach(e => { e.dead = true; }); });
   await page.waitForTimeout(1500);
@@ -48,7 +48,7 @@ try {
   // боевая музыка: звук включается после нажатия клавиши; два встревоженных врага рядом — играют боевые такты
   if (tag === 'feel') {
     await page.keyboard.press('KeyM'); await page.keyboard.press('KeyM'); await page.waitForTimeout(300);
-    await ev(() => { const p = window.__b3d.W.player; p.x = 0; p.z = 48; }); await page.waitForTimeout(800);     // за воротами: в лагере враги не живут
+    await ev(() => { const p = window.__b3d.W.player; p.x = 0; p.z = 48; window.__b3d.cfg.audio.fight.on = true; }); await page.waitForTimeout(800);     // за воротами: в лагере враги не живут; боевую музыку в игре выключили (5.04) — тест включает её и проверяет код
     await ev(() => { const b = window.__b3d, W = b.W, p = W.player; p.hp = p.maxhp; for (let i = 0; i < 2; i++) { const e = b.spawn('brute', p.x + 4 + i, p.z); e.alert = true; e.hp = e.maxhp = 1e7; } b.cfg.enemies.brute.damage = 0; });
     let n = 0; for (let k = 0; k < 40 && !n; k++) { await page.waitForTimeout(250); n = await ev(() => window.__b3d.audioStats().fightNotes || 0); }
     const st = await ev(() => window.__b3d.audioStats().state);

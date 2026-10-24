@@ -59,7 +59,7 @@ try {
       const f = await page.evaluate(() => { const e = document.getElementById('bagFill'); return { t: e.textContent, c: e.className }; });
       if (f.t !== used + '/' + cap || f.c !== (used >= cap * .8 ? 'warn' : '')) bad('бирка сумки: ' + JSON.stringify(f) + ', занято ' + used);
       await page.evaluate(async cap => { const { addItem } = await import('/3d/src/inv.js'), W = window.__b3d.W, ids = ['a_head_cap_leather', 'a_body_jerkin_leather', 'a_boots_boots_leather', 'w_sword_iron']; const { bagUsed } = await import('/3d/src/inv.js'); for (let i = 0; bagUsed(W.inv) < cap && i < 500; i++) addItem(W.inv, ids[i % 4], 1, cap); }, cap);
-      await page.waitForFunction(cap => document.getElementById('bagFill').textContent === cap + '/' + cap, cap, { timeout: 3000 }).catch(() => {});      // кадры в безголовом браузере редкие
+      await page.waitForFunction(cap => document.getElementById('bagFill').textContent === cap + '/' + cap, cap, { timeout: 8000 }).catch(() => {});      // кадры в безголовом браузере редкие
       const g = await page.evaluate(() => { const e = document.getElementById('bagFill'); return { t: e.textContent, c: e.className }; });
       if (g.t !== cap + '/' + cap || g.c !== 'full') bad('полная сумка не отмечена: ' + JSON.stringify(g)); }
     if (r.minW < 44) bad('плитка уже 44 px: ' + r.minW);

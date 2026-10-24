@@ -116,8 +116,8 @@ try {
   { const r = await page.evaluate(() => { const w = window.__b3d.W; return { elites: w.enemies.filter(e => e.elite).length, ev: w.proj.length + w.haz.length, hp: w.player.hp }; }); if (r.elites !== 2) bad('элитные враги не появились: ' + JSON.stringify(r)); }
   await page.evaluate(() => { const w = window.__b3d.W; w.enemies.length = 0; w.proj.length = 0; w.haz.length = 0; w.player.hp = w.player.maxhp; });
   // сутки и звук: часы в шапке, ночь меняет небо и закрывает торговца, кнопка звука
-  await page.evaluate(() => { const w = window.__b3d.W; w.t = 188 + 30; }); await page.waitForTimeout(600);
-  { const r = await page.evaluate(() => ({ night: window.__b3d.W.night, time: document.getElementById('hudTime').textContent, moon: !!document.querySelector('#hudTime svg[data-ic="moon"]') })); if (!r.night || !r.moon || !/^\d\d:\d\d$/.test(r.time)) bad('ночь не наступила или нет часов с луной: ' + JSON.stringify(r)); }
+  await page.evaluate(async () => { const { isNight } = await import('/3d/src/daynight.js'), w = window.__b3d.W, D = w.cfg.daynight, st = D.len / 400; let a = w.t; while (!isNight(a, D)) a += st; let e = a; while (isNight(e, D)) e += st; w.t = (a + e) / 2; const b = window.__b3d, n0 = b.perf().n; for (let k = 0; k < 400 && b.perf().n < n0 + 2; k++) await new Promise(r => setTimeout(r, 50)); });     // середина ближайшей ночи (длина суток — config3d.js → daynight), потом два кадра
+  { const r = await page.evaluate(() => ({ night: window.__b3d.W.night, time: document.getElementById('hudTime').getAttribute('aria-label'), dial: !!document.querySelector('#hudTime .dial i') })); if (!r.night || !r.dial || !/^Время: \d\d:\d\d · ночь$/.test(r.time)) bad('ночь не наступила или нет диска времени: ' + JSON.stringify(r)); }     // часы — диск дня и ночи (4.x), время — в подписи
   await page.screenshot({ path: join(out, '3d-night.png') });
   await page.evaluate(() => { const w = window.__b3d.W; w.t = 0; }); await page.waitForTimeout(600);
   if (await page.evaluate(() => window.__b3d.W.night)) bad('день не вернулся');
@@ -135,7 +135,7 @@ try {
   await page.tap('#tweakClose'); await page.waitForTimeout(100);
   // задания: кнопка рядом с торговцем, взять и увидеть в трекере
   await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'merchant'); w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; });
-  await page.waitForTimeout(400);
+  await page.waitForFunction(() => !document.getElementById('questBtn').hidden, null, { timeout: 20000 }).catch(() => {});     // кнопка — в кадре (программный GL)
   if (await page.evaluate(() => document.getElementById('questBtn').hidden)) bad('кнопка заданий не появилась у торговца');
   else {
     await page.tap('#questBtn'); await page.waitForTimeout(200);
@@ -154,19 +154,19 @@ try {
     await page.tap('#talk'); await page.waitForTimeout(250);
     if (await page.evaluate(() => document.getElementById('smith').hidden)) bad('окно кузнеца не открылось');
     await page.screenshot({ path: join(out, '3d-smith.png') });
-    await page.tap('#smithList .srow:first-child .buy'); await page.waitForTimeout(150);
+    await page.locator('#smithList .srow', { hasText: 'Оружие · надето' }).first().locator('.buy').tap(); await page.waitForTimeout(150);     // первой может стоять «Починить всё» (4.03)
     if (!(await page.evaluate(() => window.__b3d.W.inv.up.weapon === 1 && window.__b3d.W.inv.ash < 900))) bad('улучшение у кузнеца не сработало');
     await page.tap('#smithClose'); await page.waitForTimeout(100);
   }
   // капитан: найм бойцов в отряд
-  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'captain'); w.lv = 20; w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.inv.ash = 12000; });     // наём дороже с 3.78
+  await page.evaluate(() => { const w = window.__b3d.W, b = w.map.buildings.find(b => b.npc && b.npc.kind === 'captain'); w.lv = 40; w.player.x = b.npc.x + 1.2; w.player.z = b.npc.z; w.inv.ash = 1e6; });     // наём дороже с 3.78 (при 12 000 — только стражник); два места в отряде — с 40-го уровня (4.18д)
   await page.waitForTimeout(500);
   if ((await page.$eval('#talk', e => e.hidden || e.textContent)) !== 'Наём') bad('у капитана кнопка не «Наём»');
   else {
     await page.tap('#talk'); await page.waitForTimeout(250);
     if (await page.evaluate(() => document.getElementById('captain').hidden)) bad('окно найма не открылось');
     await page.screenshot({ path: join(out, '3d-captain.png') });
-    await page.tap('#captainList .srow:nth-child(2) .buy'); await page.tap('#captainList .srow:nth-child(3) .buy'); await page.waitForTimeout(150);
+    for (let k = 0; k < 2; k++) { await page.evaluate(() => { let m = false, b = null; for (const r of document.getElementById('captainList').children) { if (r.classList.contains('ssec')) m = /Наёмники/.test(r.textContent); else if (m && !b) { const q = r.querySelector('.buy'); if (q && !q.classList.contains('no') && /Нанять/.test(q.textContent)) b = q; } } if (b) b.click(); }); await page.waitForTimeout(300); }     // над наёмниками — раздел «Спутники» (этап 4): два наёмника из своего раздела; список перерисовывается — ищем заново
     if ((await page.evaluate(() => window.__b3d.W.allies.length)) !== 2) bad('наём не сработал: ' + (await page.evaluate(() => window.__b3d.W.allies.length)));
     { const small = await page.evaluate(() => [...document.querySelectorAll('#captain button')].filter(b => b.offsetParent && (b.getBoundingClientRect().height < 40 || b.getBoundingClientRect().width < 40)).map(b => b.textContent)); if (small.length) bad('кнопки найма мельче 40px: ' + small.join(',')); }
     await page.tap('#captainClose'); await page.waitForTimeout(100);
@@ -232,7 +232,7 @@ try {
   await page.tap('#difTabs .tab[data-id="berserk"]'); await page.tap('#tweakClose'); await page.waitForTimeout(100);
   // смерть: пепел остаётся могилой
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 30; w.player.z = 30; w.inv.ash = 400; w.player.inv = 0; w.player.hp = 1; w.cfg.player.hp = 100; const e = window.__b3d.spawn('brute', 31, 30); e.alert = true; e.state = 'wind'; e.t = w.cfg.enemies.brute.wind - .01; });
-  await page.waitForFunction(() => !document.getElementById('dead').hidden, null, { timeout: 6000 }).catch(() => {});     // экран ждёт 0,9 с игры: при 12 кадр/с это дольше 1,8 с
+  await page.waitForFunction(() => !document.getElementById('dead').hidden, null, { timeout: 30000 }).catch(() => {});     // экран ждёт 0,9 с игры: при 12 кадр/с это дольше 1,8 с
   { const r = await page.evaluate(() => ({ dead: !document.getElementById('dead').hidden, txt: document.getElementById('deadTxt').textContent, tomb: window.__b3d.W.tomb })); if (!r.dead || !r.txt.includes('100') || !r.tomb) bad('экран смерти без штрафа: ' + JSON.stringify(r)); }
   await page.screenshot({ path: join(out, '3d-death.png') }); await page.tap('#again'); await page.waitForTimeout(200);
   await page.evaluate(() => { const w = window.__b3d.W; w.tomb = null; w.inv.ash = 0; w.player.x = 0; w.player.z = 4; w.player.inv = 1e9; w.enemies = w.enemies.filter(x => x.boss); });
@@ -322,7 +322,7 @@ try {
   await page.tap('#miniBtn'); await page.waitForTimeout(250); await page.screenshot({ path: join(out, '3d-cellar-map.png') }); await page.tap('#mapClose');
   // дверь кладовой заперта: без ключа не открывается (замок на створке, напоминание); с ключом на связке — отпирается
   await page.evaluate(() => { const w = window.__b3d.W, d = w.map.doors[0]; w.keys = {}; w.player.x = d.x - 1.2; w.player.z = d.z; });
-  await page.waitForTimeout(600); await page.screenshot({ path: join(out, '3d-cellar-locked.png') });
+  await page.waitForFunction(() => [...document.querySelectorAll('.toast')].some(t => /Заперто/.test(t.textContent)), null, { timeout: 20000 }).catch(() => {}); await page.screenshot({ path: join(out, '3d-cellar-locked.png') });     // напоминание — в кадре (программный GL)
   { const r = await page.evaluate(() => ({ open: window.__b3d.W.map.doors[0].open, locked: window.__b3d.W.map.doors[0].locked, toast: [...document.querySelectorAll('.toast')].map(t => t.textContent).join(' | ') }));
     if (!r.locked || r.open > .1 || !/Заперто/.test(r.toast)) bad('дверь кладовой не заперта или нет напоминания: ' + JSON.stringify(r)); }
   await page.evaluate(() => { window.__b3d.W.keys.cellar_cooper = true; });

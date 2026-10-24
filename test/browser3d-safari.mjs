@@ -23,7 +23,7 @@ const runs = pg => pg.evaluate(async () => { const t0 = window.__b3d.W.t; await 
 try {
   // ---- Мак (Safari) ----
   { const ctx = await browser.newContext({ viewport: { width: 1440, height: 780 }, deviceScaleFactor: 2 }), pg = await ctx.newPage(); watch(pg);
-    await pg.goto(url + '?shot', { timeout: 30000 }); await pg.waitForTimeout(1500);
+    await pg.goto(url + '?shot', { waitUntil: 'domcontentloaded', timeout: 180000 }); await pg.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 180000 }); await pg.waitForTimeout(1500);
     if (!(await pg.evaluate(() => !document.getElementById('heroPick').hidden))) bad('Мак: нет выбора героя при новой игре');
     await pg.keyboard.press('Digit3'); await pg.waitForFunction(() => window.__b3d.W.hero === 'jay', null, { timeout: 4000 }).catch(() => bad('Мак: 3 не выбрала Сойку'));
     if (!(await runs(pg))) bad('Мак: игра стоит');
@@ -42,8 +42,8 @@ try {
     await pg.evaluate(() => { const W = window.__b3d.W; W.lv = 12; W.inv.ash = 555; });
     await pg.keyboard.press('Escape'); await pg.waitForTimeout(300); await pg.click('#heroSwitch'); await pg.waitForTimeout(300);
     await pg.keyboard.press('Digit1'); await pg.waitForTimeout(300);
-    const sw = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash }));     // у каждого героя свой уровень (решение владельца 2026-10-18), пепел общий
-    if (sw.hero !== 'thorn' || sw.lv !== 1 || sw.ash !== 555) bad('Мак: смена героя — у нового героя не свой уровень или пропал пепел: ' + JSON.stringify(sw));
+    const sw = await pg.evaluate(() => ({ hero: window.__b3d.W.hero, lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash }));     // у каждого героя свой уровень, сумка и пепел (1efc693, «Отдельные герои»)
+    if (sw.hero !== 'thorn' || sw.lv !== 1 || sw.ash === 555) bad('Мак: смена героя — у нового героя не свой уровень или чужой пепел: ' + JSON.stringify(sw));
     const kept = await pg.evaluate(() => (window.__b3d.W.heroes.jay || {}).lv);
     if (kept !== 12) bad('Мак: уровень Сойки не сохранился за ней: ' + kept);
     // умение по клавише 1
@@ -67,7 +67,7 @@ try {
     await ctx.close(); }
   // ---- iPhone (Safari) ----
   { const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), pg = await ctx.newPage(); watch(pg);
-    await pg.goto(url + '?shot', { timeout: 30000 }); await pg.waitForTimeout(1500);
+    await pg.goto(url + '?shot', { waitUntil: 'domcontentloaded', timeout: 180000 }); await pg.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 180000 }); await pg.waitForTimeout(1500);
     const wide = await pg.evaluate(() => [...document.querySelectorAll('.hcard')].every(c => { const r = c.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }));
     if (!wide) bad('iPhone: карточки героев шире экрана');
     await pg.locator('.hcard[data-hero="vale"]').tap(); await pg.locator('#heroGo').tap();     // выбор героя А: строка списка, затем «Войти в мир»

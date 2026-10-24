@@ -15,11 +15,12 @@ const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html`;
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage(); page.setDefaultTimeout(30000);
   page.on('pageerror', e => bad('pageerror: ' + e.message));
-  await page.goto(url, { timeout: 30000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 180000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 180000 });     // холодный vite собирает модули дольше 30 с
   await page.locator('#heroCards button').first().click(); await page.waitForFunction(() => document.getElementById('heroPick').hidden);
   for (let k = 0; k < 30 && !(await page.evaluate(() => document.getElementById('dialog').hidden)); k++) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); }
   // вход в Бездну
   await page.evaluate(() => { const W = window.__b3d.W, h = W.levels.surface.map.portals.find(q => q.abyssEnter); W.lv = 40; W.player.x = h.x; W.player.z = h.z; });
+  for (let k = 0; k < 60; k++) { await page.waitForTimeout(250); if (!(await page.evaluate(() => document.getElementById('dialog').hidden))) await page.keyboard.press('Escape'); else if (k > 12) break; }     // 40-й уровень и место у люка открывают сюжетные сцены — пролистать
   await page.waitForFunction(() => !document.getElementById('portalBtn').hidden && !document.getElementById('heroicBtn').hidden);
   const btns = await page.evaluate(() => [document.getElementById('portalBtn').textContent, document.getElementById('heroicBtn').textContent]);
   if (!/Бездна/.test(btns[0]) || !/Затмение недели/.test(btns[1])) bad('кнопки у люка: ' + JSON.stringify(btns));

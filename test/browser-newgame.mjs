@@ -16,7 +16,7 @@ const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html`;
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage(); page.setDefaultTimeout(20000);
   page.on('pageerror', e => bad('pageerror: ' + e.message));
-  await page.goto(url, { timeout: 30000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 180000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 180000 });     // холодный vite собирает модули дольше 30 с
   if (!(await page.evaluate(() => !document.getElementById('heroPick').hidden))) bad('первый запуск: нет выбора героя');
   await page.locator('#heroCards button').first().click(); await page.waitForFunction(() => document.getElementById('heroPick').hidden);
   for (let k = 0; k < 20 && !(await page.evaluate(() => document.getElementById('dialog').hidden)); k++) { await page.keyboard.press('Escape'); await page.waitForTimeout(100); }
@@ -26,9 +26,9 @@ try {
   await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.getElementById('panel').hidden);
   const bb = await page.locator('#saveReset').boundingBox();
   const nav = page.waitForEvent('framenavigated', { predicate: f => f === page.mainFrame(), timeout: 60000 });     // 2026-10-23: ждём саму перезагрузку, а не «load» — загрузка с vite бывает дольше 20 с
-  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.waitForTimeout(2500);
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down();     // держим до перезагрузки: удержание срабатывает в кадре, а программный GL даёт кадр в 1–3 с
   await nav; await page.mouse.up().catch(() => {});
-  await page.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 180000 });
   await page.waitForTimeout(1500);
   const after = await page.evaluate(() => ({ lv: window.__b3d.W.lv, ash: window.__b3d.W.inv.ash, pick: !document.getElementById('heroPick').hidden, save: JSON.parse(localStorage.getItem('berserk3d.save') || 'null'), mute: localStorage.getItem('berserk3d.mute') }));
   if (after.lv !== 1) bad(`после новой игры уровень ${after.lv}, а не 1`);

@@ -82,11 +82,11 @@ try {
   // сторож заметил героя: «!» над ним
   const spot = await page.evaluate(async () => {
     const b = window.__b3d, W = b.W, p = W.player; W.enemies.forEach(e => { if (!e.boss) e.dead = true; });
-    p.x = 62; p.z = -2; W.player.inv = 99;                       // за частоколом: в безопасном месте враги героя не замечают
-    await new Promise(r => setTimeout(r, 1500));                 // камера доезжает до героя (подписи за кадром не рисуются)
+    { let q = null; for (let R = 50; R < 90 && !q; R += 4) for (let a = 0; a < 6.28 && !q; a += .15) { const x = Math.sin(a) * R, z = Math.cos(a) * R; if (!W.cfg.map.places.some(c => Math.hypot(c.x - x, c.z - z) < (c.r || 4) + 8)) q = { x, z }; } p.x = q.x; p.z = q.z; } W.player.inv = 99;     // вне мест: в безопасном месте враги героя не замечают (ядро раздвинуто, 5.04)
+    for (let t = 0; t < 20000; t += 100) { const c = b.renderer.project(p.x, 1, p.z); if (Math.abs(c.x - innerWidth / 2) < innerWidth * .15 && Math.abs(c.y - innerHeight / 2) < innerHeight * .15) break; await new Promise(r => setTimeout(r, 100)); }     // камера доезжает до героя (подписи за кадром не рисуются; программный GL — кадр в секунду)
     const { spawnEnemy } = await import('/3d/src/sim.js');
     const e = spawnEnemy(W, 'brute', p.x + 2, p.z + 6, 'guard'); e.look = e.face = Math.atan2(p.x - e.x, p.z - e.z); e.cd = 99;
-    for (let t = 0; t < 1500 && !document.querySelector('#dmg .num.alarm'); t += 50) await new Promise(r => setTimeout(r, 50));
+    for (let t = 0; t < 6000 && !document.querySelector('#dmg .num.alarm'); t += 50) await new Promise(r => setTimeout(r, 50));     // программный GL — бывает кадр в секунду
     return { alert: e.alert, marks: [...document.querySelectorAll('#dmg .num.alarm')].length };
   });
   await page.screenshot({ path: join(out, '3d-spot.png'), clip: { x: 0, y: 100, width: 390, height: 460 } });
