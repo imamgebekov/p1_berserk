@@ -129,7 +129,7 @@ try {
     const x1 = await page.$eval('#bAtk', e => e.getBoundingClientRect().left), w1 = await page.$eval('#bAtk', e => e.getBoundingClientRect().width);
     if (!(x1 < x0 && w1 > w0)) bad(`левша/размер не сработали: x ${x0}→${x1}, w ${w0}→${w1}`);
     await page.tap('#leftyBtn'); await page.tap('.tab[data-v="1"]'); }
-  await page.tap('#fpsBtn'); await page.waitForTimeout(700); if (!/кадр/.test(await page.$eval('#fps', e => e.textContent))) bad('счётчик кадров не показан'); await page.tap('#fpsBtn');
+  await page.evaluate(() => { document.getElementById('viewMore').open = true; }); await page.tap('#fpsBtn'); await page.waitForTimeout(700); if (!/кадр/.test(await page.$eval('#fps', e => e.textContent))) bad('счётчик кадров не показан'); await page.tap('#fpsBtn');
   await page.tap('#expBtn'); await page.waitForTimeout(200); if (!(await page.$eval('#saveCode', e => e.value)).startsWith('B3D1:')) bad('код сохранения не выгружен');
   await page.screenshot({ path: join(out, '3d-prefs.png') });
   await page.tap('#tweakClose'); await page.waitForTimeout(100);

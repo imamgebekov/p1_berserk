@@ -200,21 +200,29 @@
           <label>Музыка <input id="volMusic" type="range" min="0" max="100" step="5"><output></output></label>
           <label>Звуки <input id="volSfx" type="range" min="0" max="100" step="5"><output></output></label>
         </div>
+        <details class="pfold" id="viewMore"><summary>Ещё: качество, ретро, экономия, вид</summary>
+        <h3>Качество</h3>
+        <div id="qualTabs" class="tabs"></div>
+        <p id="qualNote" class="note"></p>
         <button id="retroBtn" type="button" class="reset"></button>
         <button id="ecoBtn" type="button" class="reset"></button>
         <button id="asciiBtn" type="button" class="reset"></button>
         <button id="fpsBtn" type="button" class="reset"></button>
-        <h3>Качество</h3>
-        <div id="qualTabs" class="tabs"></div>
-        <p id="qualNote" class="note"></p>
-        <h3>Своё с устройства</h3>
+        </details>
+        <details class="pfold" id="ownBox"><summary>Своё с устройства: музыка и значки</summary>
         <p class="note">Музыка и значки остаются только в этом браузере — в игру и на сайт не попадают.</p>
         <button id="ownMusicAdd" type="button" class="reset">Загрузить свою музыку</button>
         <button id="ownMusicBtn" type="button" class="reset" hidden></button>
         <button id="ownMusicClear" type="button" class="reset" hidden></button>
         <button id="ownIconsClear" type="button" class="reset" hidden></button>
+        </details>
         <input id="ownMusicFile" type="file" accept="audio/*,.mp3,.ogg,.m4a,.wav,.flac,.opus" multiple hidden>
         <input id="ownIconFile" type="file" accept="image/*" hidden>
+        <details class="pfold" id="creditsBox"><summary>Авторы значков и моделей</summary>
+        <p class="note credits">Значки — <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a> (Lorc, Delapouite и другие авторы, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>); список — ICONS-CREDITS.md.</p>
+        <p class="note credits">3D-модели — KayKit (Kay Lousberg, CC0), Quaternius (CC0); список — MODELS-CREDITS.md.</p>
+        <p class="note credits">Рисованные значки умений — «Painterly Spell Icons» J. W. Bjerk (eleazzaar), <a href="https://www.jwbjerk.com/art" target="_blank" rel="noopener">jwbjerk.com/art</a>, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>. Музыка — «New Sunrise» и «Production Theme Intro» — nene (CC0); «Emotional orchestral music» — César da Rocha; «Article 169 Section 1» — Zander Noriega, César da Rocha, TAD (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>); с <a href="https://opengameart.org" target="_blank" rel="noopener">opengameart.org</a>; список — ART-CREDITS.md.</p>
+        </details>
       </div>
       <div class="pstack">
       <div class="pcol">
@@ -234,9 +242,6 @@
         <textarea id="saveCode" rows="2" spellcheck="false" placeholder="Код сохранения B3D1:…"></textarea>
         <div id="saveFlash"></div>
       </div>
-        <p class="note credits">Значки — <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a> (Lorc, Delapouite и другие авторы, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>); список — ICONS-CREDITS.md.</p>
-        <p class="note credits">3D-модели — KayKit (Kay Lousberg, CC0), Quaternius (CC0); список — MODELS-CREDITS.md.</p>
-        <p class="note credits">Рисованные значки умений — «Painterly Spell Icons» J. W. Bjerk (eleazzaar), <a href="https://www.jwbjerk.com/art" target="_blank" rel="noopener">jwbjerk.com/art</a>, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>. Музыка — «New Sunrise» и «Production Theme Intro» — nene (CC0); «Emotional orchestral music» — César da Rocha; «Article 169 Section 1» — Zander Noriega, César da Rocha, TAD (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>); с <a href="https://opengameart.org" target="_blank" rel="noopener">opengameart.org</a>; список — ART-CREDITS.md.</p>
       </div>
     </div>
     <details id="tweakBox">

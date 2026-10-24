@@ -54,7 +54,7 @@ try {
     // качество (шаг 14): по умолчанию «Авто» без теней; «Высокое» — тени (земля принимает, деревья и герой отбрасывают);
     // «Низкое» — холст меньше и без теней
     { const q0 = await pg.evaluate(() => window.__b3d.renderer.quality()); if (!q0.auto || q0.shadowsOn) bad('Мак: по умолчанию не «Авто» или с тенями: ' + JSON.stringify(q0));
-      const pick = async q => { await pg.keyboard.press('Escape'); await pg.waitForTimeout(200); if (await pg.evaluate(() => document.getElementById('panel').hidden)) { await pg.keyboard.press('Escape'); await pg.waitForTimeout(200); } await pg.locator(`#qualTabs .tab[data-q="${q}"]`).click(); await pg.keyboard.press('Escape'); await pg.waitForTimeout(1500); };
+      const pick = async q => { await pg.keyboard.press('Escape'); await pg.waitForTimeout(200); if (await pg.evaluate(() => document.getElementById('panel').hidden)) { await pg.keyboard.press('Escape'); await pg.waitForTimeout(200); } await pg.evaluate(() => { document.getElementById('viewMore').open = true; }); await pg.locator(`#qualTabs .tab[data-q="${q}"]`).click(); await pg.keyboard.press('Escape'); await pg.waitForTimeout(1500); };
       await pick('high');
       const h = await pg.evaluate(() => { const r = window.__b3d.renderer, q = r.quality(); let recv = 0, cast = 0; r.scene.traverse(o => { if (o.isMesh && o.receiveShadow) recv++; if (o.isMesh && o.castShadow) cast++; }); window.__b3d.perfReset(); return { on: q.shadowsOn, recv, cast }; });
       await pg.waitForTimeout(3000); const pf = await pg.evaluate(() => window.__b3d.perf());
