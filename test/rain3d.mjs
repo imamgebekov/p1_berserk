@@ -8,7 +8,10 @@ import { makeWeather } from '../3d/src/weather3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const RC = CFG3.weather.combat;
 const mk = (rain, tweak, base = CFG3) => { const c = JSON.parse(JSON.stringify(base)); c.events.on = false; c.wanderer.on = false; c.enemies.count = 0; c.bosses.list = []; c.enemies.roam.on = false; c.weather.force = rain === null ? null : rain ? 'rain' : 'clear'; if (tweak) tweak(c);
-  const W = createWorld(c, mulberry32(4)); W.player.x = 300; W.player.z = 0; W.player.inv = 1e9; step(W, 1 / 60, {}); return W; };
+  if (c.map) { c.map.outposts = []; c.map.citadel = null; }     // Мир 5.0: у (300, 0) — Застава Ольхи; бой — в чистом поле
+  const W = createWorld(c, mulberry32(4)), P = W.map.cfg.places || []; let at = { x: 300, z: 0 };     // чистое поле у (300, 0): без мест и домов на 45 м (раскладка мира меняется)
+  for (let r = 0; r < 400 && (P.some(q => Math.hypot(q.x - at.x, q.z - at.z) < (q.r || 8) + 45) || W.map.buildings.some(b => Math.hypot(b.x - at.x, b.z - at.z) < 45)); r += 10) at = { x: 300 + r * Math.cos(r * .37), z: r * Math.sin(r * .37) };
+  W.player.x = at.x; W.player.z = at.z; W.player.inv = 1e9; step(W, 1 / 60, {}); return W; };
 
 // ---------- 1. сила дождя и события ----------
 { const W = mk(null), S = makeWeather(CFG3.world.seed, CFG3.weather), seg = S.segs.find(s => s.kind === 'rain' && s.t1 - s.t0 > 40);

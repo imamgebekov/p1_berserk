@@ -10,7 +10,7 @@ import { applyStatus } from '../3d/src/status3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const WEAPON = { thorn: 'w_sword_iron', jay: 'w_bow_iron', vale: 'w_rapier_iron', irga: 'w_staff_iron', warlock: 'w_scythe_iron', priest: 'w_mace_iron', brand: 'w_greatsword_iron', hunter: 'w_sword_iron' }, X = CFG3.combos;
 function mk(hero) {
-  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.weather.force = 'clear'; cfg.enemies.roam.on = false;
+  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.map.outposts = []; cfg.map.citadel = null; cfg.weather.force = 'clear'; cfg.enemies.roam.on = false;
   const W = createWorld(cfg, () => .5); W.hero = hero; W.lv = 30; W.player.x = 300; W.player.z = 0; W.player.face = 0; W.player.inv = 1e9;
   W.inv.eq.weapon = WEAPON[hero]; for (const a of ABILITIES[hero]) W.ab[a.id] = 3; refreshGear(W); step(W, 1 / 60, {}); W.resHero = hero; W.res = 1e4; return W;
 }

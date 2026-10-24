@@ -8,7 +8,7 @@ import { createWorld, step, mulberry32, spawnEnemy, refreshGear, hurtPlayer } fr
 import { useAbility } from '../3d/src/abilities3d.js';
 import { heroRole } from '../3d/src/party3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
-const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.map.places = []; const W = createWorld(c, mulberry32(4), 'brand'); W.hero = 'brand'; W.lv = 30; W.inv.eq.weapon = 'w_greatsword_iron'; for (const a of ABILITIES.brand) W.ab[a.id] = 3; refreshGear(W); W.player.x = 300; W.player.z = 0; W.player.face = 0; step(W, 1 / 60, {}); W.resHero = 'brand'; return W; };
+const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.map.places = []; c.map.outposts = []; c.map.citadel = null; const W = createWorld(c, mulberry32(4), 'brand'); W.hero = 'brand'; W.lv = 30; W.inv.eq.weapon = 'w_greatsword_iron'; for (const a of ABILITIES.brand) W.ab[a.id] = 3; refreshGear(W); W.player.x = 300; W.player.z = 0; W.player.face = 0; step(W, 1 / 60, {}); W.resHero = 'brand'; return W; };
 const cast = (W, id) => { W.res = 1e4; return useAbility(W, ABILITIES.brand.findIndex(a => a.id === id)); };
 const run = (W, s) => { for (let i = 0; i < Math.round(s * 60); i++) step(W, 1 / 60, {}); };
 const foe = (W, dx, dz) => { const p = W.player, e = spawnEnemy(W, 'brute', p.x + dx, p.z + dz); e.hp = e.maxhp = 1e5; e.cd = 1e9; e.alert = false; return e; };

@@ -8,7 +8,7 @@ import { skillOfItem, weaponSkillOf, useWeaponSkill, WSKILL } from '../3d/src/we
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const S = CFG3.wskill;
 function mk(weapon, hero = 'thorn', gems) {
-  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.weather.force = 'clear'; cfg.enemies.roam.on = false;
+  const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.map.outposts = []; cfg.map.citadel = null; cfg.weather.force = 'clear'; cfg.enemies.roam.on = false;
   const W = createWorld(cfg, () => .5); W.hero = hero; W.player.x = 300; W.player.z = 0; W.player.face = 0; W.player.inv = 1e9;
   W.inv.eq.weapon = weapon; if (gems) W.inv.gem.weapon = gems; refreshGear(W); step(W, 1 / 60, {}); return W;
 }
