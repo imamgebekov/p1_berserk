@@ -20,7 +20,8 @@
 - **Quaternius RPG Characters (Nov 2020)** — Rogue (Бесогон, Г8): скачан 2026-10-22 с https://opengameart.org/content/lowpoly-rpg-characters (`rpg_characters_-_nov_2020.zip`, 12,9 МБ, CC0). Из FBX в glTF через three.js (FBXLoader → GLTFExporter), текстура WebP 512, без кинжала и лишних клипов → `q_rogue.glb`. Сейчас — запасной облик (в едином стиле Бесогон — kk_hunter).
 
 ## CC BY 4.0
-Моделей CC BY больше нет: семь моделей Sketchfab заменены на CC0 (2026-10-22, путь А).
+Семь моделей Sketchfab заменены на CC0 (2026-10-22, путь А).
+- **Meshy** (https://www.meshy.ai, бесплатный тариф — CC BY 4.0, автор в титрах — Meshy): Мшистый Зверь (`gen_mossbeast.glb`, 2026-10-24). Картинка — FLUX.1 [schnell] (Apache 2.0) в Draw Things по промпту из `_packs/gen/`; сетка упрощена `tools/meshy-pack.mjs` (192 тыс. → 12 тыс. треуг.), текстура 1024.
 
 ## Текстуры земли (CC0)
 - **Tiny Texture Pack 1 и 2** — Screaming Brain Studios, https://opengameart.org/content/tiny-texture-pack — Grass 12, Dirt 02, Stone 11.

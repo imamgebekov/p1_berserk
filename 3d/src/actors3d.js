@@ -249,7 +249,10 @@ export function driveFoe(A, e, time, dt, cfg) {
   { const R = A.root; R.rotation.set(0, 0, 0); R.position.set(0, 0, 0);
     if (e.dead && !A.has('death')) { const k = Math.min(1, (e.deadT || 0) / .5); R.rotation.z = -1.45 * k; R.position.y = -.15 * k; }
     else if (!A.has(atkA) && e.state === 'wind') { const k = Math.min(1, Math.max(0, e.t) / Math.max(.15, C.wind || .5)); R.rotation.x = -.3 * k; R.position.z = -.15 * k; }
-    else if (!A.has(atkA) && e.state === 'rec') { const k = Math.min(1, e.t / .25); R.rotation.x = .4 * (1 - k); R.position.z = .3 * (1 - k); } }
+    else if (!A.has(atkA) && e.state === 'rec') { const k = Math.min(1, e.t / .25); R.rotation.x = .4 * (1 - k); R.position.z = .3 * (1 - k); }
+    const RG = A.kit.rigid; R.scale.set(1, 1, 1);     // модель без скелета (из Meshy): дыхание на месте, покачивание и подскок при ходьбе
+    if (RG && !e.dead) { const mv = (A.sp || 0) > RG.moveAt, ph = time * (mv ? RG.stepHz : RG.breatheHz) * Math.PI * 2;
+      if (mv) { R.position.y += Math.abs(Math.sin(ph)) * RG.bob; R.rotation.z += Math.sin(ph) * RG.sway; R.rotation.x += RG.lean; } else R.scale.y = 1 + Math.sin(ph) * RG.breathe; } }
   A.update(dt);
 }
 export function soldierActor(cfg, type) {     // солдат отряда на модели KayKit (путь А, 2026-10-22): вид по cfg.actors.squad (тип или look), цвет отряда — в ячейках cells, своё оружие
