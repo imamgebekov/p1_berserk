@@ -150,7 +150,16 @@ export function buildLevelView(L, cfg) {
   for (const q of M.portals) { const ri = roomAt(M, q.x, q.z); group.add(stairs(q, ri >= 0 ? M.rooms[ri] : M.bounds)); }
   // двери: створка на петле у края проёма, открывается внутрь дальней комнаты
   const doorMat = mat('#5a3f28', 'auto', { plank: .25 }), bandMat = mat('#2a2018', 'metal'), doors = [];
+  const cracks = [], TH = th;     // тема — до цикла: в цикле th — толщина створки
   for (const d of M.doors) {
+    if (d.crack) {     // трещина (план подземелий, 2г): кусок стены с изломами; рушится от удара
+      const g = new THREE.Group(), R = d.rect, cx = (R.x0 + R.x1) / 2, cz = (R.z0 + R.z1) / 2, lw = R.x1 - R.x0, ld = R.z1 - R.z0;
+      g.add(new THREE.Mesh(box(lw, D.wallH, ld, cx, D.wallH / 2, cz), mat(TH.wall || '#5a5048', 'masonry')));
+      const dark = new THREE.MeshBasicMaterial({ color: '#120c08' }), parts = [];
+      for (const [k, y, a] of [[-.25, .35, .9], [0, .7, -.7], [.22, 1.05, .8], [-.1, .95, 1.2]]) parts.push(new THREE.BoxGeometry(d.vert ? .02 : .5, .06, d.vert ? .5 : .02).rotateY(d.vert ? 0 : 0).rotateX(d.vert ? a : 0).rotateZ(d.vert ? 0 : a).translate(d.vert ? cx : cx + k * lw, y, d.vert ? cz + k * ld : cz));
+      for (const sgn of [-1, 1]) { const m = new THREE.Mesh(mergeGeometries(parts), dark); if (d.vert) m.position.x = sgn * (lw / 2 + .011); else m.position.z = sgn * (ld / 2 + .011); g.add(m); }
+      group.add(g); cracks.push({ d, g }); continue;
+    }
     const hinge = new THREE.Group(), w = d.w, th = D.wall * .5;
     hinge.add(new THREE.Mesh(new THREE.BoxGeometry(w, D.wallH * .95, th).translate(w / 2, D.wallH * .475, 0), doorMat));
     hinge.add(new THREE.Mesh(mergeGeometries([box(w, .08, th + .04, w / 2, D.wallH * .25, 0), box(w, .08, th + .04, w / 2, D.wallH * .7, 0)]), bandMat));
@@ -173,6 +182,7 @@ export function buildLevelView(L, cfg) {
   }
   function update(W) {
     for (const it of doors) { it.hinge.rotation.y = it.base + it.d.open * Math.PI / 2; if (it.lock) it.lock.visible = !!it.d.locked; }
+    for (const it of cracks) it.g.visible = !!it.d.locked;
     for (const it of trapV) { const ph = W ? trapPhase(W.cfg, it.q, W.t) : { arm: 0, hot: false, swing: 0 };
       it.plateM.emissiveIntensity = ph.arm * .9 + (ph.hot && it.q.kind !== 'blade' ? .5 : 0);
       if (it.part) { it.part.visible = ph.hot; if (it.q.kind === 'fire') it.part.scale.y = .6 + .4 * Math.random(); }

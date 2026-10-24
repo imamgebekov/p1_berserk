@@ -68,6 +68,7 @@ export function genDef(cfg, def0, seed) {
   const fire = fireN >= 0 ? { x: L.cells[fireN].x, z: L.cells[fireN].z } : null;
   const doors = locks(cfg, def0, L, rooms, chests, bossCells, fireN, rnd);     // двери и ключи (план подземелий, 2б)
   const traps = placeTraps(cfg, def0, L, rooms, rnd);     // ловушки в коридорах пути (план подземелий, 2в)
+  secrets(cfg, def0, L, rooms, chests, doors, bossCells, rnd);     // тайники за трещиной (план подземелий, 2г)
   return { ...def0, rooms, doors, spawns, chests: (def0.chests || []).length ? chests.concat(bosses.length ? [{ kind: 'altar', x: L.cells[L.path[L.path.length - 1]].x, z: L.cells[L.path[L.path.length - 1]].z + 3 }] : []) : chests,
     entry, exit, bosses, fire, props, traps, gen: { seed, rooms: L.cells.length, main: L.path.length }, guard: null };
 }
@@ -87,6 +88,22 @@ function locks(cfg, def0, L, rooms, chests, bossCells, fireN, rnd) {
     chests.push({ kind: 'coffer', x: kc.x + (rnd() - .5) * (kc.w - 4), z: kc.z + (rnd() - .5) * (kc.d - 4), key: kid });
   });
   return doors;
+}
+
+// тайники (план подземелий, 2г): маленький скрытый зал в свободной соседней клетке сетки; проход к нему из зала-родителя закрыт
+// трещиной в стене — дверь crack без ключа, открывается ударом героя рядом. Внутри — «Тайник»
+function secrets(cfg, def0, L, rooms, chests, doors, bossCells, rnd) {
+  const S = cfg.dungeons.secrets; if (!S || !S.on) return;
+  const C = cfg.dungeons.gen.cell, used = new Set(L.cells.map(c => c.i + ',' + c.j)), want = def0.raid ? S.raid : S.dungeon, opts = [];
+  for (const c of L.cells) if (c.n !== 0 && !bossCells.has(c.n) && !rooms[c.n].kind) for (const [di, dj] of DIRS) if (!used.has((c.i + di) + ',' + (c.j + dj))) opts.push([c, di, dj]);
+  for (let n = 0; n < want && opts.length; n++) {
+    const [P, di, dj] = opts.splice(Math.floor(rnd() * opts.length), 1)[0], i = P.i + di, j = P.j + dj; if (used.has(i + ',' + j)) { n--; continue; } used.add(i + ',' + j);
+    const s = S.size, X = i * C, Z = j * C, id = 'sec' + n, cid = 'sk' + n;
+    rooms.push({ id, x: X, z: Z, w: s, d: s, secret: true });
+    if (di) { const x0 = Math.min(P.x, X) + (di > 0 ? P.w : s) / 2, x1 = Math.max(P.x, X) - (di > 0 ? s : P.w) / 2; rooms.push({ id: cid, x: (x0 + x1) / 2, z: Z, w: x1 - x0, d: cfg.dungeons.gen.corr, corr: true, secret: true }); }
+    else { const z0 = Math.min(P.z, Z) + (dj > 0 ? P.d : s) / 2, z1 = Math.max(P.z, Z) - (dj > 0 ? s : P.d) / 2; rooms.push({ id: cid, x: X, z: (z0 + z1) / 2, w: cfg.dungeons.gen.corr, d: z1 - z0, corr: true, secret: true }); }
+    doors.push({ a: rooms[P.n].id, b: cid, lock: 'crack', crack: true, hide: [cid, id] }); chests.push({ kind: 'cache', x: X, z: Z });
+  }
 }
 
 export function mulberry(a) { return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }

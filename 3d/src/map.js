@@ -260,7 +260,7 @@ export function pathStep(map, x, z, tx, tz, keys = null) {
 // двери в проёмах, граф связей (links, adj — для путей врагов и отряда), контейнеры, лестница наверх
 export function makeLevelMap(cfg, def) {
   const D = cfg.dungeons, t = D.wall;
-  const rooms = def.rooms.map((r, i) => ({ i, id: r.id || 'r' + i, x0: r.x - r.w / 2, x1: r.x + r.w / 2, z0: r.z - r.d / 2, z1: r.z + r.d / 2, corridor: r.corr ?? Math.min(r.w, r.d) <= D.corridorMax, fill: r.fill || 'normal', kind: r.kind || null, ...(r.shape ? { shape: r.shape, sh: r } : {}) }));     // sh — описание формы (dungeonstyle3d)
+  const rooms = def.rooms.map((r, i) => ({ i, id: r.id || 'r' + i, x0: r.x - r.w / 2, x1: r.x + r.w / 2, z0: r.z - r.d / 2, z1: r.z + r.d / 2, corridor: r.corr ?? Math.min(r.w, r.d) <= D.corridorMax, fill: r.fill || 'normal', kind: r.kind || null, secret: !!r.secret, ...(r.shape ? { shape: r.shape, sh: r } : {}) }));     // sh — описание формы (dungeonstyle3d)
   // стены: полосы снаружи каждой комнаты (с углами), из которых вырезан пол всех комнат
   let blocks = [];
   for (const r of rooms) blocks.push({ x0: r.x0 - t, x1: r.x1 + t, z0: r.z0 - t, z1: r.z0 }, { x0: r.x0 - t, x1: r.x1 + t, z0: r.z1, z1: r.z1 + t }, { x0: r.x0 - t, x1: r.x0, z0: r.z0, z1: r.z1 }, { x0: r.x1, x1: r.x1 + t, z0: r.z0, z1: r.z1 });
@@ -287,7 +287,8 @@ export function makeLevelMap(cfg, def) {
     if (!L) throw new Error(`дверь ${dd.a}–${dd.b} в ${def.id}: комнаты не соприкасаются`);
     const rect = L.vert ? { x0: L.line - t / 2, x1: L.line + t / 2, z0: L.s0, z1: L.s1 } : { x0: L.s0, x1: L.s1, z0: L.line - t / 2, z1: L.line + t / 2 };
     L.door = doors.length;
-    doors.push({ id: doors.length, x: L.x, z: L.z, vert: L.vert, s0: L.s0, s1: L.s1, line: L.line, w: L.s1 - L.s0, rect, open: 0, link: links.indexOf(L), lock: dd.lock || null, locked: !!dd.lock, cd: 0 });
+    doors.push({ id: doors.length, x: L.x, z: L.z, vert: L.vert, s0: L.s0, s1: L.s1, line: L.line, w: L.s1 - L.s0, rect, open: 0, link: links.indexOf(L), lock: dd.lock || null, locked: !!dd.lock, crack: !!dd.crack, cd: 0 });
+    for (const r of rooms) if ((dd.hide || []).includes(r.id)) r.crackDoor = doors.length - 1;     // скрытые зал и коридор — за этой трещиной (план подземелий, 2г)
   }
   // сколько проходов между комнатами (поиск в ширину из каждой): по этому числу враги слышат героя
   const hops = rooms.map((_, s) => { const h = rooms.map(() => Infinity); h[s] = 0; const q = [s]; while (q.length) { const r = q.shift(); for (const li of adj[r]) { const l = links[li], o = l.a === r ? l.b : l.a; if (h[o] === Infinity) { h[o] = h[r] + 1; q.push(o); } } } return h; });

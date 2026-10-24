@@ -35,10 +35,12 @@ export function drawMap(ctx, W, v) {
   if (under) {
     // подземелье: пол комнат, стены, лестница
     ctx.fillStyle = '#2a221d'; for (const r of M.rooms) ctx.fillRect(X(r.x0), Y(r.z0), (r.x1 - r.x0) * sc, (r.z1 - r.z0) * sc);
-    for (const d of M.doors) if (d.open < .6) { ctx.fillStyle = d.locked ? '#d03a2a' : '#7a5030'; ctx.fillRect(X(d.rect.x0), Y(d.rect.z0), Math.max(2, (d.rect.x1 - d.rect.x0) * sc), Math.max(2, (d.rect.z1 - d.rect.z0) * sc)); }      // запертая — красная
+    for (const d of M.doors) if (d.open < .6 && !(d.crack && d.locked)) { ctx.fillStyle = d.locked ? '#d03a2a' : '#7a5030'; ctx.fillRect(X(d.rect.x0), Y(d.rect.z0), Math.max(2, (d.rect.x1 - d.rect.x0) * sc), Math.max(2, (d.rect.z1 - d.rect.z0) * sc)); }      // запертая — красная
     ctx.fillStyle = '#6a5a4c'; for (const b of M.blocks) if (!b.pit) ctx.fillRect(X(b.x0), Y(b.z0), Math.max(1, (b.x1 - b.x0) * sc), Math.max(1, (b.z1 - b.z0) * sc));
     ctx.fillStyle = '#050303'; for (const q of M.pits || []) ctx.fillRect(X(q.x0), Y(q.z0), (q.x1 - q.x0) * sc, (q.z1 - q.z0) * sc);     // провалы
     ctx.fillStyle = '#6a5a4c'; for (const c of M.pillars || []) ctx.fillRect(X(c.x - c.r), Y(c.z - c.r), Math.max(2, c.r * 2 * sc), Math.max(2, c.r * 2 * sc));
+    { const t = W.cfg.dungeons.wall + .1; ctx.fillStyle = '#0c0807'; for (const r of M.rooms) if (r.crackDoor != null && M.doors[r.crackDoor].locked) ctx.fillRect(X(r.x0 - t), Y(r.z0 - t), (r.x1 - r.x0 + 2 * t) * sc, (r.z1 - r.z0 + 2 * t) * sc);     // тайник за целой трещиной не виден (план подземелий, 2г)
+      ctx.fillStyle = '#6a5a4c'; for (const d of M.doors) if (d.crack && d.locked) ctx.fillRect(X(d.rect.x0), Y(d.rect.z0), Math.max(2, (d.rect.x1 - d.rect.x0) * sc), Math.max(2, (d.rect.z1 - d.rect.z0) * sc)); }
   } else {
     // мир: подложка с рельефом (пока строится — ровная земля), край мира
     if (RL) { ctx.imageSmoothingEnabled = true; ctx.fillStyle = '#7a8a5a'; ctx.beginPath(); ctx.arc(X(OX), Y(OZ), R * sc, 0, 6.2832); ctx.fill(); ctx.drawImage(RL.canvas, X(RL.X0), Y(RL.Z0), RL.W * sc, RL.H * sc); }     // 4.05: подложка шире круга мира

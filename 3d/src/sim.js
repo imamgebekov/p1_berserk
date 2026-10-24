@@ -947,6 +947,10 @@ function updateHouses(W, dt) {
     d.open = clamp(d.open + (near ? 1 : -1) * dt * 4, 0, 1);
   }
   for (const d of W.map.doors || []) {      // двери подземелий: так же открываются, когда рядом кто-то есть
+    if (d.locked && d.crack) {     // трещина (план подземелий, 2г): рушится от удара героя рядом; подсказка — один раз
+      if (!p.dead && len(p.x - d.x, p.z - d.z) < M.doorReach + .6) { if ((p.state === 'atk' || p.state === 'charge') && p.atkT > .05) { d.locked = false; d.open = 1; W.ev.push({ k: 'crack', x: d.x, z: d.z }); } else if (!d.hint) { d.hint = true; W.ev.push({ k: 'crackNear', x: d.x, z: d.z }); } }
+      if (d.locked) continue;
+    }
     if (d.locked) {                            // заперта: отпирает герой с ключом на связке; без ключа — напоминание, какой нужен
       if (d.cd > 0) d.cd -= dt;
       d.open = Math.max(0, d.open - dt * 4);

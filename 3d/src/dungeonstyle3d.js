@@ -58,7 +58,7 @@ export function styleDef(cfg, def, bosses = []) {
   // точки, которые нельзя ставить в провал или колонну
   const busy = [def.entry, def.exit, def.down, def.guard, def.fire, ...bosses].filter(Boolean);
   for (const r of def.rooms) {
-    if (r.corr || r.shape || r.kind) continue;     // kind — ключевой зал (план подземелий, 2а): форма уже задана
+    if (r.corr || r.shape || r.kind || r.secret) continue;     // kind — ключевой зал (план подземелий, 2а): форма уже задана; secret — тайник (2г)
     const u = hash(def.id + '|' + r.id), u2 = hash(r.id + '#' + def.id);
     r.fill = Math.min(r.w, r.d) >= S.fillMin ? wpick(u2, S.fill) : 'normal';
     if (Math.min(r.w, r.d) < S.shapeMin) continue;
