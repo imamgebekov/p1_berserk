@@ -194,6 +194,23 @@ export function genWorld(cfg, buildings) {
       for (let i = 0; i < 18; i++) { const x = c.x + (rw() - .5) * c.H * 1.8, z = c.z + (rw() - .5) * c.H * 1.8; if (free(x, z, 1.2) && Math.hypot(x - c.x, z - c.z) > 10) put(['crate_d', 'barrel_d', 'bones', 'wheel'][(rw() * 4) | 0], x, z, { rot: rw() * 3 }); }
       reserved.length = 0;
     }
+    // замок Мира 5.0 (этап 4): высокие стены с воротами на четыре стороны, башни по углам и посередине стен, у ворот — надвратные башни;
+    // двор: мостовая от ворот к площади перед донжоном, жаровни, статуя, рынок, знамёна, колодец, фонари
+    { const c = M.citadel; if (c) {
+      square(c, c.H, 1.8, c.gate, ['s', 'n', 'e', 'w'], 'cwall', 'cgate');
+      for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = c.x + sx * c.H, z = c.z + sz * c.H; solids.push({ x, z, r: 2.6 }); decor.push({ t: 'ctower', x, z }); }
+      for (const [sx, sz] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) for (const k of [-.5, .5]) { const x = c.x + sx * c.H + (sz ? k * c.H : 0), z = c.z + sz * c.H + (sx ? k * c.H : 0); solids.push({ x, z, r: 2.4 }); decor.push({ t: 'ctower', x, z }); }
+      for (const [sx, sz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) for (const sg of [-1, 1]) { const x = c.x + sx * c.H + (sz ? sg * (c.gate / 2 + 2.8) : 0), z = c.z + sz * c.H + (sx ? sg * (c.gate / 2 + 2.8) : 0); solids.push({ x, z, r: 2.4 }); decor.push({ t: 'ctower', x, z }); }
+      decor.push({ t: 'paving', x: c.x, z: c.z + 6, w: 30, d: 20 });
+      { const Le = c.H - 15, Ls = c.H - 16; for (const sx of [-1, 1]) decor.push({ t: 'paving', x: c.x + sx * (15 + Le / 2), z: c.z + 6, w: Le, d: 6 }); decor.push({ t: 'paving', x: c.x, z: c.z + 16 + Ls / 2, w: 6, d: Ls }); }     // улицы к восточным, западным и южным воротам (север — за донжоном)
+      for (const [lx, lz] of [[-14, -2], [14, -2], [-14, 15], [14, 15]]) solid('brazier', c.x + lx, c.z + lz, .5);
+      solid('statue', c.x, c.z + 10, 1.4, { rot: 0 });
+      for (let i = 0; i < 4; i++) { const x = c.x - 9 + i * 6, z = c.z + 24; if (free(x, z, 1.4)) solid('stall', x, z, 1.1, { rot: 0, c: ['#6a2a24', '#2a4a6a', '#5a5a2a', '#4a2a5a'][i] }); }
+      for (const [lx, lz] of [[-8, -9], [8, -9], [-22, 6], [22, 6]]) put('banner', c.x + lx, c.z + lz, { rot: 0 });
+      { const x = c.x - 12, z = c.z + 34; if (free(x, z, 1.4)) solid('well', x, z, 1.1); }
+      for (const [lx, lz] of [[-5, c.H - 8], [5, c.H - 8], [-c.H + 8, 5], [c.H - 8, 5], [-5, 30], [5, 30]]) put('lamp', c.x + lx, c.z + lz);
+      reserved.length = 0;
+    } }
     for (const v of M.places || []) { if (v.type !== 'hamlet' || !v.gen) continue;     // посёлки: колодец, стога, изгородь, фонари
       { const x = v.x + 2.5, z = v.z - 2.5; if (free(x, z, 1.4)) solid('well', x, z, 1.1); }
       for (let i = 0; i < 3; i++) { const a = rw() * TAU, d = v.r - 2 + rw() * 3, x = v.x + Math.cos(a) * d, z = v.z + Math.sin(a) * d; if (free(x, z, 2) && !nearRoad(x, z, 2.5)) solid('haystack', x, z, 1.2, { s: .7 + rw() * .4 }); }

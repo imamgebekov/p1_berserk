@@ -24,11 +24,12 @@ function grown(cfg) {
   const M = cfg.map, K = M.bScale || 1, gap = M.bGap || 1.5, out = M.buildings.map(b => ({ ...b })); if (K <= 1) return out;
   const camp = campOf(cfg), cw = [camp, ...(M.outposts || [])].filter(Boolean).flatMap(C => [...campWalls(C).blocks, ...campGates(C).map(g => ({ x0: Math.min(C.x, g.x) - 1.4, x1: Math.max(C.x, g.x) + 1.4, z0: Math.min(C.z, g.z) - 1.4, z1: Math.max(C.z, g.z) + 1.4 }))]),     // и лагеря Мира 5.0
     pts = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden && !d.sub).map(d => d.at);     // уличные сундуки не мешают: их отодвигает makeMap     // и дороги от центра к воротам
+  const fields = (M.zones || []).filter(z => z.type === 'farm' && z.w).map(z => ({ x0: z.x - z.w / 2, x1: z.x + z.w / 2, z0: z.z - z.d / 2, z1: z.z + z.d / 2 }));     // 2026-10-24: дом растёт, не залезая на поля
   const S = { e: [1, 0], w: [-1, 0], s: [0, 1], n: [0, -1] }, front = o => { const [dx, dz] = S[o.door] || [0, 0]; return { x: o.x + dx * (o.w / 2 + 2.6) + (dz ? o.off || 0 : 0), z: o.z + dz * (o.d / 2 + 2.6) + (dx ? o.off || 0 : 0) }; };     // площадка перед дверью
   const hit = (b, i, k) => { const [dx, dz] = S[b.door] || [0, 0], fx = gap + 1, hw = b.w * k / 2 + gap, hd = b.d * k / 2 + gap;     // перед своей дверью — запас больше
     const x0 = b.x - hw - (dx < 0 ? fx : 0), x1 = b.x + hw + (dx > 0 ? fx : 0), z0 = b.z - hd - (dz < 0 ? fx : 0), z1 = b.z + hd + (dz > 0 ? fx : 0), inR = (x, z, p = 0) => x > x0 - p && x < x1 + p && z > z0 - p && z < z1 + p;
     return out.some((o, j) => j !== i && (o.x + o.w / 2 > x0 && o.x - o.w / 2 < x1 && o.z + o.d / 2 > z0 && o.z - o.d / 2 < z1 || (() => { const f = front(o); return Math.abs(f.x - b.x) < b.w * k / 2 + .9 && Math.abs(f.z - b.z) < b.d * k / 2 + .9; })()))
-      || pts.some(p => inR(p.x, p.z)) || cw.some(w => w.x1 > x0 && w.x0 < x1 && w.z1 > z0 && w.z0 < z1); };
+      || pts.some(p => inR(p.x, p.z)) || cw.some(w => w.x1 > x0 && w.x0 < x1 && w.z1 > z0 && w.z0 < z1) || fields.some(w => w.x1 > x0 && w.x0 < x1 && w.z1 > z0 && w.z0 < z1); };
   out.forEach((b, i) => { let k = K; while (k > 1.001 && hit(b, i, k)) k -= .05; b.w = Math.round(b.w * k * 10) / 10; b.d = Math.round(b.d * k * 10) / 10; });
   return out;
 }
@@ -83,10 +84,12 @@ export function makeMap(cfg) {
   { const coreR = cfg.worldgen && cfg.worldgen.on && cfg.world.radius > cfg.worldgen.coreR ? cfg.worldgen.coreR : Infinity; for (const c of containers) c.far = Math.hypot(c.x, c.z) > coreR; }     // сундуки пояса большого мира наполняются, когда герой рядом (C3b)
   const camp = campOf(cfg), { blocks, foeBlocks } = camp ? campWalls(camp) : { blocks: [], foeBlocks: [] }, outposts = (cfg.map.outposts || []).map(o => ({ ...o }));
   for (const o of outposts) { const w = campWalls(o); blocks.push(...w.blocks); foeBlocks.push(...w.foeBlocks); }     // лагеря Мира 5.0 (этап 2): свой частокол и ворота
+  const C0 = cfg.map.citadel, citadel = C0 ? { ...C0, r: C0.H, gates: [0, 90, 180, 270], gateW: C0.gate, foeDepth: (cfg.camp && cfg.camp.foeDepth) || 2.5, square: true } : null;     // замок Мира 5.0 (этап 4): стены — в world3d.js
+  if (citadel) for (const g of campGates(citadel)) { const w = citadel.gateW / 2 + .4, d = citadel.foeDepth / 2, nx = Math.sign(g.x - citadel.x), nz = Math.sign(g.z - citadel.z); foeBlocks.push(g.alongX ? { x0: g.x - w, x1: g.x + w, z0: g.z - d, z1: g.z + d, nx: 0, nz } : { x0: g.x - d, x1: g.x + d, z0: g.z - w, z1: g.z + w, nx, nz: 0 }); }     // враги в ворота замка не проходят
   blocks.push(...gen.blocks);                                                          // стены замков (C4c)
   const portals = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden && !d.sub).map(d => ({ x: d.at.x, z: d.at.z, to: d.id, tx: d.entry.x, tz: d.entry.z, up: false, ...(d.inst ? { gate: d.raid ? 'raid' : 'inst', face: gateFace(d) } : {}) }));
   for (const q of portals) if (q.gate) blocks.push(...gateBlocks(q));     // ворота подземелий и рейдов (4.18в): стены — препятствия, проём открыт
-  return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, paths: gen.paths, camp, outposts, blocks, foeBlocks, river: riverOf(cfg), plateaus: M.plateaus || [] };
+  return { level: 'surface', buildings, walls, containers, portals, cfg: M, solids: gen.solids, decor: gen.decor, roads: gen.roads, paths: gen.paths, camp, outposts, citadel, blocks, foeBlocks, river: riverOf(cfg), plateaus: M.plateaus || [] };
 }
 export function addFires(map, cfg, firesOf) { map.fires = firesOf(map, cfg); for (const f of map.fires) if (!f.home) map.decor.push({ t: 'campfire', x: f.x, z: f.z, fire: true }); return map;     // костры быстрого перемещения (C3d): вид, не препятствия
 }
@@ -318,7 +321,7 @@ export function propsBlocked(map, x, z) {
   if (inCliff(map.plateaus, x, z, 1.8)) return true;                     // не у края обрыва
   for (const c of map.cfg.castles || []) if (Math.abs(x - c.x) < 19 && Math.abs(z - c.z) < 19) return true;     // не в замке и не у стен
   for (const q of map.portals || []) if (q.gate && Math.hypot(q.x - x, q.z - z) < 6 * (GATE[q.gate] || 1)) return true;     // 4.18в: не у ворот подземелья и рейда
-  for (const c of [...(map.cfg.forts || []), ...(map.cfg.cities || [])]) if (Math.abs(x - c.x) < c.H + 3 && Math.abs(z - c.z) < c.H + 3) return true;     // не в лагере врагов и не в городе (2026-10-18)
+  for (const c of [...(map.cfg.forts || []), ...(map.cfg.cities || []), ...(map.cfg.citadel ? [map.cfg.citadel] : [])]) if (Math.abs(x - c.x) < c.H + 3 && Math.abs(z - c.z) < c.H + 3) return true;     // не в лагере врагов и не в городе (2026-10-18)
   for (const P of map.plateaus || []) { const d = Math.hypot(x - P.x, z - P.z), a = Math.atan2(x - P.x, z - P.z); if (d > P.r - 3 && d < P.r + P.len + 2 && P.ramps.some(q => { let v = Math.abs(a - q) % 6.2832; if (v > 3.1416) v = 6.2832 - v; return v < P.rw + .15; })) return true; }     // и на въезде
   for (const zn of map.cfg.zones || []) { const hw = zn.w ? zn.w / 2 + 2 : zn.r + 3, hd = zn.d ? zn.d / 2 + 2 : zn.r + 3; if (Math.abs(x - zn.x) < hw && Math.abs(z - zn.z) < hd) return true; }
   for (const c of map.containers) if (Math.hypot(c.x - x, c.z - z) < 2) return true;
@@ -366,9 +369,9 @@ export function solveLocks(map, startX, startZ, have = []) {     // have — к�
 // ---- закрытый лагерь ----
 // лагерь есть, если в конфиге есть его место (тесты чистого боя убирают места — и лагерь с ними)
 export function campOf(cfg) { const C = cfg.camp; return C && (cfg.map.places || []).some(p => p.id === C.place) ? C : null; }
-export const insideCamp = (C, x, z, pad = 0) => !!C && Math.hypot(x - C.x, z - C.z) < C.r - pad;
+export const insideCamp = (C, x, z, pad = 0) => !!C && (C.square ? Math.abs(x - C.x) < C.r - pad && Math.abs(z - C.z) < C.r - pad : Math.hypot(x - C.x, z - C.z) < C.r - pad);     // square — замок Мира 5.0
 // лагерь (главный или лагерь Мира 5.0), внутри которого точка, или null
-export const campAt = (map, x, z, pad = 0) => (map.camp && insideCamp(map.camp, x, z, pad) ? map.camp : (map.outposts || []).find(C => insideCamp(C, x, z, pad)) || null);
+export const campAt = (map, x, z, pad = 0) => (map.camp && insideCamp(map.camp, x, z, pad) ? map.camp : (map.outposts || []).find(C => insideCamp(C, x, z, pad)) || (map.citadel && insideCamp(map.citadel, x, z, pad) ? map.citadel : null));
 // ворота: точка на окружности; alongX — проём тянется вдоль x (ворота на юге и севере)
 export function campGates(C) { return C.gates.map(a => { const r = a * Math.PI / 180; return { a, x: C.x + Math.sin(r) * C.r, z: C.z + Math.cos(r) * C.r, alongX: Math.abs(Math.cos(r)) > .7 }; }); }
 // частокол: кольцо маленьких квадратов (столкновения — только прямоугольники), в воротах — проём; для врагов проём закрыт полосой

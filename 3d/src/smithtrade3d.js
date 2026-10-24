@@ -14,8 +14,8 @@ export const tierOf = lv => (lv < 30 ? 1 : lv < 55 ? 2 : 3);
 // место кузнеца рядом: { id, name, lv, price }
 export function smithPlace(W) {
   if (W.nearNpc !== 'smith') return null;
-  const M = surf(W), id = W.nearVil || 'camp', O = (M.outposts || []).find(o => o.id === id);
-  if (O) return { id, name: O.name, lv: O.lv, price: O.price || 1 };
+  const M = surf(W), id = W.nearVil || 'camp', O = (M.outposts || []).find(o => o.id === id) || (M.citadel && M.citadel.id === id ? M.citadel : null);
+  if (O) return { id, name: O.name, lv: O.lv, price: O.price || 1, tier: O.tier };     // tier — замок: лучшая ступень при своём уровне
   const p = (W.cfg.map.places || []).find(q => q.id === id);
   if (p && p.hub) return { id, name: p.name, lv: Math.round(zoneLevel(W.cfg, p.x, p.z) ?? 20), price: 1 };
   return { id, name: 'Пепельный Брод', lv: 20, price: 1 };
@@ -27,7 +27,7 @@ export function smithGoods(cfg, t) {
   return { gems, reag, mats: S.mats[t - 1].filter(id => BY_ID[id]), extra: t >= 3 ? [cfg.craft.ember, cfg.craft.shard].filter(id => id && BY_ID[id]) : [] };
 }
 function restock(W, P) {
-  const S = W.cfg.smithTrade, t = tierOf(P.lv), n = Math.floor(W.t / W.cfg.shop.restock), r = mul(hash(P.id) + n * 7919 + (W.cfg.world.seed || 1)), G = smithGoods(W.cfg, t), out = [];
+  const S = W.cfg.smithTrade, t = P.tier || tierOf(P.lv), n = Math.floor(W.t / W.cfg.shop.restock), r = mul(hash(P.id) + n * 7919 + (W.cfg.world.seed || 1)), G = smithGoods(W.cfg, t), out = [];
   const pick = (arr, k, [a, b]) => { const pool = [...arr]; for (let i = 0; i < k && pool.length; i++) { const id = pool.splice((r() * pool.length) | 0, 1)[0]; out.push({ id, n: a + ((r() * (b - a + 1)) | 0) }); } };
   pick(G.gems, S.gems[t - 1], S.n.gem); pick(G.reag, S.reag[t - 1], S.n.reag); pick(G.mats, G.mats.length, S.n.mat); pick(G.extra, G.extra.length, [1, 1]);
   return { id: P.id, stock: out, at: W.t, lv: P.lv, tier: t, price: P.price, name: P.name };

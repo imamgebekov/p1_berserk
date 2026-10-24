@@ -60,7 +60,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange, onOwnIcon
       const grid = el('div', 'tgrid'); grid.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`; grid.style.gridTemplateRows = `repeat(${ROWS}, auto)`;
       const lines = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); lines.setAttribute('class', 'tlines'); lines.setAttribute('viewBox', `0 0 ${COLS * 10} ${ROWS * 10}`); lines.setAttribute('preserveAspectRatio', 'none');
       for (const n of br.nodes) {
-        const r = rankOf(RW, n), st = canBuy(W, n.key), b = el('button', 'tnode ' + n.kind + (r >= n.max ? ' full' : r ? ' some' : '') + (st === 'ok' ? ' can' : '') + (st === 'row' || st === 'req' ? ' lock' : '') + (sel === n.key ? ' sel' : ''));
+        const r = rankOf(RW, n), st = canBuy(W, n.key), b = el('button', 'tnode ' + n.kind + (r >= n.max ? ' full' : r ? ' some' : '') + (st === 'ok' ? ' can' : '') + (st === 'row' || st === 'req' || st === 'reqab' ? ' lock' : '') + (sel === n.key ? ' sel' : ''));
         b.type = 'button'; b.dataset.key = n.key; b.style.gridColumn = String(n.col + 1); b.style.gridRow = String(n.row); b.title = n.name; b.setAttribute('aria-label', `${n.name}: ${r} из ${n.max}`);
         b.append(gi(n.icon), el('span', 'trk', `${r}/${n.max}`), el('span', 'tnm', n.kind === 'mastery' ? 'Мастерство' : n.name));
         b.addEventListener('click', () => { sel = n.key; render(); });

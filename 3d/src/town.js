@@ -102,13 +102,13 @@ export function buildTown(map, cfg, rnd) {
 
   // наружный вид KayKit (2026-10-20, выбор владельца): модель по назначению дома, растянута по плану, вход — к двери.
   // Снаружи видна модель; внутри — прежние стены (срез), пол и мебель. Столкновения — прежние стены
-  const SHELL = { hut: 'home_A_red', house: 'home_B_red', warehouse: 'lumbermill_red', smithy: 'blacksmith_red', shop: 'market_red', barracks: 'barracks_red', tavern: 'tavern_red', chapel: 'church_red' };
+  const SHELL = { hut: 'home_A_red', house: 'home_B_red', warehouse: 'lumbermill_red', smithy: 'blacksmith_red', shop: 'market_red', barracks: 'barracks_red', tavern: 'tavern_red', chapel: 'church_red', keep: 'castle_red' };     // keep — донжон замка Мира 5.0
   const NPC_SHELL = { smith: 'blacksmith_red', merchant: 'market_red', captain: 'barracks_red', scribe: 'church_red', keeper: 'church_red' };     // библиотека — с виду храм книжников
   const YAW = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 };
   function setShells(lib) {
     const mat = paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto', { plank: .2 });
     for (const it of items) {
-      const b = it.b, name = it.ruin ? 'destroyed' : (b.npc && NPC_SHELL[b.npc.kind]) || SHELL[b.kind] || 'home_B_red', src = lib[name]; if (!src || it.shell) continue;
+      const b = it.b, name = it.ruin ? 'destroyed' : b.kind === 'keep' ? SHELL.keep : (b.npc && NPC_SHELL[b.npc.kind]) || SHELL[b.kind] || 'home_B_red', src = lib[name]; if (!src || it.shell) continue;
       const side = b.door.side, yaw = YAW[side] ?? 0, swap = side === 'e' || side === 'w', W0 = src.userData.w, D0 = src.userData.d;
       const sx = (swap ? b.d : b.w) / W0 * 1.04, sz = (swap ? b.w : b.d) / D0 * 1.04, sy = Math.max(H * 1.25 / src.userData.h, (sx + sz) / 2 * (it.tall ? .95 : .8));
       const g = src.clone(); if (!g.boundingBox) g.computeBoundingBox(); const B0 = g.boundingBox;

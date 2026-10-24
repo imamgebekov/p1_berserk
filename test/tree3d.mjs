@@ -30,7 +30,7 @@ const mk = lv => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count =
   ok(canBuy(W, 'a:bash') === 'row', 'умение третьего ряда без очков в ветке: ' + canBuy(W, 'a:bash'));
   ok(canBuy(W, 'a:cry') === 'school' && canBuy(W, 't:th_temper') === 'school', 'умение и талант чужой школы не закрыты');
   ok(buy(W, 't:th_hand', refreshGear) === 'ok' && buy(W, 't:th_hand', refreshGear) === 'ok' && W.sp === 0, 'талант первого ряда');
-  ok(buy(W, 'a:charge', refreshGear) === 'ok' && W.ab.charge === 1 && W.ap === 0, 'рывок');
+  { const ap0 = W.ap; ok(buy(W, 'a:charge', refreshGear) === 'ok' && W.ab.charge === 1 && W.ap === ap0 - 1, 'рывок'); }     // 2026-10-24: очки умений с 1-го уровня — на 3-м их три
   ok(canBuy(W, 'a:charge') === 'points' || canBuy(W, 'a:charge') === 'level', 'второй ранг без очков');
   const W2 = mk(60); for (let i = 0; i < 9; i++) buy(W2, 't:th_hand', refreshGear), buy(W2, 't:th_roar', refreshGear), buy(W2, 't:th_slayer_s0', refreshGear), buy(W2, 't:eye', refreshGear);     // мастерство — в 8-м ряду: нужно 12 очков в ветке
   ok(canBuy(W2, 'm:charge') === 'req', 'мастерство без умения 3-го ранга');

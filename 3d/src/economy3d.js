@@ -61,7 +61,7 @@ export const stockPrice = (W, s) => buyPrice(BY_ID[s.id], W.cfg, W.dif.buy * pri
 export const shopOf = W => (W.nearNpc === 'wanderer' && W.wanderer) || outpostShop(W) || W.shop;
 // лагеря Мира 5.0 (этап 2): у лавки лагеря своя витрина уровня лагеря — вещи уровня lv, качество и полка редкостей выше на q, цены × price;
 // обновляется раз в shop.restock с; свой генератор (бой не сдвигается)
-export function outpostOf(W) { if (!W.nearVil) return null; const M = W.levels ? W.levels.surface.map : W.map; return (M.outposts || []).find(o => o.id === W.nearVil) || null; }
+export function outpostOf(W) { if (!W.nearVil) return null; const M = W.levels ? W.levels.surface.map : W.map; return (M.outposts || []).find(o => o.id === W.nearVil) || (M.citadel && M.citadel.id === W.nearVil ? M.citadel : null); }     // и замок (этап 4) — лучшие торговцы
 function outpostShop(W) {
   const O = W.nearNpc === 'merchant' && outpostOf(W); if (!O) return null;
   const S = W.shops || (W.shops = {}); let sh = S[O.id];

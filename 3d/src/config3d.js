@@ -146,7 +146,7 @@ const BASE = {
       { x: 28,  z: -26, w: 12, d: 8, door: 'w', kind: 'tavern',    chests: ['barrel', 'barrel', 'crate', 'chest'] },
       { x: -34, z: -20, w: 7,  d: 11, door: 's', kind: 'chapel',   chests: ['altar', 'shelf', 'coffer'] },
       { x: 48,  z: 8,   w: 11, d: 7, door: 'w', kind: 'barracks',  chests: ['rack', 'rack', 'armorstand', 'ironchest'] },     // старая застава
-      { x: 30,  z: 40,  w: 10, d: 8, door: 'n', kind: 'warehouse', chests: ['crate', 'crate', 'barrel', 'locked'] },
+      { x: 27,  z: 40,  w: 10, d: 8, door: 'n', kind: 'warehouse', chests: ['crate', 'crate', 'barrel', 'locked'] },     // 2026-10-24: на 3 м западнее — не на поле
       { x: 36,  z: -8,  w: 6,  d: 6, door: 'w', kind: 'house',     chests: ['cache', 'corpse'] },
       { x: -36, z: 2,   w: 6,  d: 6, door: 'e', kind: 'house',     chests: ['ironchest', 'armorstand'] },
       { x: 52,  z: -22, w: 5,  d: 5, door: 'w', kind: 'hut',       chests: ['sack', 'cache'] },
@@ -290,7 +290,8 @@ const BASE = {
   // (у финального берётся последнее). cd — перезарядка, с; mul — множитель урона удара.
   abilities: {
     // 8 умений по 3 ранга (2026-10-18): уровни, с которых открывается каждый ранг умения слота; очко умений — каждый уровень с 3-го
-    ranks: [[3, 7, 11], [6, 10, 14], [9, 13, 17], [12, 16, 20], [15, 19, 23], [19, 23, 27], [24, 27, 30], [30, 30, 30]], respec: 12, fearSpeed: .9,
+    firstLv: 1,     // 2026-10-24 (просьба владельца): первый навык и очки умений — с 1-го уровня (было с 3-го)
+    ranks: [[1, 7, 11], [6, 10, 14], [9, 13, 17], [12, 16, 20], [15, 19, 23], [19, 23, 27], [24, 27, 30], [30, 30, 30]], respec: 12, fearSpeed: .9,
     mastery: { on: true, twist: true, lv: [33, 36, 39, 42, 45, 48, 51, 54] },     // twist — мастерство меняет поведение умения (false — только сила)     // 4-й ранг «Мастерство» (этап 3 «круче»): сила продолжает рост рангов
     // новые умения древа (2026-10-20): вид действия → числа; у умения в data/actives3d.js — стихия, состояние и поправки p.
     // genLv — уровень 1-го ранга j-го нового умения ветки (+номер ветки); genStep — шаг до 2-го и 3-го ранга; slots — всего умений героя
@@ -511,6 +512,10 @@ const BASE = {
   // какие материалы ковки; n — сколько штук каждого товара [от, до]. Код — smithtrade3d.js
   smithTrade: { gemRank: [[1, 1], [1, 2], [2, 3]], gems: [4, 6, 6], reag: [5, 7, 9], n: { gem: [1, 3], reag: [2, 5], mat: [3, 8] },
     mats: [['m_ore', 'm_ingot', 'm_leather', 'm_coal', 'm_nails', 'm_tallow', 'm_flint'], ['m_ingot', 'm_steel_ingot', 'm_leather', 'm_coal', 'm_amber', 'm_silver_thread', 'm_ash_salt'], ['m_steel_ingot', 'm_amber', 'm_silver_thread', 'm_black_resin', 'm_ash_alloy', 'm_sulfur']] },
+  // замок Мира 5.0 (этап 4, просьба владельца 2026-10-23): каменные стены квадратом 2·H м (втрое больше лагеря), башни, ворота на четыре стороны,
+  // двор с площадью и рынком, донжон (вход — как в дом, без загрузки), лавка, кузня, таверна, казарма; лучшие торговцы: q — качество витрины,
+  // price — цены, tier — ступень лавки кузнеца
+  citadel: { on: true, id: 'citadel', name: 'Цитадель Ястреба', lv: 45, H: 70, gate: 8, q: 4, price: 3.2, tier: 3 },
   outposts: { on: true, r: 26, pad: 30, list: [
     { id: 'op_alder', name: 'Застава Ольхи', lv: 25, q: 1, price: 1.6 },
     { id: 'op_watch', name: 'Сторожевой Острог', lv: 45, q: 2, price: 2.6 },

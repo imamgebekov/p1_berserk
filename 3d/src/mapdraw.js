@@ -23,7 +23,7 @@ function fogOf(doc, W, full) {
   return f.cv;
 }
 
-const KIND = { house: '#8a6a52', shop: '#d8b04a', smithy: '#e0722c', tavern: '#c88a3a', chapel: '#9a94b8', barracks: '#6a8aa8', warehouse: '#8a7a52', hut: '#6a5a48' };
+const KIND = { keep: '#8a8aa8', house: '#8a6a52', shop: '#d8b04a', smithy: '#e0722c', tavern: '#c88a3a', chapel: '#9a94b8', barracks: '#6a8aa8', warehouse: '#8a7a52', hut: '#6a5a48' };
 const NPC = { keeper: '#e8405a', merchant: '#ffd45a', smith: '#ff8a3a', captain: '#6ab0ff', scribe: '#b48aff' };
 
 export function drawMap(ctx, W, v) {

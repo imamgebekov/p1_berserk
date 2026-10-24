@@ -19,7 +19,8 @@ export function firesOf(map, cfg) {
   if (camp) out.push({ id: 'camp', name: 'Костёр лагеря', x: 0, z: 0, home: true });
   for (const p of cfg.map.places || []) {
     if (camp && p.id === camp.place) continue;
-    if (p.outpost) { out.push({ id: p.id, name: 'Костёр: ' + p.name, x: p.x, z: p.z, camp: true }); continue; }     // лагерь Мира 5.0: костёр в середине — лечит, как костёр лагеря
+    if (p.outpost) { out.push({ id: p.id, name: 'Костёр: ' + p.name, x: p.x, z: p.z, camp: true }); continue; }
+    if (p.citadel) { out.push({ id: p.id, name: 'Костёр: ' + p.name, x: p.x + 6, z: p.z + 12, camp: true }); continue; }     // замок Мира 5.0: костёр на площади (лечит, ночлег, перенос)     // лагерь Мира 5.0: костёр в середине — лечит, как костёр лагеря
     if (p.safe) { const s = freeNear(map, p.x, p.z); if (s) out.push({ id: p.id, name: p.name, x: s.x, z: s.z }); continue; }
     const a0 = Math.atan2(-p.x, -p.z); let s = null;                            // у входа: со стороны лагеря, а если там занято — дальше по кругу
     for (let k = 0; k < 16 && !s; k++) { const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 8; s = freeNear(map, p.x + Math.sin(a) * (p.r + F.gate), p.z + Math.cos(a) * (p.r + F.gate), 4); }

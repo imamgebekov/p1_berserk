@@ -184,12 +184,28 @@ function expandPuddles(base) {
   if (b.water) { b.water.lakes.n = Math.round(b.water.lakes.n * k); b.water.streams.n = Math.round(b.water.streams.n * k); }
   const cfg = expandWorld(b);
   placeOutposts(cfg);
+  placeCitadel(cfg);
   for (const RB of cfg.worldgen.ringBosses || []) {
     const cand = cfg.map.places.filter(p => p.type === 'danger' && !p.poi && !p.fort && !p.city && !p.boss && !p.castle).map(p => ({ p, q: zoneAt(cfg, p.x, p.z) })).filter(o => o.q && o.q.id === RB.zone).sort((a, c) => Math.abs(a.q.t - .5) - Math.abs(c.q.t - .5));
     if (!cand.length) continue; const L = cand[0].p; L.name = RB.lair; L.boss = RB.type; L.danger = 3;
     cfg.bosses.list.push({ type: RB.type, x: L.x, z: L.z, attacks: RB.attacks, phases: RB.phases, ring: true });
   }
   return cfg;
+}
+// Мир 5.0 (этапы 2 и 4): места замка и лагерей — до посёлков, озёр и точек интереса (иначе на нужном уровне не найти пустоты):
+// уровень поля ±1,5, сухо у реки, в круге мира с запасом, не у ядра и не друг у друга. Запоминаются в cfg.map._reserved
+function reserveSpots(cfg, rv) {
+  const out = [], rr = mul(cfg.world.seed * 9151 + 7), want = [];
+  if (cfg.citadel && cfg.citadel.on) want.push({ id: cfg.citadel.id, lv: cfg.citadel.lv, r: cfg.citadel.H * 1.42 + 12 });
+  if (cfg.outposts && cfg.outposts.on) for (const D of cfg.outposts.list) want.push({ id: D.id, lv: D.lv, r: cfg.outposts.r + 24 });
+  for (const W of want) {
+    let best = null, bd = 1e9;
+    for (let k = 0; k < 6000; k++) { const q = worldSpot(cfg, rr, cfg.worldgen.coreR + W.r + 60, W.r + 30); if (!q) continue; const L = zoneLevel(cfg, q.x, q.z); if (L == null) continue; const d = Math.abs(L - W.lv);
+      if (d > 1.5 || d > bd || (rv && waterDist(rv, q.x, q.z) < W.r + 8) || out.some(o => Math.hypot(o.x - q.x, o.z - q.z) < o.r + W.r + 60)) continue; best = q; bd = d; if (d < .3) break; }
+    if (best) out.push({ id: W.id, x: best.x, z: best.z, r: W.r });
+  }
+  cfg.map._reserved = Object.fromEntries(out.map(o => [o.id, { x: o.x, z: o.z }]));
+  return out;
 }
 // лагеря Мира 5.0 (этап 2): место с уровнем lv (±2), сухое, не у мест, домов, точек интереса, плато и дорог; внутри — лавка, кузня и
 // таверна дверями к костру в середине; дорога из ближних ворот — к ближайшему посёлку
@@ -202,8 +218,8 @@ function placeOutposts(cfg) {
     && !(cfg.dungeons.list || []).some(d => d.at && Math.hypot(d.at.x - x, d.at.z - z) < r0 + 30);
   const gatesOf = (x, z) => [0, 90, 180, 270].map(g => { const a = g * Math.PI / 180, d = r0 + (cfg.camp.roadOut || 7); return { x: x + Math.sin(a) * d, z: z + Math.cos(a) * d }; });
   for (const D of O.list) {
-    let best = null, bd = 1e9;
-    for (let k = 0; k < 6000; k++) { const q = worldSpot(cfg, rr, 300, r0 + 40); if (!q) continue; const L = zoneLevel(cfg, q.x, q.z); if (L == null || Math.abs(L - D.lv) > 2 || Math.abs(L - D.lv) > bd || !clear(q.x, q.z)) continue; best = q; bd = Math.abs(L - D.lv); if (bd < .3) break; }
+    let best = (cfg.map._reserved || {})[D.id] || null, bd = best ? 0 : 1e9;     // место, зарезервированное заранее
+    for (let k = 0; !best && k < 6000; k++) { const q = worldSpot(cfg, rr, 300, r0 + 40); if (!q) continue; const L = zoneLevel(cfg, q.x, q.z); if (L == null || Math.abs(L - D.lv) > 2 || Math.abs(L - D.lv) > bd || !clear(q.x, q.z)) continue; best = q; bd = Math.abs(L - D.lv); if (bd < .3) break; }
     if (!best) continue;
     const { x, z } = best, id = D.id;
     cfg.map.places.push({ id, name: D.name, type: 'hamlet', x, z, r: r0 + 6, safe: true, gen: 1, outpost: D.lv });
@@ -219,6 +235,33 @@ function placeOutposts(cfg) {
         const bx = lk[0].x + (lk[1].x - lk[0].x) * t, bz = lk[0].z + (lk[1].z - lk[0].z) * t, P = rv.pts[i - 1], Q = rv.pts[i]; if ([...rv.bridges, ...extra].some(q => Math.hypot(q.x - bx, q.z - bz) < 15)) continue;
         extra.push({ x: bx, z: bz, ang: Math.atan2(Q.x - P.x, Q.z - P.z) + Math.PI / 2, len: RV.w + B.over * 2, w: B.w }); } } }
   }
+}
+// замок Мира 5.0 (этап 4): квадрат 2·H с запасом — на уровне lv (±3), сухой, без мест, домов, точек интереса, плато, дорог и входов;
+// внутри — донжон, лавка, кузня, таверна, казарма и два дома; дорога из южных ворот — к ближайшему посёлку
+const id0 = D => D.id;
+function placeCitadel(cfg) {
+  const D = cfg.citadel; cfg.map.citadel = null; if (!D || !D.on) return;
+  const R = cfg.world.radius, H = D.H, ext = H * 1.42, rv = cfg.terrain && cfg.terrain.on ? riverOf(cfg) : null, RV = (cfg.terrain && cfg.terrain.river) || {}, rr = mul(cfg.world.seed * 7351 + 17);
+  const wet = (x, z, p) => (rv && waterDist(rv, x, z) < p) || (RV.lakes || []).some(q => Math.hypot(q.x - x, q.z - z) < q.r * 1.3 + p) || (RV.streams || []).some(st => st.pts.some(q => Math.hypot(q.x - x, q.z - z) < p));
+  const near = (x, z, r) => cfg.map.places.some(p => Math.hypot(p.x - x, p.z - z) < (p.r || 8) + r) || cfg.map.buildings.some(b => Math.hypot(b.x - x, b.z - z) < r) || (cfg.map.pois || []).some(q => Math.hypot(q.x - x, q.z - z) < q.r + r)
+    || (cfg.map.plateaus || []).some(q => Math.hypot(q.x - x, q.z - z) < q.r + q.len + r) || (cfg.dungeons.list || []).some(d => d.at && Math.hypot(d.at.x - x, d.at.z - z) < r + 10) || cfg.map.links.some(([a, b]) => segD(x, z, a, b) < r - 10);
+  let best = (cfg.map._reserved || {})[id0(D)] || null, bd = best ? 0 : 1e9;     // место, зарезервированное заранее
+  for (let k = 0; !best && k < 8000; k++) { const q = worldSpot(cfg, rr, 400, ext + 40); if (!q) continue; const L = zoneLevel(cfg, q.x, q.z); if (L == null || Math.abs(L - D.lv) > 3 || Math.abs(L - D.lv) > bd || wet(q.x, q.z, ext + 6) || near(q.x, q.z, ext + 16)) continue; best = q; bd = Math.abs(L - D.lv); if (bd < .5) break; }
+  if (!best) return;
+  const { x, z } = best, id = D.id;
+  cfg.map.places.push({ id, name: D.name, type: 'hamlet', x, z, r: H + 4, safe: true, gen: 1, citadel: D.lv });
+  for (const [ox, oz, w, d, kind, npc, door] of [[0, -22, 26, 22, 'keep', 'captain', 's'], [-30, 18, 11, 8, 'shop', 'merchant', 'e'], [30, 18, 11, 8, 'smithy', 'smith', 'w'], [-34, -32, 12, 9, 'tavern', null, 'e'], [34, -32, 11, 9, 'barracks', null, 'w'], [-44, 46, 9, 7, 'house', null, 'e'], [44, 46, 9, 7, 'warehouse', null, 'w']])
+    cfg.map.buildings.push({ x: x + ox, z: z + oz, w, d, door, kind, chests: kind === 'keep' ? ['locked', 'armorstand', 'rack'] : kind === 'tavern' ? ['barrel', 'crate'] : kind === 'house' || kind === 'warehouse' ? ['chest', 'crate'] : [], vil: id, citadel: 1, ...(npc ? { npc } : {}) });
+  cfg.map.citadel = { id, name: D.name, x, z, H, gate: D.gate, lv: D.lv, q: D.q, price: D.price, tier: D.tier, square: true };
+  const gs = [{ x, z: z + H + 8 }, { x, z: z - H - 8 }, { x: x + H + 8, z }, { x: x - H - 8, z }], hs = cfg.map.places.filter(p => p.type === 'hamlet' && p.id !== id && !p.outpost && !p.citadel);
+  let to = null, tg = null, td = 1e9; for (const h of hs) for (const g of gs) { const dd = Math.hypot(h.x - g.x, h.z - g.z); if (dd < td) { td = dd; to = h; tg = g; } }
+  if (to) { const lk = [{ x: to.x, z: to.z }, { x: tg.x, z: tg.z }]; cfg.map.links.push(lk);
+    const gone = (cfg.map.pois || []).filter(p => segD(p.x, p.z, lk[0], lk[1]) < p.r + 14), ids = new Set(gone.map(p => p.place).filter(Boolean));
+    cfg.map.pois = (cfg.map.pois || []).filter(p => !gone.includes(p)); cfg.map.places = cfg.map.places.filter(p => !ids.has(p.id)); cfg.map.zones = cfg.map.zones.filter(zn => !(zn.poi && gone.some(p => Math.abs(p.x - zn.x) < .01 && Math.abs(p.z - zn.z) < .01)));
+    if (RV.lakes) RV.lakes = RV.lakes.filter(Lk => !gone.some(p => p.t === 'pond' && Math.abs(Lk.x - p.x) < .01 && Math.abs(Lk.z - p.z) < .01));
+    if (rv) { const B = cfg.terrain.bridge, extra = RV.extraBridges || (RV.extraBridges = []); for (let i = 1; i < rv.pts.length; i++) { const t = cross(lk[0], lk[1], rv.pts[i - 1], rv.pts[i]); if (t < 0) continue;
+      const bx = lk[0].x + (lk[1].x - lk[0].x) * t, bz = lk[0].z + (lk[1].z - lk[0].z) * t, P = rv.pts[i - 1], Q = rv.pts[i]; if ([...rv.bridges, ...extra].some(q => Math.hypot(q.x - bx, q.z - bz) < 15)) continue;
+      extra.push({ x: bx, z: bz, ang: Math.atan2(Q.x - P.x, Q.z - P.z) + Math.PI / 2, len: RV.w + B.over * 2, w: B.w }); } } }
 }
 // расстояние от точки до отрезка ab
 const segD = (x, z, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2)); return Math.hypot(x - a.x - dx * t, z - a.z - dz * t); };
@@ -250,7 +293,9 @@ export function expandWorld(base) {
   const wetAt = (x, z, pad) => !!rv && waterDist(rv, x, z) < pad;
   const dropPonds = gone => { if (!PUD || !T || !T.river || !T.river.lakes) return; T.river.lakes = T.river.lakes.filter(L => !gone.some(p => p.t === 'pond' && Math.abs(L.x - p.x) < .01 && Math.abs(L.z - p.z) < .01)); };     // Мир 5.0: пруд на новой дороге уходит вместе с озером
   const taken = [...cfg.map.places.map(p => ({ x: p.x, z: p.z, r: p.r }))];
-  const pspot = (rng, dMin, dMax, cap = false) => { if (!PUD) { const a = rng() * TAU, d = dMin + Math.sqrt(rng()) * (dMax - dMin); return { x: Math.sin(a) * d, z: Math.cos(a) * d }; } return worldSpot(cfg, rng, dMin, cap ? 20 : R - dMax, cap ? dMax : Infinity) || { x: 1e9, z: 1e9 }; };     // Мир 5.0: точка в круге мира; cap — dMax предел от старта, иначе R − dMax — запас до края
+  const RES = PUD ? reserveSpots(cfg, rv) : []; for (const q of RES) taken.push({ x: q.x, z: q.z, r: q.r });     // Мир 5.0: замок и лагеря — места заранее, остальное их обходит
+  const clearOfRes = (a, b) => RES.every(q => segD(q.x, q.z, a, b) > q.r + 6);     // дорога не через замок и лагеря
+  const pspot = (rng, dMin, dMax, cap = false, edge = 20) => { if (!PUD) { const a = rng() * TAU, d = dMin + Math.sqrt(rng()) * (dMax - dMin); return { x: Math.sin(a) * d, z: Math.cos(a) * d }; } return worldSpot(cfg, rng, dMin, cap ? edge : R - dMax, cap ? dMax : Infinity) || { x: 1e9, z: 1e9 }; };     // Мир 5.0: точка в круге мира; cap — dMax предел от старта, иначе R − dMax — запас до края
   const freeSpot = (dMin, dMax, gap, pad, cap = false) => { for (let k = 0; k < 400; k++) { const { x, z } = pspot(r, dMin, dMax, cap); if (x > 1e8) continue;
     if (wetAt(x, z, pad) || taken.some(q => Math.hypot(q.x - x, q.z - z) < gap + q.r)) continue; return { x, z }; } return null; };
   // посёлки: безопасные места с 2–4 домами кольцом, двери к центру
@@ -288,7 +333,7 @@ export function expandWorld(base) {
   cfg.map.links = [];
   const order = [...villages].sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z)), nodes = [...gates];
   for (const v of order) {
-    const to = nodes.reduce((a, q) => (Math.hypot(q.x - v.x, q.z - v.z) < Math.hypot(a.x - v.x, a.z - v.z) ? q : a));
+    const by = [...nodes].sort((a, q) => Math.hypot(a.x - v.x, a.z - v.z) - Math.hypot(q.x - v.x, q.z - v.z)), to = by.find(q => clearOfRes(q, v)) || by[0];     // Мир 5.0: ближайший узел, чья дорога не через замок и лагеря
     cfg.map.links.push([{ x: to.x, z: to.z }, { x: v.x, z: v.z }]); nodes.push({ x: v.x, z: v.z });
   }
   // замки (C4): вход — ворота в дальнем поясе; этажи — подземелья по зерну
@@ -367,7 +412,7 @@ export function expandWorld(base) {
     const overB = (x, z, w, d, pad) => cfg.map.buildings.some(b => Math.abs(b.x - x) < (b.w + w) / 2 + pad && Math.abs(b.z - z) < (b.d + d) / 2 + pad);
     const big = [];     // лагеря и города: между собой не ближе gap
     const isPoi = q => cfg.map.pois.some(p => p.t !== 'pond' && Math.abs(p.x - q.x) < .01 && Math.abs(p.z - q.z) < .01);     // мелкая точка интереса (не пруд) — город может встать на её место
-    const spot2 = (dMin, dMax, gap, pad, soft = false, cap = false) => { for (let k = 0; k < 900; k++) { const { x, z } = pspot(rc, dMin, dMax, cap); if (x > 1e8) continue;
+    const spot2 = (dMin, dMax, gap, pad, soft = false, cap = false) => { for (let k = 0; k < 900; k++) { const { x, z } = pspot(rc, dMin, dMax, cap, pad + 20); if (x > 1e8) continue;     // cap: запас до края — по размеру места
       if (wet2(x, z, pad) || onRoad(x, z, pad) || taken.some(q => !(soft && isPoi(q)) && Math.hypot(q.x - x, q.z - z) < pad + q.r) || big.some(q => Math.hypot(q.x - x, q.z - z) < gap) || (cfg.map.plateaus || []).some(q => Math.hypot(q.x - x, q.z - z) < q.r + q.len + pad)) continue; big.push({ x, z }); return { x, z }; } return null; };
     const doorTo = (ox, oz) => (Math.abs(ox) >= Math.abs(oz) ? (ox > 0 ? 'w' : 'e') : (oz > 0 ? 'n' : 's'));     // дверь — к центру
     // посёлки: ещё 2–4 дома внешним кольцом (не на тропе, не в воде, не на других домах); безопасная зона шире

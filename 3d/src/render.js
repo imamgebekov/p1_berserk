@@ -1,6 +1,6 @@
 // Сцена Three.js: мир, свет, камера, спецэффекты. Рисует в маленьком разрешении и растягивает без сглаживания.
 import { storyActors, storyTalkable } from './story3d.js';
-import { makeMap, addFires, propsBlocked, campGates, insideOf, insideCamp } from './map.js';
+import { makeMap, addFires, propsBlocked, campGates, insideOf, insideCamp, campAt } from './map.js';
 import { firesOf } from './fires3d.js';
 import { buildDecor } from './decor.js';
 import { buildTown, stoneLook } from './town.js';
@@ -453,7 +453,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const g of campGates(C)) {
       const a = g.a * Math.PI / 180, w = C.gateW / 2 + .2, tx = Math.cos(a), tz = -Math.sin(a);       // вдоль частокола
       for (const s of [-1, 1]) { const px = g.x + tx * w * s, pz = g.z + tz * w * s; posts.push(new THREE.BoxGeometry(.6, C.h + 1.2, .6).translate(px, (C.h + 1.2) / 2, pz)); flames.push(new THREE.BoxGeometry(.22, .3, .22).translate(px, C.h + 1.45, pz)); }
-      beams.push(new THREE.BoxGeometry(C.gateW + 1.2, .4, .5).rotateY(a + Math.PI / 2).translate(g.x, C.h + .9, g.z));
+      beams.push(new THREE.BoxGeometry(C.gateW + 1.2, .4, .5).rotateY(a).translate(g.x, C.h + .9, g.z));     // 2026-10-24: перекладина — вдоль частокола (была поперёк прохода)
     }
     palisade.add(new THREE.Mesh(mergeGeometries(posts), paintMat(new THREE.MeshLambertMaterial({ color: '#4a3220' }), 'log')), new THREE.Mesh(mergeGeometries(beams), paintMat(new THREE.MeshLambertMaterial({ color: '#3a2618' }))), new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: '#ffb050' })));
   }
@@ -466,7 +466,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const crows = (AMB.on ? makeBirds(map, cfg, arnd) : []).map(b => { const m = makeCrow(); m.group.rotation.y = b.face; life.add(m.group); return { b, m }; });
   const swapIn = (old, A, parent) => { A.group.position.copy(old.group.position); A.group.rotation.copy(old.group.rotation); A.group.visible = old.group.visible; parent.remove(old.group); disposeDeep(old.group); parent.add(A.group); return A; };     // своя модель → готовая
   // звери (G2): вокруг героя, где можно стоять — не вода, не дом, не камень, не лагерь, не обрыв
-  const BEA = cfg.beasts, beastOk = (x, z) => Math.hypot(x - WCEN.x, z - WCEN.z) < cfg.world.radius - 4 && !(map.camp && insideCamp(map.camp, x, z, -3)) && !(river && waterDist(river, x, z) < 1.5) && insideOf(map, x, z, 1) < 0 && !map.solids.some(q => Math.abs(q.x - x) < q.r + .6 && Math.abs(q.z - z) < q.r + .6) && !(map.plateaus.length && inCliff(map.plateaus, x, z, 1));
+  const BEA = cfg.beasts, beastOk = (x, z) => Math.hypot(x - WCEN.x, z - WCEN.z) < cfg.world.radius - 4 && !campAt(map, x, z, -3) && !(river && waterDist(river, x, z) < 1.5) && insideOf(map, x, z, 1) < 0 && !map.solids.some(q => Math.abs(q.x - x) < q.r + .6 && Math.abs(q.z - z) < q.r + .6) && !(map.plateaus.length && inCliff(map.plateaus, x, z, 1));
   const beasts = (BEA && BEA.on ? makeBeasts(BEA.n) : []).map(b => { const m = makeBeast(b.kind); m.group.visible = false; life.add(m.group); return { b, m, ms: { [b.kind]: m } }; });     // ms — модели по видам (вид меняется по биому)
   const beastModel = c => { if (!c.ms[c.b.kind]) { const m = ambMake('beast', c.b.kind) || makeBeast(c.b.kind); life.add(m.group); c.ms[c.b.kind] = m; } for (const [k, m] of Object.entries(c.ms)) if (k !== c.b.kind) m.group.visible = false; c.m = c.ms[c.b.kind]; return c.m; };
   // утки на озере, рыба, бабочки и летучие мыши (2026-10-18) — только вид

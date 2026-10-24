@@ -532,6 +532,7 @@ body.cine #hud,body.cine #tracker,body.cine #miniBtn,body.cine #statusRow,body.c
 [data-desk] #skills .pbox{max-width:1140px}     /* древо: три ветки рядом, карточка справа */
 .tview{display:flex;flex-direction:column;gap:8px}
 [data-desk] .tview{display:grid;grid-template-columns:minmax(0,1fr) 270px;align-items:start;gap:10px}
+[data-desk] .tview>.tcard{position:sticky;top:0;z-index:2}
 .tbranch{flex-basis:196px}
 
 /* ===================== оформление «как в играх» (2026-10-20, просьба владельца) =====================

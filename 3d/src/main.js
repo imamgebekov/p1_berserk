@@ -782,9 +782,9 @@ let lastCombo = 0, lastSt = '', hudT = 1, hudP = false;
 $('smithJournal').addEventListener('click', () => { smith.close(); journal.open(); });
 const hpFill = $('hpFill'), hpGhost = $('hpGhost'), hpTxt = $('hpTxt'), hudLv = $('hudLv'), hudAsh = $('hudAsh'), hudTime = $('hudTime');
 // диск времени (4.18г, просьба владельца): сутки по кругу — день, рассвет и закат, ночь; диск крутится, метка сверху — сейчас
-const dialEl = (() => { const D = cfg.daynight, st = []; for (let i = 0; i <= 48; i++) { const ph = i / 48, L = lightOf((ph - D.start + 1) % 1 * D.len, D), c = L < .5 ? mix('#1c2650', '#f08a5a', L * 2) : mix('#f08a5a', '#f6d77a', (L - .5) * 2); st.push(`${c} ${(ph * 360).toFixed(1)}deg`); }
+const dialEl = (() => { const D = cfg.daynight, st = []; for (let i = 0; i <= 48; i++) { const ph = (48 - i) / 48, L = lightOf((ph - D.start + 1) % 1 * D.len, D), c = L < .5 ? mix('#1c2650', '#f08a5a', L * 2) : mix('#f08a5a', '#f6d77a', (L - .5) * 2); st.push(`${c} ${(i / 48 * 360).toFixed(1)}deg`); }
   hudTime.textContent = ''; const d = document.createElement('span'), i = document.createElement('i'); d.className = 'dial'; i.style.background = `conic-gradient(${st.join(',')})`; d.append(i); hudTime.append(d); return i; })();
-function timeDial(W) { const ph = phaseOf(W.t, cfg.daynight), txt = `${clockText(W.t, cfg.daynight)} · ${W.night ? 'ночь' : 'день'}`; dialEl.style.transform = `rotate(${(-ph * 360).toFixed(1)}deg)`; hudTime.title = txt; hudTime.setAttribute('aria-label', 'Время: ' + txt); }
+function timeDial(W) { const ph = phaseOf(W.t, cfg.daynight), txt = `${clockText(W.t, cfg.daynight)} · ${W.night ? 'ночь' : 'день'}`; dialEl.style.transform = `rotate(${(ph * 360).toFixed(1)}deg)`; hudTime.title = txt; hudTime.setAttribute('aria-label', 'Время: ' + txt); }     // 2026-10-24 (просьба владельца): диск идёт в другую сторону — фазы на диске в обратном порядке
 // прицел умения по площади (2026-10-20, просьба владельца): клавиша — кружок под мышью; клик или та же клавиша — удар; правый клик или Esc — отмена
 let aiming = null, aimCancel = false, atkHold = false;
 function aimStep(inp) {

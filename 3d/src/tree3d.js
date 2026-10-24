@@ -3,7 +3,7 @@
 // новых умений, мастерства прежних умений (4-й ранг, нужен полный 3-й). Активные — за очки умений W.ap, 3 ранга, каждый ждёт
 // своего уровня. Ряд k открывается, когда в ветке вложено ROW_STEP×(k−2) очков. Чистая логика (Node-тесты).
 import { ABILITIES, rankLvs } from './data/abilities3d.js';
-import { branchesOf } from './data/skills3d.js';
+import { branchesOf, SKILLS } from './data/skills3d.js';
 import { OLD_BRANCH } from './data/actives3d.js';
 import { canUpgrade, upgradeAbility } from './abilities3d.js';
 
@@ -50,7 +50,7 @@ export function canBuy(W, key) {
   if (treeOf(W.hero, W.cfg).indexOf(b) !== (W.school || 0)) return 'school';     // школы (2026-10-22): вкладывать — только в свою школу
   if (r >= n.max) return 'max';
   if (spentInTree(W, b) < rowNeed(n.row)) return 'row';
-  if (n.kind === 'talent') return W.sp >= 1 ? 'ok' : 'points';
+  if (n.kind === 'talent') { const need = SKILLS[n.id] && SKILLS[n.id].ab && SKILLS[n.id].ab.id; if (need && (ABILITIES[W.hero] || []).some(a => a.id === need) && !((W.ab || {})[need] > 0)) return 'reqab'; return W.sp >= 1 ? 'ok' : 'points'; }     // 2026-10-24 (просьба владельца): талант навыка («Опыт: …» и др.) — только после самого навыка
   if (n.kind === 'mastery' && (W.ab[n.id] || 0) < 3) return 'req';
   const u = canUpgrade(W, n.id); return u === 'ok' ? 'ok' : u === 'points' ? 'points' : u === 'max' ? 'max' : 'level';
 }
@@ -60,7 +60,8 @@ export function buy(W, key, refreshGear) {
   return upgradeAbility(W, n.id);
 }
 // что нужно для следующего ранга — для подсказки
+const nextLv = (W, n) => { const L = ABILITIES[W.hero] || [], i = L.findIndex(a => a.id === n.id); return i < 0 ? '?' : rankLvs(W.cfg, i, L[i])[(W.ab || {})[n.id] || 0] ?? '?'; };     // уровень следующего ранга умения (для подсказки, 2026-10-24)
 export function needText(W, key) {
   const f = findNode(W.hero, key, W.cfg); if (!f) return ''; const { b, n } = f, st = canBuy(W, key);
-  return st === 'school' ? 'Это не ваша школа. Сменить школу можно у костра.' : st === 'row' ? `Нужно ${rowNeed(n.row)} очков в ветке «${b.name}» (сейчас ${spentInTree(W, b)})` : st === 'req' ? 'Нужно умение 3-го ранга' : st === 'level' ? 'Следующий ранг — с более высокого уровня' : st === 'points' ? (n.kind === 'talent' ? 'Нет очков талантов' : 'Нет очков умений') : st === 'max' ? 'Максимум' : '';
+  return st === 'school' ? 'Это не ваша школа. Сменить школу можно у костра.' : st === 'row' ? `Нужно ${rowNeed(n.row)} очков в ветке «${b.name}» (сейчас ${spentInTree(W, b)})` : st === 'req' ? 'Нужно умение 3-го ранга' : st === 'reqab' ? `Сначала изучите умение «${(SKILLS[n.id].ab && (ABILITIES[W.hero] || []).find(a => a.id === SKILLS[n.id].ab.id) || {}).name || ''}»` : st === 'level' ? `Следующий ранг — с ${nextLv(W, n)}-го уровня` : st === 'points' ? (n.kind === 'talent' ? 'Нет очков талантов' : 'Нет очков умений') : st === 'max' ? 'Максимум' : '';
 }

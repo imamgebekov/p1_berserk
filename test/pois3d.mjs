@@ -19,7 +19,7 @@ const M = CFG3.map, G = CFG3.worldgen, R = CFG3.world.radius, map = makeMap(CFG3
 
 // ---------- 1. генератор ----------
 const gen = M.places.filter(p => p.gen && !p.id.startsWith('o')), outer = M.places.filter(p => p.gen && p.id.startsWith('o')), Rin = CFG3.world.inner || R;     // мир ×2 (4.04): прежний мир — без внешнего кольца (o…)
-ok(gen.filter(p => p.type === 'hamlet' && !p.id.startsWith('h_')).length === G.villages, 'посёлков не ' + G.villages);     // узлы зон (h_…) — сверх (этап 1)
+ok(gen.filter(p => p.type === 'hamlet' && !p.id.startsWith('h_') && !p.outpost && !p.citadel).length === G.villages, 'посёлков не ' + G.villages);     // узлы зон (h_…) — сверх (этап 1)
 ok(gen.filter(p => p.type === 'danger' && !p.poi && !p.castle && !p.fort && !p.city).length === G.dangers, 'опасных мест не ' + G.dangers);
 ok(CFG3.world.center ? M.landmarks.length >= G.landmarks * .9 : M.landmarks.filter(q => Math.hypot(q.x, q.z) <= Rin).length === G.landmarks, 'ориентиров не ' + G.landmarks);     // Мир 5.0: один проход — без внешнего кольца
 if (!CFG3.world.center) ok(outer.filter(p => p.type === 'hamlet').length >= G.villages * 2 && outer.every(p => Math.hypot(p.x, p.z) > Rin), 'внешнее кольцо: посёлков мало или место внутри прежнего мира');

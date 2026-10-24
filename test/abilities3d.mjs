@@ -27,11 +27,11 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 // ---------- 1. данные и очки ----------
 {
   const L = ABILITIES.thorn.slice(0, 8); ok(ABILITIES.thorn.length === 36 && L.every(a => T[a.id] && a.icon && [0, 1, 2].every(r => typeof a.text(T[a.id], r) === 'string')), 'у Торна не 8 прежних описанных умений (всего 30 — древо 2026-10-20)');
-  ok(A.ranks.map(r => r[0]).join() === '3,6,9,12,15,19,24,30' && A.ranks.every(r => r.length === 3 && r.every((l, k) => !k || l >= r[k - 1]) && r[2] <= 30), 'уровни открытия не 3/6/9/12/15/19/24/30 или ранги не по 3 и не по возрастанию');
+  ok(A.ranks.map(r => r[0]).join() === '1,6,9,12,15,19,24,30' && A.ranks.every(r => r.length === 3 && r.every((l, k) => !k || l >= r[k - 1]) && r[2] <= 30), 'уровни открытия не 1/6/9/12/15/19/24/30 или ранги не по 3 и не по возрастанию');
   const c = clone(); c.enemies.count = 0; c.map.places = []; const W = createWorld(c, mulberry32(2)); W.hero = 'thorn';
-  gainXp(W, 1e3); const lv = W.lv; ok(W.ap === abilityPoints(lv, c) && abilityPoints(2, c) === 0 && abilityPoints(3, c) === 1 && abilityPoints(4, c) === 2, `очков умений ${W.ap} на уровне ${lv}`);
+  gainXp(W, 1e3); const lv = W.lv; ok(W.ap === abilityPoints(lv, c) && abilityPoints(1, c) === 1 && abilityPoints(2, c) === 2 && abilityPoints(3, c) === 3, `очков умений ${W.ap} на уровне ${lv}`);
   const MX = CFG3.level.max; for (let i = 0; i < 4000 && W.lv < MX; i++) gainXp(W, 1e5);     // 4.06: предел 70
-  ok(W.lv === MX && W.ap === MX - 2 + CFG3.abilities.mastery.lv.length && W.sp === MX - 1, `на ${MX}-м уровне умений ${W.ap} (очко за уровень с 3-го + мастерство 8; 36 умений древа), навыков ${W.sp}`);     // уровни до 60 (этап 0): очков умений не больше всех рангов
+  ok(W.lv === MX && W.ap === MX + CFG3.abilities.mastery.lv.length && W.sp === MX - 1, `на ${MX}-м уровне умений ${W.ap} (очко за уровень с 1-го + мастерство 8; 36 умений древа), навыков ${W.sp}`);     // уровни до 60 (этап 0): очков умений не больше всех рангов
 }
 // ---------- 2. открытие, ранги, перезарядка ----------
 {
