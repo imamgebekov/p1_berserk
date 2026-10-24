@@ -2,131 +2,13 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<script>if (!/[?&]2d\b/.test(location.search) && !navigator.webdriver) location.replace('./3d/' + location.hash);</script><!-- 2026-10-24: корень открывает 3D-игру; старая 2D — по адресу ?2d -->
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0b0908">
-<meta name="apple-mobile-web-app-title" content="Берсерк">
-<link rel="manifest" href="./manifest.webmanifest">
-<link rel="icon" type="image/png" href="./icon-192.png">
-<link rel="apple-touch-icon" href="./icon-180.png">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Берсерк</title>
+<link rel="icon" type="image/png" href="./icon-192.png">
+<script>location.replace('./3d/' + location.search + location.hash);</script><!-- 2026-10-24: старая 2D-игра удалена; корень сразу открывает игру -->
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0b0908;color:#e8dcc4;font:16px Georgia,serif}a{color:#e8b860}</style>
 </head>
 <body>
-<canvas id="c"></canvas>
-
-<div id="hud">
-  <div id="row1"><span>Странник · ур. <b id="lv">1</b></span><span>В мире: <b id="onl">1284</b></span></div>
-  <div class="bar"><i id="hpf"></i></div>
-  <div class="bar rage" id="rgbar"><i id="rgf"></i></div>
-  <div id="stats">пепел <span id="ash">0</span> · убито <span id="kills">0</span></div>
-  <div id="boss" hidden><span id="bossName">Предвестник Затмения</span><div class="bar"><i id="bhf"></i></div></div>
-  <div id="quest" hidden></div>
-  <div id="timer"></div>
-  <div id="chat"></div>
-  <button id="talk" class="talk" type="button" hidden>Торговец</button>
-</div>
-<button id="pauseBtn" type="button" aria-label="Пауза">Пауза</button>
-
-<div id="pad">
-  <div class="btn" id="bl" data-k="l">◀</div>
-  <div class="btn" id="br" data-k="r">▶</div>
-  <div class="btn" id="bbrand" data-k="brand">Клеймо</div>
-  <div class="btn" id="broll" data-k="roll">Перекат</div>
-  <div class="btn" id="bjump" data-k="jump">Прыжок</div>
-  <div class="btn" id="batk" data-k="atk">Удар</div>
-  <div id="menu">
-    <button class="mbtn" id="mhero" type="button">Герой</button>
-    <button class="mbtn" id="mbag" type="button">Сумка<b id="bagBadge" hidden>0</b></button>
-    <button class="mbtn" id="mskills" type="button">Навыки<b id="spBadge" hidden>0</b></button>
-  </div>
-</div>
-
-<div class="panel" id="bag" hidden>
-  <div class="ph">
-    <div class="tabs" role="tablist">
-      <button class="tab" id="tabHero" type="button" role="tab">Герой</button>
-      <button class="tab" id="tabBag" type="button" role="tab">Сумка</button>
-      <button class="tab" id="tabSkills" type="button" role="tab">Навыки<b id="skBadge" hidden>0</b></button>
-    </div>
-    <button class="x" id="bagClose" type="button" aria-label="Закрыть">✕</button>
-  </div>
-  <div class="substat"><span id="bagSp"></span><span id="bagAsh"></span></div>
-  <div id="heroTab">
-    <div class="hname"><span>Странник</span><b id="hLv"></b></div>
-    <div class="xpbar"><i id="hXp"></i></div>
-    <div id="hXpTxt"></div>
-    <div class="hstage">
-      <div class="hslots" id="hL"></div>
-      <canvas id="hPrev" width="52" height="48" aria-label="Герой"></canvas>
-      <div class="hslots" id="hR"></div>
-    </div>
-    <div id="hStats"></div>
-    <div id="hHint">Нажмите на слот, чтобы открыть предмет. Нажмите на героя — посмотреть его с Клеймом.</div>
-    <div id="saveRow">
-      <span id="saveInfo"></span>
-      <button class="cbtn resetbtn" id="resetBtn" type="button">Сбросить прогресс</button>
-    </div>
-  </div>
-  <div id="skillsTab" hidden>
-    <div id="skTree"></div>
-    <div id="skFoot"></div>
-    <div id="skWrap" hidden><div id="skCard"></div></div>
-  </div>
-  <div id="bagTab" hidden>
-    <div class="lbl">Надето</div>
-    <div id="eq"></div>
-    <div class="lbl">Вещи</div>
-    <div id="grid"></div>
-    <div id="bagSum"></div>
-    <div id="bagMsg"></div>
-  </div>
-</div>
-<div class="panel" id="town" hidden>
-  <div class="ph"><h3 id="tTitle"></h3><span id="tAsh"></span><button class="x" id="tClose" type="button" aria-label="Закрыть">✕</button></div>
-  <div id="tSay"></div>
-  <div class="tabs" id="tTabs"></div>
-  <div id="tList" hidden></div>
-  <div id="tGrid" class="g5"></div>
-  <div id="tFoot"></div>
-  <div id="tCardWrap" hidden><div id="tCard"></div></div>
-</div>
-<div id="cardWrap" hidden><div id="card"></div></div>
-
-<div class="veil" id="start">
-  <h1>БЕРСЕРК</h1>
-  <h2>эпоха затмения</h2>
-  <p>Ты идёшь с мечом, который слишком велик для человека. Мир вокруг живёт без тебя, но ты в нём не один.</p>
-  <button id="go">Войти в мир</button>
-  <button id="startSettings" type="button">Настройки</button>
-  <a id="to3d" href="./3d/">3D-прототип →</a>
-  <div id="saveBox" hidden><div id="saveTxt"></div><button id="newGame" type="button">Начать заново</button></div>
-  <div id="hint">Держи «Удар» для цепочки: третий удар тяжёлый. «Перекат» даёт короткую неуязвимость: уворот от удара или стрелы наполняет Клеймо. Когда шкала под здоровьем заполнится, жми «Клеймо». У костра в начале мира безопасно.</div>
-</div>
-<div class="veil" id="pause" hidden>
-  <h2 id="pauseTitle">Пауза</h2>
-  <div id="settings">
-    <label class="srow" for="setVol"><span>Громкость</span><b id="volVal"></b></label>
-    <input id="setVol" type="range" min="0" max="100" step="5" aria-label="Громкость">
-    <button class="tgl" id="setMute" type="button"></button>
-    <button class="tgl" id="setLefty" type="button"></button>
-    <button class="tgl" id="setReduce" type="button"></button>
-    <div class="snote">«Меньше движения»: «авто» следует настройке iPhone (Универсальный доступ → Движение), «вкл» отключает тряску, частицы и мерцание всегда.</div>
-  </div>
-  <button id="resume" type="button">Продолжить</button>
-</div>
-<div class="veil" id="rotate" hidden>
-  <div class="phone" aria-hidden="true"></div>
-  <h2>Поверните телефон</h2>
-  <p>Игра рассчитана на вертикальное положение. Она на паузе, пока вы не вернёте телефон.</p>
-</div>
-<div class="veil" id="dead" hidden>
-  <h2>Ты пал.</h2>
-  <p>Мир не остановился. Костёр всё ещё горит.</p>
-  <button id="rise">Подняться у костра</button>
-</div>
-
-<script type="module" src="/src/main.js"></script>
+<a href="./3d/">Открыть игру</a>
 </body>
 </html>

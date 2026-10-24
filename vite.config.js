@@ -35,7 +35,7 @@ export default defineConfig({
   server: { host: true, port: 5174, strictPort: false },
   build: {
     target: 'es2020', sourcemap: false, chunkSizeWarningLimit: 700, assetsInlineLimit: 0,
-    // две страницы: 2D-игра и 3D-прототип (/3d/)
+    // две страницы: корень (переход в игру) и сама игра (/3d/); старая 2D-игра удалена (2026-10-24)
     rollupOptions: { input: { main: resolve(here, 'index.html'), three: resolve(here, '3d/index.html') } }
   }
 });

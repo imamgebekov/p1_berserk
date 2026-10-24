@@ -54,8 +54,8 @@ try {
   if (await page.evaluate(() => window.__b3d.input.state.mx !== 0 || window.__b3d.input.state.mz !== 0)) bad('джойстик не обнулился после отпускания');
 
   // страница не листается и нет ссылок поверх игрового поля
-  { const r = await page.evaluate(() => { const l = document.getElementById('back'), p = document.getElementById('panel'); return { inPanel: p.contains(l), scroll: [document.scrollingElement.scrollTop, document.scrollingElement.scrollHeight - innerHeight], pos: getComputedStyle(document.body).position }; });
-    if (!r.inPanel) bad('ссылка на 2D лежит вне панели'); if (r.pos !== 'fixed') bad('страница не зафиксирована');
+  { const r = await page.evaluate(() => { return { noLink: !document.getElementById('back'), scroll: [document.scrollingElement.scrollTop, document.scrollingElement.scrollHeight - innerHeight], pos: getComputedStyle(document.body).position }; });
+    if (!r.noLink) bad('осталась ссылка на старую 2D-игру'); if (r.pos !== 'fixed') bad('страница не зафиксирована');
     const prevented = await page.evaluate(() => { const ev = new Event('touchmove', { cancelable: true, bubbles: true }); document.getElementById('gl').dispatchEvent(ev); return ev.defaultPrevented; });
     if (!prevented) bad('touchmove по полю не гасится (страница будет листаться)'); }
   // бой: ставим врага перед героем и бьём кнопкой
@@ -68,7 +68,7 @@ try {
   if (!(hp < 100)) bad('удар кнопкой не задел врага');
 
   // места и карта: подпись места, миникарта, большая карта с туманом
-  await page.evaluate(() => { const w = window.__b3d.W; w.enemies.length = 0; w.cfg.enemies.count = 0; for (const [x, z] of [[0, 6], [-28, 30], [56, -44], [-46, -30]]) { window.__b3d.reveal(x, z, 22); } w.player.x = 56; w.player.z = -44; w.player.inv = 1e9; });
+  await page.evaluate(() => { const w = window.__b3d.W; w.enemies.length = 0; w.cfg.enemies.count = 0; const L = w.cfg.map.places.find(p => p.id === 'lager'); for (const [x, z] of [[0, 6], [-28, 30], [L.x, L.z], [-46, -30]]) { window.__b3d.reveal(x, z, 22); } w.player.x = L.x; w.player.z = L.z; w.player.inv = 1e9; });     // 5.04: логово — из карты
   await page.waitForTimeout(1500);     // программный GL — около 9 кадров/с: подпись меняется не сразу
   { const t = await page.$eval('#place', e => ({ hidden: e.hidden, text: e.textContent, cls: e.className })); if (t.hidden || !t.text.includes('Лагерь Ржавых') || t.cls !== 'danger') bad('подпись места не показана: ' + JSON.stringify(t)); }
   await page.screenshot({ path: join(out, '3d-place.png') });
@@ -79,7 +79,7 @@ try {
   await page.screenshot({ path: join(out, '3d-map.png') });
   await page.tap('#mapClose'); await page.waitForTimeout(100);
   // навыки: очко вложить, ветки переключаются, эффекты видны
-  await page.evaluate(() => { const w = window.__b3d.W; w.lv = 6; w.sp = 4; w.skills = {}; });
+  await page.evaluate(() => { const w = window.__b3d.W; w.lv = 6; w.sp = 4; w.skills = {}; w.school = 1; });     // школы (2026-10-22): «Тяжёлая рука» — в школе «Истребитель» (вторая ветка Торна)
   await page.waitForTimeout(150);
   if (!(await page.$eval('#skillBtn', e => e.classList.contains('dot')))) bad('нет отметки о свободных очках навыков');
   await page.tap('#skillBtn'); await page.waitForTimeout(250);

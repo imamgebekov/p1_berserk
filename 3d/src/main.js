@@ -562,7 +562,7 @@ if (new URLSearchParams(location.search).has('ascii')) P.ascii = true;      // �
 if (new URLSearchParams(location.search).has('retro')) P.retro = true;      // для тестов и ссылок: сразу вид «Ретро»
 applyPrefs();
 // панель настройки прототипа и ссылка на 2D — только для разработки (?dev, шаг 4 «Минус»)
-if (!new URLSearchParams(location.search).has('dev')) { $('tweakBox').hidden = true; $('back').hidden = true; }
+if (!new URLSearchParams(location.search).has('dev')) { $('tweakBox').hidden = true; }
 // сброс прогресса: удерживать 1,5 с (шаг 4): случайное касание ничего не сотрёт
 // «Новый круг» (этап 6 «круче»): второе нажатие подтверждает
 $('ngBtn').addEventListener('click', e => { const b = e.currentTarget; if (!b.dataset.arm) { b.dataset.arm = '1'; b.textContent = 'Нажмите ещё раз: сюжет и задания заново, враги сильнее'; return; }
