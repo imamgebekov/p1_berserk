@@ -30,11 +30,12 @@ for (const h of HEROES) {
   const T = treeOf(h, c); ok(T.length === 3 && T.every(b => b.nodes.length === 40 && b.nodes.filter(n => n.kind === 'active').length === 12), `${h}: в ветках не по 40 узлов и 12 активных`);
   ok(T.every(b => Math.min(...b.nodes.filter(n => n.kind === 'active').map(n => n.row)) === 1 && b.nodes.filter(n => n.row === 1)[0].kind === 'active'), `${h}: ветка начинается не с активного умения`);
   for (const b of T) for (const n of b.nodes) ok(GI[n.icon], `${h}: у узла ${n.key} нет значка`);
-  L.forEach((a, i) => { const lv = rankLvs(c, i, a); ok(lv.length >= 3 && lv[0] >= 3 && lv.every((x, k) => x <= c.level.max && (!k || x >= lv[k - 1])), `${h}/${a.id}: уровни рангов ${lv}`); });
+  L.forEach((a, i) => { const lv = rankLvs(c, i, a); ok(lv.length >= 3 && lv[0] >= c.abilities.firstLv && lv.every((x, k) => x <= c.level.max && (!k || x >= lv[k - 1])), `${h}/${a.id}: уровни рангов ${lv}`); });
   const W = mk(h); for (const a of L.filter(x => x.kind)) for (const r of [0, 1, 2]) { const s = a.text(W.cfg.abilities.gen[a.kind] ? { ...W.cfg.abilities.gen[a.kind], ...a.p, st: a.st, amt: (W.cfg.abilities.gen.buff.amt || {})[a.p.stat] } : {}, r); ok(typeof s === 'string' && !/undefined|NaN/.test(s), `${h}/${a.id}: описание ранга ${r + 1}: ${s}`); }
 }
-ok(abilityPointsAt(60, CFG3) === 58 + CFG3.abilities.mastery.lv.length, `очков умений на 60-м: ${abilityPointsAt(60, CFG3)}`);
-ok(abilityPoints(3, CFG3) === 1, 'на 3-м уровне не одно очко умений');
+const F1 = CFG3.abilities.firstLv;     // 5.03: первое очко — с 1-го уровня
+ok(abilityPointsAt(60, CFG3) === 61 - F1 + CFG3.abilities.mastery.lv.length, `очков умений на 60-м: ${abilityPointsAt(60, CFG3)}`);
+ok(abilityPoints(F1, CFG3) === 1, `на ${F1}-м уровне не одно очко умений`);
 
 // ---------- 2. каждое новое умение срабатывает ----------
 const near = (W, id) => W.enemies.filter(e => !e.dead).reduce((s, e) => s + (e.maxhp - e.hp), 0);

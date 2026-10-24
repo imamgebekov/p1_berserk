@@ -127,7 +127,7 @@ button{font:inherit;color:var(--ink)}
 #place{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 58px);transform:translateX(-50%);padding:3px 12px;border-radius:12px;background:rgba(10,5,6,.55);font-size:12.5px;text-align:center;pointer-events:none;white-space:nowrap;animation:place 4.5s ease-out forwards;text-shadow:0 1px 0 #000;z-index:4}
 #place.safe{color:#a8e0a0}#place.danger{color:#ff9a8a}
 @keyframes place{0%{opacity:0}8%{opacity:1}75%{opacity:1}100%{opacity:0}}
-#mapZoom{display:flex;gap:6px;margin-top:6px}#mapZoom[hidden]{display:none}#mapZoom button{min-height:44px;min-width:44px;flex:1}
+#mapZoom,#firesZoom{display:flex;gap:6px;margin-top:6px}#mapZoom[hidden]{display:none}#mapZoom button,#firesZoom button{min-height:44px;min-width:44px;flex:1}#firesZoom{margin:0 0 6px}
 #mapCv{touch-action:none;cursor:grab;width:auto;height:auto;max-width:100%;max-height:calc(80vh / var(--dz,1) - 175px);margin-left:auto;margin-right:auto;aspect-ratio:1;display:block;border:2px solid var(--line);border-radius:10px;background:#0c0807;margin-top:8px;image-rendering:auto}
 #mapLegend{font-size:12px;opacity:.75;margin-top:8px;line-height:1.5}
 @media (prefers-reduced-motion:reduce){#place{animation:none}}
@@ -455,7 +455,7 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 .skrow .slots .bslot,.tcard .slots .bslot{min-width:44px;min-height:44px;padding:0;border-radius:8px;background:var(--btn);border:2px solid var(--line);color:var(--ink);font-weight:700}
 .skrow .slots .bslot.on,.tcard .slots .bslot.on{border-color:var(--gold);background:var(--btn-on);color:#f6e6c8}
 .gempop{display:flex;flex-direction:column;gap:5px;margin-top:6px;padding:6px;border:1px solid var(--line);border-radius:10px;background:#140d0c}.gemopt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:44px;padding:6px 10px;text-align:left;background:#1e1414;border:2px solid var(--gc);border-radius:10px}.gemopt .gn{font-weight:700;color:var(--gc)}.gemopt .gf,.gemopt .gm{font-size:12px;opacity:.8}.gemopt .gm{color:#e8c04a}
-#firesMap{display:block;width:min(100%,520px,62vh);aspect-ratio:1;margin:6px auto 10px;border-radius:12px;border:2px solid var(--line);cursor:pointer;touch-action:manipulation}
+#firesMap{display:block;width:min(100%,520px,62vh);aspect-ratio:1;margin:6px auto 10px;border-radius:12px;border:2px solid var(--line);cursor:pointer;touch-action:none}
 /* разговор (этап 3): внизу экрана, над панелью умений; портрет слева, ответы кнопками */
 #dialog{position:fixed;left:50%;bottom:calc(120px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(720px,calc(100% - 24px));display:flex;gap:14px;align-items:flex-start;padding:14px 16px;background:rgba(18,11,10,.94);border:2px solid #6a4a2a;border-radius:14px;z-index:8;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 #dlgFace{width:72px;height:72px;flex:none;image-rendering:pixelated;border-radius:10px;background:#2a1d1b;border:2px solid #4a3426}

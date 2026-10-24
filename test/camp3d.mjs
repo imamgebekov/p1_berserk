@@ -16,7 +16,7 @@ const walkTo = (W, tx, tz, sec = 20) => { const p = W.player; for (let i = 0; i 
 // ---------- 1. геометрия ----------
 {
   const M = makeMap(clone());
-  ok(M.camp && M.blocks.length > 100 && M.foeBlocks.length === C.gates.length, 'нет частокола или ворот');
+  ok(M.camp && M.blocks.length > 100 && M.foeBlocks.filter(b => Math.hypot((b.x0 + b.x1) / 2 - M.camp.x, (b.z0 + b.z1) / 2 - M.camp.z) < M.camp.r + 10).length === C.gates.length, 'нет частокола или ворот');     // ворота лагерей Мира 5.0 и замка — свои
   for (const k of ['merchant', 'smith', 'captain']) { const b = M.buildings.find(x => x.npc && x.npc.kind === k); ok(b && insideCamp(M.camp, b.npc.x, b.npc.z), `${k} не в лагере`); }
   const hit = (a, w, pad = 0) => !(a.x1 < w.x0 - pad || a.x0 > w.x1 + pad || a.z1 < w.z0 - pad || a.z0 > w.z1 + pad);
   ok(!M.buildings.some(b => M.blocks.some(w => hit(b, w))), 'частокол врезается в дом');

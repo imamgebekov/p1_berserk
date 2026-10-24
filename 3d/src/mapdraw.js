@@ -162,11 +162,12 @@ export function drawMap(ctx, W, v) {
   if (!under && W.event) { const ev = W.event, g = ev.guest && W.allies.find(a => a.id === ev.guest), ex = g ? g.x : ev.x, ez = g ? g.z : ev.z, m = 7, x = Math.min(w - m, Math.max(m, X(ex))), y = Math.min(h - m, Math.max(m, Y(ez)));
     ctx.fillStyle = '#ffc040'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 5.5, 0, 6.2832); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#1a1008'; ctx.fillRect(x - 1, y - 3.5, 2, 4.5); ctx.fillRect(x - 1, y + 2, 2, 1.6); }
   // метки взятых заданий (этап 5 «круче»): ромб — цель, зелёный — пора сдавать; на миникарте прижимаются к краю
-  if (!under) for (const q of W.qmarks || []) { if (W.goal && q.x === W.goal.x && q.z === W.goal.z) continue; const m = 6, x = Math.min(w - m, Math.max(m, X(q.x))), y = Math.min(h - m, Math.max(m, Y(q.z))), r = full ? 5 : 4;
+  const edge = (x, y, m) => { if (full) return [Math.min(w - m, Math.max(m, x)), Math.min(h - m, Math.max(m, y))]; const dx = x - w / 2, dy = y - h / 2, R = Math.min(w, h) / 2 - m, d = Math.hypot(dx, dy); return d > R ? [w / 2 + dx * R / d, h / 2 + dy * R / d] : [x, y]; };     // 2026-10-24: миникарта круглая — метки за краем прижимаются к краю круга (в углах квадрата их срезало)
+  if (!under) for (const q of W.qmarks || []) { if (W.goal && q.x === W.goal.x && q.z === W.goal.z) continue; const m = 6, [x, y] = edge(X(q.x), Y(q.z), m), r = full ? 5 : 4;
     if (full) { badge(ctx, 'map:quest', x, y, 8 * U, q.ready ? '#3a9a3a' : '#b8901c'); continue; }
     ctx.fillStyle = q.ready ? '#8fe08a' : '#e8d07a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill(); ctx.stroke(); }
   // цель (шаг 12): золотое кольцо с точкой; на миникарте за краем — прижимается к краю, показывая направление
-  if (W.goal && Number.isFinite(W.goal.x)) { const m = 7, gx = X(W.goal.x), gy = Y(W.goal.z), x = Math.min(w - m, Math.max(m, gx)), y = Math.min(h - m, Math.max(m, gy)), t = performance.now() / 1000, r = (5 + (full ? 0 : Math.sin(t * 4) * .8)) * (full ? U * 1.4 : 1);
+  if (W.goal && Number.isFinite(W.goal.x)) { const m = 7, [x, y] = edge(X(W.goal.x), Y(W.goal.z), m), t = performance.now() / 1000, r = (5 + (full ? 0 : Math.sin(t * 4) * .8)) * (full ? U * 1.4 : 1);
     ctx.lineWidth = 2.5; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.arc(x, y, r + 1, 0, 6.2832); ctx.stroke(); ctx.strokeStyle = '#ffd45a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.stroke(); ctx.fillStyle = '#ffd45a'; ctx.beginPath(); ctx.arc(x, y, 1.8, 0, 6.2832); ctx.fill(); }
   // герой: стрелка по направлению
   ctx.save(); ctx.translate(X(p.x), Y(p.z)); if (full) ctx.scale(U * 1.3, U * 1.3); ctx.rotate(Math.atan2(Math.sin(p.face), -Math.cos(p.face)) + Math.PI);

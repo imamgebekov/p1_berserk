@@ -19,7 +19,7 @@ ok(Math.hypot(C.x, C.z) + R > 2000, 'до дальнего края меньше
 // поле уровня: по сетке 10 м соседние точки отличаются не больше чем на 0,6 уровня (нет разрывов между землями); у ядра ~20, у дальнего края — 80
 const pts = []; let jump = 0, maxL = 0, minL = 99;
 for (let x = C.x - R; x <= C.x + R; x += 10) for (let z = C.z - R; z <= C.z + R; z += 10) {
-  if (wdist(CFG3, x, z) > R - 5 || Math.hypot(x, z) < 110) continue;
+  if (wdist(CFG3, x, z) > R - 5 || Math.hypot(x, z) < CFG3.worldgen.coreR + CFG3.worldgen.belt) continue;     // ядро — без поля уровня
   const l = zoneLevel(CFG3, x, z), l2 = zoneLevel(CFG3, x + 10, z), l3 = zoneLevel(CFG3, x, z + 10); maxL = Math.max(maxL, l); minL = Math.min(minL, l);
   if (l2 != null && wdist(CFG3, x + 10, z) < R - 5) jump = Math.max(jump, Math.abs(l2 - l)); if (l3 != null && wdist(CFG3, x, z + 10) < R - 5) jump = Math.max(jump, Math.abs(l3 - l));
   if (Math.random() < .02) pts.push([x, z]);

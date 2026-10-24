@@ -8,8 +8,10 @@ import { mixOf, composePiece, birdSong, owlCall, fightBar } from '../3d/src/soun
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
-const clone = () => JSON.parse(JSON.stringify(CFG3));
-const A = CFG3.audio;
+const musicOn = c => { for (const k of ['music', 'fight', 'tracks']) if (c.audio[k]) c.audio[k].on = true; return c; };     // 5.04: в игре встроенная музыка выключена — тест включает её и проверяет код
+const clone = () => musicOn(JSON.parse(JSON.stringify(CFG3)));
+const A = clone().audio;
+ok(['music', 'fight', 'tracks'].every(k => !CFG3.audio[k] || CFG3.audio[k].on === false), 'встроенная музыка в игре не выключена');     // 5.04: владелец ставит свою музыку
 const mk = (c = clone()) => { c.enemies.count = 0; c.bosses.list = []; c.events.on = false; c.wanderer.on = false; return createWorld(c, mulberry32(1)); };
 
 // ---------- 1. уровни слоёв ----------

@@ -113,7 +113,8 @@ ok(QUESTS.some(q => q.enemy === 'shield') && QUESTS.some(q => q.enemy === 'bombe
 
 // ---------- 6. ночные виды ----------
 {
-  const count = night => { let shades = 0; for (let s = 0; s < 3; s++) { const W = mk(20 + s, c => { c.enemies.count = 8; c.enemies.roam.on = false; }); W.player.x = -56.4; W.player.z = -39.5; /* кладбище после растяжения ядра (3.93) */ if (night) W.t = 200; run(W, 25, { mx: Math.sin(s) * .2 }); shades += W.enemies.filter(e => e.type === 'shade').length + (W.known.bestiary.shade ? 0 : 0); } return shades; };
+  const GY = CFG3.map.zones.find(z => z.type === 'graveyard');     // кладбище — из области (ядро раздвинуто, 3.93 и 5.04)
+  const count = night => { let shades = 0; for (let s = 0; s < 3; s++) { const W = mk(20 + s, c => { c.enemies.count = 8; c.enemies.roam.on = false; }); W.player.x = GY.x; W.player.z = GY.z; if (night) W.t = 200; run(W, 25, { mx: Math.sin(s) * .2 }); shades += W.enemies.filter(e => e.type === 'shade').length + (W.known.bestiary.shade ? 0 : 0); } return shades; };
   ok(count(false) === 0, 'тень появилась днём');
   ok(count(true) > 0, 'ночью на кладбище теней нет');
 }

@@ -5,6 +5,7 @@ import { CORE3 as CFG3 } from '../3d/src/config3d.js';     // ручное яд�
 CFG3.terrain.on = false;      // эталон боя — плоское поле без реки (C2): цифры сравнимы с прошлыми версиями
 import { createWorld, step, mulberry32, aliveEnemies, setDifficulty, travel } from '../3d/src/sim.js';
 import { pathStep } from '../3d/src/map.js';
+import { warpOf } from '../3d/src/coremap3d.js';
 import { telegraphDodge } from './botsense.mjs';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const TIERS = {
@@ -13,7 +14,8 @@ const TIERS = {
   'сталь': { weapon: 'w_sword_steel', body: 'a_body_mail_mail', head: 'a_head_helm_mail', boots: 'a_boots_greaves_mail', ring: 'r_ring_might', amulet: 'm_amulet_ward' },
   'чёрное': { weapon: 'w_greatsword_black', body: 'a_body_plate_black', head: 'a_head_helm_black', boots: 'a_boots_greaves_black', cloak: 'a_cloak_pelt_black', ring: 'r_ring_blood', amulet: 'm_talisman_blood' }
 };
-const PLACES = { 'у костра': [7.5, 7.5], 'середина': [-25, -50], 'у границы': [-69.4, -5.6] };     // прежние (6, 6), (−20, −40), (−62, −5) после растяжения ядра (3.93)
+const WP = warpOf(CFG3) || (q => q), at = (x, z) => { const q = WP({ x, z }); return [q.x, q.z]; };
+const PLACES = { 'у костра': at(6, 6), 'середина': at(-20, -40), 'у границы': at(-62, -5) };     // прежние точки — на раздвинутом ядре (3.93, 5.04)
 const SEEDS = Number(process.env.BAL_SEEDS || 10), SECONDS = 90;
 const HPM = Number(process.env.BAL_HP || 1), DMM = Number(process.env.BAL_DMG || 1), BUF = process.env.BAL_BUF;   // BAL_BUF — память нажатия, с (1e-6 — без неё, как до тяжёлого удара)       // ручки для подбора чисел
 

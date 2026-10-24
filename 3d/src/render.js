@@ -482,15 +482,17 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const puffM = new THREE.Matrix4(), puffQ = new THREE.Quaternion(), puffS = new THREE.Vector3(), puffP = new THREE.Vector3();
   scene.add(life);
   // сквозное окно (F4): у героя всё, что ближе к камере (кроны, крыши, частокол, мосты, арки), прорежено узором — герой виден
-  const XR = cfg.overhead && cfg.overhead.xray, XU = { uHero: { value: new THREE.Vector3(0, 0, 2) }, uXrR: { value: XR ? XR.r : 0 }, uAsp: { value: 1 }, uXrCut: { value: XR ? XR.cut : 0 } };
+  const XR = cfg.overhead && cfg.overhead.xray, XU = { uHero: { value: new THREE.Vector3(0, 0, 2) }, uXrR: { value: XR ? XR.r : 0 }, uAsp: { value: 1 }, uXrCut: { value: XR ? XR.cut : 0 }, uHw: { value: new THREE.Vector3() }, uRoofR: { value: 0 } };
+  const RF = XR && cfg.overhead.roof, roofs = RF && RF.on ? map.decor.filter(d => RF.kinds[d.t]).map(d => ({ x: d.x, z: d.z, r: RF.kinds[d.t] })) : []; let roofK = 0;     // 5.04: герой под шатром — верх шатров вокруг срезан, видно бой
   const xray = mat => {
     if (!XR || !XR.on || !mat || mat.userData.xray || mat === waterMat) return; mat.userData.xray = true;
     const prev = mat.onBeforeCompile, key = mat.customProgramCacheKey ? mat.customProgramCacheKey() : '';
     mat.onBeforeCompile = (sh, r) => {
       if (prev) prev(sh, r); Object.assign(sh.uniforms, XU);
-      sh.vertexShader = 'varying vec3 vXr;\n' + sh.vertexShader.replace(/}\s*$/, '  vXr = gl_Position.xyz / gl_Position.w;\n}');
-      sh.fragmentShader = 'uniform vec3 uHero; uniform float uXrR, uAsp, uXrCut; varying vec3 vXr;\nfloat xb2(vec2 a) { a = floor(a); return fract(dot(a, vec2(.5, a.y * .75))); }\n' +
-        sh.fragmentShader.replace('void main() {', 'void main() {\n  { vec2 d = vec2((vXr.x - uHero.x) * uAsp, vXr.y - uHero.y); float k = 1. - smoothstep(uXrR * .55, uXrR, length(d)); if (k > 0. && vXr.z < uHero.z && xb2(.5 * gl_FragCoord.xy) * .25 + xb2(gl_FragCoord.xy) < k * uXrCut) discard; }');
+      const tw = /#include <begin_vertex>/.test(sh.vertexShader) ? 'vec4 xw = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n  xw = instanceMatrix * xw;\n#endif\n  vXw = (modelMatrix * xw).xyz;' : 'vXw = vec3(0., -1e4, 0.);';
+      sh.vertexShader = 'varying vec3 vXr; varying vec3 vXw;\n' + sh.vertexShader.replace(/}\s*$/, '  vXr = gl_Position.xyz / gl_Position.w;\n  ' + tw + '\n}');
+      sh.fragmentShader = 'uniform vec3 uHero, uHw; uniform float uXrR, uAsp, uXrCut, uRoofR; varying vec3 vXr; varying vec3 vXw;\nfloat xb2(vec2 a) { a = floor(a); return fract(dot(a, vec2(.5, a.y * .75))); }\n' +
+        sh.fragmentShader.replace('void main() {', 'void main() {\n  { vec2 d = vec2((vXr.x - uHero.x) * uAsp, vXr.y - uHero.y); float k = 1. - smoothstep(uXrR * .55, uXrR, length(d)); if (k > 0. && vXr.z < uHero.z && xb2(.5 * gl_FragCoord.xy) * .25 + xb2(gl_FragCoord.xy) < k * uXrCut) discard;\n  if (uRoofR > 0. && vXw.y > uHw.y) { float q = 1. - smoothstep(uRoofR * .7, uRoofR, length(vXw.xz - uHw.xz)); if (xb2(.5 * gl_FragCoord.xy) * .25 + xb2(gl_FragCoord.xy) < q * 1.3) discard; } }');
     };
     mat.customProgramCacheKey = () => key + '-xray'; mat.needsUpdate = true;
   };
@@ -957,12 +959,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const k = 1 - Math.exp(-cfg.view.camFollow * dt), cfx = p.x + (cf.x - p.x) * cineA, cfz = p.z + (cf.z - p.z) * cineA, ka = cineA > 0 ? Math.max(k, 1 - Math.exp(-C.follow * rdt)) : k;
     cam.x += (cfx - cam.x) * ka; cam.z += (cfz - cam.z) * ka; cam.y += ((liftY ?? Y(p.x, p.z)) - cam.y) * (cfg.view.blend ? 1 - Math.exp(-cfg.view.blend.camY * dt) : k);     // высота над холмами — медленнее (шаг 3)
     zoomC += (zoomT - zoomC) * (1 - Math.exp(-((cfg.view.zoom && cfg.view.zoom.ease) || 8) * rdt));
-    const ca = calm ? 0 : cineA, pitch = (cfg.view.camPitch - C.pitch * ca) * Math.PI / 180, dist = cfg.view.camDist * zoomC * (1 - feelZoom) * (1 - C.dist * ca);     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
+    const ZV = cfg.view.zoom, zk = ZV && ZV.tilt ? Math.max(0, Math.min(1, (1 - zoomC) / (1 - ZV.min))) : 0, tilt = zk ? ZV.tilt * zk : 0, look = cfg.view.camLookUp + (zk ? (ZV.lift || 0) * zk : 0);     // 5.04: приближение — камера ниже к горизонту, видно дальше вперёд
+    const ca = calm ? 0 : cineA, pitch = (cfg.view.camPitch - tilt - C.pitch * ca) * Math.PI / 180, dist = cfg.view.camDist * zoomC * (1 - feelZoom) * (1 - C.dist * ca);     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
     const FV = cfg.fx.view, sh = calm || !FV ? 0 : W.shake * FV.amp, wt = performance.now() / 1000;     // тряска — плавная (шаг 4), при «уменьшить движение» — нет
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
     const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
-    camera.position.set(cam.x + Math.sin(yaw) * hd + sh * (Math.sin(wt * FV.f[0] * 6.283) + .5 * Math.sin(wt * FV.f[1] * 6.283 + 1.3)) / 3, Math.sin(pitch) * dist + cfg.view.camLookUp + cam.y + sh * (Math.sin(wt * FV.f[1] * 6.283 + .7) + .5 * Math.sin(wt * FV.f[0] * 6.283 + 2.1)) / 3, cam.z + Math.cos(yaw) * hd);
-    camera.lookAt(cam.x, cfg.view.camLookUp + cam.y, cam.z);
+    camera.position.set(cam.x + Math.sin(yaw) * hd + sh * (Math.sin(wt * FV.f[0] * 6.283) + .5 * Math.sin(wt * FV.f[1] * 6.283 + 1.3)) / 3, Math.sin(pitch) * dist + look + cam.y + sh * (Math.sin(wt * FV.f[1] * 6.283 + .7) + .5 * Math.sin(wt * FV.f[0] * 6.283 + 2.1)) / 3, cam.z + Math.cos(yaw) * hd);
+    camera.lookAt(cam.x, look + cam.y, cam.z);
     camera.updateMatrixWorld(); PV.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); FR.setFromProjectionMatrix(PV);     // что в кадре
     if (sun.castShadow && SHD) {                                      // карта теней — за героем, шаг в тексель (тень не дрожит)
       const tx = 2 * SHD.span / SHD.size; shT.set(cam.x, cam.y, cam.z);
@@ -1265,6 +1268,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (W.tomb && (W.tomb.lvl || 'surface') === W.lvl) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, Y(W.tomb.x, W.tomb.z), W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
     for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
     if (XR && XR.on) { XU.uHero.value.set(p.x, py + 1.1, p.z).project(camera); XU.uAsp.value = camera.aspect; }     // окно — вокруг груди героя
+    if (roofs.length) { const cov = !under && roofs.some(q => Math.abs(q.x - p.x) < q.r && Math.abs(q.z - p.z) < q.r && Math.hypot(q.x - p.x, q.z - p.z) < q.r); roofK += ((cov ? 1 : 0) - roofK) * Math.min(1, dt * RF.speed); XU.uRoofR.value = roofK > .02 ? roofK * RF.r : 0; XU.uHw.value.set(p.x, py + RF.h, p.z); }     // под шатром — срез плавно
     if (asciiOn) ascii.render(scene, camera, t, under ? .3 : W.light); else gl.render(scene, camera);
   }
   function setAscii(on) {                                           // атлас строится в resize под плотность экрана

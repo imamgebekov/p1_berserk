@@ -618,12 +618,13 @@ function openFires() {
   firesSec.hidden = false; panelOpen = true; input.release(); travelShow(pts);
 }
 // карта переноса (2026-10-20): та же большая карта мира, точки назначения — значки; нажатие — перенос. Общая для костров и повозки
-let travelPick = null;
-function travelShow(pts) { travelPick = pts; requestAnimationFrame(travelDraw); }
+let travelPick = null; const tv = { cx: 0, cz: 0, span: 1 }, tvMax = () => cfg.world.radius * 2 + 12;
+const tvClamp = () => { tv.span = Math.max(80, Math.min(tvMax(), tv.span)); const m = Math.max(0, (tvMax() - tv.span) / 2); tv.cx = Math.max(WCN.x - m, Math.min(WCN.x + m, tv.cx)); tv.cz = Math.max(WCN.z - m, Math.min(WCN.z + m, tv.cz)); };     // 5.04: приближение и сдвиг — в пределах круга мира
+function travelShow(pts) { travelPick = pts; tv.cx = WCN.x; tv.cz = WCN.z; tv.span = tvMax(); requestAnimationFrame(travelDraw); }
 function travelDraw() {
   const cv = $('firesMap'), pts = travelPick; if (!pts || firesSec.hidden) return;
   const r = cv.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1), w = Math.max(300, Math.round(r.width * d)), h = Math.max(240, Math.round(r.height * d)); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-  const cx = WCN.x, cz = WCN.z, sc = Math.min(w, h) / (cfg.world.radius * 2 + 12), ctx = cv.getContext('2d'), U = d * 1.2;     // 4.08: весь мир; неоткрытое — под туманом
+  const cx = tv.cx, cz = tv.cz, sc = Math.min(w, h) / tv.span, ctx = cv.getContext('2d'), U = d * 1.2;     // 4.08: весь мир; неоткрытое — под туманом
   drawMap(ctx, mapW(), { w, h, scale: sc, cx, cz, full: true, ui: U, dpr: d });
   const X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc;
   for (const q of pts) { q.px = X(q.x); q.py = Y(q.z);
@@ -631,11 +632,18 @@ function travelDraw() {
     ctx.font = `700 ${Math.round(15 * U)}px "Alegreya Sans", Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4 * U; ctx.strokeStyle = 'rgba(244,236,214,.95)'; ctx.fillStyle = '#2a1408';
     const t = q.name + (q.sub ? ' · ' + q.sub : ''); ctx.strokeText(t, q.px, q.py - 24 * U); ctx.fillText(t, q.px, q.py - 24 * U); ctx.textBaseline = 'alphabetic'; }
 }
-$('firesMap').addEventListener('click', e => {
-  const cv = e.currentTarget, r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * cv.width, y = (e.clientY - r.top) / r.height * cv.height, d = Math.min(2, window.devicePixelRatio || 1);
-  let best = null, bd = 30 * d; for (const q of travelPick || []) { const k = Math.hypot(q.px - x, q.py - y); if (k < bd) { bd = k; best = q; } }
-  if (best && !best.me && !best.off) best.go();
-});
+{ const cv = $('firesMap'), pts = new Map(), loc = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * cv.width, y: (e.clientY - r.top) / r.height * cv.height }; }; let pinch = 0, moved = 0;
+  const zoom = (k, px = cv.width / 2, py = cv.height / 2) => { const S = Math.min(cv.width, cv.height), wx = tv.cx + (px - cv.width / 2) / S * tv.span, wz = tv.cz + (py - cv.height / 2) / S * tv.span; tv.span *= k; tvClamp(); tv.cx = wx - (px - cv.width / 2) / S * tv.span; tv.cz = wz - (py - cv.height / 2) / S * tv.span; tvClamp(); travelDraw(); };     // точка под курсором остаётся на месте
+  cv.addEventListener('wheel', e => { e.preventDefault(); const q = loc(e); zoom(Math.exp(e.deltaY * .0015), q.x, q.y); }, { passive: false });
+  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, loc(e)); moved = pts.size > 1 ? 99 : 0; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); } });
+  cv.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; const q = loc(e), o = pts.get(e.pointerId); pts.set(e.pointerId, q);
+    if (pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch > 0 && d > 0) zoom(pinch / d, (a.x + b.x) / 2, (a.y + b.y) / 2); pinch = d; return; }     // щипок
+    moved += Math.hypot(q.x - o.x, q.y - o.y); if (moved < 8) return; const S = Math.min(cv.width, cv.height); tv.cx -= (q.x - o.x) / S * tv.span; tv.cz -= (q.y - o.y) / S * tv.span; tvClamp(); travelDraw(); });     // перетаскивание; малый сдвиг — ещё нажатие
+  const up = e => { pts.delete(e.pointerId); pinch = 0; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('click', e => { if (moved >= 8) return; const q = loc(e), d = Math.min(2, window.devicePixelRatio || 1);
+    let best = null, bd = 30 * d; for (const t of travelPick || []) { const k = Math.hypot(t.px - q.x, t.py - q.y); if (k < bd) { bd = k; best = t; } }
+    if (best && !best.me && !best.off) best.go(); });
+  $('firesIn').addEventListener('click', () => zoom(1 / 1.5)); $('firesOut').addEventListener('click', () => zoom(1.5)); $('firesAll').addEventListener('click', () => { tv.span = tvMax(); tvClamp(); travelDraw(); }); }
 window.addEventListener('resize', () => { if (!firesSec.hidden) travelDraw(); });
 function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write(); }
 fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
@@ -736,7 +744,7 @@ let mapRaf = 0; const mapRedraw = () => { if (!mapRaf) mapRaf = requestAnimation
 const mapDpr = () => Math.min(2, window.devicePixelRatio || 1);
 const mapFit = () => { const r = mapCv.getBoundingClientRect(), d = mapDpr(), w = Math.max(320, Math.round(r.width * d)), h = Math.max(240, Math.round(r.height * d)); if (mapCv.width !== w || mapCv.height !== h) { mapCv.width = w; mapCv.height = h; } };
 const mapSide = () => Math.min(mapCv.width, mapCv.height);     // масштаб карты — по меньшей стороне холста (4.04)
-const mapZoom = (k, px = mapCv.width / 2, py = mapCv.height / 2) => { const Wd = mapCv.width, Hd = mapCv.height, S = mapSide(), s0 = mv.span, wx = mv.cx + (px - Wd / 2) / S * s0, wz = mv.cz + (py - Hd / 2) / S * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px - Wd / 2) / S * mv.span; mv.cz = wz - (py - Hd / 2) / S * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте     // точка под курсором остаётся на месте
+const mapZoom = (k, px = mapCv.width / 2, py = mapCv.height / 2) => { const Wd = mapCv.width, Hd = mapCv.height, S = mapSide(), s0 = mv.span, wx = mv.cx + (px - Wd / 2) / S * s0, wz = mv.cz + (py - Hd / 2) / S * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px - Wd / 2) / S * mv.span; mv.cz = wz - (py - Hd / 2) / S * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте
 let mapView = null;     // последний вид большой карты — для облаков
 function drawFull() { const B = mapW().map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; mapFit(); drawMap(mapCtx, W, { w: mapCv.width, h: mapCv.height, scale: mapSide() / span,     // по меньшей стороне: «весь мир» влезает целиком
  cx, cz, full: true, ui: mapDpr() * 1.15, dpr: mapDpr() }); mapView = { w: mapCv.width, h: mapCv.height, sc: mapSide() / span, cx, cz, under: !!B }; const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
@@ -771,7 +779,7 @@ window.addEventListener('resize', () => { if (!mapEl.hidden) mapRedraw(); });
     else { mv.cx -= (q.x - o.x) / mapSide() * mv.span; mv.cz -= (q.y - o.y) / mapSide() * mv.span; mapClamp(); mapRedraw(); } });       // перетаскивание
   const up = e => { pts.delete(e.pointerId); pinch = 0; }; mapCv.addEventListener('pointerup', up); mapCv.addEventListener('pointercancel', up);
   $('mapIn').addEventListener('click', () => mapZoom(1 / 1.5)); $('mapOut').addEventListener('click', () => mapZoom(1.5));
-  $('mapMe').addEventListener('click', () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); mapRedraw(); }); $('mapAll').addEventListener('click', () => { mv.span = mapMax(); mv.cx = mv.cz = 0; mapClamp(); mapRedraw(); }); }
+  $('mapMe').addEventListener('click', () => { mv.cx = W.player.x; mv.cz = W.player.z; mapClamp(); mapRedraw(); }); $('mapAll').addEventListener('click', () => { mv.span = mapMax(); mv.cx = WCN.x; mv.cz = WCN.z; mapClamp(); mapRedraw(); }); }
 const mapClose = () => { mapEl.hidden = true; panelOpen = false; };
 $('miniBtn').addEventListener('click', () => (mapEl.hidden ? mapOpen() : mapClose()));
 $('mapClose').addEventListener('click', mapClose);

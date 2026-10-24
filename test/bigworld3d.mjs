@@ -102,10 +102,10 @@ function lineRef(map, x0, z0, x1, z1) {
 {
   const core = CFG3.worldgen.coreR, R = CFG3.world.radius, M = CFG3.world.depthMax;
   const { unwarpDist } = await import('../3d/src/coremap3d.js');     // ядро раздвинуто (3.93): глубина — по прежнему расстоянию
-  let bad = 0; for (let d = 0; d <= core; d += .37) if (Math.abs(depthCurve(CFG3, d) - clamp(unwarpDist(CFG3, d) / core, 0, 1)) > 1e-12) bad++;
+  const core0 = unwarpDist(CFG3, core); let bad = 0; for (let d = 0; d <= core; d += .37) if (Math.abs(depthCurve(CFG3, d) - clamp(unwarpDist(CFG3, d) / core0, 0, 1)) > 1e-12) bad++;     // core0 — край ядра до растяжения (5.04)
   ok(!bad, 'в ядре кривая глубины не совпадает со старой формулой: ' + bad);
   let up = true; for (let d = core; d < R + 50; d += 3) up = up && depthCurve(CFG3, d + 3) >= depthCurve(CFG3, d);
-  const DL = CFG3.world.depth[CFG3.world.depth.length - 1][0]; ok(up && Math.abs(depthCurve(CFG3, DL) - M) < 1e-9 && depthCurve(CFG3, DL + 100) === M, 'за ядром глубина не растёт до depthMax');     // Мир 5.0: предел — последняя точка кривой (дальний край)
+  const S = CFG3.world.stretch, DL = CFG3.world.depth[CFG3.world.depth.length - 1][0] + ((S && S.on && S.to) || 0) - ((S && S.on && S.to && S.rout) || 0); ok(up && Math.abs(depthCurve(CFG3, DL) - M) < 1e-9 && depthCurve(CFG3, DL + 100) === M, 'за ядром глубина не растёт до depthMax');     // Мир 5.0: предел — последняя точка кривой (дальний край); точки кривой — до растяжения ядра
   const big = { world: { radius: 600, depth: [[0, 0], [85, .75], [600, 1]] } };
   ok(Math.abs(depthCurve(big, 42.5) - .375) < 1e-9 && Math.abs(depthCurve(big, 342.5) - .875) < 1e-9 && depthCurve(big, 900) === 1, 'кусочная кривая считает не так');
   for (const t of [0, .2, .5, .75, .9, 1]) { const p = pointAtDepth(big, t, 1.3); ok(Math.abs(depthCurve(big, Math.hypot(p.x, p.z)) - t) < 1e-9, `pointAtDepth(${t}) не обращает кривую`); }

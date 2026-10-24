@@ -252,7 +252,7 @@ export function tickAudio() {
   if (!ac || !atmo || !A || muted || ac.state !== 'running') return;
   const now = ac.currentTime, ahead = now + A.look, m = atmo.mix, M = A.music;
   // музыка: кусок, потом тишина; в бою и под землёй шина молчит, но кусок доигрывается
-  if (!atmo.piece && now >= atmo.restUntil && m.music > 0) { atmo.piece = composePiece(atmo.seed++, m.night, M); atmo.pieceT = now + .2; atmo.idx = 0; stats.pieces++; }
+  if (!atmo.piece && now >= atmo.restUntil && m.music > 0 && M.on !== false) { atmo.piece = composePiece(atmo.seed++, m.night, M); atmo.pieceT = now + .2; atmo.idx = 0; stats.pieces++; }
   const P = atmo.piece;
   if (P) {
     while (atmo.idx < P.notes.length && atmo.pieceT + P.notes[atmo.idx].t < ahead) {

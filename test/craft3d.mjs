@@ -62,7 +62,7 @@ const give = (W, id, n = 1) => W.inv.bag.push({ id, n });
 { const W = mk(6); give(W, 'tome_atlas_polya'); give(W, 'tome_medic'); give(W, 'tome_medic');
   const i = W.inv.bag.findIndex(s => s.id === 'tome_atlas_polya'); ok(readTome(W, i) === 'ok' && W.known.tomes.atlas_polya && W.known.bestiary.hound === 2 && W.known.places.polya && W.known.kinds.wagon, 'чтение атласа');
   ok(!W.inv.bag.some(s => s.id === 'tome_atlas_polya'), 'прочитанная книга не потрачена'); ok(W.ev.some(v => v.k === 'tome'), 'нет события чтения');
-  const seenAt = (x, z) => isSeen(W, x, z); ok(seenAt(48, 40), 'атлас не открыл место на карте');
+  const seenAt = (x, z) => isSeen(W, x, z); const PO = W.cfg.map.places.find(p => p.id === 'polya'); ok(seenAt(PO.x, PO.z), 'атлас не открыл место на карте');     // место — из карты (ядро раздвинуто, 5.04)
   const j = W.inv.bag.findIndex(s => s.id === 'tome_medic'); ok(readTome(W, j) === 'ok' && recipeKnown(W.known, RECIPE_BY_ID.salve), 'книга открыла рецепты'); const cnt = W.inv.bag.filter(s => s.id === 'tome_medic').length;
   ok(readTome(W, W.inv.bag.findIndex(s => s.id === 'tome_medic')) === 'known' && W.inv.bag.filter(s => s.id === 'tome_medic').length === cnt, 'повторное чтение съело книгу'); ok(readTome(W, 99) === 'none', 'чтение несуществующего'); give(W, 'f_rye'); ok(readTome(W, W.inv.bag.length - 1) === 'none', 'еда читается как книга'); }
 // знания приходят сами: убийство, контейнер, вход в место, подбор

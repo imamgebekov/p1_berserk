@@ -7,6 +7,7 @@ import { castleFloors } from './castle3d.js';
 import { styleDungeons, styleDef, styleOn } from './dungeonstyle3d.js';
 import { zoneAt, zoneLevel, allZones, puddleOn, puddleAt, puddleBlend, puddleRange } from './zones3d.js';
 import { wcOf, wdist, worldSpot, farOf } from './geo3d.js';     // Мир 5.0
+import { unwarpDist } from './coremap3d.js';     // 5.04: глубина за раздвинутым ядром
 
 const TAU = Math.PI * 2;
 const mul = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -177,6 +178,12 @@ export function expandBig(base) {
 }
 // Мир 5.0 (2026-10-23): один проход генератора на весь сдвинутый круг; мест — по площади, как в мире ×2 (outer.k на круг 1200 м);
 // логова боссов колец — в своей земле, ближе к середине её уровней
+// поздние дороги (город, узел, лагерь, замок) строятся после плато и озёр: то, что легло на дорогу, убираем (5.04)
+function dropOnLinks(cfg) {
+  const T = cfg.terrain;
+  if (cfg.map.plateaus) cfg.map.plateaus = cfg.map.plateaus.filter(P => !cfg.map.links.some(([a, b]) => segD(P.x, P.z, a, b) < P.r + P.len + 10));     // 5.04: плато на поздней дороге (город, узел, лагерь, замок) — убрать
+  if (T && T.river && T.river.lakes) { const wetL = T.river.lakes.filter(L => cfg.map.links.some(([a, b]) => segD(L.x, L.z, a, b) < L.r * 1.3 + 2)); if (wetL.length) { T.river.lakes = T.river.lakes.filter(L => !wetL.includes(L)); if (cfg.map.pois) cfg.map.pois = cfg.map.pois.filter(q => !(q.t === 'pond' && wetL.some(L => Math.abs(L.x - q.x) < .01 && Math.abs(L.z - q.z) < .01))); } }     // и озеро на поздней дороге (с прудом-точкой)
+}
 function expandPuddles(base) {
   const b = JSON.parse(JSON.stringify(base)), G = b.worldgen, O = G.outer || { k: 1 }, k = O.k * (b.world.radius / 1200) ** 2;
   Object.assign(G, { bigNames: true, villages: Math.round(G.villages * k), dangers: Math.round(G.dangers * k), landmarks: Math.round(G.landmarks * k), hubT: [.05, .95] });
@@ -185,6 +192,7 @@ function expandPuddles(base) {
   const cfg = expandWorld(b);
   placeOutposts(cfg);
   placeCitadel(cfg);
+  dropOnLinks(cfg);
   for (const RB of cfg.worldgen.ringBosses || []) {
     const cand = cfg.map.places.filter(p => p.type === 'danger' && !p.poi && !p.fort && !p.city && !p.boss && !p.castle).map(p => ({ p, q: zoneAt(cfg, p.x, p.z) })).filter(o => o.q && o.q.id === RB.zone).sort((a, c) => Math.abs(a.q.t - .5) - Math.abs(c.q.t - .5));
     if (!cand.length) continue; const L = cand[0].p; L.name = RB.lair; L.boss = RB.type; L.danger = 3;
@@ -278,7 +286,7 @@ export function expandWorld(base) {
   EXTRA = G.idPrefix || G.bigNames ? NAMES_OUT : null;     // bigNames — Мир 5.0: один проход на весь мир, имён нужно больше
   const r = mul(cfg.world.seed * 1013 + 5), used = new Set([...cfg.map.places.map(p => p.name), ...(G.usedNames || [])]), T = cfg.terrain, IDP = G.idPrefix || '';     // IDP — приставка id (внешний проход мира ×2)
   const PUD = puddleOn(cfg), FAR = PUD ? farOf(cfg) * cfg.zones.puddle.far : R;     // Мир 5.0: старт у края, уровень — поле от старта
-  cfg.world.depth = [[0, 0], [G.coreR, 1], [FAR, G.depthMax]]; cfg.world.depthMax = G.depthMax;
+  cfg.world.depth = [[0, 0], [unwarpDist(cfg, G.coreR), 1], [unwarpDist(cfg, FAR), G.depthMax]]; cfg.world.depthMax = G.depthMax;     // глубина — по расстоянию до растяжения ядра
   const lvK = (x, z) => Math.max(0, Math.min(1, ((zoneLevel(cfg, x, z) ?? 20) - 20) / 60));     // доля пути к краю по уровню места (Мир 5.0)
   const rNew = r => { if (!PUD) return r; const L = r <= 100 ? 20 : r <= 330 ? 20 + (r - 100) / 230 * 18 : 38 + (r - 330) / 270 * 22; return G.coreR + (L - 20) / 60 * (FAR - G.coreR); };     // расстояние прежнего мира → то же уровень в новом
   cfg.world.props = Math.round(cfg.world.props * ((R - 1) ** 2 - 49) / ((G.coreR - 1) ** 2 - 49));     // плотность деревьев как в ядре
@@ -501,5 +509,6 @@ export function expandWorld(base) {
       I.bosses.forEach((B, k) => { const rm = I.rooms.find(q => q.id === B.room); cfg.bosses.list.push({ ...B, x: rm.x, z: rm.z, level: I.id, base: I.base, inst: I.id, final: k === I.bosses.length - 1 }); });     // final — главный босс подземелья
     }
   }
+  dropOnLinks(cfg);     // 5.04: плато и озёра на поздних дорогах — убрать
   return styleDungeons(cfg);     // облик подземелий: крупнее, необычные залы (2026-10-20)
 }
