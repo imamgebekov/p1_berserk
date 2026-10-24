@@ -48,13 +48,15 @@ import { affixFor, gemsFor } from './affix3d.js';
 import { partyTravel } from './party3d.js';
 import { wearHit, wearHurt, wearDeath, repairKit } from './dur3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
-import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe } from './map.js';
+import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe, roomAt } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 import { resGain } from './resource3d.js';
 import { wcOf, clampWorld } from './geo3d.js';     // Мир 5.0
 import { relicMul, relicLeech, relicSpd, relicRoll, relicHurt, relicSave, relicHit, relicRollBlast, relicKill, relicTick } from './relic3d.js';     // дары Затмения (2026-10-23)
-import { bossReward } from './lockout3d.js';
-import { trapsTick } from './traps3d.js';     // план подземелий, 2в     // откат награды подземелий и рейдов (план подземелий, 1б)
+import { bossReward } from './lockout3d.js';     // откат награды подземелий и рейдов (план подземелий, 1б)
+import { trapsTick } from './traps3d.js';     // план подземелий, 2в
+import { roomEventsTick } from './roomev3d.js';     // план подземелий, 2д
+import { addGuest } from './events3d.js';     // пленник события зала — гость, как путник в беде (2д)
 const critBonus = W => (W.abuf && W.abuf.hawk > 0 ? W.abuf.hawkCrit : 0);     // «Ястребиный глаз» Сойки: шанс крита на время
 
 export function createWorld(cfg, rng = Math.random) {
@@ -907,6 +909,9 @@ function updateEnemies(W, dt) {
 const P_RADIUS = W => W.cfg.player.radius;
 
 // наполнить контейнер заново: глубина (расстояние от костра или глубина подземелья) и удача героя улучшают добычу
+const ROOM_API = { spawnEnemy: (...a) => spawnEnemy(...a), rewardDrop: (...a) => rewardDrop(...a), roomAt, free: (M, x, z) => !resolve(M, { x, z }, .6), addGuest };     // события залов зовут бой и добычу через это (без кругового импорта)
+// награда события: сундук kind высыпается на землю (план подземелий, 2д)
+export function rewardDrop(W, kind, x, z) { const c = { kind, x, z }; refill(W, c); (c.items || []).forEach((it, i) => { const a = i / Math.max(1, c.items.length) * TAU; W.drops.push({ id: it.id, n: it.n, x: x + Math.sin(a) * 1.2, z: z + Math.cos(a) * 1.2, t: 0, cd: 0, ...(it.il ? { il: it.il } : {}) }); }); }
 export function refillLevel(W, id) { withLevel(W, id, () => { for (const c of W.map.containers) refill(W, c); }); }     // 4.15: сундуки новой раскладки
 function refill(W, c) {
   const def = CONTAINERS[c.kind], depth = Math.min(1, depthAt(W, c.x, c.z));     // добыча — не выше глубины 1 и в большом мире
@@ -1112,7 +1117,7 @@ export function step(W, dt, input = {}) {
     if (!W.rainOn && W.rain > .5) { W.rainOn = true; W.ev.push({ k: 'rainStart' }); } else if (W.rainOn && W.rain < .3) { W.rainOn = false; W.ev.push({ k: 'rainStop' }); }
   } else W.rain = 0; }
   refreshGear(W); relicTick(W, dt);     // дары Затмения: перезарядки, пепельная буря
-  if (!onSurface(W)) trapsTick(W, hurtPlayer);     // ловушки подземелий (план подземелий, 2в)
+  if (!onSurface(W)) { trapsTick(W, hurtPlayer); roomEventsTick(W, dt, ROOM_API); }     // ловушки (план подземелий, 2в) и события залов (2д)
   { const g = W.gfx, p = W.player;                                             // золото: щит кирасы заряжается, знак лечит вне боя
     if (g.aegis) { if (!(W.aegis > 0) && (W.aegisT = (W.aegisT ?? 0) - dt) <= 0) { W.aegis = g.aegis[1]; W.ev.push({ k: 'aegisUp', x: p.x, z: p.z }); } } else W.aegis = 0;
     if (g.sunheal && !p.dead && p.hp < p.maxhp && W.t - (p.lastHurt ?? -1e9) > g.sunheal[0]) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * g.sunheal[1] * dt); }
@@ -1136,7 +1141,7 @@ export function step(W, dt, input = {}) {
   updateFoes(W, dt);
   tickBossZones(W, dt);
   updateHouses(W, dt);
-  for (const def of W.cfg.bosses.list) { if (def.level && !W.levels[def.level]) continue; const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def)); }     // боссы живут на своём уровне, даже если герой на другом
+  for (const def of W.cfg.bosses.list) { if ((def.level && !W.levels[def.level]) || (def.inst && W.cfg.dungeons.gen && W.cfg.dungeons.gen.on)) continue; const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def)); }     // боссы живут на своём уровне, даже если герой на другом
   { let hb = null; for (const e of W.enemies) if ((e.boss || e.duel) && !e.dead && (e.alert || e.duel) && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!(e.b && e.b.enraged), id: e.id, shield: !!(e.b && e.b.shield), cast: e.b && e.b.state === 'wind' && e.b.atk && e.b.atk.kind === 'cast' ? { name: e.b.atk.name, k: e.b.atk.t / e.b.atk.wind } : null }; if (e.duel) break; } W.hudBoss = hb; }     // противник поединка — тоже с полосой     // этап 5: щит и чтение на полосе босса
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
   if (W.life) { repEvents(W, ev0); discoverCoaches(W); }

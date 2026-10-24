@@ -300,7 +300,7 @@ export function makeLevelMap(cfg, def) {
   const portals = [{ x: def.exit.x, z: def.exit.z, to: def.upTo || 'surface', tx: def.back.x, tz: def.back.z, up: true }];
   if (def.down) portals.push({ x: def.down.x, z: def.down.z, to: def.down.to, tx: def.down.tx, tz: def.down.tz, up: false });     // лестница на этаж ниже (C4)
   for (const q of def.props || []) if (q.r) solids.push({ x: q.x, z: q.z, r: q.r });     // твёрдая обстановка ключевых залов (план подземелий, 2а)
-  return { level: def.id, fire: def.fire || null, props: def.props || [], traps: (def.traps || []).map(q => ({ ...q, lever: { ...q.lever }, on: true, hit: {} })), path: D.path, buildings: [], walls: blocks, blocks, rooms, links, adj, hops, doors, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids, arcs, pits, pillars, decor: [], roads: [] };
+  return { level: def.id, fire: def.fire || null, props: def.props || [], traps: (def.traps || []).map(q => ({ ...q, lever: { ...q.lever }, on: true, hit: {} })), events: (def.events || []).map(q => ({ ...q, st: 'idle', foes: [] })), path: D.path, buildings: [], walls: blocks, blocks, rooms, links, adj, hops, doors, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids, arcs, pits, pillars, decor: [], roads: [] };
 }
 
 // сдвиг с шагами не длиннее 0.25: быстрый перекат не пролетает сквозь стену

@@ -47,7 +47,7 @@ for (const base of I) for (const seed of [1, 7, 42]) {
     for (const seed of [3, 11]) { const def = genDef(CFG3, { ...base, bosses: Array.from({ length: nb }, () => ({})) }, seed), M = makeLevelMap(CFG3, def), tag = `${base.id}#${seed}`;
       const bk = def.bosses.map(b => (def.rooms.find(r => r.id === b.room) || {}).kind); ok(bk.every((k, i) => k === T.boss[Math.min(i, T.boss.length - 1)]), `${tag}: залы боссов ${bk} вместо ${T.boss}`);
       const sp = def.rooms.filter(r => r.kind && !def.bosses.some(b => b.room === r.id)).map(r => r.kind); ok(sp.length >= 1 && sp.every(k => T.special.includes(k)), `${tag}: особые залы ${sp}`); kinds.push(bk.join() + '|' + sp.join());
-      for (const q of def.props) { const r = M.rooms.find(o => !o.corridor && q.x > o.x0 && q.x < o.x1 && q.z > o.z0 && q.z < o.z1); ok(r && r.kind, `${tag}: предмет ${q.t} вне ключевого зала`); }
+      for (const q of def.props) { const r = M.rooms.find(o => !o.corridor && q.x > o.x0 && q.x < o.x1 && q.z > o.z0 && q.z < o.z1); ok(r && (r.kind || (def.events || []).some(v => v.room === r.id)), `${tag}: предмет ${q.t} вне ключевого зала и зала события`); }
       ok(def.props.filter(q => q.r).every(q => M.solids.some(o => o.x === q.x && o.z === q.z)), `${tag}: твёрдый предмет не в карте`);
       for (const b of def.bosses) { const r = def.rooms.find(o => o.id === b.room); ok(!def.props.some(q => q.r && Math.hypot(q.x - r.x, q.z - r.z) < q.r + 1.5), `${tag}: предмет на месте босса`); } }
     ok(kinds[0].split('|')[0] === kinds[1].split('|')[0], `${base.id}: залы боссов меняются от зерна`); } }

@@ -49,7 +49,7 @@ export function styleDef(cfg, def, bosses = []) {
   def.styled = true;
   const k = S.scale, cmax = cfg.dungeons.corridorMax;
   for (const r of def.rooms) { r.corr = Math.min(r.w, r.d) <= cmax; sc(r, k, ['x', 'z', 'w', 'd']); }
-  sc(def.entry, k); sc(def.exit, k); sc(def.fire, k); for (const c of def.chests || []) sc(c, k); for (const q of def.props || []) sc(q, k); for (const q of def.traps || []) { sc(q, k, ['x', 'z', 'w', 'd']); sc(q.lever, k); }     // fire — костёр перед финальным боссом (план подземелий, 1е)
+  sc(def.entry, k); sc(def.exit, k); sc(def.fire, k); for (const c of def.chests || []) sc(c, k); for (const q of def.props || []) sc(q, k); for (const q of def.traps || []) { sc(q, k, ['x', 'z', 'w', 'd']); sc(q.lever, k); } for (const q of def.events || []) sc(q, k);     // fire — костёр перед финальным боссом (план подземелий, 1е)
   if (def.guard) sc(def.guard, k);
   if (def.throne) sc(def.throne, k, ['x', 'z', 'w', 'd']);
   if (def.down) { sc(def.down, k); if (def.down.to !== 'surface') sc(def.down, k, ['tx', 'tz']); }

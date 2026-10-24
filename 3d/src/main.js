@@ -43,6 +43,7 @@ import { storyTalk, storyTalked, storyTalkable, storyGoal, storyAutoPending, sto
 import { SPEAKERS } from './data/story3d.js';
 import { liveAllies, squadCommand } from './squad3d.js';
 import { setHeroic, isInstance, heroicOpen, portalInfo } from './levels3d.js';
+import { roomEventLine } from './roomev3d.js';     // план подземелий, 2д
 import { nodeNear, gather, mountToggle, coachNear, coachList, flightCost, fly } from './life3d.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSaveAny, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave, saveFileName } from './save3d.js';
@@ -274,6 +275,9 @@ function onEvent(v) {
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
   else if (v.k === 'seal') toast(`Печать Затмения +${v.n}`, '', '#e8c04a');     // дары Затмения (2026-10-23)
+  else if (v.k === 'roomEv') toast(v.kind === 'ambush' ? (v.wave === 1 ? 'Засада!' : `Засада: волна ${v.wave} из ${v.of}`) : v.kind === 'trial' ? `Испытание алтаря: продержитесь ${v.t} с, не выходя из зала` : v.kind === 'captive' ? 'Пленник под стражей: перебейте стражу' : 'Пепельный вор с добычей — догоните!', 'bad');     // события залов (план подземелий, 2д)
+  else if (v.k === 'roomEvDone') toast(v.kind === 'captive' ? 'Пленник свободен: «Спасибо! Возьми, что есть»' : v.kind === 'trial' ? 'Испытание пройдено: алтарь одаривает' : v.kind === 'thief' ? 'Вор пойман: добыча ваша' : 'Засада отбита!', '', '#e8c04a');
+  else if (v.k === 'roomEvFail') toast(v.kind === 'thief' ? 'Вор ушёл с добычей' : 'Испытание провалено: вы покинули зал', 'bad');
   else if (v.k === 'crackNear') toast('Трещина в стене — ударьте, чтобы пробить', '', '#c8b8a0');     // план подземелий, 2г
   else if (v.k === 'crack') toast('Стена рухнула: за ней тайник!', '', '#e8c04a');
   else if (v.k === 'lever') toast(`Рычаг: ${{ spikes: 'шипы', fire: 'огненная решётка', blade: 'маятник' }[v.kind] || 'ловушка'} — выключено`, '', '#e8c04a');     // план подземелий, 2в
@@ -940,7 +944,7 @@ function frame(now) {
     { const mr = mentorTick(W); if (mr && mr.k === 'start') { const who = MENTOR_WHO[mr.L.who]; for (const l of mr.L.lines) toast(`${who.name.split(',')[0]}: «${l}»`, '', '#f0d8a8', 'hint'); sfx('questready'); } else if (mr && mr.k === 'done') { toast(`Совет выполнен: +${mr.ash} пепла`, '', '#e8c04a', 'hint'); sfx('questdone'); saver.write(); } }
     const sp = W.spark && !W.spark.done, pg = pathGoal(W), crypt = pg && PATH[pathIndex(W)].id === 'crypt';
     const sg = !sp && W.story ? storyGoal(W) : null;     // сюжет (этап 3) — главнее «Пути пепла»
-    const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : String(W.lvl).startsWith('up:') ? { text: 'Второй этаж: сундуки; вниз — по лестнице', at: null } : { text: dungeonLine() || 'Подземелье: сундуки, ключи и выход наверх', at: null };
+    const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : String(W.lvl).startsWith('up:') ? { text: 'Второй этаж: сундуки; вниз — по лестнице', at: null } : { text: roomEventLine(W) || dungeonLine() || 'Подземелье: сундуки, ключи и выход наверх', at: null };
     // трекер (этап 5 «круче»): главная строка (событие, искра, сюжет, путь) и до трёх заданий; цель на карте не пропадает
     const surf = W.lvl === 'surface', ev = eventLine(W) || abyssLine(W), main = ev || (sp || sg || pg || !surf ? g.text : ''), ql = trackerLines(W, 3);
     W.qmarks = surf ? questMarks(W, storyActors(W)) : [];

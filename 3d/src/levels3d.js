@@ -145,14 +145,14 @@ export function regenLevel(W, id) {
   styleDef(cfg, def, bosses); delete def.bosses;
   const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
   Object.assign(L, { def, map, enemies: [], drops: [], spawnT: 1 }, fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal));
-  withLevel(W, id, () => { spawnFoes(W, L); for (const b of bosses) if (W.bossDead[b.type] === undefined) spawnBoss(W, b); });     // убитый босс ждёт своего срока, как раньше
+  withLevel(W, id, () => { spawnFoes(W, L); for (const b of bosses) { delete W.bossDead[b.type]; spawnBoss(W, b); } });     // новый заход — все боссы на месте (план подземелий: вход и бой — всегда, награду держит откат); внутри захода убитый не встаёт
   refillLevel(W, id);
   return true;
 }
 export function travel(W, id, x, z) {
   if (!W.levels[id]) return false;
   if (id !== W.lvl && regenLevel(W, id)) { const e = W.levels[id].def.entry; x = e.x; z = e.z; }     // 4.15: новая раскладка — вход новый
-  if (id !== W.lvl) W.dfire = null;     // костёр подземелья — до выхода (план подземелий, 1е)
+  if (id !== W.lvl) { W.dfire = null; W.allies = W.allies.filter(a => !a.roomEv); }     // костёр подземелья — до выхода (план подземелий, 1е); пленник события зала остаётся в зале (2д)
   const p = W.player; if (W.lvl === SURFACE && id !== SURFACE) W.surfPos = { x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100 };     // место спуска: здесь герой встанет после загрузки и смены героя
   leave(W); stash(W); load(W, id); arrive(W);
   Object.assign(p, { x, z, vx: 0, vz: 0, state: 'idle', atkT: 0, rollT: 0 });

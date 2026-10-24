@@ -5,6 +5,7 @@
 
 import { applyKeyRooms } from './keyrooms3d.js';     // план подземелий, 2а
 import { placeTraps } from './traps3d.js';     // план подземелий, 2в
+import { placeRoomEvents } from './roomev3d.js';     // план подземелий, 2д
 
 const DIRS = [[1, 0], [0, 1], [0, -1], [-1, 0]];
 const key = (i, j) => i + ',' + j;
@@ -69,8 +70,9 @@ export function genDef(cfg, def0, seed) {
   const doors = locks(cfg, def0, L, rooms, chests, bossCells, fireN, rnd);     // двери и ключи (план подземелий, 2б)
   const traps = placeTraps(cfg, def0, L, rooms, rnd);     // ловушки в коридорах пути (план подземелий, 2в)
   secrets(cfg, def0, L, rooms, chests, doors, bossCells, rnd);     // тайники за трещиной (план подземелий, 2г)
+  const events = placeRoomEvents(cfg, def0, L, rooms, bossCells, fireN, rnd, props, spawns);     // события залов (план подземелий, 2д)
   return { ...def0, rooms, doors, spawns, chests: (def0.chests || []).length ? chests.concat(bosses.length ? [{ kind: 'altar', x: L.cells[L.path[L.path.length - 1]].x, z: L.cells[L.path[L.path.length - 1]].z + 3 }] : []) : chests,
-    entry, exit, bosses, fire, props, traps, gen: { seed, rooms: L.cells.length, main: L.path.length }, guard: null };
+    entry, exit, bosses, fire, props, traps, events, gen: { seed, rooms: L.cells.length, main: L.path.length }, guard: null };
 }
 
 // запертые тупики (план подземелий, 2б): дверь между коридором и залом тупика, ключ — в сундуке другого доступного зала,

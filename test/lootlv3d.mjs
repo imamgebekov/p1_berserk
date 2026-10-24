@@ -21,14 +21,14 @@ const inR = ([a, b], lo, hi) => a >= lo && b <= hi;
   W.lv = 50; e.lvl = 12; ok(range(W, e)[1] <= 12 + G.over, 'герой много выше врага — вещь выше врага + over: ' + range(W, e)); }
 // подземелье: обычный, промежуточный и главный босс
 { const W = mk(), id = 'inst_moss', d = W.cfg.dungeons.list.find(q => q.id === id); W.lv = 30; travel(W, id, d.entry.x, d.entry.z); step(W, 1 / 60, {});
-  const p = W.player, e = spawnEnemy(W, 'brute', p.x + 2, p.z); e.lvl = 30; ok(inR(range(W, e), 23, 25), 'подземелье, обычный: ' + range(W, e));
+  const p = W.player, e = spawnEnemy(W, 'brute', p.x + 2, p.z); e.lvl = 30; e.elite = false; ok(inR(range(W, e), 23, 25), 'подземелье, обычный: ' + range(W, e));
   const bs = W.enemies.filter(q => q.boss); for (const b of bs) b.lvl = 30;
   const fin = bs.find(b => b.b.def.final), mid = bs.find(b => !b.b.def.final);
   ok(fin && inR(range(W, fin), 30, 30), 'подземелье, главный босс — как герой: ' + (fin && range(W, fin)));
   ok(mid && inR(range(W, mid), 26, 28), 'подземелье, промежуточный босс: ' + (mid && range(W, mid))); }
 // рейд и предел
 { const W = mk(), id = 'raid_oak', d = W.cfg.dungeons.list.find(q => q.id === id); W.lv = 21; travel(W, id, d.entry.x, d.entry.z); step(W, 1 / 60, {});
-  const p = W.player, e = spawnEnemy(W, 'brute', p.x + 2, p.z); e.lvl = 21; ok(inR(range(W, e), 18, 19), 'рейд, обычный: ' + range(W, e));
+  const p = W.player, e = spawnEnemy(W, 'brute', p.x + 2, p.z); e.lvl = 21; e.elite = false; ok(inR(range(W, e), 18, 19), 'рейд, обычный: ' + range(W, e));
   const b = W.enemies.find(q => q.boss); b.lvl = 21; ok(inR(range(W, b), 24, 26), 'рейд, босс +3…+5: ' + range(W, b));
   W.lv = 79; b.lvl = 80; ok(range(W, b)[1] === G.cap, 'нет предела 80: ' + range(W, b));
   // своя вещь рейда: одна наверняка, вторая — около половины

@@ -90,7 +90,7 @@ function spawnFoes(W, ev, kind, cx, cz, r0, r1, ang0 = 0, spread = TAU) {
   } finally { W.rng = keep; }
 }
 const foesLeft = (W, ev) => ev.foes.filter(id => W.enemies.some(e => e.id === id && !e.dead)).length;
-function addGuest(W, o) {
+export function addGuest(W, o) {
   const a = { id: W.aid++, guest: true, type: 'guest', vx: 0, vz: 0, face: 0, state: 'idle', t: 0, cd: 0, dead: false, deadT: 0, flash: 0, calm: 0, tgt: 0, moving: false, ...o, maxhp: o.hp };
   W.allies.push(a); return a;
 }

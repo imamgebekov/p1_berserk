@@ -1,4 +1,5 @@
 // Рисование карты на 2D-холсте: миникарта (окно вокруг героя) и большая карта (весь мир) с «туманом войны».
+import { lockedBoss } from './lockout3d.js';
 import { isSeen } from './sim.js';
 import { makeRelief } from './maprelief.js';
 import { GI } from './data/gicons.js';
@@ -149,7 +150,7 @@ export function drawMap(ctx, W, v) {
     const inMap = (x, y) => x > -8 && x < w + 8 && y > -8 && y < h + 8, BR = full ? 7 : 5;
     if (!under) {
       for (const d of W.cfg.bosses.list) { if (d.level) continue; const x = X(d.x), y = Y(d.z); if (!inMap(x, y)) continue; const dead = W.bossDead[d.type] !== undefined, slain = W.path && W.path.slain[d.type]; const col = slain ? '#8a7a5a' : dead ? '#6a6a6a' : '#c8281c'; if (full) { badge(ctx, 'map:boss', x, y, 9 * U, col); if (zs >= 1.2) named(x, y + 17 * U, W.cfg.enemies[d.type].name); } else mark(x, y, BR, col === '#c8281c' ? '#ff3a2a' : col, true); }     // имя босса — только вблизи     // боссы замков — внутри, на поверхности их место — замок
-      for (const d of W.cfg.dungeons.list) { if (!d.inst || !d.at) continue; const x = X(d.at.x), y = Y(d.at.z); if (!inMap(x, y)) continue; const ab = W.cfg.bosses.list.filter(b => b.level === d.id), done = ab.length && ab.every(b => W.bossDead[b.type] !== undefined);     // подземелья зон (этап 5): видны всегда, как замки
+      for (const d of W.cfg.dungeons.list) { if (!d.inst || !d.at) continue; const x = X(d.at.x), y = Y(d.at.z); if (!inMap(x, y)) continue; const ab = W.cfg.bosses.list.filter(b => b.level === d.id), done = ab.length && ab.every(b => lockedBoss(W, d.id, false, b.type));     // серое — награда со всех боссов взята (откат, план подземелий 1б)     // подземелья зон (этап 5): видны всегда, как замки
         const cl = done ? '#6a6a6a' : d.raid ? '#2a8a4a' : '#2a6ab8';     // 4.18в: синий — подземелье, зелёный — рейд; вокруг — кружок
         ctx.beginPath(); ctx.arc(x, y, (full ? 15 : 9) * (full ? U : 1), 0, 6.2832); ctx.lineWidth = (full ? 3 : 2) * (full ? U : 1); ctx.strokeStyle = done ? '#8a8a8a' : d.raid ? '#4adf6a' : '#4a9aff'; ctx.stroke();
         if (full) { badge(ctx, 'map:dungeon', x, y, 10 * U, cl); if (zs >= .45) named(x, y + 21 * U, (d.raid ? 'Рейд: ' : '') + (zs >= 1.5 ? `${d.name} · ур. ${d.level}` : d.name)); } else mark(x, y, BR + 1, done ? '#6a6a6a' : d.raid ? '#4adf6a' : '#3a8adf', true); }
