@@ -83,6 +83,7 @@ button{font:inherit;color:var(--ink)}
 #talk[hidden]{display:none}
 #portalBtn{position:fixed;left:50%;bottom:calc(206px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:48px;max-width:calc(100vw - 32px);padding:0 18px;background:#3a2c20;color:#ffe2b0;font-weight:700;border:3px solid #000;border-radius:12px;z-index:6;touch-action:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #portalBtn[hidden]{display:none}
+#portalBtn small{display:block;font-size:12px;font-weight:500;opacity:.85;margin:-2px 0 4px}#portalBtn small.warn{color:#ff9a7a;opacity:1}
 #fireBtn{position:fixed;left:50%;bottom:calc(262px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:48px;max-width:calc(100vw - 32px);padding:0 18px;background:#4a2a14;color:#ffd9a0;font-weight:700;border:3px solid #000;border-radius:12px;z-index:6;touch-action:none;white-space:nowrap}
 #fireBtn[hidden]{display:none}
 #sleepBtn{position:fixed;left:50%;bottom:calc(318px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:48px;max-width:calc(100vw - 32px);padding:0 18px;background:#1e2440;color:#c8d4ff;font-weight:700;border:3px solid #000;border-radius:12px;z-index:6;touch-action:none;white-space:nowrap}
@@ -861,3 +862,4 @@ html:not([data-desk]) #loot{left:12px;right:12px;width:auto;top:auto;bottom:calc
 #skills .tgt.off{color:#bba98a}
 
 #relic .srow.mine{border-color:#e8c04a}#relic .srow .buy{font-size:15px;min-width:132px;min-height:48px}#relicFlash{min-height:18px;color:#e8c04a;font-size:13px;padding:0 4px}#relicList{display:flex;flex-direction:column;gap:6px;overflow:auto}
+#bossCard{position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:30;pointer-events:none;text-align:center;padding:10px 26px;background:linear-gradient(90deg,transparent,rgba(12,6,4,.82) 18%,rgba(12,6,4,.82) 82%,transparent);color:#f0e2c4;font-family:"Iowan Old Style",Palatino,Georgia,serif;opacity:0}#bossCard[hidden]{display:none}#bossCard.on{animation:bossCard 2.8s ease forwards}#bossCard b{display:block;font-size:30px;letter-spacing:.04em;color:#ff6a4a;text-shadow:0 2px 0 #000}#bossCard span{display:block;font-size:15px;opacity:.85}#bossCard i{display:block;font-size:14px;font-style:normal;color:#ffc87a;margin-top:2px}@keyframes bossCard{0%{opacity:0;transform:translate(-50%,8px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0}}@media (prefers-reduced-motion:reduce){#bossCard.on{animation:none;opacity:1}}     /* карточка босса (план подземелий, 1д) */
