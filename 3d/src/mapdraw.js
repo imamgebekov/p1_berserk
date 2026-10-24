@@ -153,6 +153,7 @@ export function drawMap(ctx, W, v) {
         if (full) { badge(ctx, 'map:dungeon', x, y, 10 * U, cl); if (zs >= .45) named(x, y + 21 * U, (d.raid ? 'Рейд: ' : '') + (zs >= 1.5 ? `${d.name} · ур. ${d.level}` : d.name)); } else mark(x, y, BR + 1, done ? '#6a6a6a' : d.raid ? '#4adf6a' : '#3a8adf', true); }
       for (const c of M.cfg.castles || []) { if (!Number.isFinite(c.x)) continue; const x = X(c.x), y = Y(c.z), t = c.boss && c.boss.type; if (!inMap(x, y)) continue; const col = t && W.bossDead[t] !== undefined ? '#6a6a6a' : '#9a2ab8'; if (full) { badge(ctx, 'map:castle', x, y, 11 * U, col); if (zs >= .45) named(x, y + 20 * U, c.name); } else mark(x, y, BR + 1, col, true); }
     }
+    if (under) for (const e of W.enemies) if (!e.dead && e.boss) { const x = X(e.x), y = Y(e.z); if (!inMap(x, y)) continue; if (full) { badge(ctx, 'map:boss', x, y, 9 * U, '#c8281c'); if (zs >= .45) named(x, y + 18 * U, W.cfg.enemies[e.type].name); } else mark(x, y, BR, '#c8281c', true); }     // боссы подземелья на его карте (план подземелий, 1г)
     for (const e of W.enemies) if (!e.dead && !e.boss && (e.elite || e.guard) && (under || !full || isSeen(W, e.x, e.z))) { const x = X(e.x), y = Y(e.z); if (x > 0 && x < w && y > 0 && y < h) { if (full) badge(ctx, 'map:mini', x, y, 6.5 * U, '#d8741a'); else mark(x, y, 3.5, '#ff9a2a', false); } } }
   // свои бойцы
   ctx.fillStyle = '#6ab0ff'; for (const a of W.allies || []) if (!a.dead && !a.guest) { ctx.beginPath(); ctx.arc(X(a.x), Y(a.z), 2.6, 0, 6.2832); ctx.fill(); }

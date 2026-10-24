@@ -61,7 +61,7 @@ export function relicKill(W, e, share) {
   const p = W.player, s = st(W), id = perkOf(W), K = id && C.perks[id];
   if (share >= 1 && id === 'reap' && !p.dead) { p.hp = Math.min(p.maxhp, p.hp + p.maxhp * K.heal); s.reap = Math.min(K.max, s.reap + 1); s.reapT = K.t; }
   if (share >= 1 && id === 'bounty' && (e.elite || e.boss) && !p.dead) { const n = Math.round((e.boss ? K.ashBoss : K.ash) * Math.max(1, W.lv)); W.inv.ash += n; W.ev.push({ k: 'ash', x: e.x, z: e.z, n }); }
-  if (e.boss) { const L = W.levels && W.levels[W.lvl], d = L && L.def; if (d && !d.abyss) { const n = d.raid ? C.drop.raid : C.drop.dungeon; W.inv.seals = (W.inv.seals || 0) + n; W.ev.push({ k: 'seal', n, x: e.x, z: e.z }); } }
+  if (e.boss && e.reward !== false) { const L = W.levels && W.levels[W.lvl], d = L && L.def, fin = e.b && e.b.def && e.b.def.final; if (d && d.inst && !d.abyss && (d.raid || fin)) { const n = (d.raid ? C.drop.raid : C.drop.dungeon) * (L.heroic ? C.drop.heroic || 1 : 1); W.inv.seals = (W.inv.seals || 0) + n; W.ev.push({ k: 'seal', n, x: e.x, z: e.z }); } }     // план подземелий, 1б: печати — главный босс подземелья и боссы рейда, не на откате; героик — ×heroic
 }
 // каждый шаг: перезарядки, заряды жатвы, пепельная буря в бою
 export function relicTick(W, dt) {

@@ -10,12 +10,14 @@ const C = CFG3.relic;
 const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.map.places = []; c.events.on = false; c.wanderer.on = false; c.corpse.on = false; const W = createWorld(c, mulberry32(7)); W.lv = 45; refreshGear(W); W.player.hp = W.player.maxhp; return W; };
 const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i++) step(W, 1 / 60, inp); };
 const at = (W, id) => { const L = W.levels[id], r = L.map.rooms.find(q => q.x1 - q.x0 > 6) || L.map.rooms[0]; travel(W, id, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2); return W.player; };
-const killBoss = (W, lvl) => { const p = W.player, def = W.cfg.bosses.list.find(b => b.level === lvl) || W.cfg.bosses.list.find(b => !b.level && !b.city && !b.ring); const e = spawnBoss(W, { ...def, x: p.x + 2, z: p.z }); killEnemy(W, e, 1); return e; };
+const killBoss = (W, lvl, mini = false) => { const p = W.player, def = W.cfg.bosses.list.find(b => b.level === lvl && !!b.final !== mini) || W.cfg.bosses.list.find(b => !b.level && !b.city && !b.ring); const e = spawnBoss(W, { ...def, x: p.x + 2, z: p.z }); killEnemy(W, e, 1); return e; };     // план подземелий, 1б: печать — с главного босса подземелья и с боссов рейда
 const keeper = W => { const b = W.map.buildings.find(q => q.npc && q.npc.kind === C.npc); W.player.x = b.npc.x + .5; W.player.z = b.npc.z; run(W, .05); return W.nearNpc; };
 
-// 1. печати: подземелье +1, рейд +3, мир 0
+// 1. печати: главный босс подземелья +1, рейд +3; мир, промежуточный босс и замок — 0 (план подземелий, 1б)
 { const W = mk(); killBoss(W, null); ok(!(W.inv.seals > 0), 'печать с босса в мире');
-  const dun = W.cfg.dungeons.list.find(d => !d.raid && W.cfg.bosses.list.some(b => b.level === d.id)), raid = W.cfg.dungeons.list.find(d => d.raid);
+  const dun = W.cfg.dungeons.list.find(d => d.inst && !d.raid && W.cfg.bosses.list.some(b => b.level === d.id)), raid = W.cfg.dungeons.list.find(d => d.raid), cas = W.cfg.dungeons.list.find(d => d.castle && W.cfg.bosses.list.some(b => b.level === d.id));
+  at(W, dun.id); killBoss(W, dun.id, true); ok(!(W.inv.seals > 0), 'печать с промежуточного босса подземелья');
+  if (cas) { at(W, cas.id); killBoss(W, cas.id); ok(!(W.inv.seals > 0), 'печать с босса замка'); }
   at(W, dun.id); killBoss(W, dun.id); ok(W.inv.seals === C.drop.dungeon, `печатей с босса подземелья ${W.inv.seals}, ждём ${C.drop.dungeon}`);
   at(W, raid.id); killBoss(W, raid.id); ok(W.inv.seals === C.drop.dungeon + C.drop.raid, `печатей после рейда ${W.inv.seals}`);
   ok(W.ev.some(v => v.k === 'seal'), 'нет события печати'); }

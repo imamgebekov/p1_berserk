@@ -9,7 +9,7 @@ import { RARITY, CATALOG, BY_ID } from '../3d/src/data/items.js';
 import { rarityWeights } from '../3d/src/data/loot.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const G = CFG3.lootIl;
-const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; const W = createWorld(c, mulberry32(11)); W.player.hp = W.player.maxhp = 1e6; return W; };
+const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.lockout.on = false; const W = createWorld(c, mulberry32(11)); W.player.hp = W.player.maxhp = 1e6; return W; };
 const range = (W, e, n = 40) => { const v = []; for (let i = 0; i < n; i++) { W.t = i * .37; v.push(lootIl(W, e, e.id + i)); } return [Math.min(...v), Math.max(...v)]; };
 const inR = ([a, b], lo, hi) => a >= lo && b <= hi;
 

@@ -1,5 +1,6 @@
 // Уровни: поверхность и подземелья. У каждого уровня свои карта, враги, вещи на земле и туман войны;
 // W.map, W.enemies, W.drops, W.seen всегда указывают на текущий уровень, поэтому стены, удары и снаряды работают без правок.
+import { lockedBoss, lockHours } from './lockout3d.js';     // план подземелий, 1в
 import { clamp, len } from './util3d.js';
 import { makeLevelMap, resolve, roomFree } from './map.js';
 import { reveal } from './places3d.js';
@@ -66,7 +67,7 @@ export function dungeonLevel(cfg, def) {
 }
 // на поверхности за ядром — по зоне (этап 1); в ядре и в подземельях без своего уровня — по глубине
 export function levelAt(W, x, z) {
-  const L = W.levels && W.levels[W.lvl]; if (L && L.def) return L.heroic ? W.cfg.instances.heroic.lv : dungeonLevel(W.cfg, L.def);     // героическая — уровень из instances.heroic
+  const L = W.levels && W.levels[W.lvl]; if (L && L.def) { const H = W.cfg.instances.heroic, lv = dungeonLevel(W.cfg, L.def); return L.heroic ? Math.max(lv, H.lv) + (H.add || 0) : lv; }     // героическая — не ниже обычной: max(своя, heroic.lv) + add (план подземелий, 1а)
   const zl = zoneLevel(W.cfg, x, z); return zl ?? levelOfDepth(W.cfg, depthAt(W, x, z));
 }
 export function depthCurve(cfg, d) {
@@ -90,6 +91,15 @@ export function portalNear(W) {
   return W.map.portals.find(q => len(q.x - p.x, q.z - p.z) < r) || null;
 }
 export function portalName(W, q) { if (q.stair) return q.down ? 'Спуститься вниз' : 'Подняться на второй этаж'; if (q.abyssEnter) return 'Спуститься: Бездна'; if (q.abyssNext) return `Спуститься: ярус ${(W.abyss ? W.abyss.tier : 0) + 1}`; return q.up ? (q.to === SURFACE ? 'Подняться' : 'Подняться: ' + W.levels[q.to].def.name) : 'Спуститься: ' + W.levels[q.to].def.name; }
+
+// подсказка у входа в подземелье или рейд (план подземелий, 1в): уровень, отряд, боссы (убито в этом периоде), откат; warn — герой ниже на dungeons.warnLv+
+export function portalInfo(W, q) {
+  const L = q && !q.up && W.levels[q.to], d = L && L.def; if (!d || !d.inst) return null;
+  const H = W.cfg.instances.heroic, lv0 = dungeonLevel(W.cfg, d), lv = Math.round(L.heroic ? Math.max(lv0, H.lv) + (H.add || 0) : lv0), P = W.cfg.party, n = P ? Object.values(d.raid ? P.raid : P.dungeon).reduce((a, b) => a + b, 0) : 0;
+  const bs = W.cfg.bosses.list.filter(b => b.level === d.id), dead = bs.filter(b => lockedBoss(W, d.id, L.heroic, b.type)).length, h = lockHours(W, d.id, L.heroic);
+  const warn = W.lv + (W.cfg.dungeons.warnLv || 3) <= lv;
+  return { text: [`Рек. ${lv} ур.`, n ? `отряд ${n}` : '', `боссов ${bs.length}` + (dead ? ` (награда взята: ${dead})` : ''), h ? `обновится через ${h} ч` : '', warn ? 'Опасно' : ''].filter(Boolean).join(' · '), warn };
+}
 
 // уход с уровня: запомнить время; враги подземелья теряют героя
 function leave(W) { const L = W.levels[W.lvl]; L.leftT = W.t; if (L.def) for (const e of W.enemies) e.alert = false; }
@@ -141,6 +151,7 @@ export function regenLevel(W, id) {
 export function travel(W, id, x, z) {
   if (!W.levels[id]) return false;
   if (id !== W.lvl && regenLevel(W, id)) { const e = W.levels[id].def.entry; x = e.x; z = e.z; }     // 4.15: новая раскладка — вход новый
+  if (id !== W.lvl) W.dfire = null;     // костёр подземелья — до выхода (план подземелий, 1е)
   const p = W.player; if (W.lvl === SURFACE && id !== SURFACE) W.surfPos = { x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100 };     // место спуска: здесь герой встанет после загрузки и смены героя
   leave(W); stash(W); load(W, id); arrive(W);
   Object.assign(p, { x, z, vx: 0, vz: 0, state: 'idle', atkT: 0, rollT: 0 });

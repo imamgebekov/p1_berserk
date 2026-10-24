@@ -10,7 +10,7 @@ import { spawnAlly, squadMax } from '../3d/src/squad3d.js';
 import { BY_ID } from '../3d/src/data/items.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const I = CFG3.dungeons.list.filter(d => d.inst), BL = CFG3.bosses.list.filter(b => b.inst);
-const mk = (seed = 1, f) => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.dungeons.gen.on = false; if (f) f(c); return createWorld(c, mulberry32(seed)); };     // 4.15: бои боссов — в задуманных залах (сравнение от версии к версии); генератор — в dungeongen3d
+const mk = (seed = 1, f) => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.dungeons.gen.on = false; c.lockout.on = false; if (f) f(c); return createWorld(c, mulberry32(seed)); };     // 4.15: бои боссов — в задуманных залах (сравнение от версии к версии); генератор — в dungeongen3d
 const run = (W, sec, inp = {}, each) => { for (let i = 0; i < Math.round(sec * 60); i++) { step(W, 1 / 60, inp); if (each) each(i); } };
 const enter = (W, id) => { const d = W.cfg.dungeons.list.find(q => q.id === id); travel(W, id, d.entry.x, d.entry.z); step(W, 1 / 60, {}); return d; };
 const bossIn = (W, type) => W.enemies.find(e => e.boss && e.type === type);
@@ -64,7 +64,8 @@ const lab = (type, only, f) => { const W = mk(7); const b = BL.find(q => q.type 
   ok(own === 40, 'босс не всегда роняет свою вещь'); ok(n2 >= 6 && n2 <= 24, 'вторая своя вещь не «с шансом»: ' + n2); }
 { const W = mk(9); W.lv = 59; ok(!setHeroic(W, 'inst_brod', true), 'героическая открыта до 60 уровня'); W.lv = 60; ok(setHeroic(W, 'inst_brod', true), 'героическая не включилась');
   enter(W, 'inst_brod'); const e = bossIn(W, 'gravekeeper'), t = W.enemies.find(q => !q.boss);
-  ok(e && e.lvl === 60 && e.heroic && e.maxhp > CFG3.enemies.gravekeeper.hp * 1.6 * 2 && t && t.lvl === 60 && levelAt(W, 0, 0) === 60, 'героическая: босс и враги не 60-го уровня или слабы');
+  const HL = Math.max(W.levels.inst_brod.def.level, CFG3.instances.heroic.lv) + CFG3.instances.heroic.add;     // план подземелий, 1а: героик — не ниже обычного, max(свой, 60) + add
+  ok(e && e.lvl === HL && e.heroic && e.maxhp > CFG3.enemies.gravekeeper.hp * 1.6 * 2 && t && t.lvl === HL && levelAt(W, 0, 0) === HL, `героическая: босс и враги не ${HL}-го уровня или слабы (${e && e.lvl})`);
   W.drops.length = 0; killEnemy(W, e, 1); const own = W.drops.filter(d => BY_ID[d.id].boss === 'gravekeeper'), il = Math.max(...own.map(d => d.il));
   ok(own.length >= 2 && il >= 60 + CFG3.lootIl.dungeon.mini[0] + CFG3.instances.heroic.il, 'героическая: добыча не богаче'); travel(W, 'surface', 0, 4);     // 4.20: уровень вещи от героя (первый босс Брода — промежуточный)
   ok(setHeroic(W, 'inst_brod', false), 'героическая не выключилась'); enter(W, 'inst_brod'); ok(bossIn(W, 'boneshepherd').lvl === 14, 'после выключения уровень не 14'); }

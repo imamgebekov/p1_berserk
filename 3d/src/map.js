@@ -298,7 +298,7 @@ export function makeLevelMap(cfg, def) {
   const place = { id: def.id, name: def.name, type: 'dungeon', x: cx, z: cz, r: Math.hypot(bounds.x1 - bounds.x0, bounds.z1 - bounds.z0) + 4, danger: def.danger || 0 };
   const portals = [{ x: def.exit.x, z: def.exit.z, to: def.upTo || 'surface', tx: def.back.x, tz: def.back.z, up: true }];
   if (def.down) portals.push({ x: def.down.x, z: def.down.z, to: def.down.to, tx: def.down.tx, tz: def.down.tz, up: false });     // лестница на этаж ниже (C4)
-  return { level: def.id, path: D.path, buildings: [], walls: blocks, blocks, rooms, links, adj, hops, doors, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids, arcs, pits, pillars, decor: [], roads: [] };
+  return { level: def.id, fire: def.fire || null, path: D.path, buildings: [], walls: blocks, blocks, rooms, links, adj, hops, doors, bounds, containers, portals, cfg: { places: [place], zones: [] }, solids, arcs, pits, pillars, decor: [], roads: [] };
 }
 
 // сдвиг с шагами не длиннее 0.25: быстрый перекат не пролетает сквозь стену

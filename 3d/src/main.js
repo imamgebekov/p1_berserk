@@ -42,7 +42,7 @@ import { zoneAt } from './zones3d.js';
 import { storyTalk, storyTalked, storyTalkable, storyGoal, storyAutoPending, storyActors, storyChoice } from './story3d.js';
 import { SPEAKERS } from './data/story3d.js';
 import { liveAllies, squadCommand } from './squad3d.js';
-import { setHeroic, isInstance, heroicOpen } from './levels3d.js';
+import { setHeroic, isInstance, heroicOpen, portalInfo } from './levels3d.js';
 import { nodeNear, gather, mountToggle, coachNear, coachList, flightCost, fly } from './life3d.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSaveAny, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave, saveFileName } from './save3d.js';
@@ -274,6 +274,8 @@ function onEvent(v) {
   else if (v.k === 'full') toast('Сумка полна', 'bad');
   else if (v.k === 'buff') toast('Действует зелье', 'sys');
   else if (v.k === 'seal') toast(`Печать Затмения +${v.n}`, '', '#e8c04a');     // дары Затмения (2026-10-23)
+  else if (v.k === 'dfire') toast('Костёр зажжён: после гибели вы встанете здесь', '', '#ffb060', 'fire');     // план подземелий, 1е
+  else if (v.k === 'lockout') toast(`${v.name}: награда уже взята — обновится ${W.levels[W.lvl] && W.levels[W.lvl].def && W.levels[W.lvl].def.raid ? 'в понедельник' : 'в полночь'}`, '', '#c8b8a0');     // откат (план подземелий, 1б)
   else if (v.k === 'relic' && v.id === 'undying') toast('Второе дыхание', '', '#e8c04a');
   else if (v.k === 'place') showPlace(v.place);
   else if (v.k === 'storyGoal') { toast(`${v.name}: ${v.text}`, '', '#e8c04a', 'scroll'); sfx('questready'); }     // сюжет (этап 3)
@@ -327,7 +329,7 @@ function onEvent(v) {
   else if (v.k === 'questleft') toast(`${v.name}: вы оставили пост — оборона сначала`, 'sys');
   else if (v.k === 'questfail') { toast(`Задание провалено: ${v.name}${v.why === 'time' ? ' — время вышло' : ''}`, '', '#ff8a6a'); saver.write(); }
   else if (v.k === 'elite') toast('Элита: ' + v.name, 'bad');
-  else if (v.k === 'bossaggro') { const e = W.enemies.find(x => x.id === v.id), f = e && cfg.enemies[e.type].g === 'f'; toast(`${v.name} ${f ? 'проснулась' : 'проснулся'}`, 'bad'); }     // род по врагу
+  else if (v.k === 'bossaggro') { const e = W.enemies.find(x => x.id === v.id), f = e && cfg.enemies[e.type].g === 'f'; toast(`${v.name} ${f ? 'проснулась' : 'проснулся'}`, 'bad'); if (e) bossCard(e); }     // род по врагу; карточка — при первой встрече
   else if (v.k === 'bossphase') toast(`${v.name}: ${v.what}`, 'bad');
   else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
   else if (v.k === 'allydead') toast(`${v.name} пал`, 'bad');
@@ -645,6 +647,7 @@ function travelDraw() {
     if (best && !best.me && !best.off) best.go(); });
   $('firesIn').addEventListener('click', () => zoom(1 / 1.5)); $('firesOut').addEventListener('click', () => zoom(1.5)); $('firesAll').addEventListener('click', () => { tv.span = tvMax(); tvClamp(); travelDraw(); }); }
 window.addEventListener('resize', () => { if (!firesSec.hidden) travelDraw(); });
+function dungeonLine() { const L = W.levels && W.levels[W.lvl], d = L && L.def; if (!d || !d.inst) return null; const tot = cfg.bosses.list.filter(b => b.level === d.id).length, alive = W.enemies.filter(e => e.boss && !e.dead).length, cs = W.map.containers || []; return `${d.name}${L.heroic ? ' · героик' : ''}: боссы ${Math.max(0, tot - alive)}/${tot} · сундуки ${cs.filter(c => !c.ready).length}/${cs.length}`; }     // трекер в подземелье (план подземелий, 1г)
 function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write(); }
 fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
 // жизнь мира (этап 6): повозка — окно костров без карты; сбор; конь
@@ -711,7 +714,17 @@ const SHOT = new URLSearchParams(location.search).has('shot');     // режим
 const HAIR = { alaric: '#ece6da', irma: '#2a1a14', timka: '#7a4a24', kord: '#1a1412', masked: '#0a0808', hostess: '#5a3020', captain: '#4a4440', herald: '#6a5030' };
 const dlg = { lines: null, i: 0, part: null, scene: '', act: 1 };
 // «кинокамера» (этап 5 «круче»): в разговоре сцены камера наезжает на говорящего — между героем и ним, ближе к нему
+// карточка босса (план подземелий, 1д): при первой встрече (пока ни разу не убит) — имя, место, главный приём; камера наезжает между героем и боссом
+let bossIntro = null; const bossSeen = new Set();
+function bossCard(e) {
+  if (bossSeen.has(e.type) || W.known.bestiary[e.type]) return; bossSeen.add(e.type);
+  const L = W.levels && W.levels[W.lvl], d = L && L.def, sig = cfg.bosses.sig && cfg.bosses.sig[e.type], at = (sig && sig.attacks && sig.attacks[0]) || ((e.b && e.b.def && e.b.def.attacks) || []).find(a => a.name);
+  const box = $('bossCard'); box.children[0].textContent = cfg.enemies[e.type].name; box.children[1].textContent = d ? (d.raid ? 'Рейд «' : 'Подземелье «') + d.name + '»' : 'Логово'; box.children[2].textContent = at && at.name ? 'Опасно: ' + at.name : '';
+  box.hidden = false; box.classList.remove('on'); void box.offsetWidth; box.classList.add('on'); clearTimeout(bossCard.t); bossCard.t = setTimeout(() => { box.hidden = true; }, 2800);
+  bossIntro = { id: e.id, until: performance.now() + 2800 };
+}
 function cineFocus() {
+  if (bossIntro && performance.now() < bossIntro.until) { const e = W.enemies.find(x => x.id === bossIntro.id), p = W.player; if (e && !e.dead) return { x: (p.x + e.x) / 2, z: (p.z + e.z) / 2 }; }
   if (!dlg.lines || $('dialog').hidden) return null;
   const L = dlg.lines[dlg.i], who = Array.isArray(L) ? L[0] : 'hero', p = W.player, a = who !== 'hero' && storyActors(W).find(q => q.kind === who), b = cfg.view.cine.bias;
   const o = a || W.nearActor || null; return o ? { x: p.x + (o.x - p.x) * (a ? b : .5), z: p.z + (o.z - p.z) * (a ? b : .5) } : { x: p.x, z: p.z };
@@ -904,7 +917,7 @@ function frame(now) {
     if (gatherBtn.hidden === !!nd) gatherBtn.hidden = !nd; if (nd) { const l = 'Собрать: ' + cfg.life.gather.names[nd.kind] + (desk ? ' · E' : ''); if (gatherBtn.textContent !== l) gatherBtn.textContent = l; }
     const ms = !!(W.life && W.life.mount.owned) && W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mountBtn.hidden === ms) mountBtn.hidden = !ms; if (ms) { const l = (W.life.mount.on ? 'Спешиться' : 'Конь') + (desk ? ' · V' : ''); if (mountBtn.textContent !== l) mountBtn.textContent = l; } }
   if (hud) { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
-  if (hud) { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''); if (portalBtn.textContent !== l) portalBtn.textContent = l; }
+  if (hud) { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''), inf = portalInfo(W, q), key = l + (inf ? '|' + inf.text : ''); if (portalBtn.dataset.k !== key) { portalBtn.dataset.k = key; portalBtn.textContent = l; if (inf) { const sm = document.createElement('small'); sm.textContent = inf.text; sm.className = inf.warn ? 'warn' : ''; portalBtn.append(sm); } } }     // подсказка у входа (план подземелий, 1в)
     const ecl = show && q.abyssEnter && W.lv >= cfg.abyss.lv, wk = weekOf(Date.now()), hshow = ecl || (show && !q.up && isInstance(W, q.to) && heroicOpen(W)); if (heroicBtn.hidden === hshow) heroicBtn.hidden = !hshow; if (hshow) { const l = (ecl ? `Затмение недели: ${eclipseMods(wk).map(modName).join(', ')}${eclipseDoneThisWeek(W, wk) ? ' · пройдено' : ''}` : 'Героическая: ' + W.levels[q.to].def.name) + (desk ? ' · H' : ''); if (heroicBtn.textContent !== l) heroicBtn.textContent = l; } }
   if (hud) { const hb = W.hudBoss, key = hb ? hb.name + Math.round(hb.frac * 200) + hb.enraged + hb.shield + (hb.cast ? hb.cast.name + Math.round(hb.cast.k * 50) : '') : ''; if (key !== lastBoss) { lastBoss = key; bossEl.hidden = !hb; if (hb) { bossName.textContent = hb.name + (hb.enraged ? ' · ярость' : '') + (hb.shield ? ' · щит' : ''); bossFill.style.transform = `scaleX(${Math.max(0, hb.frac)})`; bossEl.classList.toggle('enr', hb.enraged); bossEl.classList.toggle('shield', !!hb.shield);
     const bc = $('bossCast'); bc.hidden = !hb.cast; if (hb.cast) { bc.firstChild.style.transform = `scaleX(${Math.min(1, hb.cast.k)})`; bc.lastChild.textContent = `Читает «${hb.cast.name}» — собейте!`; } } } }     // этап 5: чтение и щит на полосе
@@ -924,7 +937,7 @@ function frame(now) {
     { const mr = mentorTick(W); if (mr && mr.k === 'start') { const who = MENTOR_WHO[mr.L.who]; for (const l of mr.L.lines) toast(`${who.name.split(',')[0]}: «${l}»`, '', '#f0d8a8', 'hint'); sfx('questready'); } else if (mr && mr.k === 'done') { toast(`Совет выполнен: +${mr.ash} пепла`, '', '#e8c04a', 'hint'); sfx('questdone'); saver.write(); } }
     const sp = W.spark && !W.spark.done, pg = pathGoal(W), crypt = pg && PATH[pathIndex(W)].id === 'crypt';
     const sg = !sp && W.story ? storyGoal(W) : null;     // сюжет (этап 3) — главнее «Пути пепла»
-    const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : String(W.lvl).startsWith('up:') ? { text: 'Второй этаж: сундуки; вниз — по лестнице', at: null } : { text: 'Подземелье: сундуки, ключи и выход наверх', at: null };
+    const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : String(W.lvl).startsWith('up:') ? { text: 'Второй этаж: сундуки; вниз — по лестнице', at: null } : { text: dungeonLine() || 'Подземелье: сундуки, ключи и выход наверх', at: null };
     // трекер (этап 5 «круче»): главная строка (событие, искра, сюжет, путь) и до трёх заданий; цель на карте не пропадает
     const surf = W.lvl === 'surface', ev = eventLine(W) || abyssLine(W), main = ev || (sp || sg || pg || !surf ? g.text : ''), ql = trackerLines(W, 3);
     W.qmarks = surf ? questMarks(W, storyActors(W)) : [];

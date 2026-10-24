@@ -53,6 +53,7 @@ import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, porta
 import { resGain } from './resource3d.js';
 import { wcOf, clampWorld } from './geo3d.js';     // Мир 5.0
 import { relicMul, relicLeech, relicSpd, relicRoll, relicHurt, relicSave, relicHit, relicRollBlast, relicKill, relicTick } from './relic3d.js';     // дары Затмения (2026-10-23)
+import { bossReward } from './lockout3d.js';     // откат награды подземелий и рейдов (план подземелий, 1б)
 const critBonus = W => (W.abuf && W.abuf.hawk > 0 ? W.abuf.hawkCrit : 0);     // «Ястребиный глаз» Сойки: шанс крита на время
 
 export function createWorld(cfg, rng = Math.random) {
@@ -261,16 +262,17 @@ export function spawnBoss(W, def) {
   delete W.bossDead[def.type]; return e;
 }
 function bossDefeated(W, e) {
-  const C = W.cfg.enemies[e.type], p = W.player;
+  const C = W.cfg.enemies[e.type], p = W.player, ok = e.reward = bossReward(W, e);     // откат (план подземелий, 1б): босс, убитый в этом периоде, — без именной добычи и печатей
   const bd = BOSS_DROPS[e.type] || { trophy: null, n: [0, 0], tomes: [] }, items = [];
-  if (bd.trophy) items.push({ id: bd.trophy, n: bd.n[0] + (W.rng() < bd.n[1] ? 1 : 0) });
-  { const own = [...((e.b && e.b.def && e.b.def.loot) || [])], I = W.cfg.instances;     // своя добыча босса подземелья (этап 5): одна вещь наверняка, вторая — с шансом, на героической — ещё extra
+  if (!ok) W.ev.push({ k: 'lockout', name: C.name, x: e.x, z: e.z });
+  if (ok && bd.trophy) items.push({ id: bd.trophy, n: bd.n[0] + (W.rng() < bd.n[1] ? 1 : 0) });
+  if (ok) { const own = [...((e.b && e.b.def && e.b.def.loot) || [])], I = W.cfg.instances;     // своя добыча босса подземелья (этап 5): одна вещь наверняка, вторая — с шансом, на героической — ещё extra
     const raid = W.levels && W.levels[W.lvl] && W.levels[W.lvl].def && W.levels[W.lvl].def.raid, l2 = raid && W.cfg.lootIl && W.cfg.lootIl.on ? W.cfg.lootIl.raid2 : I.loot2;     // 4.20: рейд — вторая вещь 50/50
     for (let k = own.length ? 1 + (W.rng() < l2 ? 1 : 0) + (e.heroic ? I.heroic.extra : 0) : 0; k > 0 && own.length; k--) items.push({ id: own.splice((W.rng() * own.length) | 0, 1)[0], n: 1 }); }
   const tid = bd.tomes.find(t => !W.known.tomes[t] && !W.inv.bag.some(x => x.id === 'tome_' + t) && !W.drops.some(x => x.id === 'tome_' + t));
   if (tid) items.push({ id: 'tome_' + tid, n: 1 });                      // книга выпадает, пока не прочитана (первой по порядку)
-  items.push({ id: 'key_black', n: 1 }, ...rollLoot(BOSS_LOOT, W.rng, 1, W.gear.luck));
-  if (bd.gold && W.rng() < bd.gold) { const G = CATALOG.filter(i => i.pool === 'gold'); items.push({ id: G[(W.rng() * G.length) | 0].id, n: 1 }); }     // босс павшего города: шанс золотой вещи
+  if (ok) items.push({ id: 'key_black', n: 1 }, ...rollLoot(BOSS_LOOT, W.rng, 1, W.gear.luck)); else items.push(...rollLoot(BOSS_LOOT, W.rng, 1, W.gear.luck).filter(it => !BY_ID[it.id].slot));     // на откате — только расходники
+  if (ok && bd.gold && W.rng() < bd.gold) { const G = CATALOG.filter(i => i.pool === 'gold'); items.push({ id: G[(W.rng() * G.length) | 0].id, n: 1 }); }     // босс павшего города: шанс золотой вещи
   items.forEach((it, i) => { const a = i / items.length * TAU; W.drops.push({ id: it.id, n: it.n, x: e.x + Math.sin(a) * 1.6, z: e.z + Math.cos(a) * 1.6, t: 0, cd: 0, ...(BY_ID[it.id].slot ? { il: (lootIl(W, e, e.id + i) ?? ilRoll(W, Math.max(e.lvl || 1, W.lv), e.id + i) + W.cfg.level.il.drop) + (e.heroic ? W.cfg.instances.heroic.il : 0) } : {}) }); });     // с босса — не ниже уровня героя
   for (const m of e.b.minions) if (!m.dead) { m.dead = true; m.deadT = 0; }
   W.bossDead[e.type] = Math.round(W.cfg.bosses.respawn * W.dif.boss);
@@ -765,6 +767,8 @@ function updatePlayer(W, dt, input) {
   if (W.gear.regen > 0 && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + W.gear.regen * dt);
   if (p.calm > 0) p.calm -= dt;
   else if (onSurface(W) && atCampFire(W, p.x, p.z) && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);
+  else if (!onSurface(W) && W.map.fire && len(p.x - W.map.fire.x, p.z - W.map.fire.z) < W.cfg.dungeons.fire.r && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);     // костёр в подземелье лечит (план подземелий, 1е)
+  if (!onSurface(W) && W.map.fire && len(p.x - W.map.fire.x, p.z - W.map.fire.z) < W.cfg.dungeons.fire.r && !(W.dfire && W.dfire.lvl === W.lvl)) { W.dfire = { lvl: W.lvl, x: W.map.fire.x, z: W.map.fire.z }; W.ev.push({ k: 'dfire', x: p.x, z: p.z }); }     // точка возврата после смерти
   slide(W.map, p, p.vx * dt, p.vz * dt, P.radius);
   keepIn(W.map, p, W.cfg.world.radius, wcOf(W.cfg));
   W.inside = insideOf(W.map, p.x, p.z);
@@ -1135,7 +1139,8 @@ export function step(W, dt, input = {}) {
 }
 
 export function respawnPlayer(W) {
-  const P = W.cfg.player, p = W.player;
+  const P = W.cfg.player, p = W.player, F = W.dfire && W.dfire.lvl === W.lvl && W.map.fire ? W.dfire : null;     // зажжён костёр этого подземелья — встаём у него (план подземелий, 1е)
+  if (F) { Object.assign(p, { x: F.x + 1.5, z: F.z, vx: 0, vz: 0, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0, atkBuf: 0, chargeT: 0, heavy: 0 }); W.proj.length = 0; W.haz.length = 0; W.echoQ.length = 0; W.combo.n = 0; for (const e of W.enemies) e.alert = false; return; }
   backToSurface(W);
   Object.assign(p, { x: P.start.x, z: P.start.z, vx: 0, vz: 0, face: Math.PI, hp: p.maxhp || P.hp, state: 'idle', atkT: 0, rollT: 0, rollCd: 0, inv: 1.2, dead: false, deadT: 0, atkBuf: 0, chargeT: 0, heavy: 0 });
   W.enemies = W.enemies.filter(e => e.boss && !e.dead); W.proj.length = 0; W.haz.length = 0; W.spawnT = 1.2; W.pst = {}; W.echoQ.length = 0; W.combo.n = 0;

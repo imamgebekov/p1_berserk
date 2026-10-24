@@ -49,14 +49,14 @@ export function styleDef(cfg, def, bosses = []) {
   def.styled = true;
   const k = S.scale, cmax = cfg.dungeons.corridorMax;
   for (const r of def.rooms) { r.corr = Math.min(r.w, r.d) <= cmax; sc(r, k, ['x', 'z', 'w', 'd']); }
-  sc(def.entry, k); sc(def.exit, k); for (const c of def.chests || []) sc(c, k);
+  sc(def.entry, k); sc(def.exit, k); sc(def.fire, k); for (const c of def.chests || []) sc(c, k);     // fire — костёр перед финальным боссом (план подземелий, 1е)
   if (def.guard) sc(def.guard, k);
   if (def.throne) sc(def.throne, k, ['x', 'z', 'w', 'd']);
   if (def.down) { sc(def.down, k); if (def.down.to !== 'surface') sc(def.down, k, ['tx', 'tz']); }
   if (def.upTo && def.upTo !== 'surface' && def.back) sc(def.back, k);     // выход нижнего этажа ведёт к лестнице верхнего — тоже в масштабе
   for (const b of bosses) sc(b, k);
   // точки, которые нельзя ставить в провал или колонну
-  const busy = [def.entry, def.exit, def.down, def.guard, ...bosses].filter(Boolean);
+  const busy = [def.entry, def.exit, def.down, def.guard, def.fire, ...bosses].filter(Boolean);
   for (const r of def.rooms) {
     if (r.corr || r.shape) continue;
     const u = hash(def.id + '|' + r.id), u2 = hash(r.id + '#' + def.id);
