@@ -9,12 +9,17 @@ import { mulberry32 } from './sim.js';
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const smooth = (a, b, v) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t); };
 
+// подземный фон темы (план подземелий, 2е): { drip, rumble, wind } из dungeons.themes.list[тема].sound; наверху — null
+export function underSound(W) {
+  const L = W.levels && W.levels[W.lvl], d = L && L.def, T = W.cfg.dungeons && W.cfg.dungeons.themes; if (!d || !T || !T.on || String(W.lvl).startsWith('up:')) return null;
+  const id = d.theme || T.by[d.id] || (d.abyss ? T.abyss : null) || T.def; return (T.list[id] && T.list[id].sound) || null;
+}
 export function mixOf(W, A, env) {
   const p = W.player, under = W.lvl !== 'surface' && !String(W.lvl).startsWith('up:');     // второй этаж дома — не подземелье: музыка и птицы слышны
   let n = 0; for (const e of W.enemies) if (!e.dead && e.alert && Math.hypot(e.x - p.x, e.z - p.z) < A.combat.r) n++;
   const combat = p.dead ? 0 : clamp01(n / A.combat.n), danger = clamp01(W.place && W.place.danger ? W.place.danger / 3 : 0);
   const rv = !under && W.map.river, d = rv ? Math.max(0, Math.min(waterDist(rv, p.x, p.z), streamDist(rv, p.x, p.z) + 3)) : 1e9;     // ручей журчит тише реки (как будто на 3 м дальше)
-  const water = rv ? 1 - smooth(A.water.near, A.water.far, d) : 0;
+  const US = under ? underSound(W) : null, water = rv ? 1 - smooth(A.water.near, A.water.far, d) : US ? US.drip * (A.water.under ?? .6) : 0;     // под землёй «бульки» — капель темы (2е)
   const day = under ? 0 : smooth(A.birds.day[0], A.birds.day[1], W.light);
   const wetK = env && env.rain ? clamp01(env.rain) : 0;
   const birds = day * (1 - danger * .8) * (1 - combat) * (1 - wetK), owl = under ? 0 : (1 - day) * (W.night ? 1 : 0) * (1 - combat);

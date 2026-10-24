@@ -13,7 +13,7 @@ import { createJournal } from './journal.js';
 import { createQuests } from './questsui.js';
 import { ensureAudio, setVolume, setUserMix, setMuted, isMuted, suspendAudio, setAmbient, sfx, setScene, tickAudio, audioStats, setOwnMusicOn } from './audio3d.js';
 import { loadOwn, onOwnChange, ownIcon, ownMusic, ownIconCount, setOwnIcon, clearOwnIcon, clearOwnIcons, addOwnMusic, clearOwnMusic, player as ownPlayer } from './custom3d.js';
-import { mixOf } from './soundscape3d.js';
+import { mixOf, underSound } from './soundscape3d.js';     // underSound — подземный фон темы (план подземелий, 2е)
 import { clockText, lightOf, phaseOf, mix } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLines, questMarks, questMark, questsOf } from './quests3d.js';
@@ -954,7 +954,7 @@ function frame(now) {
     if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }
-  if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0); }
+  if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0, underSound(W)); }     // под землёй — фон темы (план подземелий, 2е)
   if ((atmoT += real) > .2) { atmoT = 0; const mx = mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null); setScene(mx, cfg.audio); tickAudio(); tracks.tick(mx, ownActive || isMuted(), performance.now() / 1000, cfg.audio.musicVol * uvol.all * uvol.music); if (ownPlayer.playing()) ownPlayer.setVolume(cfg.audio.ownMusic * uvol.all * uvol.music * (mx.fight > 0 ? .45 : 1) * (W.player.dead ? .3 : 1)); }     // своя музыка: в бою тише     // атмосфера: река, птицы, музыка
   if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; sfx('step'); }
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }

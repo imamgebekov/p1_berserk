@@ -41,9 +41,10 @@ export const isMuted = () => muted;
 export function suspendAudio(on) { if (!ac) return; try { if (on) ac.suspend(); else ac.resume(); } catch (e) { /* без звука */ } }
 
 // фон по времени суток: ночью ветер сильнее; гул — только ночью и в опасном месте (шаг 8); light 0..1
-export function setAmbient(light, danger = 0) {
+export function setAmbient(light, danger = 0, under = null) {     // under — подземный фон темы { rumble, wind } (план подземелий, 2е)
   if (!amb || !ac) return;
   const t = ac.currentTime, D = FX().drone, night = Math.min(1, Math.max(0, (.5 - light) / .3));
+  if (under) { amb.wind.gain.setTargetAtTime(.006 + under.wind * .05, t, 1.2); amb.drone.gain.setTargetAtTime(under.rumble * (D.under ?? .05) + D.danger * danger, t, 1.2); return; }
   amb.wind.gain.setTargetAtTime(.018 + (1 - light) * .03, t, .8);
   amb.drone.gain.setTargetAtTime(D.night * night + D.danger * danger, t, .8);
 }

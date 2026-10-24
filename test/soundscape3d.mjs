@@ -4,7 +4,8 @@
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, mulberry32, spawnEnemy } from '../3d/src/sim.js';
 import { waterDist } from '../3d/src/terrain3d.js';
-import { mixOf, composePiece, birdSong, owlCall, fightBar } from '../3d/src/soundscape3d.js';
+import { mixOf, composePiece, birdSong, owlCall, fightBar, underSound } from '../3d/src/soundscape3d.js';
+import { travel } from '../3d/src/levels3d.js';
 
 const fails = [];
 const ok = (c, m) => { if (!c) fails.push(m); };
@@ -125,5 +126,12 @@ const mk = (c = clone()) => { c.enemies.count = 0; c.bosses.list = []; c.events.
   ok(parts(bo).has('choir') && parts(bo).has('brass') && bo.beat < hi.beat, 'босс без хора, меди или того же темпа');
   ok([lo, hi, bo].every(b => b.notes.every(n => n.t >= 0 && n.t < b.dur && n.d > 0)) && Math.abs(hi.dur - 4 * 60 / F.bpm) < 1e-9, 'ноты вне такта или такт не 4 доли'); }
 
+// темы подземелий и их фон (план подземелий, 2е): 9 тем, у каждого подземелья своя из списка; затопленный зал — капель, кузнечные недра — гул
+{ const T = CFG3.dungeons.themes, I = CFG3.dungeons.list.filter(d => d.inst); ok(Object.keys(T.list).length >= 9 && Object.values(T.list).every(t => t.sound), 'тем меньше 9 или без звука');
+  ok(I.every(d => T.list[T.by[d.id]]), 'подземелье без своей темы: ' + I.filter(d => !T.list[T.by[d.id]]).map(d => d.id));
+  const W = createWorld((() => { const c = clone(); c.enemies.count = 0; return c; })(), mulberry32(3));
+  travel(W, 'inst_drown', 0, 0); const wet = mixOf(W, W.cfg.audio); ok(wet.under && wet.water > .3 && underSound(W).drip === 1, 'в затопленном зале нет капели: ' + JSON.stringify(wet));
+  travel(W, 'inst_ash', 0, 0); const hot = mixOf(W, W.cfg.audio); ok(hot.under && !hot.water && underSound(W).rumble === 1, 'в кузнечных недрах капель или нет гула');
+  travel(W, 'surface', 0, 4); ok(underSound(W) === null, 'подземный фон наверху'); }
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Атмосфера звука 3D: OK');
