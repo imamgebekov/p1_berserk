@@ -1,6 +1,7 @@
 // Своё с устройства (2026-10-21, просьба владельца): музыка и значки игрока. Файлы лежат только в браузере игрока (IndexedDB),
 // в игру и на сайт не попадают. Значки — по ключу: умение 'n:<id>' (древо и панель) или вид вещи (как в itemicons.js giKeyOf).
 // Музыка — свой плейлист вместо музыки игры: по кругу вперемешку, в бою тише.
+import { routeMedia } from './audio3d.js';
 const DB = 'berserk-own', ST = 'files';
 const icons = new Map();     // ключ → data URL (уменьшено до 128 точек)
 let music = [], ver = 0, ready = null;
@@ -44,10 +45,11 @@ export async function clearOwnMusic() { for (const m of music) await tx('readwri
 
 // плеер своей музыки: по кругу вперемешку; громкость — общая громкость музыки × доля боя (в бою тише)
 export const player = (() => {
-  let el = null, url = null, order = [], i = 0, on = false, vol = .5;
+  let el = null, url = null, order = [], i = 0, on = false, vol = .5, gain = null;     // gain — громкость через Web Audio (routeMedia), пока его нет — el.volume
   const next = () => { if (!music.length) return stop(); if (i >= order.length) { order = music.map((_, k) => k).sort(() => Math.random() - .5); i = 0; }
-    const m = music[order[i++]]; if (!m) return; if (url) URL.revokeObjectURL(url); url = URL.createObjectURL(m.blob); el.src = url; el.volume = vol; el.play().catch(() => { /* ждём жеста игрока */ }); };
+    const m = music[order[i++]]; if (!m) return; if (url) URL.revokeObjectURL(url); url = URL.createObjectURL(m.blob); el.src = url; level(); el.play().catch(() => { /* ждём жеста игрока */ }); };
   function start() { if (!music.length || typeof Audio === 'undefined') return; if (!el) { el = new Audio(); el.addEventListener('ended', next); el.addEventListener('error', next); } on = true; if (!el.src || el.ended) next(); else el.play().catch(() => {}); }
   function stop() { on = false; if (el) el.pause(); }
-  return { start, stop, playing: () => on && !!music.length, setVolume: v => { vol = Math.max(0, Math.min(1, v)); if (el) el.volume = vol; }, pause: p => { if (!el || !on) return; if (p) el.pause(); else el.play().catch(() => {}); } };
+  function level() { if (!el) return; if (!gain) gain = routeMedia(el); if (gain) gain(vol); else el.volume = vol; }
+  return { start, stop, playing: () => on && !!music.length, setVolume: v => { vol = Math.max(0, Math.min(1, v)); level(); }, pause: p => { if (!el || !on) return; if (p) el.pause(); else el.play().catch(() => {}); } };
 })();

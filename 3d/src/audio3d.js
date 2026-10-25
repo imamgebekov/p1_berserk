@@ -23,10 +23,10 @@ export function ensureAudio() {
       // фон: ветер (шум через фильтр с медленным качанием) и низкий гул затмения
       const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain();
       src.buffer = noiseBuf; src.loop = true; f.type = 'bandpass'; f.frequency.value = 380; f.Q.value = .6; g.gain.value = 0;
-      lfo.frequency.value = .11; lg.gain.value = 140; lfo.connect(lg).connect(f.frequency); src.connect(f).connect(g).connect(master); src.start(); lfo.start();
+      lfo.frequency.value = .11; lg.gain.value = 140; lfo.connect(lg).connect(f.frequency); src.connect(f).connect(g).connect(sfxBus); src.start(); lfo.start();     // ветер и гул — через ползунок «Звуки» (2026-10-25: шли мимо ползунков)
       const o1 = ac.createOscillator(), o2 = ac.createOscillator(), lf = ac.createBiquadFilter(), dg = ac.createGain();
       o1.type = o2.type = 'triangle'; o1.frequency.value = 55; o2.frequency.value = 55.7; lf.type = 'lowpass'; lf.frequency.value = 150; dg.gain.value = 0;
-      o1.connect(lf); o2.connect(lf); lf.connect(dg).connect(master); o1.start(); o2.start();
+      o1.connect(lf); o2.connect(lf); lf.connect(dg).connect(sfxBus); o1.start(); o2.start();
       amb = { wind: g, drone: dg };
       buildAtmo();
     } catch (e) { ac = null; }
@@ -38,6 +38,8 @@ let user = { music: 1, sfx: 1 };     // 4.08: ползунки игрока «М
 export function setUserMix(music, sfx) { const k = v => Math.min(1, Math.max(0, Number(v))); user = { music: k(music ?? 1), sfx: k(sfx ?? 1) }; if (sfxBus) sfxBus.gain.value = user.sfx; if (atmo) applyMix(); }
 export const setMuted = m => { muted = !!m; if (master) master.gain.value = muted ? 0 : volume; };
 export const isMuted = () => muted;
+// тег <audio> (своя музыка, треки) — через Web Audio: громкость узлом усиления; на iPhone el.volume не действует (Safari)
+export function routeMedia(el) { if (!ac || !el || !ac.createMediaElementSource) return null; try { const g = ac.createGain(); ac.createMediaElementSource(el).connect(g).connect(master); el.volume = 1; return v => { g.gain.value = v / Math.max(.05, volume); }; } catch (e) { return null; } }     // v — громкость как у el.volume; общая громкость (master) уже в v, поэтому делим
 export function suspendAudio(on) { if (!ac) return; try { if (on) ac.suspend(); else ac.resume(); } catch (e) { /* без звука */ } }
 
 // фон по времени суток: ночью ветер сильнее; гул — только ночью и в опасном месте (шаг 8); light 0..1
@@ -296,3 +298,4 @@ export function tickAudio() {
   }
 }
 export const __ctx = () => ac;     // для тестов (рендер без колонок)
+export const __master = () => master;     // для тестов: слушать общий выход (test/browser-volume.mjs)
