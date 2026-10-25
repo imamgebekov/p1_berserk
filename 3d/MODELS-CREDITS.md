@@ -21,7 +21,7 @@
 
 ## CC BY 4.0
 Семь моделей Sketchfab заменены на CC0 (2026-10-22, путь А).
-- **Meshy** (https://www.meshy.ai, бесплатный тариф — CC BY 4.0, автор в титрах — Meshy): Мшистый Зверь (`gen_mossbeast.glb`, 2026-10-24), Королева Утопших, Плавильщик, Мать Спор, Полая Королева (`gen_drownqueen`, `gen_smelter`, `gen_sporemother`, `gen_hollowqueen`, 2026-10-25). Картинка — FLUX.1 [schnell] (Apache 2.0) в Draw Things по промпту из `_packs/gen/`; сетка упрощена `tools/meshy-pack.mjs` (192 тыс. → 12 тыс. треуг.), текстура 1024.
+- **Meshy** (https://www.meshy.ai, бесплатный тариф — CC BY 4.0, автор в титрах — Meshy): Мшистый Зверь (`gen_mossbeast.glb`, 2026-10-24), Королева Утопших, Плавильщик, Мать Спор, Полая Королева (`gen_drownqueen`, `gen_smelter`, `gen_sporemother`, `gen_hollowqueen`, 2026-10-25), Двуликое Пламя, Длань: Утроба (`gen_twinflame`, `gen_hand_womb`, 2026-10-25). Картинка — FLUX.1 [schnell] (Apache 2.0) в Draw Things по промпту из `_packs/gen/`; сетка упрощена `tools/meshy-pack.mjs` (192 тыс. → 12 тыс. треуг.), текстура 1024.
 
 ## Текстуры земли (CC0)
 - **Tiny Texture Pack 1 и 2** — Screaming Brain Studios, https://opengameart.org/content/tiny-texture-pack — Grass 12, Dirt 02, Stone 11.
