@@ -558,6 +558,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const surfaceObjs = [land, sea, riverGroup, sunGroup, rainGroup, ohGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
   const dbg = makeDungeonBG(cfg); scene.add(dbg.group); let dbgMap = null, curTheme = null;     // 4.13: живой фон подземелий
+  const roomFx = { kind: null, k: 0 }, FLOOD_C = new THREE.Color('#1c4a66'), waterRoom = new THREE.Mesh(new THREE.PlaneGeometry(70, 70).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#2a6a8a', transparent: true, opacity: 0, depthWrite: false })); waterRoom.visible = false; scene.add(waterRoom);     // вода затопленного зала (план подземелий, 3б)
   // второй этаж (2026-10-21): виден мир вокруг, как с первого этажа; этаж — над своим домом на высоте floors.lift
   let liftY = null;
   const floorL = W => { const L = W.levels && W.levels[W.lvl]; return L && L.map && L.map.floor ? L : null; };
@@ -983,6 +984,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : WE.force === 'fog' ? .35 : 1, rain: WE.force === 'rain' ? 1 : 0, mist: WE.force === 'fog' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
     scene.fog.density = (under ? cfg.view.fogDensity * (String(W.lvl).startsWith('up:') ? .5 : 2.2) * (curTheme ? curTheme.fogK : 1) : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog) / zoomC;     // 4.12: туман — на приближение, иначе отдаление темнит     // в дождь туман гуще     // на рассвете туман гуще
     if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
+    if (under && curTheme) { const R = W.bossRoom && W.bossRoom.lvl === W.lvl ? W.bossRoom.kind : null; if (R) roomFx.kind = R; roomFx.k += ((R ? 1 : 0) - roomFx.k) * Math.min(1, dt * 1.5); const k = roomFx.k, th = curTheme;     // смена зала у финального босса (план подземелий, 3б): тьма — свет гаснет, затопление — вода и синий туман
+      hemi.intensity = th.hemi[2] * (roomFx.kind === 'dark' ? 1 - .65 * k : 1); scene.fog.color.set(th.bg); if (roomFx.kind === 'flood') scene.fog.color.lerp(FLOOD_C, .55 * k); scene.background.copy(scene.fog.color);
+      waterRoom.visible = roomFx.kind === 'flood' && k > .02; if (waterRoom.visible) { waterRoom.position.set(p.x, .22 * k, p.z); waterRoom.material.opacity = .45 * k; } }
     else if (Math.abs(W.light - lastLight) > .004) {                  // небо, свет и туман по времени суток
       lastLight = W.light; const k = skyAt(W.light, cfg.daynight.sky);
       scene.fog.color.set(k.fog); scene.background.set(k.fog);

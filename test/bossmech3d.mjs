@@ -4,7 +4,7 @@
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, spawnBoss, killEnemy } from '../3d/src/sim.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
-const PLACES = ['raid_oak', 'raid_cathedral', 'inst_drown', 'inst_ash', 'inst_rift', 'raid_throne'];
+const PLACES = CFG3.dungeons.list.filter(d => d.inst).map(d => d.id);     // план подземелий, 3а: свой приём — у боссов всех подземелий и рейдов
 
 // 1. свои именные приёмы, имена не повторяются
 { const names = new Map();

@@ -28,7 +28,7 @@ import { BY_ID, CATALOG } from './data/items.js';
 import { CONTAINERS, SHOP, SHOP_STAPLES, BOSS_LOOT, BOSS_DROPS, rollLoot, rollDrop, pickItem, chestGold } from './data/loot.js';
 import { TRAITS, PERKS } from './data/weapons3d.js';
 import { SETS } from './data/sets3d.js';
-import { initBoss, updateBoss, tickBossZones, bossRise } from './boss3d.js';
+import { initBoss, updateBoss, tickBossZones, bossRise, endBossRoom } from './boss3d.js';
 import { storyFresh, storyTick, storyKill, storyBoss, storyActors, duelGuard, brandTick } from './story3d.js';
 import { newKnown } from './craft3d.js';
 import { questEvent, questTick } from './quests3d.js';
@@ -82,6 +82,7 @@ function attachFx(W) {
   W.fx = {
     kill: e => killEnemy(W, e, 1),
     deal: (e, dmg, fx) => dealDamage(W, e, dmg, fx),
+    roomOf: (x, z) => { const i = roomAt(W.map, x, z); return i >= 0 ? W.map.rooms[i] : null; },     // зал подземелья в точке (смена зала у босса, план подземелий 3б)
     hp: (e, frac, base) => Math.round(base + e.maxhp * frac),
     slide: (e, dx, dz, r) => slide(W.map, e, dx, dz, r),
     reveal: (x, z, r) => reveal(W, x, z, r),
@@ -280,6 +281,7 @@ function bossDefeated(W, e) {
   for (const m of e.b.minions) if (!m.dead) { m.dead = true; m.deadT = 0; }
   W.bossDead[e.type] = Math.round(W.cfg.bosses.respawn * W.dif.boss);
   W.ev.push({ k: 'bossdead', name: C.name, type: e.type, x: e.x, z: e.z });     // type — для «Пути пепла» (шаг 13)
+  if (e.b && e.b.def.lines && e.b.def.lines.death) W.ev.push({ k: 'bossSay', who: C.name, text: e.b.def.lines.death }); endBossRoom(W, e.id);     // последние слова и конец смены зала (план подземелий, этап 3)
 }
 export function restoreBosses(W, dead) {
   if (!dead || typeof dead !== 'object') return;
@@ -759,7 +761,7 @@ function updatePlayer(W, dt, input) {
     // бег с разгоном; при ударе медленнее
     const wet = W.map.river && inStream(W.map.river, p.x, p.z);     // ручей (2026-10-18): медленнее, горение гаснет
     if (wet && W.pst.burn) { delete W.pst.burn; W.ev.push({ k: 'douse', x: p.x, z: p.z }); }
-    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd + relicSpd(W), -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
+    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd + relicSpd(W), -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1) * (W.bossRoom && W.bossRoom.kind === 'flood' && W.bossRoom.lvl === W.lvl ? W.cfg.bosses.room.flood : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
     const tx = moving ? mx * sp : 0, tz = moving ? mz * sp : 0;
     const a = P.accel * dt;
     const dvx = tx - p.vx, dvz = tz - p.vz, dl = len(dvx, dvz);

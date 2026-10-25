@@ -289,6 +289,7 @@ function onEvent(v) {
   else if (v.k === 'storyDone') { toast(v.end ? ({ 1: 'Акт I «Наёмник» пройден. Отряд идёт на войну', 2: 'Акт II «Война» пройден. Вы ушли из отряда', 3: 'Акт III «Затмение» пройден. Впереди — месть', 4: 'Затмение побеждено. Сюжет пройден — у человека в маске есть дела на каждый день' })[v.act] || 'Акт пройден' : `Сцена пройдена: ${v.name}`, '', '#ffd27a', 'scroll'); sfx('questdone'); }
   else if (v.k === 'storyWave') toast(`Волна ${v.n} из ${v.of}`, 'bad', '#ff9a6a', 'warn');
   else if (v.k === 'storyFail') toast(v.text || 'Не вышло. Поговорите снова', 'bad', '#ff8a6a', 'warn');
+  else if (v.k === 'bossRoom') toast(`${v.name}: ${v.what}!`, 'bad', '#ff9a6a', 'warn');     // смена зала (план подземелий, 3б)
   else if (v.k === 'bossSay') toast(`${v.who}: ${v.text}`, '', '#e8e0ff', 'scroll');     // реплики в бою рейда (этап 8)
   else if (v.k === 'storyFall') toast(`${v.name} уходит во тьму`, 'bad', '#c8a0ff', 'warn');     // Затмение (этап 7)
   else if (v.k === 'brand') toast('Клеймо жжёт — тени идут', 'bad', '#ff6a6a', 'warn');

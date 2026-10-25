@@ -8,7 +8,7 @@ const HINT = { blink: ' — уйдите с метки', pull: ' — бегит�
 
 export function initBoss(W, e, def) {
   const S = W.cfg.bosses.sig && W.cfg.bosses.sig[def.type];     // свои приёмы и вторая стадия (4.18б)
-  if (S) def = { ...def, attacks: def.attacks.concat(S.attacks || []), drain: S.drain || 0, stage2: S.stage2 || null };
+  if (S) def = { ...def, attacks: def.attacks.concat(S.attacks || []), drain: S.drain || 0, stage2: S.stage2 || null, lines: S.lines || null, p2: S.p2 || null };     // lines, p2 — реплики и вторая фаза со сменой зала (план подземелий, этап 3)
   e.boss = true; e.alert = false;
   e.b = { def, extra: [], home: { x: e.x, z: e.z }, t: 0, cd: 1.5, atk: null, state: 'idle', done: new Set(), enraged: false, cds: {}, last: -1, dash: null, minions: [], hunt: true };
 }
@@ -16,6 +16,26 @@ export function initBoss(W, e, def) {
 const PHASE_MOVES = ['pools', 'nova', 'charge', 'beam'], MOVE_NAME = { beam: 'луч', pools: 'огненные лужи', nova: 'кольцо', charge: 'рывок' };
 const atkList = b => (b.extra && b.extra.length ? b.def.attacks.concat(b.extra) : b.def.attacks);     // свои атаки + добавленные фазой
 export function phaseMove(def, T) { const has = new Set(def.attacks.map(a => a.kind)), k = PHASE_MOVES.find(m => !has.has(m) && T[m]); return k ? { ...T[k], mv: true } : null; }     // mv — метка нового приёма
+
+// вторая фаза (план подземелий, 3б): приём add, смена зала room — flood (вода по колено: герой медленнее), collapse (пол по краям зала
+// горит до гибели босса), embers (с потолка падает раскалённый пепел), dark (свет гаснет — только вид); реплика say
+const ROOM_WHAT = { flood: 'зал затапливает', collapse: 'пол по краям рушится', embers: 'с потолка сыплется жар', dark: 'свет гаснет' };
+function bossPhase2(W, e, C) {
+  const b = e.b, P = b.def.p2, R = W.cfg.bosses.room; b.p2 = true;
+  if (P.add) { (b.extra || (b.extra = [])).push({ ...P.add, mv: true }); W.ev.push({ k: 'bossphase', name: C.name, what: 'новый приём: ' + (P.add.name || P.add.kind), x: e.x, z: e.z }); }
+  if (P.say) W.ev.push({ k: 'bossSay', who: C.name, text: P.say });
+  if (!P.room || !R) return;
+  W.bossRoom = { kind: P.room, by: e.id, lvl: W.lvl, t: 0 }; W.ev.push({ k: 'bossRoom', kind: P.room, what: ROOM_WHAT[P.room], name: C.name, x: e.x, z: e.z });
+  if (P.room === 'collapse' && W.fx.roomOf) { const r = W.fx.roomOf(e.x, e.z); if (r) { W.bzones = W.bzones || []; const k = R.collapse, dps = C.damage * k.mul * (e.dmgMul || 1);
+    for (const side of [0, 1, 2, 3]) for (let s = k.step / 2; s < (side < 2 ? r.x1 - r.x0 : r.z1 - r.z0); s += k.step) { const x = side === 0 || side === 1 ? r.x0 + s : side === 2 ? r.x0 + k.inset : r.x1 - k.inset, z = side === 0 ? r.z0 + k.inset : side === 1 ? r.z1 - k.inset : r.z0 + s;
+      W.bzones.push({ x, z, r: k.r, t: 1e9, dps, tick: 0, by: e.id, lvl: W.lvl, room: true }); } } }
+}
+function roomTick(W, e, C, dt) {
+  const Rm = W.bossRoom, R = W.cfg.bosses.room; Rm.t += dt;
+  if (Rm.kind === 'embers' && (Rm.next = (Rm.next ?? 1) - dt) <= 0) { Rm.next = R.embers.every; dropMeteors(W, e, { n: R.embers.n, around: R.embers.around, rm: R.embers.r, arm: R.embers.arm, mul: R.embers.mul }, e.dmgMul || 1, C); }
+}
+// конец смены зала: босс погиб или герой ушёл с уровня (sim.js); горящий пол — гаснет
+export function endBossRoom(W, id) { if (!W.bossRoom || (id != null && W.bossRoom.by !== id)) return; W.bossRoom = null; if (W.bzones) W.bzones = W.bzones.filter(z => !(z.room && (id == null || z.by === id))); }
 
 // герой sec секунд был на другом уровне (в подземелье): босс уже вернулся в логово и лечился, как после ухода за поводок
 export function bossAway(W, e, sec) {
@@ -44,6 +64,8 @@ export function updateBoss(W, e, dt, spd) {
     if (ph.say) W.ev.push({ k: 'bossSay', who: ph.who || C.name, text: ph.say });     // реплика в бою (рейд: Пятый)
     if (ph.shield && b.minions.length) { b.shield = true; b.shieldHp = e.hp; W.ev.push({ k: 'bossphase', name: C.name, what: 'щит: сперва убейте подмогу', x: e.x, z: e.z }); }     // этап 5: неуязвим, пока жива подмога
   });
+  if (b.def.p2 && !b.p2 && frac <= b.def.p2.at) bossPhase2(W, e, C);     // вторая фаза финального босса: новый приём и смена зала (план подземелий, 3б)
+  if (W.bossRoom && W.bossRoom.by === e.id && e.alert) roomTick(W, e, C, dt);
   if (b.shield) { if (!b.minions.length) { b.shield = false; W.ev.push({ k: 'bossphase', name: C.name, what: 'щит пал', x: e.x, z: e.z }); } else e.hp = Math.max(e.hp, b.shieldHp); }
   if (b.def.drain && b.minions.length && e.alert) e.hp = Math.min(e.maxhp, e.hp + e.maxhp * b.def.drain * dt);     // подпитка (4.18б): лечится, пока жива подмога
 
@@ -56,7 +78,7 @@ export function updateBoss(W, e, dt, spd) {
     if (len(p.x - b.home.x, p.z - b.home.z) < B.aggro && !p.dead) e.alert = true;
     return;
   }
-  if (!e.alert) { if (d < B.aggro) { e.alert = true; W.ev.push({ k: 'bossaggro', name: C.name, id: e.id }); } else return; }
+  if (!e.alert) { if (d < B.aggro) { e.alert = true; W.ev.push({ k: 'bossaggro', name: C.name, id: e.id }); if (b.def.lines && b.def.lines.aggro && !b.said) { b.said = true; W.ev.push({ k: 'bossSay', who: C.name, text: b.def.lines.aggro }); } } else return; }     // реплика при встрече — раз (этап 3)
 
   b.t += dt;
   const dmgMul = (enr ? B.enrageDmg : 1) * (e.dmgMul || 1);
