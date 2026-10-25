@@ -74,6 +74,12 @@ function recolorTex(src, cells, grid = [8, 4]) {     // перекраска Kay
   cx.putImageData(D, 0, 0); const t = src.clone(); t.source = new (THREE.TextureSource || THREE.Source)(cv); t.needsUpdate = true; RC.set(id, t); return t;     // свой источник: clone() делит картинку с исходной текстурой
 }
 function recolor(scene, kit) { scene.traverse(o => { if (o.isMesh && o.material.map) o.material.map = recolorTex(o.material.map, kit.recolor, kit.grid); }); }
+function hotMap(src, H) {     // карта свечения: пиксели ярче H.min по красному и с перевесом красного над синим на H.warm — светятся с силой H.k, прочие тёмные
+  const img = src.image, w = img.width, h = img.height, cv = document.createElement('canvas'); cv.width = w; cv.height = h; const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0);
+  const D = cx.getImageData(0, 0, w, h), d = D.data;
+  for (let i = 0; i < d.length; i += 4) { const on = d[i] >= H.min && d[i] - d[i + 2] >= H.warm; for (let j = 0; j < 3; j++) d[i + j] = on ? Math.min(255, d[i + j] * H.k) : 0; }
+  cx.putImageData(D, 0, 0); const t = src.clone(); t.source = new (THREE.TextureSource || THREE.Source)(cv); t.needsUpdate = true; return t;
+}
 function cutAbove(scene, cut) {     // убрать часть меша (нимб у демонов): треугольники материала mat выше доли above его высоты в мире
   scene.updateMatrixWorld(true); const v = new THREE.Vector3();
   scene.traverse(o => { if (!o.isMesh) return; const c = cut.find(x => x.mat === o.material.name); if (!c) return;
@@ -114,6 +120,7 @@ export function loadActor(key, kit) {
     if (kit.recolor) recolor(g.scene, kit);
     if (kit.mats || kit.glow) g.scene.traverse(o => { if (!o.isMesh) return; const m = o.material, c = kit.mats && kit.mats[m.name], e = kit.glow && kit.glow[m.name]; if (c) m.color.set(c); if (e) m.emissive.set(e); });     // монстры без текстур: цвет и свечение по имени материала
     if (kit.cut) cutAbove(g.scene, kit.cut);
+    if (kit.hot) g.scene.traverse(o => { if (o.isMesh && o.material.map) { o.material.emissiveMap = hotMap(o.material.map, kit.hot); o.material.emissive.set(kit.hot.color || '#ffffff'); } });     // светятся раскалённые места текстуры (модели из Meshy)
     inPlace(clips, g.scene);
     let box = new THREE.Box3().setFromObject(g.scene); if (!Number.isFinite(box.max.y - box.min.y)) box = boxOf(g.scene); const h = Math.max(.01, box.max.y - box.min.y);
     const v = { scene: g.scene, clips, h, minY: box.min.y }; lib.set(key, v); return v;
