@@ -4,7 +4,7 @@ import { threatPick } from './threat3d.js';
 const len = (x, z) => Math.hypot(x, z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TAU = Math.PI * 2;
-const HINT = { blink: ' — уйдите с метки', pull: ' — бегите прочь от босса', safe: ' — встаньте в зелёный круг', meteor: ' — уходите с меток' };     // подсказка к своему приёму (4.18б)
+const HINT = { blink: ' — уйдите с метки', pull: ' — бегите прочь от босса', safe: ' — встаньте в зелёный круг', meteor: ' — уходите с меток', spread: ' — разойдитесь', stack: ' — соберитесь в круге', buster: ' — удар по цели: пусть держит защитник' };     // подсказка к своему приёму (4.18б)
 
 export function initBoss(W, e, def) {
   const S = W.cfg.bosses.sig && W.cfg.bosses.sig[def.type];     // свои приёмы и вторая стадия (4.18б)
@@ -130,6 +130,7 @@ function beginAttack(W, e, a, i, dx, dz, d) {
   if (a.kind === 'blink') Object.assign(at, { x: e.x + dx, z: e.z + dz, r: a.r });     // метка — где стоит цель
   if (a.kind === 'pull') Object.assign(at, { r: a.r, inner: a.inner, force: a.force });
   if (a.kind === 'meteor') Object.assign(at, { r: 0, n: a.n, rm: a.r, arm: a.arm, around: a.around || 5 });
+  if (a.kind === 'spread' || a.kind === 'stack' || a.kind === 'buster') { raidMarks(W, e, a); at.r = 0; }     // механики рейда (план подземелий, 4а): метки ставятся сразу, взрыв — через arm
   if (a.kind === 'safe') { let g = W.rng() * TAU; for (let k = 0; k < 8 && W.fx.blocked && W.fx.blocked(e.x, e.z, e.x + Math.sin(g) * a.safeD, e.z + Math.cos(g) * a.safeD); k++) g += Math.PI / 4; Object.assign(at, { x: e.x + Math.sin(g) * a.safeD, z: e.z + Math.cos(g) * a.safeD, r: a.r }); }     // круг укрытия — не за стеной
   if (a.name && a.kind !== 'cast') W.ev.push({ k: 'bossphase', name: W.cfg.enemies[e.type].name, what: a.name + (HINT[a.kind] || ''), x: e.x, z: e.z });
   b.atk = at; b.state = 'wind';
@@ -141,6 +142,7 @@ function strikeAttack(W, e, a, dmgMul, C) {
   if (a.kind === 'beam') { b.state = 'beam'; a.x = e.x; a.z = e.z; W.ev.push({ k: 'bossBeam', x: e.x, z: e.z }); return; }
   if (a.kind === 'pools') { dropPools(W, e, a, dmgMul, C); b.state = 'rec'; b.t = 0; b.atk = null; return; }
   if (a.kind === 'meteor') { dropMeteors(W, e, a, dmgMul, C); b.state = 'rec'; b.t = 0; b.atk = null; return; }
+  if (a.kind === 'spread' || a.kind === 'stack' || a.kind === 'buster') { b.state = 'rec'; b.t = 0; b.atk = null; return; }     // метки уже тикают (raidMarks)
   if (a.kind === 'safe') { safeBlast(W, e, a, dmgMul, C); b.state = 'rec'; b.t = 0; b.atk = null; return; }
   if (a.kind === 'blink') { W.ev.push({ k: 'bossblast', x: e.x, z: e.z, r: 1.5, kind: 'blink' }); const g = Math.atan2(a.x - e.x, a.z - e.z), D = len(a.x - e.x, a.z - e.z); if (D > 1.4) W.fx.slide(e, Math.sin(g) * (D - 1.4), Math.cos(g) * (D - 1.4), C.radius); }     // скачок: встаёт у метки
   if (a.kind === 'pull') { const pull = q => { const qx = e.x - q.x, qz = e.z - q.z, d = len(qx, qz), m = Math.min(a.force, Math.max(0, d - C.radius - 1)); if (d <= a.r && m > 0) W.fx.slide(q, qx / d * m, qz / d * m, W.cfg.player.radius); }; if (!p.dead) pull(p); for (const al of W.allies) if (!al.dead) pull(al); a.x = e.x; a.z = e.z; a.r = a.inner;     // притяжение: потом удар рядом с боссом
@@ -174,6 +176,16 @@ function dropPools(W, e, a, dmgMul, C) {
   for (const q of at) { const g = W.rng() * Math.PI * 2, r = W.rng() * a.spread; W.bzones.push({ x: q.x + Math.sin(g) * r, z: q.z + Math.cos(g) * r, r: a.r, t: a.dur, dps: C.damage * a.mul * dmgMul, tick: W.cfg.bosses.mech.poolFirst || 0, by: e.id, lvl: W.lvl, mv: a.mv, born: W.t }); }     // Г9: первый тик — не сразу
   W.ev.push({ k: 'bossPools', x: e.x, z: e.z, n: at.length });
 }
+// механики рейда (план подземелий, 4а), метки ходят за бойцом (follow: 'p' — герой, иначе id бойца):
+// spread — на n бойцов, взрыв задевает всех рядом с меченым (разойдитесь); stack — одна метка, урон делится на всех в круге (соберитесь;
+// один — получает всё); buster — сильный удар по цели босса (угроза), только по ней (держит защитник)
+function raidMarks(W, e, a) {
+  const p = W.player, C = W.cfg.enemies[e.type], dm = e.dmgMul || 1, units = [...(p.dead ? [] : [{ id: 'p', o: p }]), ...W.allies.filter(x => !x.dead && !x.guest).map(x => ({ id: x.id, o: x }))]; if (!units.length) return;
+  const at = o => ({ x: o.x, z: o.z }), Z = W.bzones || (W.bzones = []), hit = Math.round(C.damage * a.mul * dm), arm = a.wind + a.arm, base = { t: arm + .5, arm, arm0: arm, dps: 0, tick: 0, by: e.id, lvl: W.lvl, met: true, born: W.t };
+  if (a.kind === 'spread') { const pick = units.slice().sort(() => W.rng() - .5).slice(0, a.n); for (const u of pick) Z.push({ ...base, ...at(u.o), r: a.r, hit, follow: u.id, spread: true }); }
+  else if (a.kind === 'stack') { const u = units[Math.floor(W.rng() * units.length)]; Z.push({ ...base, ...at(u.o), r: a.r, hit, follow: u.id, stack: true }); }
+  else { const tid = e.tgt || 'p', u = units.find(q => q.id === tid) || units[0]; Z.push({ ...base, ...at(u.o), r: a.r, hit, follow: u.id, single: true }); }
+}
 // метеоры (4.18б): метки под героем и отрядом (и вокруг героя), через arm с — удар радиусом r; уйти с метки — без урона
 function dropMeteors(W, e, a, dmgMul, C) {
   const p = W.player, src = p.dead ? e : p, at = [...(p.dead ? [] : [p]), ...W.allies.filter(x => !x.dead && !x.guest)].slice(0, a.n).map(q => ({ x: q.x, z: q.z }));
@@ -205,9 +217,13 @@ export function tickBossZones(W, dt) {
   const M = W.cfg.bosses.mech, p = W.player;
   for (let i = Z.length - 1; i >= 0; i--) {
     const z = Z[i]; z.t -= dt; if (z.t <= 0 || z.lvl !== W.lvl) { Z.splice(i, 1); continue; }
-    if (z.met) { if ((z.arm -= dt) > 0) continue; const from = W.enemies.find(q => q.id === z.by) || null; W.ev.push({ k: 'bossblast', x: z.x, z: z.z, r: z.r, kind: 'meteor' });     // метеор: удар один раз
-      if (!p.dead && len(p.x - z.x, p.z - z.z) < z.r + W.cfg.player.radius * .5) W.fx.hurtP(z.hit, z.x, z.z, null, from);
-      for (const al of W.allies) if (!al.dead && len(al.x - z.x, al.z - z.z) < z.r) W.fx.hurtA(al, z.hit, { x: z.x, z: z.z });
+    if (z.follow != null) { const o = z.follow === 'p' ? (p.dead ? null : p) : W.allies.find(a => a.id === z.follow && !a.dead); if (o) { z.x = o.x; z.z = o.z; } }     // метка рейда идёт за бойцом (4а)
+    if (z.met) { if ((z.arm -= dt) > 0) continue; const from = W.enemies.find(q => q.id === z.by) || null; W.ev.push({ k: 'bossblast', x: z.x, z: z.z, r: z.r, kind: z.stack ? 'stack' : z.spread ? 'spread' : z.single ? 'buster' : 'meteor' });     // метеор: удар один раз
+      const inP = !p.dead && len(p.x - z.x, p.z - z.z) < z.r + W.cfg.player.radius * .5, inA = W.allies.filter(al => !al.dead && len(al.x - z.x, al.z - z.z) < z.r);
+      if (z.single) { if (z.follow === 'p') { if (!p.dead) W.fx.hurtP(z.hit, z.x, z.z, null, from); } else { const al = W.allies.find(a => a.id === z.follow && !a.dead); if (al) W.fx.hurtA(al, z.hit, { x: z.x, z: z.z }); } Z.splice(i, 1); continue; }
+      const share = z.stack ? Math.round(z.hit / Math.max(1, (inP ? 1 : 0) + inA.length)) : z.hit;     // «соберитесь»: урон делится на всех в круге
+      if (inP) W.fx.hurtP(share, z.x, z.z, null, from);
+      for (const al of inA) W.fx.hurtA(al, share, { x: z.x, z: z.z });
       Z.splice(i, 1); continue; }
     if ((z.tick -= dt) > 0) continue; z.tick = M.tick;
     const dmg = Math.max(1, Math.round(z.dps * M.tick)), from = W.enemies.find(q => q.id === z.by) || null;

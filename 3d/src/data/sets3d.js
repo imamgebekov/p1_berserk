@@ -30,6 +30,10 @@ export const SETS = [
   { id: 'dawn', name: 'Облачение Зари', pieces: ['g_dawnhood', 'g_dawnrobe', 'g_dawnmantle', 'g_dawnsteps'], b2: { stats: { crit: 5, spd: 4 } }, b4: { stats: { dmg: 6, hp: 30 }, fx: { killHeal: 6 } } },
   // рейд «Врата Длани» (этап 8): падает со всех боссов рейда
   { id: 'hand', name: 'Доспех Затмения', pieces: ['rs_hand_head', 'rs_hand_body', 'rs_hand_cloak', 'rs_hand_boots'], b2: { stats: { dmg: 6, hp: 30 } }, b4: { stats: { armor: 6, hp: 40 }, fx: { killHeal: 10, lastStand: .2 } } },
+  // ещё три рейда (план подземелий, 4д): у каждого свой комплект, падает с боссов своего рейда
+  { id: 'oak', name: 'Кора Древнего Дуба', pieces: ['rs_oak_head', 'rs_oak_body', 'rs_oak_cloak', 'rs_oak_boots'], b2: { stats: { hp: 25, armor: 4 } }, b4: { stats: { hp: 30 }, fx: { thorns: .25 } } },
+  { id: 'cath', name: 'Ризы Утонувших', pieces: ['rs_cath_head', 'rs_cath_body', 'rs_cath_cloak', 'rs_cath_boots'], b2: { stats: { leech: 3, hp: 20 } }, b4: { stats: { crit: 6 }, fx: { killHeal: 8 } } },
+  { id: 'throne', name: 'Венец Пустоты', pieces: ['rs_throne_head', 'rs_throne_body', 'rs_throne_cloak', 'rs_throne_boots'], b2: { stats: { dmg: 8, crit: 6 } }, b4: { stats: { dmg: 6, hp: 40 }, fx: { rage: .3, lastStand: .2 } } },
   { id: 'rust', name: 'Доспех Ржавых', pieces: ['as_rust_head', 'as_rust_body', 'as_rust_cloak', 'as_rust_boots'], b2: { stats: { armor: 6, dmg: 4 } }, b4: { stats: { hp: 30 }, fx: { killHeal: 8, rage: .25 } } }
 ];
 
@@ -46,4 +50,13 @@ export const NAMED_ARMOR = [
 export const RAID_ARMOR = [
   ['head', 'Венец Врат', { armor: 14, hp: 22, crit: 4 }], ['body', 'Латы Длани', { armor: 26, hp: 32, dmg: 3 }],
   ['cloak', 'Плащ без тени', { armor: 9, hp: 24, spd: 3 }], ['boots', 'Шаг сквозь тьму', { armor: 11, spd: 4, hp: 16 }]
+];
+// комплекты рейдов (план подземелий, 4д): [набор, рейд, цвет, боссы, вещи [слот, название, статы]]; создаются в items.js рядом с «Доспехом Затмения»
+export const RAID_SETS = [
+  ['oak', 'Логово Древнего Дуба', '#3a4a1a', ['barghest', 'rootgnaw', 'hagmother', 'thornlord', 'oldoak'],
+    [['head', 'Венец из коры', { armor: 9, hp: 16, luck: 3 }], ['body', 'Панцирь древних колец', { armor: 17, hp: 24 }], ['cloak', 'Плащ из листвы', { armor: 6, hp: 16, spd: 3 }], ['boots', 'Корневые сапоги', { armor: 8, hp: 12, spd: 2 }]]],
+  ['cath', 'Затонувший собор', '#1a3a4a', ['saltwarden', 'drownchoir', 'abbess', 'cathkraken', 'drowngod'],
+    [['head', 'Клобук утопленника', { armor: 12, hp: 18, crit: 4 }], ['body', 'Риза прилива', { armor: 21, hp: 28, leech: 2 }], ['cloak', 'Мокрый саван', { armor: 8, hp: 20, crit: 3 }], ['boots', 'Шаг по дну', { armor: 10, spd: 3, hp: 14 }]]],
+  ['throne', 'Престол Бездны', '#2a1440', ['voidwarden', 'twinflame', 'hollowqueen', 'abyssmaw', 'voidking'],
+    [['head', 'Венец Пустоты', { armor: 17, hp: 28, crit: 6, dmg: 3 }], ['body', 'Латы Престола', { armor: 28, hp: 40, dmg: 4 }], ['cloak', 'Мантия края света', { armor: 12, hp: 30, spd: 4 }], ['boots', 'Шаг в ничто', { armor: 14, spd: 5, hp: 20 }]]]
 ];

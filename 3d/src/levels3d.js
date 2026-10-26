@@ -98,7 +98,7 @@ export function portalInfo(W, q) {
   const H = W.cfg.instances.heroic, lv0 = dungeonLevel(W.cfg, d), lv = Math.round(L.heroic ? Math.max(lv0, H.lv) + (H.add || 0) : lv0), P = W.cfg.party, n = P ? Object.values(d.raid ? P.raid : P.dungeon).reduce((a, b) => a + b, 0) : 0;
   const bs = W.cfg.bosses.list.filter(b => b.level === d.id), dead = bs.filter(b => lockedBoss(W, d.id, L.heroic, b.type)).length, h = lockHours(W, d.id, L.heroic);
   const warn = W.lv + (W.cfg.dungeons.warnLv || 3) <= lv;
-  return { text: [`Рек. ${lv} ур.`, n ? `отряд ${n}` : '', `боссов ${bs.length}` + (dead ? ` (награда взята: ${dead})` : ''), h ? `обновится через ${h} ч` : '', warn ? 'Опасно' : ''].filter(Boolean).join(' · '), warn };
+  return { text: [`Рек. ${lv} ур.`, n ? `отряд ${n}` + (d.raid && P.raid.tank ? ` (защитников ${P.raid.tank}, лекарей ${P.raid.heal})` : '') : '', `боссов ${bs.length}` + (dead ? ` (награда взята: ${dead})` : ''), h ? `обновится через ${h} ч` : '', warn ? 'Опасно' : ''].filter(Boolean).join(' · '), warn };
 }
 
 // уход с уровня: запомнить время; враги подземелья теряют героя

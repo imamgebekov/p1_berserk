@@ -3,7 +3,7 @@
 // Только вид: в мире (render.js) и в сумке (bagview3d.js). Чистая функция.
 import { BY_ID } from './data/items.js';
 const MATC = { rag: '#7a6a52', leather: '#7a5434', studded: '#6a5440', mail: '#8e8e88', plate: '#a8a498', black: '#34303a', ash: '#5a5250',
-  set_pogost: '#4a5a48', set_eclipse: '#3a2a50', set_rust: '#7a3a22', set_hand: '#4a2030', wings: '#5a4a3a', gold: '#c8a040' };
+  set_pogost: '#4a5a48', set_eclipse: '#3a2a50', set_rust: '#7a3a22', set_hand: '#4a2030', set_oak: '#4a5a28', set_cath: '#2a4a5a', set_throne: '#3a1a5a', wings: '#5a4a3a', gold: '#c8a040' };
 const SLOTS = ['body', 'cloak', 'head', 'boots'];
 export function dressedLook(base, inv, cape) {
   const L = { ...base }, eq = (inv && inv.eq) || {}, it = s => eq[s] && BY_ID[eq[s]], col = i => i && (i.tint || MATC[i.mat]);

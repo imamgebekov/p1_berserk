@@ -20,7 +20,7 @@ export const SLOTS = ['weapon', 'offhand', 'head', 'body', 'cloak', 'boots', 'ri
 export const SLOT_NAME = { weapon: 'Оружие', offhand: 'Вторая рука', head: 'Голова', body: 'Тело', cloak: 'Плащ', boots: 'Ноги', ring: 'Кольцо', amulet: 'Амулет' };
 export const STAT_NAME = { burnCh: 'шанс поджога %', poisonCh: 'шанс яда %', shockCh: 'шанс молнии %', bleedCh: 'шанс крови %', dmg: 'урон', armor: 'броня', block: 'блок %', hp: 'здоровье', spd: 'скорость %', reach: 'дальность', crit: 'крит %', leech: 'вампиризм %', luck: 'удача', swing: 'скорость удара', arc: 'ширина удара', rollcd: 'перекат', regen: 'восстановление', stealth: 'тишина', trade: 'торговля %' };
 
-import { NAMED_ARMOR, RAID_ARMOR } from './sets3d.js';
+import { NAMED_ARMOR, RAID_ARMOR, RAID_SETS, SETS } from './sets3d.js';
 import { GOLD, GOLD_K, goldText } from './gold3d.js';
 import { TOMES } from './tomes3d.js';
 import { TRAITS, PERKS, MATERIAL_PERKS, ELEMENTS, ENCHANTED_KINDS, UNIQUES, weaponText } from './weapons3d.js';
@@ -459,6 +459,7 @@ for (const [id, b, name, stats, text] of [
   ['l_dawnstaff', 'w_staff_black', 'Посох Рассвета', { dmg: 38, crit: 9, swing: 1.15, hp: 40 }, 'В навершии — свет, которого боятся тени.']
 ]) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'story', rar: 3, stats, value: B.value * 4, text }); }     // «Великая»: клеймёные — мерило золотых
 for (const [slot, name, stats] of RAID_ARMOR) add({ id: 'rs_hand_' + slot, name, cat: 'armor', slot, pool: 'raid', rar: 3, stats: { ...stats }, value: 900 + (stats.armor || 0) * 20, kind: 'set', mat: 'set_hand', tint: '#4a1a2a', raidBosses: ['gatebeast', 'hand_womb', 'hand_whisper', 'hand_net', 'hand_lord'], text: 'Часть «Доспеха Затмения». Падает с боссов Врат Длани.' });     // рейд (этап 8)
+for (const [sid, raid, tint, bosses, list] of RAID_SETS) { const SN = SETS.find(q => q.id === sid).name; for (const [slot, name, stats] of list) add({ id: `rs_${sid}_${slot}`, name, cat: 'armor', slot, pool: 'raid', rar: 3, stats: { ...stats }, value: 900 + (stats.armor || 0) * 20, kind: 'set', mat: 'set_' + sid, tint, raidBosses: bosses, text: `Часть комплекта «${SN}». Падает с боссов рейда «${raid}».` }); }     // ещё три рейда (план подземелий, 4д)
 for (const [id, b, name, boss, stats, text, tint] of DUN) { const B = ITEMS.find(i => i.id === b); add({ ...B, id, name, pool: 'dungeon', rar: 3, boss, stats, value: B.value * 2.2, text, ...(tint ? { tint } : {}) }); }     // tint — свой цвет значка у кольца и амулета
 // вещи земель (2026-10-23, «каталог по данным мира»): у каждой из 21 земли свой набор — 4 брони, перстень, оберег и 7 видов оружия
 // (на всех героев); выпадают только в своей земле (sim.js → zoneDrop, cfg.zoneLoot). Основа — вещь своего материала, сверху — дух земли

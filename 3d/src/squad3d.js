@@ -191,7 +191,11 @@ function tryTaunt(W, a, T) {
 function dangerAway(W, a) {
   const L = liveOf(W), M = smartOf(W), r = L ? reactOf(W, a) : 0, away = (ux, uz, d) => (d > 1e-3 ? { x: ux / d, z: uz / d } : { x: 1, z: 0 });
   if (L) { for (const h of W.haz) { if (h.t >= h.delay || h.t < r) continue; const ux = a.x - h.x, uz = a.z - h.z, d = len(ux, uz); if (d < h.r + .6) { say(W, a, 'dodge'); return away(ux, uz, d); } } }     // Г7: круг атаки — прочь, когда заметил
-  for (const z of W.bzones || []) { if (z.lvl !== W.lvl || (M && z.born != null && W.t - z.born < r)) continue; const ux = a.x - z.x, uz = a.z - z.z, d = len(ux, uz); if (d < z.r + .6) return away(ux, uz, d); }
+  for (const z of W.bzones || []) { if (z.lvl !== W.lvl || (M && z.born != null && W.t - z.born < r)) continue; const ux = a.x - z.x, uz = a.z - z.z, d = len(ux, uz);
+    if (z.stack) { if (d > z.r * .5) return { x: -ux / d, z: -uz / d }; continue; }     // механики рейда (план подземелий, 4а): «соберитесь» — в круг
+    if (z.single) continue;     // удар по цели — бежать незачем
+    if (z.spread && z.follow === a.id) { const o = [W.player, ...W.allies.filter(q => q !== a && !q.dead)].reduce((m, q) => { const k = len(a.x - q.x, a.z - q.z); return k < m.d ? { q, d: k } : m; }, { q: null, d: 1e9 }); if (o.q && o.d < z.r + 1) return away(a.x - o.q.x, a.z - o.q.z, o.d); continue; }     // меченый — прочь от соседей
+    if (d < z.r + .6) return away(ux, uz, d); }
   const tank = roleOfT(W.cfg.squad.types[a.type]) === 'tank';
   for (const e of W.enemies) {     // 4.18б: при «Укрытии» — в зелёный круг, при «Скачке» — прочь с метки
     const B = e.boss && !e.dead && e.b, A = B && (B.state === 'wind' || (M && B.state === 'dash')) && B.atk; if (!A || (M && A.t < r)) continue;     // Г9: и пока босс летит рывком

@@ -297,7 +297,7 @@ function onEvent(v) {
   else if (v.k === 'drop') { const it = BY_ID[v.id]; if (it && it.rar >= 3) { toast(`Выпало: ${it.name}`, '', RARITY[it.rar].color, 'gem'); sfx(it.rar >= 4 ? 'brand' : 'rare'); } }
   else if (v.k === 'key') toast(`Ключ на связке: ${cfg.dungeons.keys[v.key] || 'ключ'}`, '', '#e8c04a', 'key');
   else if (v.k === 'doorLocked') toast(`Заперто: нужен ${cfg.dungeons.keys[v.key] || 'ключ'}`, 'bad');
-  else if (v.k === 'travel') { saver.write(); if (!reduce) { const f = $('fade'); f.style.setProperty('--fade', cfg.dungeons.fade + 's'); f.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on'))); } }
+  else if (v.k === 'travel') { if (!v.up) raidScene(v.to, 'enter'); saver.write(); if (!reduce) { const f = $('fade'); f.style.setProperty('--fade', cfg.dungeons.fade + 's'); f.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on'))); } }
   else if (v.k === 'playerDead') {
     const parts = []; if (v.lost) parts.push(`Потеряно ${v.lost} пепла${W.tomb ? ': он лежит там, где вы пали' : ''}.`); if (v.burned) parts.push('Сгорели уровни улучшения.');
     $('deadTxt').textContent = v.iron ? 'Конец пути. Железный режим: сохранение стёрто.' : (parts.join(' ') || 'Потерь нет.');
@@ -339,7 +339,7 @@ function onEvent(v) {
   else if (v.k === 'elite') toast('Элита: ' + v.name, 'bad');
   else if (v.k === 'bossaggro') { const e = W.enemies.find(x => x.id === v.id), f = e && cfg.enemies[e.type].g === 'f'; toast(`${v.name} ${f ? 'проснулась' : 'проснулся'}`, 'bad'); if (e) bossCard(e); }     // род по врагу; карточка — при первой встрече
   else if (v.k === 'bossphase') toast(`${v.name}: ${v.what}`, 'bad');
-  else if (v.k === 'bossdead') toast(`${v.name} повержен!`, '', '#e8c04a');
+  else if (v.k === 'bossdead') { toast(`${v.name} повержен!`, '', '#e8c04a'); raidScene(W.lvl, 'after', v.type); }     // сцена рейда после босса (4в)
   else if (v.k === 'allydead') toast(`${v.name} пал`, 'bad');
   else if (v.k === 'allyleft') toast(`${v.name} теперь вы — спутник покинул отряд, ${v.ash} пепла вернулось`);
   else if (v.k === 'gather') { const t = v.items.map(([id, n]) => `${BY_ID[id].name}${n > 1 ? ' ×' + n : ''}`).join(', '); toast(t ? 'Собрано: ' + t : 'Пусто — в этот раз ничего', t ? '' : 'bad'); }     // этап 6
@@ -754,6 +754,14 @@ function dlgShow() {
   say('hero', '…'); L.choose.forEach(([label, reply, eff], k) => btn((desk ? `${k + 1}. ` : '') + label, () => { dlg.lines.splice(dlg.i + 1, 0, reply); const v = eff && storyChoice(W, eff); if (v) toast([v.note, v.ash ? `+${v.ash} пепла` : '', v.item, v.rep ? `+${v.rep} репутации` : ''].filter(Boolean).join(' · '), '', '#e8c04a', 'scroll'); dlgNext(); }, k === 0));     // следствие выбора (этап 5 «круче»)
 }
 function dlgNext() { dlg.i++; if (dlg.i >= dlg.lines.length) dlgClose(); else dlgShow(); }
+// сцены рейдов (план подземелий, 4в): на входе — раз за заход, после босса — сцена его вида; показ — с паузой, чтобы бой успел затихнуть
+const raidSeen = new Set();
+function raidScene(id, when, type) {
+  const R = cfg.dungeons.raidStory && cfg.dungeons.raidStory[id]; if (!R) return;
+  const lines = when === 'enter' ? R.enter : R.after && R.after[type], key = id + ':' + when + ':' + (type || '') + ':' + (W.genN || 0); if (!lines || raidSeen.has(key)) return; raidSeen.add(key);
+  const name = (cfg.dungeons.list.find(d => d.id === id) || {}).name || '';
+  setTimeout(() => { if ($('dialog').hidden && !W.player.dead) dlgOpen({ lines: lines.slice(), part: null, scene: 'Рейд: ' + name, act: R.act }); }, when === 'enter' ? 900 : 1800);
+}
 function dlgClose() { document.body.classList.remove('cine'); $('dialog').hidden = true; panelOpen = false; const part = dlg.part; dlg.lines = null; storyTalked(W, part); saver.write(true); }
 function dlgOpen(t) { if (!t || !t.lines || !t.lines.length) { if (t) storyTalked(W, t.part); return; } dlg.lines = t.lines.slice(); dlg.i = 0; dlg.part = t.part; dlg.scene = t.scene; dlg.act = t.act || 1; document.body.classList.add('cine'); $('dialog').hidden = false; panelOpen = true; input.release(); dlgShow(); }
 // карта: миникарта в углу, большая карта по касанию
