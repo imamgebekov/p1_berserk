@@ -9,6 +9,7 @@ const C = k => W => (W.ach.c[k] || 0);
 const bagAndWorn = W => [...W.inv.bag.map(s => ({ id: s.id, up: s.up || 0, af: s.af })), ...Object.keys(W.inv.eq).filter(k => W.inv.eq[k]).map(k => ({ id: W.inv.eq[k], up: W.inv.up[k] || 0, af: W.inv.af && W.inv.af[k] }))];
 const maxOf = (W, f) => bagAndWorn(W).reduce((m, s) => Math.max(m, f(s)), 0);
 // [id, название, условие, цель, значение(W), награда]
+const raidAll = id => W => { const x = W.lockout && W.lockout[id], n = W.cfg.bosses.list.filter(b => b.level === id).length; return x && n && x.boss.length >= n ? 1 : 0; };     // все боссы рейда в откате этой недели (план подземелий, 4д)
 const A = [
   ['k10', 'Первая кровь', 'Убейте 10 врагов', 10, W => W.kills, { ash: 50 }],
   ['k100', 'Сотня', 'Убейте 100 врагов', 100, W => W.kills, { ash: 200 }],
@@ -52,7 +53,12 @@ const A = [
   ['abyss10', 'Глубинный', 'Пройдите 10-й ярус Бездны', 10, W => W.ach.c.abyss || 0, { title: 'Глубинный' }],
   ['abyss25', 'Дно Бездны', 'Пройдите 25-й ярус Бездны', 25, W => W.ach.c.abyss || 0, { cape: ['Плащ Бездны', '#3a1a5a'] }],
   ['ng1', 'Новый круг', 'Начните Новый круг', 1, W => W.ng || 0, { title: 'Вернувшийся' }],
-  ['eclipse1', 'Неделя Затмения', 'Пройдите недельное Затмение', 1, C('eclipse'), { ash: 1500 }]
+  ['eclipse1', 'Неделя Затмения', 'Пройдите недельное Затмение', 1, C('eclipse'), { ash: 1500 }],
+  // полное прохождение рейда — все боссы за одну неделю отката (план подземелий, 4д): титул и плащ
+  ['raid_oak', 'Сердце рощи', 'Победите всех боссов Логова Древнего Дуба за неделю', 1, raidAll('raid_oak'), { title: 'Хранитель рощи', cape: ['Плащ из листвы', '#3a5a22'] }],
+  ['raid_cathedral', 'Тишина собора', 'Победите всех боссов Затонувшего собора за неделю', 1, raidAll('raid_cathedral'), { title: 'Утопивший хор', cape: ['Плащ утопленника', '#1e4a5a'] }],
+  ['raid_hand', 'Сломанная Длань', 'Победите всех боссов Врат Длани за неделю', 1, raidAll('raid_hand'), { title: 'Сломавший Длань', cape: ['Плащ Врат', '#4a1a2a'] }],
+  ['raid_throne', 'Пустой Престол', 'Победите всех боссов Престола Бездны за неделю', 1, raidAll('raid_throne'), { title: 'Сидевший на Престоле', cape: ['Плащ Престола', '#2a1440'] }]
 ];
 export const ACH = A.map(([id, name, text, n, val, reward]) => ({ id, name, text, n, val, reward }));
 export const ACH_BY_ID = Object.fromEntries(ACH.map(a => [a.id, a]));

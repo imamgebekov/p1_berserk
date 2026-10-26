@@ -850,7 +850,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const teleLine = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
   for (const m of [teleRing, teleDisc, teleInner, teleLine]) { m.rotation.x = -Math.PI / 2; m.position.y = .09; m.visible = false; scene.add(ovl(m)); }
   // лужи боссов (этап 5): «не стой в огне» — диск с ободом, гаснет к концу
-  const poolMeshes = [0, 1, 2, 3, 4, 5, 6, 7].map(() => { const m = new THREE.Mesh(new THREE.CircleGeometry(1, 32), new THREE.MeshBasicMaterial({ color: '#ff5a1a', transparent: true, opacity: .45, depthWrite: false, side: THREE.DoubleSide }));
+  const poolMeshes = Array.from({ length: 40 }, () => { const m = new THREE.Mesh(new THREE.CircleGeometry(1, 32), new THREE.MeshBasicMaterial({ color: '#ff5a1a', transparent: true, opacity: .45, depthWrite: false, side: THREE.DoubleSide }));     // 40 — горящий пол смены зала и метки рейда (план подземелий, 3б и 4а)
     m.add(new THREE.Mesh(new THREE.RingGeometry(.92, 1, 32), new THREE.MeshBasicMaterial({ color: '#ffb040', transparent: true, opacity: .85, depthWrite: false, side: THREE.DoubleSide }))); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(ovl(m)); return m; });
   // стрелы и пятна колдовства: небольшие пулы мешей
   const projMeshes = [], hazMeshes = [];
@@ -917,7 +917,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   function updateTele(W, t) {
     teleRing.visible = teleDisc.visible = teleInner.visible = teleLine.visible = false;
-    poolMeshes.forEach((m, i) => { const z = W.bzones && W.bzones[i]; m.visible = !!z && z.lvl === W.lvl; if (!m.visible) return; m.position.set(z.x, .07 + Y(z.x, z.z), z.z); m.scale.setScalar(z.r); m.material.opacity = z.met ? .2 + .35 * (1 - Math.max(0, z.arm) / z.arm0) * (.6 + .4 * Math.sin(t * 24)) : Math.min(.45, z.t * .3) * (.85 + .15 * Math.sin(t * 6 + i)); });
+    poolMeshes.forEach((m, i) => { const z = W.bzones && W.bzones[i]; m.visible = !!z && z.lvl === W.lvl; if (!m.visible) return; m.position.set(z.x, .07 + Y(z.x, z.z), z.z); m.scale.setScalar(z.r); m.material.color.set(z.stack ? '#ffd040' : z.spread ? '#b060ff' : z.single ? '#ff2020' : '#ff5a1a'); m.material.opacity = z.met ? .2 + .35 * (1 - Math.max(0, z.arm) / z.arm0) * (.6 + .4 * Math.sin(t * 24)) : Math.min(.45, z.t * .3) * (.85 + .15 * Math.sin(t * 6 + i)); });
     for (const e of W.enemies) {
       if (!e.boss || e.dead || !e.b || (e.b.state !== 'wind' && e.b.state !== 'beam')) continue;
       const a = e.b.atk, k = Math.min(1, a.t / a.wind), pulse = .25 + .25 * Math.sin(t * 30) + .2 * k, live = e.b.state === 'beam';
