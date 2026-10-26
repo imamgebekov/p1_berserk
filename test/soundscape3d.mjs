@@ -4,7 +4,8 @@
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, mulberry32, spawnEnemy } from '../3d/src/sim.js';
 import { waterDist } from '../3d/src/terrain3d.js';
-import { mixOf, composePiece, birdSong, owlCall, fightBar, underSound } from '../3d/src/soundscape3d.js';
+import { mixOf, composePiece, birdSong, owlCall, fightBar, underSound, surfaceOf } from '../3d/src/soundscape3d.js';
+import { biomeAt } from '../3d/src/worldgen3d.js';
 import { travel } from '../3d/src/levels3d.js';
 
 const fails = [];
@@ -133,5 +134,20 @@ const mk = (c = clone()) => { c.enemies.count = 0; c.bosses.list = []; c.events.
   travel(W, 'inst_drown', 0, 0); const wet = mixOf(W, W.cfg.audio); ok(wet.under && wet.water > .3 && underSound(W).drip === 1, 'в затопленном зале нет капели: ' + JSON.stringify(wet));
   travel(W, 'inst_ash', 0, 0); const hot = mixOf(W, W.cfg.audio); ok(hot.under && !hot.water && underSound(W).rumble === 1, 'в кузнечных недрах капель или нет гула');
   travel(W, 'surface', 0, 4); ok(underSound(W) === null, 'подземный фон наверху'); }
+// ---------- записи (2026-10-25): костёр, кузница, сверчки, поверхность для шагов ----------
+{
+  const W = mk(), p = W.player, F = (W.map.fires || [])[0], S = A.samples;
+  ok(F, 'на карте нет костров');
+  if (F) { p.x = F.x + 1; p.z = F.z; const a = mixOf(W, A).fire; p.x = F.x + S.fire.far + 5; const b = mixOf(W, A).fire; ok(a > .9 && b === 0, `костёр: рядом ${a}, далеко ${b}`); }
+  const sm = W.map.buildings.find(b => b.npc && b.npc.kind === 'smith');
+  ok(sm, 'нет кузницы с кузнецом');
+  if (sm) { p.x = sm.npc.x; p.z = sm.npc.z; W.light = 1; const day = mixOf(W, A).smith; W.light = .1; const night = mixOf(W, A).smith; ok(day > .9 && night === 0, `кузница: днём ${day}, ночью ${night}`); ok(surfaceOf(W) === 'wood', 'в кузнице шаги не по дереву: ' + surfaceOf(W)); }
+  W.light = .1; W.night = true; p.x = 400; p.z = 400; const nm = mixOf(W, A); W.light = 1; W.night = false; const dm = mixOf(W, A);
+  ok(nm.crickets > .9 && dm.crickets < .05, `сверчки: ночью ${nm.crickets}, днём ${dm.crickets}`);
+  const kinds = new Set(); for (let a = 0; a < 40; a++) { p.x = Math.sin(a) * (300 + a * 10); p.z = Math.cos(a) * (300 + a * 10); if (W.map.buildings.every(b => !(p.x > b.ix0 && p.x < b.ix1 && p.z > b.iz0 && p.z < b.iz1))) { const s = surfaceOf(W), bio = biomeAt(W.cfg, p.x, p.z); kinds.add(s); ok(s === (bio === 'mountains' ? 'stone' : bio === 'waste' || bio === 'coast' ? 'sand' : 'grass'), `шаги: биом ${bio} → ${s}`); } }
+  ok(kinds.size >= 2, 'шаги: по миру одна поверхность: ' + [...kinds]);
+  W.lvl = 'dummy-under'; ok(surfaceOf(W) === 'stone', 'под землёй шаги не по камню');
+}
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Атмосфера звука 3D: OK');

@@ -11,9 +11,9 @@ import { createMapClouds } from './mapclouds.js';
 import { createSkills } from './skillsui.js';
 import { createJournal } from './journal.js';
 import { createQuests } from './questsui.js';
-import { ensureAudio, setVolume, setUserMix, setMuted, isMuted, suspendAudio, setAmbient, sfx, setScene, tickAudio, audioStats, setOwnMusicOn } from './audio3d.js';
+import { ensureAudio, setVolume, setUserMix, setMuted, isMuted, suspendAudio, setAmbient, sfx, setScene, tickAudio, audioStats, setOwnMusicOn, stepSound, worldSample } from './audio3d.js';
 import { loadOwn, onOwnChange, ownIcon, ownMusic, ownIconCount, setOwnIcon, clearOwnIcon, clearOwnIcons, addOwnMusic, clearOwnMusic, player as ownPlayer } from './custom3d.js';
-import { mixOf, underSound } from './soundscape3d.js';     // underSound — подземный фон темы (план подземелий, 2е)
+import { mixOf, underSound, surfaceOf } from './soundscape3d.js';     // underSound — подземный фон темы (план подземелий, 2е)
 import { clockText, lightOf, phaseOf, mix } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLines, questMarks, questMark, questsOf } from './quests3d.js';
@@ -391,8 +391,8 @@ addEventListener('orientationchange', () => setTimeout(fit, 200));
 fit();
 
 const journal = createJournal(document, W, cfg, {
-  onOpen: () => { panelOpen = true; input.release(); },
-  onClose: () => { panelOpen = false; },
+  onOpen: () => { panelOpen = true; input.release(); sfx('bookOpen'); },
+  onClose: () => { panelOpen = false; sfx('bookClose'); },
   onCraft: r => { if (r === 'ok') { sfx('craft'); saver.write(true); } }     // ремёсла и награды славы (этап 6)
 });
 const quests = createQuests(document, W, cfg, {
@@ -403,7 +403,7 @@ const quests = createQuests(document, W, cfg, {
 const bag = createBag(document, W, cfg, {
   onJournal: () => journal.open(),
   onQuests: () => quests.open('mine'),
-  onOpen: () => { panelOpen = true; input.release(); },
+  onOpen: () => { panelOpen = true; input.release(); sfx('bagOpen'); },
   onClose: () => { panelOpen = false; saver.write(); },
   onChange: () => saver.write(),
   onReset: () => { saver.reset(); location.reload(); },     // сброс — из меню «Сохранение» с удержанием (шаг 4)
@@ -955,9 +955,10 @@ function frame(now) {
     if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
   if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }
-  if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0, underSound(W)); }     // под землёй — фон темы (план подземелий, 2е)
+  if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0, underSound(W), renderer ? renderer.wind() : null);
+    if (renderer && renderer.crowsUp) { const up = renderer.crowsUp(); if (up.length) { const at = { x: up[0].x, z: up[0].z, px: W.player.x, pz: W.player.z, yaw: cfg.view.camYaw }; worldSample('crow', at); worldSample('wings', at); } } }     // ветер — по силе ветра мира; вороны взлетели — карканье и крылья     // под землёй — фон темы (план подземелий, 2е)
   if ((atmoT += real) > .2) { atmoT = 0; const mx = mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null); setScene(mx, cfg.audio); tickAudio(); tracks.tick(mx, ownActive || isMuted(), performance.now() / 1000, cfg.audio.musicVol * uvol.all * uvol.music); if (ownPlayer.playing()) ownPlayer.setVolume(cfg.audio.ownMusic * uvol.all * uvol.music * (mx.fight > 0 ? .45 : 1) * (W.player.dead ? .3 : 1)); }     // своя музыка: в бою тише     // атмосфера: река, птицы, музыка
-  if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; sfx('step'); }
+  if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; stepSound(surfaceOf(W)); }     // шаг — по поверхности (записи 2026-10-25)
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
   if (!reliefDone) reliefDone = tickRelief(document, W);
   if (autoRes && renderer && !panelOpen && !document.hidden && !P.retro && !P.ascii) { const cur = renderer.quality().resScale, nx = autoRes.frame(real, cur); if (nx !== cur) renderer.setResScale(nx); }     // «Авто»: разрешение по кадрам     // подложка карты с рельефом — по 2 мс за кадр, пока не готова (шаг 10б)

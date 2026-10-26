@@ -5,6 +5,8 @@
 // birdSong / owlCall — трели птиц и уханье совы (слоги со свистом частоты).
 import { waterDist, streamDist } from './terrain3d.js';
 import { mulberry32 } from './sim.js';
+import { biomeAt } from './worldgen3d.js';
+import { insideOf } from './map.js';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const smooth = (a, b, v) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t); };
@@ -28,7 +30,24 @@ export function mixOf(W, A, env) {
   const frog = under || !A.birds.frogNear ? 0 : (1 - day) * Math.max(0, 1 - d / A.birds.frogNear) * (1 - combat) * (1 - wetK * .5);     // лягушки у воды в сумерках и ночью
   let boss = false; for (const e of W.enemies) if (e.boss && !e.dead && e.alert && Math.hypot(e.x - p.x, e.z - p.z) < A.combat.r * 2.5) boss = true;     // босс в бою — своя тема (этап 1 «круче»)
   const fight = A.fight && A.fight.on && !p.dead ? Math.max(combat, boss ? 1 : 0) : 0;
-  return { water, birds, owl, frog, music, combat, fight, boss: boss && !p.dead, night: !!W.night, under, rustle, rain: under ? 0 : wetK };
+  const S = A.samples, near = (L, x, z) => 1 - smooth(L.near, L.far, Math.hypot(x - p.x, z - p.z));     // записи (2026-10-25): костёр, кузница, сверчки
+  let fire = 0, smith = 0;
+  if (S && !under) {
+    for (const f of W.map.fires || []) fire = Math.max(fire, near(S.fire, f.x, f.z));
+    if (W.light > S.smith.light) for (const b of W.map.buildings || []) if (b.npc && b.npc.kind === 'smith') smith = Math.max(smith, near(S.smith, b.npc.x, b.npc.z));
+  }
+  const crickets = under ? 0 : (1 - day) * (1 - combat) * (1 - wetK * .7);
+  return { water, birds, owl, frog, music, combat, fight, boss: boss && !p.dead, night: !!W.night, under, rustle, rain: under ? 0 : wetK, fire, smith: smith * (1 - combat), crickets };
+}
+
+// поверхность под ногами для шагов: дома и второй этаж — дерево, подземелье и горы — камень, пустошь и берег — песок, иначе трава
+export function surfaceOf(W) {
+  const p = W.player, lv = String(W.lvl);
+  if (lv.startsWith('up:')) return 'wood';
+  if (W.lvl !== 'surface') return 'stone';
+  if (W.map.buildings && insideOf(W.map, p.x, p.z) >= 0) return 'wood';
+  const b = W.cfg ? biomeAt(W.cfg, p.x, p.z) : null;
+  return b === 'mountains' ? 'stone' : b === 'waste' || b === 'coast' ? 'sand' : 'grass';
 }
 
 // ---- музыка ----

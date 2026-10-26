@@ -1383,8 +1383,15 @@ const BASE = {
     // компрессор не взят: в Chromium он вдвое глушил и тихие звуки и добавлял 6 мс задержки. Тон начинается с нуля за att с, срез высоких
     // min(lpMax, частота × lpK); каждый звук — высота ±pitch и громкость ±vol; звук мира тише с расстоянием 1/(1 + d/k), дальше far м
     // не слышен, панорама по экрану ±pan (полная на panW м); гул ночью night, в опасном месте danger × опасность
+    // записи (2026-10-25, 3d/sfx, CC0 — 3d/ART-CREDITS.md): петли природы, гром, кузнец, шаги, вороны, вещи; пока не загрузились — синтез.
+    // vol — громкость слоя; fire/smith — слышно ближе near м полностью, дальше far — тишина; гром — при дожде сильнее rain, пауза gap с;
+    // map — какой синтез-звук заменить записью (имя файла без _N — случайный из вариантов)
+    samples: { on: true, vol: { birds: .5, crickets: .4, rain: .55, river: .5, fire: .55, thunder: .8, anvil: .5, step: .3, crow: .45, wings: .35, item: .55 },
+      fire: { near: 2.5, far: 16 }, smith: { near: 4, far: 28, light: .45 }, thunder: { rain: .75, gap: [25, 70] }, anvilGap: [2.5, 6], stepVary: .07,
+      map: { ash: 'coins', pickup: 'cloth', open: 'creak', unlock: 'latch', tome: 'book_flip', craft: 'anvil', upgrade: 'anvil', bagOpen: 'belt', bookOpen: 'book_open', bookClose: 'book_close' } },
     fx: { limit: .6, att: .006, lpMax: 3500, lpK: 4,
-      vary: { pitch: .05, vol: .15 }, space: { k: 8, far: 36, pan: .7, panW: 15 }, drone: { night: .02, danger: .012 } }
+      vary: { pitch: .05, vol: .15 }, space: { k: 8, far: 36, pan: .7, panW: 15 }, drone: { night: .02, danger: .012 },
+      wind: { base: .012, night: .02, k: .06, f0: 320, fk: 650, gust: .5 } }     // шум ветра по силе ветра мира (wind3d): громкость base + night ночью + k × сила, полоса f0 + fk × сила, порыв — × (1 + gust)
   },
   difficulty: {
     default: 'berserk',

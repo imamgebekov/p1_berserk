@@ -51,17 +51,19 @@ export function makeBirds(map, cfg, rnd) {
   }
   return out;
 }
-export function updateBirds(birds, px, pz, dt, A) {
+export function updateBirds(birds, px, pz, dt, A) {     // вернёт взлетевших в этот шаг (для звука: карканье и крылья)
+  const up = [];
   for (const b of birds) {
     if (b.state === 'sit') {
       b.peck -= dt; if (b.peck <= 0) { b.peck = 1.5 + (b.hx * 7.31 + b.t) % 2.5; b.face += .7; }
       const dx = b.x - px, dz = b.z - pz, d = Math.hypot(dx, dz);
-      if (d < A.scare) { const k = 1 / (d || 1); b.state = 'fly'; b.t = 0; b.vx = dx * k * A.flySpeed; b.vz = dz * k * A.flySpeed; b.vy = A.flyUp; b.face = Math.atan2(b.vx, b.vz); }
+      if (d < A.scare) { const k = 1 / (d || 1); b.state = 'fly'; b.t = 0; b.vx = dx * k * A.flySpeed; b.vz = dz * k * A.flySpeed; b.vy = A.flyUp; b.face = Math.atan2(b.vx, b.vz); up.push(b); }
     } else if (b.state === 'fly') {
       b.t += dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.vy += .6 * dt;
       if (b.t > A.flyTime) { b.state = 'gone'; b.t = 0; }
     } else if ((b.t += dt) > A.back && Math.hypot(b.hx - px, b.hz - pz) > A.scare * 2.5) { b.state = 'sit'; b.x = b.hx; b.z = b.hz; b.y = 0; b.t = 0; }
   }
+  return up;
 }
 
 // трубы: у жилых домов, в углу крыши

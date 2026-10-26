@@ -1,5 +1,6 @@
 // Громкость (2026-10-25): ветер и ночной гул слушаются ползунка «Звуки» (раньше шли мимо ползунков);
-// тег <audio> через routeMedia управляется громкостью (на iPhone el.volume не действует). Слушаем общий выход анализатором.
+// тег <audio> через routeMedia управляется громкостью (на iPhone el.volume не действует); записи 3d/sfx грузятся, петля птиц и шаг звучат.
+// Слушаем общий выход анализатором.
 import { createServer } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -16,7 +17,7 @@ try {
     A.ensureAudio(); const ac = A.__ctx(); await ac.resume();
     const an = ac.createAnalyser(); an.fftSize = 2048; A.__master().connect(an); const buf = new Float32Array(an.fftSize);
     const wait = ms => new Promise(r => setTimeout(r, ms));
-    const rms = async () => { await wait(1500); an.getFloatTimeDomainData(buf); let s = 0; for (const v of buf) s += v * v; return Math.sqrt(s / buf.length); };
+    const rms = async () => { await wait(1500); let s = 0, n = 0; for (let k = 0; k < 10; k++) { an.getFloatTimeDomainData(buf); for (const v of buf) s += v * v; n += buf.length; await wait(100); } return Math.sqrt(s / n); };     // 10 окон за секунду: петля природы не попадёт в паузу
     A.setVolume(.7);
     A.setUserMix(1, 1); A.setAmbient(0, 1); const loud = await rms();     // ночь, опасно: ветер и гул звучат
     A.setUserMix(0, 0); const quiet = await rms();                        // оба ползунка на нуле
@@ -28,7 +29,15 @@ try {
     A.setUserMix(0, 0); A.setAmbient(1, 0);
     const el = new Audio(URL.createObjectURL(new Blob([d.buffer], { type: 'audio/wav' }))); el.loop = true; const set = A.routeMedia(el); await el.play();
     set(0); const med0 = await rms(); set(.5); const medOn = await rms();
-    el.pause(); return { loud, quiet, sfx0, routed: !!set, vol1: el.volume, med0, medOn };
+    el.pause();
+    // записи: все файлы загрузились; петля птиц слышна поверх тишины; шаг по траве звучит
+    const Smp = await import('/3d/src/samples3d.js'), { CFG3 } = await import('/3d/src/config3d.js');
+    for (let k = 0; k < 120 && Smp.loadedCount() < Smp.sampleNames().length; k++) await wait(250);
+    const zero = { water: 0, birds: 0, owl: 0, frog: 0, music: 0, combat: 0, fight: 0, rustle: 0, rain: 0, fire: 0, smith: 0, crickets: 0, under: false, night: false };
+    A.setUserMix(0, 1); A.setAmbient(1, 0, null, { s: 0, gust: 0 }); A.setScene(zero, CFG3.audio); const base = await rms();
+    A.setScene({ ...zero, birds: 1 }, CFG3.audio); const birds = await rms(); A.setScene(zero, CFG3.audio); await rms();
+    A.stepSound('grass'); await wait(60); an.getFloatTimeDomainData(buf); let st = 0; for (const v of buf) st = Math.max(st, Math.abs(v));
+    return { loud, quiet, sfx0, routed: !!set, vol1: el.volume, med0, medOn, loaded: Smp.loadedCount(), files: Smp.sampleNames().length, base, birds, step: st };
   });
   console.log('  ' + JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'number' ? +v.toFixed(5) : v]))));
   ok(r.loud > .002, 'ночью ветер и гул не слышны вовсе — проверка не работает');
@@ -36,6 +45,9 @@ try {
   ok(r.sfx0 < r.loud * .02, 'при «Звуках» на нуле ветер и гул звучат');
   ok(r.routed && r.vol1 === 1, 'тег <audio> не пошёл через Web Audio');
   ok(r.medOn > .005 && r.med0 < r.medOn * .02, 'громкость тега <audio> через Web Audio не управляется');
+  ok(r.files >= 40 && r.loaded === r.files, `записи загрузились не все: ${r.loaded} из ${r.files}`);
+  ok(r.birds > r.base * 3 && r.birds > .002, 'петля птиц не слышна');
+  ok(r.step > .005, 'шаг по траве не звучит');
 } finally { await browser.close(); await dev.close(); }
 if (bad.length) { console.error('Громкость в браузере: ПРОВАЛ\n- ' + bad.join('\n- ')); process.exit(1); }
 console.log('Громкость в браузере: OK');
