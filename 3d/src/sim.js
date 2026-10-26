@@ -261,8 +261,9 @@ export function spawnBoss(W, def) {
   const C = W.cfg.enemies[def.type], e = spawnEnemy(W, def.type, def.x, def.z);
   const L = W.cfg.level, bk = 1 + Math.max(0, (e.lvl || 1) - (def.base ?? L.bossBase)) * L.grow;     // боссы настроены под bossBase (подземелья — под свой base); глубже — крепче и злее (этап 0)
   const H = W.levels && W.levels[W.lvl] && W.levels[W.lvl].heroic ? W.cfg.instances.heroic : null;     // героическая (этап 5)
-  const Mg = W.cfg.dungeons.might, mg = Mg && Mg.on && def.level ? (def.castle ? Mg.castle : def.final ? Mg.boss : Mg.mini) : null;     // боссы подземелий мощнее (2026-10-20): главный и промежуточные
+  const Mg = W.cfg.dungeons.might, mg = Mg && Mg.on && def.level ? (def.castle ? Mg.castle : def.final ? (W.levels && W.levels[def.level] && W.levels[def.level].def && W.levels[def.level].def.raid ? Mg.raid || Mg.boss : Mg.boss) : Mg.mini) : null;     // боссы подземелий мощнее (2026-10-20): главный и промежуточные
   e.hp = e.maxhp = Math.round(C.hp * W.dif.hp * bk * (H ? H.hp : 1) * (mg ? mg.hp : 1)); e.dmgMul = W.dif.dmg * bk * (H ? H.dmg : 1) * (mg ? mg.dmg : 1); if (H) e.heroic = true; initBoss(W, e, def); resolve(W.map, e, C.radius); e.b.home = { x: e.x, z: e.z };
+  { const S = def.final && W.cfg.bosses.sig && W.cfg.bosses.sig[def.type]; if (S && S.dmgK) e.dmgMul *= S.dmgK; if (S && S.hpK) e.hp = e.maxhp = Math.round(e.maxhp * S.hpK); }     // своя добавка урона финала (подстройка до 50–80% побед, план подземелий)
   delete W.bossDead[def.type]; return e;
 }
 function bossDefeated(W, e) {
@@ -281,7 +282,7 @@ function bossDefeated(W, e) {
   for (const m of e.b.minions) if (!m.dead) { m.dead = true; m.deadT = 0; }
   W.bossDead[e.type] = Math.round(W.cfg.bosses.respawn * W.dif.boss);
   W.ev.push({ k: 'bossdead', name: C.name, type: e.type, x: e.x, z: e.z });     // type — для «Пути пепла» (шаг 13)
-  if (e.b && e.b.def.lines && e.b.def.lines.death) W.ev.push({ k: 'bossSay', who: C.name, text: e.b.def.lines.death }); endBossRoom(W, e.id);     // последние слова и конец смены зала (план подземелий, этап 3)
+  if (e.b && e.b.def && e.b.def.lines && e.b.def.lines.death) W.ev.push({ k: 'bossSay', who: C.name, text: e.b.def.lines.death }); endBossRoom(W, e.id);     // последние слова и конец смены зала (план подземелий, этап 3)
 }
 export function restoreBosses(W, dead) {
   if (!dead || typeof dead !== 'object') return;
