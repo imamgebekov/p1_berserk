@@ -121,16 +121,16 @@ try {
   await page.screenshot({ path: join(out, '3d-night.png') });
   await page.evaluate(() => { const w = window.__b3d.W; w.t = 0; }); await page.waitForTimeout(600);
   if (await page.evaluate(() => window.__b3d.W.night)) bad('день не вернулся');
-  await page.tap('#gear'); await page.waitForTimeout(150); const m0 = await page.$eval('#muteBtn', e => e.textContent); await page.tap('#muteBtn'); const m1 = await page.$eval('#muteBtn', e => e.textContent); if (m0 === m1) bad('кнопка звука не переключилась'); await page.tap('#muteBtn'); await page.tap('#tweakClose'); await page.waitForTimeout(100);
+  await page.tap('#gear'); await page.waitForTimeout(150); await page.tap('#menuNav [data-sec="sound"]'); const m0 = await page.$eval('#muteBtn', e => e.textContent); await page.tap('#muteBtn'); const m1 = await page.$eval('#muteBtn', e => e.textContent); if (m0 === m1) bad('кнопка звука не переключилась'); await page.tap('#muteBtn'); await page.tap('#tweakClose'); await page.waitForTimeout(100);
   // телефон: левша и размер кнопок меняют раскладку, код сохранения выгружается
   await page.tap('#gear'); await page.waitForTimeout(150);
   { const x0 = await page.$eval('#bAtk', e => e.getBoundingClientRect().left), w0 = await page.$eval('#bAtk', e => e.getBoundingClientRect().width);
-    await page.tap('#leftyBtn'); await page.tap('.tab[data-v="1.2"]'); await page.waitForTimeout(100);
+    await page.tap('#menuNav [data-sec="keys"]'); await page.tap('#leftyBtn'); await page.tap('.tab[data-v="1.2"]'); await page.waitForTimeout(100);
     const x1 = await page.$eval('#bAtk', e => e.getBoundingClientRect().left), w1 = await page.$eval('#bAtk', e => e.getBoundingClientRect().width);
     if (!(x1 < x0 && w1 > w0)) bad(`левша/размер не сработали: x ${x0}→${x1}, w ${w0}→${w1}`);
     await page.tap('#leftyBtn'); await page.tap('.tab[data-v="1"]'); }
-  await page.evaluate(() => { document.getElementById('viewMore').open = true; }); await page.tap('#fpsBtn'); await page.waitForTimeout(700); if (!/кадр/.test(await page.$eval('#fps', e => e.textContent))) bad('счётчик кадров не показан'); await page.tap('#fpsBtn');
-  await page.tap('#expBtn'); await page.waitForTimeout(200); if (!(await page.$eval('#saveCode', e => e.value)).startsWith('B3D1:')) bad('код сохранения не выгружен');
+  await page.tap('#menuNav [data-sec="view"]'); await page.tap('#fpsBtn'); await page.waitForTimeout(700); if (!/кадр/.test(await page.$eval('#fps', e => e.textContent))) bad('счётчик кадров не показан'); await page.tap('#fpsBtn');
+  await page.tap('#menuNav [data-sec="save"]'); await page.tap('#expBtn'); await page.waitForTimeout(200); if (!(await page.$eval('#saveCode', e => e.value)).startsWith('B3D1:')) bad('код сохранения не выгружен');
   await page.screenshot({ path: join(out, '3d-prefs.png') });
   await page.tap('#tweakClose'); await page.waitForTimeout(100);
   // задания: кнопка рядом с торговцем, взять и увидеть в трекере
@@ -345,7 +345,7 @@ try {
   await page.evaluate(() => { const w = window.__b3d.W; w.player.x = 0; w.player.z = 4; });
 
   // ползунки: свёрнуты, раскрываются по «Настройка прототипа»
-  await page.tap('#gear'); await page.waitForTimeout(200);
+  await page.tap('#gear'); await page.waitForTimeout(200); await page.tap('#menuNav [data-sec="keys"]'); 
   if (await page.evaluate(() => document.getElementById('tweakBox').open)) bad('ползунки прототипа не свёрнуты');
   await page.tap('#tweakBox summary'); await page.waitForTimeout(150);
   const rows = await page.$$eval('#tweaks input', a => a.length);
@@ -360,7 +360,7 @@ try {
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 120000 }); await page.waitForFunction(() => window.__b3d && window.__b3d.W, null, { timeout: 120000 }); await page.waitForTimeout(800);
   const persisted = await page.evaluate(() => window.__b3d.cfg.view.camPitch);
   if (persisted !== after) bad(`настройка не пережила перезагрузку ${persisted} ≠ ${after}`);
-  await page.tap('#gear'); await page.waitForTimeout(150); if (!(await page.evaluate(() => document.getElementById('tweakBox').open))) await page.tap('#tweakBox summary'); await page.tap('#tweakReset');
+  await page.tap('#gear'); await page.waitForTimeout(150); await page.tap('#menuNav [data-sec="keys"]'); if (!(await page.evaluate(() => document.getElementById('tweakBox').open))) await page.tap('#tweakBox summary'); await page.tap('#tweakReset');
   if (await page.evaluate(() => window.__b3d.cfg.view.camPitch) !== before) bad('«Сбросить» не вернул значение');
   await page.tap('#tweakClose');
 

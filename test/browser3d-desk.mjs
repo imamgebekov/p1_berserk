@@ -318,7 +318,7 @@ try {
     console.log('  погода: ' + JSON.stringify({ drops: wet.w.drops, fog: [dry.w.fog.toFixed(4), wet.w.fog.toFixed(4)], rain: wet.a.mix && wet.a.mix.rain }));
     await ev(() => { window.__b3d.cfg.weather.force = 'clear'; }); }
   // фильтр ASCII (E1): включается в меню, холст в полный размер, кадр из символов на тёмном фоне, полоса здоровья чёткая; выключается
-  { const toggle = async on => { await page.keyboard.press('Escape'); await waitFor(() => !document.getElementById('panel').hidden); await ev(() => { document.getElementById('viewMore').open = true; }); await page.locator('#asciiBtn').click({ timeout: 30000 });     // меню выезжает: клик ждёт, пока кнопка встанет
+  { const toggle = async on => { await page.keyboard.press('Escape'); await waitFor(() => !document.getElementById('panel').hidden); await page.locator('#menuNav [data-sec="view"]').click(); await page.locator('#asciiBtn').click({ timeout: 30000 });     // меню выезжает: клик ждёт, пока кнопка встанет
       await waitFor(on => /ASCII/.test(document.getElementById('asciiBtn').textContent) === on, on); const t = await ev(() => document.getElementById('asciiBtn').textContent); await page.keyboard.press('Escape');
       await waitFor(on => { const b = window.__b3d, c = document.getElementById('gl'), d = Math.min(b.cfg.view.ascii.dpr, devicePixelRatio || 1);     // холст пересобирается в кадре
         return on ? !!b.renderer.ascii() && Math.abs(c.width - Math.floor(innerWidth * d)) <= 2 && Math.abs(c.height - Math.floor(innerHeight * d)) <= 2 : !b.renderer.ascii() && Math.abs(c.width - Math.floor(innerWidth / Math.round(b.cfg.view.pixelScale))) <= 1; }, on);

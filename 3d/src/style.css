@@ -286,7 +286,6 @@ html[data-lefty] #abil .ab[data-i="4"]{left:calc(182px + env(safe-area-inset-lef
 #tweakBox{margin:12px 0 6px;border-top:2px solid var(--line);padding-top:8px}
 #tweakBox summary{min-height:44px;display:flex;align-items:center;cursor:pointer;opacity:.75;font-size:14px}
 [data-desk] #panel .pbox{max-width:1040px}
-[data-desk] .pcols{display:grid;grid-template-columns:1fr 1fr;column-gap:24px;align-items:start}
 [data-desk] #leftyBtn,[data-desk] #uiTabs,[data-desk] #vibBtn{display:none}
 #tweakBox summary::before{content:'▸';margin-right:8px}#tweakBox[open] summary::before{content:'▾'}#tweakBox summary::-webkit-details-marker{display:none}
 
@@ -357,15 +356,8 @@ html:not([data-desk]) #bagCard:not([hidden]){position:absolute;left:8px;right:8p
 #bag .bhead{gap:8px}#bag .bhead h2{flex:1}
 #bag .bhead .jbtn{background:#241817;border:2px solid var(--line);color:var(--ink)}
 #bag .bhead .jbtn{margin:0}
-/* меню по разделам: четыре карточки — Игра, Вид и звук, Управление, Сохранение */
-#panel .pcols{display:grid;grid-template-columns:1fr;gap:12px}
-#panel .pcol{display:flex;flex-direction:column;gap:8px;background:#1a1211;border:2px solid var(--line);border-radius:12px;padding:12px}
-#panel .pcol h2{margin:0;font-size:16px}#panel .pcol h3{margin:6px 0 0;font-size:13px;opacity:.75;text-transform:uppercase;letter-spacing:.05em}
-#panel .pcol .reset{width:100%;text-align:left}
 #panel .vols{display:flex;flex-direction:column;gap:6px}#panel .vols label{display:grid;grid-template-columns:72px 1fr 40px;align-items:center;gap:8px;font-size:14px}#panel .vols input{width:100%;accent-color:#d9b27a;min-height:28px}#panel .vols output{text-align:right;opacity:.8;font-variant-numeric:tabular-nums}
-#panel .pstack{display:contents}
 [data-desk] #panel .pbox{max-width:min(1180px,var(--pbw,1180px));width:100%}
-[data-desk] #panel .pcols{grid-template-columns:repeat(3,minmax(0,1fr))}[data-desk] #panel .pstack{display:flex;flex-direction:column;gap:12px}
 
 /* ---- шаг 9 аудита: единый материал интерфейса ---- */
 .pbox{background:linear-gradient(180deg,var(--wood-a),var(--wood-b) 38%,var(--wood-c));border:2px solid var(--rim);border-radius:14px;
@@ -384,8 +376,6 @@ html:not([data-desk]) #bagCard:not([hidden]){position:absolute;left:8px;right:8p
 .trow input{accent-color:var(--gold)}
 /* вкладки: не ниже 44 px, выбранная — золотая рамка */
 .tab{min-height:44px;background:var(--btn);border-color:var(--line)}.tab.on{background:var(--btn-on);border-color:var(--gold);color:#f6e6c8}
-/* карточки разделов меню и строки — тот же материал темнее */
-#panel .pcol{background:rgba(0,0,0,.18);border-color:var(--line)}
 /* тосты — карточки с подложкой, не больше 3 (main.js) */
 #toasts{gap:6px;max-width:min(420px,60%)}
 .toast{align-self:flex-start;padding:6px 12px;background:rgba(30,20,14,.86);border:1px solid #6a5038;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.35);text-shadow:none;animation:toastIn 3.4s ease-out forwards}
@@ -750,7 +740,6 @@ html,body{font-family:var(--sans);font-size:15.5px}
 #smith .srow .tier,
 #lib .srow .tier,#captain .srow .tier{font-size:12.5px}#smith .srow .buy,#lib .srow .buy,#captain .srow .buy{font-size:15px;min-width:112px;min-height:48px}
 #smithFlash,#captainFlash{font-size:15px}#captain .ssec{font-size:13.5px;opacity:.75}
-#panel .pcol h2{font-size:19px}#panel .pcol h3{font-size:14.5px}#panel .reset{font-size:15px}#panel .keys{font-size:14.5px}#panel .pcol textarea{font-size:14px}
 #smith .reset,
 #lib .reset{font-size:15px}
 /* свои значки игрока (2026-10-21): картинка вместо силуэта */
@@ -863,4 +852,69 @@ html:not([data-desk]) #loot{left:12px;right:12px;width:auto;top:auto;bottom:calc
 
 #relic .srow.mine{border-color:#e8c04a}#relic .srow .buy{font-size:15px;min-width:132px;min-height:48px}#relicFlash{min-height:18px;color:#e8c04a;font-size:13px;padding:0 4px}#relicList{display:flex;flex-direction:column;gap:6px;overflow:auto}
 #bossCard{position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:30;pointer-events:none;text-align:center;padding:10px 26px;background:linear-gradient(90deg,transparent,rgba(12,6,4,.82) 18%,rgba(12,6,4,.82) 82%,transparent);color:#f0e2c4;font-family:"Iowan Old Style",Palatino,Georgia,serif;opacity:0}#bossCard[hidden]{display:none}#bossCard.on{animation:bossCard 2.8s ease forwards}#bossCard b{display:block;font-size:30px;letter-spacing:.04em;color:#ff6a4a;text-shadow:0 2px 0 #000}#bossCard span{display:block;font-size:15px;opacity:.85}#bossCard i{display:block;font-size:14px;font-style:normal;color:#ffc87a;margin-top:2px}@keyframes bossCard{0%{opacity:0;transform:translate(-50%,8px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0}}@media (prefers-reduced-motion:reduce){#bossCard.on{animation:none;opacity:1}}     /* карточка босса (план подземелий, 1д) */
-.pfold{margin-top:6px}.pfold summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:14px;opacity:.8;list-style:none}.pfold summary::-webkit-details-marker{display:none}.pfold summary::before{content:'▸';margin-right:8px}.pfold[open] summary::before{content:'▾'}     /* свёрнутые блоки меню (2026-10-24): «Своё с устройства» и авторы — меню помещается на Маке без прокрутки */
+
+/* ===== меню по макету А (2026-10-25, выбор владельца): разделы слева, справа выбранный раздел; на телефоне разделы — строкой «пилюль» сверху ===== */
+#panel .pbox{display:flex;flex-direction:column;gap:10px;overflow:hidden}
+[data-desk] #panel .pbox{width:min(1040px,var(--pbw,1040px));max-width:min(1040px,var(--pbw,1040px));height:min(640px,var(--pbh,84vh));max-height:var(--pbh,84%)}
+#panel .bhead{margin-bottom:0}#panel .bhead h2{flex:none}
+#panel .msub{flex:1;min-width:0;font-size:14px;color:#a89c88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#panel .mbody{flex:1;min-height:0;display:flex;gap:16px}
+#panel .mnav{width:220px;flex:none;display:flex;flex-direction:column;gap:6px}
+#panel .mnav button{min-height:48px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:10px;border:1px solid transparent;background:transparent;color:#cfc2aa;font-family:var(--sans);font-size:16px;font-weight:600;text-align:left;cursor:pointer}
+#panel .mnav button .ic{width:20px;height:20px;margin:0;flex:none}
+#panel .mnav button:hover{background:rgba(255,220,170,.05)}
+#panel .mnav button.on{background:#2a1d13;border-color:#d9b27a;color:#f0d3a0}
+#panel .mpane{flex:1;min-width:0;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 18px;border-radius:12px;background:#18110c;border:1px solid #3a2b1f}
+#panel .msec{display:flex;flex-direction:column;gap:12px}#panel .msec[hidden]{display:none}
+#panel .msec h3{margin:4px 0 -4px;font-family:var(--sans)!important;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#a89c88!important}
+#panel .note{margin:0;font-size:15px;line-height:1.4;color:#cfc2aa;opacity:1}
+#panel .mhero{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:10px;background:#120c09;border:1px solid #3a2b1f}
+#panel .hmark{width:56px;height:56px;flex:none;border-radius:50%;background:#2a1e16;border:2px solid #d9b27a;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:24px;color:#d9b27a}
+#panel .mht{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}#panel .mht b{font-family:var(--serif);font-size:20px;font-weight:500;color:#f0d3a0}#panel .mht span{font-size:14px;color:#a89c88}
+#panel .mpill,#panel .prow button{min-height:44px;padding:0 18px;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;color:#e8dcc6!important;font-family:var(--sans);font-size:15px;font-weight:600;text-shadow:none;box-shadow:none!important;cursor:pointer;opacity:1}
+#panel .mpill.main,#panel .prow button.main{border-color:#d9b27a!important;background:#3a2a1a!important;color:#f0d3a0!important;font-family:var(--serif);font-size:17px;font-weight:500}
+#panel .mpill.bad,#panel .mpill.warn{border-color:#a03a2c!important;background:#2a1210!important;color:#ffcfc4!important}
+#panel .mpill:hover,#panel .prow button:hover{filter:brightness(1.15)}
+#panel .mdanger{margin-top:auto;display:flex;align-items:center;gap:14px;padding-top:12px;border-top:1px solid #3a2b1f}#panel .mdanger .note{flex:1;font-size:14px;color:#a89c88}#panel .mdanger .mpill{flex:none}
+#panel .msec[data-sec="game"]{min-height:100%}
+#panel .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0}
+#panel .tab{flex:1 1 0;min-height:44px;padding:0 12px;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;color:#e8dcc6!important;font-family:var(--sans);font-size:15px;font-weight:700;text-shadow:none;box-shadow:none!important}
+#panel .tab.on{background:#d9b27a!important;border-color:#d9b27a!important;color:#1a120c!important}
+#panel .tab:disabled{opacity:.45;filter:none}
+#ironBtn{margin:0}
+#panel .tgl{position:relative;display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:6px 74px 6px 14px;border-radius:10px;border:1px solid #3a2b1f;background:#120c09;color:#e8dcc6;font-family:var(--sans);font-size:15.5px;font-weight:500;text-align:left;cursor:pointer;opacity:1}
+#panel .tgl[hidden]{display:none}
+#panel .tgl .ic{width:20px;height:20px;margin:0;flex:none;color:#d9b27a}
+#panel .tgl::after{content:'';position:absolute;right:14px;top:50%;width:46px;height:26px;margin-top:-13px;box-sizing:border-box;border-radius:13px;border:1px solid #4a3626;background:#120c09 radial-gradient(circle at 13px 50%,#6a5a4a 0 9px,transparent 9.5px)}
+#panel .tgl[aria-pressed="true"]::after{border-color:#d9b27a;background:#3a2a1a radial-gradient(circle at 32px 50%,#f0d3a0 0 9px,transparent 9.5px)}
+#panel .tgl:hover{border-color:#5a4230}
+#panel .tgls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#panel .vols{display:flex;flex-direction:column;gap:8px}
+#panel .vols label{display:grid;grid-template-columns:90px 1fr 48px;align-items:center;gap:14px;min-height:48px;padding:0 14px;border-radius:10px;background:#120c09;border:1px solid #3a2b1f;font-size:16px}
+#panel .vols input{accent-color:#d9b27a;min-height:28px}#panel .vols output{color:#a89c88}
+#panel .prefs{display:flex;flex-direction:column;gap:8px;margin:0}
+#panel .klist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 24px}
+#panel .klist span{display:flex;align-items:center;gap:12px;min-height:34px;font-size:15px}
+#panel .klist kbd{min-width:56px;flex:none}
+html:not([data-desk]) #panel .klist{display:none}
+#panel .prow{gap:8px}
+#panel #saveCode{margin:0;border-radius:10px;border:1px solid #3a2b1f;background:#120c09;font-size:14px;padding:10px 12px}
+#panel #ownBox .mpill,#panel #ownBox .tgl{align-self:stretch}
+#panel .cred{display:flex;gap:14px;margin:0;padding:10px 0;border-bottom:1px solid #2a1f17;font-size:14.5px;line-height:1.4;color:#cfc2aa}
+#panel .cred b{width:110px;flex:none;font-family:var(--serif);font-weight:500;color:#d9b27a}
+#panel #tweakBox{margin:4px 0 0}
+#panel #keysHelp.keys{margin:0;font-size:14px;color:#a89c88}
+html:not([data-desk]) #panel .mbody{flex-direction:column;gap:10px}
+html:not([data-desk]) #panel .mnav{width:auto;flex-direction:row;overflow-x:auto;gap:6px;margin:0 -4px;padding:0 4px 2px;scrollbar-width:none}
+html:not([data-desk]) #panel .mnav button{flex:none;min-height:44px;padding:0 16px;border-radius:22px;border-color:#5a4230;background:#241a13;color:#e8dcc6;font-size:15px;font-weight:700}
+html:not([data-desk]) #panel .mnav button .ic{display:none}
+html:not([data-desk]) #panel .mnav button.on{background:#d9b27a;border-color:#d9b27a;color:#1a120c}
+html:not([data-desk]) #panel .mpane{padding:12px;background:transparent;border:0}
+html:not([data-desk]) #panel .pbox{height:calc(100% - 20px)}
+html:not([data-desk]) #panel .msub{display:none}
+html:not([data-desk]) #panel .tgls{grid-template-columns:1fr}
+html:not([data-desk]) #panel .mdanger{flex-direction:column;align-items:stretch}
+html:not([data-desk]) #panel .vols label{grid-template-columns:70px 1fr 44px;gap:10px}
+html:not([data-desk]) #panel #difTabs .tab{flex:1 1 40%}
+[data-desk] #panel #leftyBtn,[data-desk] #panel #uiTabs,[data-desk] #panel #vibBtn{display:none}
+html:not([data-desk]) #panel .mhero{flex-wrap:wrap}html:not([data-desk]) #panel .mhero .mpill{flex:1 1 100%}

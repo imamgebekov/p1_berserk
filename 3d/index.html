@@ -177,83 +177,85 @@
 
 <section id="panel" hidden>
   <div class="pbox">
-    <div class="bhead"><h2>Меню</h2><button id="tweakClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
-    <div id="keysHelp" class="keys" hidden><span><kbd>WASD</kbd>ходить</span><span><kbd>ЛКМ</kbd>удар</span><span><kbd>ПКМ</kbd>перекат</span><span><kbd>I</kbd>сумка</span><span><kbd>Esc</kbd>меню</span><button id="keysMore" type="button" class="kmore" aria-label="Все клавиши" aria-expanded="false" data-icon="question"></button><p id="keysAll" class="note" hidden>WASD или стрелки — ходить · пробел или левая кнопка мыши — удар (держать — тяжёлый удар) · Shift или правая кнопка — перекат · E — люк, торговец · M — карта · I — сумка · N — навыки · Q — задания · R — книга рецептов · G — где взять вещь под курсором · 1–5 — умения · F — умение оружия · Z / X / C — отряд: за мной, держать, бить мою цель · H — героическая сложность у входа в подземелье (с 60 уровня) · V — конь · E — собрать травы, руду, тушу; повозка · колесо мыши, + и − или два пальца — камера ближе и дальше · Esc — меню и закрыть окно</p></div>
-    <div class="pcols">
-      <div class="pcol">
-        <h2>Игра</h2>
-        <p id="heroNow" class="note"></p>
-        <button id="heroSwitch" type="button" class="reset">Сменить героя</button>
-        <button id="ngBtn" type="button" class="reset" hidden>Новый круг</button>
-        <button id="saveReset" type="button" class="reset hold"><span class="fill"></span><span class="lbl">Новая игра — удерживайте</span></button>
-        <p class="note">Новая игра стирает героев, уровни, вещи и сюжет. Настройки вида, звука и управления остаются.</p>
-        <h3>Сложность</h3>
-        <div id="difTabs" class="tabs"></div>
-        <p id="difText" class="note"></p>
-        <button id="ironBtn" type="button" class="reset" hidden></button>
-      </div>
-      <div class="pcol">
-        <h2>Вид и звук</h2>
-        <button id="muteBtn" type="button" class="reset"></button>
-        <div id="volBox" class="vols">
-          <label>Общая <input id="volAll" type="range" min="0" max="100" step="5"><output></output></label>
-          <label>Музыка <input id="volMusic" type="range" min="0" max="100" step="5"><output></output></label>
-          <label>Звуки <input id="volSfx" type="range" min="0" max="100" step="5"><output></output></label>
+    <div class="bhead"><h2>Меню</h2><span id="menuSub" class="msub"></span><button id="tweakClose" type="button" class="close" aria-label="Играть" title="Играть (Esc)">×</button></div>
+    <div class="mbody">
+      <nav id="menuNav" class="mnav" aria-label="Разделы меню">
+        <button type="button" data-sec="game" data-icon="lv">Игра</button>
+        <button type="button" data-sec="sound" data-icon="sound">Звук</button>
+        <button type="button" data-sec="view" data-icon="eye">Вид и качество</button>
+        <button type="button" data-sec="keys" data-icon="key">Управление</button>
+        <button type="button" data-sec="save" data-icon="scroll">Сохранение</button>
+        <button type="button" data-sec="own" data-icon="sparkle">Своё с устройства</button>
+        <button type="button" data-sec="credits" data-icon="book">Авторы</button>
+      </nav>
+      <div class="mpane">
+        <div class="msec" data-sec="game">
+          <div class="mhero"><span id="heroMark" class="hmark"></span><div class="mht"><b id="heroNow"></b><span id="heroSub"></span></div><button id="heroSwitch" type="button" class="mpill">Сменить героя</button></div>
+          <button id="ngBtn" type="button" class="mpill" hidden>Новый круг</button>
+          <h3>Сложность</h3>
+          <div id="difTabs" class="tabs"></div>
+          <p id="difText" class="note"></p>
+          <button id="ironBtn" type="button" class="mpill" hidden></button>
+          <div class="mdanger"><p class="note">Новая игра стирает героев, уровни, вещи и сюжет. Звук, вид и управление останутся.</p><button id="saveReset" type="button" class="mpill bad hold"><span class="fill"></span><span class="lbl">Новая игра — удерживайте</span></button></div>
         </div>
-        <details class="pfold" id="viewMore"><summary>Ещё: качество, ретро, экономия, вид</summary>
-        <h3>Качество</h3>
-        <div id="qualTabs" class="tabs"></div>
-        <p id="qualNote" class="note"></p>
-        <button id="retroBtn" type="button" class="reset"></button>
-        <button id="ecoBtn" type="button" class="reset"></button>
-        <button id="asciiBtn" type="button" class="reset"></button>
-        <button id="fpsBtn" type="button" class="reset"></button>
-        </details>
-        <details class="pfold" id="ownBox"><summary>Своё с устройства: музыка и значки</summary>
-        <p class="note">Музыка и значки остаются только в этом браузере — в игру и на сайт не попадают.</p>
-        <button id="ownMusicAdd" type="button" class="reset">Загрузить свою музыку</button>
-        <button id="ownMusicBtn" type="button" class="reset" hidden></button>
-        <button id="ownMusicClear" type="button" class="reset" hidden></button>
-        <button id="ownIconsClear" type="button" class="reset" hidden></button>
-        </details>
-        <input id="ownMusicFile" type="file" accept="audio/*,.mp3,.ogg,.m4a,.wav,.flac,.opus" multiple hidden>
-        <input id="ownIconFile" type="file" accept="image/*" hidden>
-        <details class="pfold" id="creditsBox"><summary>Авторы значков и моделей</summary>
-        <p class="note credits">Значки — <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a> (Lorc, Delapouite и другие авторы, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>); список — ICONS-CREDITS.md.</p>
-        <p class="note credits">3D-модели — KayKit (Kay Lousberg, CC0), Quaternius (CC0); часть боссов сделана в Meshy (meshy.ai, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>); список — MODELS-CREDITS.md.</p>
-        <p class="note credits">Рисованные значки умений — «Painterly Spell Icons» J. W. Bjerk (eleazzaar), <a href="https://www.jwbjerk.com/art" target="_blank" rel="noopener">jwbjerk.com/art</a>, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>. Музыка — «New Sunrise» и «Production Theme Intro» — nene (CC0); «Emotional orchestral music» — César da Rocha; «Article 169 Section 1» — Zander Noriega, César da Rocha, TAD (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>); с <a href="https://opengameart.org" target="_blank" rel="noopener">opengameart.org</a>; список — ART-CREDITS.md.</p>
-        </details>
-      </div>
-      <div class="pstack">
-      <div class="pcol">
-        <h2>Управление</h2>
-        <div class="prefs">
-          <button id="leftyBtn" type="button" class="reset"></button>
-          <div id="uiTabs" class="tabs"></div>
-          <button id="vibBtn" type="button" class="reset"></button>
-          <button id="hintBtn" type="button" class="reset"></button>
+        <div class="msec" data-sec="sound" hidden>
+          <button id="muteBtn" type="button" class="tgl"></button>
+          <div id="volBox" class="vols">
+            <label>Общая <input id="volAll" type="range" min="0" max="100" step="5"><output></output></label>
+            <label>Музыка <input id="volMusic" type="range" min="0" max="100" step="5"><output></output></label>
+            <label>Звуки <input id="volSfx" type="range" min="0" max="100" step="5"><output></output></label>
+          </div>
         </div>
-      </div>
-      <div class="pcol">
-        <h2>Сохранение</h2>
-        <p class="note">Перенос на другое устройство: скопируйте код, там вставьте его и нажмите «Загрузить».</p>
-        <div class="prow"><button id="expBtn" type="button">Скопировать код</button><button id="impBtn" type="button">Загрузить</button></div>
-        <div class="prow"><button id="fileSave" type="button">Сохранить в файл</button><button id="fileLoad" type="button">Загрузить файл</button></div><input id="fileInput" type="file" accept=".txt,text/plain" hidden>
-        <textarea id="saveCode" rows="2" spellcheck="false" placeholder="Код сохранения B3D1:…"></textarea>
-        <div id="saveFlash"></div>
-      </div>
+        <div class="msec" data-sec="view" id="viewMore" hidden>
+          <h3>Качество</h3>
+          <div id="qualTabs" class="tabs"></div>
+          <p id="qualNote" class="note"></p>
+          <div class="tgls"><button id="retroBtn" type="button" class="tgl"></button><button id="ecoBtn" type="button" class="tgl"></button><button id="asciiBtn" type="button" class="tgl"></button><button id="fpsBtn" type="button" class="tgl"></button></div>
+        </div>
+        <div class="msec" data-sec="keys" hidden>
+          <div id="keysAll" class="klist"><span><kbd>WASD</kbd>ходить (или стрелки)</span><span><kbd>ЛКМ</kbd>удар, держать — тяжёлый</span><span><kbd>ПКМ</kbd>перекат (или Shift)</span><span><kbd>1–5</kbd>умения</span><span><kbd>F</kbd>умение оружия</span><span><kbd>E</kbd>люк, торговец, сбор, повозка</span><span><kbd>I</kbd>сумка</span><span><kbd>N</kbd>навыки</span><span><kbd>M</kbd>карта</span><span><kbd>Q</kbd>задания</span><span><kbd>R</kbd>книга рецептов</span><span><kbd>G</kbd>где взять вещь под курсором</span><span><kbd>Z X C</kbd>отряд: за мной, держать, цель</span><span><kbd>H</kbd>героическая сложность (с 60 ур.)</span><span><kbd>V</kbd>конь</span><span><kbd>колесо</kbd>камера ближе и дальше</span></div>
+          <div class="prefs">
+            <button id="leftyBtn" type="button" class="tgl"></button>
+            <div id="uiTabs" class="tabs"></div>
+            <button id="vibBtn" type="button" class="tgl"></button>
+            <button id="hintBtn" type="button" class="tgl"></button>
+          </div>
+          <details id="tweakBox">
+            <summary>Настройка прототипа (для разработки)</summary>
+            <p class="note">Двигайте ползунки: игра меняется сразу. «Скопировать» отдаёт изменённые значения: пришлите их мне в чат.</p>
+            <div id="tweaks"></div>
+            <div id="tweakStatus"></div>
+            <div class="prow">
+              <button id="tweakReset" type="button">Сбросить</button>
+              <button id="tweakCopy" type="button">Скопировать</button>
+            </div>
+          </details>
+        </div>
+        <div class="msec" data-sec="save" hidden>
+          <p class="note">Перенос на другое устройство: скопируйте код, там вставьте его и нажмите «Загрузить».</p>
+          <div class="prow"><button id="expBtn" type="button" class="main">Скопировать код</button><button id="impBtn" type="button">Загрузить</button></div>
+          <div class="prow"><button id="fileSave" type="button">Сохранить в файл</button><button id="fileLoad" type="button">Загрузить файл</button></div><input id="fileInput" type="file" accept=".txt,text/plain" hidden>
+          <textarea id="saveCode" rows="3" spellcheck="false" placeholder="Код сохранения B3D1:…"></textarea>
+          <div id="saveFlash"></div>
+        </div>
+        <div class="msec" data-sec="own" id="ownBox" hidden>
+          <p class="note">Музыка и значки остаются только в этом браузере — в игру и на сайт не попадают.</p>
+          <button id="ownMusicAdd" type="button" class="mpill main">Загрузить свою музыку</button>
+          <button id="ownMusicBtn" type="button" class="tgl" hidden></button>
+          <button id="ownMusicClear" type="button" class="mpill" hidden></button>
+          <button id="ownIconsClear" type="button" class="mpill" hidden></button>
+          <input id="ownMusicFile" type="file" accept="audio/*,.mp3,.ogg,.m4a,.wav,.flac,.opus" multiple hidden>
+          <input id="ownIconFile" type="file" accept="image/*" hidden>
+        </div>
+        <div class="msec" data-sec="credits" id="creditsBox" hidden>
+          <p class="cred"><b>Значки</b><span><a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a> (Lorc, Delapouite и другие авторы, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>); список — ICONS-CREDITS.md.</span></p>
+          <p class="cred"><b>3D-модели</b><span>KayKit (Kay Lousberg, CC0), Quaternius (CC0); часть боссов сделана в Meshy (meshy.ai, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>); список — MODELS-CREDITS.md.</span></p>
+          <p class="cred"><b>Умения</b><span>«Painterly Spell Icons» J. W. Bjerk (eleazzaar), <a href="https://www.jwbjerk.com/art" target="_blank" rel="noopener">jwbjerk.com/art</a>, <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.</span></p>
+          <p class="cred"><b>Музыка</b><span>«New Sunrise» и «Production Theme Intro» — nene (CC0); «Emotional orchestral music» — César da Rocha; «Article 169 Section 1» — Zander Noriega, César da Rocha, TAD (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>); с <a href="https://opengameart.org" target="_blank" rel="noopener">opengameart.org</a>; список — ART-CREDITS.md.</span></p>
+        </div>
       </div>
     </div>
-    <details id="tweakBox">
-      <summary>Настройка прототипа (для разработки)</summary>
-      <p class="note">Двигайте ползунки: игра меняется сразу. «Скопировать» отдаёт изменённые значения: пришлите их мне в чат.</p>
-      <div id="tweaks"></div>
-      <div id="tweakStatus"></div>
-      <div class="prow">
-        <button id="tweakReset" type="button">Сбросить</button>
-        <button id="tweakCopy" type="button">Скопировать</button>
-      </div>
-    </details>
+    <div id="keysHelp" class="keys" hidden><span><kbd>WASD</kbd>ходить</span><span><kbd>ЛКМ</kbd>удар</span><span><kbd>ПКМ</kbd>перекат</span><span><kbd>I</kbd>сумка</span><span><kbd>Esc</kbd>меню</span><button id="keysMore" type="button" class="kmore" aria-label="Все клавиши" data-icon="question"></button></div>
   </div>
 </section>
 
