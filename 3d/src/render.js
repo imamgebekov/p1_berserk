@@ -562,6 +562,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const roomFx = { kind: null, k: 0 }, FLOOD_C = new THREE.Color('#1c4a66'), waterRoom = new THREE.Mesh(new THREE.PlaneGeometry(70, 70).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#2a6a8a', transparent: true, opacity: 0, depthWrite: false })); waterRoom.visible = false; scene.add(waterRoom);     // вода затопленного зала (план подземелий, 3б)
   // второй этаж (2026-10-21): виден мир вокруг, как с первого этажа; этаж — над своим домом на высоте floors.lift
   let liftY = null;
+  const GV = cfg.view.ground;     // план физики, этап 1: высота модели догоняет землю (без дрожи на кочках), корпус наклоняется по склону
+  function groundY(o, x, z, face, dt) {
+    const y = Y(x, z); if (!GV || o.gy === undefined || Math.abs(y - o.gy) > GV.snap) { o.gy = y; o.lean = 0; return y; }
+    o.gy += (y - o.gy) * (1 - Math.exp(-GV.lag * dt));
+    const sx = Math.sin(face) * GV.probe, sz = Math.cos(face) * GV.probe, s = (Y(x + sx, z + sz) - Y(x - sx, z - sz)) / (2 * GV.probe);
+    o.lean = Math.max(-GV.max, Math.min(GV.max, Math.atan(s) * GV.lean)); return o.gy;
+  }
   const floorL = W => { const L = W.levels && W.levels[W.lvl]; return L && L.map && L.map.floor ? L : null; };
   const floorBase = (W, L) => { const b = W.levels.surface.map.buildings[L.map.house]; return heightAt(hf, b.x, b.z) + (cfg.map.floors.lift || 2.6); };
   function showLevel(W) {
@@ -1074,7 +1081,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ap.needsUpdate = true; ash.position.set(cam.x, 0, cam.z);
 
     // герой
-    const py = liftY ?? Y(p.x, p.z); hero.group.position.set(p.x, py + (p.hopY || 0), p.z);     // Г8: прыжок Бесогона поднимает героя
+    const py = liftY ?? groundY(hero, p.x, p.z, p.face, dt); hero.group.position.set(p.x, py + (p.hopY || 0), p.z); if (hero.group.rotation.order !== 'YXZ') hero.group.rotation.order = 'YXZ'; hero.group.rotation.x = liftY == null && !(W.life && W.life.mount.on) ? hero.lean || 0 : 0;     // Г8: прыжок Бесогона поднимает героя
     { const ms = W.abuf && W.abuf.morph > 0 ? W.abuf.morphScale || 1.2 : 1, s0 = hero.group.scale.x; if (Math.abs(s0 - ms) > .001) hero.group.scale.setScalar(s0 + (ms - s0) * Math.min(1, dt * 6)); }     // облик демона — крупнее
     asciiLamp.visible = asciiOn && !under; if (asciiLamp.visible) asciiLamp.position.set(p.x, py + 2.6, p.z); { const BL = cfg.view.blend, early = p.state === 'atk' && p.atkT < cfg.player.attackHitAt * .6; hero.group.rotation.y = BL && hero.yawInit ? dampAngle(hero.group.rotation.y, p.face, early ? BL.yawWind : BL.yawHero, dt) : p.face; hero.yawInit = true; }     // поворот модели — плавно (шаг 3)
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); if (hero.wkey !== rimKey) { rimKey = hero.wkey; rimify(hero.group, RS && RS.hero); } }
@@ -1105,7 +1112,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       let en = entity(e);
       if (!en.m.gltf && !e.dead && (en.swapT = (en.swapT || 0) - dt) <= 0) { en.swapT = 1; const fk = actorKey(cfg, 'foe', e.type); if (fk && actorReady(fk)) { dropEnt(e.id, en); en = entity(e); } }     // готовая модель пришла позже — пересобрать
       if (en.hid) { en.hid = false; en.m.group.visible = en.sh.visible = en.ring.visible = true; }
-      const ey = Y(e.x, e.z); en.m.group.position.set(e.x, ey, e.z); if (!en.yawInit || !cfg.view.blend) en.m.group.rotation.y = e.face; else if (!e.dead) en.m.group.rotation.y = dampAngle(en.m.group.rotation.y, e.face, e.state === 'dash' ? cfg.view.blend.hit : cfg.view.blend.yawFoe, dt); en.yawInit = true;     // поворот — плавно (шаг 3), мёртвый не крутится
+      const ey = groundY(en, e.x, e.z, e.face, dt); en.m.group.position.set(e.x, ey, e.z); if (en.m.group.rotation.order !== 'YXZ') en.m.group.rotation.order = 'YXZ'; en.m.group.rotation.x = e.dead ? 0 : en.lean || 0; if (!en.yawInit || !cfg.view.blend) en.m.group.rotation.y = e.face; else if (!e.dead) en.m.group.rotation.y = dampAngle(en.m.group.rotation.y, e.face, e.state === 'dash' ? cfg.view.blend.hit : cfg.view.blend.yawFoe, dt); en.yawInit = true;     // поворот — плавно (шаг 3), мёртвый не крутится
       { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
       if (en.m.gltf) { driveFoe(en.m, e, t, dt, cfg); en.m.flash(e.flash > 0 ? .9 : 0, e.st && !e.dead ? (e.st.freeze ? [.04, .22, .45] : e.st.burn ? [.5, .16, 0] : e.st.poison ? [0, .3, .04] : null) : null); }
       else animateMonster(en.m, e, t, cfg, p.x, p.z);

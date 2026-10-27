@@ -48,6 +48,7 @@ import { affixFor, gemsFor } from './affix3d.js';
 import { partyTravel } from './party3d.js';
 import { wearHit, wearHurt, wearDeath, repairKit } from './dur3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
+import { physMove, rollK, moveStep } from './phys3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe, roomAt } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 import { resGain } from './resource3d.js';
@@ -731,14 +732,14 @@ function updatePlayer(W, dt, input) {
   }
   if (p.state === 'dash') {                                    // рывок умения: летит по прямой, бьёт всех на пути
     p.dashT += dt; p.vx = p.dashX * p.dashV; p.vz = p.dashZ * p.dashV; dashStep(W);
-    if (p.dashT >= p.dashDur) { p.state = 'idle'; p.vx *= .2; p.vz *= .2; p.dashMix = false; p.dashThru = false; p.dashW = 0; p.dashSt = null; }
+    if (p.dashT >= p.dashDur) { const DM = physMove(W.cfg), dc = DM ? DM.dashCarry : .2; p.state = 'idle'; p.vx *= dc; p.vz *= dc; p.dashMix = false; p.dashThru = false; p.dashW = 0; p.dashSt = null; }
   } else if (p.state === 'roll') {
     if (pressed) p.rollPress = true;
     if (p.atkBuf > 0) p.atkBuf -= dt;
     p.rollT += dt;
-    const k = 1.25 - .75 * (p.rollT / P.rollTime);
+    const RM = physMove(W.cfg), k = RM ? rollK(RM.roll, Math.min(1, p.rollT / P.rollTime)) : 1.25 - .75 * (p.rollT / P.rollTime);     // план физики, этап 1: кривая переката
     p.vx = p.rollDirX * P.rollSpeed * k; p.vz = p.rollDirZ * P.rollSpeed * k;
-    if (p.rollT >= P.rollTime) { p.state = 'idle'; p.lastRollEnd = W.t; if (p.rollPress) { p.rollPress = false; p.atkBuf = H.buffer; } }
+    if (p.rollT >= P.rollTime) { p.state = 'idle'; p.lastRollEnd = W.t; if (RM) { p.vx *= RM.rollCarry; p.vz *= RM.rollCarry; } if (p.rollPress) { p.rollPress = false; p.atkBuf = H.buffer; } }
   } else {
     // удар: нажатие — обычный (запоминается на buffer, если нажато во время удара: быстрые нажатия дают серию без пауз);
     // удержание дольше hold — после удара заряд; отпустил — тяжёлый удар (если зарядил хотя бы min)
@@ -765,9 +766,9 @@ function updatePlayer(W, dt, input) {
     if (wet && W.pst.burn) { delete W.pst.burn; W.ev.push({ k: 'douse', x: p.x, z: p.z }); }
     const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd + relicSpd(W), -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1) * (W.bossRoom && W.bossRoom.kind === 'flood' && W.bossRoom.lvl === W.lvl ? W.cfg.bosses.room.flood : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
     const tx = moving ? mx * sp : 0, tz = moving ? mz * sp : 0;
-    const a = P.accel * dt;
-    const dvx = tx - p.vx, dvz = tz - p.vz, dl = len(dvx, dvz);
-    if (dl <= a) { p.vx = tx; p.vz = tz; } else { p.vx += dvx / dl * a; p.vz += dvz / dl * a; }
+    const MV = physMove(W.cfg);
+    if (MV) moveStep(p, tx, tz, dt, P.accel, MV, moving, sp);     // план физики, этап 1: торможение и разворот
+    else { const a = P.accel * dt, dvx = tx - p.vx, dvz = tz - p.vz, dl = len(dvx, dvz); if (dl <= a) { p.vx = tx; p.vz = tz; } else { p.vx += dvx / dl * a; p.vz += dvz / dl * a; } }
     if (moving && p.state !== 'atk') p.face += clamp(angDiff(Math.atan2(mx, mz), p.face), -P.turnSpeed * dt, P.turnSpeed * dt);
     if (p.state === 'idle' && moving) p.state = 'run'; else if (p.state === 'run' && !moving) p.state = 'idle';
   }
