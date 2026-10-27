@@ -1438,10 +1438,10 @@ const BASE = {
   },
 
   // физика (план физики, 2026-10-25). move — движение героя: brake — торможение без ввода, м/с², разгон — player.accel;
-  // turn — разворот больше deg°: упор — скорость сразу ×k от полной и t с не быстрее; roll — кривая переката: lo + hi·(1−u)^p, средняя avg
+  // turn — разворот больше deg° после бега в одну сторону не короче run с: упор — скорость сразу ×k от полной и t с не быстрее; roll — кривая переката: lo + hi·(1−u)^p, средняя avg
   // (путь как раньше); rollCarry — доля скорости после переката; dashCarry — после рывка умения. on: false — как раньше
   phys: {
-    move: { on: true, brake: 30, turn: { deg: 120, k: .55, t: .08 }, roll: { p: 1.5, lo: .5, avg: .875 }, rollCarry: .7, dashCarry: .25 }
+    move: { on: true, brake: 30, turn: { deg: 120, k: .55, t: .08, run: .3 }, roll: { p: 1.5, lo: .5, avg: .875 }, rollCarry: .7, dashCarry: .2 }
   },
 
   enemies: {

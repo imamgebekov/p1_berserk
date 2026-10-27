@@ -7,7 +7,7 @@ const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const M = CFG3.phys.move, P = CFG3.player;
 const W0 = (() => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.map.places = []; c.events.on = false; c.wanderer.on = false; const W = createWorld(c, mulberry32(7)); W.player.hp = W.player.maxhp = 1e6; W.enemies.length = 0; return W; })();
 const home = { x: W0.player.x, z: W0.player.z };
-const mk = (on = true) => { const W = W0, p = W.player; W.cfg.phys.move.on = on; W.enemies.length = 0; Object.assign(p, { x: home.x, z: home.z, vx: 0, vz: 0, state: 'idle', rollCd: 0, rollT: 0, turnT: 0, inv: 0, atkBuf: 0, rollPress: false }); return W; };     // один мир: создавать заново долго
+const mk = (on = true) => { const W = W0, p = W.player; W.cfg.phys.move.on = on; W.enemies.length = 0; Object.assign(p, { x: home.x, z: home.z, vx: 0, vz: 0, state: 'idle', rollCd: 0, rollT: 0, turnT: 0, runT: 0, inv: 0, atkBuf: 0, rollPress: false }); return W; };     // один мир: создавать заново долго
 const run = (W, sec, inp = {}, dt = 1 / 60) => { for (let i = 0; i < Math.round(sec / dt); i++) step(W, dt, inp); };
 const spd = W => Math.hypot(W.player.vx, W.player.vz);
 const at = W => ({ x: W.player.x, z: W.player.z }), dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -29,7 +29,9 @@ const at = W => ({ x: W.player.x, z: W.player.z }), dist = (a, b) => Math.hypot(
 { const turn = on => { const W = mk(on); run(W, .6, { mx: 1 }); step(W, 1 / 60, { mx: -1 }); return W.player.turnT > 0; };
   ok(turn(true), 'разворот не замечен');
   { const W = mk(); run(W, .6, { mx: 1 }); const v0 = spd(W); step(W, 1 / 60, { mx: -1 }); ok(spd(W) <= v0 * M.turn.k + 1, `упор на развороте не гасит скорость: ${v0.toFixed(2)} → ${spd(W).toFixed(2)}`); } ok(!turn(false), 'выключено, а разворот замечен');
-  const W = mk(); run(W, .6, { mx: 1 }); step(W, 1 / 60, { mz: 1 }); ok(!(W.player.turnT > 0), 'поворот на 90° считается разворотом'); }
+  const W = mk(); run(W, .6, { mx: 1 }); step(W, 1 / 60, { mz: 1 }); ok(!(W.player.turnT > 0), 'поворот на 90° считается разворотом');
+  { const W = mk(); run(W, .6, { mx: 1 }); let n = 0, s = 1; for (let i = 0; i < 120; i++) { if (i % 8 === 0) s = -s; step(W, 1 / 60, { mx: s }); if (W.player.turnT > 0) n++; }     // бот у прохода: ввод туда-сюда каждые 8 кадров
+    ok(n <= Math.ceil(M.turn.t * 60) + 1, `дёрганье туда-сюда даёт упор снова и снова: ${n} кадров упора`); } }
 
 // 4. перекат: путь как раньше, кривая — быстрый старт, мягкий конец; от частоты кадров не зависит
 { const roll = (on, dt) => { const W = mk(on), a = at(W); step(W, dt, { roll: true, mx: 1 }); let n = 0; while (W.player.state === 'roll' && n++ < 200) step(W, dt, { mx: 1 }); return dist(a, at(W)); };
