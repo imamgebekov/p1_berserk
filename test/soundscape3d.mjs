@@ -1,10 +1,13 @@
 // Тест атмосферы звука 3D (шаг D1): уровни слоёв по месту (река, день и ночь, бой, подземелье, опасность), своя музыка
 // (повторяемость по зерну, лад, диапазон, такты 3/4, форма AABA, длина куска, ночь — минор и медленнее), птицы и сова,
 // движок на поддельном AudioContext: предел голосов, ноты только в будущем, отдых между кусками, бой и «без звука» глушат.
+import { existsSync } from 'node:fs';
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, mulberry32, spawnEnemy } from '../3d/src/sim.js';
 import { waterDist } from '../3d/src/terrain3d.js';
-import { mixOf, composePiece, birdSong, owlCall, fightBar, underSound } from '../3d/src/soundscape3d.js';
+import { mixOf, composePiece, birdSong, owlCall, fightBar, underSound, surfaceOf } from '../3d/src/soundscape3d.js';
+import { biomeAt } from '../3d/src/worldgen3d.js';
+import { trackPlace, trackPool, nextTrack } from '../3d/src/music3d.js';
 import { travel } from '../3d/src/levels3d.js';
 
 const fails = [];
@@ -12,7 +15,7 @@ const ok = (c, m) => { if (!c) fails.push(m); };
 const musicOn = c => { for (const k of ['music', 'fight', 'tracks']) if (c.audio[k]) c.audio[k].on = true; return c; };     // 5.04: в игре встроенная музыка выключена — тест включает её и проверяет код
 const clone = () => musicOn(JSON.parse(JSON.stringify(CFG3)));
 const A = clone().audio;
-ok(['music', 'fight', 'tracks'].every(k => !CFG3.audio[k] || CFG3.audio[k].on === false), 'встроенная музыка в игре не выключена');     // 5.04: владелец ставит свою музыку
+ok(['music', 'fight'].every(k => !CFG3.audio[k] || CFG3.audio[k].on === false) && CFG3.audio.tracks.on, 'синтез-музыка не выключена или треки по местам выключены');     // 5.04: синтез выключен — без наложения; 2026-10-27: треки по местам (вариант А)
 const mk = (c = clone()) => { c.enemies.count = 0; c.bosses.list = []; c.events.on = false; c.wanderer.on = false; return createWorld(c, mulberry32(1)); };
 
 // ---------- 1. уровни слоёв ----------
@@ -133,5 +136,37 @@ const mk = (c = clone()) => { c.enemies.count = 0; c.bosses.list = []; c.events.
   travel(W, 'inst_drown', 0, 0); const wet = mixOf(W, W.cfg.audio); ok(wet.under && wet.water > .3 && underSound(W).drip === 1, 'в затопленном зале нет капели: ' + JSON.stringify(wet));
   travel(W, 'inst_ash', 0, 0); const hot = mixOf(W, W.cfg.audio); ok(hot.under && !hot.water && underSound(W).rumble === 1, 'в кузнечных недрах капель или нет гула');
   travel(W, 'surface', 0, 4); ok(underSound(W) === null, 'подземный фон наверху'); }
+// ---------- записи (2026-10-25): костёр, кузница, сверчки, поверхность для шагов ----------
+{
+  const W = mk(), p = W.player, F = (W.map.fires || [])[0], S = A.samples;
+  ok(F, 'на карте нет костров');
+  if (F) { p.x = F.x + 1; p.z = F.z; const a = mixOf(W, A).fire; p.x = F.x + S.fire.far + 5; const b = mixOf(W, A).fire; ok(a > .9 && b === 0, `костёр: рядом ${a}, далеко ${b}`); }
+  const sm = W.map.buildings.find(b => b.npc && b.npc.kind === 'smith');
+  ok(sm, 'нет кузницы с кузнецом');
+  if (sm) { p.x = sm.npc.x; p.z = sm.npc.z; W.light = 1; const day = mixOf(W, A).smith; W.light = .1; const night = mixOf(W, A).smith; ok(day > .9 && night === 0, `кузница: днём ${day}, ночью ${night}`); ok(surfaceOf(W) === 'wood', 'в кузнице шаги не по дереву: ' + surfaceOf(W)); }
+  W.light = .1; W.night = true; p.x = 400; p.z = 400; const nm = mixOf(W, A); W.light = 1; W.night = false; const dm = mixOf(W, A);
+  ok(nm.crickets > .9 && dm.crickets < .05, `сверчки: ночью ${nm.crickets}, днём ${dm.crickets}`);
+  const kinds = new Set(); for (let a = 0; a < 40; a++) { p.x = Math.sin(a) * (300 + a * 10); p.z = Math.cos(a) * (300 + a * 10); if (W.map.buildings.every(b => !(p.x > b.ix0 && p.x < b.ix1 && p.z > b.iz0 && p.z < b.iz1))) { const s = surfaceOf(W), bio = biomeAt(W.cfg, p.x, p.z); kinds.add(s); ok(s === (bio === 'mountains' ? 'stone' : bio === 'waste' || bio === 'coast' ? 'sand' : 'grass'), `шаги: биом ${bio} → ${s}`); } }
+  ok(kinds.size >= 2, 'шаги: по миру одна поверхность: ' + [...kinds]);
+  W.lvl = 'dummy-under'; ok(surfaceOf(W) === 'stone', 'под землёй шаги не по камню');
+}
+
+// ---------- музыка по местам (2026-10-27, вариант А) ----------
+{
+  const T = CFG3.audio.tracks, W = mk(), p = W.player;
+  const safe = (W.cfg.map.places || []).find(q => q.safe), wild = { x: 600, z: -600 };
+  if (safe) { p.x = safe.x; p.z = safe.z; W.place = safe; ok(mixOf(W, A).zone === 'camp', 'в селе зона не «лагерь»'); }
+  W.place = null; p.x = wild.x; p.z = wild.z; ok(mixOf(W, A).zone === 'wild', 'вне сёл зона не «дикие земли»');
+  W.lvl = 'crypt'; ok(mixOf(W, A).zone === 'dungeon', 'под землёй зона не «подземелье»'); W.lvl = 'surface';
+  ok(trackPlace({ zone: 'wild', boss: true }, T) === 'boss' && trackPlace({ zone: 'camp' }, T) === 'camp', 'место для музыки выбрано не так');
+  for (const pl of ['camp', 'wild', 'dungeon', 'boss']) { const pool = trackPool(pl, T); ok(pool.length > 0, 'нет треков места ' + pl); }
+  for (const b of ['forest', 'swamp', 'mountains', 'waste', 'coast']) { ok(trackPlace({ zone: 'wild', biome: b }, T) === 'wild:' + b, 'биом не выбрал свой набор: ' + b); ok(trackPool('wild:' + b, T).length > 0, 'нет треков биома ' + b); }
+  ok(trackPlace({ zone: 'wild', biome: null }, T) === 'wild' && trackPlace({ zone: 'camp', biome: 'forest' }, T) === 'camp', 'вне биома или в селе — не общий набор');
+  { const W2 = mk(), q = W2.player; let seen = null; for (let a = 0; a < 60 && !seen; a++) { q.x = Math.sin(a) * (300 + a * 10); q.z = Math.cos(a) * (300 + a * 10); W2.place = null; const m = mixOf(W2, A); if (m.biome) seen = m.biome; } ok(seen, 'mixOf не знает биом героя'); }
+  const all = new Set(['camp', 'wild', 'dungeon'].flatMap(pl => trackPool(pl, T)).concat(Object.keys(T.biomes || {}).flatMap(b => trackPool('wild:' + b, T))).concat([T.boss, T.intro]));
+  ok([...all].every(n => existsSync(new URL(`../3d/music/${n}.mp3`, import.meta.url))), 'нет файла трека: ' + [...all].filter(n => !existsSync(new URL(`../3d/music/${n}.mp3`, import.meta.url))));
+  const w2 = trackPool('wild', T); if (w2.length > 1) { let same = 0; for (let i = 0; i < 50; i++) if (nextTrack('wild', T, w2[0]) === w2[0]) same++; ok(same === 0, 'тот же трек дважды подряд'); }
+}
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Атмосфера звука 3D: OK');

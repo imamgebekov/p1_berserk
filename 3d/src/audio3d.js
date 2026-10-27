@@ -1,8 +1,10 @@
 // Звук 3D: всё синтезируется (осцилляторы и шум), файлов нет. Контекст создаётся по первому касанию (правило iOS).
 import { composePiece, birdSong, owlCall, frogCall, fightBar } from './soundscape3d.js';
 import { CFG3 } from './config3d.js';
+import { loadSamples, sampleBuf, pickSample } from './samples3d.js';
 let ac = null, master = null, sfxBus = null, out = null, noiseBuf = null, amb = null, volume = .7, muted = false, lastT = {}, vp = 1;
-const FX = () => ((A && A.fx) || CFG3.audio.fx);     // числа сведения: из cfg.audio (setScene) или по умолчанию
+const FX = () => ((A && A.fx) || CFG3.audio.fx);
+const SMP = () => ((A && A.samples) || CFG3.audio.samples);     // записи (samples3d.js)     // числа сведения: из cfg.audio (setScene) или по умолчанию
 
 // кривая ограничителя: до k — прямая, выше — плавно к 1 (tanh)
 export function limitCurve(k, n = 2048) {
@@ -23,12 +25,12 @@ export function ensureAudio() {
       // фон: ветер (шум через фильтр с медленным качанием) и низкий гул затмения
       const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain();
       src.buffer = noiseBuf; src.loop = true; f.type = 'bandpass'; f.frequency.value = 380; f.Q.value = .6; g.gain.value = 0;
-      lfo.frequency.value = .11; lg.gain.value = 140; lfo.connect(lg).connect(f.frequency); src.connect(f).connect(g).connect(master); src.start(); lfo.start();
+      lfo.frequency.value = .11; lg.gain.value = 140; lfo.connect(lg).connect(f.frequency); src.connect(f).connect(g).connect(sfxBus); src.start(); lfo.start();     // ветер и гул — через ползунок «Звуки» (2026-10-25: шли мимо ползунков)
       const o1 = ac.createOscillator(), o2 = ac.createOscillator(), lf = ac.createBiquadFilter(), dg = ac.createGain();
       o1.type = o2.type = 'triangle'; o1.frequency.value = 55; o2.frequency.value = 55.7; lf.type = 'lowpass'; lf.frequency.value = 150; dg.gain.value = 0;
-      o1.connect(lf); o2.connect(lf); lf.connect(dg).connect(master); o1.start(); o2.start();
-      amb = { wind: g, drone: dg };
-      buildAtmo();
+      o1.connect(lf); o2.connect(lf); lf.connect(dg).connect(sfxBus); o1.start(); o2.start();
+      amb = { wind: g, drone: dg, windF: f };
+      buildAtmo(); loadSamples(ac, startLoops);
     } catch (e) { ac = null; }
   }
   if (ac && ac.state !== 'running') { try { ac.resume(); } catch (e) { /* без звука */ } }
@@ -38,14 +40,18 @@ let user = { music: 1, sfx: 1 };     // 4.08: ползунки игрока «М
 export function setUserMix(music, sfx) { const k = v => Math.min(1, Math.max(0, Number(v))); user = { music: k(music ?? 1), sfx: k(sfx ?? 1) }; if (sfxBus) sfxBus.gain.value = user.sfx; if (atmo) applyMix(); }
 export const setMuted = m => { muted = !!m; if (master) master.gain.value = muted ? 0 : volume; };
 export const isMuted = () => muted;
+// тег <audio> (своя музыка, треки) — через Web Audio: громкость узлом усиления; на iPhone el.volume не действует (Safari)
+export function routeMedia(el) { if (!ac || !el || !ac.createMediaElementSource) return null; try { const g = ac.createGain(); ac.createMediaElementSource(el).connect(g).connect(master); el.volume = 1; return v => { g.gain.value = v / Math.max(.05, volume); }; } catch (e) { return null; } }     // v — громкость как у el.volume; общая громкость (master) уже в v, поэтому делим
 export function suspendAudio(on) { if (!ac) return; try { if (on) ac.suspend(); else ac.resume(); } catch (e) { /* без звука */ } }
 
 // фон по времени суток: ночью ветер сильнее; гул — только ночью и в опасном месте (шаг 8); light 0..1
-export function setAmbient(light, danger = 0, under = null) {     // under — подземный фон темы { rumble, wind } (план подземелий, 2е)
+export function setAmbient(light, danger = 0, under = null, wind = null) {     // under — подземный фон темы { rumble, wind } (план подземелий, 2е); wind — ветер мира { s, gust } (wind3d)
   if (!amb || !ac) return;
   const t = ac.currentTime, D = FX().drone, night = Math.min(1, Math.max(0, (.5 - light) / .3));
   if (under) { amb.wind.gain.setTargetAtTime(.006 + under.wind * .05, t, 1.2); amb.drone.gain.setTargetAtTime(under.rumble * (D.under ?? .05) + D.danger * danger, t, 1.2); return; }
-  amb.wind.gain.setTargetAtTime(.018 + (1 - light) * .03, t, .8);
+  const WD = FX().wind, ws = wind ? wind.s : .3, wg = wind ? wind.gust || 0 : 0;
+  amb.wind.gain.setTargetAtTime(WD ? (WD.base + WD.night * (1 - light) + WD.k * ws) * (1 + WD.gust * wg) : .018 + (1 - light) * .03, t, .8);
+  if (WD && amb.windF) amb.windF.frequency.setTargetAtTime(WD.f0 + WD.fk * ws, t, 1);
   amb.drone.gain.setTargetAtTime(D.night * night + D.danger * danger, t, .8);
 }
 
@@ -151,16 +157,38 @@ export const spatial = (at, S) => {
   if (d > S.far) return null;
   return { g: 1 / (1 + d / S.k), pan: Math.max(-S.pan, Math.min(S.pan, (dx * Math.cos(y) - dz * Math.sin(y)) / S.panW * S.pan)) };     // вправо по экрану — плюс
 };
+// запись в шину: громкость, панорама, скорость (высота), задержка
+function playBuf(buf, dest, vol, { pan = 0, rate = 1, delay = 0 } = {}) {
+  if (!ac || !buf || muted || !dest) return;
+  const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = buf; s.playbackRate.value = rate; g.gain.value = vol;
+  if (pan && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); g.connect(p).connect(dest); } else g.connect(dest);
+  s.connect(g); s.start(ac.currentTime + delay);
+}
 export function sfx(name, at = null) {
-  const d = SFX[name]; if (!d || !ac || muted) return;
+  const S = SMP(), alt = S && S.on && S.map[name] ? pickSample(S.map[name]) : null;     // запись вместо синтеза (map в config3d)
+  const d = SFX[name]; if ((!d && !alt) || !ac || muted) return;
   const X = FX(), sp = spatial(at, X.space); if (!sp) return;
-  const now = ac.currentTime; if (now - (lastT[name] || -9) < d.gap) return; lastT[name] = now;
+  const now = ac.currentTime; if (now - (lastT[name] || -9) < (d ? d.gap : .1)) return; lastT[name] = now;
+  if (alt) { playBuf(alt, sfxBus, S.vol.item * sp.g * (1 + (Math.random() * 2 - 1) * X.vary.vol), { pan: sp.pan, rate: 1 + (Math.random() * 2 - 1) * X.vary.pitch }); return; }
   const g = ac.createGain(); g.gain.value = sp.g * (1 + (Math.random() * 2 - 1) * X.vary.vol);     // разброс громкости
   if (sp.pan && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = sp.pan; g.connect(p).connect(sfxBus); } else g.connect(sfxBus);
   out = g; vp = 1 + (Math.random() * 2 - 1) * X.vary.pitch;
   try { d.f(); } finally { out = sfxBus; vp = 1; }
 }
 export const SFX_NAMES = Object.keys(SFX);
+// шаг по поверхности: grass, stone, wood, sand (soundscape3d.surfaceOf); нет записи — синтез
+export function stepSound(surface) {
+  const S = SMP(), b = S && S.on ? pickSample('step_' + surface) : null;
+  if (!b) { sfx('step'); return; }
+  if (!ac || muted) return; const now = ac.currentTime; if (now - (lastT.stepS || -9) < .1) return; lastT.stepS = now;
+  playBuf(b, sfxBus, S.vol.step * (.85 + Math.random() * .3), { rate: 1 + (Math.random() * 2 - 1) * S.stepVary });
+}
+// звук мира записью (ворона, крылья): тише вдали, панорама по экрану, как sfx с at
+export function worldSample(name, at) {
+  const S = SMP(), b = S && S.on ? pickSample(name) : null; if (!b || !ac || muted) return;
+  const sp = spatial(at, FX().space); if (!sp) return;
+  playBuf(b, sfxBus, (S.vol[name] ?? .5) * sp.g, { pan: sp.pan, rate: .94 + Math.random() * .12 });
+}
 
 
 // ---- атмосфера (D1): журчание у реки, птицы и сова, своя музыка. Слои: шина природы и шина музыки (с эхом на задержке) ----
@@ -197,13 +225,26 @@ function buildAtmo() {
   fight.connect(send);
   atmo = { fight, fightT: 0, fightBar: 0, fightSeed: 0, fightUntil: 0, nature, music, waterG, rustleG, rainG, mix: { water: 0, birds: 0, owl: 0, music: 0, combat: 0 }, piece: null, pieceT: 0, idx: 0, restUntil: 0, nextBird: 0, nextOwl: 0, nextPlip: 0, seed: 1 };
 }
+// петли природы из записей: стартуют, когда загрузились (loadSamples); громкость — в applyMix
+const LOOPS = { birds: 'loop_birds', crickets: 'loop_crickets', rain: 'loop_rain', river: 'loop_river', fire: 'loop_fire' };
+function startLoops() {
+  const S = SMP(); if (!ac || !atmo || atmo.loops || !S || !S.on) return; atmo.loops = {};
+  for (const [k, n] of Object.entries(LOOPS)) {
+    const b = sampleBuf(n); if (!b) continue;
+    const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = b; s.loop = true; s.loopStart = .03; s.loopEnd = Math.max(.1, b.duration - .03); g.gain.value = 0;     // края MP3 — мимо (тишина кодека)
+    s.connect(g).connect(atmo.nature); s.start(0, .03 + Math.random() * Math.max(0, b.duration - .1)); atmo.loops[k] = g;
+  }
+  if (A) applyMix();
+}
 function applyMix() {
-  const t = ac.currentTime, m = atmo.mix, tau = A ? A.combat.fade / 3 : .5;
+  const t = ac.currentTime, m = atmo.mix, tau = A ? A.combat.fade / 3 : .5, L = atmo.loops, S = A && A.samples;
+  if (L && S) { const lv = { birds: m.birds, crickets: m.crickets || 0, rain: m.rain || 0, river: m.under ? 0 : m.water, fire: m.fire || 0 };
+    for (const k in L) L[k].gain.setTargetAtTime((S.vol[k] || 0) * (lv[k] || 0), t, k === 'fire' || k === 'river' ? .6 : 1.2); }
   atmo.nature.gain.setTargetAtTime(vol.nature * user.sfx, t, .3);
   atmo.music.gain.setTargetAtTime(ownOn ? 0 : vol.music * user.music * (A ? A.music.vol : .07) * m.music, t, tau);
   { const FG = A && A.fight; atmo.fight.gain.setTargetAtTime(FG && FG.on && !ownOn ? vol.music * user.music * FG.vol * (m.fight > 0 ? 1 : 0) : 0, t, m.fight > 0 ? .4 : (FG ? FG.hold / 3 : 1)); }     // после боя затихает за hold с
-  atmo.waterG.gain.setTargetAtTime((A ? A.water.vol : .09) * m.water, t, .6);
-  atmo.rainG.gain.setTargetAtTime((A && A.rain ? A.rain.vol : .08) * (m.rain || 0), t, 1.2);
+  atmo.waterG.gain.setTargetAtTime((A ? A.water.vol : .09) * m.water * (L && L.river && !m.under ? 0 : 1), t, .6);     // есть запись реки — синтез наверху молчит, под землёй — капель
+  atmo.rainG.gain.setTargetAtTime((A && A.rain ? A.rain.vol : .08) * (m.rain || 0) * (L && L.rain ? 0 : 1), t, 1.2);
   atmo.rustleG.gain.setTargetAtTime((A && A.rustle ? A.rustle.vol : .06) * (m.rustle || 0), t, .4);
 }
 // mix — из mixOf (soundscape3d.js), cfg — cfg.audio
@@ -271,8 +312,15 @@ export function tickAudio() {
         while (atmo.fightT < ahead) { const B = fightBar(atmo.fightSeed, atmo.fightBar++, m.fight, !!m.boss, FG); for (const n of B.notes) { const t = atmo.fightT + n.t; if (t >= now && FPART[n.part](n, t)) stats.fightNotes = (stats.fightNotes || 0) + 1; } atmo.fightT += B.dur; }
       } else atmo.fightT = 0;
     } }
-  // птицы днём, сова ночью
-  if (m.birds > .05 && now >= atmo.nextBird) {
+  // записи: гром в сильный дождь (первый — не сразу), молот у кузницы днём
+  { const S = A.samples;
+    if (S && S.on && atmo.loops) {
+      if ((m.rain || 0) > S.thunder.rain && now >= (atmo.nextThunder || 0)) { if (atmo.nextThunder) playBuf(sampleBuf('thunder'), atmo.nature, S.vol.thunder * m.rain, { pan: rnd() * 1.2 - .6 }); atmo.nextThunder = now + S.thunder.gap[0] + rnd() * (S.thunder.gap[1] - S.thunder.gap[0]); }
+      else if ((m.rain || 0) <= S.thunder.rain) atmo.nextThunder = 0;
+      if ((m.smith || 0) > .03 && now >= (atmo.nextAnvil || 0)) { playBuf(sampleBuf('anvil'), atmo.nature, S.vol.anvil * m.smith, { rate: .95 + rnd() * .1 }); atmo.nextAnvil = now + S.anvilGap[0] + rnd() * (S.anvilGap[1] - S.anvilGap[0]); }
+    } }
+  // птицы днём, сова ночью (есть запись птиц — синтез птиц молчит)
+  if (m.birds > .05 && now >= atmo.nextBird && !(atmo.loops && atmo.loops.birds)) {
     const s = birdSong(rnd), t0 = now + .1 + rnd() * .5, v = A.birds.vol * m.birds * (.4 + .6 * rnd());
     for (const q of s.syl) voice(atmo.nature, { t: t0 + q.t, d: q.d, f0: q.f0, f1: q.f1, type: 'sine', v: v * q.v, att: .008, rel: .03, low: true });
     stats.birds++; atmo.nextBird = now + (A.birds.gap[0] + rnd() * (A.birds.gap[1] - A.birds.gap[0])) / Math.max(.3, m.birds);
@@ -286,7 +334,7 @@ export function tickAudio() {
     stats.frogs = (stats.frogs || 0) + 1; atmo.nextFrog = now + A.birds.frogGap[0] + rnd() * (A.birds.frogGap[1] - A.birds.frogGap[0]);
   }
   // бульки у воды: короткий свист вверх (пузырёк)
-  if (m.water > .05) {
+  if (m.water > .05 && !(atmo.loops && atmo.loops.river && !m.under)) {     // бульки: под землёй — капель темы; наверху с записью реки — нет
     if (atmo.nextPlip < now) atmo.nextPlip = now;
     while (atmo.nextPlip < ahead) {
       const f = 500 + rnd() * 900;
@@ -296,3 +344,4 @@ export function tickAudio() {
   }
 }
 export const __ctx = () => ac;     // для тестов (рендер без колонок)
+export const __master = () => master;     // для тестов: слушать общий выход (test/browser-volume.mjs)

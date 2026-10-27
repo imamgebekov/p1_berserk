@@ -1399,9 +1399,16 @@ const BASE = {
     combat: { hear: .7, sight: .73, fire: .6, storm: 1.5 } },
   // звук: громкость всего, музыки и природы; атмосфера (D1) — журчание у реки, птицы и сова, своя музыка «лесная сказка»
   audio: {
-    // треки оркестра (2026-10-21, авторы — 3d/ART-CREDITS.md): vol — доля громкости музыки; duck — в бою; fade — сек плавности;
-    // first — сек до первого спокойного трека; gap — сек между их началами [от, до]; chance — доля пауз с треком; intro — при начале; boss — на босса
-    tracks: { on: false, vol: .75, duck: .45, fade: 2.5, first: 45, gap: [70, 160], chance: .6, intro: 'intro', boss: 'boss_sunrise', roam: ['roam_peractorum', 'roam_piano', 'roam_solitudine', 'roam_article169'] },     // 2026-10-24 (просьба владельца): встроенная музыка выключена — оркестр, синтез и боевая; играет только своя (настройки → «Своя музыка»)
+    // треки оркестра (2026-10-21, авторы — 3d/ART-CREDITS.md); музыка по местам (2026-10-27, вариант А владельца): places — треки места
+    // (camp — лагеря и сёла, wild — дикие земли, dungeon — подземелья; boss — на босса по кругу); vol — доля громкости музыки; duck — в бою;
+    // night — ночью; fade — сек плавности; first — сек до первого трека; gap — тишина после трека [от, до], с (и после смены места; босс — сразу)
+    tracks: { on: true, vol: .75, duck: .45, night: .75, fade: 2.5, first: 20, gap: [270, 330], intro: 'intro', boss: 'boss_sunrise',     // 2026-10-27 (просьба владельца): музыка не всё время — около 5 мин тишины между треками
+      places: { camp: ['roam_piano', 'sunset_plains', 'deja_vus', 'end_of_all_things', 'she_moved_mountains'],
+        wild: ['roam_peractorum', 'roam_solitudine', 'another_august', 'sunset_plains', 'sirens_in_darkness', 'cathedral_forest', 'forest_ambience', 'ephemera', 'distant_sun', 'end_of_all_things', 'she_moved_mountains'],
+        dungeon: ['roam_article169', 'staldorn_suite', 'sirens_in_darkness', 'cathedral_forest', 'distant_sun'] },
+      biomes: { forest: ['forest_ambience', 'cathedral_forest', 'sunset_plains', 'another_august'], swamp: ['sirens_in_darkness', 'roam_solitudine', 'distant_sun'],     // дикие земли по биомам (2026-10-27, просьба владельца); у ядра мира без биома — places.wild
+        mountains: ['she_moved_mountains', 'roam_peractorum', 'end_of_all_things'], waste: ['distant_sun', 'sirens_in_darkness', 'roam_solitudine'], coast: ['ephemera', 'another_august', 'sunset_plains'] },
+      roam: ['roam_peractorum', 'roam_piano', 'roam_solitudine', 'roam_article169', 'sunset_plains', 'another_august', 'deja_vus'] },     // 2026-10-27: + Sunset Plains, Another August, Déjà Vus, Staldorn Suite (выбор владельца); средневековые RandomMind сняты — владельцу не подошли     // music и fight (синтез) выключены с 5.04: без наложения
     ownMusic: .55,     // громкость своей музыки игрока (custom3d.js), 0–1; в бою — меньше вдвое
     volume: .7, musicVol: .55, natureVol: .8, voices: 24, look: 1.2,          // предел одновременных голосов; ноты ставятся вперёд на look с
     water: { near: 2, far: 25, vol: .09, plips: 6 },                     // полная громкость у берега, тишина дальше far м; бульков в секунду
@@ -1413,8 +1420,15 @@ const BASE = {
     // компрессор не взят: в Chromium он вдвое глушил и тихие звуки и добавлял 6 мс задержки. Тон начинается с нуля за att с, срез высоких
     // min(lpMax, частота × lpK); каждый звук — высота ±pitch и громкость ±vol; звук мира тише с расстоянием 1/(1 + d/k), дальше far м
     // не слышен, панорама по экрану ±pan (полная на panW м); гул ночью night, в опасном месте danger × опасность
+    // записи (2026-10-25, 3d/sfx, CC0 — 3d/ART-CREDITS.md): петли природы, гром, кузнец, шаги, вороны, вещи; пока не загрузились — синтез.
+    // vol — громкость слоя; fire/smith — слышно ближе near м полностью, дальше far — тишина; гром — при дожде сильнее rain, пауза gap с;
+    // map — какой синтез-звук заменить записью (имя файла без _N — случайный из вариантов)
+    samples: { on: true, vol: { birds: .5, crickets: .4, rain: .55, river: .5, fire: .55, thunder: .8, anvil: .5, step: .3, crow: .45, wings: .35, item: .55 },
+      fire: { near: 2.5, far: 16 }, smith: { near: 4, far: 28, light: .45 }, thunder: { rain: .75, gap: [25, 70] }, anvilGap: [2.5, 6], stepVary: .07,
+      map: { ash: 'coins', pickup: 'cloth', open: 'creak', unlock: 'latch', tome: 'book_flip', craft: 'anvil', upgrade: 'anvil', bagOpen: 'belt', bookOpen: 'book_open', bookClose: 'book_close' } },
     fx: { limit: .6, att: .006, lpMax: 3500, lpK: 4,
-      vary: { pitch: .05, vol: .15 }, space: { k: 8, far: 36, pan: .7, panW: 15 }, drone: { night: .02, danger: .012 } }
+      vary: { pitch: .05, vol: .15 }, space: { k: 8, far: 36, pan: .7, panW: 15 }, drone: { night: .02, danger: .012 },
+      wind: { base: .012, night: .02, k: .06, f0: 320, fk: 650, gust: .5 } }     // шум ветра по силе ветра мира (wind3d): громкость base + night ночью + k × сила, полоса f0 + fk × сила, порыв — × (1 + gust)
   },
   difficulty: {
     default: 'berserk',
