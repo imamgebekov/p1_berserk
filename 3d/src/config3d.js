@@ -1558,7 +1558,7 @@ const BASE = {
     },
     // outerK (C3b) заменён уровнем места: config3d.js → level.core/edge/grow (этап 0)
     depthHp: 1.6,          // враги вдали от костра крепче: здоровье × (1 + depthHp × глубина), глубина 0 у костра, 1 у границы
-    depthDmg: 1.0,         // и бьют сильнее: урон × (1 + depthDmg × глубина)
+    depthDmg: 1.1,         // и бьют сильнее: урон × (1 + depthDmg × глубина)
     dangerHp: .35,        // опасная зона: здоровье × (1 + dangerHp × уровень опасности)
     dangerDmg: .25,       // урон ×(1 + dangerDmg × уровень)
     dangerCount: 1.2,     // в опасной зоне держим на (уровень × dangerCount) врагов больше
