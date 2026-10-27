@@ -918,3 +918,34 @@ html:not([data-desk]) #panel .vols label{grid-template-columns:70px 1fr 44px;gap
 html:not([data-desk]) #panel #difTabs .tab{flex:1 1 40%}
 [data-desk] #panel #leftyBtn,[data-desk] #panel #uiTabs,[data-desk] #panel #vibBtn{display:none}
 html:not([data-desk]) #panel .mhero{flex-wrap:wrap}html:not([data-desk]) #panel .mhero .mpill{flex:1 1 100%}
+/* ===== журнал по макету А (2026-10-27): разделы слева столбцом (на телефоне — строкой «пилюль»), строки — карточки, материалы — «пилюли» ===== */
+#journal .pbox{display:flex;flex-direction:column;gap:10px;overflow:hidden}
+#journal .bhead h2{flex:none}#journal .msub{flex:1;min-width:0;font-size:14px;color:#a89c88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+[data-desk] #journal .pbox{width:min(1100px,var(--pbw,1100px));max-width:min(1100px,var(--pbw,1100px));height:min(660px,var(--pbh,84vh));max-height:var(--pbh,84%);display:grid;grid-template-columns:200px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);column-gap:16px;row-gap:10px}
+[data-desk] #journal .bhead{grid-column:1/-1}
+[data-desk] #journalTabs{grid-column:1;grid-row:2;flex-direction:column;flex-wrap:nowrap;overflow-y:auto;gap:4px;margin:0;align-self:start}
+[data-desk] #journalList{grid-column:2;grid-row:2;min-height:0}
+#journalTabs .tab{flex:none;min-height:44px;padding:0 14px;border-radius:10px!important;border:1px solid transparent!important;background:transparent!important;box-shadow:none!important;color:#cfc2aa!important;font-family:var(--sans);font-size:15px;font-weight:600;text-align:left;text-shadow:none}
+#journalTabs .tab:hover{background:rgba(255,220,170,.05)!important}
+#journalTabs .tab.on{background:#2a1d13!important;border-color:#d9b27a!important;color:#f0d3a0!important}
+html:not([data-desk]) #journalTabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -4px;padding:0 4px 2px}
+html:not([data-desk]) #journalTabs .tab{border-radius:22px!important;border-color:#5a4230!important;background:#241a13!important;color:#e8dcc6!important;font-weight:700}
+html:not([data-desk]) #journalTabs .tab.on{background:#d9b27a!important;border-color:#d9b27a!important;color:#1a120c!important}
+#journalList{gap:6px;padding-right:2px}
+#journal .jrow{padding:10px 14px;border-radius:10px;background:#18110c!important;border:1px solid #3a2b1f!important;box-shadow:none!important}
+#journal .jrow.ready{border-color:#6aa860!important}
+#journal .jrow.dim{opacity:.55}
+#journal .jrow b{font-family:var(--serif);font-weight:500;font-size:18px;letter-spacing:.01em}
+#journal .jrow .sub{color:#a89c88;opacity:1;font-size:14px;margin-top:4px}
+#journal .jrow .g{color:#8fd07a}#journal .jrow .z{color:#e0907a}#journal .jrow .k{color:#ffd27a}
+#journal .mats{gap:6px;margin-top:8px;align-items:center}
+#journal .mats .mat,#journal .sub .mat{min-height:44px;min-width:44px;padding:0 14px;border-radius:22px;border:1px solid currentColor;background:transparent;font-size:14px;font-weight:600}
+#journal .mats .mat.have{color:#8fd07a}#journal .mats .mat.lack{color:#e0907a}
+#journal .mats > span{font-family:var(--serif);font-size:15px}#journal .mats > span.have{color:#ffd27a}#journal .mats > span.lack{color:#e0907a}
+#journalList > .tabs .tab{border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;box-shadow:none!important;color:#e8dcc6!important;font-weight:700;text-shadow:none}
+#journalList > .tabs .tab.on{background:#d9b27a!important;border-color:#d9b27a!important;color:#1a120c!important}
+#journal .jtabs .tab{min-height:44px;padding:0 16px;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;box-shadow:none!important;color:#e8dcc6!important;font-weight:700;text-shadow:none}
+#journal .jtabs .tab.on{background:#d9b27a!important;border-color:#d9b27a!important;color:#1a120c!important}
+#journal .craftb,#journal .rewl button{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid #d9b27a;background:#3a2a1a;color:#f0d3a0;font-weight:700}
+#journal .craftb:disabled,#journal .rewl button:disabled{border-color:#4a3626;background:transparent;color:#8a7e6c;filter:none;opacity:1}
+html:not([data-desk]) #journal .msub{display:none}

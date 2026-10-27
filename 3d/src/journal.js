@@ -170,7 +170,7 @@ export function createJournal(doc, W, cfg, { onOpen, onClose, onCraft } = {}) {
   function render() {
     const lock = !unlocks(W).journal; if (lock && LOCKED.includes(tab)) tab = 'recipes';
     for (const b of tabsEl.children) { b.classList.toggle('on', b.dataset.tab === tab); b.hidden = lock && LOCKED.includes(b.dataset.tab); }
-    listEl.textContent = '';
+    listEl.textContent = ''; const sub = doc.getElementById('journalSub'); if (sub) sub.textContent = `Рецептов известно ${RECIPES.filter(r => recipeKnown(K(), r)).length} из ${RECIPES.length}`;     // подзаголовок шапки (макет А, 2026-10-27)
     ({ bestiary, atlas, recipes, mixes, stones, combos, sources, trades, rep, ach })[tab]();
   }
   // open(вкладка, вещь): книга на нужной вкладке; вещь — сразу карточка «где взять»
