@@ -982,3 +982,43 @@ html:not([data-desk]) #skills .pbox{position:relative}
 html:not([data-desk]) #skills .tcard.tsheet{position:absolute;left:8px;right:8px;bottom:8px;max-height:62%;overflow-y:auto;z-index:3;box-shadow:0 -10px 30px rgba(0,0,0,.6)!important}
 .tcx{position:absolute;right:8px;top:8px;width:44px;height:44px;border-radius:8px;border:1px solid #4a3626;background:transparent;color:#b8ad9a;font-size:22px;line-height:1}
 html:not([data-desk]) #skills .tcard:not(.tsheet){display:none}
+/* ===== застава по макету А (2026-10-27): шапка «Застава · отряд · пепел», бойцы — карточки сеткой (на телефоне столбцом), плашки здоровья и урона ===== */
+#captain .bhead h2{flex:none}#captain .msub{flex:1;min-width:0;font-size:14px;color:#a89c88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#captain .tash{display:flex;align-items:center;height:36px;padding:0 14px;border-radius:18px;background:#241a13;border:1px solid #5a4230;font-family:var(--serif);font-size:16px;font-weight:700;color:#ffd27a;white-space:nowrap}
+[data-desk] #captain .pbox{width:min(1160px,var(--pbw,1160px));max-width:min(1160px,var(--pbw,1160px))}
+#captainList{gap:10px}
+[data-desk] #captainList{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-content:start}
+#captainList .ssec,#captainList .cnote,#captainList .emptyl{grid-column:1/-1}
+#captainList .ssec{margin:4px 0 -2px;font-size:12px;letter-spacing:.12em;color:#a89c88;opacity:1}
+#captainList .cnote{font-size:14px;color:#a89c88}
+#captain .srow{flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px;border-radius:12px;background:#18110c!important;border:1px solid #3a2b1f!important;box-shadow:none!important;min-height:0}
+#captain .srow .nm{font-family:var(--serif);font-size:19px!important;font-weight:500}
+#captain .srow .sub{font-size:14px!important;color:#cfc2aa;opacity:1!important}
+#captain .cstats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px}
+#captain .cst{display:flex;justify-content:space-between;align-items:baseline;padding:4px 10px;border-radius:8px;background:#120c09;border:1px solid #2a1f17;font-size:13px;color:#a89c88}#captain .cst b{font-size:16px;color:#e8dcc6}
+#captain .cact{display:flex;align-items:center;gap:10px;flex-direction:row-reverse;justify-content:flex-start}
+#captain .cneed{flex:1;font-size:13px;color:#e0705a}
+#captain .srow .buy{min-height:44px!important;min-width:132px!important;padding:0 16px;border-radius:22px!important;border:1px solid #8ac070!important;background:linear-gradient(180deg,#5a9a48,#2f6a24)!important;color:#f4ffe8!important;font-size:15px!important;font-weight:700;box-shadow:none!important;opacity:1}
+#captain .srow .buy.no{border-color:#4a3626!important;background:transparent!important;color:#8a7e6c!important}
+html:not([data-desk]) #captain .msub{display:none}
+#captain .srow .buy.out{border-color:#a03a2c!important;background:#2a1210!important;color:#ffcfc4!important}
+/* ===== кузнец по макету А (2026-10-27): шапка «Кузнец · место · пепел · журнал», вкладки-«пилюли», строки-карточки, главная кнопка с золотым кантом ===== */
+#smith .bhead h2{flex:none}#smith .msub{flex:1;min-width:0;font-size:14px;color:#a89c88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#smith .tash{display:flex;align-items:center;height:36px;padding:0 14px;border-radius:18px;background:#241a13;border:1px solid #5a4230;font-family:var(--serif);font-size:16px;font-weight:700;color:#ffd27a;white-space:nowrap}
+#smith .bhead .jbtn{flex:none;margin:0;width:44px;padding:0;border-radius:10px;border:1px solid #5a4230!important;background:#241a13!important;color:#d9b27a!important;box-shadow:none!important}
+#smithTabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 4px}
+#smithTabs .tab{flex:none;min-height:44px;padding:0 20px;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;box-shadow:none!important;color:#e8dcc6!important;font-weight:700;text-shadow:none}
+#smithTabs .tab.on{background:#d9b27a!important;border-color:#d9b27a!important;color:#1a120c!important}
+#smith .note{color:#a89c88;opacity:1;font-size:14px!important}
+#smithList{gap:8px}
+#smith .srow{padding:10px 14px!important;border-radius:12px;background:#18110c!important;border:1px solid #3a2b1f!important;box-shadow:none!important}
+#smith .srow .nm{font-family:var(--serif);font-size:18px!important;font-weight:500}
+#smith .srow .up{color:#a89c88!important;font-size:13px;margin-left:8px}
+#smith .srow .sub{color:#cfc2aa;opacity:1!important}
+#smith .srow .buy{min-height:44px!important;min-width:132px;padding:0 18px;border-radius:22px!important;border:1px solid #d9b27a!important;background:#3a2a1a!important;color:#f0d3a0!important;font-family:var(--serif);font-size:16px!important;font-weight:500;box-shadow:none!important;opacity:1}
+#smith .srow .buy.no{border-color:#4a3626!important;background:transparent!important;color:#8a7e6c!important;font-family:var(--sans);font-size:14px!important}
+#smith .junk{min-height:44px!important;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;box-shadow:none!important;color:#e8dcc6!important;font-weight:600}
+#smith .junk.no{color:#8a7e6c!important}
+#smith .sock{min-height:44px;border-radius:22px}
+#smith .emptyl{color:#a89c88;font-size:14px;padding:8px 2px 0}
+html:not([data-desk]) #smith .msub{display:none}

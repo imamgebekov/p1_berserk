@@ -234,7 +234,8 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
   function render() {
     refreshGear(W);
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
-    headEl.textContent = `Кузнец · пепел ${W.inv.ash}`; listEl.textContent = '';
+    headEl.textContent = 'Кузнец'; listEl.textContent = '';     // макет А (2026-10-27): название, место, пепел — отдельно
+    { const sub = $('smithSub'), ash = $('smithAsh'), sh = smithShop(W); if (sub) sub.textContent = sh && sh.name ? sh.name : 'улучшение до +' + cfg.smith.max + ', ковка, камни'; if (ash) ash.textContent = `${W.inv.ash} пепла`; }
     if (tab === 'gems') { gemsTab(); return; }
     if (tab === 'trade') { tradeTab(); return; }
     if (tab === 'craft') {
@@ -270,17 +271,21 @@ export function createCaptain(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2400); };
   function render() {
     const live = liveAllies(W), max = squadMax(W);     // герои сюжета и подопечные — не отряд
-    const nx = nextSlotLv(W); headEl.textContent = `Застава · отряд ${live.length}/${max}${nx ? ` · новое место с ${nx} ур.` : ''} · пепел ${W.inv.ash}`;     // 4.18д
+    const nx = nextSlotLv(W); headEl.textContent = 'Застава';     // макет А (2026-10-27): название, подпись с отрядом, пепел — отдельно
+    { const sub = $('captainSub'), ash = $('captainAsh'); if (sub) sub.textContent = `Отряд ${live.length} из ${max}${nx ? ` · новое место с ${nx} ур.` : ''}`; if (ash) ash.textContent = `${W.inv.ash} пепла`; }
     listEl.textContent = '';
     const ROLE = { tank: 'защитник', heal: 'лекарь', ranged: 'стрелок', melee: 'боец' };
     const row = (id, T) => {
       const r = el('div', 'srow'), info = el('div', 'sinfo'), mate = !!T.hero, own = mate && !hireable(W, id) && T.hero !== W.hero;
       const nm = el('span', 'nm', T.name + (mate ? ' · ' + ROLE[T.role] : '')); nm.style.color = T.tint === '#2e2e34' ? '#c8c8d8' : T.tint;
-      info.append(nm, el('div', 'sub', `${T.text} Без снаряжения: здоровье ${Math.round(allyHp(W, T) * (W.cfg.squad.gear && W.cfg.squad.gear.on ? W.cfg.squad.gear.naked.hp : 1))}, урон ${Math.round(allyDmg(W, T) * (W.cfg.squad.gear && W.cfg.squad.gear.on ? W.cfg.squad.gear.naked.dmg : 1))}. Одевайте в сумке.`));
+      const G = W.cfg.squad.gear && W.cfg.squad.gear.on ? W.cfg.squad.gear.naked : { hp: 1, dmg: 1 }, st = el('div', 'cstats');     // макет А: характеристики плашками
+      for (const [k, v] of [['Здоровье', Math.round(allyHp(W, T) * G.hp)], ['Урон', Math.round(allyDmg(W, T) * G.dmg)]]) { const c = el('span', 'cst'); c.append(el('span', '', k), el('b', '', String(v))); st.append(c); }
+      info.append(nm, el('div', 'sub', T.text), st);
       const full = live.length >= max, b = el('button', 'buy' + (own || full || W.inv.ash < T.cost ? ' no' : ''), own ? 'В отряде' : `Нанять · ${T.cost}`); b.type = 'button';
       b.addEventListener('click', () => { const res = hireAlly(W, id); flash(res === 'ok' ? `${T.name} в отряде` : res === 'ash' ? 'Не хватает пепла' : res === 'full' ? (max ? `Отряд полон (мест: ${max}).` : 'Пока мест нет.') + (nextSlotLv(W) ? ` Новое место — с ${nextSlotLv(W)} уровня` : '') : res === 'taken' ? `${T.name} уже в отряде` : 'Подойдите к капитану'); render(); onChange && onChange(); });
-      r.append(info, b); listEl.appendChild(r);
+      const act = el('div', 'cact'); act.append(b); if (!own && !full && W.inv.ash < T.cost) act.append(el('span', 'cneed', `не хватает ${T.cost - W.inv.ash}`)); r.append(info, act); listEl.appendChild(r);
     };
+    listEl.appendChild(el('div', 'cnote', 'Бойцы приходят без снаряжения — оденьте их в сумке.'));
     listEl.appendChild(el('div', 'ssec', 'Спутники'));     // этап 4: герои, которыми вы не играете; растут с вашим уровнем
     for (const [id, T] of Object.entries(cfg.squad.types)) if (T.hero && T.hero !== W.hero && !T.story) row(id, T);
     listEl.appendChild(el('div', 'ssec', 'Наёмники'));
@@ -290,7 +295,7 @@ export function createCaptain(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     for (const a of live) {
       const T = cfg.squad.types[a.type], r = el('div', 'srow'), info = el('div', 'sinfo');
       info.append(el('span', 'nm', T.name), el('div', 'sub', `Здоровье ${Math.ceil(a.hp)}/${a.maxhp}`));
-      const b = el('button', 'buy', armed === a.id ? 'Точно?' : 'Уволить'); b.type = 'button';
+      const b = el('button', 'buy out', armed === a.id ? 'Точно?' : 'Уволить'); b.type = 'button';
       b.addEventListener('click', () => { if (armed !== a.id) { armed = a.id; setTimeout(() => { armed = 0; render(); }, 2500); render(); return; } armed = 0; dismissAlly(W, a.id); render(); onChange && onChange(); });
       r.append(info, b); listEl.appendChild(r);
     }
