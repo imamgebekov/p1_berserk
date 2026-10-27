@@ -1,5 +1,5 @@
 // Громкость (2026-10-25): ветер и ночной гул слушаются ползунка «Звуки» (раньше шли мимо ползунков);
-// тег <audio> через routeMedia управляется громкостью (на iPhone el.volume не действует); записи 3d/sfx грузятся, петля птиц и шаг звучат.
+// тег <audio> через routeMedia управляется громкостью (на iPhone el.volume не действует); записи 3d/sfx грузятся, петля птиц и шаг звучат; музыка по местам меняет трек.
 // Слушаем общий выход анализатором.
 import { createServer } from 'vite';
 import { fileURLToPath } from 'node:url';
@@ -37,7 +37,15 @@ try {
     A.setUserMix(0, 1); A.setAmbient(1, 0, null, { s: 0, gust: 0 }); A.setScene(zero, CFG3.audio); const base = await rms();
     A.setScene({ ...zero, birds: 1 }, CFG3.audio); const birds = await rms(); A.setScene(zero, CFG3.audio); await rms();
     A.stepSound('grass'); await wait(60); an.getFloatTimeDomainData(buf); let st = 0; for (const v of buf) st = Math.max(st, Math.abs(v));
-    return { loud, quiet, sfx0, routed: !!set, vol1: el.volume, med0, medOn, loaded: Smp.loadedCount(), files: Smp.sampleNames().length, base, birds, step: st };
+    // музыка по местам: дикие земли → трек диких земель; спуск под землю → затихание и трек подземелья; своя музыка → тишина
+    const Mu = await import('/3d/src/music3d.js'), cfg = JSON.parse(JSON.stringify(CFG3)), Tc = cfg.audio.tracks;
+    const tr = Mu.createTracks(cfg, () => {}); let now = 100;
+    const step = async (mix, n, off = false) => { for (let i = 0; i < n; i++) { tr.tick(mix, off, now, 1); now += .2; } await wait(50); };
+    await step({ zone: 'wild' }, 150); const wildT = tr.playing();
+    await step({ zone: 'dungeon' }, 400); const dunT = tr.playing();
+    await step({ zone: 'dungeon' }, 5, true); const offT = tr.playing();
+    return { loud, quiet, sfx0, routed: !!set, vol1: el.volume, med0, medOn, loaded: Smp.loadedCount(), files: Smp.sampleNames().length, base, birds, step: st,
+      wildT, dunT, offT, wildOk: Tc.places.wild.includes(wildT), dunOk: Tc.places.dungeon.includes(dunT) };
   });
   console.log('  ' + JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'number' ? +v.toFixed(5) : v]))));
   ok(r.loud > .002, 'ночью ветер и гул не слышны вовсе — проверка не работает');
@@ -48,6 +56,9 @@ try {
   ok(r.files >= 40 && r.loaded === r.files, `записи загрузились не все: ${r.loaded} из ${r.files}`);
   ok(r.birds > r.base * 3 && r.birds > .002, 'петля птиц не слышна');
   ok(r.step > .005, 'шаг по траве не звучит');
+  ok(r.wildOk, 'в диких землях не трек диких земель: ' + r.wildT);
+  ok(r.dunOk, 'под землёй не сменился на трек подземелья: ' + r.dunT);
+  ok(!r.offT, 'при своей музыке трек игры не замолчал');
 } finally { await browser.close(); await dev.close(); }
 if (bad.length) { console.error('Громкость в браузере: ПРОВАЛ\n- ' + bad.join('\n- ')); process.exit(1); }
 console.log('Громкость в браузере: OK');

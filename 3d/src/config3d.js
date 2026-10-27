@@ -1380,9 +1380,11 @@ const BASE = {
     combat: { hear: .7, sight: .73, fire: .6, storm: 1.5 } },
   // звук: громкость всего, музыки и природы; атмосфера (D1) — журчание у реки, птицы и сова, своя музыка «лесная сказка»
   audio: {
-    // треки оркестра (2026-10-21, авторы — 3d/ART-CREDITS.md): vol — доля громкости музыки; duck — в бою; fade — сек плавности;
-    // first — сек до первого спокойного трека; gap — сек между их началами [от, до]; chance — доля пауз с треком; intro — при начале; boss — на босса
-    tracks: { on: false, vol: .75, duck: .45, fade: 2.5, first: 45, gap: [70, 160], chance: .6, intro: 'intro', boss: 'boss_sunrise', roam: ['roam_peractorum', 'roam_piano', 'roam_solitudine', 'roam_article169'] },     // 2026-10-24 (просьба владельца): встроенная музыка выключена — оркестр, синтез и боевая; играет только своя (настройки → «Своя музыка»)
+    // треки оркестра (2026-10-21, авторы — 3d/ART-CREDITS.md); музыка по местам (2026-10-27, вариант А владельца): places — треки места
+    // (camp — лагеря и сёла, wild — дикие земли, dungeon — подземелья; boss — на босса по кругу); vol — доля громкости музыки; duck — в бою;
+    // night — ночью; fade — сек плавности; first — сек до первого трека; gap — пауза между проигрываниями [от, до], с; switch — пауза при смене места, с
+    tracks: { on: true, vol: .75, duck: .45, night: .75, fade: 2.5, first: 20, switch: 3, gap: [25, 70], intro: 'intro', boss: 'boss_sunrise',
+      places: { camp: ['roam_piano'], wild: ['roam_peractorum', 'roam_solitudine'], dungeon: ['roam_article169'] }, roam: ['roam_peractorum', 'roam_piano', 'roam_solitudine', 'roam_article169'] },     // music и fight (синтез) выключены с 5.04: без наложения
     ownMusic: .55,     // громкость своей музыки игрока (custom3d.js), 0–1; в бою — меньше вдвое
     volume: .7, musicVol: .55, natureVol: .8, voices: 24, look: 1.2,          // предел одновременных голосов; ноты ставятся вперёд на look с
     water: { near: 2, far: 25, vol: .09, plips: 6 },                     // полная громкость у берега, тишина дальше far м; бульков в секунду
