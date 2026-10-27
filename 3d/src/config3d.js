@@ -1382,8 +1382,8 @@ const BASE = {
   audio: {
     // треки оркестра (2026-10-21, авторы — 3d/ART-CREDITS.md); музыка по местам (2026-10-27, вариант А владельца): places — треки места
     // (camp — лагеря и сёла, wild — дикие земли, dungeon — подземелья; boss — на босса по кругу); vol — доля громкости музыки; duck — в бою;
-    // night — ночью; fade — сек плавности; first — сек до первого трека; gap — пауза между проигрываниями [от, до], с; switch — пауза при смене места, с
-    tracks: { on: true, vol: .75, duck: .45, night: .75, fade: 2.5, first: 20, switch: 3, gap: [25, 70], intro: 'intro', boss: 'boss_sunrise',
+    // night — ночью; fade — сек плавности; first — сек до первого трека; gap — тишина после трека [от, до], с (и после смены места; босс — сразу)
+    tracks: { on: true, vol: .75, duck: .45, night: .75, fade: 2.5, first: 20, gap: [270, 330], intro: 'intro', boss: 'boss_sunrise',     // 2026-10-27 (просьба владельца): музыка не всё время — около 5 мин тишины между треками
       places: { camp: ['roam_piano', 'sunset_plains', 'deja_vus', 'end_of_all_things', 'she_moved_mountains'],
         wild: ['roam_peractorum', 'roam_solitudine', 'another_august', 'sunset_plains', 'sirens_in_darkness', 'cathedral_forest', 'forest_ambience', 'ephemera', 'distant_sun', 'end_of_all_things', 'she_moved_mountains'],
         dungeon: ['roam_article169', 'staldorn_suite', 'sirens_in_darkness', 'cathedral_forest', 'distant_sun'] },

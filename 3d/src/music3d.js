@@ -1,6 +1,6 @@
 // Треки оркестра (2026-10-21, выбор владельца; авторы — в 3d/ART-CREDITS.md и в меню): вступление — один раз при начале игры.
 // Музыка по местам (2026-10-27, вариант А владельца): у места свой трек — лагерь и сёла, дикие земли, подземелье, босс (по кругу);
-// один трек за раз, без наложения; между проигрываниями пауза; смена места — затихание и новый трек; в бою и ночью тише.
+// один трек за раз, без наложения; после трека — тишина около 5 мин (gap); смена места — затихание и та же тишина; босс — сразу; в бою и ночью тише.
 // Своя музыка игрока или выключенный звук — треки молчат. Громкость плавно идёт к цели. Только браузер (выбор места — и в Node).
 import { routeMedia } from './audio3d.js';
 let URLS = {}; try { URLS = import.meta.glob('../music/*.mp3', { query: '?url', import: 'default', eager: true }); } catch (e) { /* Node-тесты: без музыки */ }
@@ -30,7 +30,7 @@ export function createTracks(cfg, setQuiet) {
     if (nextAt < 0) nextAt = now + T.first;     // первый трек места — не сразу после входа
     if (ended) { ended = false; nextAt = now + pause(); }     // трек доиграл — пауза
     const want = trackPlace(mix, T), away = cur && cur.kind !== 'intro' && cur.place !== want;     // вступление доигрывает до конца
-    if (away) { target = 0; if (vol < .02) { stop(); nextAt = now + (want === 'boss' ? 0 : T.switch); } }
+    if (away) { target = 0; if (vol < .02) { stop(); nextAt = now + (want === 'boss' ? 0 : pause()); } }     // смена места: затихание, потом обычная пауза (2026-10-27)
     else if (!cur && (now >= nextAt || want === 'boss')) { const n = nextTrack(want, T, last); if (n) play(n, want === 'boss' ? 'boss' : 'place', want); }
     if (cur && !away) target = musicVol * T.vol * (cur.kind === 'boss' || cur.kind === 'intro' ? 1 : (mix.fight ? T.duck : 1) * (mix.night ? T.night : 1)) * (mix.dead ? .3 : 1);
     vol += (target - vol) * (T.fade > 0 ? Math.min(1, .2 / T.fade) : 1); level(Math.max(0, Math.min(1, vol)));
