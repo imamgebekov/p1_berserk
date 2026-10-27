@@ -1044,3 +1044,30 @@ html:not([data-desk]) #mapLegend{grid-row:3;align-self:auto;max-width:none;margi
 #firesList button small{color:#a89c88!important}
 #firesList button:disabled{opacity:.55}
 #firesList button .ic{color:#f0a050}
+/* ===== диалог А (2026-10-27, выбор владельца): тёмная плашка как у добычи вместо пергамента; портрет в золотом кольце, имя золотом, ответы — «пилюли» ===== */
+#dialog{background:rgba(23,16,11,.96)!important;color:#e8dcc6!important;border:1px solid #5a4230!important;border-radius:14px!important;box-shadow:0 14px 40px rgba(0,0,0,.6)!important;padding:16px 18px!important;gap:16px!important}
+#dialog::before{display:none}
+#dlgFace{width:76px!important;height:76px!important;border-radius:50%!important;background:#2a1e16!important;box-shadow:0 0 0 2px #d9b27a,0 0 0 5px #120c09,0 0 0 6px #6b4a2a!important}
+#dlgScene{font-family:var(--sans)!important;font-size:12px!important;letter-spacing:.14em!important;text-transform:uppercase;color:#a89c88!important}
+#dlgWho{font-family:var(--serif)!important;font-size:20px!important;color:#f0d3a0!important;filter:none!important;text-shadow:none!important}
+#dlgLine{font-size:17px!important;line-height:1.45;color:#f0e6d4!important}
+#dlgOpts{gap:8px!important;margin-top:6px}
+#dlgOpts button{min-height:44px!important;padding:0 18px!important;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;color:#e8dcc6!important;box-shadow:none!important;font-weight:600;text-shadow:none!important}
+#dlgOpts button.main{border-color:#d9b27a!important;background:#3a2a1a!important;color:#f0d3a0!important;font-family:var(--serif);font-size:17px;font-weight:500}
+#dlgOpts button:hover{filter:brightness(1.15)}
+/* ===== HUD по макету А (2026-10-27): рамка героя — портрет с уровнем и полоса здоровья на тёмной плашке; цель — на подложке; сообщения уже ===== */
+#hpWrap{gap:10px;padding:6px 12px 6px 6px;border-radius:12px;background:rgba(18,12,9,.86);border:1px solid #5a4230;max-width:300px!important;pointer-events:none}
+#hudFace{position:relative;flex:none;width:44px;height:44px;border-radius:50%;background:#2a1e16;border:2px solid #d9b27a;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:20px;color:#d9b27a}
+#hudFace b{font-weight:700}
+#hudFace i{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);min-width:18px;padding:0 5px;border-radius:8px;background:#120c09;border:1px solid #d9b27a;font-style:normal;font-family:var(--sans);font-size:11px;font-weight:700;line-height:15px;text-align:center;color:#f0d3a0}
+[data-desk] #hudFace{width:52px;height:52px;font-size:23px}
+#kills #hudLv:empty{display:none}     /* уровень — на портрете; капсула — только «круг N» в новом круге */
+#tracker{padding:6px 10px;border-radius:10px;background:rgba(18,12,9,.78);border:1px solid #3a2b1f;text-shadow:none!important}
+html:not([data-desk]) #toasts{max-width:min(62%,250px)}
+html:not([data-desk]) .toast{font-size:13px;padding:5px 10px}
+/* HUD на телефоне: портрет меньше, число здоровья — поверх полосы (в шапке тесно) */
+html:not([data-desk]) #hud{gap:8px}
+html:not([data-desk]) #hpWrap{display:grid;grid-template-columns:auto minmax(72px,1fr);align-items:center;column-gap:8px;min-width:140px;padding:5px 10px 5px 5px}
+html:not([data-desk]) #hudFace{grid-row:1;grid-column:1;width:36px;height:36px;font-size:17px}
+html:not([data-desk]) #hpBar{grid-row:1;grid-column:2}
+html:not([data-desk]) #hpTxt{grid-row:1;grid-column:2;justify-self:center;min-width:0;font-size:11px;line-height:1;z-index:1;pointer-events:none}

@@ -979,7 +979,7 @@ function frame(now) {
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; const k = `scaleX(${Math.max(0, W.player.hp / W.player.maxhp)})`; hpFill.style.transform = k; hpGhost.style.transform = k; hpTxt.textContent = Math.ceil(W.player.hp); }     // след потерянного здоровья догоняет с задержкой (шаг 5)
-  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; hudLv.textContent = `Ур. ${W.lv}${W.ng ? ` · круг ${W.ng + 1}` : ''}`; setIconText(hudAsh, 'ash', String(W.inv.ash)); hudAsh.title = 'Пепел'; timeDial(W); xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
+  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; $('hudFaceL').textContent = (HEROES[W.hero] && HEROES[W.hero].name || '?')[0]; $('hudFaceLv').textContent = W.lv; hudLv.textContent = W.ng ? `круг ${W.ng + 1}` : ''; setIconText(hudAsh, 'ash', String(W.inv.ash)); hudAsh.title = 'Пепел'; timeDial(W); xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
 }
 requestAnimationFrame(loop);
