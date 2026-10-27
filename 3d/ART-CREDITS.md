@@ -23,10 +23,6 @@
 | `sunset_plains.mp3` | Sunset Plains | Yoiyami | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/sunset-plains |
 | `another_august.mp3` | Another August (из саундтрека Pixelsphere) | The Cynic Project (cynicmusic.com, pixelsphere.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/another-august |
 | `deja_vus.mp3` | Déjà Vus (Contemplative Fantasy Music Pack) | YannZ (Yanni Ziangos), yannz41.itch.io | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | https://opengameart.org/content/free-contemplative-fantasy-music-pack |
-| `old_tower_inn.mp3` | Medieval: The Old Tower Inn | RandomMind | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/medieval-the-old-tower-inn |
-| `exploration.mp3` | Medieval: Exploration | RandomMind | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/medieval-exploration |
-| `kings_feast.mp3` | Medieval Kings Feast | RandomMind | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/medieval-kings-feast |
-| `bards_tale.mp3` | Medieval: The Bard's Tale | RandomMind | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/medieval-the-bards-tale |
 | `staldorn_suite.mp3` | Staldorn Suite — «Music: Staldorn Suite by Shane Ivers - https://www.silvermansound.com» | Shane Ivers | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | https://www.silvermansound.com/free-music/staldorn-suite |
 
 Музыка по местам (2026-10-27, выбор владельца): треки и места — `config3d.js` → `audio.tracks.places`. Файлы переведены в MP3 (112 кбит/с, «Déjà Vus» — 80), громкость выровнена, содержание не менялось.
