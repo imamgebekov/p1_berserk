@@ -6,9 +6,13 @@ import { routeMedia } from './audio3d.js';
 let URLS = {}; try { URLS = import.meta.glob('../music/*.mp3', { query: '?url', import: 'default', eager: true }); } catch (e) { /* Node-тесты: без музыки */ }
 const url = n => URLS[`../music/${n}.mp3`] || null;
 
-// место для музыки: босс в бою — 'boss', иначе зона героя из mixOf: 'camp' | 'wild' | 'dungeon'
-export const trackPlace = (mix, T) => (mix.boss && T.boss ? 'boss' : mix.zone || (mix.under ? 'dungeon' : 'wild'));
-export const trackPool = (place, T) => (place === 'boss' ? [T.boss] : (T.places && T.places[place]) || T.roam || []);
+// место для музыки: босс в бою — 'boss', иначе зона героя из mixOf: 'camp' | 'wild' | 'dungeon'; в диких землях со своим набором биома — 'wild:<биом>'
+export function trackPlace(mix, T) {
+  if (mix.boss && T.boss) return 'boss';
+  const z = mix.zone || (mix.under ? 'dungeon' : 'wild');
+  return z === 'wild' && mix.biome && T.biomes && T.biomes[mix.biome] && T.biomes[mix.biome].length ? 'wild:' + mix.biome : z;
+}
+export const trackPool = (place, T) => (place === 'boss' ? [T.boss] : place.startsWith('wild:') ? T.biomes[place.slice(5)] : (T.places && T.places[place]) || T.roam || []);
 // следующий трек места: не тот, что звучал только что (если есть выбор)
 export function nextTrack(place, T, last, rnd = Math.random) { const pool = trackPool(place, T), fresh = pool.filter(n => n !== last), p = fresh.length ? fresh : pool; return p.length ? p[(rnd() * p.length) | 0] : null; }
 

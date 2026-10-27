@@ -1387,6 +1387,8 @@ const BASE = {
       places: { camp: ['roam_piano', 'sunset_plains', 'deja_vus', 'end_of_all_things', 'she_moved_mountains'],
         wild: ['roam_peractorum', 'roam_solitudine', 'another_august', 'sunset_plains', 'sirens_in_darkness', 'cathedral_forest', 'forest_ambience', 'ephemera', 'distant_sun', 'end_of_all_things', 'she_moved_mountains'],
         dungeon: ['roam_article169', 'staldorn_suite', 'sirens_in_darkness', 'cathedral_forest', 'distant_sun'] },
+      biomes: { forest: ['forest_ambience', 'cathedral_forest', 'sunset_plains', 'another_august'], swamp: ['sirens_in_darkness', 'roam_solitudine', 'distant_sun'],     // дикие земли по биомам (2026-10-27, просьба владельца); у ядра мира без биома — places.wild
+        mountains: ['she_moved_mountains', 'roam_peractorum', 'end_of_all_things'], waste: ['distant_sun', 'sirens_in_darkness', 'roam_solitudine'], coast: ['ephemera', 'another_august', 'sunset_plains'] },
       roam: ['roam_peractorum', 'roam_piano', 'roam_solitudine', 'roam_article169', 'sunset_plains', 'another_august', 'deja_vus'] },     // 2026-10-27: + Sunset Plains, Another August, Déjà Vus, Staldorn Suite (выбор владельца); средневековые RandomMind сняты — владельцу не подошли     // music и fight (синтез) выключены с 5.04: без наложения
     ownMusic: .55,     // громкость своей музыки игрока (custom3d.js), 0–1; в бою — меньше вдвое
     volume: .7, musicVol: .55, natureVol: .8, voices: 24, look: 1.2,          // предел одновременных голосов; ноты ставятся вперёд на look с

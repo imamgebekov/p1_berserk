@@ -37,7 +37,7 @@ export function mixOf(W, A, env) {
     if (W.light > S.smith.light) for (const b of W.map.buildings || []) if (b.npc && b.npc.kind === 'smith') smith = Math.max(smith, near(S.smith, b.npc.x, b.npc.z));
   }
   const crickets = under ? 0 : (1 - day) * (1 - combat) * (1 - wetK * .7);
-  return { water, birds, owl, frog, music, combat, fight, boss: boss && !p.dead, night: !!W.night, under, rustle, rain: under ? 0 : wetK, fire, smith: smith * (1 - combat), crickets, zone: under ? 'dungeon' : W.place && W.place.safe ? 'camp' : 'wild', dead: !!p.dead };     // zone — место для музыки (music3d)
+  return { water, birds, owl, frog, music, combat, fight, boss: boss && !p.dead, night: !!W.night, under, rustle, rain: under ? 0 : wetK, fire, smith: smith * (1 - combat), crickets, zone: under ? 'dungeon' : W.place && W.place.safe ? 'camp' : 'wild', biome: under || !W.cfg ? null : biomeAt(W.cfg, p.x, p.z), dead: !!p.dead };     // zone — место для музыки (music3d)
 }
 
 // поверхность под ногами для шагов: дома и второй этаж — дерево, подземелье и горы — камень, пустошь и берег — песок, иначе трава

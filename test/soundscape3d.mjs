@@ -160,7 +160,10 @@ const mk = (c = clone()) => { c.enemies.count = 0; c.bosses.list = []; c.events.
   W.lvl = 'crypt'; ok(mixOf(W, A).zone === 'dungeon', 'под землёй зона не «подземелье»'); W.lvl = 'surface';
   ok(trackPlace({ zone: 'wild', boss: true }, T) === 'boss' && trackPlace({ zone: 'camp' }, T) === 'camp', 'место для музыки выбрано не так');
   for (const pl of ['camp', 'wild', 'dungeon', 'boss']) { const pool = trackPool(pl, T); ok(pool.length > 0, 'нет треков места ' + pl); }
-  const all = new Set(['camp', 'wild', 'dungeon'].flatMap(pl => trackPool(pl, T)).concat([T.boss, T.intro]));
+  for (const b of ['forest', 'swamp', 'mountains', 'waste', 'coast']) { ok(trackPlace({ zone: 'wild', biome: b }, T) === 'wild:' + b, 'биом не выбрал свой набор: ' + b); ok(trackPool('wild:' + b, T).length > 0, 'нет треков биома ' + b); }
+  ok(trackPlace({ zone: 'wild', biome: null }, T) === 'wild' && trackPlace({ zone: 'camp', biome: 'forest' }, T) === 'camp', 'вне биома или в селе — не общий набор');
+  { const W2 = mk(), q = W2.player; let seen = null; for (let a = 0; a < 60 && !seen; a++) { q.x = Math.sin(a) * (300 + a * 10); q.z = Math.cos(a) * (300 + a * 10); W2.place = null; const m = mixOf(W2, A); if (m.biome) seen = m.biome; } ok(seen, 'mixOf не знает биом героя'); }
+  const all = new Set(['camp', 'wild', 'dungeon'].flatMap(pl => trackPool(pl, T)).concat(Object.keys(T.biomes || {}).flatMap(b => trackPool('wild:' + b, T))).concat([T.boss, T.intro]));
   ok([...all].every(n => existsSync(new URL(`../3d/music/${n}.mp3`, import.meta.url))), 'нет файла трека: ' + [...all].filter(n => !existsSync(new URL(`../3d/music/${n}.mp3`, import.meta.url))));
   const w2 = trackPool('wild', T); if (w2.length > 1) { let same = 0; for (let i = 0; i < 50; i++) if (nextTrack('wild', T, w2[0]) === w2[0]) same++; ok(same === 0, 'тот же трек дважды подряд'); }
 }

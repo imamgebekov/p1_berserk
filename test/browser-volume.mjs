@@ -43,9 +43,11 @@ try {
     const step = async (mix, n, off = false) => { for (let i = 0; i < n; i++) { tr.tick(mix, off, now, 1); now += .2; } await wait(50); };
     await step({ zone: 'wild' }, 150); const wildT = tr.playing();
     await step({ zone: 'dungeon' }, 400); const dunT = tr.playing();
+    await step({ zone: 'wild', biome: 'forest' }, 400); const forT = tr.playing();
+    await step({ zone: 'wild', biome: 'coast' }, 400); const coaT = tr.playing();
     await step({ zone: 'dungeon' }, 5, true); const offT = tr.playing();
     return { loud, quiet, sfx0, routed: !!set, vol1: el.volume, med0, medOn, loaded: Smp.loadedCount(), files: Smp.sampleNames().length, base, birds, step: st,
-      wildT, dunT, offT, wildOk: Tc.places.wild.includes(wildT), dunOk: Tc.places.dungeon.includes(dunT) };
+      wildT, dunT, offT, forT, coaT, wildOk: Tc.places.wild.includes(wildT), dunOk: Tc.places.dungeon.includes(dunT), forOk: Tc.biomes.forest.includes(forT), coaOk: Tc.biomes.coast.includes(coaT) };
   });
   console.log('  ' + JSON.stringify(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'number' ? +v.toFixed(5) : v]))));
   ok(r.loud > .002, 'ночью ветер и гул не слышны вовсе — проверка не работает');
@@ -59,6 +61,7 @@ try {
   ok(r.wildOk, 'в диких землях не трек диких земель: ' + r.wildT);
   ok(r.dunOk, 'под землёй не сменился на трек подземелья: ' + r.dunT);
   ok(!r.offT, 'при своей музыке трек игры не замолчал');
+  ok(r.forOk && r.coaOk, `биомы: в лесу ${r.forT}, на берегу ${r.coaT}`);
 } finally { await browser.close(); await dev.close(); }
 if (bad.length) { console.error('Громкость в браузере: ПРОВАЛ\n- ' + bad.join('\n- ')); process.exit(1); }
 console.log('Громкость в браузере: OK');
