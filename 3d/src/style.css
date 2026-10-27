@@ -1022,3 +1022,25 @@ html:not([data-desk]) #captain .msub{display:none}
 #smith .sock{min-height:44px;border-radius:22px}
 #smith .emptyl{color:#a89c88;font-size:14px;padding:8px 2px 0}
 html:not([data-desk]) #smith .msub{display:none}
+/* ===== карта и костры по макету А (2026-10-27): холст на всё окно, масштаб — плавающие кнопки над картой, обозначения — плашкой поверх карты (телефон — под ней) ===== */
+#map .pbox{display:grid!important;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;row-gap:10px}
+#map .bhead{grid-row:1;grid-column:1}
+#mapCv{grid-row:2;grid-column:1;width:100%!important;height:100%!important;min-height:0;margin:0!important;border:1px solid #3a2b1f!important}
+#mapZoom,#firesZoom{flex-direction:column;gap:8px!important;margin:12px!important;z-index:3;align-self:start}
+#mapZoom{grid-row:2;grid-column:1;justify-self:end}
+#mapZoom button,#firesZoom button{flex:none!important;min-width:48px!important;min-height:48px!important;padding:0 14px!important;border-radius:12px!important;border:1px solid #5a4230!important;background:rgba(29,21,15,.92)!important;color:#f0d3a0!important;font-size:16px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.45)!important;text-shadow:none}
+#mapLegend{grid-row:2;grid-column:1;justify-self:start;align-self:end;margin:12px!important;z-index:3;max-width:min(680px,70%);padding:10px 12px;border-radius:12px;background:rgba(29,21,15,.94);border:1px solid #5a4230;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+#mapLegend .here{font-family:var(--serif);font-size:16px!important;color:#d9b27a!important}
+#mapLegend .chips{font-size:13.5px!important}#mapLegend .chip{background:#120c09!important;border-color:#3a2b1f!important}
+#mapClouds{z-index:1}
+html:not([data-desk]) #mapLegend{grid-row:3;align-self:auto;max-width:none;margin:0!important;max-height:22vh;overflow-y:auto}
+#fires .pbox{display:grid!important;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);row-gap:10px}
+#fires .bhead{grid-row:1}#firesNote{grid-row:2;margin:0;color:#a89c88;font-size:14px}
+#fires .travel{grid-row:3;grid-column:1;min-height:0}
+#firesZoom{grid-row:3;grid-column:1;justify-self:start}
+#firesList{gap:6px!important}
+#firesList button{min-height:56px!important;border-radius:10px!important;border:1px solid #3a2b1f!important;background:#120c09!important;color:#e8dcc6!important;font-weight:600!important;text-align:left}
+#firesList button:hover:not(:disabled){border-color:#d9b27a!important;background:#2a1d13!important}
+#firesList button small{color:#a89c88!important}
+#firesList button:disabled{opacity:.55}
+#firesList button .ic{color:#f0a050}
