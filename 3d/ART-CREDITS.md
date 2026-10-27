@@ -20,6 +20,11 @@
 | `boss_sunrise.mp3` | New Sunrise (V2) | nene | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/new-sunrise |
 | `roam_peractorum.mp3`, `roam_piano.mp3`, `roam_solitudine.mp3` | Emotional orchestral music (Peractorum, Piano Triste, Solitudine) | César da Rocha (cesisco) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | https://opengameart.org/content/emotional-orchestral-music |
 | `roam_article169.mp3` | Article 169 Section 1 | Zander Noriega, César da Rocha (cesisco), TAD | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | https://opengameart.org/node/187536 |
+| `sunset_plains.mp3` | Sunset Plains | Yoiyami | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/sunset-plains |
+| `another_august.mp3` | Another August (из саундтрека Pixelsphere) | The Cynic Project (cynicmusic.com, pixelsphere.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/another-august |
+| `deja_vus.mp3` | Déjà Vus (Contemplative Fantasy Music Pack) | YannZ (Yanni Ziangos), yannz41.itch.io | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | https://opengameart.org/content/free-contemplative-fantasy-music-pack |
+
+Музыка по местам (2026-10-27, выбор владельца): треки и места — `config3d.js` → `audio.tracks.places`. Файлы переведены в MP3 (112 кбит/с, «Déjà Vus» — 80), громкость выровнена, содержание не менялось.
 
 ## Звуки — `3d/sfx/`
 
