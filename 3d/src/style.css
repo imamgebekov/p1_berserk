@@ -1071,3 +1071,16 @@ html:not([data-desk]) #hpWrap{display:grid;grid-template-columns:auto minmax(72p
 html:not([data-desk]) #hudFace{grid-row:1;grid-column:1;width:36px;height:36px;font-size:17px}
 html:not([data-desk]) #hpBar{grid-row:1;grid-column:2}
 html:not([data-desk]) #hpTxt{grid-row:1;grid-column:2;justify-self:center;min-width:0;font-size:11px;line-height:1;z-index:1;pointer-events:none}
+/* выбор героя на телефоне по макету А (2026-10-27): сцена с моделью, имя и роль поверх неё, ниже описание, сведения, список, «Войти в мир» внизу */
+@media (max-width:760px){
+  #heroCards{grid-template-columns:minmax(0,1fr);gap:10px}
+  #heroCards .hinfo{display:contents}
+  #heroCards .hstage{grid-row:1;grid-column:1;min-height:250px;border:1px solid #3a2b1f;border-radius:16px}
+  #heroCards .hstage canvas.herov{width:150px}
+  #heroCards .hnm{grid-row:1;grid-column:1;align-self:end;justify-self:start;margin:0 0 34px 14px;z-index:1;font-size:30px;text-shadow:0 2px 6px #000}
+  #heroCards .hrole{grid-row:1;grid-column:1;align-self:end;justify-self:start;margin:0 0 12px 14px;z-index:1;font-size:14px;text-shadow:0 1px 4px #000}
+  #heroCards .htxt{grid-row:2;text-align:left}
+  #heroCards .hfacts{grid-row:3;padding:8px 12px;gap:4px}#heroCards .hf{font-size:13px}
+  #heroCards .hlist{grid-row:4}
+  #heroCards .hgo{grid-row:5;width:100%}
+}
