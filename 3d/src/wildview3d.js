@@ -7,39 +7,33 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addTree, addRock, addBush } from './models.js';
 import { mulberry } from './dungeongen3d.js';
 import { vnoise } from './terrain3d.js';
+import { wildSdfAt } from './wilds3d.js';
 
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-// расстояние от точки до ходимой земли (0 — на поляне или тропе); круглые поляны — эллипсом
-export function wildDist(rooms, x, z) {
-  let best = Infinity;
-  for (const r of rooms) {
-    let d;
-    if (r.shape === 'round' || r.shape === 'oct') { const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2, hw = (r.x1 - r.x0) / 2, hd = (r.z1 - r.z0) / 2, q = Math.hypot((x - cx) / hw, (z - cz) / hd); d = Math.max(0, q - 1) * Math.min(hw, hd); }
-    else d = Math.hypot(Math.max(r.x0 - x, 0, x - r.x1), Math.max(r.z0 - z, 0, z - r.z1));
-    if (d < best) { best = d; if (d <= 0) return 0; }
-  }
-  return best;
-}
+// расстояние от точки до ходимой земли (0 — на земле мира); озеро — тоже «за краем»
+const outDist = (M, x, z) => Math.max(0, -wildSdfAt(M, x, z));
 // образцы: собрать дерево (куст, камень) в начале координат одним куском
 function samples(fn, n, look, seed) { const out = []; for (let i = 0; i < n; i++) { const L = []; fn(L, mulberry(seed + i * 977), look); if (!L.length) continue; try { out.push(L.length > 1 ? mergeGeometries(L.map(g => (g.index ? g.toNonIndexed() : g)), false) : L[0]); } catch { out.push(L[0]); } } return out; }
 
 export function buildWildGround(M, cfg) {
   const X = cfg.dungeons.wild, V = X.view, th = X.themes[M.wild.theme] || Object.values(X.themes).find(t => t.ground), look = { ...cfg.look, ...th.look };
-  const group = new THREE.Group(), walk = M.rooms.filter(r => !r.pit), B = M.bounds, g = V.grid, m = V.margin;
+  const group = new THREE.Group(), B = M.bounds, g = V.grid, m = V.margin, S0 = M.wild.S, holes = S0.holes;
   const x0 = B.x0 - m, z0 = B.z0 - m, nx = Math.ceil((B.x1 - B.x0 + 2 * m) / g) + 1, nz = Math.ceil((B.z1 - B.z0 + 2 * m) / g) + 1;
   // земля: высота и цвет по расстоянию до края
   const D = new Float32Array(nx * nz), H = new Float32Array(nx * nz), CS = new Float32Array(nx * nz);     // CS — сторона камеры: ходимая земля севернее (ближе к камере склон ниже и без деревьев)
-  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const x = x0 + i * g, z = z0 + j * g, d = wildDist(walk, x, z), k = j * nx + i; D[k] = d;
-    const cs = d <= 0 ? 0 : smooth(0, 1, (d - wildDist(walk, x, z - V.camSide)) / (V.camSide * .6)); CS[k] = cs;
-    H[k] = d <= 0 ? 0 : (V.hillH * smooth(0, V.hillW, d) * (.7 + .6 * vnoise(x / 47, z / 47, 3)) + Math.min(1, d / 8) * 1.6 * vnoise(x / 9, z / 9, 5)) * (1 - V.camLow * cs); }
+  const pondAt = (x, z) => holes.reduce((a, h) => Math.max(a, 1 - Math.hypot(x - h.x, z - h.z) / h.r), 0);     // 0–1: насколько глубоко в озере
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const x = x0 + i * g, z = z0 + j * g, pd = pondAt(x, z), d = pd > 0 ? 0 : outDist(M, x, z), k = j * nx + i; D[k] = d;
+    const cs = d <= 0 ? 0 : smooth(0, 1, (d - outDist(M, x, z - V.camSide)) / (V.camSide * .6)); CS[k] = cs;
+    H[k] = pd > 0 ? -1.4 * smooth(0, .5, pd) : d <= 0 ? 0 : (V.hillH * smooth(0, V.hillW, d) * (.7 + .6 * vnoise(x / 47, z / 47, 3)) + Math.min(1, d / 8) * 1.6 * vnoise(x / 9, z / 9, 5)) * (1 - V.camLow * cs); }
   const hAt = (x, z) => { const fi = Math.max(0, Math.min(nx - 1.001, (x - x0) / g)), fj = Math.max(0, Math.min(nz - 1.001, (z - z0) / g)), i = fi | 0, j = fj | 0, u = fi - i, v = fj - j, k = j * nx + i;
     return H[k] * (1 - u) * (1 - v) + H[k + 1] * u * (1 - v) + H[k + nx] * (1 - u) * v + H[k + nx + 1] * u * v; };
   const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), C = { gr: new THREE.Color(th.ground), pa: new THREE.Color(th.path), hi: new THREE.Color(th.hill), to: new THREE.Color(th.top), ro: new THREE.Color(th.rock) }, c = new THREE.Color();
-  const trails = walk.filter(r => r.corridor);
+  const caps = S0.caps, onCap = (x, z) => caps.some(q => { const dx = q.bx - q.ax, dz = q.bz - q.az, L2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - q.ax) * dx + (z - q.az) * dz) / L2)); return Math.hypot(x - q.ax - dx * t, z - q.az - dz * t) < q.r - 1; });     // проходы — тропой
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i, x = x0 + i * g, z = z0 + j * g, d = D[k], h = H[k];
     pos.set([x, h, z], k * 3);
-    const n = vnoise(x / 6, z / 6, 9), onPath = d <= 0 && trails.some(r => x > r.x0 - .5 && x < r.x1 + .5 && z > r.z0 - .5 && z < r.z1 + .5);
+    const n = vnoise(x / 6, z / 6, 9), onPath = d <= 0 && h >= 0 && onCap(x, z);
     c.copy(onPath ? C.pa : C.gr).multiplyScalar(.85 + .3 * n);
+    if (h < 0) c.lerp(C.pa, .6);     // берег и дно озера
     if (d > 0) { c.lerp(C.hi, smooth(0, 5, d)); c.lerp(C.to, smooth(.4, 1, h / V.hillH)); const sl = Math.abs((H[Math.min(nx * nz - 1, k + 1)] - H[Math.max(0, k - 1)]) / (2 * g)) + Math.abs((H[Math.min(nx * nz - 1, k + nx)] - H[Math.max(0, k - nx)]) / (2 * g)); c.lerp(C.ro, smooth(.55, 1.1, sl)); c.multiplyScalar(.9 + .2 * n); }
     col.set([c.r, c.g, c.b], k * 3); }
   const idx = new Uint32Array((nx - 1) * (nz - 1) * 6); let t = 0;
@@ -67,9 +61,10 @@ export function buildWildGround(M, cfg) {
   { const gg = new THREE.BufferGeometry(), v = [], cl = [], dark = new THREE.Color(look.leaf[0]), tip = new THREE.Color(look.leaf[2]).multiplyScalar(1.4);
     for (let b = 0; b < 3; b++) { const a = b * Math.PI / 3, cs = Math.cos(a), sn = Math.sin(a); v.push(-.12 * cs, 0, -.12 * sn, .12 * cs, 0, .12 * sn, (b - 1) * .08 * sn, .55 + b * .1, (b - 1) * .08 * cs); cl.push(dark.r, dark.g, dark.b, dark.r, dark.g, dark.b, tip.r, tip.g, tip.b); }
     gg.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); gg.setAttribute('color', new THREE.Float32BufferAttribute(cl, 3)); gg.computeVertexNormals();
-    const halls = walk.filter(r => !r.corridor && !r.secret), area = halls.reduce((a, r) => a + (r.x1 - r.x0) * (r.z1 - r.z0), 0), im = new THREE.InstancedMesh(gg, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), V.grass);
-    let n = 0; for (const r of halls) { const k = Math.round(V.grass * (r.x1 - r.x0) * (r.z1 - r.z0) / area); for (let i = 0; i < k && n < V.grass; i++) { const x = r.x0 + rnd() * (r.x1 - r.x0), z = r.z0 + rnd() * (r.z1 - r.z0); if (wildDist([r], x, z) > 0) continue; Q4.setFromAxisAngle(UP, rnd() * 6.283); P4.set(x, 0, z); S4.setScalar(.7 + rnd() * .8); M4.compose(P4, Q4, S4); im.setMatrixAt(n++, M4); } }
+    const im = new THREE.InstancedMesh(gg, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), V.grass);
+    let n = 0; for (let t = 0; t < V.grass * 4 && n < V.grass; t++) { const x = B.x0 + rnd() * (B.x1 - B.x0), z = B.z0 + rnd() * (B.z1 - B.z0); if (wildSdfAt(M, x, z) < .8 || onCap(x, z)) continue; Q4.setFromAxisAngle(UP, rnd() * 6.283); P4.set(x, 0, z); S4.setScalar(.7 + rnd() * .8); M4.compose(P4, Q4, S4); im.setMatrixAt(n++, M4); }
     im.count = n; im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); group.add(im); }
+  if (holes.length) { const wm = new THREE.MeshLambertMaterial({ color: th.water || '#3a6a7a', transparent: true, opacity: .82 }); for (const h of holes) { const w = new THREE.Mesh(new THREE.CircleGeometry(h.r + .6, 32).rotateX(-Math.PI / 2), wm); w.position.set(h.x, -.3, h.z); group.add(w); } }     // озёра
   group.userData.stats = { verts: nx * nz, things: count };
   return group;
 }

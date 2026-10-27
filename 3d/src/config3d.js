@@ -652,23 +652,23 @@ const BASE = {
     style: { on: true, scale: 1.3, shapeMin: 12, fillMin: 9, step: .3, octCut: .3,
       shapes: { rect: 2, round: 3, oct: 2, pillars: 2, pit: 1 }, fill: { empty: 1, normal: 2, full: 2 }, fullAdd: 1, emptyCut: 1,
       pit: { pad: 1.6, bridge: 1.8 }, pillars: { r: .5, big: 17 } },
-    // малые миры (просьба владельца 2026-10-27): подземелье — не залы, а мир под открытым небом размером ~1/14 большого (поляны, тропы, холмы и лес).
-    // Пробный — only, включается меткой ?worlds. gen — раскладка генератора залов в масштабе мира: cell — клетка, м; room, bossRoom — поляны, м; gapMin — тропа не короче, м;
-    // corr — ширина узкой тропы (ловушка, ворота), м; foes — врагов на 150 м² поляны. style — формы полян (как dungeons.style). trail — широкие тропы виляют: w — ширина, м;
-    // seg — длина колена, м; amp — уход в сторону, м; overlap — проход между коленами не уже, м. edge — валуны и деревья у края полян: step — шаг, м; inset — от края, м; r — радиус, м; tree — доля деревьев.
-    // fog — клетка тумана войны и радиус открытия, м. view — холмы: hillH — высота, м; hillW — ширина склона, м; grid — шаг сетки земли, м; margin — земля за краем, м;
-    // band — полоса леса у края, м; trees, rocks, bushes — на м² полосы; camSide — склон к югу от поляны (к камере) на столько метров ниже на долю camLow и без деревьев; grass — травинок на мир; chunk — куски для отсечения, м
-    wild: { on: false, only: ['inst_olkh'],
-      gen: { on: true, cell: 90, gapMin: 46, corr: 5, mainShare: .55, turn: .5, branch: 3, loop: .08, room: [26, 44], bossRoom: [38, 44], first: [24, 20],
-        foes: [.3, .5], raidMul: .8, chest: .7, dungeon: [24, 30], raid: [34, 42], bossAt: [.3, .55, .75, .9] },
-      style: { on: true, scale: 1, shapeMin: 20, fillMin: 999, step: .3, octCut: .3, shapes: { rect: 1, round: 3, oct: 1 }, fill: { normal: 1 }, fullAdd: 0, emptyCut: 0,
-        pit: { pad: 1.6, bridge: 1.8 }, pillars: { r: .5, big: 17 } },
-      corridorMax: 13, secrets: 14, trail: { w: [8, 12], seg: 11, amp: 5, overlap: 3.5 }, jitter: { max: 18, gap: 6, edge: 3 },     // jitter — поляны сдвинуты в своей клетке до max м; до соседней клетки не ближе gap, тропа — не ближе edge к углу поляны
-      edge: { step: 6, inset: [-.5, 3], r: [1.1, 2.4], tree: .45, clear: 6 },
-      fog: { cell: 4, reveal: 24 },
-      view: { hillH: 11, hillW: 24, grid: 3, margin: 70, band: 26, trees: .016, rocks: .004, bushes: .006, camSide: 24, camLow: .8, grass: 9000, chunk: 160 },
+    // малые миры (просьба владельца 2026-10-27): подземелье — свободный мир под открытым небом ~1/14 большого, как в WoW; пробный — only, метка ?worlds.
+    // zone — зоны вдоль оси: r — радиус, м; blobs — пятен в зоне; spread — разброс пятен, м; gap — между зонами, м; pass — ширина прохода, м; passLen — длина, м; straight — тяга идти прямо.
+    // extra — зон без босса в начале. pocket — карманы сбоку: n — на зону; r, len, w — размер, длина и ширина прохода, м; chest, pack — доля с сундуком и со стаей.
+    // noise — неровный край: amp — м, scale — шаг, м. sdf — клетка поля края, м. arena — радиус поляны босса, м. eventR — радиус события, м. pond — озеро, м.
+    // packs — стаи: area — м² зоны на стаю; n — врагов в стае; raidMul — в рейде больше стай; keep — от входа, м; apart — между стаями, м.
+    // edge — валуны и деревья у края: band — от края внутрь, м; p — доля; r — радиус, м; tree — доля деревьев. grove — рощи и груды камней в зоне. decorArea — м² на предмет темы
+    // view — холмы: hillH — высота, м; hillW — ширина склона, м; grid — шаг сетки земли, м; margin — земля за краем, м; band — полоса леса за краем, м; trees, rocks, bushes — на м²;
+    // camSide — склон к югу от земли (к камере) ниже на долю camLow и без деревьев; grass — травинок; chunk — куски для отсечения, м
+    wild: { on: false, only: ['inst_olkh'], extra: 1,
+      zone: { r: [46, 62], blobs: [3, 6], spread: 38, gap: 26, pass: [11, 15], passLen: [30, 46], straight: .1 },
+      pocket: { n: [1, 2], r: [13, 19], len: [20, 34], w: 8, chest: .8, pack: .5 },
+      noise: { amp: 5, scale: 16 }, sdf: 1.5, arena: 16, eventR: 15, pond: [5, 9],
+      packs: { area: 4200, n: [2, 5], raidMul: 1.3, keep: 18, apart: 13 },
+      edge: { band: [.6, 2.4], p: .55, r: [1.1, 2.4], tree: .45 }, grove: { n: [1, 3], trees: [5, 11], r: 7, rock: .35 }, decorArea: 500,
+      view: { hillH: 11, hillW: 24, grid: 3, margin: 70, band: 26, trees: .016, rocks: .004, bushes: .006, camSide: 24, camLow: .8, grass: 12000, chunk: 160 },
       themes: { by: { inst_olkh: 'alder' },
-        alder: { name: 'ольховый лес', ground: '#566f30', path: '#76603e', hill: '#3f5a26', top: '#2f4420', rock: '#7a756a', fogK: .8,
+        alder: { name: 'ольховый лес', ground: '#566f30', path: '#76603e', hill: '#3f5a26', top: '#2f4420', rock: '#7a756a', fogK: .8, water: '#3a6a7a', ponds: .4,
           look: { leaf: ['#3e6a28', '#4e7a30', '#5e8a36'], trunk: ['#3a2a1e', '#4a3626'], rock: ['#6e6a62', '#5a5650'], bare: .12 },
           decor: [['barrow', .5], ['mound', 1.2], ['menhir', .8], ['stump', 2], ['flowers', 3], ['dead_tree', .6], ['bones', .6], ['rubble', .5]] } } },
     // боссы подземелий и замков мощнее: главный (final), промежуточные (mini), страж с ключом трона (guard) — множители здоровья и урона

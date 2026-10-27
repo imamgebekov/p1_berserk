@@ -283,6 +283,7 @@ function bossDefeated(W, e) {
   W.bossDead[e.type] = Math.round(W.cfg.bosses.respawn * W.dif.boss);
   W.ev.push({ k: 'bossdead', name: C.name, type: e.type, x: e.x, z: e.z });     // type — для «Пути пепла» (шаг 13)
   if (e.b && e.b.def && e.b.def.lines && e.b.def.lines.death) W.ev.push({ k: 'bossSay', who: C.name, text: e.b.def.lines.death }); endBossRoom(W, e.id);     // последние слова и конец смены зала (план подземелий, этап 3)
+  for (const d of W.map.doors || []) if (d.gate === e.type && d.locked) { d.locked = false; W.ev.push({ k: 'gateOpen', x: d.x, z: d.z, name: C.name }); }     // малый мир: ворота за боссом открываются
 }
 export function restoreBosses(W, dead) {
   if (!dead || typeof dead !== 'object') return;
@@ -1053,7 +1054,7 @@ export function dropItem(W, idx, n = 1) {
 // Куда идти врагу: если герой в доме, а враг снаружи (или наоборот) — через дверь; иначе прямо к герою
 function goalOf(W, e, dt = 1 / 60) {
   const p = W.player;
-  if (W.map.adj) return pathStep(W.map, e.x, e.z, p.x, p.z) || p;     // подземелье: через проходы по графу комнат
+  if (W.map.adj || W.map.nav) return pathStep(W.map, e.x, e.z, p.x, p.z) || p;     // подземелье: через проходы по графу комнат; малый мир — через устья проходов
   const be = insideOf(W.map, e.x, e.z);
   if (be === W.inside) return pathGoal(W.map, e, p.x, p.z, dt) || p;     // за рекой или обрывом — по пути (A*)
   const near = (a, b) => len(a.x - b.x, a.z - b.z) < 2.4;

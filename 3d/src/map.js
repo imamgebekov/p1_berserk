@@ -171,6 +171,13 @@ export function resolve(map, o, r) {
   }
   if (map.river && N.w.length && pushWater(map.river, o, r, N.w)) hit = true;     // река (мосты — проходимы)
   if (map.plateaus && map.plateaus.length && pushCliff(map.plateaus, o, r)) hit = true;     // обрывы (въезды — проходимы)
+  if (map.sdf && pushWild(map, o, r)) hit = true;     // край малого мира (2026-10-27)
+  return hit;
+}
+// край малого мира: поле расстояния меньше радиуса — вытолкнуть внутрь по уклону поля
+function pushWild(map, o, r) {
+  let hit = false;
+  for (let it = 0; it < 2; it++) { const s = wildSdfAt(map, o.x, o.z); if (s >= r) break; const gx = wildSdfAt(map, o.x + .5, o.z) - wildSdfAt(map, o.x - .5, o.z), gz = wildSdfAt(map, o.x, o.z + .5) - wildSdfAt(map, o.x, o.z - .5), g = Math.hypot(gx, gz) || 1; o.x += gx / g * (r - s); o.z += gz / g * (r - s); hit = true; }
   return hit;
 }
 
@@ -226,6 +233,7 @@ export function lineBlocked(map, x0, z0, x1, z1) {
   for (let i = 1; i < n; i++) {
     const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n;
     if (blocks.some(w => inR(w, x, z)) || doors.some(d => d.open < .6 && inR(d.rect, x, z))) return true;
+    if (map.sdf && wildSdfAt(map, x, z) < 0) return true;     // малый мир: за краем — склон
     for (const b of houses) if (b.walls.some(w => inR(w, x, z)) || (b.door.open < .6 && inR(b.door.rect, x, z))) return true;
   }
   return false;
@@ -241,6 +249,7 @@ export function roomAt(map, x, z) {
 // Сначала подойти к проходу по нормали (точка «до»), выровнявшись — пройти его (точка «за»): так не цепляются за углы
 // keys — связка ключей идущего (у героя): дверь, от которой есть ключ, проходима; враги и отряд идут без ключей
 export function pathStep(map, x, z, tx, tz, keys = null) {
+  if (map.nav) return navStep(map, x, z, tx, tz, keys);     // малый мир: через устья проходов между зонами
   const ra = roomAt(map, x, z), rb = roomAt(map, tx, tz);
   if (!map.adj || ra < 0 || rb < 0 || ra === rb) return null;
   const prev = new Array(map.rooms.length).fill(-2); prev[ra] = -1;
@@ -332,6 +341,7 @@ export function propsBlocked(map, x, z) {
 }
 import { distSeg as distSegPt, pathSegs } from './world3d.js';
 import { shapeParts, shapeFree } from './dungeonstyle3d.js';
+import { wildSdfAt, navStep } from './wilds3d.js';     // малые миры (2026-10-27)
 
 // область, в которой стоит точка (graveyard, farm, ruins, camp…), либо null
 export function regionOf(map, x, z) {

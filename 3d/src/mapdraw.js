@@ -27,13 +27,25 @@ function fogOf(doc, W, full) {
 const KIND = { keep: '#8a8aa8', house: '#8a6a52', shop: '#d8b04a', smithy: '#e0722c', tavern: '#c88a3a', chapel: '#9a94b8', barracks: '#6a8aa8', warehouse: '#8a7a52', hut: '#6a5a48' };
 const NPC = { keeper: '#e8405a', merchant: '#ffd45a', smith: '#ff8a3a', captain: '#6ab0ff', scribe: '#b48aff' };
 
+// малый мир: подложка из поля края (клетка — пиксель), запоминается на карту; ворота — красные, пока заперты
+const WILDBG = new WeakMap();
+function wildMap(ctx, M, doc, X, Y, sc) {
+  const F = M.sdf; let cv = WILDBG.get(M);
+  if (!cv && doc) { cv = doc.createElement('canvas'); cv.width = F.n; cv.height = F.m; const g = cv.getContext('2d'), im = g.createImageData(F.n, F.m), H = M.wild.S.holes;
+    for (let j = 0; j < F.m; j++) for (let i = 0; i < F.n; i++) { const s = F.data[j * F.n + i], o = (j * F.n + i) * 4, x = F.x0 + i * F.c, z = F.z0 + j * F.c, pond = s < 0 && H.some(h => Math.hypot(x - h.x, z - h.z) < h.r + .5);
+      const [r, gg, b, a] = pond ? [58, 106, 122, 255] : s > 0 ? [92, 104, 62, 255] : s > -4 ? [52, 48, 36, 255] : [0, 0, 0, 0]; im.data.set([r, gg, b, a], o); }
+    g.putImageData(im, 0, 0); WILDBG.set(M, cv); }
+  if (cv) { ctx.imageSmoothingEnabled = true; ctx.drawImage(cv, X(F.x0), Y(F.z0), F.n * F.c * sc, F.m * F.c * sc); }
+  for (const d of M.doors) if (d.locked || d.open < .6) { ctx.fillStyle = d.crack ? '#6e6a62' : d.locked ? '#d03a2a' : '#7a5030'; ctx.fillRect(X(d.rect.x0), Y(d.rect.z0), Math.max(3, (d.rect.x1 - d.rect.x0) * sc), Math.max(3, (d.rect.z1 - d.rect.z0) * sc)); }
+}
 export function drawMap(ctx, W, v) {
   const { w, h, scale: sc, cx, cz, full } = v, U = v.ui || 1, zs = sc / (v.dpr || 1), R = W.seenR || W.cfg.world.radius, OX = W.seenX || 0, OZ = W.seenZ || 0, p = W.player, M = W.map, under = !!M.bounds;     // OX/OZ — центр круга мира и сетки тумана (Мир 5.0)
   const X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc;
   ctx.clearRect(0, 0, w, h);
   const V = W.cfg.mapView, doc = ctx.canvas && ctx.canvas.ownerDocument, RL = !under && V ? reliefOf(doc, W) : null;
   ctx.fillStyle = under || !V ? '#0c0807' : V.bg; ctx.fillRect(0, 0, w, h);
-  if (under) {
+  if (under && M.sdf) wildMap(ctx, M, doc, X, Y, sc);     // малый мир (2026-10-27): форма земли, озёра, ворота
+  else if (under) {
     // подземелье: пол комнат, стены, лестница
     ctx.fillStyle = '#2a221d'; for (const r of M.rooms) ctx.fillRect(X(r.x0), Y(r.z0), (r.x1 - r.x0) * sc, (r.z1 - r.z0) * sc);
     for (const d of M.doors) if (d.open < .6 && !(d.crack && d.locked)) { ctx.fillStyle = d.locked ? '#d03a2a' : '#7a5030'; ctx.fillRect(X(d.rect.x0), Y(d.rect.z0), Math.max(2, (d.rect.x1 - d.rect.x0) * sc), Math.max(2, (d.rect.z1 - d.rect.z0) * sc)); }      // запертая — красная

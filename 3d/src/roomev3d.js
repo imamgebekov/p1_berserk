@@ -20,8 +20,9 @@ export function placeRoomEvents(cfg, def0, L, rooms, bossCells, fireN, rnd, prop
   }
   return out;
 }
-const inRoom = (api, W, ev, x, z) => { const ri = api.roomAt(W.map, x, z); return ri >= 0 && W.map.rooms[ri].id === ev.room; };
-const edgePts = (api, W, ev, n, rng) => { const ri = W.map.rooms.findIndex(r => r.id === ev.room), r = W.map.rooms[ri], out = [];
+const inRoom = (api, W, ev, x, z) => { if (ev.r) return Math.hypot(x - ev.x, z - ev.z) < ev.r; const ri = api.roomAt(W.map, x, z); return ri >= 0 && W.map.rooms[ri].id === ev.room; };     // r — событие малого мира: круг вместо зала
+const edgePts = (api, W, ev, n, rng) => { if (ev.r) { const out = []; for (let k = 0; k < n * 6 && out.length < n; k++) { const a = rng() * Math.PI * 2, x = ev.x + Math.cos(a) * ev.r * .8, z = ev.z + Math.sin(a) * ev.r * .8; if (api.free(W.map, x, z)) out.push({ x, z }); } return out; }     // малый мир: по кругу события
+  const ri = W.map.rooms.findIndex(r => r.id === ev.room), r = W.map.rooms[ri], out = [];
   for (let k = 0; k < n * 6 && out.length < n; k++) { const a = rng() * Math.PI * 2, x = ev.x + Math.cos(a) * (r.x1 - r.x0) * .38, z = ev.z + Math.sin(a) * (r.z1 - r.z0) * .38; if (api.roomAt(W.map, x, z) === ri && api.free(W.map, x, z)) out.push({ x, z }); }
   return out; };
 const foesOf = (W, ev) => ev.foes.filter(id => W.enemies.some(e => e.id === id && !e.dead)).length;

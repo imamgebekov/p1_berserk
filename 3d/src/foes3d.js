@@ -5,6 +5,7 @@ import { hurtAlly } from './squad3d.js';
 import { speedMul } from './status3d.js';
 import { ngMul } from './ng3d.js';
 import { slide, resolve, roomAt, insideOf } from './map.js';
+import { wildSdfAt } from './wilds3d.js';     // малые миры (2026-10-27)
 import { zoneAt } from './zones3d.js';
 
 import { wdist, worldSpot } from './geo3d.js';     // Мир 5.0: круг мира — от его центра
@@ -169,7 +170,7 @@ function blinkTo(W, e, C, B) {
   {
     const tx = p.x - Math.sin(p.face) * B.behind, tz = p.z - Math.cos(p.face) * B.behind, o = { x: tx, z: tz };
     resolve(W.map, o, C.radius);
-    const okLevel = W.map.rooms ? roomAt(W.map, o.x, o.z) >= 0 : wdist(W.cfg, o.x, o.z) < W.cfg.world.radius - 2;
+    const okLevel = W.map.sdf ? wildSdfAt(W.map, o.x, o.z) > C.radius : W.map.rooms ? roomAt(W.map, o.x, o.z) >= 0 : wdist(W.cfg, o.x, o.z) < W.cfg.world.radius - 2;     // малый мир — по краю поля
     if (okLevel && len(o.x - tx, o.z - tz) < .6 && insideOf(W.map, o.x, o.z) === W.inside) {
       W.ev.push({ k: 'blink', x: e.x, z: e.z, x2: o.x, z2: o.z });
       e.x = o.x; e.z = o.z; e.vx = e.vz = 0; e.face = Math.atan2(p.x - e.x, p.z - e.z);

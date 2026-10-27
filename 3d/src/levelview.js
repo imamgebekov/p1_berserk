@@ -156,9 +156,17 @@ export function buildLevelView(L, cfg) {
   const doorMat = mat('#5a3f28', 'auto', { plank: .25 }), bandMat = mat('#2a2018', 'metal'), doors = [];
   const cracks = [], TH = th;     // тема — до цикла: в цикле th — толщина створки
   for (const d of M.doors) {
+    if (M.wild && !d.crack) {     // малый мир: большие ворота меж двух башен; створки расходятся, когда открыто
+      const g = new THREE.Group(), w = d.w, H = 4.6, stone = mat('#6e6a62', 'masonry'), wood = mat('#4a3420', 'auto', { plank: .25 }), iron = mat('#2a2420', 'metal');
+      for (const sx of [-1, 1]) g.add(new THREE.Mesh(box(2.2, H + 1.4, 2.2, sx * (w / 2 + 1.1), (H + 1.4) / 2, 0), stone));
+      g.add(new THREE.Mesh(box(w + 4.4, .9, 1.6, 0, H + .9, 0), stone));
+      const leaf = sx => { const h = new THREE.Group(); h.position.set(sx * w / 2, 0, 0); h.add(new THREE.Mesh(box(w / 2, H, .35, -sx * w / 4, H / 2, 0), wood), new THREE.Mesh(box(w / 2, .18, .45, -sx * w / 4, H * .25, 0), iron), new THREE.Mesh(box(w / 2, .18, .45, -sx * w / 4, H * .75, 0), iron)); g.add(h); return h; };
+      const l = leaf(-1), r = leaf(1); g.position.set(d.x, 0, d.z); if (d.vert) g.rotation.y = Math.PI / 2;
+      group.add(g); doors.push({ d, big: true, l, r }); continue;
+    }
     if (d.crack) {     // трещина (план подземелий, 2г): кусок стены с изломами; рушится от удара
       const g = new THREE.Group(), R = d.rect, cx = (R.x0 + R.x1) / 2, cz = (R.z0 + R.z1) / 2, lw = R.x1 - R.x0, ld = R.z1 - R.z0;
-      g.add(new THREE.Mesh(box(lw, D.wallH, ld, cx, D.wallH / 2, cz), mat(TH.wall || '#5a5048', 'masonry')));
+      const CH = M.wild ? 3.2 : D.wallH; g.add(new THREE.Mesh(box(lw, CH, ld, cx, CH / 2, cz), mat(M.wild ? '#6e6a62' : TH.wall || '#5a5048', 'masonry')));     // малый мир: трещина — в скале выше роста
       const dark = new THREE.MeshBasicMaterial({ color: '#120c08' }), parts = [];
       for (const [k, y, a] of [[-.25, .35, .9], [0, .7, -.7], [.22, 1.05, .8], [-.1, .95, 1.2]]) parts.push(new THREE.BoxGeometry(d.vert ? .02 : .5, .06, d.vert ? .5 : .02).rotateY(d.vert ? 0 : 0).rotateX(d.vert ? a : 0).rotateZ(d.vert ? 0 : a).translate(d.vert ? cx : cx + k * lw, y, d.vert ? cz + k * ld : cz));
       for (const sgn of [-1, 1]) { const m = new THREE.Mesh(mergeGeometries(parts), dark); if (d.vert) m.position.x = sgn * (lw / 2 + .011); else m.position.z = sgn * (ld / 2 + .011); g.add(m); }
@@ -185,7 +193,7 @@ export function buildLevelView(L, cfg) {
     group.add(g); trapV.push(it);
   }
   function update(W) {
-    for (const it of doors) { it.hinge.rotation.y = it.base + it.d.open * Math.PI / 2; if (it.lock) it.lock.visible = !!it.d.locked; }
+    for (const it of doors) { if (it.big) { it.l.rotation.y = -it.d.open * 1.45; it.r.rotation.y = it.d.open * 1.45; continue; } it.hinge.rotation.y = it.base + it.d.open * Math.PI / 2; if (it.lock) it.lock.visible = !!it.d.locked; }     // big — ворота малого мира
     for (const it of cracks) it.g.visible = !!it.d.locked;
     for (const it of trapV) { const ph = W ? trapPhase(W.cfg, it.q, W.t) : { arm: 0, hot: false, swing: 0 };
       it.plateM.emissiveIntensity = ph.arm * .9 + (ph.hot && it.q.kind !== 'blade' ? .5 : 0);
