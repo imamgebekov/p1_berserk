@@ -11,6 +11,7 @@ import { artURL } from './spellicons3d.js';
 import { refreshGear } from './sim.js';
 import { switchSchool, canSwitchSchool } from './school3d.js';
 import { fireNear } from './fires3d.js';
+import { HEROES } from './data/heroes3d.js';
 
 // разница рангов (шаг 10): у описаний одинаковый текст, меняются числа — показываем только их: «×1,4 → ×1,6 · 9 с → 8,5 с»;
 // если текст рангов разный — null (тогда показываем следующий ранг целиком)
@@ -28,7 +29,7 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange, onOwnIcon
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2200); };
   // вкладки — специализации героя (этап 2), «Скиталец» и «Умения»; при смене героя строятся заново
-  let sel = null;     // выбранный узел древа
+  let sel = null, pb = null;     // выбранный узел древа; pb — ветка на экране телефона
   const buildTabs = () => { tabsHero = W.hero; tabsEl.textContent = ''; tabsEl.hidden = true; branch = 'tree'; };     // окно умений убрано (2026-10-20): всё в древе
   // древо (2026-10-20): три ветки рядом, узлы-значки с рангом; выбор — карточка с описанием и кнопкой
   const gi = (k, cls) => { { const own = ownIcon(k) || artURL(k); if (own) { const im = doc.createElement('img'); im.src = own; im.alt = ''; im.className = (cls || 'gi') + ' own'; return im; } }     // свой значок игрока
@@ -71,6 +72,12 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange, onOwnIcon
       if (gate && mine) { const g = el('div', 'tgate'); g.style.gridRow = String(gate); g.style.gridColumn = '1 / -1'; grid.append(g); }
       grid.prepend(lines); col.append(grid); wrap.append(col);
     });
+    if (!doc.documentElement.hasAttribute('data-desk')) {     // телефон (макет А): одна ветка на экране, выбор «пилюлями»
+      if (pb === null || pb >= T.length) pb = cur;
+      const sw = el('div', 'tbsw'); T.forEach((br, bi) => { const b = el('button', 'tbsb' + (bi === pb ? ' on' : ''), br.name); b.type = 'button'; b.style.setProperty('--bc', br.color); b.addEventListener('click', () => { pb = bi; render(); }); sw.append(b); });
+      [...wrap.children].forEach((c, bi) => c.classList.toggle('thid', bi !== pb)); listEl.append(sw);
+      if (sel) { const x = el('button', 'tcx', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть карточку'); x.addEventListener('click', () => { sel = null; render(); }); card.append(x); card.classList.add('tsheet'); }
+    }
     const view = el('div', 'tview'); view.append(wrap, card); listEl.append(view);
     // карточка выбранного узла
     const f = sel && T.flatMap(b => b.nodes.map(n => ({ b, n }))).find(x => x.n.key === sel);
@@ -98,7 +105,9 @@ export function createSkills(doc, W, cfg, { onOpen, onClose, onChange, onOwnIcon
   }
   function render() {
     if (tabsHero !== W.hero) buildTabs();
-    headEl.textContent = `Древо · школа «${treeOf(W.hero, W.cfg)[W.school || 0].name}» · талантов: ${W.sp} · умений: ${W.ap}`;
+    headEl.textContent = 'Древо';     // макет А (2026-10-27): название, подпись, счётчики очков
+    { const sub = $('skillSub'), pts = $('skillPts'), H = HEROES[W.hero] || null; if (sub) sub.textContent = `${H && H.name ? H.name + ' · ' : ''}ур. ${W.lv} · школа «${treeOf(W.hero, W.cfg)[W.school || 0].name}»`;
+      if (pts) { pts.textContent = ''; for (const [k, ks, v] of [['Умения', 'Ум.', W.ap], ['Таланты', 'Тал.', W.sp]]) { const c = el('span', 'spt' + (v > 0 ? ' has' : '')); c.title = k; c.append(el('span', 'l', k), el('span', 'ls', ks), el('b', '', String(v))); pts.append(c); } } }
     xpEl.textContent = W.lv >= cfg.level.max ? (cfg.level.ranks && cfg.level.ranks.on ? `Уровень ${W.lv} · пепельный ранг ${W.prank || 0}` + ((W.prank || 0) < cfg.level.ranks.cap ? ` · опыт ${W.pxp || 0}/${rankNeed(cfg)}` : ' (максимум)') : `Уровень ${W.lv} (максимум)`) : `Уровень ${W.lv} · опыт ${W.xp}/${xpNeed(W.lv, cfg)}`;
     for (const t of tabsEl.children) t.classList.toggle('on', t.dataset.tab === branch);
     listEl.textContent = '';

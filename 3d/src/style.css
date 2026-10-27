@@ -949,3 +949,36 @@ html:not([data-desk]) #journalTabs .tab.on{background:#d9b27a!important;border-c
 #journal .craftb,#journal .rewl button{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid #d9b27a;background:#3a2a1a;color:#f0d3a0;font-weight:700}
 #journal .craftb:disabled,#journal .rewl button:disabled{border-color:#4a3626;background:transparent;color:#8a7e6c;filter:none;opacity:1}
 html:not([data-desk]) #journal .msub{display:none}
+/* ===== древо по макету А (2026-10-27): шапка «Древо · подпись · очки», плоские шапки веток, карточка в цветах игры; телефон — одна ветка, карточка шторкой ===== */
+#skills .bhead h2{flex:none}#skills .msub{flex:1;min-width:0;font-size:14px;color:#a89c88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#skills .spts{display:flex;gap:8px;flex:none}
+#skills .spt{display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:18px;background:#241a13;border:1px solid #5a4230;font-size:14.5px;color:#e8dcc6}
+#skills .spt b{font-family:var(--serif);font-size:18px;font-weight:700;color:#a89c88}#skills .spt.has b{color:#8fd07a}
+#skills #skillXp{background:transparent!important;border:0!important;box-shadow:none!important;padding:0 2px!important;font-size:13.5px;color:#a89c88;opacity:1}
+#skills .tbranch{border-radius:12px!important;background:#18110c!important;box-shadow:none!important;border:1px solid #3a2b1f!important;border-top:3px solid var(--bc)!important}
+#skills .tbranch .twm{opacity:.05}
+#skills .tbh{clip-path:none!important;background:none!important;box-shadow:none!important;margin:0!important;padding:10px 4px 0!important;text-align:left!important;font-size:19px!important;color:var(--bc)!important;text-shadow:0 1px 0 #000!important}
+#skills .tbr{text-align:left!important;padding:0 4px;font-size:13px;color:#a89c88!important}
+#skills .tcard{background:#120c09!important;border:1px solid #d9b27a!important;border-radius:12px!important;box-shadow:0 8px 22px rgba(0,0,0,.5)!important;padding:14px!important;gap:8px}
+#skills .tcard .tcn{color:#f0d3a0!important;font-size:19px!important}#skills .tcard .tck{color:#a89c88!important}
+#skills .tcard .sub{color:#ffd27a!important;font-size:14px}#skills .tcard .sub.z{color:#e0907a!important}#skills .tcard .sub.cmb{color:#9fd6c0!important}
+#skills .tcard .tbuy:not(.own){min-height:48px!important;border-radius:24px!important;border:1px solid #d9b27a!important;background:#3a2a1a!important;color:#f0d3a0!important;font-family:var(--serif);font-size:17px;box-shadow:none!important}
+#skills .tcard .tbuy:disabled{border-color:#4a3626!important;background:transparent!important;color:#8a7e6c!important;filter:none}
+#skills .tcard .tbuy.own{min-height:44px!important;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;color:#e8dcc6!important;box-shadow:none!important}
+#skills .tcard .bslot{min-width:44px!important;min-height:44px!important;border-radius:8px!important;box-shadow:none!important;border:1px solid #4a3626!important;background:#18110c!important;color:#a89c88!important}
+#skills .tcard .bslot.on{border-color:#d9b27a!important;background:#2a1d13!important;color:#f0d3a0!important}
+#skillReset{align-self:flex-end;min-height:44px!important;padding:0 18px;border-radius:22px!important;border:1px solid #5a4230!important;background:transparent!important;box-shadow:none!important;color:#cfc2aa!important;font-size:14px;opacity:1}
+#skillReset.warn{border-color:#a03a2c!important;background:#2a1210!important;color:#ffcfc4!important}
+.tbsw{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.tbsb{min-height:44px;border-radius:22px;border:1px solid #5a4230;background:#241a13;color:#cfc2aa;font-family:var(--serif);font-size:16px}
+.tbsb.on{border-color:var(--bc);background:#0f0a07;color:var(--bc)}
+#skills .tbranch.thid{display:none}
+html:not([data-desk]) #skills .tree{overflow:visible}html:not([data-desk]) #skills .tbranch{flex:1 1 100%}
+html:not([data-desk]) #skills .msub,html:not([data-desk]) #skills .spt .l{display:none}
+#skills .spt .ls{display:none}html:not([data-desk]) #skills .spt .ls{display:inline}
+#skills .tsch:not(.on){min-height:44px!important}
+html:not([data-desk]) #skills .spt{padding:0 10px}
+html:not([data-desk]) #skills .pbox{position:relative}
+html:not([data-desk]) #skills .tcard.tsheet{position:absolute;left:8px;right:8px;bottom:8px;max-height:62%;overflow-y:auto;z-index:3;box-shadow:0 -10px 30px rgba(0,0,0,.6)!important}
+.tcx{position:absolute;right:8px;top:8px;width:44px;height:44px;border-radius:8px;border:1px solid #4a3626;background:transparent;color:#b8ad9a;font-size:22px;line-height:1}
+html:not([data-desk]) #skills .tcard:not(.tsheet){display:none}
