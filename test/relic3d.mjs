@@ -10,7 +10,7 @@ const C = CFG3.relic;
 const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.map.places = []; c.events.on = false; c.wanderer.on = false; c.corpse.on = false; const W = createWorld(c, mulberry32(7)); W.lv = 45; refreshGear(W); W.player.hp = W.player.maxhp; return W; };
 const run = (W, sec, inp = {}) => { for (let i = 0; i < Math.round(sec * 60); i++) step(W, 1 / 60, inp); };
 const at = (W, id) => { const L = W.levels[id], r = L.map.rooms.find(q => q.x1 - q.x0 > 6) || L.map.rooms[0]; travel(W, id, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2); return W.player; };
-const killBoss = (W, lvl, mini = false) => { const p = W.player, def = W.cfg.bosses.list.find(b => b.level === lvl && !!b.final !== mini) || W.cfg.bosses.list.find(b => !b.level && !b.city && !b.ring); const e = spawnBoss(W, { ...def, x: p.x + 2, z: p.z }); killEnemy(W, e, 1); return e; };     // план подземелий, 1б: печать — с главного босса подземелья и с боссов рейда
+const killBoss = (W, lvl, mini = false) => { const p = W.player, def = W.cfg.bosses.list.find(b => b.level === lvl && !!b.final !== mini) || W.cfg.bosses.list.find(b => !b.level && !b.city && !b.ring); const e = spawnBoss(W, { ...def, x: p.x + 2, z: p.z }); killEnemy(W, e, 1); if (!e.dead) killEnemy(W, e, 1); return e; };     // план подземелий, 1б: печать — с главного босса подземелья и с боссов рейда
 const keeper = W => { const b = W.map.buildings.find(q => q.npc && q.npc.kind === C.npc); W.player.x = b.npc.x + .5; W.player.z = b.npc.z; run(W, .05); return W.nearNpc; };
 
 // 1. печати: главный босс подземелья +1, рейд +3; мир, промежуточный босс и замок — 0 (план подземелий, 1б)
