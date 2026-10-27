@@ -570,10 +570,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (!views.has(id)) { const v = L.def ? buildLevelView(L, cfg) : buildSurfaceView(L, Y); v.map = L.map; scene.add(v.group); views.set(id, v); }
     for (const [k, v] of views) v.group.visible = k === id || (!!FL && k === 'surface');
     if (FL) views.get(id).group.position.y = floorBase(W, FL);
-    const up = !L.def || !!FL; for (const o of surfaceObjs) o.visible = up;
-    sun.visible = up; lantern.visible = !up;
-    curTheme = up ? null : themeOf(cfg, L.def);     // 4.14: стиль подземелья — свет и туман
-    if (!up) { const th = curTheme || { bg: '#070504', hemi: ['#6a5a50', '#1a1210', .9] }; scene.fog.color.set(th.bg); scene.background.set(th.bg); hemi.color.set(th.hemi[0]); hemi.groundColor.set(th.hemi[1]); hemi.intensity = th.hemi[2]; }
+    const up = !L.def || !!FL, sky = up || !!L.map.wild; for (const o of surfaceObjs) o.visible = up || (sky && (o === dome || o === sunGroup || o === rainGroup));     // малый мир (2026-10-27): своё небо, солнце и дождь; земля большого мира скрыта
+    sun.visible = sky; lantern.visible = !sky;
+    curTheme = sky ? null : themeOf(cfg, L.def);     // 4.14: стиль подземелья — свет и туман
+    if (!sky) { const th = curTheme || { bg: '#070504', hemi: ['#6a5a50', '#1a1210', .9] }; scene.fog.color.set(th.bg); scene.background.set(th.bg); hemi.color.set(th.hemi[0]); hemi.groundColor.set(th.hemi[1]); hemi.intensity = th.hemi[2]; }
     lastLight = -1; shownLvl = id; curView = views.get(id); conts = curView.conts; fx.clear();
   }
   // ободок силуэта (V2c): край фигуры светлее (эмиссия по краю), ночью сильнее — героя и врагов видно в темноте
@@ -975,15 +975,15 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       sun.target.position.copy(shT); sun.position.copy(shT).addScaledVector(sunDir, SHD.dist); sun.target.updateMatrixWorld();
     }
     if (W.lvl !== shownLvl || (views.get(W.lvl) && views.get(W.lvl).map !== W.map)) showLevel(W);
-    const under = W.lvl !== 'surface' && !FL;
-    { const L = W.levels && W.levels[W.lvl]; dbg.group.visible = !!(under && L && L.def); if (dbg.group.visible) { if (dbgMap !== L.map) { dbgMap = L.map; dbg.setMap(L.map, curTheme); } dbg.update(t, p.x, p.z, calm); } }
+    const under = W.lvl !== 'surface' && !FL, dark = under && !W.map.wild, wk = under && !dark ? ((cfg.dungeons.wild.themes[W.map.wild.theme] || {}).fogK || 1) : 1;     // dark — под землёй; малый мир — под небом, туман темы wk
+    { const L = W.levels && W.levels[W.lvl]; dbg.group.visible = !!(dark && L && L.def); if (dbg.group.visible) { if (dbgMap !== L.map) { dbgMap = L.map; dbg.setMap(L.map, curTheme); } dbg.update(t, p.x, p.z, calm); } }
     if (!under) { streamLand(cam.x, cam.z); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
     dome.position.set(cam.x, 0, cam.z);                              // небо — вокруг камеры (мир шире купола)
     { const k = actorKey(cfg, 'hero', W.hero); if ((k || '') !== (hero.key || '')) { const A = k && makeActor(k, kitOf(k), 'hero'); if (A || !k) { scene.remove(hero.group); if (hero.gltf) disposeActor(hero); disposeDeep(hero.group); hero = A || makeHero(); hero.key = k || ''; scene.add(hero.group); heroLook = null; rimKey = ''; if (shadowsOn) hero.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); } } }     // готовая модель героя пришла или герой сменился
     { const cp = W.ach && W.ach.cape, lk = lookKey(W.hero, W.inv, cp); if (lk !== heroLook) { heroLook = lk; hero.setLook(dressedLook(heroOf(W.hero).look, W.inv, cp)); } }     // облик по надетому и цвет плаща — награда подвига
     if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : WE.force === 'fog' ? .35 : 1, rain: WE.force === 'rain' ? 1 : 0, mist: WE.force === 'fog' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
-    scene.fog.density = (under ? cfg.view.fogDensity * (String(W.lvl).startsWith('up:') ? .5 : 2.2) * (curTheme ? curTheme.fogK : 1) : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog) / zoomC;     // 4.12: туман — на приближение, иначе отдаление темнит     // в дождь туман гуще     // на рассвете туман гуще
-    if (under) { lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
+    scene.fog.density = (dark ? cfg.view.fogDensity * (String(W.lvl).startsWith('up:') ? .5 : 2.2) * (curTheme ? curTheme.fogK : 1) : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog * wk) / zoomC;     // 4.12: туман — на приближение, иначе отдаление темнит     // в дождь туман гуще     // на рассвете туман гуще
+    if (under) { if (dark) lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
     if (under && curTheme) { const R = W.bossRoom && W.bossRoom.lvl === W.lvl ? W.bossRoom.kind : null; if (R) roomFx.kind = R; roomFx.k += ((R ? 1 : 0) - roomFx.k) * Math.min(1, dt * 1.5); const k = roomFx.k, th = curTheme;     // смена зала у финального босса (план подземелий, 3б): тьма — свет гаснет, затопление — вода и синий туман
       hemi.intensity = th.hemi[2] * (roomFx.kind === 'dark' ? 1 - .65 * k : 1); scene.fog.color.set(th.bg); if (roomFx.kind === 'flood') scene.fog.color.lerp(FLOOD_C, .55 * k); scene.background.copy(scene.fog.color);
       waterRoom.visible = roomFx.kind === 'flood' && k > .02; if (waterRoom.visible) { waterRoom.position.set(p.x, .22 * k, p.z); waterRoom.material.opacity = .45 * k; } }
@@ -993,9 +993,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       hemi.color.set(k.hemiSky); hemi.groundColor.set(k.hemiGround); hemi.intensity = k.hemiI;
       sun.color.set(k.sun); sun.intensity = k.sunI; sunBase = k.sunI; dome.material.color.set(k.dome);
     }
-    if (!under) { sun.intensity = sunBase * (1 - .45 * wNow.cloud); hillsMat.color.setScalar(eff.wet); ground.material.color.setScalar(eff.wet); }     // облака тусклее, мокрая земля темнее
+    if (!dark) { sun.intensity = sunBase * (1 - .45 * wNow.cloud); hillsMat.color.setScalar(eff.wet); ground.material.color.setScalar(eff.wet); }     // облака тусклее, мокрая земля темнее
     // дождь: капли падают косо по ветру вокруг камеры; всплески на земле, круги на реке («Уменьшить движение» — без капель)
-    { const n = under || calm ? 0 : eff.drops, B = WE ? WE.box : [1, 1], sx = windNow.dir[0] * windNow.s * 5, sz = windNow.dir[1] * windNow.s * 5, L = .55;
+    { const n = dark || calm ? 0 : eff.drops, B = WE ? WE.box : [1, 1], sx = windNow.dir[0] * windNow.s * 5, sz = windNow.dir[1] * windNow.s * 5, L = .55;
       for (let i = 0; i < n; i++) {
         const k = i * 6; let x = dropPos[k], y = dropPos[k + 1], z = dropPos[k + 2];
         y -= WE.fall * dt; x += sx * dt; z += sz * dt;

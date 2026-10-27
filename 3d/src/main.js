@@ -65,6 +65,7 @@ const defaults = JSON.parse(JSON.stringify(CFG3));
 if (new URLSearchParams(location.search).has('boxy')) CFG3.shapes.volume = false;     // ?boxy — прежние модели из кубиков (сравнение)
 if (new URLSearchParams(location.search).has('flat') && CFG3.shaders.paint) CFG3.shaders.paint.on = false;
 if (new URLSearchParams(location.search).has('nodetails') && CFG3.details) CFG3.details.on = false;     // ?nodetails — без деталей мира (сравнение T5)
+if (new URLSearchParams(location.search).has('worlds')) CFG3.dungeons.wild.on = true;     // ?worlds — пробный малый мир вместо залов (2026-10-27)
 if (new URLSearchParams(location.search).has('nofeel') && CFG3.feel) CFG3.feel.on = false;     // ?nofeel — без отклика боя (сравнение этапа 1)     // ?flat — без материалов (сравнение «было — стало»)
 const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);

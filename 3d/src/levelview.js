@@ -8,6 +8,7 @@ import { buildDecor, decorModel } from './decor.js';
 import { themeOf, glowParts } from './dungeontheme3d.js';
 import { dungeonDetails } from './details3d.js';
 import { trapPhase } from './traps3d.js';     // план подземелий, 2в
+import { buildWildGround } from './wildview3d.js';     // малые миры (2026-10-27)
 
 const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
 const mat = (c, kind, opt) => (kind ? paintMat(new THREE.MeshLambertMaterial({ color: c }), kind, opt) : new THREE.MeshLambertMaterial({ color: c }));     // kind — материал (T3)
@@ -93,6 +94,8 @@ function buildFloorView(L, cfg) {
 export function buildLevelView(L, cfg) {
   if (L.map.floor) return buildFloorView(L, cfg);
   const M = L.map, D = cfg.dungeons, group = new THREE.Group(), th = themeOf(cfg, L.def) || {};     // 4.14: стиль подземелья
+  if (M.wild) group.add(buildWildGround(M, cfg));     // малый мир (2026-10-27): земля, холмы и лес вместо пола и стен; без факелов, знамён и подземных мелочей
+  else {
   // пол: по прямоугольнику на комнату, с лёгкой «плиткой» из полос
   const floor = [], seams = [];
   const rings = [];     // круглые залы: швы кольцами и мозаика в центре
@@ -112,6 +115,7 @@ export function buildLevelView(L, cfg) {
   group.add(new THREE.Mesh(mergeGeometries(walls), mat(th.wall || '#4a4038', 'masonry')));
   const caps = solid.map(w => box(w.x1 - w.x0, .04, w.z1 - w.z0, (w.x0 + w.x1) / 2, D.wallH + .02, (w.z0 + w.z1) / 2)).concat((M.arcs || []).map(a => arc(a, .04, D.wallH + .03)));
   group.add(new THREE.Mesh(mergeGeometries(caps), new THREE.MeshBasicMaterial({ color: th.cap || '#141010' })));
+  }
   // провалы: чёрная пустота с каменной кромкой и багровым отсветом из глубины
   if ((M.pits || []).length) {
     const hole = [], rim = [], glow = [];
@@ -134,19 +138,19 @@ export function buildLevelView(L, cfg) {
   }
   // факелы на сплошных стенах комнат (не в проходах и не на ближней к камере стене; без источников света — свет даёт фонарь героя)
   const torches = [], flames = [], open = (x, z) => M.links.some(l => (l.vert ? Math.abs(x - l.line) < .2 && z > l.s0 - .6 && z < l.s1 + .6 : Math.abs(z - l.line) < .2 && x > l.s0 - .6 && x < l.s1 + .6));
-  for (const r of M.rooms) if (!r.corridor) for (const [x, z, ex, ez] of [[r.x0, (r.z0 + r.z1) / 2, .12, 0], [r.x1, (r.z0 + r.z1) / 2, -.12, 0], [(r.x0 + r.x1) / 2, r.z0, 0, .12]]) {
+  if (!M.wild) for (const r of M.rooms) if (!r.corridor) for (const [x, z, ex, ez] of [[r.x0, (r.z0 + r.z1) / 2, .12, 0], [r.x1, (r.z0 + r.z1) / 2, -.12, 0], [(r.x0 + r.x1) / 2, r.z0, 0, .12]]) {
     if (open(x, z)) continue;
     if (!putKit('torch_mounted', x + ex * .6, D.wallH * .55 - .25, z + ez * .6, ex > 0 ? Math.PI / 2 : ex < 0 ? -Math.PI / 2 : 0, .6)) torches.push(box(.1, .5, .1, x + ex, D.wallH * .55, z + ez));
     flames.push(box(.16, .2, .16, x + ex, D.wallH * .55 + .32, z + ez));
   }
-  for (let i = 0; i < M.rooms.length; i++) { const r = M.rooms[i]; if (r.corridor || r.x1 - r.x0 < 7 || i % 2) continue;     // знамёна на дальней стене каждого второго зала
+  if (!M.wild) for (let i = 0; i < M.rooms.length; i++) { const r = M.rooms[i]; if (r.corridor || r.x1 - r.x0 < 7 || i % 2) continue;     // знамёна на дальней стене каждого второго зала
     for (const [k, name] of [[.25, 'banner_patternA_red'], [.75, 'banner_shield_red']]) { const x = r.x0 + k * (r.x1 - r.x0), S = decorModel(name); if (!S || open(x, r.z0)) continue; const s = D.wallH * .85 / S.userData.h; putKit(name, x, D.wallH * .1, r.z0 + .08 + S.userData.d * s / 2, 0, s); } }
   if (kit.length) group.add(new THREE.Mesh(mergeGeometries(kit), paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto')));
   if (torches.length) group.add(new THREE.Mesh(mergeGeometries(torches), mat('#3a2a1a')));
-  { const salt = [...String(M.level || '')].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7), det = dungeonDetails(M, cfg, salt); if (M.fire) det.push({ t: 'campfire', x: M.fire.x, z: M.fire.z, fire: true }); for (const q of M.props || []) det.push({ ...q, detail: true });     // детали подземелья (T5); костёр перед финальным боссом (план подземелий, 1е)
-    if (det.length) group.add(buildDecor({ decor: det }, null, null).group); }
+  { const salt = [...String(M.level || '')].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7), det = M.wild ? [] : dungeonDetails(M, cfg, salt); if (M.fire) det.push({ t: 'campfire', x: M.fire.x, z: M.fire.z, fire: true }); for (const q of M.props || []) if (q.t !== 'w_tree' && q.t !== 'w_rock') det.push({ ...q, detail: true });     // детали подземелья (T5); костёр перед финальным боссом (план подземелий, 1е)
+    if (det.length) group.add(buildDecor({ decor: det }, M.wild ? Math.random : null, null).group); }
   const fl = flames.length ? new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: th.flame || '#ffb050' })) : null; if (fl) group.add(fl);
-  { const gp = glowParts(M, th, open); if (gp) group.add(new THREE.Mesh(mergeGeometries(gp), new THREE.MeshBasicMaterial({ color: th.glow.color, fog: false, toneMapped: false }))); }     // 4.14: кристаллы, грибы, лава — светятся сквозь туман
+  { const gp = M.wild ? null : glowParts(M, th, open); if (gp) group.add(new THREE.Mesh(mergeGeometries(gp), new THREE.MeshBasicMaterial({ color: th.glow.color, fog: false, toneMapped: false }))); }     // 4.14: кристаллы, грибы, лава — светятся сквозь туман
   for (const q of M.portals) { const ri = roomAt(M, q.x, q.z); group.add(stairs(q, ri >= 0 ? M.rooms[ri] : M.bounds)); }
   // двери: створка на петле у края проёма, открывается внутрь дальней комнаты
   const doorMat = mat('#5a3f28', 'auto', { plank: .25 }), bandMat = mat('#2a2018', 'metal'), doors = [];

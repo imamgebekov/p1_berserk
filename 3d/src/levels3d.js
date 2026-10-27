@@ -11,6 +11,7 @@ import { initAbyss, abyssGo } from './abyss3d.js';
 import { floorsOf, floorMap, isFloor } from './floors3d.js';
 import { genDef } from './dungeongen3d.js';
 import { styleDef } from './dungeonstyle3d.js';
+import { wildOn, wildCfg, wildFinish } from './wilds3d.js';     // малые миры (2026-10-27)
 import { unwarpDist, warpOf } from './coremap3d.js';
 
 export const SURFACE = 'surface';
@@ -140,11 +141,12 @@ export function regenLevel(W, id) {
   const base = L.base || (L.base = L.def), bosses = cfg.bosses.list.filter(b => b.level === id).sort((a, b) => (a.final ? 1 : 0) - (b.final ? 1 : 0));
   for (let k = 1; k <= 3; k++) if (W.keys) delete W.keys[`${id}_k${k}`];     // новая раскладка — старые ключи от её дверей не подходят (план подземелий, 2б)
   W.genN = (W.genN || 0) + 1; const seed = W.rng === Math.random ? (Math.random() * 2147483647) | 0 : (cfg.dungeons.seed * 977 + W.genN * 7919 + id.length * 131) | 0;
-  const def = genDef(cfg, { ...base, styled: false, bosses: bosses.map(b => ({ type: b.type })) }, seed);
+  const wild = wildOn(cfg, base), C2 = wild ? wildCfg(cfg) : cfg, X = cfg.dungeons.wild;     // малый мир: раскладка в масштабе мира
+  const def = genDef(C2, { ...base, styled: false, bosses: bosses.map(b => ({ type: b.type })) }, seed);
   bosses.forEach((b, k) => { const r = def.rooms.find(q => q.id === def.bosses[k].room); if (r) { b.x = r.x; b.z = r.z; } });
-  styleDef(cfg, def, bosses); delete def.bosses;
-  const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
-  Object.assign(L, { def, map, enemies: [], drops: [], spawnT: 1 }, fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal));
+  styleDef(C2, def, bosses); if (wild) wildFinish(cfg, def, seed, bosses); delete def.bosses;
+  const map = makeLevelMap(C2, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
+  Object.assign(L, { def, map, enemies: [], drops: [], spawnT: 1 }, wild ? fogFor(R, X.fog.cell, X.fog.reveal) : fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal));
   withLevel(W, id, () => { spawnFoes(W, L); for (const b of bosses) { delete W.bossDead[b.type]; spawnBoss(W, b); } });     // новый заход — все боссы на месте (план подземелий: вход и бой — всегда, награду держит откат); внутри захода убитый не встаёт
   refillLevel(W, id);
   return true;
