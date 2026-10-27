@@ -60,7 +60,7 @@ import { PATH, pathFresh, sanitizePath, pathEvent, pathTick, pathGoal, pathIndex
 
 const $ = id => document.getElementById(id);
 applyIcons(document);     // иконки-силуэты вместо эмодзи в кнопках разметки (шаг 10)
-$('keysMore').addEventListener('click', () => { const p = $('keysAll'); p.hidden = !p.hidden; $('keysMore').setAttribute('aria-expanded', String(!p.hidden)); });     // все клавиши по «?»
+$('keysMore').addEventListener('click', () => menuSec('keys'));     // все клавиши по «?» — раздел «Управление»
 const defaults = JSON.parse(JSON.stringify(CFG3));
 if (new URLSearchParams(location.search).has('boxy')) CFG3.shapes.volume = false;     // ?boxy — прежние модели из кубиков (сравнение)
 if (new URLSearchParams(location.search).has('flat') && CFG3.shaders.paint) CFG3.shaders.paint.on = false;
@@ -470,9 +470,16 @@ ironBtn.addEventListener('click', () => { if (W.iron) return; if (!ironArmed) { 
 renderDif();
 createTweakPanel(document, cfg, defaults, {
   onChange: t => { if (t && (t.reload || t.path === 'view.pixelScale')) fit(); applyVol(); },
-  onOpen: () => { panelOpen = true; input.release(); renderDif(); { const b = $('ngBtn'); b.hidden = !ngOpen(W); b.dataset.arm = ''; b.textContent = `Новый круг ${(W.ng || 0) + 2}`; } $('heroNow').textContent = `${HEROES[W.hero].name} — ${HEROES[W.hero].role.toLowerCase()}. Смена героя сохраняет уровень, пепел, вещи и навыки.`; },
+  onOpen: () => { panelOpen = true; input.release(); renderDif(); menuSec('game'); { const b = $('ngBtn'); b.hidden = !ngOpen(W); b.dataset.arm = ''; b.textContent = `Новый круг ${(W.ng || 0) + 2}`; } const H = HEROES[W.hero];
+    $('heroNow').textContent = `${H.name} — ${H.role.toLowerCase()}`; $('heroMark').textContent = H.name[0]; $('heroSub').textContent = `Ур. ${W.lv} · у каждого героя свои вещи, пепел и место в мире`; $('menuSub').textContent = `${H.name} · ур. ${W.lv} · сложность «${W.dif.name}»`; },
   onClose: () => { panelOpen = false; }
 });
+// меню по макету А (2026-10-25): разделы слева, на телефоне — строкой сверху; открывается на «Игре»
+function menuSec(id) {
+  for (const b of $('menuNav').children) { const on = b.dataset.sec === id; b.classList.toggle('on', on); b.setAttribute('aria-current', on ? 'true' : 'false'); if (on && !desk && b.scrollIntoView) b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+  for (const s of document.querySelectorAll('#panel .msec')) s.hidden = s.dataset.sec !== id;
+}
+$('menuNav').addEventListener('click', e => { const b = e.target.closest('button[data-sec]'); if (b) menuSec(b.dataset.sec); });
 // клавиши компьютера (физические, работают на любой раскладке): действие, карта, сумка, навыки, задания, меню
 if (desk) {
   $('keysHelp').hidden = false;
@@ -516,7 +523,7 @@ for (const [id, key] of [['volAll', 'all'], ['volMusic', 'music'], ['volSfx', 's
 }
 for (const ev of ['pointerdown', 'touchstart', 'keydown']) addEventListener(ev, ensureAudio, { passive: true });
 const muteBtn = $('muteBtn');
-const showMute = () => { setIconText(muteBtn, isMuted() ? 'mute' : 'sound', isMuted() ? 'Звук выключен' : 'Звук включён'); };
+const showMute = () => { setIconText(muteBtn, isMuted() ? 'mute' : 'sound', isMuted() ? 'Звук выключен' : 'Звук включён'); muteBtn.setAttribute('aria-pressed', String(!isMuted())); };
 // своё с устройства (2026-10-21): музыка и значки игрока — только в этом браузере (custom3d.js)
 let ownActive = false, tracksQuiet = false; const tracks = createTracks(cfg, q => { tracksQuiet = q; setOwnMusicOn(ownActive || q); });     // треки оркестра (music3d.js)
 let ownMusicOn = true; try { ownMusicOn = localStorage.getItem('berserk3d.ownMusic') !== '0'; } catch (e) { /* без сохранения */ }
@@ -530,7 +537,7 @@ $('ownMusicClear').addEventListener('click', () => clearOwnMusic().then(syncOwnM
 $('ownIconsClear').addEventListener('click', () => clearOwnIcons());
 function syncOwnMusic() {
   const n = ownMusic().length, on = ownMusicOn && n > 0 && !isMuted(); ownActive = on; setOwnMusicOn(on || tracksQuiet); if (on) ownPlayer.start(); else ownPlayer.stop();
-  $('ownMusicBtn').hidden = !n; setIconText($('ownMusicBtn'), 'sound', ownMusicOn ? `Своя музыка играет (${n})` : `Своя музыка выключена (${n})`);
+  $('ownMusicBtn').hidden = !n; setIconText($('ownMusicBtn'), 'sound', ownMusicOn ? `Своя музыка играет (${n})` : `Своя музыка выключена (${n})`); $('ownMusicBtn').setAttribute('aria-pressed', String(ownMusicOn));
   $('ownMusicClear').hidden = !n; $('ownMusicClear').textContent = 'Удалить свою музыку'; $('ownIconsClear').hidden = !ownIconCount(); $('ownIconsClear').textContent = `Вернуть значки игры (своих: ${ownIconCount()})`;
 }
 onOwnChange(() => { abilKey = ''; if (skills.isOpen()) skills.render(); if (!$('bag').hidden) bag.render(); try { syncOwnMusic(); } catch (e) { console.warn('своя музыка:', e && e.message); } });
@@ -542,7 +549,7 @@ showMute();
 const bagFill = $('bagFill');
 let reliefDone = false, goalT = 0, ambT = 0, atmoT = 0, stepT = 0, hintT = 8, fpsN = 0, fpsT = 0;
 // личные настройки: левша, размер кнопок, вибрация, счётчик кадров, подсказки
-const prefBtn = (id, get, label, flip, ic) => { const b = $(id); const show = () => { setIconText(b, ic, label(get())); }; b.addEventListener('click', () => { flip(); savePrefs(P); applyPrefs(); }); return show; };
+const prefBtn = (id, get, label, flip, ic) => { const b = $(id); const show = () => { setIconText(b, ic, label(get())); b.setAttribute('aria-pressed', String(!!get())); }; b.addEventListener('click', () => { flip(); savePrefs(P); applyPrefs(); }); return show; };
 const uiTabs = $('uiTabs');
 for (const [name, v] of UI_SCALES) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.v = v; b.textContent = 'Кнопки ' + name; b.addEventListener('click', () => { P.ui = v; savePrefs(P); applyPrefs(); }); uiTabs.appendChild(b); }
 const qualTabs = $('qualTabs');     // пресеты качества (шаг 14)
@@ -551,7 +558,7 @@ const shows = [
   prefBtn('leftyBtn', () => P.lefty, v => v ? 'Режим левши: кнопки слева' : 'Режим левши выключен', () => { P.lefty = !P.lefty; }, 'swap'),
   prefBtn('vibBtn', () => P.vibrate, v => v ? 'Вибрация включена (на iPhone не работает)' : 'Вибрация выключена', () => { P.vibrate = !P.vibrate; }, 'phone'),
   prefBtn('fpsBtn', () => P.fps, v => v ? 'Счётчик кадров включён' : 'Счётчик кадров выключен', () => { P.fps = !P.fps; }, 'timer'),
-  prefBtn('asciiBtn', () => P.ascii, v => v ? 'Вид: ASCII (символы)' : 'Вид: обычный', () => { P.ascii = !P.ascii; }, 'eye'),
+  prefBtn('asciiBtn', () => P.ascii, v => v ? 'Мир символами (ASCII) включён' : 'Мир символами выключен', () => { P.ascii = !P.ascii; }, 'eye'),
   prefBtn('ecoBtn', () => ecoOn(), v => v ? 'Экономия заряда включена (30 кадров, меньше нагрев)' : 'Экономия заряда выключена', () => { P.eco = !ecoOn(); }, 'timer'),
   prefBtn('retroBtn', () => P.retro, v => v ? 'Ретро-пиксели включены' : 'Ретро-пиксели выключены', () => { P.retro = !P.retro; }, 'pixels'),
   prefBtn('hintBtn', () => P.hints, v => v ? 'Подсказки включены (нажмите: показать заново)' : 'Подсказки выключены', () => { P.hints = !P.hints; if (P.hints) P.seen = {}; }, 'hint')
@@ -974,7 +981,7 @@ function frame(now) {
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;
   if (hp !== lastHp) { lastHp = hp; const k = `scaleX(${Math.max(0, W.player.hp / W.player.maxhp)})`; hpFill.style.transform = k; hpGhost.style.transform = k; hpTxt.textContent = Math.ceil(W.player.hp); }     // след потерянного здоровья догоняет с задержкой (шаг 5)
-  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; hudLv.textContent = `Ур. ${W.lv}${W.ng ? ` · круг ${W.ng + 1}` : ''}`; setIconText(hudAsh, 'ash', String(W.inv.ash)); hudAsh.title = 'Пепел'; timeDial(W); xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
+  { const key = W.kills + ':' + W.inv.ash + ':' + W.lv + ':' + W.xp + ':' + W.sp + ':' + W.ap + ':' + clockText(W.t, cfg.daynight) + W.night; if (key !== lastKey) { lastKey = key; $('hudFaceL').textContent = (HEROES[W.hero] && HEROES[W.hero].name || '?')[0]; $('hudFaceLv').textContent = W.lv; hudLv.textContent = W.ng ? `круг ${W.ng + 1}` : ''; setIconText(hudAsh, 'ash', String(W.inv.ash)); hudAsh.title = 'Пепел'; timeDial(W); xpFill.style.transform = `scaleX(${W.lv >= cfg.level.max ? 1 : W.xp / xpNeed(W.lv, cfg)})`; skillBtn.classList.toggle('dot', W.sp > 0 || W.ap > 0); } }     // верх HUD — капсулы (шаг 9)
   if (W.player.dead && W.player.deadT > .9 && $('dead').hidden) $('dead').hidden = false;
 }
 requestAnimationFrame(loop);

@@ -286,7 +286,6 @@ html[data-lefty] #abil .ab[data-i="4"]{left:calc(182px + env(safe-area-inset-lef
 #tweakBox{margin:12px 0 6px;border-top:2px solid var(--line);padding-top:8px}
 #tweakBox summary{min-height:44px;display:flex;align-items:center;cursor:pointer;opacity:.75;font-size:14px}
 [data-desk] #panel .pbox{max-width:1040px}
-[data-desk] .pcols{display:grid;grid-template-columns:1fr 1fr;column-gap:24px;align-items:start}
 [data-desk] #leftyBtn,[data-desk] #uiTabs,[data-desk] #vibBtn{display:none}
 #tweakBox summary::before{content:'▸';margin-right:8px}#tweakBox[open] summary::before{content:'▾'}#tweakBox summary::-webkit-details-marker{display:none}
 
@@ -357,15 +356,8 @@ html:not([data-desk]) #bagCard:not([hidden]){position:absolute;left:8px;right:8p
 #bag .bhead{gap:8px}#bag .bhead h2{flex:1}
 #bag .bhead .jbtn{background:#241817;border:2px solid var(--line);color:var(--ink)}
 #bag .bhead .jbtn{margin:0}
-/* меню по разделам: четыре карточки — Игра, Вид и звук, Управление, Сохранение */
-#panel .pcols{display:grid;grid-template-columns:1fr;gap:12px}
-#panel .pcol{display:flex;flex-direction:column;gap:8px;background:#1a1211;border:2px solid var(--line);border-radius:12px;padding:12px}
-#panel .pcol h2{margin:0;font-size:16px}#panel .pcol h3{margin:6px 0 0;font-size:13px;opacity:.75;text-transform:uppercase;letter-spacing:.05em}
-#panel .pcol .reset{width:100%;text-align:left}
 #panel .vols{display:flex;flex-direction:column;gap:6px}#panel .vols label{display:grid;grid-template-columns:72px 1fr 40px;align-items:center;gap:8px;font-size:14px}#panel .vols input{width:100%;accent-color:#d9b27a;min-height:28px}#panel .vols output{text-align:right;opacity:.8;font-variant-numeric:tabular-nums}
-#panel .pstack{display:contents}
 [data-desk] #panel .pbox{max-width:min(1180px,var(--pbw,1180px));width:100%}
-[data-desk] #panel .pcols{grid-template-columns:repeat(3,minmax(0,1fr))}[data-desk] #panel .pstack{display:flex;flex-direction:column;gap:12px}
 
 /* ---- шаг 9 аудита: единый материал интерфейса ---- */
 .pbox{background:linear-gradient(180deg,var(--wood-a),var(--wood-b) 38%,var(--wood-c));border:2px solid var(--rim);border-radius:14px;
@@ -384,8 +376,6 @@ html:not([data-desk]) #bagCard:not([hidden]){position:absolute;left:8px;right:8p
 .trow input{accent-color:var(--gold)}
 /* вкладки: не ниже 44 px, выбранная — золотая рамка */
 .tab{min-height:44px;background:var(--btn);border-color:var(--line)}.tab.on{background:var(--btn-on);border-color:var(--gold);color:#f6e6c8}
-/* карточки разделов меню и строки — тот же материал темнее */
-#panel .pcol{background:rgba(0,0,0,.18);border-color:var(--line)}
 /* тосты — карточки с подложкой, не больше 3 (main.js) */
 #toasts{gap:6px;max-width:min(420px,60%)}
 .toast{align-self:flex-start;padding:6px 12px;background:rgba(30,20,14,.86);border:1px solid #6a5038;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.35);text-shadow:none;animation:toastIn 3.4s ease-out forwards}
@@ -750,7 +740,6 @@ html,body{font-family:var(--sans);font-size:15.5px}
 #smith .srow .tier,
 #lib .srow .tier,#captain .srow .tier{font-size:12.5px}#smith .srow .buy,#lib .srow .buy,#captain .srow .buy{font-size:15px;min-width:112px;min-height:48px}
 #smithFlash,#captainFlash{font-size:15px}#captain .ssec{font-size:13.5px;opacity:.75}
-#panel .pcol h2{font-size:19px}#panel .pcol h3{font-size:14.5px}#panel .reset{font-size:15px}#panel .keys{font-size:14.5px}#panel .pcol textarea{font-size:14px}
 #smith .reset,
 #lib .reset{font-size:15px}
 /* свои значки игрока (2026-10-21): картинка вместо силуэта */
@@ -863,4 +852,235 @@ html:not([data-desk]) #loot{left:12px;right:12px;width:auto;top:auto;bottom:calc
 
 #relic .srow.mine{border-color:#e8c04a}#relic .srow .buy{font-size:15px;min-width:132px;min-height:48px}#relicFlash{min-height:18px;color:#e8c04a;font-size:13px;padding:0 4px}#relicList{display:flex;flex-direction:column;gap:6px;overflow:auto}
 #bossCard{position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:30;pointer-events:none;text-align:center;padding:10px 26px;background:linear-gradient(90deg,transparent,rgba(12,6,4,.82) 18%,rgba(12,6,4,.82) 82%,transparent);color:#f0e2c4;font-family:"Iowan Old Style",Palatino,Georgia,serif;opacity:0}#bossCard[hidden]{display:none}#bossCard.on{animation:bossCard 2.8s ease forwards}#bossCard b{display:block;font-size:30px;letter-spacing:.04em;color:#ff6a4a;text-shadow:0 2px 0 #000}#bossCard span{display:block;font-size:15px;opacity:.85}#bossCard i{display:block;font-size:14px;font-style:normal;color:#ffc87a;margin-top:2px}@keyframes bossCard{0%{opacity:0;transform:translate(-50%,8px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0}}@media (prefers-reduced-motion:reduce){#bossCard.on{animation:none;opacity:1}}     /* карточка босса (план подземелий, 1д) */
-.pfold{margin-top:6px}.pfold summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:14px;opacity:.8;list-style:none}.pfold summary::-webkit-details-marker{display:none}.pfold summary::before{content:'▸';margin-right:8px}.pfold[open] summary::before{content:'▾'}     /* свёрнутые блоки меню (2026-10-24): «Своё с устройства» и авторы — меню помещается на Маке без прокрутки */
+
+/* ===== меню по макету А (2026-10-25, выбор владельца): разделы слева, справа выбранный раздел; на телефоне разделы — строкой «пилюль» сверху ===== */
+#panel .pbox{display:flex;flex-direction:column;gap:10px;overflow:hidden}
+[data-desk] #panel .pbox{width:min(1040px,var(--pbw,1040px));max-width:min(1040px,var(--pbw,1040px));height:min(640px,var(--pbh,84vh));max-height:var(--pbh,84%)}
+#panel .bhead{margin-bottom:0}#panel .bhead h2{flex:none}
+#panel .msub{flex:1;min-width:0;font-size:14px;color:#a89c88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#panel .mbody{flex:1;min-height:0;display:flex;gap:16px}
+#panel .mnav{width:220px;flex:none;display:flex;flex-direction:column;gap:6px}
+#panel .mnav button{min-height:48px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:10px;border:1px solid transparent;background:transparent;color:#cfc2aa;font-family:var(--sans);font-size:16px;font-weight:600;text-align:left;cursor:pointer}
+#panel .mnav button .ic{width:20px;height:20px;margin:0;flex:none}
+#panel .mnav button:hover{background:rgba(255,220,170,.05)}
+#panel .mnav button.on{background:#2a1d13;border-color:#d9b27a;color:#f0d3a0}
+#panel .mpane{flex:1;min-width:0;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 18px;border-radius:12px;background:#18110c;border:1px solid #3a2b1f}
+#panel .msec{display:flex;flex-direction:column;gap:12px}#panel .msec[hidden]{display:none}
+#panel .msec h3{margin:4px 0 -4px;font-family:var(--sans)!important;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#a89c88!important}
+#panel .note{margin:0;font-size:15px;line-height:1.4;color:#cfc2aa;opacity:1}
+#panel .mhero{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:10px;background:#120c09;border:1px solid #3a2b1f}
+#panel .hmark{width:56px;height:56px;flex:none;border-radius:50%;background:#2a1e16;border:2px solid #d9b27a;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:24px;color:#d9b27a}
+#panel .mht{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}#panel .mht b{font-family:var(--serif);font-size:20px;font-weight:500;color:#f0d3a0}#panel .mht span{font-size:14px;color:#a89c88}
+#panel .mpill,#panel .prow button{min-height:44px;padding:0 18px;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;color:#e8dcc6!important;font-family:var(--sans);font-size:15px;font-weight:600;text-shadow:none;box-shadow:none!important;cursor:pointer;opacity:1}
+#panel .mpill.main,#panel .prow button.main{border-color:#d9b27a!important;background:#3a2a1a!important;color:#f0d3a0!important;font-family:var(--serif);font-size:17px;font-weight:500}
+#panel .mpill.bad,#panel .mpill.warn{border-color:#a03a2c!important;background:#2a1210!important;color:#ffcfc4!important}
+#panel .mpill:hover,#panel .prow button:hover{filter:brightness(1.15)}
+#panel .mdanger{margin-top:auto;display:flex;align-items:center;gap:14px;padding-top:12px;border-top:1px solid #3a2b1f}#panel .mdanger .note{flex:1;font-size:14px;color:#a89c88}#panel .mdanger .mpill{flex:none}
+#panel .msec[data-sec="game"]{min-height:100%}
+#panel .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0}
+#panel .tab{flex:1 1 0;min-height:44px;padding:0 12px;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;color:#e8dcc6!important;font-family:var(--sans);font-size:15px;font-weight:700;text-shadow:none;box-shadow:none!important}
+#panel .tab.on{background:#d9b27a!important;border-color:#d9b27a!important;color:#1a120c!important}
+#panel .tab:disabled{opacity:.45;filter:none}
+#ironBtn{margin:0}
+#panel .tgl{position:relative;display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:6px 74px 6px 14px;border-radius:10px;border:1px solid #3a2b1f;background:#120c09;color:#e8dcc6;font-family:var(--sans);font-size:15.5px;font-weight:500;text-align:left;cursor:pointer;opacity:1}
+#panel .tgl[hidden]{display:none}
+#panel .tgl .ic{width:20px;height:20px;margin:0;flex:none;color:#d9b27a}
+#panel .tgl::after{content:'';position:absolute;right:14px;top:50%;width:46px;height:26px;margin-top:-13px;box-sizing:border-box;border-radius:13px;border:1px solid #4a3626;background:#120c09 radial-gradient(circle at 13px 50%,#6a5a4a 0 9px,transparent 9.5px)}
+#panel .tgl[aria-pressed="true"]::after{border-color:#d9b27a;background:#3a2a1a radial-gradient(circle at 32px 50%,#f0d3a0 0 9px,transparent 9.5px)}
+#panel .tgl:hover{border-color:#5a4230}
+#panel .tgls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#panel .vols{display:flex;flex-direction:column;gap:8px}
+#panel .vols label{display:grid;grid-template-columns:90px 1fr 48px;align-items:center;gap:14px;min-height:48px;padding:0 14px;border-radius:10px;background:#120c09;border:1px solid #3a2b1f;font-size:16px}
+#panel .vols input{accent-color:#d9b27a;min-height:28px}#panel .vols output{color:#a89c88}
+#panel .prefs{display:flex;flex-direction:column;gap:8px;margin:0}
+#panel .klist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 24px}
+#panel .klist span{display:flex;align-items:center;gap:12px;min-height:34px;font-size:15px}
+#panel .klist kbd{min-width:56px;flex:none}
+html:not([data-desk]) #panel .klist{display:none}
+#panel .prow{gap:8px}
+#panel #saveCode{margin:0;border-radius:10px;border:1px solid #3a2b1f;background:#120c09;font-size:14px;padding:10px 12px}
+#panel #ownBox .mpill,#panel #ownBox .tgl{align-self:stretch}
+#panel .cred{display:flex;gap:14px;margin:0;padding:10px 0;border-bottom:1px solid #2a1f17;font-size:14.5px;line-height:1.4;color:#cfc2aa}
+#panel .cred b{width:110px;flex:none;font-family:var(--serif);font-weight:500;color:#d9b27a}
+#panel #tweakBox{margin:4px 0 0}
+#panel #keysHelp.keys{margin:0;font-size:14px;color:#a89c88}
+html:not([data-desk]) #panel .mbody{flex-direction:column;gap:10px}
+html:not([data-desk]) #panel .mnav{width:auto;flex-direction:row;overflow-x:auto;gap:6px;margin:0 -4px;padding:0 4px 2px;scrollbar-width:none}
+html:not([data-desk]) #panel .mnav button{flex:none;min-height:44px;padding:0 16px;border-radius:22px;border-color:#5a4230;background:#241a13;color:#e8dcc6;font-size:15px;font-weight:700}
+html:not([data-desk]) #panel .mnav button .ic{display:none}
+html:not([data-desk]) #panel .mnav button.on{background:#d9b27a;border-color:#d9b27a;color:#1a120c}
+html:not([data-desk]) #panel .mpane{padding:12px;background:transparent;border:0}
+html:not([data-desk]) #panel .pbox{height:calc(100% - 20px)}
+html:not([data-desk]) #panel .msub{display:none}
+html:not([data-desk]) #panel .tgls{grid-template-columns:1fr}
+html:not([data-desk]) #panel .mdanger{flex-direction:column;align-items:stretch}
+html:not([data-desk]) #panel .vols label{grid-template-columns:70px 1fr 44px;gap:10px}
+html:not([data-desk]) #panel #difTabs .tab{flex:1 1 40%}
+[data-desk] #panel #leftyBtn,[data-desk] #panel #uiTabs,[data-desk] #panel #vibBtn{display:none}
+html:not([data-desk]) #panel .mhero{flex-wrap:wrap}html:not([data-desk]) #panel .mhero .mpill{flex:1 1 100%}
+/* ===== журнал по макету А (2026-10-27): разделы слева столбцом (на телефоне — строкой «пилюль»), строки — карточки, материалы — «пилюли» ===== */
+#journal .pbox{display:flex;flex-direction:column;gap:10px;overflow:hidden}
+#journal .bhead h2{flex:none}#journal .msub{flex:1;min-width:0;font-size:14px;color:#a89c88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+[data-desk] #journal .pbox{width:min(1100px,var(--pbw,1100px));max-width:min(1100px,var(--pbw,1100px));height:min(660px,var(--pbh,84vh));max-height:var(--pbh,84%);display:grid;grid-template-columns:200px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);column-gap:16px;row-gap:10px}
+[data-desk] #journal .bhead{grid-column:1/-1}
+[data-desk] #journalTabs{grid-column:1;grid-row:2;flex-direction:column;flex-wrap:nowrap;overflow-y:auto;gap:4px;margin:0;align-self:start}
+[data-desk] #journalList{grid-column:2;grid-row:2;min-height:0}
+#journalTabs .tab{flex:none;min-height:44px;padding:0 14px;border-radius:10px!important;border:1px solid transparent!important;background:transparent!important;box-shadow:none!important;color:#cfc2aa!important;font-family:var(--sans);font-size:15px;font-weight:600;text-align:left;text-shadow:none}
+#journalTabs .tab:hover{background:rgba(255,220,170,.05)!important}
+#journalTabs .tab.on{background:#2a1d13!important;border-color:#d9b27a!important;color:#f0d3a0!important}
+html:not([data-desk]) #journalTabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -4px;padding:0 4px 2px}
+html:not([data-desk]) #journalTabs .tab{border-radius:22px!important;border-color:#5a4230!important;background:#241a13!important;color:#e8dcc6!important;font-weight:700}
+html:not([data-desk]) #journalTabs .tab.on{background:#d9b27a!important;border-color:#d9b27a!important;color:#1a120c!important}
+#journalList{gap:6px;padding-right:2px}
+#journal .jrow{padding:10px 14px;border-radius:10px;background:#18110c!important;border:1px solid #3a2b1f!important;box-shadow:none!important}
+#journal .jrow.ready{border-color:#6aa860!important}
+#journal .jrow.dim{opacity:.55}
+#journal .jrow b{font-family:var(--serif);font-weight:500;font-size:18px;letter-spacing:.01em}
+#journal .jrow .sub{color:#a89c88;opacity:1;font-size:14px;margin-top:4px}
+#journal .jrow .g{color:#8fd07a}#journal .jrow .z{color:#e0907a}#journal .jrow .k{color:#ffd27a}
+#journal .mats{gap:6px;margin-top:8px;align-items:center}
+#journal .mats .mat,#journal .sub .mat{min-height:44px;min-width:44px;padding:0 14px;border-radius:22px;border:1px solid currentColor;background:transparent;font-size:14px;font-weight:600}
+#journal .mats .mat.have{color:#8fd07a}#journal .mats .mat.lack{color:#e0907a}
+#journal .mats > span{font-family:var(--serif);font-size:15px}#journal .mats > span.have{color:#ffd27a}#journal .mats > span.lack{color:#e0907a}
+#journalList > .tabs .tab{border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;box-shadow:none!important;color:#e8dcc6!important;font-weight:700;text-shadow:none}
+#journalList > .tabs .tab.on{background:#d9b27a!important;border-color:#d9b27a!important;color:#1a120c!important}
+#journal .jtabs .tab{min-height:44px;padding:0 16px;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;box-shadow:none!important;color:#e8dcc6!important;font-weight:700;text-shadow:none}
+#journal .jtabs .tab.on{background:#d9b27a!important;border-color:#d9b27a!important;color:#1a120c!important}
+#journal .craftb,#journal .rewl button{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid #d9b27a;background:#3a2a1a;color:#f0d3a0;font-weight:700}
+#journal .craftb:disabled,#journal .rewl button:disabled{border-color:#4a3626;background:transparent;color:#8a7e6c;filter:none;opacity:1}
+html:not([data-desk]) #journal .msub{display:none}
+/* ===== древо по макету А (2026-10-27): шапка «Древо · подпись · очки», плоские шапки веток, карточка в цветах игры; телефон — одна ветка, карточка шторкой ===== */
+#skills .bhead h2{flex:none}#skills .msub{flex:1;min-width:0;font-size:14px;color:#a89c88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#skills .spts{display:flex;gap:8px;flex:none}
+#skills .spt{display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:18px;background:#241a13;border:1px solid #5a4230;font-size:14.5px;color:#e8dcc6}
+#skills .spt b{font-family:var(--serif);font-size:18px;font-weight:700;color:#a89c88}#skills .spt.has b{color:#8fd07a}
+#skills #skillXp{background:transparent!important;border:0!important;box-shadow:none!important;padding:0 2px!important;font-size:13.5px;color:#a89c88;opacity:1}
+#skills .tbranch{border-radius:12px!important;background:#18110c!important;box-shadow:none!important;border:1px solid #3a2b1f!important;border-top:3px solid var(--bc)!important}
+#skills .tbranch .twm{opacity:.05}
+#skills .tbh{clip-path:none!important;background:none!important;box-shadow:none!important;margin:0!important;padding:10px 4px 0!important;text-align:left!important;font-size:19px!important;color:var(--bc)!important;text-shadow:0 1px 0 #000!important}
+#skills .tbr{text-align:left!important;padding:0 4px;font-size:13px;color:#a89c88!important}
+#skills .tcard{background:#120c09!important;border:1px solid #d9b27a!important;border-radius:12px!important;box-shadow:0 8px 22px rgba(0,0,0,.5)!important;padding:14px!important;gap:8px}
+#skills .tcard .tcn{color:#f0d3a0!important;font-size:19px!important}#skills .tcard .tck{color:#a89c88!important}
+#skills .tcard .sub{color:#ffd27a!important;font-size:14px}#skills .tcard .sub.z{color:#e0907a!important}#skills .tcard .sub.cmb{color:#9fd6c0!important}
+#skills .tcard .tbuy:not(.own){min-height:48px!important;border-radius:24px!important;border:1px solid #d9b27a!important;background:#3a2a1a!important;color:#f0d3a0!important;font-family:var(--serif);font-size:17px;box-shadow:none!important}
+#skills .tcard .tbuy:disabled{border-color:#4a3626!important;background:transparent!important;color:#8a7e6c!important;filter:none}
+#skills .tcard .tbuy.own{min-height:44px!important;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;color:#e8dcc6!important;box-shadow:none!important}
+#skills .tcard .bslot{min-width:44px!important;min-height:44px!important;border-radius:8px!important;box-shadow:none!important;border:1px solid #4a3626!important;background:#18110c!important;color:#a89c88!important}
+#skills .tcard .bslot.on{border-color:#d9b27a!important;background:#2a1d13!important;color:#f0d3a0!important}
+#skillReset{align-self:flex-end;min-height:44px!important;padding:0 18px;border-radius:22px!important;border:1px solid #5a4230!important;background:transparent!important;box-shadow:none!important;color:#cfc2aa!important;font-size:14px;opacity:1}
+#skillReset.warn{border-color:#a03a2c!important;background:#2a1210!important;color:#ffcfc4!important}
+.tbsw{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.tbsb{min-height:44px;border-radius:22px;border:1px solid #5a4230;background:#241a13;color:#cfc2aa;font-family:var(--serif);font-size:16px}
+.tbsb.on{border-color:var(--bc);background:#0f0a07;color:var(--bc)}
+#skills .tbranch.thid{display:none}
+html:not([data-desk]) #skills .tree{overflow:visible}html:not([data-desk]) #skills .tbranch{flex:1 1 100%}
+html:not([data-desk]) #skills .msub,html:not([data-desk]) #skills .spt .l{display:none}
+#skills .spt .ls{display:none}html:not([data-desk]) #skills .spt .ls{display:inline}
+#skills .tsch:not(.on){min-height:44px!important}
+html:not([data-desk]) #skills .spt{padding:0 10px}
+html:not([data-desk]) #skills .pbox{position:relative}
+html:not([data-desk]) #skills .tcard.tsheet{position:absolute;left:8px;right:8px;bottom:8px;max-height:62%;overflow-y:auto;z-index:3;box-shadow:0 -10px 30px rgba(0,0,0,.6)!important}
+.tcx{position:absolute;right:8px;top:8px;width:44px;height:44px;border-radius:8px;border:1px solid #4a3626;background:transparent;color:#b8ad9a;font-size:22px;line-height:1}
+html:not([data-desk]) #skills .tcard:not(.tsheet){display:none}
+/* ===== застава по макету А (2026-10-27): шапка «Застава · отряд · пепел», бойцы — карточки сеткой (на телефоне столбцом), плашки здоровья и урона ===== */
+#captain .bhead h2{flex:none}#captain .msub{flex:1;min-width:0;font-size:14px;color:#a89c88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#captain .tash{display:flex;align-items:center;height:36px;padding:0 14px;border-radius:18px;background:#241a13;border:1px solid #5a4230;font-family:var(--serif);font-size:16px;font-weight:700;color:#ffd27a;white-space:nowrap}
+[data-desk] #captain .pbox{width:min(1160px,var(--pbw,1160px));max-width:min(1160px,var(--pbw,1160px))}
+#captainList{gap:10px}
+[data-desk] #captainList{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-content:start}
+#captainList .ssec,#captainList .cnote,#captainList .emptyl{grid-column:1/-1}
+#captainList .ssec{margin:4px 0 -2px;font-size:12px;letter-spacing:.12em;color:#a89c88;opacity:1}
+#captainList .cnote{font-size:14px;color:#a89c88}
+#captain .srow{flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px;border-radius:12px;background:#18110c!important;border:1px solid #3a2b1f!important;box-shadow:none!important;min-height:0}
+#captain .srow .nm{font-family:var(--serif);font-size:19px!important;font-weight:500}
+#captain .srow .sub{font-size:14px!important;color:#cfc2aa;opacity:1!important}
+#captain .cstats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px}
+#captain .cst{display:flex;justify-content:space-between;align-items:baseline;padding:4px 10px;border-radius:8px;background:#120c09;border:1px solid #2a1f17;font-size:13px;color:#a89c88}#captain .cst b{font-size:16px;color:#e8dcc6}
+#captain .cact{display:flex;align-items:center;gap:10px;flex-direction:row-reverse;justify-content:flex-start}
+#captain .cneed{flex:1;font-size:13px;color:#e0705a}
+#captain .srow .buy{min-height:44px!important;min-width:132px!important;padding:0 16px;border-radius:22px!important;border:1px solid #8ac070!important;background:linear-gradient(180deg,#5a9a48,#2f6a24)!important;color:#f4ffe8!important;font-size:15px!important;font-weight:700;box-shadow:none!important;opacity:1}
+#captain .srow .buy.no{border-color:#4a3626!important;background:transparent!important;color:#8a7e6c!important}
+html:not([data-desk]) #captain .msub{display:none}
+#captain .srow .buy.out{border-color:#a03a2c!important;background:#2a1210!important;color:#ffcfc4!important}
+/* ===== кузнец по макету А (2026-10-27): шапка «Кузнец · место · пепел · журнал», вкладки-«пилюли», строки-карточки, главная кнопка с золотым кантом ===== */
+#smith .bhead h2{flex:none}#smith .msub{flex:1;min-width:0;font-size:14px;color:#a89c88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#smith .tash{display:flex;align-items:center;height:36px;padding:0 14px;border-radius:18px;background:#241a13;border:1px solid #5a4230;font-family:var(--serif);font-size:16px;font-weight:700;color:#ffd27a;white-space:nowrap}
+#smith .bhead .jbtn{flex:none;margin:0;width:44px;padding:0;border-radius:10px;border:1px solid #5a4230!important;background:#241a13!important;color:#d9b27a!important;box-shadow:none!important}
+#smithTabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 4px}
+#smithTabs .tab{flex:none;min-height:44px;padding:0 20px;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;box-shadow:none!important;color:#e8dcc6!important;font-weight:700;text-shadow:none}
+#smithTabs .tab.on{background:#d9b27a!important;border-color:#d9b27a!important;color:#1a120c!important}
+#smith .note{color:#a89c88;opacity:1;font-size:14px!important}
+#smithList{gap:8px}
+#smith .srow{padding:10px 14px!important;border-radius:12px;background:#18110c!important;border:1px solid #3a2b1f!important;box-shadow:none!important}
+#smith .srow .nm{font-family:var(--serif);font-size:18px!important;font-weight:500}
+#smith .srow .up{color:#a89c88!important;font-size:13px;margin-left:8px}
+#smith .srow .sub{color:#cfc2aa;opacity:1!important}
+#smith .srow .buy{min-height:44px!important;min-width:132px;padding:0 18px;border-radius:22px!important;border:1px solid #d9b27a!important;background:#3a2a1a!important;color:#f0d3a0!important;font-family:var(--serif);font-size:16px!important;font-weight:500;box-shadow:none!important;opacity:1}
+#smith .srow .buy.no{border-color:#4a3626!important;background:transparent!important;color:#8a7e6c!important;font-family:var(--sans);font-size:14px!important}
+#smith .junk{min-height:44px!important;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;box-shadow:none!important;color:#e8dcc6!important;font-weight:600}
+#smith .junk.no{color:#8a7e6c!important}
+#smith .sock{min-height:44px;border-radius:22px}
+#smith .emptyl{color:#a89c88;font-size:14px;padding:8px 2px 0}
+html:not([data-desk]) #smith .msub{display:none}
+/* ===== карта и костры по макету А (2026-10-27): холст на всё окно, масштаб — плавающие кнопки над картой, обозначения — плашкой поверх карты (телефон — под ней) ===== */
+#map .pbox{display:grid!important;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;row-gap:10px}
+#map .bhead{grid-row:1;grid-column:1}
+#mapCv{grid-row:2;grid-column:1;width:100%!important;height:100%!important;min-height:0;margin:0!important;border:1px solid #3a2b1f!important}
+#mapZoom,#firesZoom{flex-direction:column;gap:8px!important;margin:12px!important;z-index:3;align-self:start}
+#mapZoom{grid-row:2;grid-column:1;justify-self:end}
+#mapZoom button,#firesZoom button{flex:none!important;min-width:48px!important;min-height:48px!important;padding:0 14px!important;border-radius:12px!important;border:1px solid #5a4230!important;background:rgba(29,21,15,.92)!important;color:#f0d3a0!important;font-size:16px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.45)!important;text-shadow:none}
+#mapLegend{grid-row:2;grid-column:1;justify-self:start;align-self:end;margin:12px!important;z-index:3;max-width:min(680px,70%);padding:10px 12px;border-radius:12px;background:rgba(29,21,15,.94);border:1px solid #5a4230;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+#mapLegend .here{font-family:var(--serif);font-size:16px!important;color:#d9b27a!important}
+#mapLegend .chips{font-size:13.5px!important}#mapLegend .chip{background:#120c09!important;border-color:#3a2b1f!important}
+#mapClouds{z-index:1}
+html:not([data-desk]) #mapLegend{grid-row:3;align-self:auto;max-width:none;margin:0!important;max-height:22vh;overflow-y:auto}
+#fires .pbox{display:grid!important;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);row-gap:10px}
+#fires .bhead{grid-row:1}#firesNote{grid-row:2;margin:0;color:#a89c88;font-size:14px}
+#fires .travel{grid-row:3;grid-column:1;min-height:0}
+#firesZoom{grid-row:3;grid-column:1;justify-self:start}
+#firesList{gap:6px!important}
+#firesList button{min-height:56px!important;border-radius:10px!important;border:1px solid #3a2b1f!important;background:#120c09!important;color:#e8dcc6!important;font-weight:600!important;text-align:left}
+#firesList button:hover:not(:disabled){border-color:#d9b27a!important;background:#2a1d13!important}
+#firesList button small{color:#a89c88!important}
+#firesList button:disabled{opacity:.55}
+#firesList button .ic{color:#f0a050}
+/* ===== диалог А (2026-10-27, выбор владельца): тёмная плашка как у добычи вместо пергамента; портрет в золотом кольце, имя золотом, ответы — «пилюли» ===== */
+#dialog{background:rgba(23,16,11,.96)!important;color:#e8dcc6!important;border:1px solid #5a4230!important;border-radius:14px!important;box-shadow:0 14px 40px rgba(0,0,0,.6)!important;padding:16px 18px!important;gap:16px!important}
+#dialog::before{display:none}
+#dlgFace{width:76px!important;height:76px!important;border-radius:50%!important;background:#2a1e16!important;box-shadow:0 0 0 2px #d9b27a,0 0 0 5px #120c09,0 0 0 6px #6b4a2a!important}
+#dlgScene{font-family:var(--sans)!important;font-size:12px!important;letter-spacing:.14em!important;text-transform:uppercase;color:#a89c88!important}
+#dlgWho{font-family:var(--serif)!important;font-size:20px!important;color:#f0d3a0!important;filter:none!important;text-shadow:none!important}
+#dlgLine{font-size:17px!important;line-height:1.45;color:#f0e6d4!important}
+#dlgOpts{gap:8px!important;margin-top:6px}
+#dlgOpts button{min-height:44px!important;padding:0 18px!important;border-radius:22px!important;border:1px solid #5a4230!important;background:#241a13!important;color:#e8dcc6!important;box-shadow:none!important;font-weight:600;text-shadow:none!important}
+#dlgOpts button.main{border-color:#d9b27a!important;background:#3a2a1a!important;color:#f0d3a0!important;font-family:var(--serif);font-size:17px;font-weight:500}
+#dlgOpts button:hover{filter:brightness(1.15)}
+/* ===== HUD по макету А (2026-10-27): рамка героя — портрет с уровнем и полоса здоровья на тёмной плашке; цель — на подложке; сообщения уже ===== */
+#hpWrap{gap:10px;padding:6px 12px 6px 6px;border-radius:12px;background:rgba(18,12,9,.86);border:1px solid #5a4230;max-width:300px!important;pointer-events:none}
+#hudFace{position:relative;flex:none;width:44px;height:44px;border-radius:50%;background:#2a1e16;border:2px solid #d9b27a;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:20px;color:#d9b27a}
+#hudFace b{font-weight:700}
+#hudFace i{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);min-width:18px;padding:0 5px;border-radius:8px;background:#120c09;border:1px solid #d9b27a;font-style:normal;font-family:var(--sans);font-size:11px;font-weight:700;line-height:15px;text-align:center;color:#f0d3a0}
+[data-desk] #hudFace{width:52px;height:52px;font-size:23px}
+#kills #hudLv:empty{display:none}     /* уровень — на портрете; капсула — только «круг N» в новом круге */
+#tracker{padding:6px 10px;border-radius:10px;background:rgba(18,12,9,.78);border:1px solid #3a2b1f;text-shadow:none!important}
+html:not([data-desk]) #toasts{max-width:min(62%,250px)}
+html:not([data-desk]) .toast{font-size:13px;padding:5px 10px}
+/* HUD на телефоне: портрет меньше, число здоровья — поверх полосы (в шапке тесно) */
+html:not([data-desk]) #hud{gap:8px}
+html:not([data-desk]) #hpWrap{display:grid;grid-template-columns:auto minmax(72px,1fr);align-items:center;column-gap:8px;min-width:140px;padding:5px 10px 5px 5px}
+html:not([data-desk]) #hudFace{grid-row:1;grid-column:1;width:36px;height:36px;font-size:17px}
+html:not([data-desk]) #hpBar{grid-row:1;grid-column:2}
+html:not([data-desk]) #hpTxt{grid-row:1;grid-column:2;justify-self:center;min-width:0;font-size:11px;line-height:1;z-index:1;pointer-events:none}
+/* выбор героя на телефоне по макету А (2026-10-27): сцена с моделью, имя и роль поверх неё, ниже описание, сведения, список, «Войти в мир» внизу */
+@media (max-width:760px){
+  #heroCards{grid-template-columns:minmax(0,1fr);gap:10px}
+  #heroCards .hinfo{display:contents}
+  #heroCards .hstage{grid-row:1;grid-column:1;min-height:250px;border:1px solid #3a2b1f;border-radius:16px}
+  #heroCards .hstage canvas.herov{width:150px}
+  #heroCards .hnm{grid-row:1;grid-column:1;align-self:end;justify-self:start;margin:0 0 34px 14px;z-index:1;font-size:30px;text-shadow:0 2px 6px #000}
+  #heroCards .hrole{grid-row:1;grid-column:1;align-self:end;justify-self:start;margin:0 0 12px 14px;z-index:1;font-size:14px;text-shadow:0 1px 4px #000}
+  #heroCards .htxt{grid-row:2;text-align:left}
+  #heroCards .hfacts{grid-row:3;padding:8px 12px;gap:4px}#heroCards .hf{font-size:13px}
+  #heroCards .hlist{grid-row:4}
+  #heroCards .hgo{grid-row:5;width:100%}
+}
