@@ -23,6 +23,8 @@
 | `sunset_plains.mp3` | Sunset Plains | Yoiyami | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/sunset-plains |
 | `another_august.mp3` | Another August (из саундтрека Pixelsphere) | The Cynic Project (cynicmusic.com, pixelsphere.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/another-august |
 | `deja_vus.mp3` | Déjà Vus (Contemplative Fantasy Music Pack) | YannZ (Yanni Ziangos), yannz41.itch.io | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | https://opengameart.org/content/free-contemplative-fantasy-music-pack |
+| `sirens_in_darkness.mp3` | Sirens in Darkness (из саундтрека Pixelsphere) | The Cynic Project (cynicmusic.com, pixelsphere.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/sirens-in-darkness |
+| `cathedral_forest.mp3` | Cathedral in the Forest (ambient loop) | congusbongus | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/cathedral-in-the-forest-ambient-loop |
 | `staldorn_suite.mp3` | Staldorn Suite — «Music: Staldorn Suite by Shane Ivers - https://www.silvermansound.com» | Shane Ivers | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | https://www.silvermansound.com/free-music/staldorn-suite |
 
 Музыка по местам (2026-10-27, выбор владельца): треки и места — `config3d.js` → `audio.tracks.places`. Файлы переведены в MP3 (112 кбит/с, «Déjà Vus» — 80), громкость выровнена, содержание не менялось.

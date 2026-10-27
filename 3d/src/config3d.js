@@ -1384,7 +1384,7 @@ const BASE = {
     // (camp — лагеря и сёла, wild — дикие земли, dungeon — подземелья; boss — на босса по кругу); vol — доля громкости музыки; duck — в бою;
     // night — ночью; fade — сек плавности; first — сек до первого трека; gap — пауза между проигрываниями [от, до], с; switch — пауза при смене места, с
     tracks: { on: true, vol: .75, duck: .45, night: .75, fade: 2.5, first: 20, switch: 3, gap: [25, 70], intro: 'intro', boss: 'boss_sunrise',
-      places: { camp: ['roam_piano', 'sunset_plains', 'deja_vus'], wild: ['roam_peractorum', 'roam_solitudine', 'another_august', 'sunset_plains'], dungeon: ['roam_article169', 'staldorn_suite'] },
+      places: { camp: ['roam_piano', 'sunset_plains', 'deja_vus'], wild: ['roam_peractorum', 'roam_solitudine', 'another_august', 'sunset_plains', 'sirens_in_darkness', 'cathedral_forest'], dungeon: ['roam_article169', 'staldorn_suite', 'sirens_in_darkness', 'cathedral_forest'] },
       roam: ['roam_peractorum', 'roam_piano', 'roam_solitudine', 'roam_article169', 'sunset_plains', 'another_august', 'deja_vus'] },     // 2026-10-27: + Sunset Plains, Another August, Déjà Vus, Staldorn Suite (выбор владельца); средневековые RandomMind сняты — владельцу не подошли     // music и fight (синтез) выключены с 5.04: без наложения
     ownMusic: .55,     // громкость своей музыки игрока (custom3d.js), 0–1; в бою — меньше вдвое
     volume: .7, musicVol: .55, natureVol: .8, voices: 24, look: 1.2,          // предел одновременных голосов; ноты ставятся вперёд на look с
