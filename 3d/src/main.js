@@ -82,14 +82,14 @@ const desk = matchMedia('(hover: hover) and (pointer: fine)').matches && !(navig
 if (desk) document.documentElement.setAttribute('data-desk', '');
 const canvas = $('gl');
 let renderer;
+const W = createWorld(cfg);     // мир — до отрисовки: она берёт его карту, а не строит свою (загрузка, 2026-10-28)
 try {
-  renderer = createRenderer(canvas, cfg, { onText, onHurt, onEvent, preserve: new URLSearchParams(location.search).has('shot') });
+  renderer = createRenderer(canvas, cfg, { onText, onHurt, onEvent, preserve: new URLSearchParams(location.search).has('shot'), map: W.map });
   if (cfg.view.smooth) renderer.setDprMax(desk ? cfg.view.smooth.dprMax.desk : cfg.view.smooth.dprMax.phone);
 } catch (e) {
   $('nogl').hidden = false; console.warn('WebGL недоступен', e);
 }
 
-const W = createWorld(cfg);
 // 4.12: приближение камеры — колесо, + и −, щипок двумя пальцами; запоминается в этом браузере
 if (renderer && cfg.view.zoom) {
   const ZK = 'berserk3d.zoom', Z = cfg.view.zoom; let z0 = 1; try { z0 = Number(localStorage.getItem(ZK)) || 1; } catch (e) { /* без сохранения */ }
@@ -977,7 +977,7 @@ function frame(now) {
   if ((atmoT += real) > .2) { atmoT = 0; const mx = mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null); setScene(mx, cfg.audio); tickAudio(); tracks.tick(mx, ownActive || isMuted(), performance.now() / 1000, cfg.audio.musicVol * uvol.all * uvol.music); if (ownPlayer.playing()) ownPlayer.setVolume(cfg.audio.ownMusic * uvol.all * uvol.music * (mx.fight > 0 ? .45 : 1) * (W.player.dead ? .3 : 1)); }     // своя музыка: в бою тише     // атмосфера: река, птицы, музыка
   if (!panelOpen && !W.player.dead && W.player.state === 'run' && (stepT += real) > .32) { stepT = 0; stepSound(surfaceOf(W)); }     // шаг — по поверхности (записи 2026-10-25)
   if (!panelOpen && (miniT += real) > .12) { miniT = 0; drawMini(); }
-  if (!reliefDone) reliefDone = tickRelief(document, W);
+  if (!reliefDone && performance.now() > 20000) reliefDone = tickRelief(document, W);     // подложка карты — через 20 с после старта, когда игра ожила (загрузка на телефоне)
   if (autoRes && renderer && !panelOpen && !document.hidden && !P.retro && !P.ascii) { const cur = renderer.quality().resScale, nx = autoRes.frame(real, cur); if (nx !== cur) renderer.setResScale(nx); }     // «Авто»: разрешение по кадрам     // подложка карты с рельефом — по 2 мс за кадр, пока не готова (шаг 10б)
   if ((saveT += real) > 8) { saveT = 0; saver.write(); }
   const hp = Math.ceil(W.player.hp) + W.player.maxhp * 1000;

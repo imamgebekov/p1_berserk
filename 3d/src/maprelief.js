@@ -76,7 +76,7 @@ export function makeRelief(doc, cfg, map) {
   const R = { canvas: cv, R: S.R, X0: S.X0, Z0: S.Z0, W: S.NX * S.step, H: S.NZ * S.step, done: false, labels: regionLabels(cfg),
     step(budget = S.V.budget) {
       if (R.done) return false; const t0 = performance.now(), r0 = row;
-      while (row < S.NZ && performance.now() - t0 < budget) { const r1 = Math.min(S.NZ, row + 4); reliefRows(S, row, r1, img.data); row = r1; }
+      while (row < S.NZ && performance.now() - t0 < budget) { const r1 = Math.min(S.NZ, row + 1); reliefRows(S, row, r1, img.data); row = r1; }
       ctx.putImageData(img, 0, 0, 0, r0, S.NX, row - r0); if (row >= S.NZ) R.done = true; return true;
     } };
   return R;

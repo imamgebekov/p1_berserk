@@ -120,7 +120,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(GW, GW), paintMat(new THREE.MeshLambertMaterial({ map: gtex2 }), 'ground'));     // под всем миром, тот же масштаб травы
   ground.rotation.x = -Math.PI / 2; ground.position.set(WCEN.x, -1.2, WCEN.z); scene.add(ground);     // WCEN — центр круга мира (Мир 5.0)     // ниже дна реки: внутри мира землю рисуют холмы
 
-  const map = addFires(makeMap(cfg), cfg, firesOf);     // костры вне лагеря — та же карта, что у мира (раньше рендер строил её без костров)
+  let shadersReady = false, shadersP = null;     // сборка шейдеров до первого кадра — в фоне (compileAsync)
+  const later = [], runLater = () => { const t0 = performance.now(); while (later.length && performance.now() - t0 < 4) later.shift()(); };     // фоновые работы после загрузки: не дольше 4 мс за кадр
+  const map = hooks.map || addFires(makeMap(cfg), cfg, firesOf);     // hooks.map — карта мира (main.js), иначе своя     // костры вне лагеря — та же карта, что у мира (раньше рендер строил её без костров)
   // рельеф (C2): поле высот только для вида; Y — высота земли под точкой (в подземельях 0)
   const hf = buildHeights(cfg, map); let groundOn = true;
   const Y = (x, z) => (groundOn ? heightAt(hf, x, z) : 0);
@@ -150,7 +152,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let gtexOn = false;
   // доли слоёв в точке: биом, тропа, берег, обрыв, верх плато; пятна внутри биома — по шуму
   const gnoise = (x, z) => { const s = Math.sin(x * .113 + Math.sin(z * .071) * 2.1) * Math.sin(z * .097 + Math.sin(x * .053) * 1.7); return .5 + .5 * s; };
-  function groundW(x, z, h, pk) {
+  function groundW(x, z, h, pk, pls = map.plateaus) {     // pls — обрывы рядом с участком (отбор в hillsGeo)
     const B = biomeWeights(cfg, x, z), n = gnoise(x, z), W = [0, 0, 0, 0, 0, 0, 0, 0];     // трава, тропа, камень, болото, грязь, снежная трава, снег, песок
     const add = (i, v) => { W[i] += v; };
     for (const [b, v] of Object.entries(B)) { if (!v) continue;
@@ -161,7 +163,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (b === 'coast') { add(7, v * (.6 + n * .3)); add(0, v * (.4 - n * .3)); } }
     if (map.river && h < -.15) { const k = Math.min(1, -h / .8) * .85; for (let i = 0; i < 8; i++) W[i] *= 1 - k; W[(B.swamp || 0) > .5 ? 4 : 7] += k; }     // у воды — песок, в болоте — грязь
     else if (pk > 0) { for (let i = 0; i < 8; i++) W[i] *= 1 - pk; W[1] += pk; }     // тропа
-    if (map.plateaus.length) { if (inCliff(map.plateaus, x, z, .9)) { W.fill(0); W[2] = 1; } else for (const P of map.plateaus) if (Math.hypot(x - P.x, z - P.z) < P.r - 1.5) { const k = .75; for (let i = 0; i < 8; i++) W[i] *= 1 - k; W[6] += k; break; } }     // обрыв — камень, верх плато — снег
+    if (pls.length) { if (inCliff(pls, x, z, .9)) { W.fill(0); W[2] = 1; } else for (const P of pls) if (Math.hypot(x - P.x, z - P.z) < P.r - 1.5) { const k = .75; for (let i = 0; i < 8; i++) W[i] *= 1 - k; W[6] += k; break; } }     // обрыв — камень, верх плато — снег
     const sum = W.reduce((a, b) => a + b, 0) || 1; return W.map(v => v / sum);
   }
   // деревья и камни участка: один раз на участок, нужны и земле (тень у стволов), и самим деревьям; старые забываются
@@ -171,6 +173,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     const g = new THREE.PlaneGeometry(CHUNK, CHUNK, CHUNK, CHUNK); g.rotateX(-Math.PI / 2); g.translate((ci + .5) * CHUNK, 0, (cj + .5) * CHUNK);
     const pos = g.attributes.position, uv = g.attributes.uv, col = new Float32Array(pos.count * 3), c = new THREE.Color(), tw0 = new Float32Array(pos.count * 4), tw1 = new Float32Array(pos.count * 4);
     const near = pathC ? segsNear(roadSegs, ci * CHUNK, (ci + 1) * CHUNK, cj * CHUNK, (cj + 1) * CHUNK, PATH.w[1] + PATH.edge + 1) : [];     // тропы рядом с участком
+    const pls = map.plateaus.filter(P => Math.hypot(Math.max(ci * CHUNK - P.x, 0, P.x - (ci + 1) * CHUNK), Math.max(cj * CHUNK - P.z, 0, P.z - (cj + 1) * CHUNK)) < P.r + 3);     // обрывы рядом с участком
     const CS = cfg.shapes && cfg.shapes.contact, m = CS ? CS.r + .5 : 0, X0 = ci * CHUNK - m, X1 = (ci + 1) * CHUNK + m, Z0 = cj * CHUNK - m, Z1 = (cj + 1) * CHUNK + m;     // тень у домов и стволов (шаг 7)
     const blds = CS ? map.buildings.filter(b => b.x1 > X0 && b.x0 < X1 && b.z1 > Z0 && b.z0 < Z1) : [], trunks = [];
     if (CS) for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const q of propsAt(ci + a, cj + b)) if (q.tree && q.x > X0 && q.x < X1 && q.z > Z0 && q.z < Z1) trunks.push(q.x, q.z);
@@ -180,11 +183,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       uv.setXY(i, (x + 250) / 500, 1 - (z + 250) / 500);                // та же текстура и масштаб, что у плоской земли
       const k = 1 + h * .12, tn = biomeTint(cfg, x, z); c.setRGB(k * tn[0], k * tn[1], k * tn[2]);     // оттенок биома (C3b)
       if (FL) { const gm = groundMix(x, z, FL); c.setRGB(c.r * gm[0], c.g * gm[1], c.b * gm[2]); }     // пятна сочной и сухой травы, проплешины (зелень)
-      if (gtexOn) { const pk = near.length ? pathMix(near, x, z, PATH) : 0, Wt = groundW(x, z, h, pk); tw0.set(Wt.slice(0, 4), i * 4); tw1.set(Wt.slice(4), i * 4); c.setRGB(1 + (c.r - 1) * GT.tint, 1 + (c.g - 1) * GT.tint, 1 + (c.b - 1) * GT.tint).multiplyScalar(k); }     // текстуры: цвет вершины — только свет и лёгкий оттенок биома
+      if (gtexOn) { const pk = near.length ? pathMix(near, x, z, PATH) : 0, Wt = groundW(x, z, h, pk, pls); tw0.set(Wt.slice(0, 4), i * 4); tw1.set(Wt.slice(4), i * 4); c.setRGB(1 + (c.r - 1) * GT.tint, 1 + (c.g - 1) * GT.tint, 1 + (c.b - 1) * GT.tint).multiplyScalar(k); }     // текстуры: цвет вершины — только свет и лёгкий оттенок биома
       else {
       if (map.river && h < -.15) c.lerp(sandC, Math.min(1, -h / .8) * .7);
       else if (near.length) { const pk = pathMix(near, x, z, PATH); if (pk > 0) c.lerp(pathC, pk); }     // тропа — цвет земли с мягким краем (шаг 6)
-      if (map.plateaus.length && inCliff(map.plateaus, x, z, .9)) c.copy(rockC).multiplyScalar(k); }     // отвесный край — камень (C3c)
+      if (pls.length && inCliff(pls, x, z, .9)) c.copy(rockC).multiplyScalar(k); }     // отвесный край — камень (C3c)
       if (shade) c.multiplyScalar(contactShade(shade[Math.round(z - cj * CHUNK) * (CHUNK + 1) + Math.round(x - ci * CHUNK)], CS));
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
@@ -260,8 +263,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       g.setAttribute('bank', new THREE.Float32BufferAttribute(bank, 2)); g.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2)); riverGroup.add(new THREE.Mesh(g, waterMat));
       const nr = Math.round(L.r * 1.6); for (let i = 0; i < nr; i++) { const h = Math.sin(i * 12.9898 + L.x) * 43758.5453, f = h - Math.floor(h), a = (i + f) / nr * Math.PI * 2; if (f < .35) continue; const R = lakeR(L, a) + .2 + f * .6; reeds.push([L.x + Math.sin(a) * R, L.z + Math.cos(a) * R, .8 + f * .6]); }
     }
-    // ручьи: лента вдоль русла на высоте земли (русло чуть ниже), течение к устью
-    for (const S of river.streams || []) {
+    // ручьи: лента вдоль русла на высоте земли (русло чуть ниже), течение к устью; строятся после загрузки, в фоне (later)
+    for (const S of river.streams || []) later.push(() => {
       const P = S.pts, v = [], idx = [], bank = [], flow = [], hw = S.w / 2 + .15;
       P.forEach((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l, y = Y(p.x, p.z) + .14;
         v.push(p.x + nx * hw, y, p.z + nz * hw, p.x - nx * hw, y, p.z - nz * hw); if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
@@ -269,12 +272,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         if (i % 2 === 0) for (const s of [-1, 1]) { const h = Math.sin(i * 78.233 + p.x * s) * 43758.5453, f = h - Math.floor(h); if (f > .55) reeds.push([p.x + nx * s * (hw + .3 + f * .4), p.z + nz * s * (hw + .3 + f * .4), .6 + f * .4]); } });
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals();
       g.setAttribute('bank', new THREE.Float32BufferAttribute(bank, 2)); g.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2)); riverGroup.add(new THREE.Mesh(g, waterMat));
-    }
-    if (reeds.length) {     // камыш одним вызовом отрисовки: стебли и метёлки
+    });
+    later.push(() => { if (reeds.length) {     // камыш одним вызовом отрисовки: стебли и метёлки; высоты — порциями в фоне, ближние к лагерю первыми
       const st = new THREE.InstancedMesh(new THREE.BoxGeometry(.07, 1, .07), reedMat, reeds.length), tp = new THREE.InstancedMesh(new THREE.BoxGeometry(.11, .26, .11), reedTop, reeds.length), o = new THREE.Object3D();
-      reeds.forEach(([x, z, h], i) => { const y = Y(x, z); o.position.set(x, y + h / 2, z); o.scale.set(1, h, 1); o.rotation.set(0, i, (i % 5 - 2) * .05); o.updateMatrix(); st.setMatrixAt(i, o.matrix); o.position.set(x, y + h + .1, z); o.scale.set(1, 1, 1); o.updateMatrix(); tp.setMatrixAt(i, o.matrix); });
-      riverGroup.add(st, tp);
-    }
+      const Z0 = new THREE.Matrix4().makeScale(0, 0, 0), ord = reeds.map((q, i) => i).sort((a, b) => Math.hypot(reeds[a][0], reeds[a][1]) - Math.hypot(reeds[b][0], reeds[b][1])); for (let i = 0; i < reeds.length; i++) { st.setMatrixAt(i, Z0); tp.setMatrixAt(i, Z0); }
+      for (let k0 = 0; k0 < ord.length; k0 += 60) later.push(() => { for (const i of ord.slice(k0, k0 + 60)) { const [x, z, h] = reeds[i]; const y = Y(x, z); o.position.set(x, y + h / 2, z); o.scale.set(1, h, 1); o.rotation.set(0, i, (i % 5 - 2) * .05); o.updateMatrix(); st.setMatrixAt(i, o.matrix); o.position.set(x, y + h + .1, z); o.scale.set(1, 1, 1); o.updateMatrix(); tp.setMatrixAt(i, o.matrix); } st.instanceMatrix.needsUpdate = tp.instanceMatrix.needsUpdate = true; });
+      st.frustumCulled = tp.frustumCulled = false; riverGroup.add(st, tp);     // высоты приходят порциями: рамка видимости по пустым матрицам была бы неверной
+    } });
     scene.add(riverGroup); freeze(riverGroup);     // вода и мосты неподвижны
   }
   const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
@@ -411,14 +415,15 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const buildLand = (ci, cj) => { for (const _ of landJob(ci, cj)); };      // целиком сразу (старт, перенос)
   function dropLand(key) { jobs.delete(key); const L = liveLand.get(key); land.remove(L.g); L.g.traverse(o => { if (o.isMesh && o.geometry !== grassGeo) o.geometry.dispose(); }); liveLand.delete(key); }
   // подгрузка: нужные участки вокруг камеры; если не хватает многих (старт, перенос) — все сразу, иначе по одному за кадр
-  const LAND_VIEW = 96;
+  const LAND_VIEW = 96, LAND_MS = 6;     // LAND_MS — сколько миллисекунд за кадр строить землю в фоне
   function streamLand(x, z) {
     const need = chunksAround(x, z, LAND_VIEW, cfg.world.radius, cfg.world.center), keys = new Set(need.map(q => q.ci + ',' + q.cj)), miss = need.filter(q => !liveLand.has(q.ci + ',' + q.cj));
-    if (miss.length > 4) { for (const [k, j] of jobs) { for (const _ of j); jobs.delete(k); const L = liveLand.get(k); if (L) freeze(L.g); } for (const q of miss) { buildLand(q.ci, q.cj); const L = liveLand.get(q.ci + ',' + q.cj); if (L) freeze(L.g); } }
-    else {                                                                    // на ходу: один шаг постройки за кадр, ближний участок — первым
-      if (!jobs.size && miss.length) { const q = miss[0], k = q.ci + ',' + q.cj; jobs.set(k, landJob(q.ci, q.cj)); }
-      for (const [k, j] of jobs) { if (j.next().done) { jobs.delete(k); const L = liveLand.get(k); if (L) freeze(L.g); } break; }     // участок достроен — матрицы один раз
-    }
+    const dq = q => Math.hypot((q.ci + .5) * CHUNK - x, (q.cj + .5) * CHUNK - z); miss.sort((a, b) => dq(a) - dq(b));     // ближние — первыми
+    if (miss.length > 4) for (const q of miss.slice(0, 4)) { const k = q.ci + ',' + q.cj; if (jobs.has(k)) { for (const _ of jobs.get(k)); jobs.delete(k); } else buildLand(q.ci, q.cj); const L = liveLand.get(k); if (L) freeze(L.g); }     // старт и перенос: сразу — 4 участка под камерой, остальные — в фоне (2026-10-28)
+    { const t0 = performance.now(), rest = miss.filter(q => !liveLand.has(q.ci + ',' + q.cj));     // постройка по частям: не дольше LAND_MS за кадр
+      do { if (!jobs.size && rest.length) { const q = rest.shift(), k = q.ci + ',' + q.cj; jobs.set(k, landJob(q.ci, q.cj)); }
+        let any = false; for (const [k, j] of jobs) { any = true; if (j.next().done) { jobs.delete(k); const L = liveLand.get(k); if (L) freeze(L.g); } break; }     // участок достроен — матрицы один раз
+        if (!any) break; } while (performance.now() - t0 < LAND_MS); }
     for (const key of [...liveLand.keys()]) if (!keys.has(key)) { const [ci, cj] = key.split(',').map(Number), cx = (ci + .5) * CHUNK, cz = (cj + .5) * CHUNK; if (Math.hypot(cx - x, cz - z) > LAND_VIEW + CHUNK * 1.5) dropLand(key); }
   }
   let windNow = { s: 0, dir: [0, 1] };
@@ -561,7 +566,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // отсечение по расстоянию (C3b): дальние дома, сундуки и клетки декора не рисуются и не обновляются (раз в 0,3 с)
   let cullT = 0;
   function cullFar(x, z) {
-    for (const it of town.items) { const far = Math.hypot(it.b.x - x, it.b.z - z) > 120; if (far === it.far) continue; it.far = far; it.walls.visible = it.floor.visible = !far; if (it.glow) it.glow.visible = !far; if (far) it.roof.visible = false; }
+    for (const it of town.items) { const far = Math.hypot(it.b.x - x, it.b.z - z) > 120; if (far === it.far) continue; it.far = far; if (far) town.dropShell(it); else if (town.build(it)) for (const o of [it.walls, it.floor, it.roof, it.glow]) if (o) o.traverse(m => { if (m.material) [].concat(m.material).forEach(xray); if (m.isMesh && !m.isInstancedMesh) m.castShadow = sun.castShadow; }); if (!it.built) continue; it.walls.visible = it.floor.visible = !far; if (it.glow) it.glow.visible = !far; if (far) it.roof.visible = false; }
     if (curView && curView.conts && curView.conts.near) curView.conts.near(x, z, CL.box); else if (curView && curView.conts && curView.conts.items) for (const it of curView.conts.items) park(it.g, Math.hypot(it.c.x - x, it.c.z - z) >= CL.box);     // дальние сундуки — со сцены
     for (const L of liveLand.values()) for (const m of L.grass || []) { const d = Math.hypot(m.userData.cx - x, m.userData.cz - z), k = CL.grass.find(q => d < q[0])[1]; m.count = Math.max(1, Math.round(m.userData.full * k)); }     // трава вдали реже
   }
@@ -966,6 +971,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let feelZoom = 0, cine = null, cineA = 0, cineT = 0, zoomT = 1, zoomC = 1;     // zoomT — приближение игрока (4.12), zoomC — плавное
   const cf = { x: 0, z: 0 };     // «кинокамера» сцен (этап 5 «круче»): точка, куда смотрит камера в разговоре
   function render(W, dt) {
+    if (later.length) runLater();
     const t = W.t, p = W.player;
     // камера: плавно следует за героем под заданным углом
     const FL = floorL(W); groundOn = W.lvl === 'surface' || !!FL; liftY = FL ? floorBase(W, FL) : null;
@@ -993,7 +999,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (W.lvl !== shownLvl || (views.get(W.lvl) && views.get(W.lvl).map !== W.map)) showLevel(W);
     const under = W.lvl !== 'surface' && !FL, dark = under && !W.map.wild, wk = under && !dark ? ((cfg.dungeons.wild.themes[W.map.wild.theme] || {}).fogK || 1) : 1;     // dark — под землёй; малый мир — под небом, туман темы wk
     { const L = W.levels && W.levels[W.lvl]; dbg.group.visible = !!(dark && L && L.def); if (dbg.group.visible) { if (dbgMap !== L.map) { dbgMap = L.map; dbg.setMap(L.map, curTheme); } dbg.update(t, p.x, p.z, calm); } }
-    if (!under) { streamLand(cam.x, cam.z); streamDecor(cam.x, cam.z, decorLive.size ? 2 : 99); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
+    if (!under) { streamLand(cam.x, cam.z); streamDecor(cam.x, cam.z, decorLive.size ? 2 : 6); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
     dome.position.set(cam.x, 0, cam.z);                              // небо — вокруг камеры (мир шире купола)
     { const k = actorKey(cfg, 'hero', W.hero); if ((k || '') !== (hero.key || '')) { const A = k && makeActor(k, kitOf(k), 'hero'); if (A || !k) { scene.remove(hero.group); if (hero.gltf) disposeActor(hero); disposeDeep(hero.group); hero = A || makeHero(); hero.key = k || ''; scene.add(hero.group); heroLook = null; rimKey = ''; if (shadowsOn) hero.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); } } }     // готовая модель героя пришла или герой сменился
     { const cp = W.ach && W.ach.cape, lk = lookKey(W.hero, W.inv, cp); if (lk !== heroLook) { heroLook = lk; hero.setLook(dressedLook(heroOf(W.hero).look, W.inv, cp)); } }     // облик по надетому и цвет плаща — награда подвига
@@ -1289,7 +1295,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const e of W.enemies) if (e.st && !e.dead) { const r = Math.random(); if (e.st.burn && r < dt * 9) burst(e.x, 1.5, e.z, 1, '#ff8a30', 1); else if (e.st.poison && r < dt * 5) burst(e.x, 1.4, e.z, 1, '#7ad060', .8); else if (e.st.freeze && r < dt * 4) burst(e.x, 1.2, e.z, 1, '#cfeeff', .8); }
     if (XR && XR.on) { XU.uHero.value.set(p.x, py + 1.1, p.z).project(camera); XU.uAsp.value = camera.aspect; }     // окно — вокруг груди героя
     if (roofs.length) { const cov = !under && roofs.some(q => Math.abs(q.x - p.x) < q.r && Math.abs(q.z - p.z) < q.r && Math.hypot(q.x - p.x, q.z - p.z) < q.r); roofK += ((cov ? 1 : 0) - roofK) * Math.min(1, dt * RF.speed); XU.uRoofR.value = roofK > .02 ? roofK * RF.r : 0; XU.uHw.value.set(p.x, py + RF.h, p.z); }     // под шатром — срез плавно
-    if (asciiOn) ascii.render(scene, camera, t, under ? .3 : W.light); else gl.render(scene, camera);
+    if (!shadersReady) { if (!shadersP) shadersP = gl.compileAsync(scene, camera).catch(() => {}).finally(() => { shadersReady = true; }); }     // первые кадры: шейдеры собираются в фоне, окно героя не замирает (2026-10-28)
+    else if (asciiOn) ascii.render(scene, camera, t, under ? .3 : W.light); else gl.render(scene, camera);
   }
   function setAscii(on) {                                           // атлас строится в resize под плотность экрана
     asciiOn = !!on; applyLook(); applyShadows();                                      // в клетках мелкая трава без сглаживания даёт муар

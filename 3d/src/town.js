@@ -42,7 +42,8 @@ export function buildTown(map, cfg, rnd) {
   // общий свет внутри: переезжает в дом, где стоит герой (число источников света не меняется — шейдеры не перекомпилируются)
   const light = new THREE.PointLight('#ffb060', 0, 13, 1.5); light.position.set(0, 2.2, 0); group.add(light);
 
-  for (const b of map.buildings) {
+  const houseRnd = id => { let a = (map.buildings.length * 977 + id * 7919 + 13) | 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };     // своё зерно у дома: строится в любом порядке
+  const buildOne = (b, rnd) => {     // дом строится, когда герой рядом (2026-10-28): загрузка и память на телефоне
     const wallL = [], winL = Object.assign([], { glow: true }), floorL = [], roofL = [], glowL = Object.assign([], { glow: true });     // окна и свечение — без градиента (шаг 7)
     const pick = a => a[(rnd() * a.length) | 0], ruin = !!b.city && rnd() < .45, tall = !!b.city && !ruin;     // павший город: часть домов разрушена, целые — в два этажа
     // стены; у жилых — фахверк: тёмные балки поясом
@@ -97,18 +98,22 @@ export function buildTown(map, cfg, rnd) {
     const doorDir = { n: -1, s: 1, e: -1, w: 1 }[d.side];
     group.add(walls, floor, roof);
     const glowM = glowL.length ? new THREE.Mesh(merged(glowL), new THREE.MeshBasicMaterial({ vertexColors: true })) : null; if (glowM) group.add(glowM);
-    items.push({ b, walls, roof, floor, glow: glowM, a: 1, cut: 1, hinge, doorDir, vert, far: false, ruin, tall });
-  }
+    return { walls, roof, floor, glow: glowM, hinge, doorDir, vert, ruin, tall };
+  };
+  for (const b of map.buildings) items.push({ b, a: 1, cut: 1, far: true, built: false });
+  function build(it) { if (it.built) return false; Object.assign(it, buildOne(it.b, houseRnd(it.b.id))); it.built = true; return true; }
 
   // наружный вид KayKit (2026-10-20, выбор владельца): модель по назначению дома, растянута по плану, вход — к двери.
   // Снаружи видна модель; внутри — прежние стены (срез), пол и мебель. Столкновения — прежние стены
   const SHELL = { hut: 'home_A_red', house: 'home_B_red', warehouse: 'lumbermill_red', smithy: 'blacksmith_red', shop: 'market_red', barracks: 'barracks_red', tavern: 'tavern_red', chapel: 'church_red', keep: 'castle_red' };     // keep — донжон замка Мира 5.0
   const NPC_SHELL = { smith: 'blacksmith_red', merchant: 'market_red', captain: 'barracks_red', scribe: 'church_red', keeper: 'church_red' };     // библиотека — с виду храм книжников
   const YAW = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 };
-  function setShells(lib) {
-    const mat = paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto', { plank: .2 });
-    for (const it of items) {
-      const b = it.b, name = it.ruin ? 'destroyed' : b.kind === 'keep' ? SHELL.keep : (b.npc && NPC_SHELL[b.npc.kind]) || SHELL[b.kind] || 'home_B_red', src = lib[name]; if (!src || it.shell) continue;
+  let shellLib = null, shellMat = null;     // 2026-10-28: оболочка дома строится, когда он рядом (не дальний), дальняя — освобождается
+  function setShells(lib) { shellLib = lib; shellMat = paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto', { plank: .2 }); }
+  function dropShell(it) { if (!it.shell) return; group.remove(it.shell); it.shell.geometry.dispose(); it.shell = null; }
+  function makeShell(it) {
+    const lib = shellLib, mat = shellMat; {
+      const b = it.b, name = it.ruin ? 'destroyed' : b.kind === 'keep' ? SHELL.keep : (b.npc && NPC_SHELL[b.npc.kind]) || SHELL[b.kind] || 'home_B_red', src = lib[name]; if (!src || it.shell) return;
       const side = b.door.side, yaw = YAW[side] ?? 0, swap = side === 'e' || side === 'w', W0 = src.userData.w, D0 = src.userData.d;
       const sx = (swap ? b.d : b.w) / W0 * 1.04, sz = (swap ? b.w : b.d) / D0 * 1.04, sy = Math.max(H * 1.25 / src.userData.h, (sx + sz) / 2 * (it.tall ? .95 : .8));
       const g = src.clone(); if (!g.boundingBox) g.computeBoundingBox(); const B0 = g.boundingBox;
@@ -122,6 +127,8 @@ export function buildTown(map, cfg, rnd) {
     const k = Math.min(1, dt * 9);
     for (const it of items) {
       if (it.far) { if (it.shell) it.shell.visible = false; continue; }                                          // дальний дом (C3b) — скрыт, не обновляем
+      if (!it.built) continue;
+      if (!it.shell && shellLib) makeShell(it);     // ближний дом — оболочка по требованию
       const on = it.b.id === inside;
       it.a += ((on ? 0 : 1) - it.a) * k;
       it.cut += ((on ? M.cutH : 1) - it.cut) * k;
@@ -135,5 +142,5 @@ export function buildTown(map, cfg, rnd) {
     if (cur) light.position.set(cur.x, 2.4, cur.z);
     light.intensity += ((cur ? 26 : 0) - light.intensity) * k;
   }
-  return { group, update, items, light, setShells };
+  return { group, update, items, light, setShells, dropShell, build };
 }
