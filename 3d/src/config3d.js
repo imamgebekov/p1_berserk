@@ -1526,7 +1526,10 @@ const BASE = {
     // debris — обломки: в кадре не больше max (телефон, ПК), живут life с, отскок bounce, трение fric
     brk: { on: true, room: .55, n: [1, 3], linkGap: 2.6, gap: .5, kinds: ['crate', 'barrel', 'jar', 'crate', 'barrel'], kind: { crate: { r: .45, hp: 2 }, barrel: { r: .4, hp: 2 }, jar: { r: .28, hp: 1 } },
       ash: [2, 8], item: .35, items: ['f_crust', 'f_rusk', 'f_berries', 'h_rag_bandage', 'p_heal1'] },
-    debris: { on: true, max: { phone: 120, pc: 300 }, life: 4, bounce: .35, fric: .6 }
+    debris: { on: true, max: { phone: 120, pc: 300 }, life: 4, bounce: .35, fric: .6 },
+    // этап 5 — вода: брод ford м от берега реки и озера (центр героя; глубже нельзя), глубина 0..1 по броду, ручей — stream; замедление до deepSlow
+    // на краю брода (ручей ×0,85, как раньше); перекат в воде ×roll; течение flow — ручей и брод реки, м/с; вещи плывут и к берегу toBank м/с
+    water: { on: true, ford: 1, stream: .375, deepSlow: .6, roll: .7, flow: { stream: 1.2, river: 2 }, toBank: .6 }
   },
 
   enemies: {

@@ -3,6 +3,7 @@
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, spawnEnemy, abilityHit, hurtPlayer, killEnemy } from '../3d/src/sim.js';
 import { applyStatus } from '../3d/src/status3d.js';
+import { waterDist, onBridge } from '../3d/src/terrain3d.js';
 import { rollK } from '../3d/src/phys3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const M = CFG3.phys.move, P = CFG3.player, K = CFG3.phys.knock;
@@ -102,5 +103,24 @@ const BD = CFG3.phys.body;
   W.bodies = []; for (let i = 0; i < BD.keep + 6; i++) kill(home.x + (i % 6) * 2, home.z + 8 + (i / 6 | 0) * 2); for (let i = 0; i < 60; i++) step(W, 1 / 60, {});
   ok(W.bodies.length === BD.keep, `лежащих тел ${W.bodies.length}, предел ${BD.keep}`); }
 
+// ---------- этап 5: вода ----------
+const WT = CFG3.phys.water;
+{ const W = mk(), rv = W.map.river, p = W.player; let i = 0;
+  for (let k = Math.floor(rv.core / 3); k < rv.core - 2; k++) { const a = rv.pts[k], b = rv.pts[k + 1]; if (!rv.bridges.some(q => Math.hypot(q.x - a.x, q.z - a.z) < 25) && Math.hypot(b.x - a.x, b.z - a.z) > 3) { i = k; break; } }
+  const a = rv.pts[i], b = rv.pts[i + 1], l = Math.hypot(b.x - a.x, b.z - a.z), ux = (b.x - a.x) / l, uz = (b.z - a.z) / l, nx = -uz, nz = ux, cx = (a.x + b.x) / 2, cz = (a.z + b.z) / 2;
+  const put = d => { Object.assign(p, { x: cx + nx * d, z: cz + nz * d, vx: 0, vz: 0, state: 'idle', inv: 1e9 }); };
+  // 13. брод: с берега в реку — не глубже ford; перейти реку нельзя
+  put(rv.w / 2 + 2); run(W, 3, { mx: -nx, mz: -nz }); const wd = waterDist(rv, p.x, p.z, false), side = (p.x - cx) * nx + (p.z - cz) * nz;
+  ok(wd < -WT.ford * .6 && wd > -WT.ford - .1, `брод не работает: ${wd.toFixed(2)} м от берега`); ok(side > 0, 'герой перешёл реку вброд');
+  // 14. течение в броду сносит вниз по реке; герой на суше — нет
+  put(rv.w / 2 - WT.ford * .8); const s0 = (p.x - cx) * ux + (p.z - cz) * uz; run(W, 1); const s1 = (p.x - cx) * ux + (p.z - cz) * uz;
+  ok(s1 - s0 > WT.flow.river * .3, `течение реки не сносит: ${(s1 - s0).toFixed(2)} м за 1 с`);
+  put(rv.w / 2 + 3); const g0 = (p.x - cx) * ux + (p.z - cz) * uz; run(W, 1); ok(Math.abs((p.x - cx) * ux + (p.z - cz) * uz - g0) < 1e-6, 'на суше сносит течением');
+  // 15. вещь в броду плывёт к берегу и там останавливается
+  put(rv.w / 2 + 8); W.drops.length = 0; W.drops.push({ id: 'f_crust', n: 1, x: cx + nx * (rv.w / 2 - .6), z: cz + nz * (rv.w / 2 - .6), t: 0, cd: 0 }); run(W, 4); const q = W.drops[0];
+  ok(q && waterDist(rv, q.x, q.z, false) >= 0, `вещь не выплыла к берегу: ${q ? waterDist(rv, q.x, q.z, false).toFixed(2) : 'нет'}`);
+  // 16. выключено — в реку не зайти, как раньше
+  W.cfg.phys.water.on = false; put(rv.w / 2 + 2); run(W, 3, { mx: -nx, mz: -nz }); ok(waterDist(rv, p.x, p.z, false) > -.05, 'выключено, а в реку можно зайти'); W.cfg.phys.water.on = true; }
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
-console.log('Физика боя 3D (движение, отбрасывание, тела): OK');
+console.log('Физика боя 3D (движение, отбрасывание, тела, вода): OK');

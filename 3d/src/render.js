@@ -589,6 +589,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     return g;
   }
   let brkLvl = null;
+  // этап 5 физики: брызги из-под ног по шагу и круги на воде (пул колец, без теней)
+  const WY = cfg.terrain && cfg.terrain.on ? cfg.terrain.water : .02, rings = [], RING_N = 24; let ringI = 0;
+  for (let i = 0; i < RING_N; i++) { const m = new THREE.Mesh(new THREE.RingGeometry(.28, .34, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#e8f4ff', transparent: true, opacity: 0, depthWrite: false })); m.visible = false; m.userData.t = 0; scene.add(m); rings.push(m); }
+  function splash(x, z, big) { const y = Math.max(Y(x, z), WY); fx.burst(x, y + .15, z, big ? 7 : 4, '#cfe6f4', big ? 2.2 : 1.4); const m = rings[ringI = (ringI + 1) % RING_N]; m.visible = true; m.position.set(x, y + .03, z); m.userData.t = .9; }
+  function ringsUpdate(dt) { for (const m of rings) if (m.visible) { const u = m.userData; u.t -= dt; if (u.t <= 0) { m.visible = false; continue; } const k = 1 - u.t / .9; m.scale.setScalar(1 + k * 3); m.material.opacity = .5 * (1 - k); } }
+  function wade(o, x, z, dk, moving, dt) { if (!(dk > 0)) { o.spT = 0; return; } if ((o.spT = (o.spT || 0) - dt) > 0) return; o.spT = moving ? .28 : 1.4; splash(x, z, moving && dk > .5); }     // идёт — часто, стоит — редко
   function brkUpdate(W, dt) {
     if (brkLvl !== W.lvl) { for (const m of brkMesh.values()) scene.remove(m); brkMesh.clear(); brkLvl = W.lvl; }
     for (const b of W.map.brk || []) {
@@ -1061,7 +1067,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       } }
 
     if (!under) { town.update(FL ? FL.map.house : W.inside, dt, W.levels ? W.levels.surface.map : W.map); const sv = views.get('surface'); if (sv && sv.stairs) for (const m of sv.stairs) m.visible = W.inside === m.userData.house; }     // лестница видна изнутри дома (снаружи — крыша)
-    conts.update(W, t, bodyCid); brkUpdate(W, dt);
+    conts.update(W, t, bodyCid); brkUpdate(W, dt); ringsUpdate(dt); wade(hero, p.x, p.z, p.inW, Math.hypot(p.vx, p.vz) > .5, dt);
     // герои сюжета (этап 3): модель жителя своего цвета; над головой «!» — начать сцену, «?» — вернуться
     { const list = under ? [] : storyActors(W), seen = new Set();
       for (const a of list) { seen.add(a.kind); let s = storyNpcs.get(a.kind);
@@ -1165,6 +1171,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         en.elite.position.set(e.x, .07 + ey, e.z); en.elite.visible = !e.dead; en.elite.scale.setScalar(cfg.enemies[e.type].scale * (e.scaleMul || 1) * (1 + .06 * Math.sin(t * 5)));
       }
       en.sh.position.set(e.x, .03 + ey, e.z);
+      if (e.inW > 0 && Math.hypot(e.x - p.x, e.z - p.z) < 15) wade(en, e.x, e.z, e.inW, e.state === 'chase', dt);     // враг в воде рядом с камерой — брызги
       const wind = e.state === 'wind' && !e.dead;
       en.ring.position.set(e.x, .06 + ey, e.z); en.ring.scale.setScalar(cfg.enemies[e.type].range + .5);
       en.ring.material.opacity = wind && !cfg.enemies[e.type].ranged ? .35 + .3 * Math.sin(t * 40) : 0;

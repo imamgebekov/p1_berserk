@@ -49,7 +49,7 @@ import { affixFor, gemsFor } from './affix3d.js';
 import { partyTravel } from './party3d.js';
 import { wearHit, wearHurt, wearDeath, repairKit } from './dur3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
-import { physMove, rollK, moveStep, physKnock, foeMass, knockV, poiseHit, slammed, chainBump, hurtKnock, physBody, bodyOf, tickBodies } from './phys3d.js';
+import { physMove, rollK, moveStep, physKnock, foeMass, knockV, poiseHit, slammed, chainBump, hurtKnock, physBody, bodyOf, tickBodies, physWater, waterAt } from './phys3d.js';
 import { smashArc } from './brk3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe, roomAt } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
@@ -791,7 +791,7 @@ function updatePlayer(W, dt, input) {
     if (p.atkBuf > 0) p.atkBuf -= dt;
     p.rollT += dt;
     const RM = physMove(W.cfg), k = RM ? rollK(RM.roll, Math.min(1, p.rollT / P.rollTime)) : 1.25 - .75 * (p.rollT / P.rollTime);     // план физики, этап 1: кривая переката
-    p.vx = p.rollDirX * P.rollSpeed * k; p.vz = p.rollDirZ * P.rollSpeed * k;
+    { const PW = physWater(W.cfg), wk = PW && p.inW > 0 ? PW.roll : 1; p.vx = p.rollDirX * P.rollSpeed * k * wk; p.vz = p.rollDirZ * P.rollSpeed * k * wk; }     // в воде перекат короче (этап 5 физики)
     if (p.rollT >= P.rollTime) { p.state = 'idle'; p.lastRollEnd = W.t; if (RM) { p.vx *= RM.rollCarry; p.vz *= RM.rollCarry; } if (p.rollPress) { p.rollPress = false; p.atkBuf = H.buffer; } }
   } else {
     // удар: нажатие — обычный (запоминается на buffer, если нажато во время удара: быстрые нажатия дают серию без пауз);
@@ -815,9 +815,9 @@ function updatePlayer(W, dt, input) {
       if (p.atkT >= P.attackTime * p.swingMul) { p.state = 'idle'; p.lastAtkEnd = W.t; p.heavy = 0; }
     }
     // бег с разгоном; при ударе медленнее
-    const wet = W.map.river && inStream(W.map.river, p.x, p.z);     // ручей (2026-10-18): медленнее, горение гаснет
+    const PWm = physWater(W.cfg), wet = W.map.river && (inStream(W.map.river, p.x, p.z) || (PWm && p.inW > 0));     // ручей (2026-10-18): медленнее, горение гаснет
     if (wet && W.pst.burn) { delete W.pst.burn; W.ev.push({ k: 'douse', x: p.x, z: p.z }); }
-    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd + relicSpd(W), -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1) * (W.bossRoom && W.bossRoom.kind === 'flood' && W.bossRoom.lvl === W.lvl ? W.cfg.bosses.room.flood : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
+    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd + relicSpd(W), -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (PWm && p.inW > 0 ? 1 - (1 - PWm.deepSlow) * p.inW : wet ? W.cfg.water.slow : 1) * (W.bossRoom && W.bossRoom.kind === 'flood' && W.bossRoom.lvl === W.lvl ? W.cfg.bosses.room.flood : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
     const tx = moving ? mx * sp : 0, tz = moving ? mz * sp : 0;
     const MV = physMove(W.cfg);
     if (MV) moveStep(p, tx, tz, dt, P.accel, MV, moving, sp);     // план физики, этап 1: торможение и разворот
@@ -831,6 +831,8 @@ function updatePlayer(W, dt, input) {
   else if (!onSurface(W) && W.map.fire && len(p.x - W.map.fire.x, p.z - W.map.fire.z) < W.cfg.dungeons.fire.r && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);     // костёр в подземелье лечит (план подземелий, 1е)
   if (!onSurface(W) && W.map.fire && len(p.x - W.map.fire.x, p.z - W.map.fire.z) < W.cfg.dungeons.fire.r && !(W.dfire && W.dfire.lvl === W.lvl)) { W.dfire = { lvl: W.lvl, x: W.map.fire.x, z: W.map.fire.z }; W.ev.push({ k: 'dfire', x: p.x, z: p.z }); }     // точка возврата после смерти
   slide(W.map, p, p.vx * dt, p.vz * dt, P.radius);
+  { const PW = physWater(W.cfg), WA = PW && W.map.river ? waterAt(W.map.river, p.x, p.z, PW) : null; p.inW = WA ? WA.dk : 0;     // план физики, этап 5: глубина и течение
+    if (WA && (WA.fx || WA.fz) && p.state !== 'dash') slide(W.map, p, WA.fx * dt, WA.fz * dt, P.radius); }
   keepIn(W.map, p, W.cfg.world.radius, wcOf(W.cfg));
   W.inside = insideOf(W.map, p.x, p.z);
 }
@@ -864,9 +866,10 @@ function updateEnemies(W, dt) {
     tickEnemy(W, e, dt); if (e.dead) continue;
     if (e.hasteT > 0) e.hasteT -= dt; if (e.skinT > 0) e.skinT -= dt; if (e.phaseT > 0) e.phaseT -= dt;     // приёмы врагов (этап 2 «круче»)
     if (e.elite && e.alert && (hasAff(e, 'blink') || hasAff(e, 'summoner'))) eliteTick(W, e, dt);
+    const PWe = physWater(W.cfg), EW = PWe && e.alert && W.map.river ? waterAt(W.map.river, e.x, e.z, PWe) : null; e.inW = EW ? EW.dk : 0;     // план физики, этап 5: проснувшийся враг в воде — медленнее, течение сносит
     const ws = W.map.river && W.map.river.streams && W.map.river.streams.length && inStream(W.map.river, e.x, e.z);     // враг в ручье: медленнее и мокрый
     if (ws && W.cfg.elements.react && !(e.st && e.st.wet && e.st.wet.t > 1)) applyStatus(W, e, 'wet', 0, W.cfg.elements.mark.wet);
-    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1) * (e.hasteT > 0 ? e.haste || 1 : 1) * (ws ? W.cfg.water.slow : 1);
+    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1) * (e.hasteT > 0 ? e.haste || 1 : 1) * (EW ? 1 - (1 - PWe.deepSlow) * EW.dk : ws ? W.cfg.water.slow : 1);
     const KN = physKnock(W.cfg), ks = len(e.vx, e.vz), kx0 = e.x, kz0 = e.z;
     slide(W.map, e, e.vx * dt, e.vz * dt, C.radius);
     if (KN) { if (e.slamCd > 0) e.slamCd -= dt; if (e.chainT > 0) e.chainT -= dt; }
@@ -876,6 +879,7 @@ function updateEnemies(W, dt) {
       if (e.dead) continue;
     }
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
+    if (EW && (EW.fx || EW.fz)) slide(W.map, e, EW.fx * dt, EW.fz * dt, C.radius);
     if (e.boss) { updateBoss(W, e, dt, spd); continue; }
     if (isStunned(e)) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); continue; }        // оглушённый не двигается и не бьёт
     if (e.st && e.st.fear) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); e.face = Math.atan2(-dx, -dz); slide(W.map, e, -dx / d * spd * W.cfg.abilities.fearSpeed * dt, -dz / d * spd * W.cfg.abilities.fearSpeed * dt, C.radius); continue; }     // в страхе бежит от героя и не бьёт
@@ -1069,9 +1073,11 @@ function updateHouses(W, dt) {
     else { c.ready = false; c.t = 0; }
   }
   // вещи на земле: подбираем вблизи (с «притягиванием»), по таймеру исчезают
+  const PWd = physWater(W.cfg);
   for (let i = W.drops.length - 1; i >= 0; i--) {
     const q = W.drops[i]; q.t += dt;
     if (q.corpse) continue;     // 4.21: вещь в теле — только из окна добычи
+    if (PWd && W.map.river) { const DW = waterAt(W.map.river, q.x, q.z, PWd); if (DW) { q.x += (DW.fx + DW.ox * PWd.toBank) * dt; q.z += (DW.fz + DW.oz * PWd.toBank) * dt; } }     // этап 5 физики: вещь плывёт по течению к берегу
     const d = len(p.x - q.x, p.z - q.z);
     if (!p.dead && d < W.cfg.gear.pickup * 2.2) { const k = Math.min(1, dt * 8); q.x += (p.x - q.x) * k * .5; q.z += (p.z - q.z) * k * .5; }
     if (!p.dead && d < W.cfg.gear.pickup * .8 && (q.up || q.g || q.il)) { if (roomFor(W.inv, q.id, bagSlots(W))) { W.inv.bag.push(entryOf(q.id, q.up, q.g || (q.up || q.af || q.mine ? null : gemsFor(W, q.id, socketsOf(BY_ID[q.id], W.cfg))), q.il, q.af || (q.up || q.g || q.mine ? null : affixFor(W, q.id, q.il)))); W.known.items[q.id] = 1; W.ev.push({ k: 'pickup', id: q.id, n: 1 }); W.drops.splice(i, 1); continue; } if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }     // вещь с заточкой или камнями — целиком     // свойства — у новой вещи с земли (этап 4 «круче»)
@@ -1177,6 +1183,7 @@ export function refreshGear(W) {
 export function step(W, dt, input = {}) {
   if (!(dt > 0)) return;                                          // нулевой или отрицательный шаг (первый кадр rAF) ничего не двигает
   W.t += dt; const ev0 = W.ev.length;
+  if (W.map.river) { const PW = physWater(W.cfg); W.map.river.ford = PW ? PW.ford : 0; }     // план физики, этап 5: брод у берега
   { const D = W.cfg.daynight, n = isNight(W.t, D); W.light = lightOf(W.t, D); if (n !== W.night) { W.night = n; W.ev.push({ k: n ? 'dusk' : 'dawn' }); } }
   if (W.storyDark) W.light = Math.min(W.light, .06);     // Затмение (этап 7): солнце чернеет
   for (let i = W.buffs.length - 1; i >= 0; i--) { W.buffs[i].t -= dt; if (W.buffs[i].t <= 0) W.buffs.splice(i, 1); }

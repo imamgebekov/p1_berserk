@@ -1,5 +1,6 @@
 // Физика боя (план физики, 2026-10-25): движение героя — разгон и торможение раздельно, разворот, кривая переката.
 // Чистая логика без графики (проверяется в Node). Числа — cfg.phys; выключено (on: false) — как раньше.
+import { lakeDist, onBridge } from './terrain3d.js';
 const len = (x, z) => Math.hypot(x, z);
 
 export const physMove = cfg => (cfg.phys && cfg.phys.move && cfg.phys.move.on ? cfg.phys.move : null);
@@ -54,4 +55,23 @@ export function bodyOf(W, e) {     // тело в список лежащих: �
 export function tickBodies(W, dt) {     // тело с добычей лежит, пока она есть; без — life с
   const B = physBody(W.cfg), L = W.bodies; if (!B || !L) return;
   for (let i = L.length - 1; i >= 0; i--) { const b = L[i]; if (b.lvl !== W.lvl) continue; b.t += dt; if (b.t > B.life && !(W.corpses || []).some(c => c.id === b.cid)) L.splice(i, 1); }
+}
+
+// этап 5 — вода: глубина dk (0 — сухо, 1 — край брода; ручей — stream), течение fx, fz (м/с) по участку русла, ox, oz — к берегу
+export const physWater = cfg => (cfg.phys && cfg.phys.water && cfg.phys.water.on ? cfg.phys.water : null);
+const seg = (x, z, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2)), px = a.x + dx * t, pz = a.z + dz * t; return { d: Math.hypot(x - px, z - pz), px, pz }; };
+export function waterAt(rv, x, z, P) {
+  if (!rv || onBridge(rv, x, z)) return null;
+  const key = Math.floor(x / 32) * 100003 + Math.floor(z / 32); let best = null;     // клетки указателя воды — 32 м (terrain3d.js, RCELL)
+  for (const [k, i] of (rv.scells && rv.scells.get(key)) || []) { const S = rv.streams[k], a = S.pts[i - 1], b = S.pts[i], q = seg(x, z, a, b), d = q.d - S.w / 2; if (d < 0 && (!best || d < best.d)) best = { d, a, b, q, kind: 'stream' }; }
+  for (const i of (rv.cells && rv.cells.get(key)) || []) {
+    if (i < 0) { const L = rv.lakes[-i - 1], d = lakeDist(L, x, z); if (d < 0 && (!best || d < best.d)) best = { d, L, kind: 'lake' }; continue; }
+    const a = rv.pts[i - 1], b = rv.pts[i], q = seg(x, z, a, b), d = q.d - rv.w / 2; if (d < 0 && (!best || d < best.d)) best = { d, a, b, q, kind: 'river' };
+  }
+  if (!best) return null;
+  const dk = best.kind === 'stream' ? P.stream : Math.min(1, -best.d / P.ford);
+  let fx = 0, fz = 0, ox, oz;
+  if (best.kind === 'lake') { const dx = x - best.L.x, dz = z - best.L.z, l = Math.hypot(dx, dz) || 1; ox = dx / l; oz = dz / l; }
+  else { const dx = best.b.x - best.a.x, dz = best.b.z - best.a.z, l = Math.hypot(dx, dz) || 1, v = best.kind === 'stream' ? P.flow.stream : P.flow.river * dk; fx = dx / l * v; fz = dz / l * v; const ex = x - best.q.px, ez = z - best.q.pz, el = Math.hypot(ex, ez) || 1; ox = ex / el; oz = ez / el; }
+  return { dk, fx, fz, ox, oz, kind: best.kind };
 }
