@@ -7,6 +7,7 @@ import { killEnemy, atCampFire } from './sim.js';
 import { hitsWall } from './foes3d.js';
 import { addThreat, taunt } from './threat3d.js';
 import { gearStats } from './inv.js';
+import { physKnock, foeMass, knockV, hurtKnock } from './phys3d.js';
 import { BY_ID } from './data/items.js';
 
 // снаряжение бойцов (2026-10-20, просьба владельца): нанятый — без вещей и слабее (cfg.squad.gear.naked); вещи из сумки
@@ -48,7 +49,8 @@ export function hurtAlly(W, a, dmg, e) {
   { const L = liveOf(W); if (L && a.wallT > 0) dmg *= L.tank.wall.k; if (a.ward > 0) { const g = Math.min(a.ward, dmg); a.ward -= g; dmg -= g; } }     // Г7: стена щитов, оберег
   a.hp -= dmg * (a.taken ?? 1) / (1 + Math.max(0, a.garmor || 0) * W.cfg.gear.armorK); a.flash = .12; a.calm = 3;
   { const L = liveOf(W); if (L && a.hp > 0 && a.hp < a.maxhp * L.say.low) say(W, a, 'low'); }     // подопечные событий получают меньше (taken); броня бойца — как у героя
-  const d = len(a.x - e.x, a.z - e.z) || 1; a.vx += (a.x - e.x) / d * 3; a.vz += (a.z - e.z) / d * 3;
+  const KN = physKnock(W.cfg), EC = KN && e && e.type && W.cfg.enemies[e.type], kv = KN ? hurtKnock(KN.ally.hurt, EC ? foeMass(KN, EC, EC.heavy) : 1, KN.hero.attMax, KN.ally.mass[roleOfT(W.cfg.squad.types[a.type] || {})] || 1) : 3;     // план физики, этап 2
+  const d = len(a.x - e.x, a.z - e.z) || 1; a.vx += (a.x - e.x) / d * kv; a.vz += (a.z - e.z) / d * kv;
   W.ev.push({ k: 'allyhurt', x: a.x, z: a.z, dmg });
   if (a.story && a.hp < 1) a.hp = 1;     // герои сюжета не гибнут: держатся на ногах
   if (a.hp <= 0) { a.hp = 0; a.dead = true; a.deadT = 0; if (!a.guest) W.ev.push({ k: 'allydead', x: a.x, z: a.z, name: W.cfg.squad.types[a.type].name }); }
@@ -143,7 +145,7 @@ function allyHit(W, T, id, e, dmg, from, push = 1) {
   e.hp -= dmg; e.flash = .12; e.alert = true;
   const al = W.allies.find(x => x.id === id), nk = al && !al.lfg ? Math.max(1, allyDmg(W, T) / Math.max(1e-6, allyDmgOf(W, al))) : 1;     // Г9: угроза нанятого — как у бота сбора
   addThreat(W, e, id, dmg * (T.threat || 1) * nk); if (e.b && T.role === 'tank' && !smartOf(W)) e.b.kick = true;     // защитник сбивает чтение босса (этап 5); Г9 — умением «Пинок»
-  const d = len(e.x - from.x, e.z - from.z) || 1, C = W.cfg.enemies[e.type], k = 3 * push / (C.scale > 1.2 ? 2.2 : 1); e.vx += (e.x - from.x) / d * k; e.vz += (e.z - from.z) / d * k;
+  const d = len(e.x - from.x, e.z - from.z) || 1, C = W.cfg.enemies[e.type], KN = physKnock(W.cfg), k = KN ? knockV(KN, KN.ally.base * push, foeMass(KN, C, C.heavy)) : 3 * push / (C.scale > 1.2 ? 2.2 : 1); e.vx += (e.x - from.x) / d * k; e.vz += (e.z - from.z) / d * k;
   if (e.state === 'wind' && push >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: false, id: e.id, ally: true });
   if (e.hp <= 0) killEnemy(W, e, W.cfg.squad.xpShare);

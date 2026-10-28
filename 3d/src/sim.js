@@ -49,7 +49,7 @@ import { affixFor, gemsFor } from './affix3d.js';
 import { partyTravel } from './party3d.js';
 import { wearHit, wearHurt, wearDeath, repairKit } from './dur3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
-import { physMove, rollK, moveStep } from './phys3d.js';
+import { physMove, rollK, moveStep, physKnock, foeMass, knockV, poiseHit, slammed, chainBump, hurtKnock } from './phys3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe, roomAt } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 import { resGain } from './resource3d.js';
@@ -352,7 +352,8 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   if (relicHurt(W, dmg, att)) return false;     // дар «Зеркальный щит»
   if (W.setFx.lastStand && p.hp < p.maxhp * .4) dmg *= 1 - W.setFx.lastStand;
   // щит: удар спереди ослаблен на блок %, отброс меньше; пока герой бьёт или заряжает — щит не закрывает
-  let knock = 5;
+  const KN = physKnock(W.cfg), AC = KN && att && att.type && W.cfg.enemies[att.type];
+  let knock = KN ? hurtKnock(KN.hero.base, AC ? foeMass(KN, AC, AC.heavy) : 1, KN.hero.attMax, KN.hero.mass[W.hero] || 1) : 5;     // план физики, этап 2: по весу бьющего и героя
   if (W.gear.block > 0 && fromX !== undefined && p.state !== 'atk' && p.state !== 'charge' && Math.abs(angDiff(Math.atan2(fromX - p.x, fromZ - p.z), p.face)) < W.cfg.block.arc * DEG / 2) {
     if (W.gfx.reflect && att && !att.dead) { dealDamage(W, att, Math.round(dmg * W.gfx.reflect), null); W.ev.push({ k: 'reflect', x: att.x, z: att.z }); }     // Щит Восхода
     dmg *= 1 - Math.min(80, W.gear.block) / 100; knock *= W.cfg.block.knock; W.ev.push({ k: 'block', x: p.x, z: p.z, face: p.face, hero: true });
@@ -367,7 +368,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   dmg = duelGuard(W, dmg); p.hp -= dmg; if (W.life && W.life.mount.on) dismount(W); p.inv = W.cfg.player.hurtInvuln;     // поединок Акта I: герой не гибнет     // ранен — спешился (этап 6)
   W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
   const d = len(p.x - fromX, p.z - fromZ) || 1;
-  p.vx += (p.x - fromX) / d * knock; p.vz += (p.z - fromZ) / d * knock;
+  p.vx += (p.x - fromX) / d * knock; p.vz += (p.z - fromZ) / d * knock; if (KN && knock > 0) p.knockT = KN.hero.noPlant;
   W.ev.push({ k: 'hurt', x: p.x, z: p.z, dmg }); resGain(W, 'hurt', dmg); if (dmg > 0 && wearHurt(W)) refreshGear(W);     // износ брони (4.03)     // ярость копится от урона
   if (on && W.rng() < on[1]) applyPlayer(W, on[0], on[2], on[3]);
   const fx = W.setFx;
@@ -507,7 +508,10 @@ function strike(W, e, dmg, o) {
   if (hasAff(e, 'mirror') && dmg > 0 && !p.dead) { const r = Math.max(1, Math.round(dmg * affOf(W, 'mirror').k)); p.hp -= r; W.ev.push({ k: 'mirror', x: p.x, z: p.z, dmg: r }); if (p.hp <= 0) { p.hp = 0; killPlayer(W); } }     // зеркальная элита возвращает часть удара (этап 2 «круче»)
   if (e.b && (o.heavy || o.ab)) e.b.kick = true;     // тяжёлый удар или умение сбивает чтение босса (этап 5)     // угроза героя (этап 4); последняя цель — для «моей цели»
   { const thirst = W.wp.mix && W.wp.mix.a === 'blood' && W.wp.mix.b === 'blood' ? W.cfg.stones.thirst[0] : 0, lch = (W.gear.leech + thirst + relicLeech(W) + (W.abuf.blood > 0 ? W.abuf.bloodLeech : 0)) * (e.st && e.st.bleed && W.cfg.elements.react && isWet(W, e) ? W.cfg.elements.mix.tide : 1); if (lch > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * lch / 100); }     // «Кровавый прилив»: мокрый и кровоточащий     // «Кровавый порыв» Торна добавляет вампиризм
-  const heavy = C.heavy || hasAff(e, 'armored'), k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
+  const heavy = C.heavy || hasAff(e, 'armored'), KN = physKnock(W.cfg), pk = KN && e.boss && KN.poise ? poiseHit(KN.poise, e, dmg, W.t) : 1, n = o.d || 1;     // план физики, этап 2: вес и стойкость босса
+  const k = KN ? knockV(KN, KN.base * o.knock * pk, foeMass(KN, C, heavy)) : P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1);
+  if (KN) e.lastHit = dmg;
+  if (KN && KN.poise && pk === KN.poise.brk && pk !== KN.poise.k) { if (e.b) e.b.kick = true; applyStatus(W, e, 'stun', 0, KN.poise.stun); W.ev.push({ k: 'poise', x: e.x, z: e.z, id: e.id }); }     // стойкость пробита
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
   if (e.state === 'wind' && !heavy && gm >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах (щит — нет)
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: o.crit, fin: !!o.fin, id: e.id, fx: o.fx || null });
@@ -852,7 +856,14 @@ function updateEnemies(W, dt) {
     const ws = W.map.river && W.map.river.streams && W.map.river.streams.length && inStream(W.map.river, e.x, e.z);     // враг в ручье: медленнее и мокрый
     if (ws && W.cfg.elements.react && !(e.st && e.st.wet && e.st.wet.t > 1)) applyStatus(W, e, 'wet', 0, W.cfg.elements.mark.wet);
     const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1) * (e.hasteT > 0 ? e.haste || 1 : 1) * (ws ? W.cfg.water.slow : 1);
+    const KN = physKnock(W.cfg), ks = len(e.vx, e.vz), kx0 = e.x, kz0 = e.z;
     slide(W.map, e, e.vx * dt, e.vz * dt, C.radius);
+    if (KN) { if (e.slamCd > 0) e.slamCd -= dt; if (e.chainT > 0) e.chainT -= dt; }
+    if (KN && KN.slam && !(e.slamCd > 0) && slammed(KN.slam, ks, ks * dt, len(e.x - kx0, e.z - kz0))) {     // план физики, этап 2: удар о стену
+      const sd = Math.max(1, Math.round((e.lastHit || 0) * KN.slam.dmg)); e.slamCd = KN.slam.cd; e.vx = e.vz = 0;
+      W.ev.push({ k: 'slam', x: e.x, z: e.z, id: e.id }); W.shake = Math.max(W.shake, W.cfg.fx.shake); applyStatus(W, e, 'stun', 0, KN.slam.stun); dealDamage(W, e, sd, null);
+      if (e.dead) continue;
+    }
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
     if (e.boss) { updateBoss(W, e, dt, spd); continue; }
     if (isStunned(e)) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); continue; }        // оглушённый не двигается и не бьёт
@@ -916,14 +927,14 @@ function updateEnemies(W, dt) {
     }
   }
   // расталкивание: враги друг с другом и с героем
-  const live = W.enemies.filter(e => !e.dead);
+  const live = W.enemies.filter(e => !e.dead), KC = physKnock(W.cfg) && W.cfg.phys.knock.chain;
   for (let i = 0; i < live.length; i++) {
     const a = live[i], ra = E[a.type].radius;
     for (let j = i + 1; j < live.length; j++) {
       const b = live[j], rb = E[b.type].radius, m = ra + rb;
       let dx = b.x - a.x, dz = b.z - a.z, d = len(dx, dz);
       if (d < 1e-6) { const ang = (i * 7 + j) * 2.399; dx = Math.cos(ang) * 1e-6; dz = Math.sin(ang) * 1e-6; d = 1e-6; }   // стояли в одной точке
-      if (d < m) { const k = (m - d) / 2 / d; a.x -= dx * k; a.z -= dz * k; b.x += dx * k; b.z += dz * k; }
+      if (d < m) { const k = (m - d) / 2 / d; a.x -= dx * k; a.z -= dz * k; b.x += dx * k; b.z += dz * k; if (KC && chainBump(KC, a, b, dx, dz)) W.ev.push({ k: 'bump', x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 }); }     // этап 2: толкнул соседа
     }
     if (!p.dead && !p.dashMix && !p.dashThru) {     // выпад умения оружия и рывок Бесогона (Г8) проходят сквозь врагов
       const dx = a.x - p.x, dz = a.z - p.z, d = len(dx, dz), m = ra + P_RADIUS(W);

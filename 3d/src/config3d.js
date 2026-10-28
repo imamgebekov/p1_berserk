@@ -1510,7 +1510,13 @@ const BASE = {
   // turn — разворот больше deg° после бега в одну сторону не короче run с: упор — скорость сразу ×k от полной и t с не быстрее; roll — кривая переката: lo + hi·(1−u)^p, средняя avg
   // (путь как раньше); rollCarry — доля скорости после переката; dashCarry — после рывка умения. on: false — как раньше
   phys: {
-    move: { on: true, brake: 30, turn: { deg: 120, k: .55, t: .08, run: .3 }, roll: { p: 1.5, lo: .5, avg: .875 }, rollCarry: .7, dashCarry: .2 }
+    move: { on: true, brake: 30, turn: { deg: 120, k: .55, t: .08, run: .3 }, roll: { p: 1.5, lo: .5, avg: .875 }, rollCarry: .7, dashCarry: .2 },
+    // этап 2 — отбрасывание с весом: скорость = base × сила удара / вес (не больше max); вес врага — mass или scale² (не меньше minMass),
+    // тяжёлый ×heavy; герой — hero.base × √(вес бьющего, до attMax) / вес героя, noPlant с без упора разворота; спутники — ally
+    // poise — стойкость боссов: урон за t с больше frac здоровья — пробита (отлёт ×brk, сбитый приём, оглушение stun), иначе ×k
+    // slam — удар о стену: летел быстрее v — урон dmg от удара, оглушение stun, не чаще cd; chain — толкнул соседа: быстрее v отдаёт долю k, t с без передачи дальше
+    knock: { on: true, base: 6.9, minMass: .5, heavy: 2, max: 14, hero: { base: 5, attMax: 2, mass: { thorn: 1.25, brand: 1.25 }, noPlant: .3 },
+      ally: { base: 3.5, hurt: 3, mass: { tank: 1.4 } }, poise: { t: 3, frac: .08, k: 1, brk: 6, stun: .5 }, slam: { v: 4, dmg: .15, stun: .4, cd: .5 }, chain: { v: 4, k: .5, t: .3 } }
   },
 
   enemies: {

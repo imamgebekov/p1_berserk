@@ -9,6 +9,7 @@ import { onSurface, levelAt, depthAt } from './levels3d.js';
 import { addThreat } from './threat3d.js';
 import { HERO_IDS, heroOf, heavyFor } from './data/heroes3d.js';
 import { BY_ID } from './data/items.js';
+import { physKnock, foeMass, knockV } from './phys3d.js';
 
 const R = .45, SLOTS = ['head', 'body', 'boots', 'cloak'];
 const rnd = (W, a, b) => a + W.brng() * (b - a);
@@ -108,7 +109,7 @@ function pickFoe(W, a) {
 function botHit(W, a, e, dmg) {
   if (e.dead) return;
   e.hp -= dmg; e.flash = .12; e.alert = true; e.botT = W.t + W.cfg.bots.hold; addThreat(W, e, a.id, dmg);
-  const d = len(e.x - a.x, e.z - a.z) || 1, k = a.T.ranged ? .8 : 2.4; e.vx += (e.x - a.x) / d * k; e.vz += (e.z - a.z) / d * k;
+  const d = len(e.x - a.x, e.z - a.z) || 1, k0 = a.T.ranged ? .8 : 2.4, KN = physKnock(W.cfg), C = W.cfg.enemies[e.type], k = KN && C ? knockV(KN, k0 * KN.base / W.cfg.player.knockback, foeMass(KN, C, C.heavy)) : k0; e.vx += (e.x - a.x) / d * k; e.vz += (e.z - a.z) / d * k;     // план физики, этап 2: по весу
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: false, id: e.id, ally: true });
   if (e.hp <= 0) { botKill(W, e, a); gotKill(W, a); say(W, a, 'kill'); a.loot = { id: 'c' + e.id, x: e.x, z: e.z, t: 0 }; }
 }

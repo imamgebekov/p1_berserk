@@ -1275,6 +1275,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'swing') swingFx = 1;
       else if (v.k === 'roll') burst(v.x, .2, v.z, 6, '#6a5a4a', 2.5);
       else if (v.k === 'dodge') hooks.onText && hooks.onText(v.x, 2.6, v.z, 'Уклон!', 'dodge');
+      else if (v.k === 'slam') { fx.burst(v.x, .5, v.z, 14, '#8a7a66', 3.5); fx.ash(v.x, .4, v.z, 6, ['#6a5e50', '#4a4038', '#8a7a66']); fx.decal(v.x, v.z, .9, '#2a241e'); }     // план физики, этап 2: удар о стену — пыль и крошки
+      else if (v.k === 'bump') fx.burst(v.x, .7, v.z, 6, '#9a8a76', 2.5);     // толкнул соседа
+      else if (v.k === 'poise') { ringFx(v.x, v.z, 2.2, '#ffd27a'); fx.flash(v.x, 1.4, v.z, 2.4, '#ffd27a'); hooks.onText && hooks.onText(v.x, 3.2, v.z, 'Пробит!', 'crit'); }     // стойкость босса пробита
     }
     W.ev.length = 0;
     // частицы
