@@ -49,7 +49,7 @@ import { affixFor, gemsFor } from './affix3d.js';
 import { partyTravel } from './party3d.js';
 import { wearHit, wearHurt, wearDeath, repairKit } from './dur3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
-import { physMove, rollK, moveStep, physKnock, foeMass, knockV, poiseHit, slammed, chainBump, hurtKnock } from './phys3d.js';
+import { physMove, rollK, moveStep, physKnock, foeMass, knockV, poiseHit, slammed, chainBump, hurtKnock, physBody, bodyOf, tickBodies } from './phys3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe, roomAt } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 import { resGain } from './resource3d.js';
@@ -385,7 +385,7 @@ export function killEnemy(W, e, share) {
   if (e.dead) return;
   if (e.boss && e.b && e.b.def && e.b.def.stage2 && !e.b.st2) { bossRise(W, e); return; }     // вторая стадия (4.18б)
   const d0 = W.drops.length;     // 4.21: добыча убитого — в его тело (corpseOf в конце)
-  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
+  e.dead = true; e.deadT = 0; e.slain = true; fallFace(W, e); W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
   dropLoot(W, e); zoneDrop(W, e); addXp(W, e, share); eliteOnDeath(W, e); relicKill(W, e, share);     // дары Затмения: жатва, охотник, печати с боссов
   { const H = heroMul(W), kh = H.killHeal ? H.killHeal * clamp((H.healLv[1] - W.lv) / (H.healLv[1] - H.healLv[0]), 0, 1) : 0, p = W.player; if (kh && !p.dead && p.hp > 0 && len(p.x - e.x, p.z - e.z) < 6 && W.enemies.filter(o => !o.dead && len(o.x - p.x, o.z - p.z) < 6).length >= 2) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * kh); }     // «второе дыхание» Торна: убил рядом — подлечился
   { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: lootIl(W, e, e.id) ?? ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
@@ -403,10 +403,12 @@ export function killEnemy(W, e, share) {
   if (e.grp) campKill(W, e);     // после тела: награда лежит у костра, а не в теле
 }
 
+// план физики, этап 3: тело падает по удару — лицом к удару (клип смерти валит назад), скорость удара ×carry
+function fallFace(W, e) { const B = physBody(W.cfg); if (!B) return; e.vx *= B.carry; e.vz *= B.carry; if (len(e.vx, e.vz) > .5) e.face = Math.atan2(-e.vx, -e.vz); const sc = W.cfg.enemies[e.type].scale || 1; if (sc > 1.4) W.shake = Math.max(W.shake, W.cfg.fx.shake * .5 * sc); }     // тяжёлое тело трясёт землю
 // убийство ботом (этап 5 «живого мира»): смерть, тело с добычей (бот его залутает), лагерь врагов считает; герою — ни опыта, ни заданий
 export function botKill(W, e, a) {
   if (e.dead || e.boss) return;
-  const d0 = W.drops.length; e.dead = true; e.deadT = 0; e.byBot = a.id;
+  const d0 = W.drops.length; e.dead = true; e.deadT = 0; e.slain = true; fallFace(W, e); e.byBot = a.id;
   W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: false });
   dropLoot(W, e); corpseOf(W, e, d0);
   if (e.grp) campKill(W, e);
@@ -419,6 +421,13 @@ function corpseOf(W, e, d0) {
   (W.corpses || (W.corpses = [])).push({ id, x: e.x, z: e.z, type: e.type, name: W.cfg.enemies[e.type].name, boss: !!e.boss, t: 0, life: e.boss ? C.boss : C.life, empty: 0, lvl: W.lvl, fight: false });
 }
 export const corpseItems = (W, cid) => W.drops.filter(q => q.corpse === cid);
+// план физики, этап 3: тело скользит по удару с трением, у стены замирает; добыча в теле едет с ним
+function deadSlide(W, e, dt) {
+  const B = physBody(W.cfg); if (!B || !e.slain || !(len(e.vx, e.vz) > .05)) return;
+  slide(W.map, e, e.vx * dt, e.vz * dt, W.cfg.enemies[e.type].radius); const f = Math.exp(-B.fric * dt); e.vx *= f; e.vz *= f;
+  const c = W.corpses && W.corpses.find(q => q.id === 'c' + e.id); if (!c) return;
+  c.x = e.x; c.z = e.z; for (const q of W.drops) if (q.corpse === c.id) { q.x = e.x; q.z = e.z; }
+}
 export function tickCorpses(W, dt) {
   const C = W.cfg.corpse, L = W.corpses, p = W.player; W.nearCorpse = null; if (!C || !C.on || !L || !L.length) return;
   const fight = W.enemies.some(e => !e.dead && e.alert && len(e.x - p.x, e.z - p.z) < C.combatR);     // бой рядом — таймер тел стоит (босс: суета дольше 3 минут)
@@ -847,7 +856,7 @@ function updateEnemies(W, dt) {
   for (const e of W.enemies) {
     const C = E[e.type];
     if (e.flash > 0) e.flash -= dt;
-    if (e.dead) { e.deadT += dt; continue; }
+    if (e.dead) { e.deadT += dt; deadSlide(W, e, dt); continue; }
     if (!e.boss && W.lvl === SURFACE && len(p.x - e.x, p.z - e.z) > E.sleep.r) { e.sleep = true; continue; }     // далеко от героя — спит (C1)
     e.sleep = false;
     tickEnemy(W, e, dt); if (e.dead) continue;
@@ -945,6 +954,7 @@ function updateEnemies(W, dt) {
   resolve(W.map, p, W.cfg.player.radius);
   blockCart(W, p, W.cfg.player.radius);
   keepIn(W.map, p, W.cfg.world.radius, wcOf(W.cfg));                         // расталкивание не выносит героя за границу
+  for (const e of W.enemies) if (e.dead && e.deadT > .6 && !e.gone) bodyOf(W, e);     // план физики, этап 3: тело остаётся лежать
   W.enemies = W.enemies.filter(e => !(e.dead && e.deadT > .6));
   // держим нужное число врагов (кольцом вокруг героя — только на поверхности; в подземельях свои правила)
   if (!onSurface(W)) return;
@@ -1067,7 +1077,7 @@ function updateHouses(W, dt) {
     if (q.cd > 0) q.cd -= dt;
     if (q.t > W.cfg.gear.dropLife) W.drops.splice(i, 1);
   }
-  tickCorpses(W, dt);
+  tickCorpses(W, dt); tickBodies(W, dt);     // план физики, этап 3: лежащие тела
 }
 
 // использовать вещь из сумки (еда, зелья, мешочки пепла); возвращает true, если вещь потрачена

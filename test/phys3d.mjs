@@ -1,7 +1,7 @@
 // Физика боя (план физики, 2026-10-25), этап 1 — движение героя: разгон как раньше, торможение длиннее, резкий разворот
 // придерживает скорость, путь переката как раньше и не зависит от частоты кадров; выключено (phys.move.on: false) — как раньше.
 import { CFG3 } from '../3d/src/config3d.js';
-import { createWorld, step, mulberry32, spawnEnemy, abilityHit, hurtPlayer } from '../3d/src/sim.js';
+import { createWorld, step, mulberry32, spawnEnemy, abilityHit, hurtPlayer, killEnemy } from '../3d/src/sim.js';
 import { applyStatus } from '../3d/src/status3d.js';
 import { rollK } from '../3d/src/phys3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
@@ -79,5 +79,28 @@ const clear = W => { W.enemies.length = 0; W.ev.length = 0; };
   const on = push(true), off = push(false);
   ok(on.bv > 1.5 && off.bv < .1, `толчок соседа: скорость ${on.bv.toFixed(2)} м/с (без толчка ${off.bv.toFixed(2)})`); ok(on.cv < .5, `толчок передан дальше одного звена: третий ${on.cv.toFixed(2)} м/с`); }
 
+// ---------- этап 3: тела ----------
+const BD = CFG3.phys.body;
+// 11. убивающий удар: тело скользит по удару и замирает, лицом к удару; добыча в теле едет с ним; через 0,6 с — в списке лежащих тел
+{ const W = mk(); clear(W); W.bodies = []; W.corpses = []; const e = foe(W, 'imp', home.x + 4, home.z + 4), p = W.player; p.x = e.x; p.z = e.z - 1.5;
+  e.hp = 1; abilityHit(W, e, 1, { knock: 1 }); ok(e.dead, 'бес не убит');
+  const x0 = e.x, z0 = e.z; W.corpses.push({ id: 'c' + e.id, x: e.x, z: e.z, type: e.type, t: 0, life: 99, empty: 0, lvl: W.lvl }); W.drops.push({ id: 'ash', n: 1, x: e.x, z: e.z, corpse: 'c' + e.id });
+  ok(Math.abs(Math.cos(e.face) + 1) < .05, `тело не лицом к удару: face ${e.face.toFixed(2)}`);
+  for (let i = 0; i < 45; i++) step(W, 1 / 60, {});
+  const moved = e.z - z0, c = W.corpses.find(q => q.id === 'c' + e.id), dr = W.drops.find(q => q.corpse === 'c' + e.id);
+  ok(moved > .5 && Math.abs(e.x - x0) < .1, `тело не скользит по удару: ${moved.toFixed(2)} м`); ok(Math.hypot(e.vx, e.vz) < .3, `тело не замирает: ${Math.hypot(e.vx, e.vz).toFixed(2)} м/с`);
+  ok(c && dr && Math.abs(c.z - e.z) < 1e-6 && Math.abs(dr.z - e.z) < 1e-6, 'добыча не едет с телом');
+  for (let i = 0; i < 20; i++) step(W, 1 / 60, {});
+  const b = W.bodies.find(q => q.id === e.id); ok(!!b && !W.enemies.includes(e), 'тело не попало в список лежащих');
+  ok(b && Math.abs(b.z - e.z) < 1e-6 && b.cid === 'c' + e.id, 'лежащее тело не там, где замерло'); }
+// 12. тело без добычи уходит через life с, с добычей — лежит; список не растёт больше keep
+{ const W = mk(); clear(W); W.bodies = []; W.corpses = []; const kill = (x, z) => { const e = foe(W, 'imp', x, z); e.hp = 1; killEnemy(W, e, 0); return e; };
+  const a = kill(home.x + 3, home.z), b = kill(home.x - 3, home.z); W.corpses.push({ id: 'c' + b.id, x: b.x, z: b.z, t: 0, life: 1e9, empty: 0, lvl: W.lvl }); W.drops.push({ id: 'ash', n: 1, x: b.x, z: b.z, corpse: 'c' + b.id });
+  for (let i = 0; i < 60; i++) step(W, 1 / 60, {}); W.cfg.corpse.empty = 1e9;
+  const n0 = W.bodies.length; for (const q of W.bodies) q.t = BD.life + 1; step(W, 1 / 60, {});
+  ok(n0 === 2 && W.bodies.length === 1 && W.bodies[0].id === b.id, `тела не уходят по времени: было ${n0}, стало ${W.bodies.length}`); W.cfg.corpse.empty = CFG3.corpse.empty;
+  W.bodies = []; for (let i = 0; i < BD.keep + 6; i++) kill(home.x + (i % 6) * 2, home.z + 8 + (i / 6 | 0) * 2); for (let i = 0; i < 60; i++) step(W, 1 / 60, {});
+  ok(W.bodies.length === BD.keep, `лежащих тел ${W.bodies.length}, предел ${BD.keep}`); }
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
-console.log('Физика боя 3D (движение, отбрасывание): OK');
+console.log('Физика боя 3D (движение, отбрасывание, тела): OK');

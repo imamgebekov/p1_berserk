@@ -1516,7 +1516,11 @@ const BASE = {
     // poise — стойкость боссов: урон за t с больше frac здоровья — пробита (отлёт ×brk, сбитый приём, оглушение stun), иначе ×k
     // slam — удар о стену: летел быстрее v — урон dmg от удара, оглушение stun, не чаще cd; chain — толкнул соседа: быстрее v отдаёт долю k, t с без передачи дальше
     knock: { on: true, base: 6.9, minMass: .5, heavy: 2, max: 14, hero: { base: 5, attMax: 2, mass: { thorn: 1.25, brand: 1.25 }, noPlant: .3 },
-      ally: { base: 3.5, hurt: 3, mass: { tank: 1.4 } }, poise: { t: 3, frac: .08, k: 1, brk: 6, stun: .5 }, slam: { v: 4, dmg: .15, stun: .4, cd: .5 }, chain: { v: 4, k: .5, t: .3 } }
+      ally: { base: 3.5, hurt: 3, mass: { tank: 1.4 } }, poise: { t: 3, frac: .08, k: 1, brk: 6, stun: .5 }, slam: { v: 4, dmg: .15, stun: .4, cd: .5 }, chain: { v: 4, k: .5, t: .3 } },
+    // этап 3 — тела: убивающий удар толкает тело (скорость отлёта ×carry), оно скользит с трением fric и замирает у стены;
+    // лежит life с (с добычей — пока она есть); в кадре не больше max тел (low — на «Низком» качестве), лишнее уходит в землю за sink с;
+    // keep — сколько тел помнит бой; freeze — через столько с анимация тела замирает
+    body: { on: true, carry: 1.3, fric: 6, life: 90, keep: 24, max: { phone: 6, pc: 16, low: 3 }, sink: .8, freeze: 2.5 }
   },
 
   enemies: {

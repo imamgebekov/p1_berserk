@@ -42,3 +42,16 @@ export function chainBump(C, a, b, dx, dz) {
 }
 // скорость отлёта героя или спутника: base × √(вес бьющего в пределах 0,7..attMax) / свой вес
 export const hurtKnock = (base, attMass, attMax, mass) => base * Math.sqrt(Math.min(attMax, Math.max(.7, attMass))) / mass;
+
+// этап 3 — тела: выключатель, скольжение тела с трением (добыча тела едет с ним), список лежащих тел W.bodies
+export const physBody = cfg => (cfg.phys && cfg.phys.body && cfg.phys.body.on ? cfg.phys.body : null);
+export function bodyOf(W, e) {     // тело в список лежащих: свежие в конце; сверх keep — уходит самое старое без добычи
+  const B = physBody(W.cfg); if (!B || !e.slain) return;
+  const L = W.bodies || (W.bodies = []), cid = 'c' + e.id;
+  L.push({ id: e.id, type: e.type, x: e.x, z: e.z, face: e.face, sm: e.scaleMul || 1, cid, boss: !!e.boss, lvl: W.lvl, t: 0 });
+  while (L.length > B.keep) { const i = L.findIndex(b => !(W.corpses || []).some(c => c.id === b.cid)); L.splice(i < 0 ? 0 : i, 1); }
+}
+export function tickBodies(W, dt) {     // тело с добычей лежит, пока она есть; без — life с
+  const B = physBody(W.cfg), L = W.bodies; if (!B || !L) return;
+  for (let i = L.length - 1; i >= 0; i--) { const b = L[i]; if (b.lvl !== W.lvl) continue; b.t += dt; if (b.t > B.life && !(W.corpses || []).some(c => c.id === b.cid)) L.splice(i, 1); }
+}
