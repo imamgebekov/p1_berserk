@@ -3,13 +3,13 @@
 // любому другому открытому, если рядом нет встревоженных врагов. Костры — только вид и логика: не препятствия, бой не меняют.
 // Чистая логика (проверяется в Node).
 import { reveal } from './places3d.js';
-import { resolve, nearBuilding, insideCamp } from './map.js';
+import { resolve, nearBuilding, insideCamp, nearby } from './map.js';
 import { waterDist } from './terrain3d.js';
 import { inCliff } from './cliffs3d.js';
 
 // свободное место рядом с (x, z): по спирали, не в доме, не у препятствий, не в воде и не у обрыва
 export function freeNear(map, x, z, maxR = 14) {
-  const ok = (px, pz) => !nearBuilding(map, px, pz, 2.5) && map.solids.every(q => Math.hypot(q.x - px, q.z - pz) > q.r + 1.8) && (!map.river || waterDist(map.river, px, pz) > 3) && !inCliff(map.plateaus, px, pz, 2) && (!map.camp || !insideCamp(map.camp, px, pz, -2.5) || Math.hypot(px, pz) < 1) && !resolve(map, { x: px, z: pz }, 1.2);     // и не у частокола, не в стене
+  const ok = (px, pz) => !nearBuilding(map, px, pz, 2.5) && nearby(map, px - 1.8, pz - 1.8, px + 1.8, pz + 1.8).s.every(i => { const q = map.solids[i]; return Math.hypot(q.x - px, q.z - pz) > q.r + 1.8; }) && (!map.river || waterDist(map.river, px, pz) > 3) && !inCliff(map.plateaus, px, pz, 2) && (!map.camp || !insideCamp(map.camp, px, pz, -2.5) || Math.hypot(px, pz) < 1) && !resolve(map, { x: px, z: pz }, 1.2);     // и не у частокола, не в стене
   for (let r = 0; r <= maxR; r += 1.5) for (let k = 0, n = Math.max(1, Math.round(r * 2)); k < n; k++) { const a = k / n * Math.PI * 2, px = x + Math.sin(a) * r, pz = z + Math.cos(a) * r; if (ok(px, pz)) return { x: px, z: pz }; }
   return null;
 }

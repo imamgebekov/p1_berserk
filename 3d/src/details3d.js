@@ -5,6 +5,7 @@ import { mulberry32 } from './sim.js';
 import { pathSegs, distSeg } from './world3d.js';
 import { waterDist } from './terrain3d.js';
 import { roomFree } from './map.js';
+import { gridIndex } from './util3d.js';     // поиск по сетке (2026-10-28)
 
 const YARD = ['barrel_d', 'crate_d', 'woodpile', 'sack_d', 'bucket'];
 const SIGNED = new Set(['shop', 'smithy', 'tavern', 'warehouse']);
@@ -16,24 +17,26 @@ const BATTLE = ['rusty_sword', 'bones', 'skulls', 'wreck', 'rusty_sword', 'skull
 export function surfaceDetails(map, cfg) {
   const D = cfg.details; if (!D || !D.on) return [];
   const rnd = mulberry32((cfg.world.seed ^ 0x5d37) >>> 0), out = [], segs = pathSegs(map), pick = a => a[(rnd() * a.length) | 0];
-  const inB = (x, z, m) => map.buildings.some(b => x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m);
-  const free = (x, z, road = D.road) => !segs.some(([a, b]) => distSeg(x, z, a, b) < road) && !(map.river && waterDist(map.river, x, z) < 1.5) && !out.some(o => Math.hypot(o.x - x, o.z - z) < D.gap);
+  const gB = gridIndex(map.buildings, b => [b.x0, b.z0, b.x1, b.z1]), gP = gridIndex(segs, ([a, b]) => [Math.min(a.x, b.x), Math.min(a.z, b.z), Math.max(a.x, b.x), Math.max(a.z, b.z)], 32), gO = gridIndex(out, o => [o.x, o.z, o.x, o.z]), gM = gridIndex(map.decor || [], o => [o.x, o.z, o.x, o.z]);     // проверки — по соседям в сетке (загрузка)
+  const inB = (x, z, m) => gB.some(x - m, z - m, x + m, z + m, b => x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m);
+  const free = (x, z, road = D.road) => !gP.some(x - road, z - road, x + road, z + road, ([a, b]) => distSeg(x, z, a, b) < road) && !(map.river && waterDist(map.river, x, z) < 1.5) && !gO.some(x - D.gap, z - D.gap, x + D.gap, z + D.gap, o => Math.hypot(o.x - x, o.z - z) < D.gap);
+  const nearDecor = (x, z, r) => gM.some(x - r, z - r, x + r, z + r, o => Math.hypot(o.x - x, o.z - z) < r);
   for (const b of map.buildings) {
     const sides = ['n', 's', 'e', 'w'].filter(s => s !== b.door.side), n = D.house[0] + Math.floor(rnd() * (D.house[1] - D.house[0] + 1));
     for (let i = 0; i < n; i++) {
       const s = pick(sides), along = rnd() - .5, off = .55 + rnd() * .3;
       const x = s === 'e' ? b.x1 + off : s === 'w' ? b.x0 - off : b.x + along * (b.x1 - b.x0 - 1.2);
       const z = s === 's' ? b.z1 + off : s === 'n' ? b.z0 - off : b.z + along * (b.z1 - b.z0 - 1.2);
-      if (free(x, z) && !map.buildings.some(o => o !== b && x > o.x0 - .6 && x < o.x1 + .6 && z > o.z0 - .6 && z < o.z1 + .6)) out.push({ t: pick(YARD), x, z, rot: rnd() * Math.PI * 2, detail: true });
+      if (free(x, z) && !gB.some(x - .6, z - .6, x + .6, z + .6, o => o !== b && x > o.x0 - .6 && x < o.x1 + .6 && z > o.z0 - .6 && z < o.z1 + .6)) out.push({ t: pick(YARD), x, z, rot: rnd() * Math.PI * 2, detail: true });
     }
     const d = b.door, dx = { e: 1, w: -1 }[d.side] || 0, dz = { s: 1, n: -1 }[d.side] || 0, rot = Math.atan2(dx, dz);
     if (SIGNED.has(b.kind)) { const x = d.x + dx * .9 + dz * 1.5, z = d.z + dz * .9 - dx * 1.5; if (free(x, z, 1)) out.push({ t: 'sign', x, z, rot, kind: b.kind, detail: true }); }
-    { const pr = PROUD.has(b.kind) || (!!b.npc && b.npc.kind !== 'merchant' && b.kind !== 'shop'), x = d.x + dx * .9 - dz * 1.7, z = d.z + dz * .9 + dx * 1.7, clear = (x, z) => !(map.decor || []).some(o => Math.hypot(o.x - x, o.z - z) < 1.8);     // 4.09: знамя по другую сторону двери от вывески; у простых домов — фонарь
+    { const pr = PROUD.has(b.kind) || (!!b.npc && b.npc.kind !== 'merchant' && b.kind !== 'shop'), x = d.x + dx * .9 - dz * 1.7, z = d.z + dz * .9 + dx * 1.7, clear = (x, z) => !nearDecor(x, z, 1.8);     // 4.09: знамя по другую сторону двери от вывески; у простых домов — фонарь
       if (pr && rnd() < (D.kbanner ?? 0) && free(x, z) && !inB(x, z, .2) && clear(x, z)) out.push({ t: 'kbanner', x, z, rot, detail: true });
       else if (!pr && b.kind !== 'hut' && rnd() < (D.lamp ?? 0)) { const lx = d.x + dx * 1.3 - dz * 1.6, lz = d.z + dz * 1.3 + dx * 1.6; if (free(lx, lz) && !inB(lx, lz, .3) && clear(lx, lz)) out.push({ t: 'lamp', x: lx, z: lz, rot: rot + Math.PI / 2, detail: true }); } }
     if ((b.kind === 'shop' || (b.npc && b.npc.kind === 'merchant')) && rnd() < (D.wagon ?? 0)) {     // 4.10: повозка у лавки — вдоль стены сбоку от двери
       const s = pick(sides), h = s === 'e' || s === 'w', wx = s === 'e' ? b.x1 + 2.4 : s === 'w' ? b.x0 - 2.4 : b.x, wz = s === 's' ? b.z1 + 2.4 : s === 'n' ? b.z0 - 2.4 : b.z;
-      if (free(wx, wz) && !inB(wx, wz, 1.6) && !(map.decor || []).some(o => Math.hypot(o.x - wx, o.z - wz) < 2.6)) out.push({ t: 'wagon', x: wx, z: wz, rot: h ? 0 : Math.PI / 2, detail: true });
+      if (free(wx, wz) && !inB(wx, wz, 1.6) && !nearDecor(wx, wz, 2.6)) out.push({ t: 'wagon', x: wx, z: wz, rot: h ? 0 : Math.PI / 2, detail: true });
     }
     if (RUG.has(b.kind) && rnd() < D.rug) { const x = d.x + dx * 1.1, z = d.z + dz * 1.1; if (!inB(x, z, .1)) out.push({ t: 'rug', x, z, rot, c: pick(D.rugColors), detail: true }); }
   }

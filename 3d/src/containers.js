@@ -39,11 +39,11 @@ function chestBody(g, base, band, trim) {
   const l = new THREE.Group(); l.position.set(0, .48, -.33); B(l, .98, .18, .7, base, 0, .09, .33); B(l, .1, .2, .72, band, -.3, .1, .33); B(l, .1, .2, .72, band, .3, .1, .33); B(l, .12, .1, .04, trim, 0, .0, .7); g.add(l); return l;
 }
 
-export function buildContainers(map, Y = () => 0) {
+export function buildContainers(map, Y = () => 0, lazy = false) {     // lazy (2026-10-28): сундук строится, когда рядом (near), — загрузка и память на телефоне
   const corpsePool = [];     // 4.21: метки тел с добычей
-  const group = new THREE.Group(), items = [];
+  const group = new THREE.Group(), items = [], made = new Set(), byCell = new Map();
   const gemGeo = new THREE.OctahedronGeometry(.16);
-  for (const c of map.containers) {
+  const make = c => {
     const g = new THREE.Group(); g.position.set(c.x, Y(c.x, c.z), c.z);
     // повернуть лицом к центру деревни (костру), чтобы замок и крышка смотрели на игрока
     g.rotation.y = Math.atan2(-c.x, -c.z) + (c.b >= 0 ? 0 : 0);
@@ -51,11 +51,19 @@ export function buildContainers(map, Y = () => 0) {
     const gem = new THREE.Mesh(gemGeo, new THREE.MeshBasicMaterial({ color: '#fff' })); gem.position.set(0, 1.5, 0); gem.rotation.y = 0;
     const beam = new THREE.Mesh(geo(.05, 1.2, .05), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: .35, depthWrite: false })); beam.position.y = .9;
     g.add(gem, beam); group.add(g);
-    items.push({ c, g, lid, gem, beam, last: '' });
+    items.push({ c, g, lid, gem, beam, last: '' }); made.add(c);
+  };
+  for (const c of map.containers) { if (!lazy) { make(c); continue; } const k = Math.floor(c.x / 64) + ',' + Math.floor(c.z / 64); let a = byCell.get(k); if (!a) byCell.set(k, a = []); a.push(c); }
+  // ближние — построить, дальние — снять со сцены (не обновляются)
+  function near(x, z, R) {
+    const n = Math.ceil(R / 64) + 1, ci = Math.floor(x / 64), cj = Math.floor(z / 64);
+    for (let i = ci - n; i <= ci + n; i++) for (let j = cj - n; j <= cj + n; j++) for (const c of byCell.get(i + ',' + j) || []) if (!made.has(c) && Math.hypot(c.x - x, c.z - z) < R) make(c);
+    for (const it of items) { const far = Math.hypot(it.c.x - x, it.c.z - z) >= R; if (far && it.g.parent) group.remove(it.g); else if (!far && !it.g.parent) group.add(it.g); }
   }
   const dropGeo = new THREE.OctahedronGeometry(.2), dropPool = [];
   function update(W, t) {
     for (const it of items) {
+      if (!it.g.parent) continue;     // дальний — не обновляем
       const c = it.c, ready = c.ready;
       it.gem.visible = it.beam.visible = ready;
       if (it.lid) it.lid.rotation.x = ready && !c.locked ? 0 : (ready ? 0 : -1.15);
@@ -83,7 +91,7 @@ export function buildContainers(map, Y = () => 0) {
       beam.visible = rar >= 2; if (beam.visible) { const h = 1.6 + rar * 1.1; beam.scale.set(1 + rar * .4, h, 1 + rar * .4); beam.position.set(q.x, gy + h / 2, q.z); beam.material.opacity = (.25 + .1 * rar) * (.75 + .25 * Math.sin(t * 5 + i)) * blink; }
     }
   }
-  return { group, update: (W, t) => { update(W, t); corpses(W, t); }, items };
+  return { group, update: (W, t) => { update(W, t); corpses(W, t); }, items, near: lazy ? near : null };
   // тела с добычей (4.21): кольцо на земле и ромб цвета лучшей вещи; редкое — со столбом света; последние 20 с — мигает
   function corpses(W, t) {
     const L = (W.corpses || []).filter(c => c.lvl === W.lvl);

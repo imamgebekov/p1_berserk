@@ -207,7 +207,7 @@ export function buildLevelView(L, cfg) {
 
 // поверхность: контейнеры по карте мира и люки
 export function buildSurfaceView(L, Y) {
-  const group = new THREE.Group(), conts = buildContainers(L.map, Y), stairs = []; group.add(conts.group);
+  const group = new THREE.Group(), conts = buildContainers(L.map, Y, true), stairs = []; group.add(conts.group);     // поверхность: сундуки строятся, когда рядом
   for (const q of L.map.portals) { const m = q.stair ? makeStairs(q, Y ? Y((q.st.rect.x0 + q.st.rect.x1) / 2, (q.st.rect.z0 + q.st.rect.z1) / 2) : 0) : q.gate ? makeGate(q, Y ? Y(q.x, q.z) : 0) : makeHatch(q); if (q.stair) { m.userData.house = q.house; m.visible = false; stairs.push(m); } group.add(m); }     // лестница на второй этаж — ступени в доме
   return { group, conts, flame: null, stairs };
 }

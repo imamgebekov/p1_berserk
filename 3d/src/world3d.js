@@ -4,19 +4,21 @@
 import { campOf, campGates, insideCamp } from './map.js';
 import { riverOf, waterDist } from './terrain3d.js';
 import { wdist, worldSpot } from './geo3d.js';     // Мир 5.0: круг мира — от его центра
+import { gridIndex } from './util3d.js';     // поиск по сетке (2026-10-28)
 const TAU = Math.PI * 2;
 export function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
 export function genWorld(cfg, buildings) {
   const M = cfg.map, rnd = mulberry(cfg.world.seed * 31 + 5), R = cfg.world.radius;
   const decor = [], solids = [], spots = [], roads = [];
-  const inBuilding = (x, z, pad) => buildings.some(b => x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad);
-  const inSolid = (x, z, r) => solids.some(s => Math.hypot(s.x - x, s.z - z) < s.r + r);
-  const nearRoad = (x, z, w) => roads.some(([a, b]) => distSeg(x, z, a, b) < w);
+  const gB = gridIndex(buildings, b => [b.x0, b.z0, b.x1, b.z1]), gS = gridIndex(solids, s => [s.x - s.r, s.z - s.r, s.x + s.r, s.z + s.r]), gR = gridIndex(roads, ([a, b]) => [Math.min(a.x, b.x), Math.min(a.z, b.z), Math.max(a.x, b.x), Math.max(a.z, b.z)], 32);     // проверки — по соседям в сетке, а не перебором (загрузка)
+  const inBuilding = (x, z, pad) => gB.some(x - pad, z - pad, x + pad, z + pad, b => x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad);
+  const inSolid = (x, z, r) => gS.some(x - r, z - r, x + r, z + r, s => Math.hypot(s.x - x, s.z - z) < s.r + r);
+  const nearRoad = (x, z, w) => gR.some(x - w, z - w, x + w, z + w, ([a, b]) => distSeg(x, z, a, b) < w);
   const river = riverOf(cfg), wet = (x, z, pad) => !!river && waterDist(river, x, z) < pad;     // река (C2): декор не в воде
   const free = (x, z, pad) => wdist(cfg, x, z) < R - 4 && !inBuilding(x, z, pad) && !inSolid(x, z, pad) && !wet(x, z, pad);
-  const doors = buildings.map(b => b.door);
-  const blocksDoor = (x, z, r) => doors.some(d => Math.hypot(d.out.x - x, d.out.z - z) < r + 2.4 || Math.hypot(d.x - x, d.z - z) < r + 2.4);
+  const doors = buildings.map(b => b.door), gD = gridIndex(doors, d => [Math.min(d.x, d.out.x), Math.min(d.z, d.out.z), Math.max(d.x, d.out.x), Math.max(d.z, d.out.z)]);
+  const blocksDoor = (x, z, r) => gD.some(x - r - 2.4, z - r - 2.4, x + r + 2.4, z + r + 2.4, d => Math.hypot(d.out.x - x, d.out.z - z) < r + 2.4 || Math.hypot(d.x - x, d.z - z) < r + 2.4);
   const put = (t, x, z, extra = {}) => { if (!wet(x, z, .3)) decor.push({ t, x, z, ...extra }); };
   // твёрдый предмет: рисуем и ставим круг-препятствие, но не у двери (дверь всегда должна быть доступна)
   const reserved = [];                                                       // места сундуков областей: твёрдое на них не встаёт

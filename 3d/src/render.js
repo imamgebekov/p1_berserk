@@ -562,7 +562,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let cullT = 0;
   function cullFar(x, z) {
     for (const it of town.items) { const far = Math.hypot(it.b.x - x, it.b.z - z) > 120; if (far === it.far) continue; it.far = far; it.walls.visible = it.floor.visible = !far; if (it.glow) it.glow.visible = !far; if (far) it.roof.visible = false; }
-    if (curView && curView.conts && curView.conts.items) for (const it of curView.conts.items) park(it.g, Math.hypot(it.c.x - x, it.c.z - z) >= CL.box);     // дальние сундуки — со сцены
+    if (curView && curView.conts && curView.conts.near) curView.conts.near(x, z, CL.box); else if (curView && curView.conts && curView.conts.items) for (const it of curView.conts.items) park(it.g, Math.hypot(it.c.x - x, it.c.z - z) >= CL.box);     // дальние сундуки — со сцены
     for (const L of liveLand.values()) for (const m of L.grass || []) { const d = Math.hypot(m.userData.cx - x, m.userData.cz - z), k = CL.grass.find(q => d < q[0])[1]; m.count = Math.max(1, Math.round(m.userData.full * k)); }     // трава вдали реже
   }
   const surfaceObjs = [land, sea, riverGroup, sunGroup, rainGroup, ohGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
@@ -621,7 +621,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if ((nodeT -= dt) > 0) return; nodeT = .5;
     const under = W.lvl && W.lvl !== 'surface' && !floorL(W);
     for (const P of nodeParts) { P.a.visible = P.b.visible = !under; if (under) continue;
-      P.ns.forEach((n, i) => { const k = W.life && W.life.nodes[n.id] > W.t ? 0 : 1, y = Y(n.x, n.z); NQ.setFromAxisAngle(NY, (n.x * 7.3 + n.z) % 6.28); NS.setScalar(k * 1e-3 + k);
+      P.ns.forEach((n, i) => { const far = Math.hypot(n.x - cam.x, n.z - cam.z) > CL.decor, k = far || (W.life && W.life.nodes[n.id] > W.t) ? 0 : 1, y = far ? 0 : Y(n.x, n.z); NQ.setFromAxisAngle(NY, (n.x * 7.3 + n.z) % 6.28); NS.setScalar(k * 1e-3 + k);     // дальние точки сбора — без высоты земли и скрыты (загрузка)
         NP.set(n.x, y + .3, n.z); NM.compose(NP, NQ, NS); P.a.setMatrixAt(i, NM); NP.set(n.x, y + P.ay, n.z); NM.compose(NP, NQ, NS); P.b.setMatrixAt(i, NM); });
       P.a.instanceMatrix.needsUpdate = P.b.instanceMatrix.needsUpdate = true; }
   }
