@@ -43,7 +43,7 @@ const T = CFG3.squad.types;
 // команды: «держать» — стоят у точки, когда герой ушёл; далеко — догоняют; «моя цель» — все на метку, метка пала — снова «за мной»
 { const W = mk(7); const ps = party(W, 'c_thorn', 'c_jay'); run(W, 1); ok(squadCommand(W, 'hold') === 'ok' && W.party.cmd === 'hold', 'команда «держать»');
   const hx = W.party.hx, hz = W.party.hz; run(W, 4, { mz: 1 }); ok(ps.every(a => Math.hypot(a.x - hx, a.z - hz) < 4.5), 'при «держать» отряд ушёл за героем: ' + ps.map(a => Math.hypot(a.x - hx, a.z - hz).toFixed(1)));
-  W.player.x -= 60; run(W, .2);     // к центру: у края карты героя не пустит дальше ok(W.party.cmd === 'follow', 'герой ушёл далеко, а отряд всё «держит»'); run(W, 4); ok(ps.every(a => dist(a, W.player) < 8), 'отряд не догнал героя');
+  W.player.x -= 60; run(W, .2); ok(W.party.cmd === 'follow', 'герой ушёл далеко, а отряд всё «держит»'); run(W, 4); ok(ps.every(a => dist(a, W.player) < 8), 'отряд не догнал героя');     // к центру: у края карты героя не пустит дальше
   const W2 = mk(8); const qs = party(W2, 'c_thorn', 'c_vale', 'c_jay'); const near = foe(W2, 'brute', 2, 2, 400), far = foe(W2, 'imp', -6, 7, 300); near.cd = far.cd = 99; W2.party.last = far.id;
   ok(squadCommand(W2, 'assist') === 'ok' && W2.party.mark === far.id, 'метка не на последней цели героя'); let onMark = 0, n = 0, back = false;
   run(W2, 10, {}, () => { if (!far.dead) for (const a of qs) { if (a.state === 'wind') { n++; if (a.tg === far) onMark++; } } if (W2.ev.some(v => v.k === 'squadCmd' && v.auto)) back = true; });

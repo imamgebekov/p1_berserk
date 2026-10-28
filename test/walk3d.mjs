@@ -22,7 +22,7 @@ const url = `http://127.0.0.1:${dev.config.server.port}/3d/index.html?shot&hero=
 async function walk(engine, soft) {
   const b = await engine.launch(), pg = await b.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }), errs = [];
   pg.on('pageerror', e => errs.push(e.message));
-  await pg.goto(url + (soft ? '&retro' : ''), { timeout: 30000 }); await pg.waitForTimeout(1500);     // Chromium без видеокарты — в «Ретро» (меряем процессор); WebKit — гладкий вид, как на Маке await pg.keyboard.press('Digit1'); await pg.waitForTimeout(500);
+  await pg.goto(url + (soft ? '&retro' : ''), { timeout: 30000 }); await pg.waitForTimeout(1500); await pg.keyboard.press('Digit1'); await pg.waitForTimeout(500);     // Chromium без видеокарты — в «Ретро» (меряем процессор); WebKit — гладкий вид, как на Маке
   // маршрут: [имя, откуда, куда, уровень]
   const route = await pg.evaluate(async () => {
     const { biomeAt } = await import('/3d/src/worldgen3d.js'); const b = window.__b3d, C = b.cfg, W = b.W, br = W.map.river.bridges[0];
