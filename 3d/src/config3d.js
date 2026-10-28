@@ -82,7 +82,7 @@ const BASE = {
     // forts — лагеря размером с наш: n штук, полуширина H м (квадрат частокола, двое ворот шириной gate), шатров tents; gap — до других мест
     // cities — n городов в кольце ring м: полуширина H (каменные стены, ворота на четыре стороны), домов houses, площадь plaza м у центра,
     // боссы — свои у каждого города (тип, удары, фазы); villages — посёлки крупнее: ещё домов extra (от–до) внешним кольцом ring м
-    forts: { n: 5, H: 19, gate: 5, tents: 6, gap: 60 },
+    forts: { n: 5, H: 30, gate: 6, tents: 8, gap: 60, pad: 38 },     // H 19 → 30: лагерь 60 м, как наш (владелец 2026-10-28; мир пересоздан); pad — свободно от центра до дорог и мест (было H × 1,42 + 4 — влезало 7 из 31)
     cities: { n: 2, H: 34, gate: 6, ring: [300, 520], gap: 110, houses: 14, plaza: 11,
       bosses: [
         { type: 'ashking', attacks: [{ kind: 'slam', wind: .8, r: 4.8, mul: 1.15, cd: 3, range: 5 }, { kind: 'charge', wind: .9, len: 15, width: 3, mul: 1.2, cd: 6, range: 17 }, { kind: 'nova', wind: 1.2, r: 9, inner: 3, mul: 1, cd: 9, range: 99 }],
@@ -1563,7 +1563,7 @@ const BASE = {
       chief: { warcamp: [1, 'Вожак лагеря', 2.2], city: [3, 'Капитан стражи', 2] }, spread: { warcamp: .6, city: .7 }, cityHp: 1.3, bossNear: 90,
       // вражеский лагерь (этап 4 «живого мира»): groups — сколько групп у шатров, size — врагов в группе, guards — охрана вожака у большого шатра;
       // тревога — только своя группа; hear и sight — доля слуха боя и зрения; horn — вожак трубит и зовёт ближнюю группу; за разгром — chest, снова через respawn с
-      camp: { groups: [3, 5], size: [3, 4], guards: 2, at: .7, spot: 2.5, hear: .4, sight: .7, horn: 1, chest: 'ironchest', respawn: 900 } },
+      camp: { groups: [4, 6], size: [3, 4], guards: 2, at: .7, spot: 2.5, hear: .4, sight: .7, horn: 1, chest: 'ironchest', respawn: 900 } },
     // кто бродит по биому большого мира вне областей (C3b)
     biomes: {
       forest: [['imp', 4], ['brute', 4], ['hound', 2]],                       // как вне областей ядра (бесы и рогачи) + приправа биома;

@@ -436,7 +436,7 @@ export function expandWorld(base) {
     // вражеские лагеря: квадрат частокола, ворота к центру мира и напротив; гарнизон и вожак — при подходе героя (sim.js → garrisons)
     const F = G.forts; cfg.map.forts = [];
     if (F) for (let i = 0; i < F.n; i++) {
-      const s = spot2(G.coreR + 70, R - F.H - 20, F.gap, F.H * 1.42 + 4); if (!s) continue;
+      const s = spot2(G.coreR + 70, R - F.H - 20, F.gap, F.pad ?? F.H * 1.42 + 4, !!F.soft); if (!s) continue;
       const k = PUD ? lvK(s.x, s.z) : (Math.hypot(s.x, s.z) - G.coreR) / (R - G.coreR), id = IDP + 'wf' + i;
       cfg.map.places.push({ id, name: nameOf(rc, 'warcamp', used), type: 'danger', x: s.x, z: s.z, r: F.H + 5, danger: Math.min(3, 2 + Math.floor(k * 1.6)), gen: 1, fort: true });
       cfg.map.zones.push({ type: 'warcamp', x: s.x, z: s.z, w: F.H * 2 - 4, d: F.H * 2 - 4, gen: 1 });
