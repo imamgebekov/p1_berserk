@@ -13,9 +13,9 @@ const MS = CFG3.shaders && CFG3.shaders.metal, DULL = { rust: .25, bone: .3, bla
 const metal = (c, m) => paintMat(MS && MS.on ? new THREE.MeshPhongMaterial({ color: c, shininess: MS.shine * (DULL[m] ?? 1), specular: new THREE.Color(MS.spec).multiplyScalar(DULL[m] ?? 1) }) : lam(c), 'metal', { local: true });     // шлифовка клинка (T4)
 const box = (g, w, h, d, m, x = 0, y = 0, z = 0, rz = 0) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.rotation.z = rz; g.add(b); return b; };
 
-const BAND = 1.1;   // след не шире этого, м: у длинного оружия — серп у края, а не веер от рукояти
+export const BAND = 1.1;   // след не шире этого, м: у длинного оружия — серп у края, а не веер от рукояти
 // длина рабочей части по типу (для следа), м: где начинается и кончается то, чем бьют
-const SPAN = {
+export const SPAN = {
   fists: [-.05, .2], dagger: [.25, .85], knife: [.25, .75], rapier: [.4, 2.0], sword: [.35, 1.9], greatsword: [.45, 3.1],
   sickle: [.45, 1.1], axe: [.8, 1.35], war_axe: [1.0, 1.85], halberd: [1.8, 2.9], spear: [1.9, 2.9], scythe: [1.6, 2.6],
   bow: [.2, .4], longbow: [.2, .4], crossbow: [.2, .4], staff: [1.6, 2.1], wand: [.6, .85],

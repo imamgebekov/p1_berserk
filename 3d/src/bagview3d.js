@@ -32,7 +32,7 @@ function makeHeroView(doc) {
     const inv = W.inv, cp = W.ach && W.ach.cape, wp = inv.eq.weapon && BY_ID[inv.eq.weapon], of = inv.eq.offhand && BY_ID[inv.eq.offhand];
     const k = lookKey(W.hero, inv, cp) + '|' + (inv.eq.weapon || '') + '|' + (inv.eq.offhand || ''); if (k === key) return; key = k;
     hero.setLook(dressedLook(heroOf(W.hero).look, inv, cp));
-    hero.setWeapon(wp ? wp.kind : 'fists', wp ? wp.mat : 'steel'); hero.setOff(of ? of.id : '', of && of.kind, of && of.mat, of && of.form);
+    hero.setWeapon(wp ? wp.kind : 'fists', wp ? wp.mat : 'steel', wp && wp.id); hero.setOff(of ? of.id : '', of && of.kind, of && of.mat, of && of.form);
     if (blade) blade.set(hero.weapon, CFG3.bladeFx && CFG3.bladeFx.on ? bladeEls({ mix: weaponMix(wp, inv.gem && inv.gem.weapon), el: weaponElement(wp) }).filter(hasBladeStyle) : []);     // стихия на клинке
   }
   function frame(t) {

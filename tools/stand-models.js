@@ -2,7 +2,7 @@
 // Грузится в странице игры (?shot&models=1) через tools/shots-models.mjs. Только для снимков, в сборку не входит.
 import * as THREE from 'three';
 import { CFG3 as cfg } from '../3d/src/config3d.js';
-import { loadActor, makeActor, loadKkWeapons, soldierActor, boxOf } from '../3d/src/actors3d.js';
+import { loadActor, makeActor, loadKkWeapons, soldierActor, boxOf, mwState } from '../3d/src/actors3d.js';
 import { makeHero, makeMonster, makeSoldier, makeNpc } from '../3d/src/models.js';
 import { makeWeapon, weaponKinds, kkWeapon } from '../3d/src/weaponview.js';
 import { heroOf } from '../3d/src/data/heroes3d.js';
@@ -56,3 +56,8 @@ export async function rawModel(url, height = 2) {     // модель из фа�
   let tris = 0; g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; } });
   return { group: grp, clips: g.animations.map(a => a.name), tris: Math.round(tris) };
 }
+
+// оружие Meshy (2026-10-29): дождаться моделей вещей и дать герою вещь в руку
+export async function mwLoad(ids) { for (let k = 0; k < 600 && ids.map(mwState).includes('wait'); k++) await new Promise(r => setTimeout(r, 100)); }
+export function heroWith(id, it) { const m = heroModel(id); if (it.kind === 'shield') m.setOff(it.id, 'shield', it.mat, it.form); else m.setWeapon(it.kind, it.mat, it.id); return idle(m); }
+export function boxInfo(o) { const b = new THREE.Box3().setFromObject(o); return [b.min.toArray().map(v => +v.toFixed(2)), b.max.toArray().map(v => +v.toFixed(2))]; }

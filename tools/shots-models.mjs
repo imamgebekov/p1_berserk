@@ -32,6 +32,15 @@ try {
         [['front', 0], ['side', Math.PI / 2], ['back', Math.PI]].forEach(([v, r]) => { out['ref_' + nm + '_' + v] = S.shoot(R, W, [{ m: mk(), label: '', rot: r }], R0); });
       return out;
     }
+    if (only === 'mf') { const seen = new Set(), ts = Object.keys(A.foes).filter(t => A.foes[t].startsWith('mf_') && cfg.enemies[t] && (A.tints[t] || !seen.has(A.foes[t])) && seen.add(A.foes[t]));     // модели Meshy: по виду на модель и все с оттенком
+      for (let i = 0; i < ts.length; i += 8) out['mf_' + (i / 8 + 1)] = S.shoot(R, W, ts.slice(i, i + 8).map(t => ({ m: S.foeModel(t), label: t + ' · ' + A.foes[t] })), { w: 1800 }); return out; }
+    if (only === 'mwrot') { const { CATALOG } = await import('/3d/src/data/items.js'), it = CATALOG.find(i => i.id === 's_buckler_iron'), kk = { kind: 'shield', id: 'shield', mat: 'iron' }; await S.mwLoad([it.id]);
+      out.rot = S.shoot(R, W, [0, 1.57, 3.14, 4.71].flatMap(r => [{ m: S.heroWith('thorn', it), label: 'mw ' + r, rot: r }, { m: S.heroModel('thorn'), label: 'kk ' + r, rot: r }]), { w: 1800, elev: .12 }); return out; }
+    if (only === 'mwdbg') { const ids = ['s_buckler_iron', 's_tower_iron', 'w_sword_rust']; await S.mwLoad(ids); const { CATALOG } = await import('/3d/src/data/items.js');
+      for (const id of ids) { const it = CATALOG.find(i => i.id === id), m = S.heroWith('thorn', it), o = it.kind === 'shield' ? m.off : m.weapon && m.weapon.group; m.group.updateMatrixWorld(true); out[id] = { info: o ? [o.children.length, ...S.boxInfo(o), m.okey, m.wkey] : 'нет' }; } return out; }
+    if (only.startsWith('mw')) { const { CATALOG } = await import('/3d/src/data/items.js'), seen = new Set(), its = CATALOG.filter(i => (i.cat === 'weapon' || i.kind === 'shield') && !seen.has(i.kind + i.form) && seen.add(i.kind + i.form));     // герой с оружием Meshy: по вещи на вид
+      await S.mwLoad(its.map(i => i.id)); const hero = { bow: 'jay', longbow: 'jay', crossbow: 'jay', staff: 'irga', wand: 'irga', scythe: 'warlock', greatsword: 'brand', war_axe: 'brand', hammer: 'brand' };
+      for (let i = 0; i < its.length; i += 8) out['mw_' + (i / 8 + 1)] = S.shoot(R, W, its.slice(i, i + 8).map(it => ({ m: S.heroWith(hero[it.kind] || 'thorn', it), label: it.kind + (it.form ? ':' + it.form : '') + ' · ' + it.id, rot: 1.2 })), { w: 1800, elev: .12 }); return out; }
     if (only.startsWith('foes:')) { out.list = S.shoot(R, W, only.slice(5).split(',').map(t => ({ m: S.foeModel(t), label: cfg.enemies[t].name + ' · ' + A.foes[t] }))); return out; }     // ряд по списку видов: foes:вид1,вид2
     if (only.startsWith('pack:')) {     // просмотр набора: pack:<папка в _packs>:<файл1,файл2…>
       const [, dir, list] = only.split(':'), names = list.split(','), info = {};
@@ -63,7 +72,7 @@ try {
   } catch (e) { return { err: String(e.stack) }; } }, process.env.ONLY || '');
   if (rows.err) throw new Error(rows.err);
   const meta = {};
-  for (const [k, v] of Object.entries(rows)) { if (k === 'tris' || k === 'info') { meta[k] = v; continue; } writeFileSync(join(OUT, k + '.png'), Buffer.from(v.url.split(',')[1], 'base64')); meta[k] = { labels: v.labels, tris: v.tris }; }
+  for (const [k, v] of Object.entries(rows)) { if (k === 'tris' || k === 'info' || !v.url) { meta[k] = v; continue; } writeFileSync(join(OUT, k + '.png'), Buffer.from(v.url.split(',')[1], 'base64')); meta[k] = { labels: v.labels, tris: v.tris }; }
   writeFileSync(join(OUT, 'models.json'), JSON.stringify(meta, null, 1));
   console.log('снимки:', Object.keys(meta).join(', '), '→', OUT);
 } finally { await browser.close(); await dev.close(); }

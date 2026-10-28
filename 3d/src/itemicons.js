@@ -4,6 +4,18 @@
 import { ownIcon } from './custom3d.js';
 import { RARITY } from './data/items.js';
 import { GI } from './data/gicons.js';     // значки game-icons.net (CC BY 3.0) — 2026-10-20, просьба владельца
+import { MW } from './data/meshyw.js';
+
+// значки оружия Meshy (2026-10-29): снимок модели вещи, атлас models/mw_icons.webp (tools/mw-icons.mjs) — ячейки по порядку ключей MW; пока атлас не пришёл — прежний значок
+const MWI = Object.fromEntries(Object.keys(MW).map((id, i) => [id, i])), MW_COLS = Math.ceil(Math.sqrt(Object.keys(MW).length)), MW_CELL = 96;
+let mwAtlas = null;
+if (typeof Image !== 'undefined') { const im = new Image(); im.onload = () => { mwAtlas = im; }; im.src = new URL('../models/mw_icons.webp', import.meta.url).href; }
+function mwIcon(doc, it) {
+  const i = it && MWI[it.id]; if (i === undefined || !mwAtlas) return null;
+  const key = 'mw:' + it.id; if (cache.has(key)) return cache.get(key);
+  const cv = doc.createElement('canvas'); cv.width = cv.height = MW_CELL; cv.getContext('2d').drawImage(mwAtlas, (i % MW_COLS) * MW_CELL, Math.floor(i / MW_COLS) * MW_CELL, MW_CELL, MW_CELL, 0, 0, MW_CELL, MW_CELL);
+  const url = cv.toDataURL('image/png'); cache.set(key, url); return url;
+}
 
 export const TEMPLATES = {
   sword: [
@@ -151,6 +163,7 @@ function giDraw(doc, d, P, dark) {
 const cache = new Map();
 export function iconURL(doc, it) {
   { const own = ownIcon(giKeyOf(it)); if (own) return own; }     // свой значок игрока (custom3d.js)
+  { const mw = mwIcon(doc, it); if (mw) return mw; }     // снимок модели оружия
   const P = paletteOf(it), gk = giKeyOf(it), gd = gk && GI[gk], key = (gd ? 'gi:' + gk : templateOf(it)) + JSON.stringify(P);
   if (cache.has(key)) return cache.get(key);
   if (gd && typeof Path2D !== 'undefined') { const url = giDraw(doc, gd, P, false); cache.set(key, url); return url; }

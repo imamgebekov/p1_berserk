@@ -5,7 +5,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { makeWeapon, kkWeapon, kkShield, setKkWeapons, kkReady, kkPart } from './weaponview.js';
+import { makeWeapon, kkWeapon, kkShield, setKkWeapons, kkReady, kkPart, SPAN, BAND } from './weaponview.js';
+import { CFG3 } from './config3d.js';
+import { MW } from './data/meshyw.js';
 import { familyOf } from './anim3d.js';
 
 const URLS = import.meta.glob('../models/*.glb', { query: '?url', import: 'default', eager: true });
@@ -134,6 +136,35 @@ let kwP = null;     // оружие KayKit (путь А): грузится од�
 export function loadKkWeapons() { if (kwP) return kwP; const u = urlOf('kk_weapons'); if (!u || OFF) return (kwP = Promise.resolve(null));
   return (kwP = ld().loadAsync(u).then(g => { const out = {}; g.scene.traverse(o => { if (o.isMesh) out[o.name] = o.geometry; }); setKkWeapons(out); return out; }).catch(e => { console.warn('оружие KayKit не загрузилось:', e && e.message); return null; })); }
 
+// оружие и щиты из Meshy (2026-10-29): у вещи своя модель (data/meshyw.js); файл развёрнут заранее (tools/meshy-import.mjs): рукоять в нуле, длина 1
+const MWU = import.meta.glob('../models/mw/*.glb', { query: '?url', import: 'default', eager: true });
+const mwl = new Map(), mwm = new Map();     // файл → { geo, map } (или промис, или null); файл|цвет → материал
+const mwOn = () => { const C = CFG3.actors && CFG3.actors.mw; return !!(C && C.on) && !OFF; };
+function loadMw(f) {
+  if (mwl.has(f)) return mwl.get(f);
+  const u = MWU[`../models/mw/${f}.glb`]; if (!u) { mwl.set(f, null); return null; }
+  const p = ld().loadAsync(u).then(g => { let v = null; g.scene.traverse(o => { if (o.isMesh && !v) v = { geo: o.geometry, map: o.material.map || null }; }); mwl.set(f, v); return v; })
+    .catch(e => { console.warn('оружие Meshy не загрузилось:', f, e && e.message); mwl.set(f, null); return null; });
+  mwl.set(f, p); return p;
+}
+export function mwState(id) { const e = id && MW[id]; if (!e || !mwOn()) return 'none'; const v = loadMw(e[0]); return v instanceof Promise ? 'wait' : v ? 'ready' : 'none'; }     // none — своей модели нет
+function mwMesh(id) {
+  const [f, tint] = MW[id], v = mwl.get(f), mk = f + '|' + (tint || '');
+  if (!mwm.has(mk)) { const m = new THREE.MeshLambertMaterial({ map: v.map }); if (tint) m.color.set(tint); mwm.set(mk, m); }     // повтор модели — другой цвет
+  const me = new THREE.Mesh(v.geo, mwm.get(mk)); me.castShadow = true; return me;
+}
+export function mwWeapon(id, kind) {     // в единицах скелета KayKit, как kkWeapon; null — модели нет или не пришла
+  if (mwState(id) !== 'ready') return null;
+  const F = CFG3.actors.mw.fit[kind]; if (!F) return null;
+  const [L, gr] = F, g = new THREE.Group(), me = mwMesh(id); me.scale.setScalar(L); g.add(me);
+  if (kind === 'bow' || kind === 'longbow') return { group: g, base: new THREE.Object3D(), tip: new THREE.Object3D(), kind };     // лук: следа удара нет
+  if (kind === 'crossbow') { me.position.z = -gr * L; return { group: g, base: new THREE.Object3D(), tip: new THREE.Object3D(), kind }; }
+  me.position.y = -gr * L; const top = (1 - gr) * L, [a, b] = SPAN[kind] || SPAN.sword, base = new THREE.Object3D(), tip = new THREE.Object3D();
+  tip.position.y = top; base.position.y = Math.max(a * top / b, top - BAND); g.add(base, tip);     // след — та же доля рабочей части, что у своих моделей
+  return { group: g, base, tip, kind };
+}
+export function mwShield(id, form) { if (mwState(id) !== 'ready') return null; const me = mwMesh(id), S = CFG3.actors.mw.shield; me.scale.setScalar(S[form] || S.def); return me; }
+
 // экземпляр модели: группа как у своих моделей (group, root, flash, kind), рука с оружием
 const byName = (o, n) => o.getObjectByName(n) || o.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(n));     // загрузчик убирает точки из имён (handslot.r → handslotr)
 export function makeActor(key, kit, kind = 'actor') {
@@ -169,6 +200,7 @@ export function makeActor(key, kit, kind = 'actor') {
   // шаг смешивания и анимации: прежние гаснут с одной скоростью, текущий — остаток до 1
   A.update = dt => {
     if (kit.anims === 'kk' && kkReady() && !A.kkOn) { A.kkOn = true; if (A.wArgs) A.setWeapon(...A.wArgs); if (A.oArgs) A.setOff(...A.oArgs); }     // оружие KayKit пришло позже модели
+    if (A.mwWait && A.wArgs && mwState(A.wArgs[2]) !== 'wait') A.setWeapon(...A.wArgs); if (A.owWait && A.oArgs && mwState(A.oArgs[0]) !== 'wait') A.setOff(...A.oArgs);     // модель вещи (Meshy) пришла
     let rest = 0; const k = A.fade > 0 ? dt / A.fade : 1;
     for (const y of acts.values()) { if (!y || y === A.cur || !y.enabled || y.getEffectiveWeight() <= 0) continue; const w = Math.max(0, y.getEffectiveWeight() - k); if (w <= 0) { y.setEffectiveWeight(0); y.stop(); } else { y.setEffectiveWeight(w); rest += w; } }     // гаснет и законченный удар, замерший на последнем кадре
     if (A.cur) A.cur.setEffectiveWeight(Math.max(0, 1 - rest));
@@ -179,21 +211,23 @@ export function makeActor(key, kit, kind = 'actor') {
   A.flash = (f, tint) => { for (const m of mats) { const e0 = m.userData.e0; if (tint) m.emissive.setRGB(e0.r + tint[0], e0.g + tint[1], e0.b + tint[2]); else m.emissive.setRGB(e0.r + f * .9, e0.g + f * .25, e0.b + f * .2); } };
   const scaleFix = () => { const v = new THREE.Vector3(); A.hand.getWorldScale(v); return v.x > 0 ? 1 / v.x : 1; };
   // оружие в руке: своя модель оружия (те же размеры, что у героя из кубиков), рукоять — в ладони
-  A.setWeapon = (wk, mat) => {
-    A.wArgs = [wk, mat];
-    const key2 = wk + '|' + mat + (kit.anims === 'kk' && kkReady() ? '|kk' : ''); if (key2 === A.wkey || !A.hand) return; A.wkey = key2;     // |kk — оружие KayKit пришло: заменить своё
+  A.setWeapon = (wk, mat, id) => {
+    A.wArgs = [wk, mat, id];
+    const ms = kit.anims === 'kk' ? mwState(id) : 'none'; A.mwWait = ms === 'wait';     // своя модель вещи (Meshy) ещё грузится — пока оружие KayKit
+    const key2 = wk + '|' + mat + (ms === 'ready' ? '|mw:' + id : '') + (kit.anims === 'kk' && kkReady() ? '|kk' : ''); if (key2 === A.wkey || !A.hand) return; A.wkey = key2;     // |kk — оружие KayKit пришло: заменить своё
     if (A.weapon) A.hand.remove(A.weapon.group);
     A.family = familyOf(wk); if (wk === 'fists') { A.weapon = null; return; }
-    g.updateMatrixWorld(true); const kw = kit.anims === 'kk' && kkWeapon(wk, mat);     // у KayKit — своё оружие KayKit в ладони, в единицах скелета
+    g.updateMatrixWorld(true); const kw = kit.anims === 'kk' && ((ms === 'ready' && mwWeapon(id, wk)) || kkWeapon(wk, mat));     // у KayKit — модель вещи (Meshy) или оружие KayKit в ладони, в единицах скелета
     const w = kw || makeWeapon(wk, mat); if (!kw) { w.group.scale.setScalar(scaleFix() * (kit.wScale || .55)); if (kit.wRot) w.group.rotation.set(...kit.wRot); }
     A.hand.add(w.group); A.weapon = w;
   };
   A.setOff = (key0, kindO, mat, form) => {
     A.oArgs = [key0, kindO, mat, form];
-    const key2 = key0 && key0 + (kit.anims === 'kk' && kkReady() ? '|kk' : ''); if (key2 === A.okey || !A.handL) return; A.okey = key2;
+    const ms = kit.anims === 'kk' ? mwState(key0) : 'none'; A.owWait = ms === 'wait';
+    const key2 = key0 && key0 + (ms === 'ready' ? '|mw' : '') + (kit.anims === 'kk' && kkReady() ? '|kk' : ''); if (key2 === A.okey || !A.handL) return; A.okey = key2;
     if (A.off) A.handL.remove(A.off); A.off = null; if (!key2) return;
     g.updateMatrixWorld(true); const o = new THREE.Group();
-    const kwo = kit.anims === 'kk' && (kindO === 'shield' ? kkShield(form) : kkWeapon(kindO, mat));     // KayKit: щит и второе оружие из набора, без подгонки масштаба
+    const kwo = kit.anims === 'kk' && ((ms === 'ready' && (kindO === 'shield' ? mwShield(key0, form) : mwWeapon(key0, kindO))) || (kindO === 'shield' ? kkShield(form) : kkWeapon(kindO, mat)));     // KayKit: модель вещи (Meshy), иначе щит и второе оружие из набора, без подгонки масштаба
     if (kwo) { o.add(kwo.group || kwo); A.handL.add(o); A.off = o; return; }
     if (kindO === 'shield') { const big = form === 'tower', M2 = new THREE.MeshLambertMaterial({ color: ({ iron: '#9a9890', tempered: '#b8b4a8', steel: '#cfc9bb', black: '#3e3a46' })[mat] || '#9a9890' });
       o.add(new THREE.Mesh(new THREE.BoxGeometry(.08, big ? 1.1 : .6, big ? .7 : .6), new THREE.MeshLambertMaterial({ color: '#5a3e26' })), new THREE.Mesh(new THREE.BoxGeometry(.03, big ? 1.14 : .64, big ? .74 : .64), M2).translateX(-.05)); o.rotation.y = Math.PI / 2; }
