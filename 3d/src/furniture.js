@@ -48,5 +48,17 @@ export function furnish(b, floorL, glowL, rnd) {
     barrel(-along / 2 + 1.6, depth - 1.8); barrel(-along / 2 + 2.4, depth - 1.4); crate(1.0, depth - 1.5, 1.0);
   } else if (kind === 'hut') {
     bed(0, .8, 1.7); F(0, depth - 1.4, .9, .25, .9, '#2a2420'); F(0, depth - 1.4, .5, .06, .5, '#ff6a20', .25, true);
+  // новые здания (план «живой мир», этап 3, 2026-10-28)
+  } else if (kind === 'ruin') {     // руины: обломки, опрокинутый стол, кости
+    F(-along / 2 + 1.2, .9, 1.4, .45, 1.1, '#5a564e'); F(along / 2 - 1.3, depth * .65, 1.7, .6, 1.2, '#4e4a44'); F(.4, depth * .45, 1.3, .08, .8, wood, .25); F(-.2, depth * .45, .1, .5, .1, dwood);
+    F(.9, depth - .9, .6, .1, .14, '#cfc6b0'); F(1.1, depth - .8, .26, .24, .26, '#d8cfb8'); crate(-.8, depth - .7, .6);
+  } else if (kind === 'watch') {     // сторожевая башня: стойка с копьями, ящики, бочка
+    F(0, .3, 1.6, 1.4, .3, dwood); for (const u of [-.55, -.2, .15, .5]) F(u, .38, .06, 1.8, .06, iron); crate(along / 2 - .9, depth - .7, .7); barrel(-along / 2 + .9, depth - .6); candle(0, depth - .6, 0);
+  } else if (kind === 'barn') {     // сарай: сено, телега, вилы
+    F(-along / 2 + 1.3, depth * .65, 1.8, 1.1, 1.4, '#c8a85a'); F(-along / 2 + 1.3, depth * .65, 1.5, .5, 1.1, '#d8b86a', 1.1); F(along / 2 - 1.6, depth * .5, 1.5, .55, 1.0, wood, .25);
+    for (const z of [-.4, .4]) F(along / 2 - 1.6 + z * 2, depth * .5 + .55, .1, .5, .5, dwood); F(-along / 2 + .5, .25, .08, 1.5, .08, dwood); barrel(.3, depth - .6);
+  } else if (kind === 'crypt_s') {     // склеп: два гроба, свечи, кости
+    for (const u of [-.75, .75]) { F(u, depth * .55, .8, .55, 1.9, '#3a2a1e'); F(u, depth * .55, .86, .06, 1.96, '#2a1c12', .55); }
+    candle(-along / 2 + .5, depth - .5); candle(along / 2 - .5, depth - .5); F(0, depth - .5, .5, .1, .14, '#cfc6b0'); F(.2, depth - .4, .26, .24, .26, '#d8cfb8');
   }
 }

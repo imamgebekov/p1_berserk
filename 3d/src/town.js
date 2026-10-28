@@ -45,7 +45,7 @@ export function buildTown(map, cfg, rnd) {
   const houseRnd = id => { let a = (map.buildings.length * 977 + id * 7919 + 13) | 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };     // своё зерно у дома: строится в любом порядке
   const buildOne = (b, rnd) => {     // дом строится, когда герой рядом (2026-10-28): загрузка и память на телефоне
     const wallL = [], winL = Object.assign([], { glow: true }), floorL = [], roofL = [], glowL = Object.assign([], { glow: true });     // окна и свечение — без градиента (шаг 7)
-    const pick = a => a[(rnd() * a.length) | 0], ruin = !!b.city && rnd() < .45, tall = !!b.city && !ruin;     // павший город: часть домов разрушена, целые — в два этажа
+    const pick = a => a[(rnd() * a.length) | 0], ruin = b.kind === 'ruin' || (!!b.city && rnd() < .45), tall = b.kind === 'watch' || (!!b.city && !ruin);     // руины и башня (2026-10-28) — как в павших городах     // павший город: часть домов разрушена, целые — в два этажа
     // стены; у жилых — фахверк: тёмные балки поясом
     for (const w of b.walls) {
       const cx = (w.x0 + w.x1) / 2, cz = (w.z0 + w.z1) / 2, sx = w.x1 - w.x0, sz = w.z1 - w.z0;
@@ -62,8 +62,8 @@ export function buildTown(map, cfg, rnd) {
     // дверной проём: косяки и притолока
     const d = b.door, vert = d.side === 'e' || d.side === 'w';
     const pe = vert ? [t, hw * 2 + .3] : [hw * 2 + .3, t];
-    pushBox(wallL, pe[0], H - 2.2, pe[1], d.x, 2.2 + (H - 2.2) / 2, d.z, 0, 0, 0, '#2a1d16');
-    for (const sgn of [-1, 1]) pushBox(wallL, vert ? t + .06 : .22, 2.2, vert ? .22 : t + .06, d.x + (vert ? 0 : sgn * hw), 1.1, d.z + (vert ? sgn * hw : 0), 0, 0, 0, '#2a1d16');
+    if (!b.open) pushBox(wallL, pe[0], H - 2.2, pe[1], d.x, 2.2 + (H - 2.2) / 2, d.z, 0, 0, 0, '#2a1d16');     // у сарая проём во всю стену — без притолоки и косяков
+    if (!b.open) for (const sgn of [-1, 1]) pushBox(wallL, vert ? t + .06 : .22, 2.2, vert ? .22 : t + .06, d.x + (vert ? 0 : sgn * hw), 1.1, d.z + (vert ? sgn * hw : 0), 0, 0, 0, '#2a1d16');
     // пол из досок
     const iw = b.ix1 - b.ix0, id = b.iz1 - b.iz0, n = Math.ceil(id / .6);
     for (let i = 0; i < n; i++) { const z = b.iz0 + (i + .5) * id / n; pushBox(floorL, iw, .08, id / n - .03, b.x, .04, z, 0, 0, 0, i % 2 ? '#3a2819' : '#33231a'); }
@@ -94,7 +94,7 @@ export function buildTown(map, cfg, rnd) {
     const hinge = new THREE.Group(), pan = new THREE.Mesh(new THREE.BoxGeometry(vert ? .12 : hw * 2 - .05, 2.15, vert ? hw * 2 - .05 : .12), paintMat(new THREE.MeshLambertMaterial({ color: '#5a3d26' }), 'auto', { plank: .2 }));
     pan.position.set(vert ? 0 : hw - .02, 1.08, vert ? hw - .02 : 0);
     hinge.add(pan); hinge.position.set(vert ? d.x : d.x - hw, 0, vert ? d.z - hw : d.z);
-    walls.add(hinge);
+    if (!b.open) walls.add(hinge);     // сарай — без створки
     const doorDir = { n: -1, s: 1, e: -1, w: 1 }[d.side];
     group.add(walls, floor, roof);
     const glowM = glowL.length ? new THREE.Mesh(merged(glowL), new THREE.MeshBasicMaterial({ vertexColors: true })) : null; if (glowM) group.add(glowM);
@@ -105,7 +105,7 @@ export function buildTown(map, cfg, rnd) {
 
   // наружный вид KayKit (2026-10-20, выбор владельца): модель по назначению дома, растянута по плану, вход — к двери.
   // Снаружи видна модель; внутри — прежние стены (срез), пол и мебель. Столкновения — прежние стены
-  const SHELL = { hut: 'home_A_red', house: 'home_B_red', warehouse: 'lumbermill_red', smithy: 'blacksmith_red', shop: 'market_red', barracks: 'barracks_red', tavern: 'tavern_red', chapel: 'church_red', keep: 'castle_red' };     // keep — донжон замка Мира 5.0
+  const SHELL = { crypt_s: 'crypt', watch: 'tower_B_red', hut: 'home_A_red', house: 'home_B_red', warehouse: 'lumbermill_red', smithy: 'blacksmith_red', shop: 'market_red', barracks: 'barracks_red', tavern: 'tavern_red', chapel: 'church_red', keep: 'castle_red' };     // keep — донжон замка Мира 5.0
   const NPC_SHELL = { smith: 'blacksmith_red', merchant: 'market_red', captain: 'barracks_red', scribe: 'church_red', keeper: 'church_red' };     // библиотека — с виду храм книжников
   const YAW = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 };
   let shellLib = null, shellMat = null;     // 2026-10-28: оболочка дома строится, когда он рядом (не дальний), дальняя — освобождается
@@ -113,7 +113,8 @@ export function buildTown(map, cfg, rnd) {
   function dropShell(it) { if (!it.shell) return; group.remove(it.shell); it.shell.geometry.dispose(); it.shell = null; }
   function makeShell(it) {
     const lib = shellLib, mat = shellMat; {
-      const b = it.b, name = it.ruin ? 'destroyed' : b.kind === 'keep' ? SHELL.keep : (b.npc && NPC_SHELL[b.npc.kind]) || SHELL[b.kind] || 'home_B_red', src = lib[name]; if (!src || it.shell) return;
+      const b = it.b; if (b.open) return;     // сарай — свои стены (модель закрыта со всех сторон)
+      const name = it.ruin ? 'destroyed' : b.kind === 'keep' ? SHELL.keep : (b.npc && NPC_SHELL[b.npc.kind]) || SHELL[b.kind] || 'home_B_red', src = lib[name]; if (!src || it.shell) return;
       const side = b.door.side, yaw = YAW[side] ?? 0, swap = side === 'e' || side === 'w', W0 = src.userData.w, D0 = src.userData.d;
       const sx = (swap ? b.d : b.w) / W0 * 1.04, sz = (swap ? b.w : b.d) / D0 * 1.04, sy = Math.max(H * 1.25 / src.userData.h, (sx + sz) / 2 * (it.tall ? .95 : .8));
       const g = src.clone(); if (!g.boundingBox) g.computeBoundingBox(); const B0 = g.boundingBox;

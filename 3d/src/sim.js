@@ -952,7 +952,8 @@ function updateHouses(W, dt) {
   const pin = insideOf(W.map, p.x, p.z);
   for (const b of W.map.buildings) {
     const d = b.door, r = M.doorReach;
-    if (b.deco) { d.open = 0; if (pin === b.id) { p.x = d.out.x; p.z = d.out.z; } continue; }     // дом-декорация: не открывается; герой внутри (старое сохранение) — встаёт у двери снаружи
+    if (b.deco) { d.open = 0; if (pin === b.id) { p.x = d.out.x; p.z = d.out.z; } continue; }
+    if (b.open) { d.open = 1; continue; }     // сарай: проём без двери     // дом-декорация: не открывается; герой внутри (старое сохранение) — встаёт у двери снаружи
     // боец открывает дверь, только если ему нужно в этот дом или из него (там он сам или герой) — иначе обходит дом снаружи, а не забредает внутрь
     const inB = o => insideOf(W.map, o.x, o.z) === b.id, mine = inB(p);
     const near = (!p.dead && len(p.x - d.x, p.z - d.z) < r) || live.some(e => len(e.x - d.x, e.z - d.z) < r) || W.allies.some(a => !a.dead && len(a.x - d.x, a.z - d.z) < r && (mine || inB(a)));

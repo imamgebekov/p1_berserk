@@ -43,7 +43,8 @@ ok(pathSegs(map).length === map.paths.reduce((s, p) => s + p.pts.length - 1, 0),
 for (const p of curved) { const q = p.pts[p.pts.length >> 1]; ok(propsBlocked(map, q.x, q.z), 'на изогнутой тропе можно растить деревья'); }
 // мир вокруг не сдвинулся: декор, сундуки и препятствия те же, что при прямых дорогах (свой генератор у троп)
 { const c = clone(); c.paths.on = false; const m2 = makeMap(c);
-  ok(JSON.stringify(m2.containers.map(q => [q.x, q.z])) === JSON.stringify(map.containers.map(q => [q.x, q.z])) && JSON.stringify(m2.solids) === JSON.stringify(map.solids), 'тропы сдвинули сундуки или препятствия'); }
+  const old = q => q.b < CFG3.map.buildings.length;     // сундуки новых зданий (руины, башни, сараи, склепы) обходят тропы — их не сравниваем (2026-10-28)
+  ok(JSON.stringify(m2.containers.filter(old).map(q => [q.x, q.z])) === JSON.stringify(map.containers.filter(old).map(q => [q.x, q.z])) && JSON.stringify(m2.solids) === JSON.stringify(map.solids), 'тропы сдвинули сундуки или препятствия'); }
 
 // ---------- 2. округлые формы ----------
 { let s = 1; const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };

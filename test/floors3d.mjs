@@ -8,7 +8,7 @@ import { resolve } from '../3d/src/map.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const W = createWorld(JSON.parse(JSON.stringify(CFG3)), mulberry32(3)), B = W.map.buildings, src = CFG3.map.buildings;
 // крупнее и без наложений
-{ const E = CFG3.map.enter, k = B.map((b, i) => b.w / src[i].w); ok(k.every((x, i) => x >= .98 && x <= CFG3.map.bScale * (E && E.on && src[i].vil && !src[i].city && !src[i].citadel && !B[i].deco ? E.scale : 1) + .02), 'дом уменьшился или вырос больше bScale');     // дом с входом в селе — крупнее в enter.scale (2026-10-28)
+{ const E = CFG3.map.enter, k = B.slice(0, src.length).map((b, i) => b.w / src[i].w); ok(k.every((x, i) => x >= .98 && x <= CFG3.map.bScale * (E && E.on && src[i].vil && !src[i].city && !src[i].citadel && !B[i].deco ? E.scale : 1) + .02), 'дом уменьшился или вырос больше bScale');     // дом с входом в селе — крупнее в enter.scale (2026-10-28)
   ok(k.reduce((a, b) => a + b, 0) / k.length > 1.1, 'дома почти не выросли: ' + (k.reduce((a, b) => a + b, 0) / k.length).toFixed(2));
   let over = 0; for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) { const a = B[i], b = B[j]; if (a.x0 < b.x1 && b.x0 < a.x1 && a.z0 < b.z1 && b.z0 < a.z1) over++; }
   ok(!over, `домов внахлёст: ${over}`); }

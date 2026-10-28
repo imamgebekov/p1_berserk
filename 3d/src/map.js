@@ -47,7 +47,7 @@ export function makeMap(cfg) {
   const M = cfg.map, t = M.wall, hw = M.doorW / 2;
   const buildings = [], walls = [], containers = [];
   const addC = (kind, x, z, bid) => containers.push({ id: containers.length, kind, x, z, b: bid, ready: false, t: 0, items: [], locked: false, keyTier: 0 });
-  grown(cfg).forEach((b, id) => {
+  const addB = (b, id) => {     // дом: стены с проёмом, дверь, сундуки, житель (2026-10-28: и для новых зданий после генерации мира)
     const x0 = b.x - b.w / 2, x1 = b.x + b.w / 2, z0 = b.z - b.d / 2, z1 = b.z + b.d / 2;
     const off = b.off || 0;
     // дверь: центр проёма, точки «снаружи» и «внутри» для ходьбы врагов, ось стены
@@ -68,23 +68,27 @@ export function makeMap(cfg) {
       if (b.door === side) { const c = b.z + off; bw.push({ x0: x, x1: xx, z0: z0 + t, z1: c - hw }, { x0: x, x1: xx, z0: c + hw, z1: z1 - t }); }
       else bw.push({ x0: x, x1: xx, z0: z0 + t, z1: z1 - t });
     };
-    hSeg(z0, z0 + t, 'n'); hSeg(z1 - t, z1, 's'); vSeg(x0, x0 + t, 'w'); vSeg(x1 - t, x1, 'e');
+    for (const [f, lo, hi, side] of [[hSeg, z0, z0 + t, 'n'], [hSeg, z1 - t, z1, 's'], [vSeg, x0, x0 + t, 'w'], [vSeg, x1 - t, x1, 'e']]) if (!(b.open && b.door === side)) f(lo, hi, side);     // open — сарай: со стороны входа стены нет
+    if (b.open) door.open = 1;
     const w2 = bw.filter(r => r.x1 - r.x0 > 1e-6 && r.z1 - r.z0 > 1e-6);
     walls.push(...w2);
-    buildings.push({ id, x: b.x, z: b.z, w: b.w, d: b.d, x0, x1, z0, z1, ix0: x0 + t, ix1: x1 - t, iz0: z0 + t, iz1: z1 - t, door, walls: w2, kind: b.kind || 'house', chests: [], npc: null, vil: b.vil || null, city: b.city || null, deco: !!b.deco });     // deco — дом-декорация: дверь не открывается, внутри пусто
+    buildings.push({ id, x: b.x, z: b.z, w: b.w, d: b.d, x0, x1, z0, z1, ix0: x0 + t, ix1: x1 - t, iz0: z0 + t, iz1: z1 - t, door, walls: w2, kind: b.kind || 'house', chests: [], npc: null, vil: b.vil || null, city: b.city || null, deco: !!b.deco, open: !!b.open });     // deco — дом-декорация: дверь не открывается, внутри пусто
     // контейнеры в углах, дальние от двери — первыми
     const bb = buildings[buildings.length - 1], cs = [[bb.ix0 + .8, bb.iz0 + .8], [bb.ix1 - .8, bb.iz0 + .8], [bb.ix0 + .8, bb.iz1 - .8], [bb.ix1 - .8, bb.iz1 - .8]];
     if (b.npc) { const rs = roomSize(bb); const q = interiorPos(bb, 0, rs.depth * .55 - .9); bb.npc = { kind: b.npc, x: q.x, z: q.z }; }
     cs.sort((p, q) => Math.hypot(q[0] - door.x, q[1] - door.z) - Math.hypot(p[0] - door.x, p[1] - door.z));
     if (b.deco) { const [ax, az] = vertDoor(b.door) ? [0, 1] : [1, 0]; (b.chests || []).slice(0, 4).forEach((k, i) => addC(k, door.out.x + ax * (i % 2 ? 1 : -1) * (2.2 + (i >> 1) * 1.4) + (vertDoor(b.door) ? Math.sign(door.out.x - b.x) * .6 : 0), door.out.z + az * (i % 2 ? 1 : -1) * (2.2 + (i >> 1) * 1.4) + (vertDoor(b.door) ? 0 : Math.sign(door.out.z - b.z) * .6), -1)); }     // сундуки дома-декорации — во дворе у двери
     else (b.chests || []).slice(0, 4).forEach((k, i) => { addC(k, cs[i][0], cs[i][1], id); bb.chests.push(containers[containers.length - 1]); });
-  });
+  };
+  grown(cfg).forEach(addB);
   const gen = genWorld(cfg, buildings);
+  { const ex = placeExtras(cfg, buildings, gen); for (const b of ex) addB(b, buildings.length);     // новые здания с входом: руины, башни, сараи, склепы (план «живой мир», этап 3)
+    if (ex.length) gen.decor = gen.decor.filter(d => !ex.some(b => Math.abs(d.x - b.x) < b.w / 2 + 1 && Math.abs(d.z - b.z) < b.d / 2 + 1)); }     // мелочи под новым зданием — убрать
   for (const sp of M.spots || []) { let { x, z } = sp;     // уличный сундук внутри выросшего дома — за ближнюю стену (2026-10-21)
     for (const b of buildings) if (x > b.x0 - .9 && x < b.x1 + .9 && z > b.z0 - .9 && z < b.z1 + .9) { const m = [[b.x0 - 1.1 - x, 0], [b.x1 + 1.1 - x, 0], [0, b.z0 - 1.1 - z], [0, b.z1 + 1.1 - z]].sort((u, v) => Math.hypot(...u) - Math.hypot(...v))[0]; x += m[0]; z += m[1]; }
     addC(sp.kind, x, z, -1); }
   // созданные генератором: не ближе 1.6 м к уже стоящим (могилы и алтарь не слипаются)
-  for (const sp of gen.spots) if (!containers.some(c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1);
+  { const gC = gridIndex(containers, c => [c.x, c.z, c.x, c.z]); for (const sp of gen.spots) if (!gC.some(sp.x - 1.6, sp.z - 1.6, sp.x + 1.6, sp.z + 1.6, c => Math.hypot(c.x - sp.x, c.z - sp.z) < 1.6)) addC(sp.kind, sp.x, sp.z, -1); }     // по сетке соседей (загрузка)
   { const coreR = cfg.worldgen && cfg.worldgen.on && cfg.world.radius > cfg.worldgen.coreR ? cfg.worldgen.coreR : Infinity; for (const c of containers) c.far = Math.hypot(c.x, c.z) > coreR; }     // сундуки пояса большого мира наполняются, когда герой рядом (C3b)
   const camp = campOf(cfg), { blocks, foeBlocks } = camp ? campWalls(camp) : { blocks: [], foeBlocks: [] }, outposts = (cfg.map.outposts || []).map(o => ({ ...o }));
   for (const o of outposts) { const w = campWalls(o); blocks.push(...w.blocks); foeBlocks.push(...w.foeBlocks); }     // лагеря Мира 5.0 (этап 2): свой частокол и ворота
@@ -347,6 +351,7 @@ export function propsBlocked(map, x, z) {
 }
 import { distSeg as distSegPt, pathSegs } from './world3d.js';
 import { gridIndex } from './util3d.js';     // поиск по сетке (2026-10-28)
+import { placeExtras } from './newbuild3d.js';     // новые здания (2026-10-28)
 import { shapeParts, shapeFree } from './dungeonstyle3d.js';
 import { wildSdfAt, navStep } from './wilds3d.js';     // малые миры (2026-10-27)
 
