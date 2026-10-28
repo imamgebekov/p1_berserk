@@ -286,7 +286,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const decorBy = new Map(), CL = cfg.cull;
   for (const d of map.decor.concat(surfaceDetails(map, cfg))) { const k = Math.floor(d.x / 64) + ',' + Math.floor(d.z / 64); let a = decorBy.get(k); if (!a) decorBy.set(k, a = []); a.push(d); }
   const decor = { group: new THREE.Group() }, decorLive = new Map(), decorMats = {}; scene.add(decor.group);
-  const decorCell = k => { const [i, j] = k.split(',').map(Number), g = buildDecor({ decor: decorBy.get(k) }, mulberry32(cfg.world.seed + 2 + i * 7919 + j * 104729), cfg.shaders && cfg.shaders.grime, decorMats).group.children[0];
+  const decorCell = k => { const [i, j] = k.split(',').map(Number), g = buildDecor({ decor: decorBy.get(k) }, mulberry32(cfg.world.seed + 2 + i * 7919 + j * 104729), cfg.shaders && cfg.shaders.grime, decorMats, Y).group.children[0];
     if (!g) return null; g.traverse(m => { if (m.material) [].concat(m.material).forEach(xray); if (m.isMesh) m.castShadow = sun.castShadow; }); freeze(g); decor.group.add(g); return g; };
   const dropDecor = k => { const g = decorLive.get(k); decorLive.delete(k); if (g) { decor.group.remove(g); g.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); } };
   function streamDecor(x, z, budget = 2) {     // в пределах cull.decor — строятся (budget клеток за вызов), дальше cull.decor + 48 м — выгружаются
@@ -609,7 +609,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const heroBlade = makeBladeFx(scene), bladeOn = () => !!(cfg.bladeFx && cfg.bladeFx.on);     // стихия на клинке (2026-10-20)
   if (actorKey(cfg, 'hero', 'thorn') !== null || Object.keys((cfg.actors && cfg.actors.foes) || {}).length) preloadActors(cfg);     // готовые модели (2026-10-20): грузятся в фоне
   const kitOf = k => cfg.actors.kits[k];
-  Promise.all([loadBaked('buildings'), loadBaked('townkit').catch(() => null), loadBaked('qkit').catch(() => null)]).then(([b0, kit, qk]) => { if (!b0) return; const lib = { ...stoneLook(b0, cfg.look.town), ...(kit || {}), ...(qk || {}) }; setDecorLib(lib); town.setShells(lib);     // 4.09: + знамёна, бочки, ящики KayKit Dungeon; 4.10: повозка и ящик Quaternius     // постройки KayKit: декор пересобирается, у домов — наружный вид
+  Promise.all([loadBaked('buildings'), loadBaked('townkit').catch(() => null), loadBaked('qkit').catch(() => null), loadBaked('props').catch(() => null), loadBaked('qprops').catch(() => null), loadBaked('kk_weapons').catch(() => null)]).then(([b0, kit, qk, pr, qp, kw]) => { if (!b0) return; const lib = { ...stoneLook(b0, cfg.look.town), ...(kit || {}), ...(qk || {}), ...(pr || {}), ...(qp || {}), ...(kw || {}) };     // 2026-10-28: + мелочи (props, qprops) и оружие на земле (kk_weapons)
+    setDecorLib(lib); town.setShells(lib);     // 4.09: + знамёна, бочки, ящики KayKit Dungeon; 4.10: повозка и ящик Quaternius     // постройки KayKit: декор пересобирается, у домов — наружный вид
     for (const k of [...decorLive.keys()]) dropDecor(k); }).catch(e => console.warn('постройки не загрузились:', e && e.message));
   loadNature().then(lib => { if (!lib) return; setNature(lib); for (const k of [...liveLand.keys()]) dropLand(k); }).catch(e => console.warn('природа не загрузилась:', e && e.message));     // готовые деревья и камни: участки пересобираются
   // жители и звери (2026-10-20): готовая модель по виду, если пришла; tint и рост — по виду

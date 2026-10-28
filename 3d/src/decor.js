@@ -5,7 +5,7 @@ import { pushBox, addTree } from './models.js';
 import { paintMat, tagKind } from './paint3d.js';
 
 // вид деталей (T3): серое у построек из камня — кладкой; шатры — тканью; клетка и жаровня — металлом
-const PART_OF = { cwall: 'masonry', ctower: 'masonry', cgate: 'masonry', tower: 'masonry', fort: 'masonry', wallfrag: 'masonry', ruinwall: 'masonry', mausoleum: 'masonry', shrine: 'masonry', well: 'masonry', paving: 'masonry', mill: 'masonry', tent: 'cloth', bigtent: 'cloth', cage: 'metal', brazier: 'metal', lamp: 'metal' };
+const PART_OF = { armor_lie: 'metal', armor_pole: 'metal', armor_pile: 'metal', armor_rack: 'metal', w_lie: 'metal', w_stuck: 'metal', swsh: 'metal', swsh_broken: 'metal', cwall: 'masonry', ctower: 'masonry', cgate: 'masonry', tower: 'masonry', fort: 'masonry', wallfrag: 'masonry', ruinwall: 'masonry', mausoleum: 'masonry', shrine: 'masonry', well: 'masonry', paving: 'masonry', mill: 'masonry', tent: 'cloth', bigtent: 'cloth', cage: 'metal', brazier: 'metal', lamp: 'metal' };
 
 // готовые постройки KayKit (2026-10-20, выбор владельца): геометрии с цветом в вершинах (buildings.glb); пока нет — свои кубики
 let BLD = null;
@@ -20,6 +20,15 @@ function putModel(L, name, x, z, rot, sx, sy, sz, dim = 1, y = 0) {
   if (dim !== 1) { const c = g.attributes.color; for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * dim, c.getY(i) * dim, c.getZ(i) * dim); }
   L.push(g); return true;
 }
+// модель с наклоном (2026-10-28): лёжа или воткнутой в землю; поворот — сначала наклон (ex, ez), потом по сторонам (ey); center — середину модели в точку
+function putRot(L, name, x, y, z, ex, ey, ez, sc, center = false, dim = 1) {
+  const src = BLD && BLD[name]; if (!src) return false;
+  const g = src.clone(); if (center) g.translate(0, -src.userData.h / 2, 0); TE.set(ex, ey, ez, 'YXZ'); TQ.setFromEuler(TE); TP.set(x, y, z); TS.set(sc, sc, sc); TM.compose(TP, TQ, TS); g.applyMatrix4(TM);
+  if (dim !== 1) { const c = g.attributes.color; for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * dim, c.getY(i) * dim, c.getZ(i) * dim); }
+  L.push(g); return true;
+}
+const WEAPONS = ['sword_1handed', 'sword_2handed', 'axe_1handed', 'axe_2handed', 'rpg_spear', 'rpg_halberd', 'rpg_hammer', 'dagger', 'Skeleton_Blade', 'Skeleton_Axe'], SHIELDS = ['shield_round', 'shield_square', 'shield_badge', 'Skeleton_Shield_Small_A'];
+const fit = (name, h) => (BLD && BLD[name] ? h / BLD[name].userData.h : 1);     // масштаб модели под высоту h, м
 // замена своего декора: true — заменили. Ряды (стены, частокол, ограды) — отрезками модели вдоль длинной стороны
 function swapDecor(d, L, rnd) {
   if (!rnd) { const h = Math.abs(Math.sin(d.x * 12.9898 + d.z * 78.233) * 43758.5453) % 1; rnd = () => h; }     // 4.10: в подземельях декор строится без генератора — выбор по месту
@@ -53,10 +62,37 @@ function swapDecor(d, L, rnd) {
     case 'ruinwall': case 'wallfrag': return putModel(L, 'destroyed', d.x, d.z, r, 2.2 * s, 2.2 * s, 2.2 * s, .7);
     case 'mill': return putModel(L, 'windmill_red', d.x, d.z, r, 3.4, 3.4, 3.4, .85);
     case 'tower': return putModel(L, 'tower_B_red', d.x, d.z, r, 3.2, 3.6, 3.2, .85);
+    // мелочи мира (2026-10-28, владелец: «больше деталей»): KayKit Dungeon — props.glb, Quaternius — qprops.glb, оружие — kk_weapons.glb
+    case 'barrel_l': return putModel(L, 'barrel_large', d.x, d.z, r, fit('barrel_large', 1.15 * s), fit('barrel_large', 1.15 * s), fit('barrel_large', 1.15 * s));
+    case 'keg': return putModel(L, 'keg', d.x, d.z, r, fit('keg', 1 * s), fit('keg', 1 * s), fit('keg', 1 * s));
+    case 'barrels': return putModel(L, 'barrel_small_stack', d.x, d.z, r, fit('barrel_small_stack', 1.1 * s), fit('barrel_small_stack', 1.1 * s), fit('barrel_small_stack', 1.1 * s));
+    case 'crates': return putModel(L, 'crates_stacked', d.x, d.z, r, fit('crates_stacked', 1.4 * s), fit('crates_stacked', 1.4 * s), fit('crates_stacked', 1.4 * s));
+    case 'chest_d': return putModel(L, 'chest', d.x, d.z, r, fit('chest', .7 * s), fit('chest', .7 * s), fit('chest', .7 * s));
+    case 'trunk_d': return putModel(L, 'trunk_medium_A', d.x, d.z, r, fit('trunk_medium_A', .55 * s), fit('trunk_medium_A', .55 * s), fit('trunk_medium_A', .55 * s));
+    case 'table_set': { const k = fit('table_medium', .8); if (!putModel(L, 'table_medium', d.x, d.z, r, k, k, k)) return false; const c = Math.cos(r), sn = Math.sin(r); for (const o of [-1, 1]) putModel(L, 'stool', d.x + o * .95 * c, d.z - o * .95 * sn, r, fit('stool', .45), fit('stool', .45), fit('stool', .45)); return true; }
+    case 'table_broken': return putModel(L, 'table_long_broken', d.x, d.z, r, fit('table_long_broken', .8 * s), fit('table_long_broken', .8 * s), fit('table_long_broken', .8 * s), .85);
+    case 'shelf_d': return putModel(L, 'shelves', d.x, d.z, r, fit('shelves', 1.6 * s), fit('shelves', 1.6 * s), fit('shelves', 1.6 * s));
+    case 'candles3': return putModel(L, 'candle_triple', d.x, d.z, r, fit('candle_triple', .45), fit('candle_triple', .45), fit('candle_triple', .45));
+    case 'swsh_broken': return putRot(L, 'sword_shield_broken', d.x, .05, d.z, -Math.PI / 2, r, 0, fit('sword_shield_broken', 1.1 * s), true, .9);
+    case 'swsh': return putModel(L, 'sword_shield', d.x, d.z, r, fit('sword_shield', 1 * s), fit('sword_shield', 1 * s), fit('sword_shield', 1 * s));
+    case 'rubble_s': return putModel(L, 'rubble_half', d.x, d.z, r, fit('rubble_half', .9 * s), fit('rubble_half', .9 * s), fit('rubble_half', .9 * s), .85);
+    case 'rubble_l': return putModel(L, 'rubble_large', d.x, d.z, r, fit('rubble_large', 1.1 * s), fit('rubble_large', 1.1 * s), fit('rubble_large', 1.1 * s), .85);
+    case 'column_d': return putModel(L, 'column', d.x, d.z, r, fit('column', 2.6 * s) * 1.3, fit('column', 2.6 * s), fit('column', 2.6 * s) * 1.3, .9);
+    case 'arch_k': return putModel(L, 'wall_arched', d.x, d.z, r, fit('wall_arched', 3.6 * s), fit('wall_arched', 3.6 * s), fit('wall_arched', 3.6 * s), .85);
+    case 'wall_br': return putModel(L, 'wall_broken', d.x, d.z, r, fit('wall_broken', 3.2 * s), fit('wall_broken', 3.2 * s), fit('wall_broken', 3.2 * s), .8);
+    case 'wall_hf': return putModel(L, 'wall_half', d.x, d.z, r, fit('wall_half', 2.4 * s), fit('wall_half', 2.4 * s), fit('wall_half', 2.4 * s), .8);
+    case 'torch_d': return putModel(L, 'torch_lit', d.x, d.z, r, fit('torch_lit', 1.2), fit('torch_lit', 1.2), fit('torch_lit', 1.2));
+    case 'barrier_d': return putModel(L, 'barrier', d.x, d.z, r, fit('barrier', 1 * s), fit('barrier', 1 * s), fit('barrier', 1 * s), .85);
+    case 'arch_q': return putModel(L, 'Wall_Arch', d.x, d.z, r, fit('Wall_Arch', 3.4 * s), fit('Wall_Arch', 3.4 * s), fit('Wall_Arch', 3.4 * s) * 6, .9);
+    case 'vine': return putModel(L, rnd() < .5 ? 'Prop_Vine6' : 'Prop_Vine2', d.x, d.z, r, fit('Prop_Vine6', 1.8 * s), fit('Prop_Vine6', 1.8 * s), fit('Prop_Vine6', 1.8 * s));
+    case 'fence_q': return putModel(L, 'Prop_WoodenFence_Single', d.x, d.z, r, fit('Prop_WoodenFence_Single', 1 * s), fit('Prop_WoodenFence_Single', 1 * s), fit('Prop_WoodenFence_Single', 1 * s), .9);
+    case 'w_lie': { const n = WEAPONS[(rnd() * WEAPONS.length) | 0]; return putRot(L, n, d.x, .04, d.z, Math.PI / 2, r, 0, fit(n, (n.startsWith('rpg_') || n.endsWith('2handed') ? 1.6 : 1) * s), true, .85); }     // лежит плашмя
+    case 'w_stuck': { const n = WEAPONS[(rnd() * 6) | 0]; return putRot(L, n, d.x, -.25 * s, d.z, .25 * (rnd() - .5), r, Math.PI + .3 * (rnd() - .5), fit(n, 1.1 * s), false, .85); }     // воткнут в землю остриём
+    case 'shield_lie': { const n = SHIELDS[(rnd() * SHIELDS.length) | 0]; return putRot(L, n, d.x, .03, d.z, -Math.PI / 2 + .15 * (rnd() - .5), r, 0, fit(n, .75 * s), true, .85); }
     default: return false;
   }
 }
-export function buildDecor(map, rnd, grime = null, mats = null) {     // mats — общие материалы для сборки по клеткам (2026-10-28): первая сборка кладёт их туда
+export function buildDecor(map, rnd, grime = null, mats = null, Y = null) {     // mats — общие материалы для сборки по клеткам (2026-10-28): первая сборка кладёт их туда
   // клетки 64 м (C3b): каждая — свои меши, поэтому дальний и невидимый декор отсекается
   const glowList = () => Object.assign([], { glow: true });     // светящееся — без градиента (шаг 7)
   let L = [], G = glowList(); const cells = new Map(), use = (x, z) => { const k = Math.floor(x / 64) + ',' + Math.floor(z / 64); if (!cells.has(k)) cells.set(k, { L: [], G: glowList() }); ({ L, G } = cells.get(k)); };
@@ -66,8 +102,8 @@ export function buildDecor(map, rnd, grime = null, mats = null) {     // mats �
   // дороги нарисованы цветом земли (шаг 6 аудита, render.js → hillsGeo), плит больше нет
   for (const d of map.decor) {
     use(d.x, d.z);
-    const f = mk(d.x, d.z, d.rot || 0), s = d.s || 1, n0 = L.length;
-    if (BLD && swapDecor(d, L, rnd)) { for (let i = n0; i < L.length; i++) if (!L[i].attributes.pkind) tagKind(L[i], PART_OF[d.t] || 'auto'); continue; }
+    const f = mk(d.x, d.z, d.rot || 0), s = d.s || 1, n0 = L.length, g0 = G.length, y0 = Y && !d.flat ? Y(d.x, d.z) : 0, lift = () => { if (y0) { for (let i = n0; i < L.length; i++) L[i].translate(0, y0, 0); for (let i = g0; i < G.length; i++) G[i].translate(0, y0, 0); } };     // Y — высота земли (2026-10-28): мелочи на склонах не висят и не тонут
+    if (BLD && swapDecor(d, L, rnd)) { for (let i = n0; i < L.length; i++) if (!L[i].attributes.pkind) tagKind(L[i], PART_OF[d.t] || 'auto'); lift(); continue; }
     switch (d.t) {
       case 'lamp': f(0, 0, 0, .14, 3.2, .14, '#2a2220'); f(0, 3.0, 0, .6, .1, .1, '#2a2220'); f(.28, 2.55, 0, .3, .42, .3, '#ffb35a', true); f(.28, 2.8, 0, .4, .08, .4, '#2a2220'); break;
       case 'fence': { const w = d.w; const f2 = mk(d.x, d.z, d.rot ? Math.PI / 2 : 0); f2(-w / 2, 0, 0, .16, 1.15, .16, '#4a4440'); f2(0, 0, 0, .16, 1.0, .16, '#4a4440'); f2(0, .75, 0, w, .08, .08, '#4a4440'); f2(0, .35, 0, w, .08, .08, '#4a4440'); f2(-w / 2, 1.15, 0, .1, .22, .1, '#3a3532'); break; }
@@ -141,10 +177,36 @@ export function buildDecor(map, rnd, grime = null, mats = null) {     // mats �
         f(-.1, 0, .14, .1, .16, .1, '#d8ccb0'); f(-.1, .16, .14, .06, .09, .06, '#ffc870', true); f(.02, 0, .04, .44, .02, .36, '#d8ccb0', 'plain'); break;
       case 'chain': f(0, 1.3, 0, .3, .08, .1, '#2a2622', 'metal'); for (let i = 0; i < 5; i++) f(0, 1.1 - i * .19, .04, i % 2 ? .05 : .12, .18, i % 2 ? .12 : .05, '#3a3632', 'metal'); break;
       case 'grate': f(0, .05, .02, .9, .95, .02, '#0c0a08', 'plain'); for (const y of [.05, .95]) f(0, y, .05, 1.0, .06, .08, '#2a2622', 'metal'); for (let k = -2; k <= 2; k++) f(k * .2, .05, .05, .05, .96, .05, '#2a2622', 'metal'); break;
+      // мелочи мира (2026-10-28): запасной вид без моделей; доспехи — всегда свои (моделей доспехов нет)
+      case 'barrel_l': case 'keg': f(0, 0, 0, .75 * s, 1.05 * s, .75 * s, '#6a4a2c'); f(0, .3 * s, 0, .8 * s, .08, .8 * s, '#3a3a3e'); f(0, .75 * s, 0, .8 * s, .08, .8 * s, '#3a3a3e'); break;
+      case 'barrels': f(-.4, 0, 0, .6, .8, .6, '#6a4a2c'); f(.4, 0, 0, .6, .8, .6, '#6a4a2c'); f(0, .8, 0, .6, .7, .6, '#5e4228'); break;
+      case 'crates': f(0, 0, 0, 1.1 * s, .8 * s, 1.1 * s, '#7a5a34'); f(.1, .8 * s, .05, .8 * s, .6 * s, .8 * s, '#6e5230'); break;
+      case 'chest_d': case 'trunk_d': f(0, 0, 0, .9 * s, .55 * s, .6 * s, '#5a3e26'); f(0, .55 * s, 0, .92 * s, .1, .62 * s, '#3a3a3e'); break;
+      case 'table_set': f(0, 0, 0, 1.4, .75, .9, '#6a4a2c'); f(-.95, 0, 0, .4, .45, .4, '#5a3e26'); f(.95, 0, 0, .4, .45, .4, '#5a3e26'); break;
+      case 'table_broken': f(0, 0, 0, 1.6, .4, .9, '#5a3e26'); f(.9, 0, 0, .7, .15, .9, '#4a3420'); break;
+      case 'shelf_d': f(0, 0, 0, 1.4, 1.6, .4, '#5a3e26'); break;
+      case 'candles3': f(0, 0, 0, .1, .35, .1, '#e8dcc0'); f(.12, 0, .05, .1, .25, .1, '#e8dcc0'); f(0, .35, 0, .05, .08, .05, '#ffb050', true); break;
+      case 'swsh_broken': case 'swsh': f(0, 0, 0, .7, .06, .7, '#6e6e74'); f(.3, 0, 0, 1, .05, .1, '#8a8a90'); break;
+      case 'rubble_s': case 'rubble_l': f(0, 0, 0, 1.6 * s, .5 * s, 1.2 * s, '#6a665e'); f(.6 * s, 0, .4 * s, .8 * s, .7 * s, .7 * s, '#5a564e'); break;
+      case 'column_d': f(0, 0, 0, .7, 2.6 * s, .7, '#8a857a'); break;
+      case 'arch_k': case 'arch_q': f(-1.3 * s, 0, 0, .5, 3.2 * s, .5, '#7a766c'); f(1.3 * s, 0, 0, .5, 3.2 * s, .5, '#7a766c'); f(0, 2.8 * s, 0, 3.1 * s, .5, .5, '#7a766c'); break;
+      case 'wall_br': case 'wall_hf': f(0, 0, 0, 2.6 * s, 1.6 * s, .5, '#6a665e'); f(-.6 * s, 1.6 * s, 0, 1.2 * s, .8 * s, .5, '#5e5a52'); break;
+      case 'torch_d': f(0, 0, 0, .12, 1.1, .12, '#3a2a1a'); f(0, 1.1, 0, .2, .25, .2, '#ffb050', true); break;
+      case 'barrier_d': f(0, 0, 0, 2.6, .9, .3, '#5a3e26'); break;
+      case 'vine': f(0, 0, 0, 1, 1.6 * s, .1, '#3e6a28'); break;
+      case 'fence_q': f(0, 0, 0, 2, .8, .1, '#5a3e26'); break;
+      case 'w_lie': f(0, 0, 0, 1.1 * s, .05, .1, '#8a8a90'); f(-.35 * s, 0, 0, .06, .05, .32, '#4a3a2a'); break;
+      case 'w_stuck': f(0, 0, 0, .08, .9 * s, .03, '#8a8a90'); f(0, .9 * s, 0, .3, .05, .06, '#4a3a2a'); break;
+      case 'shield_lie': f(0, 0, 0, .7 * s, .06, .7 * s, '#6a4a2c'); f(0, .06, 0, .2, .04, .2, '#8a8a90'); break;
+      case 'armor_lie': f(0, 0, 0, .6, .22, .7, '#7d7d84'); f(-.36, 0, .05, .2, .18, .32, '#6a6a70'); f(.36, 0, .05, .2, .18, .32, '#6a6a70'); f(.75, 0, -.3, .34, .3, .36, '#6e6e76'); f(.75, .14, -.12, .24, .04, .02, '#18181c'); break;     // кираса, наплечники, шлем рядом
+      case 'armor_pole': f(0, 0, 0, .1, 1.7, .1, '#4a3420'); f(0, 1.25, 0, .9, .08, .08, '#4a3420'); f(0, .75, .04, .55, .6, .3, '#7d7d84'); f(-.36, 1.15, .04, .24, .18, .3, '#6a6a70'); f(.36, 1.15, .04, .24, .18, .3, '#6a6a70'); f(0, 1.6, 0, .34, .32, .36, '#6e6e76'); f(0, 1.74, .18, .24, .04, .02, '#18181c'); break;     // доспех на колу
+      case 'armor_pile': for (const [x, z, k] of [[0, 0, 1], [.5, .3, .9], [-.4, .35, .85], [.15, -.45, .8]]) { f(x, 0, z, .55 * k, .22, .62 * k, k > .9 ? '#7d7d84' : '#6a6a70'); f(x + .2, .22, z - .1, .3 * k, .26 * k, .32 * k, '#6e6e76'); } f(-.6, 0, -.4, .6, .07, .6, '#6a4a2c'); break;     // куча доспехов
+      case 'armor_rack': f(0, 0, 0, 1.2, .12, .5, '#4a3420'); f(0, 0, 0, .1, 1.7, .1, '#4a3420'); f(0, .75, .06, .55, .6, .3, '#7d7d84'); f(0, 1.6, .02, .34, .32, .36, '#6e6e76'); f(.5, 0, .1, .06, 1.1, .06, '#8a8a90'); f(-.5, 0, .1, .06, 1.1, .06, '#8a8a90'); break;     // стойка с доспехом и копьями
       case 'reed': f(0, 0, 0, .06, 1.1 * s, .06, '#5a6a2e'); f(.12, 0, .05, .06, .9 * s, .06, '#6a7a36'); f(0, 1.1 * s, 0, .1, .26, .1, '#5a3a22'); break;
       default: break;
     }
     if (PART_OF[d.t]) for (let i = n0; i < L.length; i++) if (!L[i].attributes.pkind) tagKind(L[i], PART_OF[d.t]);
+    lift();
   }
   const old = !!(mats && mats.lam), group = new THREE.Group(), lam = old ? mats.lam : paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto', { plank: .22 }), bas = old ? mats.bas : new THREE.MeshBasicMaterial({ vertexColors: true }); let glow = 0;
   if (mats && !old) { mats.lam = lam; mats.bas = bas; }

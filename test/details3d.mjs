@@ -16,7 +16,7 @@ ok(JSON.stringify(makeMap(CFG3).solids) === JSON.stringify(map.solids), 'нов�
 const segs = pathSegs(map), on = t => A.filter(d => d.t === t).length;
 ok(A.length > map.buildings.length, `деталей у домов достаточно: ${A.length} на ${map.buildings.length} домов`);
 for (const t of ['sign', 'rug', 'rusty_sword', 'skulls', 'wreck', 'banner']) ok(on(t) > 0, `есть детали вида ${t}`);
-const onRoad = A.filter(d => d.t !== 'sign' && d.t !== 'rug' && segs.some(([a, b]) => distSeg(d.x, d.z, a, b) < CFG3.details.road - .01));
+const onRoad = A.filter(d => d.t !== 'sign' && d.t !== 'rug' && d.t !== 'arch_k' && segs.some(([a, b]) => distSeg(d.x, d.z, a, b) < CFG3.details.road - .01));     // арка на въезде в село — поперёк дороги по замыслу (2026-10-28)
 ok(!onRoad.length, `на тропе: ${onRoad.length}`);
 const inHouse = A.filter(d => d.t !== 'rug' && map.buildings.some(b => d.x > b.x0 && d.x < b.x1 && d.z > b.z0 && d.z < b.z1));
 ok(!inHouse.length, `внутри домов: ${inHouse.length}`);

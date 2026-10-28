@@ -6,12 +6,15 @@ import { pathSegs, distSeg } from './world3d.js';
 import { waterDist } from './terrain3d.js';
 import { roomFree } from './map.js';
 import { gridIndex } from './util3d.js';     // поиск по сетке (2026-10-28)
+import { zoneAt } from './zones3d.js';
 
-const YARD = ['barrel_d', 'crate_d', 'woodpile', 'sack_d', 'bucket'];
+const YARD = ['barrel_d', 'crate_d', 'woodpile', 'sack_d', 'bucket', 'barrel_l', 'keg', 'barrels', 'crates'];     // 2026-10-28: + большие бочки, бочонки, штабеля
 const SIGNED = new Set(['shop', 'smithy', 'tavern', 'warehouse']);
 const PROUD = new Set(['smithy', 'tavern', 'barracks', 'chapel']);     // 4.09: у этих домов — знамя у входа (у рынка — нет: прилавки модели стоят перед дверью)
 const RUG = new Set(['house', 'tavern', 'chapel']);
-const BATTLE = ['rusty_sword', 'bones', 'skulls', 'wreck', 'rusty_sword', 'skulls'];
+const BATTLE = ['rusty_sword', 'bones', 'skulls', 'wreck', 'skulls', 'w_lie', 'w_lie', 'w_stuck', 'w_stuck', 'shield_lie', 'armor_lie', 'armor_pole', 'armor_pile', 'swsh_broken'];     // 2026-10-28: + оружие, щиты и доспехи на земле
+const RUINS = ['column_d', 'wall_br', 'wall_hf', 'rubble_s', 'rubble_l', 'arch_k', 'vine', 'column_d'], ROADSIDE = ['crates', 'barrels', 'fence_q', 'rubble_s', 'w_stuck', 'table_broken', 'barrel_l'];
+const BIO = { forest: ['stump', 'w_lie', 'barrels', 'woodpile'], swamp: ['stump', 'barrels', 'bones'], mountains: ['crates', 'barrels', 'torch_d', 'rubble_s'], waste: ['w_stuck', 'bones', 'skulls', 'rubble_s', 'armor_lie'], coast: ['barrels', 'crates', 'wreck', 'keg'] };     // у мест интереса — по биому
 
 // поверхность: у стен домов (кроме стороны с дверью), вывеска и коврик у двери, следы боя у опасных мест, знамя в посёлке
 export function surfaceDetails(map, cfg) {
@@ -42,13 +45,36 @@ export function surfaceDetails(map, cfg) {
   }
   for (const p of map.cfg.places || []) {
     if (p.type === 'danger') {
-      const n = D.danger[0] + Math.floor(rnd() * (D.danger[1] - D.danger[0] + 1));
-      for (let i = 0; i < n; i++) { const a = rnd() * Math.PI * 2, r = p.r * (.25 + rnd() * .65), x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r; if (free(x, z) && !inB(x, z, 1)) out.push({ t: pick(BATTLE), x, z, rot: rnd() * Math.PI * 2, detail: true }); }
+      const war = !!D.war && (zoneAt(cfg, p.x, p.z) || {}).id === 'war', n = Math.round((D.danger[0] + Math.floor(rnd() * (D.danger[1] - D.danger[0] + 1))) * (war ? D.war : 1));     // поле Великой войны — бой гуще
+      for (let i = 0; i < n; i++) { const a = rnd() * Math.PI * 2, r = p.r * (.25 + rnd() * .65) * (war ? 1.4 : 1), x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r; if (free(x, z) && !inB(x, z, 1)) out.push({ t: pick(BATTLE), x, z, rot: rnd() * Math.PI * 2, detail: true }); }
     } else if (p.type === 'hamlet' && rnd() < D.banner) {
       const a = rnd() * Math.PI * 2, x = p.x + Math.cos(a) * p.r * .7, z = p.z + Math.sin(a) * p.r * .7;
       if (free(x, z) && !inB(x, z, 1.5)) out.push({ t: 'banner', x, z, rot: rnd() * Math.PI * 2, c: pick(D.bannerColors), detail: true });
     }
   }
+  const sets = D;     // числа мелочей мира — config3d.js → details
+  // сёла: стол со скамьями у середины, арка на въезде (на дороге, поперёк)
+  for (const p of map.cfg.places || []) if (p.type === 'hamlet') {
+    if (rnd() < (sets.table ?? 0)) { const a = rnd() * Math.PI * 2, x = p.x + Math.cos(a) * p.r * .35, z = p.z + Math.sin(a) * p.r * .35; if (free(x, z) && !inB(x, z, 2)) out.push({ t: 'table_set', x, z, rot: rnd() * Math.PI, detail: true }); }
+    if (rnd() < (sets.arch ?? 0)) { const s0 = segs.find(([a, b]) => { const da = Math.hypot(a.x - p.x, a.z - p.z), db = Math.hypot(b.x - p.x, b.z - p.z); return (da < p.r * 1.3 && db > p.r * 1.3) || (db < p.r * 1.3 && da > p.r * 1.3); });
+      if (s0) { const [a, b] = s0, din = Math.hypot(a.x - p.x, a.z - p.z) < Math.hypot(b.x - p.x, b.z - p.z), q = din ? a : b, o = din ? b : a, L = Math.hypot(o.x - q.x, o.z - q.z) || 1, t = Math.min(1, p.r * .4 / L), x = q.x + (o.x - q.x) * t, z = q.z + (o.z - q.z) * t;
+        if (!inB(x, z, 3)) out.push({ t: 'arch_k', x, z, rot: Math.atan2(-(o.x - q.x), -(o.z - q.z)), s: 1.5, detail: true }); } }     // поперёк дороги: проём на тропе
+  }
+  // у дорог: изредка — ящики, бочки, обломки, оград, воткнутое оружие, разбитый стол
+  if (sets.roadside) for (const [a, b] of segs) { const L = Math.hypot(b.x - a.x, b.z - a.z); if (L < 1) continue; const ux = (b.x - a.x) / L, uz = (b.z - a.z) / L;
+    for (let t = rnd() * sets.roadside.step; t < L; t += sets.roadside.step) { if (rnd() > sets.roadside.p) continue; const sd = rnd() < .5 ? -1 : 1, x = a.x + ux * t - uz * sd * sets.roadside.off, z = a.z + uz * t + ux * sd * sets.roadside.off;
+      if (free(x, z, 2.2) && !inB(x, z, 2)) out.push({ t: pick(ROADSIDE), x, z, rot: Math.atan2(ux, uz) + (rnd() - .5) * .6, detail: true }); } }
+  // руины и кладбища: колонны, стены, арки, обломки, плющ; свечи у могил
+  for (const zn of map.cfg.zones || []) {
+    const hw = zn.w ? zn.w / 2 : zn.r || 6, hd = zn.d ? zn.d / 2 : zn.r || 6;
+    const put = (set, lim) => { const n = lim[0] + Math.floor(rnd() * (lim[1] - lim[0] + 1)); for (let i = 0; i < n; i++) { const x = zn.x + (rnd() * 2 - 1) * hw * .9, z = zn.z + (rnd() * 2 - 1) * hd * .9; if (free(x, z) && !inB(x, z, 1.5)) out.push({ t: pick(set), x, z, rot: rnd() * Math.PI * 2, detail: true }); } };
+    if (zn.type === 'ruins' && sets.ruins) put(RUINS, sets.ruins);
+    else if (zn.type === 'graveyard' && sets.grave) put(['candles3', 'candles3', 'torch_d'], sets.grave);
+    else if ((zn.type === 'warcamp' || zn.type === 'bandits') && sets.ruins) put(['armor_rack', 'barrels', 'crates', 'table_set', 'torch_d', 'w_stuck'], sets.ruins);
+  }
+  // места интереса: по биому
+  if (sets.poi) for (const q of map.cfg.pois || []) { const set = BIO[q.bio]; if (!set) continue; const n = sets.poi[0] + Math.floor(rnd() * (sets.poi[1] - sets.poi[0] + 1));
+    for (let i = 0; i < n; i++) { const a = rnd() * Math.PI * 2, r = (q.r || 4) + 1 + rnd() * 3, x = q.x + Math.cos(a) * r, z = q.z + Math.sin(a) * r; if (free(x, z) && !inB(x, z, 1.5)) out.push({ t: pick(set), x, z, rot: rnd() * Math.PI * 2, detail: true }); } }
   return out;
 }
 

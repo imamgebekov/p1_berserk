@@ -83,6 +83,7 @@ if (desk) document.documentElement.setAttribute('data-desk', '');
 const canvas = $('gl');
 let renderer;
 const W = createWorld(cfg);     // мир — до отрисовки: она берёт его карту, а не строит свою (загрузка, 2026-10-28)
+if (new URLSearchParams(location.search).has('showcase')) ['barrel_l', 'keg', 'barrels', 'crates', 'chest_d', 'trunk_d', 'table_set', 'table_broken', 'shelf_d', 'candles3', 'swsh_broken', 'swsh', 'rubble_s', 'rubble_l', 'column_d', 'arch_k', 'arch_q', 'wall_br', 'wall_hf', 'torch_d', 'barrier_d', 'vine', 'fence_q', 'w_lie', 'w_stuck', 'shield_lie', 'armor_lie', 'armor_pole', 'armor_pile', 'armor_rack'].forEach((t, i) => W.map.decor.push({ t, x: 40 + (i % 10) * 4, z: 40 + Math.floor(i / 10) * 5, rot: 0 }));     // ?showcase — витрина новых мелочей у лагеря (2026-10-28)
 try {
   renderer = createRenderer(canvas, cfg, { onText, onHurt, onEvent, preserve: new URLSearchParams(location.search).has('shot'), map: W.map });
   if (cfg.view.smooth) renderer.setDprMax(desk ? cfg.view.smooth.dprMax.desk : cfg.view.smooth.dprMax.phone);
