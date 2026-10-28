@@ -577,6 +577,27 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // второй этаж (2026-10-21): виден мир вокруг, как с первого этажа; этаж — над своим домом на высоте floors.lift
   let liftY = null;
   const bodyCid = new Set();     // этап 3 физики: тела с добычей, что лежат моделью (метка добычи — без значка)
+  // этап 4 физики: наборы обломков (n — кусков, c — цвета, s — размер) и модели бьющихся бочек, ящиков, кувшинов текущего уровня
+  const KIT = { crate: { n: 12, c: ['#6b4a2c', '#4a3220', '#8a643c'], s: .2 }, barrel: { n: 12, c: ['#5a3d26', '#2a2220', '#7a7068'], s: .19 }, jar: { n: 9, c: ['#a0603a', '#8a4a2a', '#c07a50'], s: .14 }, stone: { c: ['#7a756c', '#5e5a52', '#8a857a'] } };
+  const brkMesh = new Map(), brkGeo = { crate: new THREE.BoxGeometry(.8, .7, .8).translate(0, .35, 0), band: new THREE.BoxGeometry(.84, .08, .84).translate(0, .66, 0), barrel: new THREE.CylinderGeometry(.36, .36, .9, 12).translate(0, .45, 0), hoop: new THREE.CylinderGeometry(.385, .385, .07, 12), jar: new THREE.SphereGeometry(.28, 10, 8).translate(0, .3, 0), neck: new THREE.CylinderGeometry(.1, .14, .16, 8).translate(0, .6, 0) };
+  const brkMat = { wood: new THREE.MeshLambertMaterial({ color: '#6b4a2c' }), dark: new THREE.MeshLambertMaterial({ color: '#3a281a' }), stave: new THREE.MeshLambertMaterial({ color: '#5a3d26' }), iron: new THREE.MeshLambertMaterial({ color: '#2a2220' }), clay: new THREE.MeshLambertMaterial({ color: '#a0603a' }) };
+  function brkModel(t) {
+    const g = new THREE.Group(), M = (geo, mat, y = 0) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; m.castShadow = true; g.add(m); };
+    if (t === 'barrel') { M(brkGeo.barrel, brkMat.stave); M(brkGeo.hoop, brkMat.iron, .2); M(brkGeo.hoop, brkMat.iron, .7); }
+    else if (t === 'jar') { M(brkGeo.jar, brkMat.clay); M(brkGeo.neck, brkMat.clay); }
+    else { M(brkGeo.crate, brkMat.wood); M(brkGeo.band, brkMat.dark); }
+    return g;
+  }
+  let brkLvl = null;
+  function brkUpdate(W, dt) {
+    if (brkLvl !== W.lvl) { for (const m of brkMesh.values()) scene.remove(m); brkMesh.clear(); brkLvl = W.lvl; }
+    for (const b of W.map.brk || []) {
+      const key = W.lvl + ':' + b.i; let m = brkMesh.get(key);
+      if (b.gone) { if (m) { scene.remove(m); brkMesh.delete(key); } continue; }
+      if (!m) { m = brkModel(b.t); m.position.set(b.x, Y(b.x, b.z), b.z); m.rotation.y = b.rot; scene.add(m); brkMesh.set(key, m); }
+      if (m.userData.shk > 0) { m.userData.shk -= dt; const k = m.userData.shk / .18; m.rotation.z = Math.sin(m.userData.shk * 60) * .12 * k; } else m.rotation.z = 0;     // дрожь от удара
+    }
+  }
   const GV = cfg.view.ground;     // план физики, этап 1: высота модели догоняет землю (без дрожи на кочках), корпус наклоняется по склону
   function groundY(o, x, z, face, dt) {
     const y = Y(x, z); if (!GV || o.gy === undefined || Math.abs(y - o.gy) > GV.snap) { o.gy = y; o.lean = 0; return y; }
@@ -812,7 +833,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });     // шейдеры с тенями и без — разные
   }
   function setQuality(id, desk, eco) {
-    deskNow = !!desk; qualId = id; const q0 = qualityOf(cfg, id, desk), nq = eco ? { ...q0, grass: Math.min(q0.grass, eco.grass), life: Math.min(q0.life ?? 1, eco.life), shafts: false } : q0, regrow = nq.grass !== Q.grass; Q = nq; resScale = nq.scale; shadowsOn = nq.shadows; setPaintLevel(nq.paint ?? 1);     // экономия заряда — реже трава и жизнь, без столбов света
+    deskNow = !!desk; qualId = id; { const DB = cfg.phys && cfg.phys.debris; fx.debrisCfg(DB && DB.on ? (desk ? DB.max.pc : DB.max.phone) : 0, DB); }     // обломки: предел по устройству (этап 4 физики)
+    const q0 = qualityOf(cfg, id, desk), nq = eco ? { ...q0, grass: Math.min(q0.grass, eco.grass), life: Math.min(q0.life ?? 1, eco.life), shafts: false } : q0, regrow = nq.grass !== Q.grass; Q = nq; resScale = nq.scale; shadowsOn = nq.shadows; setPaintLevel(nq.paint ?? 1);     // экономия заряда — реже трава и жизнь, без столбов света
     if (regrow) for (const k of [...liveLand.keys()]) dropLand(k);     // густота травы — при постройке участка: перестроить
     applyShadows(); resize();
   }
@@ -1039,7 +1061,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       } }
 
     if (!under) { town.update(FL ? FL.map.house : W.inside, dt, W.levels ? W.levels.surface.map : W.map); const sv = views.get('surface'); if (sv && sv.stairs) for (const m of sv.stairs) m.visible = W.inside === m.userData.house; }     // лестница видна изнутри дома (снаружи — крыша)
-    conts.update(W, t, bodyCid);
+    conts.update(W, t, bodyCid); brkUpdate(W, dt);
     // герои сюжета (этап 3): модель жителя своего цвета; над головой «!» — начать сцену, «?» — вернуться
     { const list = under ? [] : storyActors(W), seen = new Set();
       for (const a of list) { seen.add(a.kind); let s = storyNpcs.get(a.kind);
@@ -1216,7 +1238,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'react') { const cs = v.key ? v.key.split('+').map(k => ELEMENT_COLOR[k]) : ['#bfe8ff', '#bfe8ff']; if (v.r) ringFx(v.x, v.z, v.r, cs[0]); burst(v.x, 1.2, v.z, 10, cs[0], 5); burst(v.x, 1.2, v.z, 10, cs[1], 5); hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }     // цвета двух стихий смеси
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
-      else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
+      else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); fx.debris(v.x, .3, v.z, 0, 0, 6, KIT.stone.c, 3 + (v.r || 3) * .6, .14); }     // и камни (этап 4 физики)
       else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { const c = RARITY[BY_ID[v.id].rar].color; fx.flash(v.x, 1.4, v.z, 2.6, c); burst(v.x, 1, v.z, 12, c, 4); }
       else if (v.k === 'sun') { fx.flash(v.x, 1.2, v.z, v.r + 1, '#ffd86a'); burst(v.x, .8, v.z, 18, '#ffd86a', v.r * 1.6); }          // золото (G3b)
       else if (v.k === 'aegisUp' || v.k === 'aegis' || v.k === 'reflect') burst(v.x, 1.1, v.z, v.k === 'aegis' ? 10 : 6, '#f5c542', 2.2);
@@ -1296,8 +1318,11 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'swing') swingFx = 1;
       else if (v.k === 'roll') burst(v.x, .2, v.z, 6, '#6a5a4a', 2.5);
       else if (v.k === 'dodge') hooks.onText && hooks.onText(v.x, 2.6, v.z, 'Уклон!', 'dodge');
-      else if (v.k === 'slam') { fx.burst(v.x, .5, v.z, 14, '#8a7a66', 3.5); fx.ash(v.x, .4, v.z, 6, ['#6a5e50', '#4a4038', '#8a7a66']); fx.decal(v.x, v.z, .9, '#2a241e'); }     // план физики, этап 2: удар о стену — пыль и крошки
+      else if (v.k === 'slam') { fx.debris(v.x, .6, v.z, 0, 0, 4, KIT.stone.c, 2.5, .12); fx.burst(v.x, .5, v.z, 14, '#8a7a66', 3.5); fx.ash(v.x, .4, v.z, 6, ['#6a5e50', '#4a4038', '#8a7a66']); fx.decal(v.x, v.z, .9, '#2a241e'); }     // план физики, этап 2: удар о стену — пыль и крошки
       else if (v.k === 'bump') fx.burst(v.x, .7, v.z, 6, '#9a8a76', 2.5);     // толкнул соседа
+      else if (v.k === 'smash') { const K = KIT[v.t] || KIT.crate; fx.debris(v.x, .45, v.z, v.dx, v.dz, K.n, K.c, 4, K.s); fx.burst(v.x, .4, v.z, 8, '#8a7a66', 2.5); const m = brkMesh.get(W.lvl + ':' + v.i); if (m) m.userData.gone = true; }     // этап 4 физики: разбит — обломки по удару
+      else if (v.k === 'crack') { fx.debris(v.x, 1, v.z, 0, 0, 12, KIT.stone.c, 4, .2); fx.burst(v.x, 1, v.z, 12, '#8a857a', 3); }     // трещина-тайник вскрыта: каменный выброс
+      else if (v.k === 'brkHit') { const m = brkMesh.get(W.lvl + ':' + v.i); if (m) m.userData.shk = .18; fx.debris(v.x, .5, v.z, 0, 0, 2, (KIT[v.t] || KIT.crate).c, 2, .1); }     // треснул: дрожит, пара щепок
       else if (v.k === 'poise') { ringFx(v.x, v.z, 2.2, '#ffd27a'); fx.flash(v.x, 1.4, v.z, 2.4, '#ffd27a'); hooks.onText && hooks.onText(v.x, 3.2, v.z, 'Пробит!', 'crit'); }     // стойкость босса пробита
     }
     W.ev.length = 0;

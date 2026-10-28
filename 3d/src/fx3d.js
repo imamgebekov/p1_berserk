@@ -2,7 +2,7 @@
 // Частицы и пятна — InstancedMesh: сотни штук без лишних вызовов отрисовки (важно для iPhone).
 import * as THREE from 'three';
 
-export function createFx(scene, camera, n = { parts: 400, glow: 300, decals: 64, flashes: 8 }, groundY = () => 0) {
+export function createFx(scene, camera, n = { parts: 400, glow: 300, decals: 64, flashes: 8, debris: 300 }, groundY = () => 0) {
   const dummy = new THREE.Object3D(), col = new THREE.Color(), HIDE = new THREE.Matrix4().makeScale(0, 0, 0);
 
   // ---- частицы: позиция, скорость, жизнь, гравитация, размер ----
@@ -44,6 +44,25 @@ export function createFx(scene, camera, n = { parts: 400, glow: 300, decals: 64,
   function ash(x, y, z, cnt, colors = ['#3a3430', '#58504a', '#2a2420', '#ff8a30']) {
     for (let k = 0; k < cnt; k++) { const a = Math.random() * 6.283, r = Math.random() * .5; emitP(x + Math.cos(a) * r, y + Math.random() * .8, z + Math.sin(a) * r, Math.cos(a) * .6, .6 + Math.random() * 1.2, Math.sin(a) * .6, colors[k % colors.length], .8 + Math.random() * .6, -.8, .1 + Math.random() * .08); }
   }
+
+  // ---- обломки (план физики, этап 4): куски-клинья с вращением, отскоком от земли и трением; лёгшие не считаются; без теней ----
+  const NB = n.debris || 0, Bd = { x: new Float32Array(NB), y: new Float32Array(NB), z: new Float32Array(NB), vx: new Float32Array(NB), vy: new Float32Array(NB), vz: new Float32Array(NB), rx: new Float32Array(NB), ry: new Float32Array(NB), wx: new Float32Array(NB), wy: new Float32Array(NB), life: new Float32Array(NB), s: new Float32Array(NB), rest: new Uint8Array(NB) };
+  const deb = NB ? new THREE.InstancedMesh(new THREE.BoxGeometry(1, .35, .6), new THREE.MeshLambertMaterial({ color: '#fff' }), NB) : null;
+  if (deb) { deb.frustumCulled = false; deb.castShadow = deb.receiveShadow = false; for (let i = 0; i < NB; i++) { deb.setMatrixAt(i, HIDE); deb.setColorAt(i, col.set('#000')); } scene.add(deb); }
+  let bi = 0, bcap = NB, DB = { life: 4, bounce: .35, fric: .6 };
+  // cnt кусков из (x, y, z) веером по (dx, dz) (0, 0 — во все стороны); colors — цвета набора; sp — скорость, size — размер
+  function debris(x, y, z, dx, dz, cnt, colors, sp = 4, size = .18) {
+    if (!deb || !bcap) return; const base = dx || dz ? Math.atan2(dx, dz) : 0, spread = dx || dz ? 1.1 : Math.PI;
+    for (let k = 0; k < cnt; k++) {
+      const i = bi = (bi + 1) % bcap, a = base + (Math.random() - .5) * 2 * spread, v = sp * (.35 + Math.random() * .65);
+      Bd.x[i] = x + (Math.random() - .5) * .3; Bd.y[i] = y + Math.random() * .3; Bd.z[i] = z + (Math.random() - .5) * .3; Bd.vx[i] = Math.sin(a) * v; Bd.vy[i] = 2.5 + Math.random() * 3; Bd.vz[i] = Math.cos(a) * v;
+      Bd.rx[i] = Math.random() * 6.28; Bd.ry[i] = Math.random() * 6.28; Bd.wx[i] = (Math.random() - .5) * 18; Bd.wy[i] = (Math.random() - .5) * 18; Bd.life[i] = DB.life * (.8 + Math.random() * .4); Bd.s[i] = size * (.6 + Math.random() * .8); Bd.rest[i] = 0;
+      deb.setColorAt(i, col.set(colors[k % colors.length]));
+    }
+    deb.instanceColor.needsUpdate = true;
+  }
+  // предел кусков в кадре (телефон меньше) и числа отскока
+  function debrisCfg(cap, o) { if (!deb) return; for (let i = Math.min(cap, NB); i < bcap; i++) { Bd.life[i] = 0; deb.setMatrixAt(i, HIDE); } bcap = Math.min(cap, NB); bi = 0; if (o) DB = { ...DB, ...o }; deb.instanceMatrix.needsUpdate = true; }
 
   // ---- пятна на земле: плоские квадраты, со временем уменьшаются и исчезают ----
   const ND = n.decals, D = { x: new Float32Array(ND), z: new Float32Array(ND), r: new Float32Array(ND), sx: new Float32Array(ND), sz: new Float32Array(ND), life: new Float32Array(ND), y: new Float32Array(ND) };
@@ -92,6 +111,22 @@ export function createFx(scene, camera, n = { parts: 400, glow: 300, decals: 64,
       dummy.position.set(D.x[i], D.y[i], D.z[i]); dummy.rotation.set(0, D.r[i], 0); dummy.scale.set(D.sx[i] * k, 1, D.sz[i] * k); dummy.updateMatrix(); decals.setMatrixAt(i, dummy.matrix);
     }
     decals.instanceMatrix.needsUpdate = true;
+    if (deb) { let ch = false;
+      for (let i = 0; i < bcap; i++) {
+        if (Bd.life[i] <= 0) continue;
+        Bd.life[i] -= dt; if (Bd.life[i] <= 0) { deb.setMatrixAt(i, HIDE); ch = true; continue; }
+        if (Bd.rest[i] && Bd.life[i] > .6) continue;     // лёг — матрица та же, пока не начал таять
+        if (!Bd.rest[i]) {
+          Bd.vy[i] -= 14 * dt; Bd.x[i] += Bd.vx[i] * dt; Bd.y[i] += Bd.vy[i] * dt; Bd.z[i] += Bd.vz[i] * dt; Bd.rx[i] += Bd.wx[i] * dt; Bd.ry[i] += Bd.wy[i] * dt;
+          const gy = groundY(Bd.x[i], Bd.z[i]) + Bd.s[i] * .18;
+          if (Bd.y[i] < gy) { Bd.y[i] = gy; if (Bd.vy[i] < 0) Bd.vy[i] *= -DB.bounce; Bd.vx[i] *= DB.fric; Bd.vz[i] *= DB.fric; Bd.wx[i] *= DB.fric; Bd.wy[i] *= DB.fric;
+            if (Math.abs(Bd.vy[i]) < .7 && Math.hypot(Bd.vx[i], Bd.vz[i]) < .35) { Bd.rest[i] = 1; Bd.vy[i] = 0; Bd.rx[i] = Math.round(Bd.rx[i] / Math.PI) * Math.PI; } }     // лёг плашмя
+        }
+        const k = Math.min(1, Bd.life[i] / .6), s = Bd.s[i] * k;
+        dummy.position.set(Bd.x[i], Bd.y[i], Bd.z[i]); dummy.rotation.set(Bd.rx[i], Bd.ry[i], 0); dummy.scale.set(s, s, s); dummy.updateMatrix(); deb.setMatrixAt(i, dummy.matrix); ch = true;
+      }
+      if (ch) deb.instanceMatrix.needsUpdate = true;
+    }
     for (const m of flashes) if (m.visible) {
       const u = m.userData; u.t -= dt; if (u.t <= 0) { m.visible = false; continue; }
       const k = u.t / .1; m.quaternion.copy(camera.quaternion); m.scale.setScalar(u.s * (1.4 - .6 * k)); m.material.opacity = k * .9;
@@ -102,9 +137,10 @@ export function createFx(scene, camera, n = { parts: 400, glow: 300, decals: 64,
     for (let i = 0; i < NP; i++) { P.life[i] = 0; parts.setMatrixAt(i, HIDE); }
     if (glow) { for (let i = 0; i < NG; i++) { Gp.life[i] = 0; glow.setMatrixAt(i, HIDE); } glow.instanceMatrix.needsUpdate = true; }
     for (let i = 0; i < ND; i++) { D.life[i] = 0; decals.setMatrixAt(i, HIDE); }
+    if (deb) { for (let i = 0; i < NB; i++) { Bd.life[i] = 0; deb.setMatrixAt(i, HIDE); } deb.instanceMatrix.needsUpdate = true; }
     parts.instanceMatrix.needsUpdate = decals.instanceMatrix.needsUpdate = true;
     for (const m of flashes) m.visible = false;
   }
-  const live = () => { let a = 0, b = 0; for (let i = 0; i < NP; i++) if (P.life[i] > 0) a++; for (let i = 0; i < NG; i++) if (Gp.life[i] > 0) a++; for (let i = 0; i < ND; i++) if (D.life[i] > 0) b++; return { parts: a, decals: b }; };
-  return { burst, spray, ash, decal, flash, update, clear, live, emit };
+  const live = () => { let a = 0, b = 0; for (let i = 0; i < NP; i++) if (P.life[i] > 0) a++; for (let i = 0; i < NG; i++) if (Gp.life[i] > 0) a++; for (let i = 0; i < ND; i++) if (D.life[i] > 0) b++; let c = 0; for (let i = 0; i < NB; i++) if (Bd.life[i] > 0) c++; return { parts: a, decals: b, debris: c }; };
+  return { burst, spray, ash, decal, flash, update, clear, live, emit, debris, debrisCfg };
 }

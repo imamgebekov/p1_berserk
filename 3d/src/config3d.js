@@ -1520,7 +1520,13 @@ const BASE = {
     // этап 3 — тела: убивающий удар толкает тело (скорость отлёта ×carry), оно скользит с трением fric и замирает у стены;
     // лежит life с (с добычей — пока она есть); в кадре не больше max тел (low — на «Низком» качестве), лишнее уходит в землю за sink с;
     // keep — сколько тел помнит бой; freeze — через столько с анимация тела замирает
-    body: { on: true, carry: 1.3, fric: 6, life: 90, keep: 24, max: { phone: 6, pc: 16, low: 3 }, sink: .8, freeze: 2.5 }
+    body: { on: true, carry: 1.3, fric: 6, life: 90, keep: 24, max: { phone: 6, pc: 16, low: 3 }, sink: .8, freeze: 2.5 },
+    // этап 4 — бьющиеся бочки, ящики, кувшины в залах подземелий: зал с ними — с шансом room, по n штук у стен (не ближе linkGap к проходу,
+    // gap — к другим препятствиям); kind — радиус и запас ударов (тяжёлый удар — за два); внутри — пепел ash и с шансом item расходник из items
+    // debris — обломки: в кадре не больше max (телефон, ПК), живут life с, отскок bounce, трение fric
+    brk: { on: true, room: .55, n: [1, 3], linkGap: 2.6, gap: .5, kinds: ['crate', 'barrel', 'jar', 'crate', 'barrel'], kind: { crate: { r: .45, hp: 2 }, barrel: { r: .4, hp: 2 }, jar: { r: .28, hp: 1 } },
+      ash: [2, 8], item: .35, items: ['f_crust', 'f_rusk', 'f_berries', 'h_rag_bandage', 'p_heal1'] },
+    debris: { on: true, max: { phone: 120, pc: 300 }, life: 4, bounce: .35, fric: .6 }
   },
 
   enemies: {

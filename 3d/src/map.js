@@ -174,7 +174,8 @@ export function resolve(map, o, r) {
   for (const i of N.k) if (pushOut(o, r, map.blocks[i])) hit = true;                 // стены подземелий и частокол
   for (const i of N.d) { const d = map.doors[i]; if (d.open < .6 && pushOut(o, r, d.rect)) hit = true; }   // закрытые двери подземелий
   for (const i of N.s) {
-    const q = map.solids[i], dx = o.x - q.x, dz = o.z - q.z, d = Math.hypot(dx, dz), m = q.r + r;
+    const q = map.solids[i]; if (q.gone) continue;     // разбитая бочка или ящик (план физики, этап 4)
+    const dx = o.x - q.x, dz = o.z - q.z, d = Math.hypot(dx, dz), m = q.r + r;
     if (d < m) { hit = true; if (d > 1e-9) { o.x = q.x + dx / d * m; o.z = q.z + dz / d * m; } else o.x += m; }
   }
   if (map.river && N.w.length && pushWater(map.river, o, r, N.w)) hit = true;     // река (мосты — проходимы)

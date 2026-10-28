@@ -9,7 +9,7 @@ const fx = createFx(scene, camera);
 const run = (sec, dt = 1 / 60) => { for (let i = 0; i < Math.round(sec / dt); i++) fx.update(dt); };
 const parts = scene.children.find(o => o.isInstancedMesh && o.count === 400), glow = scene.children.find(o => o.isInstancedMesh && o.count === 300), decals = scene.children.find(o => o.isInstancedMesh && o.count === 64);
 ok(parts && glow && decals, 'частицы, свечение (V1) и пятна — по одному InstancedMesh');
-ok(scene.children.filter(o => o.isInstancedMesh).length === 3, 'лишних InstancedMesh нет');
+ok(scene.children.filter(o => o.isInstancedMesh).length === 4, 'лишних InstancedMesh нет (частицы, свечение, пятна, обломки)');
 ok(glow.material.blending === THREE.AdditiveBlending && !glow.material.depthWrite, 'свечение не аддитивное');
 
 fx.spray(0, 1.1, 0, 1, 0, 12, '#a1121f', 7, .75); fx.burst(0, 1, 0, 8, '#fff'); fx.ash(0, .6, 0, 16);
@@ -39,6 +39,14 @@ fx.update(1 / 60);
 fx.flash(0, 1, 0, 1, '#fff'); fx.clear();
 ok(fx.live().parts === 0 && fx.live().decals === 0, 'clear не стёр эффекты');
 ok(scene.children.filter(o => o.isMesh && !o.isInstancedMesh).every(o => !o.visible), 'clear не спрятал вспышки');
+
+// обломки (план физики, этап 4): один InstancedMesh; куски падают, отскакивают и ложатся не под землю; предел по устройству; clear стирает
+{ const deb = scene.children.find(o => o.isInstancedMesh && o.count === 300 && o.material.isMeshLambertMaterial); ok(!!deb && !deb.castShadow, 'обломки — отдельный InstancedMesh без теней');
+  fx.clear(); fx.debris(0, .5, 0, 1, 0, 40, ['#6b4a2c', '#4a3220'], 4, .2); ok(fx.live().debris === 40, 'выпущено 40 обломков: ' + fx.live().debris);
+  run(1.5); let low = 0, sx = 0, n = 0; for (let i = 0; i < deb.count; i++) { deb.getMatrixAt(i, m); v.setFromMatrixPosition(m); if (v.lengthSq() === 0) continue; n++; sx += v.x; if (v.y < 0) low++; }
+  ok(n === 40 && low === 0, `обломки под землёй: ${low} из ${n}`); ok(sx / n > .3, 'обломки летят не по удару');
+  fx.debrisCfg(120); fx.debris(0, .5, 0, 0, 0, 200, ['#777'], 3, .2); ok(fx.live().debris <= 120, 'предел телефона не держится: ' + fx.live().debris);
+  run(6); ok(fx.live().debris === 0, 'обломки не исчезают за life'); fx.debrisCfg(300); fx.debris(0, .5, 0, 0, 0, 10, ['#777']); fx.clear(); ok(fx.live().debris === 0, 'clear не стёр обломки'); }
 
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Эффекты боя 3D: OK');
