@@ -187,6 +187,13 @@ export function setHeroic(W, id, on) {
   return true;
 }
 export function eclipseGo(W, week) { const q = portalNear(W); return q && q.abyssEnter ? abyssGo(W, q, travel, spawnFoes, week) : false; }     // «Затмение недели» (этап 6 «круче»)
+// план физики, этап 6: кнопка лестницы — сначала проход по ступеням (phys.stairs.walk с, без управления; sim.js), потом переход; Бездна — сразу
+export function walkPortal(W) {
+  const q = portalNear(W), S = W.cfg.phys && W.cfg.phys.stairs; if (!q) return false;
+  if (!S || !S.on || q.abyssEnter || q.abyssNext) return usePortal(W);
+  if (!W.player.stair) W.player.stair = { q, t: 0, T: S.walk, up: !!(q.up || (q.stair && !q.down)), h: q.stair ? W.cfg.map.floors.lift || 2.6 : 1.2 };
+  return true;
+}
 export function usePortal(W) { const q = portalNear(W); if (q && (q.abyssEnter || q.abyssNext)) return abyssGo(W, q, travel, spawnFoes); return q ? travel(W, q.to, q.tx, q.tz) : false; }
 
 // после смерти герой встаёт у костра: возвращаем его на поверхность

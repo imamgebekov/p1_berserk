@@ -1,9 +1,11 @@
 // Физика боя (план физики, 2026-10-25), этап 1 — движение героя: разгон как раньше, торможение длиннее, резкий разворот
 // придерживает скорость, путь переката как раньше и не зависит от частоты кадров; выключено (phys.move.on: false) — как раньше.
 import { CFG3 } from '../3d/src/config3d.js';
-import { createWorld, step, mulberry32, spawnEnemy, abilityHit, hurtPlayer, killEnemy } from '../3d/src/sim.js';
+import { createWorld, step, mulberry32, spawnEnemy, abilityHit, hurtPlayer, killEnemy, travel } from '../3d/src/sim.js';
 import { applyStatus } from '../3d/src/status3d.js';
-import { waterDist, onBridge } from '../3d/src/terrain3d.js';
+import { waterDist, onBridge, heightAt } from '../3d/src/terrain3d.js';
+import { slopeK } from '../3d/src/phys3d.js';
+import { walkPortal } from '../3d/src/levels3d.js';
 import { rollK } from '../3d/src/phys3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const M = CFG3.phys.move, P = CFG3.player, K = CFG3.phys.knock;
@@ -122,5 +124,29 @@ const WT = CFG3.phys.water;
   // 16. выключено — в реку не зайти, как раньше
   W.cfg.phys.water.on = false; put(rv.w / 2 + 2); run(W, 3, { mx: -nx, mz: -nz }); ok(waterDist(rv, p.x, p.z, false) > -.05, 'выключено, а в реку можно зайти'); W.cfg.phys.water.on = true; }
 
+// ---------- этап 6: склоны, обрывы, лестницы ----------
+const SL = CFG3.phys.slope, CF = CFG3.phys.cliff;
+// 17. склон: вверх медленнее, вниз быстрее, ровно — как было, не дальше ±max
+{ const up = slopeK(SL, (x, z) => x * .3, 0, 0, 1, 0), dn = slopeK(SL, (x, z) => x * .3, 0, 0, -1, 0), fl = slopeK(SL, () => 0, 0, 0, 1, 0), st = slopeK(SL, (x, z) => x * 5, 0, 0, 1, 0);
+  ok(Math.abs(up - (1 - SL.up * .3)) < 1e-6 && Math.abs(dn - (1 + SL.down * .3)) < 1e-6 && fl === 1 && Math.abs(st - (1 - SL.max)) < 1e-9, `склон: вверх ${up.toFixed(3)}, вниз ${dn.toFixed(3)}, ровно ${fl}, круто ${st.toFixed(3)}`); }
+// 18. в бою: вверх по въезду плато медленнее, чем вниз
+{ const W = mk(), P = W.map.plateaus[0], a = P.ramps[0], p = W.player, foot = { x: P.x + Math.sin(a) * (P.r + P.len * .9), z: P.z + Math.cos(a) * (P.r + P.len * .9) }, top = { x: P.x + Math.sin(a) * (P.r * .6), z: P.z + Math.cos(a) * (P.r * .6) };
+  const go = (A, B) => { Object.assign(p, { x: A.x, z: A.z, vx: 0, vz: 0, state: 'idle' }); const dx = B.x - A.x, dz = B.z - A.z, l = Math.hypot(dx, dz); run(W, .8, { mx: dx / l, mz: dz / l }); return Math.hypot(p.x - A.x, p.z - A.z); };
+  const upD = go(foot, top), dnD = go(top, foot); ok(upD < dnD * .97, `въезд на плато: вверх ${upD.toFixed(2)} м, вниз ${dnD.toFixed(2)} м за 0,8 с`); }
+// 19. обрыв: с края (не у въезда) жмёт наружу — спрыгивает вниз; снизу на плато не залезть; отброшенный враг падает с края
+{ const W = mk(), P = W.map.plateaus[0], p = W.player, a = P.ramps[0] + Math.PI / 2 + .3, ux = Math.sin(a), uz = Math.cos(a);
+  Object.assign(p, { x: P.x + ux * (P.r - 1.5), z: P.z + uz * (P.r - 1.5), vx: 0, vz: 0, state: 'idle', fall: null }); W.ev.length = 0; let jumped = false, landed = false;
+  for (let i = 0; i < 90; i++) { step(W, 1 / 60, { mx: ux, mz: uz }); if (p.fall) jumped = true; if (W.ev.some(v => v.k === 'land')) landed = true; W.ev.length = 0; }
+  const d = Math.hypot(p.x - P.x, p.z - P.z); ok(jumped && landed && d > P.r + .3, `не спрыгнул с обрыва: ${d.toFixed(2)} м от центра (край ${P.r.toFixed(2)})`);
+  Object.assign(p, { x: P.x + ux * (P.r + 2), z: P.z + uz * (P.r + 2), vx: 0, vz: 0, state: 'idle', fall: null, landT: 0 }); run(W, 1.5, { mx: -ux, mz: -uz });
+  ok(Math.hypot(p.x - P.x, p.z - P.z) > P.r, 'снизу залез на плато через обрыв');
+  clear(W); Object.assign(p, { x: P.x + ux * (P.r - 4), z: P.z + uz * (P.r - 4), vx: 0, vz: 0, fall: null }); const e = foe(W, 'imp', P.x + ux * (P.r - 1.2), P.z + uz * (P.r - 1.2)); applyStatus(W, e, 'stun', 0, 5);
+  e.vx = ux * 8; e.vz = uz * 8; let ef = false; for (let i = 0; i < 40; i++) { step(W, 1 / 60, {}); if (e.fall) ef = true; }
+  ok(ef && Math.hypot(e.x - P.x, e.z - P.z) > P.r + .3, 'отброшенный враг не упал с обрыва'); }
+// 20. лестница дома: кнопка — проход по ступеням без перехода, переход — после walk с
+{ const W = mk(), p = W.player, q = W.map.portals.find(o => o.stair); Object.assign(p, { x: q.x + .3, z: q.z, vx: 0, vz: 0, state: 'idle', fall: null }); step(W, 1 / 60, {});
+  const lv0 = W.lvl; ok(walkPortal(W) && W.lvl === lv0 && p.stair, 'лестница: переход сразу, без ступеней');
+  run(W, CFG3.phys.stairs.walk * .8, { mx: 1 }); ok(W.lvl === lv0, 'переход раньше конца ступеней'); run(W, CFG3.phys.stairs.walk * .5 + .05); ok(W.lvl !== lv0 && !p.stair, `после ступеней не перешёл: ${W.lvl}`); travel(W, 'surface', home.x, home.z); }
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
-console.log('Физика боя 3D (движение, отбрасывание, тела, вода): OK');
+console.log('Физика боя 3D (движение, отбрасывание, тела, вода, склоны, обрывы, лестницы): OK');

@@ -20,9 +20,9 @@ import { restock } from './economy3d.js';
 import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
 import { useSlot, dashStep, tickAbilities } from './abilities3d.js';
 import { abilityPointsAt } from './data/abilities3d.js';
-import { waterDist, inStream } from './terrain3d.js';
+import { waterDist, inStream, buildHeights, heightAt } from './terrain3d.js';
 import { pathGoal } from './path3d.js';
-import { inCliff } from './cliffs3d.js';
+import { inCliff, WALL } from './cliffs3d.js';
 import { firesOf, discoverFires } from './fires3d.js';
 import { addFires, campAt } from './map.js';
 import { BY_ID, CATALOG } from './data/items.js';
@@ -49,7 +49,7 @@ import { affixFor, gemsFor } from './affix3d.js';
 import { partyTravel } from './party3d.js';
 import { wearHit, wearHurt, wearDeath, repairKit } from './dur3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
-import { physMove, rollK, moveStep, physKnock, foeMass, knockV, poiseHit, slammed, chainBump, hurtKnock, physBody, bodyOf, tickBodies, physWater, waterAt } from './phys3d.js';
+import { physMove, rollK, moveStep, physKnock, foeMass, knockV, poiseHit, slammed, chainBump, hurtKnock, physBody, bodyOf, tickBodies, physWater, waterAt, physSlope, slopeK } from './phys3d.js';
 import { smashArc } from './brk3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe, roomAt } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
@@ -404,6 +404,21 @@ export function killEnemy(W, e, share) {
   if (e.grp) campKill(W, e);     // после тела: награда лежит у костра, а не в теле
 }
 
+// план физики, этап 6: у края плато (не у въезда) и жмёт наружу — куда приземлиться внизу; иначе null
+function edgeOf(PL, o, r, mx, mz) {
+  for (const P of PL) {
+    const dx = o.x - P.x, dz = o.z - P.z, d = len(dx, dz); if (d >= P.r || d < P.r - WALL / 2 - r - .2) continue;
+    const ux = dx / d, uz = dz / d; if (mx * ux + mz * uz < .7 || !inCliff(PL, P.x + ux * P.r, P.z + uz * P.r)) continue;
+    const to = P.r + WALL / 2 + r + .5; return { x: P.x + ux * to, z: P.z + uz * to };
+  }
+  return null;
+}
+// план физики, этап 6: склон — множитель скорости; высоты земли — лениво, только на поверхности (как у рендера: buildHeights)
+function slopeAt(W, x, z, ux, uz, moving) {
+  const S = physSlope(W.cfg); if (!S || !moving || !onSurface(W)) return 1;
+  const hf = W.hfS || (W.hfS = buildHeights(W.cfg, W.levels ? W.levels[SURFACE].map : W.map)); if (hf.flat) return 1;
+  return slopeK(S, (a, b) => heightAt(hf, a, b), x, z, ux, uz);
+}
 // план физики, этап 3: тело падает по удару — лицом к удару (клип смерти валит назад), скорость удара ×carry
 function fallFace(W, e) { const B = physBody(W.cfg); if (!B) return; e.vx *= B.carry; e.vz *= B.carry; if (len(e.vx, e.vz) > .5) e.face = Math.atan2(-e.vx, -e.vz); const sc = W.cfg.enemies[e.type].scale || 1; if (sc > 1.4) W.shake = Math.max(W.shake, W.cfg.fx.shake * .5 * sc); }     // тяжёлое тело трясёт землю
 // убийство ботом (этап 5 «живого мира»): смерть, тело с добычей (бот его залутает), лагерь врагов считает; герою — ни опыта, ни заданий
@@ -756,6 +771,16 @@ function attackHit(W, mult = 1, echo = false) {
 function updatePlayer(W, dt, input) {
   const p = W.player, P = W.cfg.player;
   if (p.dead) { p.deadT += dt; p.vx = p.vz = 0; return; }
+  if (p.fall) {     // план физики, этап 6: полёт с обрыва — без управления, по прямой от края вниз
+    const F = p.fall; F.t += dt; const k = Math.min(1, F.t / F.T); p.x = F.x0 + (F.x1 - F.x0) * k; p.z = F.z0 + (F.z1 - F.z0) * k; p.vx = p.vz = 0;
+    if (k >= 1) { p.fall = null; p.state = 'idle'; p.landT = W.cfg.phys.cliff.land; W.shake = Math.max(W.shake, W.cfg.fx.shake * .6); W.ev.push({ k: 'land', x: p.x, z: p.z }); }
+    return;
+  }
+  if (p.stair) {     // проход по ступеням к лестнице (walkPortal), потом переход — в начале следующего шага
+    const Sg = p.stair; Sg.t += dt; const dx = Sg.q.x - p.x, dz = Sg.q.z - p.z, d = len(dx, dz); p.vx = p.vz = 0; if (d > .05) { const s = Math.min(d, 2 * dt); p.x += dx / d * s; p.z += dz / d * s; p.face = Math.atan2(dx, dz); }
+    if (Sg.t >= Sg.T) W.portalGo = true; return;
+  }
+  if (p.landT > 0) p.landT -= dt;
   if (p.inv > 0) p.inv -= dt;
   if (p.rollCd > 0) p.rollCd -= dt;
   if (p.dodgeCd > 0) p.dodgeCd -= dt;
@@ -817,7 +842,7 @@ function updatePlayer(W, dt, input) {
     // бег с разгоном; при ударе медленнее
     const PWm = physWater(W.cfg), wet = W.map.river && (inStream(W.map.river, p.x, p.z) || (PWm && p.inW > 0));     // ручей (2026-10-18): медленнее, горение гаснет
     if (wet && W.pst.burn) { delete W.pst.burn; W.ev.push({ k: 'douse', x: p.x, z: p.z }); }
-    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd + relicSpd(W), -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (PWm && p.inW > 0 ? 1 - (1 - PWm.deepSlow) * p.inW : wet ? W.cfg.water.slow : 1) * (W.bossRoom && W.bossRoom.kind === 'flood' && W.bossRoom.lvl === W.lvl ? W.cfg.bosses.room.flood : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
+    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd + relicSpd(W), -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (PWm && p.inW > 0 ? 1 - (1 - PWm.deepSlow) * p.inW : wet ? W.cfg.water.slow : 1) * slopeAt(W, p.x, p.z, mx, mz, moving) * (p.landT > 0 ? W.cfg.phys.cliff.landSlow : 1) * (W.bossRoom && W.bossRoom.kind === 'flood' && W.bossRoom.lvl === W.lvl ? W.cfg.bosses.room.flood : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
     const tx = moving ? mx * sp : 0, tz = moving ? mz * sp : 0;
     const MV = physMove(W.cfg);
     if (MV) moveStep(p, tx, tz, dt, P.accel, MV, moving, sp);     // план физики, этап 1: торможение и разворот
@@ -833,6 +858,9 @@ function updatePlayer(W, dt, input) {
   slide(W.map, p, p.vx * dt, p.vz * dt, P.radius);
   { const PW = physWater(W.cfg), WA = PW && W.map.river ? waterAt(W.map.river, p.x, p.z, PW) : null; p.inW = WA ? WA.dk : 0;     // план физики, этап 5: глубина и течение
     if (WA && (WA.fx || WA.fz) && p.state !== 'dash') slide(W.map, p, WA.fx * dt, WA.fz * dt, P.radius); }
+  { const CL = W.cfg.phys && W.cfg.phys.cliff, PL = W.map.plateaus, E = CL && CL.on && PL && PL.length && moving && (p.state === 'run' || p.state === 'idle') ? edgeOf(PL, p, P.radius, mx, mz) : null;     // план физики, этап 6: спрыгнуть с плато
+    p.edgeT = E ? (p.edgeT || 0) + dt : 0;
+    if (E && p.edgeT >= CL.hold) { p.edgeT = 0; p.fall = { t: 0, T: CL.fall, x0: p.x, z0: p.z, x1: E.x, z1: E.z }; p.state = 'idle'; W.ev.push({ k: 'jump', x: p.x, z: p.z }); } }
   keepIn(W.map, p, W.cfg.world.radius, wcOf(W.cfg));
   W.inside = insideOf(W.map, p.x, p.z);
 }
@@ -869,8 +897,10 @@ function updateEnemies(W, dt) {
     const PWe = physWater(W.cfg), EW = PWe && e.alert && W.map.river ? waterAt(W.map.river, e.x, e.z, PWe) : null; e.inW = EW ? EW.dk : 0;     // план физики, этап 5: проснувшийся враг в воде — медленнее, течение сносит
     const ws = W.map.river && W.map.river.streams && W.map.river.streams.length && inStream(W.map.river, e.x, e.z);     // враг в ручье: медленнее и мокрый
     if (ws && W.cfg.elements.react && !(e.st && e.st.wet && e.st.wet.t > 1)) applyStatus(W, e, 'wet', 0, W.cfg.elements.mark.wet);
-    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1) * (e.hasteT > 0 ? e.haste || 1 : 1) * (EW ? 1 - (1 - PWe.deepSlow) * EW.dk : ws ? W.cfg.water.slow : 1);
+    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1) * (e.hasteT > 0 ? e.haste || 1 : 1) * (EW ? 1 - (1 - PWe.deepSlow) * EW.dk : ws ? W.cfg.water.slow : 1) * (e.alert && d < (W.cfg.phys.slope || {}).foeR ? slopeAt(W, e.x, e.z, dx, dz, true) : 1);
+    if (e.fall) { const F = e.fall; F.t += dt; const k = Math.min(1, F.t / F.T); e.x = F.x0 + (F.x1 - F.x0) * k; e.z = F.z0 + (F.z1 - F.z0) * k; if (k >= 1) { e.fall = null; applyStatus(W, e, 'stun', 0, W.cfg.phys.cliff.land * 2); W.ev.push({ k: 'land', x: e.x, z: e.z, foe: true }); } continue; }     // план физики, этап 6: сброшен с обрыва
     const KN = physKnock(W.cfg), ks = len(e.vx, e.vz), kx0 = e.x, kz0 = e.z;
+    { const CL = W.cfg.phys && W.cfg.phys.cliff; if (CL && CL.on && !e.boss && ks > CL.v && W.map.plateaus && W.map.plateaus.length) { const E = edgeOf(W.map.plateaus, e, C.radius, e.vx / ks, e.vz / ks); if (E) { e.fall = { t: 0, T: CL.fall, x0: e.x, z0: e.z, x1: E.x, z1: E.z }; e.vx = e.vz = 0; continue; } } }     // отброшен с края — падает
     slide(W.map, e, e.vx * dt, e.vz * dt, C.radius);
     if (KN) { if (e.slamCd > 0) e.slamCd -= dt; if (e.chainT > 0) e.chainT -= dt; }
     if (KN && KN.slam && !(e.slamCd > 0) && slammed(KN.slam, ks, ks * dt, len(e.x - kx0, e.z - kz0))) {     // план физики, этап 2: удар о стену
@@ -1184,6 +1214,7 @@ export function step(W, dt, input = {}) {
   if (!(dt > 0)) return;                                          // нулевой или отрицательный шаг (первый кадр rAF) ничего не двигает
   W.t += dt; const ev0 = W.ev.length;
   if (W.map.river) { const PW = physWater(W.cfg); W.map.river.ford = PW ? PW.ford : 0; }     // план физики, этап 5: брод у берега
+  if (W.portalGo) { W.portalGo = false; const q = W.player.stair && W.player.stair.q; W.player.stair = null; if (q) travel(W, q.to, q.tx, q.tz); }     // этап 6: прошёл по ступеням — переход
   { const D = W.cfg.daynight, n = isNight(W.t, D); W.light = lightOf(W.t, D); if (n !== W.night) { W.night = n; W.ev.push({ k: n ? 'dusk' : 'dawn' }); } }
   if (W.storyDark) W.light = Math.min(W.light, .06);     // Затмение (этап 7): солнце чернеет
   for (let i = W.buffs.length - 1; i >= 0; i--) { W.buffs[i].t -= dt; if (W.buffs[i].t <= 0) W.buffs.splice(i, 1); }

@@ -589,6 +589,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     return g;
   }
   let brkLvl = null;
+  // этап 6 физики: полёт с обрыва — дуга от высоты края к земле внизу (подскок hop), после приземления высота без рывка
+  function fallY(o, a, y) {
+    if (!a.fall) { if (o.fallOn) { o.fallOn = false; o.gy = y; } return y; }
+    const F = a.fall, k = Math.min(1, F.t / F.T); if (!o.fallOn) { o.fallOn = true; o.fy0 = o.gy ?? y; }
+    const y1 = Y(F.x1, F.z1); return o.fy0 + (y1 - o.fy0) * k * k + 2 * k * (1 - k);
+  }
   // этап 5 физики: брызги из-под ног по шагу и круги на воде (пул колец, без теней)
   const WY = cfg.terrain && cfg.terrain.on ? cfg.terrain.water : .02, rings = [], RING_N = 24; let ringI = 0;
   for (let i = 0; i < RING_N; i++) { const m = new THREE.Mesh(new THREE.RingGeometry(.28, .34, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#e8f4ff', transparent: true, opacity: 0, depthWrite: false })); m.visible = false; m.userData.t = 0; scene.add(m); rings.push(m); }
@@ -1130,7 +1136,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ap.needsUpdate = true; ash.position.set(cam.x, 0, cam.z);
 
     // герой
-    const py = liftY ?? groundY(hero, p.x, p.z, p.face, dt); hero.group.position.set(p.x, py + (p.hopY || 0), p.z); if (hero.group.rotation.order !== 'YXZ') hero.group.rotation.order = 'YXZ'; hero.group.rotation.x = liftY == null && !(W.life && W.life.mount.on) ? hero.lean || 0 : 0;     // Г8: прыжок Бесогона поднимает героя
+    const py = fallY(hero, p, liftY ?? groundY(hero, p.x, p.z, p.face, dt)) + (p.stair ? (p.stair.up ? 1 : -1) * p.stair.h * .9 * Math.min(1, p.stair.t / p.stair.T) : 0); hero.group.position.set(p.x, py + (p.hopY || 0), p.z); if (hero.group.rotation.order !== 'YXZ') hero.group.rotation.order = 'YXZ'; hero.group.rotation.x = liftY == null && !(W.life && W.life.mount.on) ? hero.lean || 0 : 0;     // Г8: прыжок Бесогона поднимает героя     // этап 6 физики: дуга с обрыва, ступени
     { const ms = W.abuf && W.abuf.morph > 0 ? W.abuf.morphScale || 1.2 : 1, s0 = hero.group.scale.x; if (Math.abs(s0 - ms) > .001) hero.group.scale.setScalar(s0 + (ms - s0) * Math.min(1, dt * 6)); }     // облик демона — крупнее
     asciiLamp.visible = asciiOn && !under; if (asciiLamp.visible) asciiLamp.position.set(p.x, py + 2.6, p.z); { const BL = cfg.view.blend, early = p.state === 'atk' && p.atkT < cfg.player.attackHitAt * .6; hero.group.rotation.y = BL && hero.yawInit ? dampAngle(hero.group.rotation.y, p.face, early ? BL.yawWind : BL.yawHero, dt) : p.face; hero.yawInit = true; }     // поворот модели — плавно (шаг 3)
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel'); if (hero.wkey !== rimKey) { rimKey = hero.wkey; rimify(hero.group, RS && RS.hero); } }
@@ -1161,7 +1167,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       let en = entity(e);
       if (!en.m.gltf && !e.dead && (en.swapT = (en.swapT || 0) - dt) <= 0) { en.swapT = 1; const fk = actorKey(cfg, 'foe', e.type); if (fk && actorReady(fk)) { dropEnt(e.id, en); en = entity(e); } }     // готовая модель пришла позже — пересобрать
       if (en.hid) { en.hid = false; en.m.group.visible = en.sh.visible = en.ring.visible = true; }
-      const ey = groundY(en, e.x, e.z, e.face, dt); en.m.group.position.set(e.x, ey, e.z); if (en.m.group.rotation.order !== 'YXZ') en.m.group.rotation.order = 'YXZ'; en.m.group.rotation.x = e.dead ? 0 : en.lean || 0; if (!en.yawInit || !cfg.view.blend) en.m.group.rotation.y = e.face; else if (!e.dead || e.deadT < .3) en.m.group.rotation.y = dampAngle(en.m.group.rotation.y, e.face, e.state === 'dash' || e.dead ? cfg.view.blend.hit : cfg.view.blend.yawFoe, dt); en.yawInit = true;     // поворот — плавно (шаг 3), мёртвый — только к удару (этап 3 физики)
+      const ey = fallY(en, e, groundY(en, e.x, e.z, e.face, dt)); en.m.group.position.set(e.x, ey, e.z); if (en.m.group.rotation.order !== 'YXZ') en.m.group.rotation.order = 'YXZ'; en.m.group.rotation.x = e.dead ? 0 : en.lean || 0; if (!en.yawInit || !cfg.view.blend) en.m.group.rotation.y = e.face; else if (!e.dead || e.deadT < .3) en.m.group.rotation.y = dampAngle(en.m.group.rotation.y, e.face, e.state === 'dash' || e.dead ? cfg.view.blend.hit : cfg.view.blend.yawFoe, dt); en.yawInit = true;     // поворот — плавно (шаг 3), мёртвый — только к удару (этап 3 физики)
       { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
       if (en.m.gltf) { driveFoe(en.m, e, t, dt, cfg); en.m.flash(e.flash > 0 ? .9 : 0, e.st && !e.dead ? (e.st.freeze ? [.04, .22, .45] : e.st.burn ? [.5, .16, 0] : e.st.poison ? [0, .3, .04] : null) : null); }
       else animateMonster(en.m, e, t, cfg, p.x, p.z);
@@ -1327,6 +1333,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'dodge') hooks.onText && hooks.onText(v.x, 2.6, v.z, 'Уклон!', 'dodge');
       else if (v.k === 'slam') { fx.debris(v.x, .6, v.z, 0, 0, 4, KIT.stone.c, 2.5, .12); fx.burst(v.x, .5, v.z, 14, '#8a7a66', 3.5); fx.ash(v.x, .4, v.z, 6, ['#6a5e50', '#4a4038', '#8a7a66']); fx.decal(v.x, v.z, .9, '#2a241e'); }     // план физики, этап 2: удар о стену — пыль и крошки
       else if (v.k === 'bump') fx.burst(v.x, .7, v.z, 6, '#9a8a76', 2.5);     // толкнул соседа
+      else if (v.k === 'jump') fx.burst(v.x, Y(v.x, v.z) + .2, v.z, 5, '#8a7a66', 1.5);     // этап 6 физики: спрыгнул с обрыва
+      else if (v.k === 'land') { const y = Y(v.x, v.z); fx.burst(v.x, y + .2, v.z, v.foe ? 10 : 14, '#8a7a66', 3); fx.debris(v.x, y + .2, v.z, 0, 0, 4, KIT.stone.c, 2, .1); }     // приземлился — пыль и крошки
       else if (v.k === 'smash') { const K = KIT[v.t] || KIT.crate; fx.debris(v.x, .45, v.z, v.dx, v.dz, K.n, K.c, 4, K.s); fx.burst(v.x, .4, v.z, 8, '#8a7a66', 2.5); const m = brkMesh.get(W.lvl + ':' + v.i); if (m) m.userData.gone = true; }     // этап 4 физики: разбит — обломки по удару
       else if (v.k === 'crack') { fx.debris(v.x, 1, v.z, 0, 0, 12, KIT.stone.c, 4, .2); fx.burst(v.x, 1, v.z, 12, '#8a857a', 3); }     // трещина-тайник вскрыта: каменный выброс
       else if (v.k === 'brkHit') { const m = brkMesh.get(W.lvl + ':' + v.i); if (m) m.userData.shk = .18; fx.debris(v.x, .5, v.z, 0, 0, 2, (KIT[v.t] || KIT.crate).c, 2, .1); }     // треснул: дрожит, пара щепок

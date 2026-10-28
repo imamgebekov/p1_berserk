@@ -1529,7 +1529,14 @@ const BASE = {
     debris: { on: true, max: { phone: 120, pc: 300 }, life: 4, bounce: .35, fric: .6 },
     // этап 5 — вода: брод ford м от берега реки и озера (центр героя; глубже нельзя), глубина 0..1 по броду, ручей — stream; замедление до deepSlow
     // на краю брода (ручей ×0,85, как раньше); перекат в воде ×roll; течение flow — ручей и брод реки, м/с; вещи плывут и к берегу toBank м/с
-    water: { on: true, ford: 1, stream: .375, deepSlow: .6, roll: .7, flow: { stream: 1.2, river: 2 }, toBank: .6 }
+    water: { on: true, ford: 1, stream: .375, deepSlow: .6, roll: .7, flow: { stream: 1.2, river: 2 }, toBank: .6 },
+    // этап 6 — склоны: уклон по шагу (пробы ±probe м); вверх ×(1 − up·уклон), вниз ×(1 − down·уклон), не дальше ±max; враги — ближе foeR м к герою и проснувшиеся
+    slope: { on: true, probe: .6, up: .35, down: .15, max: .3, foeR: 30 },
+    // обрыв: у края плато герой жмёт наружу hold с — спрыгивает: полёт fall с без управления, приземление land с (скорость ×landSlow),
+    // отброшенный быстрее v врага с края — падает вниз
+    cliff: { on: true, hold: .12, fall: .35, land: .2, landSlow: .4, v: 3 },
+    // лестница дома и подземелья: проход по ступеням walk с без управления, потом переход
+    stairs: { on: true, walk: .6 }
   },
 
   enemies: {

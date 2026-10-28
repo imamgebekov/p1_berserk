@@ -25,7 +25,7 @@ import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
 import { isNight } from './daynight.js';
 import { bagUsed, createInv } from './inv.js';
 import { createHeroView } from './bagview3d.js';
-import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, eclipseGo, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
+import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, walkPortal, eclipseGo, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS } from './data/heroes3d.js';
 import { abilityView, resView, barOf, abilityAim } from './abilities3d.js';
 import { createFeel, unlocksAt } from './feel3d.js';
@@ -727,9 +727,9 @@ sleepBtn.addEventListener('click', e => {
   }, 650);
 }, true);
 $('firesClose').addEventListener('click', closeFires);
-const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const q = W.nearPortal; if (q && !q.up) setHeroic(W, q.to, false); usePortal(W); }, true);     // обычный вход в подземелье снимает героическую
+const portalBtn = $('portalBtn'); portalBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const q = W.nearPortal; if (q && !q.up) setHeroic(W, q.to, false); walkPortal(W); }, true);     // обычный вход в подземелье снимает героическую
 const heroicBtn = $('heroicBtn'); heroicBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const q = W.nearPortal; if (q && q.abyssEnter) { eclipseGo(W, weekOf(Date.now())); return; }     // «Затмение недели»
-  if (q && !q.up && isInstance(W, q.to)) { setHeroic(W, q.to, true); usePortal(W); } }, true);     // этап 5
+  if (q && !q.up && isInstance(W, q.to)) { setHeroic(W, q.to, true); walkPortal(W); } }, true);     // этап 5
 const SHOT = new URLSearchParams(location.search).has('shot');     // режим тестов и снимков: пролог сам не открывается
 // разговор (этап 3): реплики по одной; у реплики-выбора — кнопки ответов; конец — сюжет идёт дальше
 const HAIR = { alaric: '#ece6da', irma: '#2a1a14', timka: '#7a4a24', kord: '#1a1412', masked: '#0a0808', hostess: '#5a3020', captain: '#4a4440', herald: '#6a5030' };

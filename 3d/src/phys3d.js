@@ -75,3 +75,12 @@ export function waterAt(rv, x, z, P) {
   else { const dx = best.b.x - best.a.x, dz = best.b.z - best.a.z, l = Math.hypot(dx, dz) || 1, v = best.kind === 'stream' ? P.flow.stream : P.flow.river * dk; fx = dx / l * v; fz = dz / l * v; const ex = x - best.q.px, ez = z - best.q.pz, el = Math.hypot(ex, ez) || 1; ox = ex / el; oz = ez / el; }
   return { dk, fx, fz, ox, oz, kind: best.kind };
 }
+
+// этап 6 — склоны: множитель скорости по уклону вдоль шага (ux, uz): вверх — медленнее на up × уклон, вниз — быстрее на down × уклон,
+// не дальше ±max; H(x, z) — высота земли
+export const physSlope = cfg => (cfg.phys && cfg.phys.slope && cfg.phys.slope.on ? cfg.phys.slope : null);
+export function slopeK(S, H, x, z, ux, uz) {
+  const l = Math.hypot(ux, uz); if (l < 1e-6) return 1; ux /= l; uz /= l;
+  const s = (H(x + ux * S.probe, z + uz * S.probe) - H(x - ux * S.probe, z - uz * S.probe)) / (2 * S.probe);
+  return Math.min(1 + S.max, Math.max(1 - S.max, s > 0 ? 1 - S.up * s : 1 - S.down * s));
+}
