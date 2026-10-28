@@ -30,11 +30,12 @@ const mk = () => { const W = createWorld(CFG3, mulberry32(3)); W.player.maxhp = 
   for (let i = 0; i < 60; i++) step(W, 1 / 30, {}); ok(W.enemies.some(e => e.boss && e.type === def.type), 'босс города не встал при подходе');
   const g = W.enemies.filter(e => e.garr === c.id && !e.dead), ch = g.filter(e => e.chief);
   ok(g.length === CFG3.enemies.garrison.n.city && ch.length === CFG3.enemies.garrison.chief.city[0] && ch.every(e => e.elite), `город: гарнизон ${g.length}, капитанов ${ch.length}`); }
-// лагерь: гарнизон 9, один вожак — элита и крепче обычной элиты; в ворота можно войти
+// лагерь: гарнизон группами (этап 4 «живого мира»), один вожак — элита и крепче обычной элиты; в ворота можно войти
 { const W = mk(), f = M.forts[0]; W.player.x = f.x; W.player.z = f.z + f.H + 20;
   for (let i = 0; i < 30; i++) step(W, 1 / 30, {});
   const g = W.enemies.filter(e => e.garr === f.id && !e.dead), ch = g.filter(e => e.chief);
-  ok(g.length === CFG3.enemies.garrison.n.warcamp && ch.length === 1 && ch[0].elite && ch[0].scaleMul > CFG3.elite.scale, `лагерь: гарнизон ${g.length}, вожаков ${ch.length}`); }
+  const GC = CFG3.enemies.garrison.camp, nMin = 1 + GC.guards + (GC.groups[0] - 1) * GC.size[0], nMax = 1 + GC.guards + (GC.groups[1] - 1) * GC.size[1];
+  ok(g.length >= nMin && g.length <= nMax && ch.length === 1 && ch[0].elite && ch[0].scaleMul > CFG3.elite.scale, `лагерь: гарнизон ${g.length}, вожаков ${ch.length}`); }
 { const W = mk(), f = M.forts[0], side = f.gates[0], [sx, sz] = SIDE[side]; W.enemies.length = 0; W.cfg.enemies.garrison = null;
   W.player.x = f.x + sx * (f.H + 4); W.player.z = f.z + sz * (f.H + 4);
   for (let i = 0; i < 150; i++) step(W, 1 / 30, { mx: -sx, mz: -sz });

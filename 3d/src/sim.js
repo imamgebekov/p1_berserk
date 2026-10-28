@@ -155,15 +155,23 @@ function spotted(W, e, d, dx, dz, H) {
   const P = W.cfg.enemies.posts, p = W.player;
   const fight = p.state === 'atk' || p.state === 'roll' || p.state === 'charge';
   const hear = W.dif.hear * rainK(W, 'hear');                                  // в дождь хуже слышат и видят
-  if (fight && d < H.fight * P.fightHear * hear) return true;
+  const cm = e.grp ? W.cfg.enemies.garrison.camp : null;     // в лагере врага слышат и видят хуже: соседняя группа не встаёт от чужого боя
+  if (fight && d < H.fight * P.fightHear * hear * (cm ? cm.hear : 1)) return true;
   if (e.pack && !p.dead && d < W.cfg.enemies.roam.hear * (p.state === 'run' ? 1 : .55) * hear * (1 - clamp(W.gear.stealth || 0, 0, 60) / 100)) return true;     // стайка слышит вблизи (G1)
-  return d < (e.sight ? e.sight.r : P.range) * rainK(W, 'sight') && Math.abs(angDiff(Math.atan2(dx, dz), e.face)) < (e.sight ? e.sight.angle : P.angle) * DEG / 2 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z);
+  return d < (e.sight ? e.sight.r : P.range) * (cm ? cm.sight : 1) * rainK(W, 'sight') && Math.abs(angDiff(Math.atan2(dx, dz), e.face)) < (e.sight ? e.sight.angle : P.angle) * DEG / 2 && insideOf(W.map, e.x, e.z) === W.inside && !lineBlocked(W.map, e.x, e.z, p.x, p.z);
 }
 // заметил — кричит: встают все рядом (и сторожа, и бродячие)
 function raiseAlarm(W, e) {
   e.alert = true; W.ev.push({ k: 'spot', x: e.x, z: e.z, id: e.id });
   const R = W.cfg.enemies.posts.alarm;
-  for (const o of W.enemies) if (o !== e && !o.dead && !o.alert && !o.boss && !(o.lostT > 0) && len(o.x - e.x, o.z - e.z) < R) o.alert = true;
+  for (const o of W.enemies) if (o !== e && !o.dead && !o.alert && !o.boss && !(o.lostT > 0) && !(o.grp && o.grp !== e.grp) && len(o.x - e.x, o.z - e.z) < R) o.alert = true;     // чужая группа лагеря не встаёт
+}
+// группа лагеря встаёт целиком; группа вожака трубит в рог — встаёт ещё ближняя группа (один раз за заселение)
+function groupUp(W, e) {
+  for (const o of W.enemies) if (o.grp === e.grp && !o.dead) { o.alert = true; o.grpUp = true; }
+  const c = W.camps && W.camps[e.garr]; if (!e.grp.endsWith(':0') || !c || c.horn || !W.cfg.enemies.garrison.camp.horn) return;
+  let best = null, bd = Infinity; for (const o of W.enemies) { const d = len(o.x - e.x, o.z - e.z); if (o.garr === e.garr && o.grp !== e.grp && !o.dead && !o.alert && d < bd) { bd = d; best = o; } }
+  c.horn = true; if (!best) return; W.ev.push({ k: 'horn', x: e.x, z: e.z }); groupUp(W, best);
 }
 // своими делами: сторож у поста озирается (вернётся, если ушёл), патрульный идёт к следующей точке маршрута
 function keepPost(W, e, C, spd, dt) {
@@ -226,6 +234,7 @@ function garrisons(W, dt) {
     const type = regionOf(W.map, pl.x, pl.z), tbl = E.regions[type]; if (!tbl) continue;
     W.garr[pl.id] = W.t + G.respawn;
     const pool = tbl.filter(a => a[2] !== 'night' || W.night), n = G.n[type] || 3, CH = (G.chief || {})[type], sp = (G.spread || {})[type] || .45;
+    if (pl.fort && G.camp) { campGarrison(W, pl, pool, CH); continue; }
     for (let i = 0; i < n; i++) {
       const a = rr(W, 0, TAU), r0 = rr(W, 1.5, Math.max(2.5, pl.r * sp)), o = { x: pl.x + Math.sin(a) * r0, z: pl.z + Math.cos(a) * r0 }; resolve(W.map, o, 1);
       const e = spawnEnemy(W, pickEntry(pool, W.rng)[0], o.x, o.z, i % 2 ? 'patrol' : 'guard'); e.garr = pl.id;
@@ -233,6 +242,25 @@ function garrisons(W, dt) {
       if (CH && i < CH[0]) makeChief(W, e, CH[1], CH[2]);     // вожаки — мини-боссы места (2026-10-18)
     }
   }
+}
+// вражеский лагерь (этап 4 «живого мира»): вожак с охраной у костра в середине, группы — у шатров по кругу, через шатёр-два друг от друга
+function campGarrison(W, pl, pool, CH) {
+  const GC = W.cfg.enemies.garrison.camp, f = (W.map.cfg.forts || []).find(q => q.id === pl.id) || { x: pl.x, z: pl.z, H: pl.r - 5, tents: 6 };
+  const ri = a => a[0] + Math.floor(W.rng() * (a[1] - a[0] + 1)), ng = Math.min(ri(GC.groups), f.tents + 1), t0 = W.rng() * f.tents;
+  let n = 0;
+  const put = (cx, cz, g, i) => { const a = rr(W, 0, TAU), r0 = rr(W, i ? .8 : 0, GC.spot), o = { x: cx + Math.sin(a) * r0, z: cz + Math.cos(a) * r0 }; resolve(W.map, o, 1);
+    const e = spawnEnemy(W, pickEntry(pool, W.rng)[0], o.x, o.z, 'guard'); e.garr = pl.id; e.grp = pl.id + ':' + g; n++; return e; };
+  { const c = put(f.x + 2, f.z, 0, 1); if (CH) makeChief(W, c, CH[1], CH[2]); for (let i = 0; i < GC.guards; i++) put(f.x, f.z, 0, 1); }
+  for (let k = 1; k < ng; k++) { const a = (Math.round(t0 + (k - 1) * f.tents / (ng - 1)) % f.tents) / f.tents * TAU + .3, cx = f.x + Math.cos(a) * f.H * GC.at, cz = f.z + Math.sin(a) * f.H * GC.at, m = ri(GC.size);
+    for (let i = 0; i < m; i++) put(cx, cz, k, i); }
+  (W.camps || (W.camps = {}))[pl.id] = { n, dead: 0 };
+}
+// лагерь разбит: убиты все, кто встал при заселении, — добыча вожака у костра; лагерь заселится снова через camp.respawn
+function campKill(W, e) {
+  const c = W.camps && W.camps[e.garr]; if (!c || ++c.dead < c.n) return;
+  const GC = W.cfg.enemies.garrison.camp, f = (W.map.cfg.forts || []).find(q => q.id === e.garr) || e, pl = (W.map.cfg.places || []).find(q => q.id === e.garr);
+  delete W.camps[e.garr]; W.garr[e.garr] = W.t + GC.respawn;
+  rewardDrop(W, GC.chest, f.x + 2.5, f.z + 2.5); W.ev.push({ k: 'campDone', x: f.x, z: f.z, name: pl ? pl.name : 'Лагерь' });
 }
 // святилище (G2): касание даёт дар на время; то же святилище — снова через again с
 function touchShrine(W) {
@@ -370,6 +398,7 @@ export function killEnemy(W, e, share) {
     if (pm.reaper) { W.reap.n = Math.min(pm.reaper[1], W.reap.n + 1); W.reap.t = pm.reaper[2]; W.reap.amt = pm.reaper[0]; }
   }
   corpseOf(W, e, d0);
+  if (e.grp) campKill(W, e);     // после тела: награда лежит у костра, а не в теле
 }
 
 // добыча с тел (4.21): всё, что выпало при убийстве, — в теле врага (метка corpse у вещей в W.drops: шаг их не подбирает, к герою не тянет,
@@ -837,6 +866,7 @@ function updateEnemies(W, dt) {
       if (!e.alert && !posted && !deep && !shut && !sheltered && hops <= W.cfg.dungeons.hearRooms && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
       else if (e.alert && d > H.lose) e.alert = false;
       if (posted && e.alert && len(e.x - e.home.x, e.z - e.home.z) > W.cfg.enemies.posts.leash) { e.alert = false; e.lostT = W.cfg.enemies.posts.cool; }       // далеко от поста — бросает погоню
+      if (e.grp) { if (e.alert && !e.grpUp) groupUp(W, e); else if (!e.alert) e.grpUp = false; }     // группа лагеря встаёт и остывает вместе
       if (posted && wasAlert && !e.alert && !cool0) W.ev.push({ k: 'lost', x: e.x, z: e.z, id: e.id });
       if (posted && !e.alert) { keepPost(W, e, C, spd, dt); continue; }
       if (C.ai && foeAI(W, e, C, d, dx, dz, dt, hops === 0 && insideOf(W.map, e.x, e.z) === W.inside)) continue;   // особое поведение: щит, фитиль, рывок, тень
@@ -901,7 +931,7 @@ function updateEnemies(W, dt) {
   // бродячие, ушедшие дальше drop, забываются (место освобождается); живыми вокруг считаются только не спящие
   const keepFar = e => e.boss || e.evId || (e.mode && !e.pack && !e.garr);              // стайки и гарнизоны забываются, как бродячие
   if (W.enemies.some(e => !keepFar(e) && len(e.x - p.x, e.z - p.z) > E.sleep.drop)) {
-    for (const e of W.enemies) if (e.garr && !e.dead && len(e.x - p.x, e.z - p.z) > E.sleep.drop) W.garr[e.garr] = 0;     // гарнизон не зачищен — заселится снова
+    for (const e of W.enemies) if (e.garr && !e.dead && len(e.x - p.x, e.z - p.z) > E.sleep.drop) { W.garr[e.garr] = 0; if (W.camps) delete W.camps[e.garr]; }     // гарнизон не зачищен — заселится снова
     W.enemies = W.enemies.filter(e => keepFar(e) || len(e.x - p.x, e.z - p.z) <= E.sleep.drop);
   }
   if (roamOn(W)) garrisons(W, dt);

@@ -299,6 +299,8 @@ function onEvent(v) {
   else if (v.k === 'drop') { const it = BY_ID[v.id]; if (it && it.rar >= 3) { toast(`Выпало: ${it.name}`, '', RARITY[it.rar].color, 'gem'); sfx(it.rar >= 4 ? 'brand' : 'rare'); } }
   else if (v.k === 'key') toast(`Ключ на связке: ${cfg.dungeons.keys[v.key] || 'ключ'}`, '', '#e8c04a', 'key');
   else if (v.k === 'doorLocked') toast(String(v.key).startsWith('gate:') ? `Ворота закрыты: откроются, когда падёт ${(cfg.enemies[v.key.slice(5)] || {}).name || 'страж'}` : `Заперто: нужен ${cfg.dungeons.keys[v.key] || 'ключ'}`, 'bad');     // gate: — ворота малого мира
+  else if (v.k === 'campDone') toast(`${v.name}: лагерь разбит — добыча вожака у костра`, '', '#e8c04a');
+  else if (v.k === 'horn') toast('Вожак трубит в рог — идёт подмога', '', '#e07040');
   else if (v.k === 'gateOpen') toast(`${v.name} пал — ворота открыты`, '', '#e8c04a');
   else if (v.k === 'travel') { if (!v.up) raidScene(v.to, 'enter'); saver.write(); if (!reduce) { const f = $('fade'); f.style.setProperty('--fade', cfg.dungeons.fade + 's'); f.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on'))); } }
   else if (v.k === 'playerDead') {
