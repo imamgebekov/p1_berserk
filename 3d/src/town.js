@@ -66,7 +66,7 @@ export function buildTown(map, cfg, rnd) {
     // пол из досок
     const iw = b.ix1 - b.ix0, id = b.iz1 - b.iz0, n = Math.ceil(id / .6);
     for (let i = 0; i < n; i++) { const z = b.iz0 + (i + .5) * id / n; pushBox(floorL, iw, .08, id / n - .03, b.x, .04, z, 0, 0, 0, i % 2 ? '#3a2819' : '#33231a'); }
-    furnish(b, floorL, glowL, rnd);
+    if (b.deco) floorL.length = 0; else furnish(b, floorL, glowL, rnd);     // дом-декорация: внутри пусто — без пола и мебели
     // угловые столбы (фахверк) — у всех, кроме изб
     if (b.kind !== 'hut') for (const [x, z] of [[b.x0, b.z0], [b.x1, b.z0], [b.x0, b.z1], [b.x1, b.z1]]) pushBox(wallL, .26, H, .26, x + (x < b.x ? .1 : -.1), H / 2, z + (z < b.z ? .1 : -.1), 0, 0, 0, BEAM);
     // крыша (2026-10-18): двускатная, конёк вдоль длинной стороны; изба — солома; городской дом — второй этаж с выносом; разрушенный — полкрыши и балки
@@ -86,7 +86,7 @@ export function buildTown(map, cfg, rnd) {
     const walls = new THREE.Group();
     walls.add(new THREE.Mesh(merged(wallL), lamb(true)));
     if (winL.length) walls.add(new THREE.Mesh(merged(winL), new THREE.MeshBasicMaterial({ vertexColors: true })));
-    const floor = new THREE.Mesh(merged(flat(floorL)), lamb(true));
+    const floor = floorL.length ? new THREE.Mesh(merged(flat(floorL)), lamb(true)) : new THREE.Mesh(new THREE.BufferGeometry(), lamb(true));
     const roofMat = lamb(true, 'roof'); roofMat.transparent = true;
     const roof = new THREE.Mesh(merged(flat(roofL)), roofMat);
     // дверь: створка на петле, открывается внутрь

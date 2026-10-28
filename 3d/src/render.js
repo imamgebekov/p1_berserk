@@ -278,9 +278,19 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     scene.add(riverGroup); freeze(riverGroup);     // вода и мосты неподвижны
   }
   const town = buildTown(map, cfg, mulberry32(cfg.world.seed + 1)); scene.add(town.group);
-  const mkDecor = () => buildDecor({ ...map, decor: map.decor.concat(surfaceDetails(map, cfg)) }, mulberry32(cfg.world.seed + 2), cfg.shaders && cfg.shaders.grime);
-  const decor = mkDecor(); scene.add(decor.group); freeze(decor.group);     // детали мира (T5) — только вид
-  const decorCells = [...decor.group.children], CL = cfg.cull;     // клетки декора (снимаются вдали); дальности и доля травы — config3d.js → cull
+  // мелочи мира по клеткам 64 м (2026-10-28): строятся вокруг камеры, дальние выгружаются — память и загрузка на телефоне; дальности — config3d.js → cull
+  const decorBy = new Map(), CL = cfg.cull;
+  for (const d of map.decor.concat(surfaceDetails(map, cfg))) { const k = Math.floor(d.x / 64) + ',' + Math.floor(d.z / 64); let a = decorBy.get(k); if (!a) decorBy.set(k, a = []); a.push(d); }
+  const decor = { group: new THREE.Group() }, decorLive = new Map(), decorMats = {}; scene.add(decor.group);
+  const decorCell = k => { const [i, j] = k.split(',').map(Number), g = buildDecor({ decor: decorBy.get(k) }, mulberry32(cfg.world.seed + 2 + i * 7919 + j * 104729), cfg.shaders && cfg.shaders.grime, decorMats).group.children[0];
+    if (!g) return null; g.traverse(m => { if (m.material) [].concat(m.material).forEach(xray); if (m.isMesh) m.castShadow = sun.castShadow; }); freeze(g); decor.group.add(g); return g; };
+  const dropDecor = k => { const g = decorLive.get(k); decorLive.delete(k); if (g) { decor.group.remove(g); g.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); } };
+  function streamDecor(x, z, budget = 2) {     // в пределах cull.decor — строятся (budget клеток за вызов), дальше cull.decor + 48 м — выгружаются
+    const R = CL.decor, ci = Math.floor(x / 64), cj = Math.floor(z / 64), n = Math.ceil(R / 64) + 1;
+    for (const k of [...decorLive.keys()]) { const [i, j] = k.split(',').map(Number); if (Math.hypot((i + .5) * 64 - x, (j + .5) * 64 - z) > R + 48) dropDecor(k); }
+    const want = []; for (let i = ci - n; i <= ci + n; i++) for (let j = cj - n; j <= cj + n; j++) { const k = i + ',' + j, d = Math.hypot((i + .5) * 64 - x, (j + .5) * 64 - z); if (d < R && decorBy.has(k) && !decorLive.has(k)) want.push([d, k]); }
+    want.sort((a, b) => a[0] - b[0]); for (const [, k] of want.slice(0, budget)) decorLive.set(k, decorCell(k));
+  }
   const npcs = [], storyNpcs = new Map();     // герои сюжета (этап 3)
   const markTex = Object.fromEntries(['!', '?'].map(ch => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.font = '900 54px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = '#1a0e06'; g.strokeText(ch, 32, 34); g.fillStyle = ch === '!' ? '#ffd23a' : '#d8d8e0'; g.fillText(ch, 32, 34); return [ch, new THREE.CanvasTexture(c)]; }));
   for (const b of map.buildings) if (b.npc) { const n = makeNpc(b.npc.kind); n.group.position.set(b.npc.x, 0, b.npc.z); n.pos = b.npc; n.mark = new THREE.Mesh(new THREE.OctahedronGeometry(.22), new THREE.MeshBasicMaterial({ color: '#e8c04a' })); n.mark.position.set(0, 2.6, 0); n.mark.visible = false; n.group.add(n.mark); scene.add(n.group); npcs.push(n); }
@@ -552,7 +562,6 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   let cullT = 0;
   function cullFar(x, z) {
     for (const it of town.items) { const far = Math.hypot(it.b.x - x, it.b.z - z) > 120; if (far === it.far) continue; it.far = far; it.walls.visible = it.floor.visible = !far; if (it.glow) it.glow.visible = !far; if (far) it.roof.visible = false; }
-    for (const g of decorCells) park(g, Math.hypot(g.userData.cx - x, g.userData.cz - z) >= CL.decor);     // дальний декор — со сцены
     if (curView && curView.conts && curView.conts.items) for (const it of curView.conts.items) park(it.g, Math.hypot(it.c.x - x, it.c.z - z) >= CL.box);     // дальние сундуки — со сцены
     for (const L of liveLand.values()) for (const m of L.grass || []) { const d = Math.hypot(m.userData.cx - x, m.userData.cz - z), k = CL.grass.find(q => d < q[0])[1]; m.count = Math.max(1, Math.round(m.userData.full * k)); }     // трава вдали реже
   }
@@ -596,8 +605,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   if (actorKey(cfg, 'hero', 'thorn') !== null || Object.keys((cfg.actors && cfg.actors.foes) || {}).length) preloadActors(cfg);     // готовые модели (2026-10-20): грузятся в фоне
   const kitOf = k => cfg.actors.kits[k];
   Promise.all([loadBaked('buildings'), loadBaked('townkit').catch(() => null), loadBaked('qkit').catch(() => null)]).then(([b0, kit, qk]) => { if (!b0) return; const lib = { ...stoneLook(b0, cfg.look.town), ...(kit || {}), ...(qk || {}) }; setDecorLib(lib); town.setShells(lib);     // 4.09: + знамёна, бочки, ящики KayKit Dungeon; 4.10: повозка и ящик Quaternius     // постройки KayKit: декор пересобирается, у домов — наружный вид
-    const nd = mkDecor(); for (const c of decorCells) { if (c.parent) c.parent.remove(c); c.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); } decorCells.length = 0;
-    for (const c of [...nd.group.children]) { decor.group.add(c); decorCells.push(c); c.traverse(m => { if (m.material) [].concat(m.material).forEach(xray); if (m.isMesh && shadowsOn) m.castShadow = true; }); } freeze(decor.group); }).catch(e => console.warn('постройки не загрузились:', e && e.message));
+    for (const k of [...decorLive.keys()]) dropDecor(k); }).catch(e => console.warn('постройки не загрузились:', e && e.message));
   loadNature().then(lib => { if (!lib) return; setNature(lib); for (const k of [...liveLand.keys()]) dropLand(k); }).catch(e => console.warn('природа не загрузилась:', e && e.message));     // готовые деревья и камни: участки пересобираются
   // жители и звери (2026-10-20): готовая модель по виду, если пришла; tint и рост — по виду
   const ambMake = (g, id, tint) => { const k = actorKey(cfg, g, id); if (!k || !actorReady(k)) return null; const A0 = cfg.actors, h = (A0.sizes || {})[id]; return makeActor(k, { ...kitOf(k), ...(h ? { height: h } : {}), tint: tint || A0.tints[id] }, id); };
@@ -985,7 +993,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (W.lvl !== shownLvl || (views.get(W.lvl) && views.get(W.lvl).map !== W.map)) showLevel(W);
     const under = W.lvl !== 'surface' && !FL, dark = under && !W.map.wild, wk = under && !dark ? ((cfg.dungeons.wild.themes[W.map.wild.theme] || {}).fogK || 1) : 1;     // dark — под землёй; малый мир — под небом, туман темы wk
     { const L = W.levels && W.levels[W.lvl]; dbg.group.visible = !!(dark && L && L.def); if (dbg.group.visible) { if (dbgMap !== L.map) { dbgMap = L.map; dbg.setMap(L.map, curTheme); } dbg.update(t, p.x, p.z, calm); } }
-    if (!under) { streamLand(cam.x, cam.z); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
+    if (!under) { streamLand(cam.x, cam.z); streamDecor(cam.x, cam.z, decorLive.size ? 2 : 99); if ((cullT -= dt) <= 0) { cullT = .3; cullFar(cam.x, cam.z); } }     // участки земли (C3a), дальнее — скрыть (C3b)
     dome.position.set(cam.x, 0, cam.z);                              // небо — вокруг камеры (мир шире купола)
     { const k = actorKey(cfg, 'hero', W.hero); if ((k || '') !== (hero.key || '')) { const A = k && makeActor(k, kitOf(k), 'hero'); if (A || !k) { scene.remove(hero.group); if (hero.gltf) disposeActor(hero); disposeDeep(hero.group); hero = A || makeHero(); hero.key = k || ''; scene.add(hero.group); heroLook = null; rimKey = ''; if (shadowsOn) hero.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); } } }     // готовая модель героя пришла или герой сменился
     { const cp = W.ach && W.ach.cape, lk = lookKey(W.hero, W.inv, cp); if (lk !== heroLook) { heroLook = lk; hero.setLook(dressedLook(heroOf(W.hero).look, W.inv, cp)); } }     // облик по надетому и цвет плаща — награда подвига

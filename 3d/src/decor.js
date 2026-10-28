@@ -56,7 +56,7 @@ function swapDecor(d, L, rnd) {
     default: return false;
   }
 }
-export function buildDecor(map, rnd, grime = null) {
+export function buildDecor(map, rnd, grime = null, mats = null) {     // mats — общие материалы для сборки по клеткам (2026-10-28): первая сборка кладёт их туда
   // клетки 64 м (C3b): каждая — свои меши, поэтому дальний и невидимый декор отсекается
   const glowList = () => Object.assign([], { glow: true });     // светящееся — без градиента (шаг 7)
   let L = [], G = glowList(); const cells = new Map(), use = (x, z) => { const k = Math.floor(x / 64) + ',' + Math.floor(z / 64); if (!cells.has(k)) cells.set(k, { L: [], G: glowList() }); ({ L, G } = cells.get(k)); };
@@ -146,8 +146,9 @@ export function buildDecor(map, rnd, grime = null) {
     }
     if (PART_OF[d.t]) for (let i = n0; i < L.length; i++) if (!L[i].attributes.pkind) tagKind(L[i], PART_OF[d.t]);
   }
-  const group = new THREE.Group(), lam = paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto', { plank: .22 }), bas = new THREE.MeshBasicMaterial({ vertexColors: true }); let glow = 0;
-  if (grime && grime.on) {                                                    // потёртости (V2b): пятна по мировым координатам, низ темнее
+  const old = !!(mats && mats.lam), group = new THREE.Group(), lam = old ? mats.lam : paintMat(new THREE.MeshLambertMaterial({ vertexColors: true }), 'auto', { plank: .22 }), bas = old ? mats.bas : new THREE.MeshBasicMaterial({ vertexColors: true }); let glow = 0;
+  if (mats && !old) { mats.lam = lam; mats.bas = bas; }
+  if (grime && grime.on && !old) {                                                    // потёртости (V2b): пятна по мировым координатам, низ темнее
     const gp = lam.onBeforeCompile, gk = lam.customProgramCacheKey ? lam.customProgramCacheKey() : '';     // поверх материалов (T0)
     lam.onBeforeCompile = (sh, r) => {
       if (gp) gp(sh, r); sh.uniforms.uGrime = { value: grime.k };

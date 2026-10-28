@@ -25,7 +25,7 @@ export function floorsOf(cfg, map, levelOf) {
   const F = cfg.map.floors; if (!F || !F.on) return [];
   const out = [];
   for (const b of map.buildings) {
-    if (!fits(b, F)) continue;
+    if (b.deco || !fits(b, F)) continue;     // у домов-декораций второго этажа нет
     const st = stairOf(b, F), r = st.rect, cx = (b.ix0 + b.ix1) / 2, cz = (b.iz0 + b.iz1) / 2;
     // сундуки наверху — в углах, дальних от проёма лестницы
     const cs = [[b.ix0 + .8, b.iz0 + .8], [b.ix1 - .8, b.iz0 + .8], [b.ix0 + .8, b.iz1 - .8], [b.ix1 - .8, b.iz1 - .8]].filter(([x, z]) => x < r.x0 - .6 || x > r.x1 + .6 || z < r.z0 - .6 || z > r.z1 + .6)

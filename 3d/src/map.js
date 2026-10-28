@@ -21,7 +21,10 @@ export function roomSize(b) { const vert = b.door.side === 'e' || b.door.side ==
 // дома крупнее (2026-10-21, просьба владельца): каждый растёт в bScale раз, но не задевает соседний дом, частокол лагеря,
 // вход в подземелье и площадки перед дверями (тогда растёт меньше, с шагом 0,05)
 function grown(cfg) {
-  const M = cfg.map, K = M.bScale || 1, gap = M.bGap || 1.5, out = M.buildings.map(b => ({ ...b })); if (K <= 1) return out;
+  const M = cfg.map, K = M.bScale || 1, gap = M.bGap || 1.5, out = M.buildings.map(b => ({ ...b })), E = M.enter;
+  if (E && E.on) { const ops = M.outposts || [], keep = b => !b.vil || b.citadel || b.city || ops.some(o => Math.hypot(b.x - o.x, b.z - o.z) < o.r + 2); let c = 0;     // лагерь, заставы, Цитадель, павшие города — с входом и прежнего размера
+    for (const b of out) { if (keep(b)) continue; if (b.npc || c++ % E.every === 0) b.big = true; else b.deco = true; } }     // в сёлах вход — у каждого E.every-го и у домов с жителем; прочие — декорации (владелец 2026-10-28)
+  if (K <= 1) return out;
   const camp = campOf(cfg), cw = [camp, ...(M.outposts || [])].filter(Boolean).flatMap(C => [...campWalls(C).blocks, ...campGates(C).map(g => ({ x0: Math.min(C.x, g.x) - 1.4, x1: Math.max(C.x, g.x) + 1.4, z0: Math.min(C.z, g.z) - 1.4, z1: Math.max(C.z, g.z) + 1.4 }))]),     // и лагеря Мира 5.0
     pts = ((cfg.dungeons && cfg.dungeons.list) || []).filter(d => !d.hidden && !d.sub).map(d => d.at);     // уличные сундуки не мешают: их отодвигает makeMap     // и дороги от центра к воротам
   const fields = (M.zones || []).filter(z => z.type === 'farm' && z.w).map(z => ({ x0: z.x - z.w / 2, x1: z.x + z.w / 2, z0: z.z - z.d / 2, z1: z.z + z.d / 2 }));     // 2026-10-24: дом растёт, не залезая на поля
@@ -30,7 +33,7 @@ function grown(cfg) {
     const x0 = b.x - hw - (dx < 0 ? fx : 0), x1 = b.x + hw + (dx > 0 ? fx : 0), z0 = b.z - hd - (dz < 0 ? fx : 0), z1 = b.z + hd + (dz > 0 ? fx : 0), inR = (x, z, p = 0) => x > x0 - p && x < x1 + p && z > z0 - p && z < z1 + p;
     return out.some((o, j) => j !== i && (o.x + o.w / 2 > x0 && o.x - o.w / 2 < x1 && o.z + o.d / 2 > z0 && o.z - o.d / 2 < z1 || (() => { const f = front(o); return Math.abs(f.x - b.x) < b.w * k / 2 + .9 && Math.abs(f.z - b.z) < b.d * k / 2 + .9; })()))
       || pts.some(p => inR(p.x, p.z)) || cw.some(w => w.x1 > x0 && w.x0 < x1 && w.z1 > z0 && w.z0 < z1) || fields.some(w => w.x1 > x0 && w.x0 < x1 && w.z1 > z0 && w.z0 < z1); };
-  out.forEach((b, i) => { let k = K; while (k > 1.001 && hit(b, i, k)) k -= .05; b.w = Math.round(b.w * k * 10) / 10; b.d = Math.round(b.d * k * 10) / 10; });
+  out.forEach((b, i) => { let k = K * (b.big ? E.scale : 1); while (k > 1.001 && hit(b, i, k)) k -= .05; b.w = Math.round(b.w * k * 10) / 10; b.d = Math.round(b.d * k * 10) / 10; });     // дом с входом в селе — крупнее: издали видно, куда можно войти
   return out;
 }
 // ворота входа (4.18в): смотрят на выход (back), по ближней оси; размер — у рейда крупнее (GATE.raid)
@@ -68,12 +71,13 @@ export function makeMap(cfg) {
     hSeg(z0, z0 + t, 'n'); hSeg(z1 - t, z1, 's'); vSeg(x0, x0 + t, 'w'); vSeg(x1 - t, x1, 'e');
     const w2 = bw.filter(r => r.x1 - r.x0 > 1e-6 && r.z1 - r.z0 > 1e-6);
     walls.push(...w2);
-    buildings.push({ id, x: b.x, z: b.z, w: b.w, d: b.d, x0, x1, z0, z1, ix0: x0 + t, ix1: x1 - t, iz0: z0 + t, iz1: z1 - t, door, walls: w2, kind: b.kind || 'house', chests: [], npc: null, vil: b.vil || null, city: b.city || null });
+    buildings.push({ id, x: b.x, z: b.z, w: b.w, d: b.d, x0, x1, z0, z1, ix0: x0 + t, ix1: x1 - t, iz0: z0 + t, iz1: z1 - t, door, walls: w2, kind: b.kind || 'house', chests: [], npc: null, vil: b.vil || null, city: b.city || null, deco: !!b.deco });     // deco — дом-декорация: дверь не открывается, внутри пусто
     // контейнеры в углах, дальние от двери — первыми
     const bb = buildings[buildings.length - 1], cs = [[bb.ix0 + .8, bb.iz0 + .8], [bb.ix1 - .8, bb.iz0 + .8], [bb.ix0 + .8, bb.iz1 - .8], [bb.ix1 - .8, bb.iz1 - .8]];
     if (b.npc) { const rs = roomSize(bb); const q = interiorPos(bb, 0, rs.depth * .55 - .9); bb.npc = { kind: b.npc, x: q.x, z: q.z }; }
     cs.sort((p, q) => Math.hypot(q[0] - door.x, q[1] - door.z) - Math.hypot(p[0] - door.x, p[1] - door.z));
-    (b.chests || []).slice(0, 4).forEach((k, i) => { addC(k, cs[i][0], cs[i][1], id); bb.chests.push(containers[containers.length - 1]); });
+    if (b.deco) { const [ax, az] = vertDoor(b.door) ? [0, 1] : [1, 0]; (b.chests || []).slice(0, 4).forEach((k, i) => addC(k, door.out.x + ax * (i % 2 ? 1 : -1) * (2.2 + (i >> 1) * 1.4) + (vertDoor(b.door) ? Math.sign(door.out.x - b.x) * .6 : 0), door.out.z + az * (i % 2 ? 1 : -1) * (2.2 + (i >> 1) * 1.4) + (vertDoor(b.door) ? 0 : Math.sign(door.out.z - b.z) * .6), -1)); }     // сундуки дома-декорации — во дворе у двери
+    else (b.chests || []).slice(0, 4).forEach((k, i) => { addC(k, cs[i][0], cs[i][1], id); bb.chests.push(containers[containers.length - 1]); });
   });
   const gen = genWorld(cfg, buildings);
   for (const sp of M.spots || []) { let { x, z } = sp;     // уличный сундук внутри выросшего дома — за ближнюю стену (2026-10-21)
