@@ -347,7 +347,7 @@ export function animateMonster(m, e, time, cfg, hx, hz) {
   // попадание: откидывается назад и сплющивается (e.flash ставит симуляция)
   if (!e.dead && e.flash > 0) { const k = Math.min(1, e.flash / .12), L = hitLean(k, m.hitA ?? 0); m.root.rotation.x += L.rx; m.root.rotation.z += L.rz; m.root.position.z -= .12 * k * Math.cos(m.hitA ?? 0); m.root.scale.set(1 + .12 * k, 1 - .16 * k, 1 + .12 * k); }     // прочь от удара (G5)
   // смерть: валится за 0,3 с, потом оседает и тает (тело убирается через 0,6 с)
-  if (e.dead) { const D = foeDeath(e.deadT, e.id); m.root.rotation.x = D.rx; m.root.rotation.z = D.rz; m.root.position.y = D.y; m.root.scale.setScalar(D.scale); red = 0; }     // падает в свою сторону (G5)
+  if (e.dead) { const D = foeDeath(e.deadT, e.id, !!e.lie); m.root.rotation.x = D.rx; m.root.rotation.z = D.rz; m.root.position.y = D.y; m.root.scale.setScalar(D.scale); red = 0; }     // падает в свою сторону (G5)
   // цвет статуса: горит, мёрзнет, отравлен, кровоточит, оглушён
   let tint = null; const st = e.st;
   if (st && !e.dead) {

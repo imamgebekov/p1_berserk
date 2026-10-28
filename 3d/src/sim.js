@@ -420,7 +420,7 @@ function slopeAt(W, x, z, ux, uz, moving) {
   return slopeK(S, (a, b) => heightAt(hf, a, b), x, z, ux, uz);
 }
 // план физики, этап 3: тело падает по удару — лицом к удару (клип смерти валит назад), скорость удара ×carry
-function fallFace(W, e) { const B = physBody(W.cfg); if (!B) return; e.vx *= B.carry; e.vz *= B.carry; if (len(e.vx, e.vz) > .5) e.face = Math.atan2(-e.vx, -e.vz); const sc = W.cfg.enemies[e.type].scale || 1; if (sc > 1.4) W.shake = Math.max(W.shake, W.cfg.fx.shake * .5 * sc); }     // тяжёлое тело трясёт землю
+function fallFace(W, e) { const B = physBody(W.cfg); if (!B) return; e.lie = true; e.vx *= B.carry; e.vz *= B.carry; if (len(e.vx, e.vz) > .5) e.face = Math.atan2(-e.vx, -e.vz); const sc = W.cfg.enemies[e.type].scale || 1; if (sc > 1.4) W.shake = Math.max(W.shake, W.cfg.fx.shake * .5 * sc); }     // тяжёлое тело трясёт землю
 // убийство ботом (этап 5 «живого мира»): смерть, тело с добычей (бот его залутает), лагерь врагов считает; герою — ни опыта, ни заданий
 export function botKill(W, e, a) {
   if (e.dead || e.boss) return;

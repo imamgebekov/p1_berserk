@@ -126,8 +126,9 @@ export function heroDeath(t) {
   return { rx: .25 * kneel * (1 - fall) - 1.5 * fall, y: -.35 * kneel * (1 - fall) + .3 * fall };
 }
 // смерть врага: вид падения по номеру (назад, вперёд, на бок); с отскоком, потом оседает и тает
-export function foeDeath(t, id) {
-  const v = id % 4, k = clamp01(t / .3), b = k < 1 ? 1 + Math.sin(k * Math.PI) * .12 : 1, f = clamp01((t - .3) / .3), a = 1.4 * k * b;
+export function foeDeath(t, id, lie = false) {     // lie — тело лежит (план физики, этап 3): валится назад по удару и не тает
+  const v = lie ? 0 : id % 4, k = clamp01(t / .3), b = k < 1 ? 1 + Math.sin(k * Math.PI) * .12 : 1, f = clamp01((t - .3) / .3), a = 1.4 * k * b;
+  if (lie) return { rx: -a, rz: 0, y: -.15 * k, scale: 1 };
   return { rx: v === 0 ? -a : v === 1 ? a : 0, rz: v === 2 ? a : v === 3 ? -a : 0, y: -.5 * k - .4 * f, scale: 1 - .75 * f };
 }
 

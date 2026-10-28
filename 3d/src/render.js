@@ -1197,7 +1197,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         if (!inView(b.x, Y(b.x, b.z) + .5, b.z, 2 * sc + 1)) { hideEnt(b.id, en); continue; }
         if (en.hid) { en.hid = false; en.m.group.visible = en.sh.visible = true; }
         en.m.group.position.set(b.x, Y(b.x, b.z) - (sink ? en.sinkT / BB.sink * 1.2 * sc : 0), b.z); en.m.group.rotation.x = 0; en.m.group.rotation.y = b.face;
-        const de = en.de || (en.de = { id: b.id, type: b.type, dead: true, deadT: .6, x: b.x, z: b.z, face: b.face, state: 'idle', flash: 0, t: 0, st: null }); de.deadT = .6 + b.t;
+        const de = en.de || (en.de = { id: b.id, type: b.type, dead: true, lie: true, deadT: .6, x: b.x, z: b.z, face: b.face, state: 'idle', flash: 0, t: 0, st: null }); de.deadT = .6 + b.t;
         if (en.m.gltf) { if (b.t < BB.freeze) driveFoe(en.m, de, t, dt, cfg); } else animateMonster(en.m, de, t, cfg, p.x, p.z);     // замершее тело — без микшера
         en.ring.material.opacity = 0; if (en.elite) en.elite.visible = false; { const bb = bars.get(b.id); if (bb) bb.g.visible = false; }
         en.sh.position.set(b.x, .03 + Y(b.x, b.z), b.z); if (!sink && loot.has(b.cid)) bodyCid.add(b.cid);
