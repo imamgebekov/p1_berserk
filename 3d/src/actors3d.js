@@ -128,7 +128,8 @@ export function loadActor(key, kit) {
   lib.set(key, p); return p;
 }
 export const actorReady = key => { const v = lib.get(key); return v && !(v instanceof Promise) ? v : null; };
-export function preloadActors(cfg) { const A = cfg.actors; if (!A || !A.on) return; for (const [k, kit] of Object.entries(A.kits)) loadActor(k, kit); loadKkWeapons(); }
+export function preloadActors(cfg) { const A = cfg.actors; if (!A || !A.on) return; const now = new Set([...Object.values(A.heroes || {}), ...Object.values(A.npcs || {}), ...Object.values(A.beasts || {}), ...Object.values(A.squad || {}).map(s => s && s.kit)]); for (const [k, kit] of Object.entries(A.kits)) if (now.has(k)) loadActor(k, kit); loadKkWeapons(); }     // 2026-10-28: сразу — герои, жители, отряд, звери; враги и боссы — когда появились рядом (needActor)
+export const needActor = (cfg, key) => { if (key && !lib.has(key) && cfg.actors.kits[key]) loadActor(key, cfg.actors.kits[key]); };
 let kwP = null;     // оружие KayKit (путь А): грузится один раз, потом руки моделей KayKit берут его
 export function loadKkWeapons() { if (kwP) return kwP; const u = urlOf('kk_weapons'); if (!u || OFF) return (kwP = Promise.resolve(null));
   return (kwP = ld().loadAsync(u).then(g => { const out = {}; g.scene.traverse(o => { if (o.isMesh) out[o.name] = o.geometry; }); setKkWeapons(out); return out; }).catch(e => { console.warn('оружие KayKit не загрузилось:', e && e.message); return null; })); }

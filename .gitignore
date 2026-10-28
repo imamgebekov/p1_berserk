@@ -2,3 +2,4 @@ node_modules/
 dist/
 test/out/
 _packs/
+3d/src/data/world.bake.json

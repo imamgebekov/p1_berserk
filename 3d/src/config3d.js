@@ -1694,7 +1694,12 @@ const BASE = {
 };
 // мир = ручное ядро + пояс по зерну (C3b): генератор дописывает места, области, дома, ориентиры, связи и продолжение реки
 stretchCore(BASE);     // лагерь крупнее: ядро раздвинуто до сборки мира (и в CFG3, и в CORE3)
-export const CFG3 = expandBig(BASE);     // мир ×2 (4.04): прежний мир до world.inner + внешнее кольцо
+// готовый мир (2026-10-28): в выложенной сборке мир берётся из файла, сделанного при сборке (tools/bake-world.mjs) — генерация 1,3 с
+// заменяется чтением за миллисекунды. Файл годится, только если совпал отпечаток настроек; иначе, в разработке и в тестах — генерируем
+export const worldKey = base => { const s = JSON.stringify(base); let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return (h >>> 0).toString(36) + ':' + s.length; };     // FNV-1a
+let BAKED = null; try { if (import.meta.env.PROD) BAKED = Object.values(import.meta.glob('./data/world.bake.json', { eager: true, import: 'default' }))[0] || null; } catch (e) { /* Node: без готового мира */ }
+export const WORLD_KEY = worldKey(BASE);
+export const CFG3 = BAKED && BAKED.key === WORLD_KEY ? BAKED.cfg : expandBig(BASE);     // мир ×2 (4.04): прежний мир до world.inner + внешнее кольцо
 // только ручное ядро (радиус coreR, без пояса): для тестов баланса, которые меряют ядро и сверяются со старыми цифрами
 export const CORE3 = (() => { const c = JSON.parse(JSON.stringify(BASE)); c.world.radius = c.worldgen.coreR; delete c.world.center; if (c.zones) delete c.zones.puddle; c.worldgen.on = false; c.enemies.roam.on = false; c.weather.combat = null; return c; })();     // Мир 5.0: ручное ядро — круг вокруг лагеря, без сдвига мира и луж
 

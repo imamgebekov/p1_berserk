@@ -27,7 +27,7 @@ import { weaponMix, weaponElement } from './stones3d.js';
 import { loadNature, loadBaked, modelsOff } from './actors3d.js';
 import { setDecorLib } from './decor.js';
 import { setNature } from './models.js';
-import { makeActor, actorKey, actorReady, preloadActors, driveHero, driveFoe, disposeActor, soldierActor, driveAlly } from './actors3d.js';
+import { makeActor, actorKey, actorReady, preloadActors, needActor, driveHero, driveFoe, disposeActor, soldierActor, driveAlly } from './actors3d.js';
 import { makeHero, animateHero, makeMonster, animateMonster, makeCampfire, addTree, addRock, addBush, addCanopyTree, makeNpc, makeCart, makeHorse, makeCrow, makeSoldier, animateSoldier, makeBeast } from './models.js';
 import { heroOf } from './data/heroes3d.js';
 import { villagerStops, makeVillagers, stepVillager, makeBirds, updateBirds, chimneys, fogMul, makeBeasts, updateBeasts, makeDucks, updateDucks } from './ambient3d.js';
@@ -764,7 +764,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function entity(e) {
     let en = ents.get(e.id);
     if (!en) {
-      const fk = actorKey(cfg, 'foe', e.type), m = (fk && makeActor(fk, { ...kitOf(fk), tint: cfg.actors.tints[e.type] }, e.type)) || makeMonster(e.type, cfg), sh = shadow(.55 * cfg.enemies[e.type].scale); rimify(m.group, RS && RS.foe); if (shadowsOn) { m.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); sh.visible = false; }
+      const fk = actorKey(cfg, 'foe', e.type); needActor(cfg, fk); const m = (fk && makeActor(fk, { ...kitOf(fk), tint: cfg.actors.tints[e.type] }, e.type)) || makeMonster(e.type, cfg), sh = shadow(.55 * cfg.enemies[e.type].scale); rimify(m.group, RS && RS.foe); if (shadowsOn) { m.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); sh.visible = false; }
       const ring = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 28), new THREE.MeshBasicMaterial({ color: '#ff3a2a', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
       ring.rotation.x = -Math.PI / 2; ring.position.y = .06;
       scene.add(m.group, sh, ovl(ring));
