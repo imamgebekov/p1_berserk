@@ -1515,7 +1515,7 @@ const BASE = {
     // тяжёлый ×heavy; герой — hero.base × √(вес бьющего, до attMax) / вес героя, noPlant с без упора разворота; спутники — ally
     // poise — стойкость боссов: урон за t с больше frac здоровья — пробита (отлёт ×brk, сбитый приём, оглушение stun), иначе ×k
     // slam — удар о стену: летел быстрее v — урон dmg от удара, оглушение stun, не чаще cd; chain — толкнул соседа: быстрее v отдаёт долю k, t с без передачи дальше
-    knock: { on: true, base: 6.9, minMass: .5, heavy: 2, max: 14, hero: { base: 5, attMax: 2, mass: { thorn: 1.25, brand: 1.25 }, noPlant: .3 },
+    knock: { on: true, base: 6.9, minMass: .5, heavy: 2, max: 14, hero: { base: 5, attMax: 1, mass: { thorn: 1.25, brand: 1.25 }, noPlant: .3 },
       ally: { base: 3.5, hurt: 3, mass: { tank: 1.4 } }, poise: { t: 3, frac: .08, k: 1, brk: 6, stun: .5 }, slam: { v: 4, dmg: .15, stun: .4, cd: .5 }, chain: { v: 4, k: .5, t: .3 } },
     // этап 3 — тела: убивающий удар толкает тело (скорость отлёта ×carry), оно скользит с трением fric и замирает у стены;
     // лежит life с (с добычей — пока она есть); в кадре не больше max тел (low — на «Низком» качестве), лишнее уходит в землю за sink с;
@@ -1529,7 +1529,7 @@ const BASE = {
     debris: { on: true, max: { phone: 120, pc: 300 }, life: 4, bounce: .35, fric: .6 },
     // этап 5 — вода: брод ford м от берега реки и озера (центр героя; глубже нельзя), глубина 0..1 по броду, ручей — stream; замедление до deepSlow
     // на краю брода (ручей ×0,85, как раньше); перекат в воде ×roll; течение flow — ручей и брод реки, м/с; вещи плывут и к берегу toBank м/с
-    water: { on: true, ford: 1, stream: .375, deepSlow: .6, roll: .7, flow: { stream: 1.2, river: 2 }, toBank: .6 },
+    water: { on: true, ford: 1, stream: .375, deepSlow: .6, roll: .7, flow: { stream: 1.2, river: 2 }, toBank: .6, bridgeCalm: 2 },     // bridgeCalm — у моста ближе стольких м течение не сносит
     // этап 6 — склоны: уклон по шагу (пробы ±probe м); вверх ×(1 − up·уклон), вниз ×(1 − down·уклон), не дальше ±max; враги — ближе foeR м к герою и проснувшиеся
     slope: { on: true, probe: .6, up: .35, down: .15, max: .3, foeR: 30 },
     // обрыв: у края плато герой жмёт наружу hold с — спрыгивает: полёт fall с без управления, приземление land с (скорость ×landSlow),

@@ -64,9 +64,9 @@ const clear = W => { W.enemies.length = 0; W.ev.length = 0; };
   ok(big > 0 && n > 0, `стойкость босса не пробивается (ударов ${n})`); ok(big > small * 4, `пробитая стойкость не отбрасывает: ${big.toFixed(2)} против ${small.toFixed(2)} м/с`); }
 // 7. отлёт героя — по весу бьющего и героя; выключено — как раньше (5 м/с)
 { const W = mk(); clear(W); const hv = att => { const p = W.player; Object.assign(p, { x: home.x, z: home.z, vx: 0, vz: 0, inv: 0, state: 'idle' }); hurtPlayer(W, 1, p.x, p.z - 1, null, att); return Math.hypot(p.vx, p.vz); };
-  const imp = foe(W, 'imp', home.x, home.z - 1), troll = foe(W, 'troll', home.x, home.z - 1);
-  const vi = hv(imp), vt = hv(troll); W.cfg.phys.knock.on = false; const off = hv(imp); W.cfg.phys.knock.on = true;
-  ok(vt > vi * 1.2, `тролль отбрасывает героя не сильнее беса: ${vt.toFixed(2)} / ${vi.toFixed(2)}`); ok(Math.abs(off - 5) < 1e-6, 'выключено — отлёт героя не 5 м/с');
+  const imp = foe(W, 'imp', home.x, home.z - 1), troll = foe(W, 'troll', home.x, home.z - 1), hound = foe(W, 'hound', home.x, home.z - 1);
+  const vi = hv(imp), vt = hv(troll), vh = hv(hound); W.cfg.phys.knock.on = false; const off = hv(imp); W.cfg.phys.knock.on = true;
+  ok(vh < vi && vt >= vi - 1e-9 && vt <= 5 * Math.sqrt(K.hero.attMax) / (K.hero.mass[W.hero] || 1) + 1e-9, `отлёт героя не по весу бьющего: гончая ${vh.toFixed(2)}, бес ${vi.toFixed(2)}, тролль ${vt.toFixed(2)}`); ok(Math.abs(off - 5) < 1e-6, 'выключено — отлёт героя не 5 м/с');
   const H = W.hero; W.hero = 'thorn'; const vth = hv(imp); W.hero = H; ok(vth < vi || (K.hero.mass[H] || 1) >= K.hero.mass.thorn, `Торн не тяжелее: ${vth.toFixed(2)} / ${vi.toFixed(2)}`); }
 // 8. отброшенный герой не «упирается», даже если игрок жмёт навстречу удару
 { const W = mk(); clear(W); const p = W.player; run(W, .6, { mz: -1 }); p.inv = 0; hurtPlayer(W, 1, p.x, p.z - 1, null, null); step(W, 1 / 60, { mz: -1 }); ok(!(p.turnT > 0), 'отлёт героя гасится упором разворота'); }

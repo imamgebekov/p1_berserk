@@ -72,7 +72,7 @@ export function waterAt(rv, x, z, P) {
   const dk = best.kind === 'stream' ? P.stream : Math.min(1, -best.d / P.ford);
   let fx = 0, fz = 0, ox, oz;
   if (best.kind === 'lake') { const dx = x - best.L.x, dz = z - best.L.z, l = Math.hypot(dx, dz) || 1; ox = dx / l; oz = dz / l; }
-  else { const dx = best.b.x - best.a.x, dz = best.b.z - best.a.z, l = Math.hypot(dx, dz) || 1, v = best.kind === 'stream' ? P.flow.stream : P.flow.river * dk; fx = dx / l * v; fz = dz / l * v; const ex = x - best.q.px, ez = z - best.q.pz, el = Math.hypot(ex, ez) || 1; ox = ex / el; oz = ez / el; }
+  else { const dx = best.b.x - best.a.x, dz = best.b.z - best.a.z, l = Math.hypot(dx, dz) || 1, v = onBridge(rv, x, z, P.bridgeCalm) ? 0 : best.kind === 'stream' ? P.flow.stream : P.flow.river * dk; fx = dx / l * v; fz = dz / l * v; const ex = x - best.q.px, ez = z - best.q.pz, el = Math.hypot(ex, ez) || 1; ox = ex / el; oz = ez / el; }     // у моста течение не сносит: иначе вынесет на настил сбоку
   return { dk, fx, fz, ox, oz, kind: best.kind };
 }
 

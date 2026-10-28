@@ -24,7 +24,7 @@ for (const b of finals) { const P = S[b.type].p2; if (seen.has(P.room)) continue
   ok(W.bossRoom && W.bossRoom.kind === P.room && evs.some(v => v.k === 'bossRoom') && evs.some(v => v.k === 'bossSay' && v.text === P.say), `${b.type}: нет смены зала или реплики фазы`);
   if (P.room === 'collapse') ok((W.bzones || []).filter(z => z.room).length >= 8, `${b.type}: пол по краям не горит`);
   if (P.room === 'embers') { e.b.cd = 99; run(W, CFG3.bosses.room.embers.every + 1, () => { e.hp = e.maxhp * .4; }); ok((W.bzones || []).some(z => z.met), `${b.type}: пепел не сыплется`); }
-  if (P.room === 'flood') { const sp = () => { p.x = e.x + 6; p.z = e.z; const x0 = p.x; for (let i = 0; i < 30; i++) step(W, 1 / 60, { mx: 1, mz: 0 }); return p.x - x0; }, slow = sp(); const R = W.bossRoom; W.bossRoom = null; const fast = sp(); W.bossRoom = R;
+  if (P.room === 'flood') { const sp = () => { p.x = e.x + 6; p.z = e.z; p.vx = p.vz = 0; for (let i = 0; i < 30; i++) step(W, 1 / 60, { mx: 1, mz: 0 }); return Math.hypot(p.vx, p.vz); }, slow = sp(); const R = W.bossRoom; W.bossRoom = null; const fast = sp(); W.bossRoom = R;     // скорость, а не путь: путь упирается в стену зала и зависит от того, где босс
     ok(slow < fast * .95, `${b.type}: в затопленном зале герой не медленнее (${slow.toFixed(2)} / ${fast.toFixed(2)})`); }
   killEnemy(W, e, 1); ok(!W.bossRoom && !(W.bzones || []).some(z => z.room) && evs.some(v => v.k === 'bossSay' && v.text === S[b.type].lines.death), `${b.type}: гибель не сняла смену зала или нет последних слов`); }
 ok(seen.size === 4, 'проверены не все смены зала: ' + [...seen]);
