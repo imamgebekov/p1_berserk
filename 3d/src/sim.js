@@ -10,6 +10,7 @@ export function mulberry32(a) {
 import { TAU, DEG, clamp, len, rr } from './util3d.js';
 import { biomeAt } from './worldgen3d.js';
 import { hurtAlly, updateAllies, packSquad, restoreAllies } from './squad3d.js';
+import { updateBots } from './bots3d.js';
 import { threatPick, addThreat } from './threat3d.js';
 import { zoneAt } from './zones3d.js';
 import { lifeFresh, nodesOf, coachesOf, mountMul, mountInput, dismount, repEvents, discoverCoaches } from './life3d.js';
@@ -401,6 +402,14 @@ export function killEnemy(W, e, share) {
   if (e.grp) campKill(W, e);     // после тела: награда лежит у костра, а не в теле
 }
 
+// убийство ботом (этап 5 «живого мира»): смерть, тело с добычей (бот его залутает), лагерь врагов считает; герою — ни опыта, ни заданий
+export function botKill(W, e, a) {
+  if (e.dead || e.boss) return;
+  const d0 = W.drops.length; e.dead = true; e.deadT = 0; e.byBot = a.id;
+  W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: false });
+  dropLoot(W, e); corpseOf(W, e, d0);
+  if (e.grp) campKill(W, e);
+}
 // добыча с тел (4.21): всё, что выпало при убийстве, — в теле врага (метка corpse у вещей в W.drops: шаг их не подбирает, к герою не тянет,
 // dropLife не гасит); окно добычи — lootCorpse; тело — в W.corpses (по уровню lvl), таймер и уборка — tickCorpses
 function corpseOf(W, e, d0) {
@@ -864,7 +873,7 @@ function updateEnemies(W, dt) {
       const wasAlert = e.alert, cool0 = e.lostT > 0; if (cool0) e.lostT -= dt;
       if (posted && !e.alert && !deep && !shut && !sheltered && !p.dead && spotted(W, e, d, dx, dz, H)) raiseAlarm(W, e);
       if (!e.alert && !posted && !deep && !shut && !sheltered && hops <= W.cfg.dungeons.hearRooms && d < noise * (W.inside >= 0 ? H.house : 1)) e.alert = true;
-      else if (e.alert && d > H.lose) e.alert = false;
+      else if (e.alert && d > H.lose && !(e.botT > W.t)) e.alert = false;     // бот бьёт врага вдали от героя — тот не остывает
       if (posted && e.alert && len(e.x - e.home.x, e.z - e.home.z) > W.cfg.enemies.posts.leash) { e.alert = false; e.lostT = W.cfg.enemies.posts.cool; }       // далеко от поста — бросает погоню
       if (e.grp) { if (e.alert && !e.grpUp) groupUp(W, e); else if (!e.alert) e.grpUp = false; }     // группа лагеря встаёт и остывает вместе
       if (posted && wasAlert && !e.alert && !cool0) W.ev.push({ k: 'lost', x: e.x, z: e.z, id: e.id });
@@ -1175,6 +1184,7 @@ export function step(W, dt, input = {}) {
   updateEnemies(W, dt);
   foeSupport(W, dt);
   updateAllies(W, dt);
+  updateBots(W, dt);
   updateArrows(W, dt);
   updateFoes(W, dt);
   tickBossZones(W, dt);

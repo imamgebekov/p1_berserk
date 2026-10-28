@@ -1052,6 +1052,26 @@ const BASE = {
 
   // сбор группы (4.07, решение владельца): подземелье отряда — на 4, рейд — на 10; состав по ролям; heroRole — роль героя;
   // bots — какими спутниками добирать роль; roleName и names — подписи наёмников
+  // боты-«игроки» (план «живой мир», этап 5, владелец 2026-10-28 «живут сами»): n на мир, рядом с героем (near м) — не больше cap в бою, дальше — дешёвый режим.
+  // start — сколько ботов живёт у мест самого малого уровня (у начала)
+  // Сила — от врагов места: удар снимает hit доли запаса врага, запас бота — hits ударов врага; low — доля здоровья, когда уходит отдыхать
+  bots: { on: true, n: 20, start: 6, near: 70, cap: 5, sight: 13, help: 22, gap: 6, speed: 4.6, hit: .13, hits: 26, low: .35, regen: .08, hold: 4,
+    respawn: 90, rot: 4, lootT: 1.4, lvKills: 15, move: 4, wander: [8, 28], idle: [2, 6], farKill: [40, 90], ref: ['brute', 'imp', 'hound'], shot: 16,
+    classes: {
+      thorn: { role: 'tank', range: 2.1, wind: .36, recover: .55, hp: 1.3, dmg: .85 }, vale: { role: 'melee', range: 1.9, wind: .26, recover: .4, hp: .9, dmg: 1.1 },
+      jay: { role: 'ranged', ranged: true, range: 9, wind: .45, recover: .5, hp: .8, dmg: .9 }, irga: { role: 'heal', ranged: true, range: 8, wind: .5, recover: .7, hp: .8, dmg: .6, heal: [.25, 7] },
+      warlock: { role: 'ranged', ranged: true, range: 8, wind: .5, recover: .6, hp: .85, dmg: 1 }, priest: { role: 'heal', range: 2, wind: .4, recover: .55, hp: 1.1, dmg: .7, heal: [.2, 8] },
+      brand: { role: 'melee', range: 2.3, wind: .45, recover: .6, hp: 1.15, dmg: 1.2 }, hunter: { role: 'melee', range: 2, wind: .3, recover: .45, hp: 1, dmg: 1 } },
+    names: ['Сова', 'Ржавый_Клинок', 'Вереск', 'Тёмный_Лис', 'Кузнечик', 'Морошка', 'Ястреб77', 'Бродяга', 'Сивый', 'Рагнар_Хмурый', 'Лучина', 'Стрига', 'Медовуха', 'Полынь',
+      'Хромой_Ян', 'Дикий_Кот', 'Ворон13', 'Пепельник', 'Мизгирь', 'Кольчужка', 'Барсук', 'Тихоня', 'Зорька', 'Гром_и_Молот', 'Седой_Волк', 'Чертополох'],
+    sayCd: 16, sayGap: 6,     // реплики: у бота не чаще sayCd с, у всех ботов вместе — не чаще sayGap с
+    say: { hi: ['Здорово, путник!', 'О, живой человек!', 'Тут гнездо рядом, осторожней', 'Привет! Вместе веселее'],
+      help: ['Держись, помогу!', 'Вдвоём сподручнее!', 'Иду на подмогу!', 'Этих бери, я слева'],
+      kill: ['Готов!', 'Лёгкий был', 'Ещё один', 'Хорошая драка', 'Неплохо пошло'],
+      low: ['Отойду, подлечусь', 'Ух, крепко бьют', 'Мне бы к костру'],
+      rest: ['Перевяжусь и дальше', 'Посижу немного'],
+      lvl: ['Новый уровень!', 'Ап!', 'Растём потихоньку'],
+      loot: ['Ну-ка, что тут у нас', 'Негусто', 'О, железо!'] } },
   party: { on: true, dungeon: { tank: 1, heal: 1, melee: 1, ranged: 1 }, raid: { tank: 2, heal: 3, melee: 3, ranged: 2 },
     heroRole: { thorn: ['tank', 'melee', 'melee'], vale: ['melee', 'melee', 'melee'], jay: ['ranged', 'ranged', 'ranged'], irga: ['ranged', 'ranged', 'ranged'], warlock: ['ranged', 'ranged', 'ranged'], priest: ['heal', 'heal', 'ranged'], brand: ['melee', 'tank', 'melee'], hunter: ['melee', 'tank', 'melee'] },     // школы (2026-10-22): роль — по школе героя (0, 1, 2)
     bots: { tank: ['c_thorn', 'soldier'], heal: ['c_irga'], melee: ['c_vale', 'veteran'], ranged: ['c_jay'] },

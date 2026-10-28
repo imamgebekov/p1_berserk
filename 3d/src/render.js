@@ -640,8 +640,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (m) m.group.visible = near; }
   }
   // тень-двойник Вейла: тёмная копия героя с его клинком
-  const MATE_W = { thorn: 'sword', vale: 'dagger', jay: 'bow', irga: 'staff' };     // спутник-герой (этап 4): облик героя и его оружие
+  const MATE_W = { thorn: 'sword', vale: 'dagger', jay: 'bow', irga: 'staff', warlock: 'sickle', priest: 'mace', brand: 'greatsword', hunter: 'sword' };     // спутник-герой (этап 4): облик героя и его оружие
   const mateModel = T => { const k = actorKey(cfg, 'hero', T.hero), A = k && makeActor(k, kitOf(k), 'hero'); if (A) { A.setWeapon(MATE_W[T.hero] || 'sword', 'steel'); return A; } const h = makeHero(); h.setLook(heroOf(T.hero).look); h.setWeapon(MATE_W[T.hero] || 'sword', 'steel'); return h; };
+  // имя и уровень бота-«игрока» над головой (этап 5 «живого мира»)
+  const nameTag = text => { const c = document.createElement('canvas'); c.width = 256; c.height = 48; const g = c.getContext('2d'); g.font = '600 25px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 6; g.strokeStyle = '#120a04'; g.strokeText(text, 128, 24); g.fillStyle = '#9fd0ff'; g.fillText(text, 128, 24);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true })); sp.scale.set(2.4, .45, 1); sp.renderOrder = 6; return sp; };
+  const dropTag = en => { if (!en.tag) return; scene.remove(en.tag); en.tag.material.map.dispose(); en.tag.material.dispose(); en.tag = null; };
   const decoyModel = () => { const h = makeHero(); h.setLook({ cloth: '#1a1824', cape: '#2a1838', hair: '#0a0810', legs: '#14121c', shoulder: false, hood: false, quiver: false, capeLen: .7 }); h.setWeapon('rapier', 'black'); h.root.rotation.x = .12; return h; };
   // кольцо заряда тяжёлого удара под героем: растёт с зарядом, при полном — оранжевое и пульсирует
   const chargeRing = new THREE.Mesh(new THREE.RingGeometry(.82, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffd9c0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -1148,15 +1152,16 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     for (const a of W.allies) {
       aliveA.add(a.id);
       let en = allyEnts.get(a.id);
-      if (!en) { const m = a.decoy ? decoyModel() : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : cfg.squad.types[a.type] && cfg.squad.types[a.type].hero ? mateModel(cfg.squad.types[a.type]) : soldierActor(cfg, a.type) || makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
-      { const T1 = cfg.squad.types[a.type], k1 = T1 && T1.hero && !a.guest && !a.decoy && !en.m.gltf && actorKey(cfg, 'hero', T1.hero); if (k1 && actorReady(k1)) { scene.remove(en.m.group); disposeDeep(en.m.group); en.m = mateModel(T1); en.lk = null; scene.add(en.m.group); } }     // готовая модель спутника пришла позже
+      if (!en) { const m = a.decoy ? decoyModel() : a.bot ? mateModel(a.T) : a.guest ? (a.cart ? makeCart(false) : makeNpc('traveler')) : cfg.squad.types[a.type] && cfg.squad.types[a.type].hero ? mateModel(cfg.squad.types[a.type]) : soldierActor(cfg, a.type) || makeSoldier(a.type, cfg), sh = shadow(a.cart ? 1.4 : .5); scene.add(m.group, sh); en = { m, sh }; allyEnts.set(a.id, en); }
+      { const T1 = a.bot ? a.T : cfg.squad.types[a.type], k1 = T1 && T1.hero && (!a.guest || a.bot) && !a.decoy && !en.m.gltf && actorKey(cfg, 'hero', T1.hero); if (k1 && actorReady(k1)) { scene.remove(en.m.group); disposeDeep(en.m.group); en.m = mateModel(T1); en.lk = null; scene.add(en.m.group); } }     // готовая модель спутника пришла позже
       if (!en.m.gltf && !a.guest && !a.decoy && !(cfg.squad.types[a.type] || {}).hero) { const S1 = soldierActor(cfg, a.type); if (S1) { scene.remove(en.m.group); disposeDeep(en.m.group); en.m = S1; scene.add(en.m.group); if (shadowsOn) S1.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); } }     // солдат: готовая модель KayKit пришла позже
       const ay = liftY ?? Y(a.x, a.z);
-      { const vis = inView(a.x, ay + 1, a.z, 2.5); if (!vis) { if (en.vis !== false) { en.vis = false; en.m.group.visible = false; if (en.sh) en.sh.visible = false; } continue; } if (en.vis === false) { en.vis = true; en.m.group.visible = !a.dead; if (en.sh) en.sh.visible = true; } }     // спутник вне кадра — не рисуется и не анимируется (экономия)
+      { const vis = inView(a.x, ay + 1, a.z, 2.5); if (!vis) { if (en.vis !== false) { en.vis = false; en.m.group.visible = false; if (en.sh) en.sh.visible = false; if (en.tag) en.tag.visible = false; } continue; } if (en.vis === false) { en.vis = true; en.m.group.visible = !a.dead; if (en.sh) en.sh.visible = true; } }     // спутник вне кадра — не рисуется и не анимируется (экономия)
       en.m.group.position.set(a.x, ay, a.z); en.m.group.rotation.y = en.yawInit && cfg.view.blend ? dampAngle(en.m.group.rotation.y, a.face, cfg.view.blend.yawHero, dt) : a.face; en.yawInit = true;
-      if (en.m.setLook && !a.guest) {     // спутник-герой (этап 4): анимация героя по «подставному» игроку — бег по скорости, удар по замаху
-        if (a.eq) { const T0 = cfg.squad.types[a.type], lk = lookKey(T0.hero, a, null) + (a.eq.weapon || ''); if (en.lk !== lk) { en.lk = lk; en.m.setLook(dressedLook(heroOf(T0.hero).look, a, null)); const wi = a.eq.weapon && BY_ID[a.eq.weapon]; en.m.setWeapon(wi ? wi.kind : MATE_W[T0.hero] || 'sword', wi ? wi.mat : 'steel'); } }     // одежда бойца-героя (2026-10-20)
-        const T = cfg.squad.types[a.type], AT = cfg.player.attackTime, k = dt > 0 ? 1 / dt : 0, pp = en.pp || (en.pp = { chain: 0, fin: false, heavy: 0, hand: 0, inv: 0, rollT: 0, chargeT: 0, dashT: 0, dashDur: 0 });
+      if (a.bot) { const tk = `${a.name} · ${a.lv}`; if (en.tagK !== tk) { dropTag(en); en.tag = nameTag(tk); en.tagK = tk; scene.add(en.tag); } en.tag.position.set(a.x, 2.95 + ay, a.z); en.tag.visible = !a.dead; }     // имя и уровень бота
+      if (en.m.setLook && (!a.guest || a.bot)) {     // спутник-герой (этап 4): анимация героя по «подставному» игроку — бег по скорости, удар по замаху
+        if (a.eq) { const T0 = a.bot ? a.T : cfg.squad.types[a.type], lk = lookKey(T0.hero, a, null) + (a.eq.weapon || ''); if (en.lk !== lk) { en.lk = lk; en.m.setLook(dressedLook(heroOf(T0.hero).look, a, null)); const wi = a.eq.weapon && BY_ID[a.eq.weapon]; en.m.setWeapon(wi ? wi.kind : MATE_W[T0.hero] || 'sword', wi ? wi.mat : 'steel'); } }     // одежда бойца-героя (2026-10-20)
+        const T = a.bot ? a.T : cfg.squad.types[a.type], AT = cfg.player.attackTime, k = dt > 0 ? 1 / dt : 0, pp = en.pp || (en.pp = { chain: 0, fin: false, heavy: 0, hand: 0, inv: 0, rollT: 0, chargeT: 0, dashT: 0, dashDur: 0 });
         pp.vx = en.lx === undefined ? 0 : (a.x - en.lx) * k; pp.vz = en.lz === undefined ? 0 : (a.z - en.lz) * k; en.lx = a.x; en.lz = a.z;
         pp.face = a.face; pp.dead = a.dead; pp.deadT = a.deadT; pp.state = a.state === 'wind' || a.state === 'rec' ? 'atk' : 'idle';
         pp.atkT = a.state === 'wind' ? AT * .5 * Math.min(1, a.t / T.wind) : AT * (.5 + .5 * Math.min(1, a.t / T.recover));
@@ -1164,12 +1169,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         if (bladeOn() && a.eq) { const bl = en.blade || (en.blade = makeBladeFx(scene)), wi = a.eq.weapon && BY_ID[a.eq.weapon]; bl.set(en.m.weapon, wi ? bladeEls({ mix: weaponMix(wi, a.gem && a.gem.weapon), el: weaponElement(wi) }).filter(hasBladeStyle) : []); bl.update(dt, t, calm); }     // стихия на клинке спутника
       } else if (!a.guest) { if (en.m.gltf) driveAlly(en.m, en, a, cfg.squad.types[a.type], dt, cfg); else animateSoldier(en.m, a, t); }
       else { en.m.group.visible = !a.dead; if (en.m.root) en.m.root.position.y = calm ? 0 : Math.abs(Math.sin(t * (a.moving ? 9 : 2))) * (a.moving ? .08 : .02); } en.sh.position.set(a.x, .03 + ay, a.z); en.sh.visible = !a.dead;
-      const b = bar({ id: 'a' + a.id }, a.guest ? '#d8b040' : '#3a8a4a'), show = (a.guest || a.hp < a.maxhp) && !a.dead;
+      const b = bar({ id: 'a' + a.id }, a.bot ? '#5a9ad8' : a.guest ? '#d8b040' : '#3a8a4a'), show = ((a.guest && !a.bot) || a.hp < a.maxhp) && !a.dead;
       b.g.visible = show; if (show) { b.g.position.set(a.x, (a.cart ? 3.4 : 2.7) + ay, a.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, a.hp / a.maxhp); }
     }
     { const mk = W.party && W.party.cmd === 'assist' && W.enemies.find(e => e.id === W.party.mark && !e.dead); markRing.visible = !!mk;     // метка «моей цели»
       if (mk) { const r = cfg.enemies[mk.type].radius + .5; markRing.position.set(mk.x, .08 + Y(mk.x, mk.z), mk.z); markRing.scale.setScalar(r); markRing.rotation.z = t * 1.5; } }
-    for (const [id, en] of allyEnts) if (!aliveA.has(id)) { if (en.blade) en.blade.dispose(); if (en.m.gltf) disposeActor(en.m); scene.remove(en.m.group, en.sh); disposeDeep(en.m.group); disposeDeep(en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete('a' + id); } }
+    for (const [id, en] of allyEnts) if (!aliveA.has(id)) { dropTag(en); if (en.blade) en.blade.dispose(); if (en.m.gltf) disposeActor(en.m); scene.remove(en.m.group, en.sh); disposeDeep(en.m.group); disposeDeep(en.sh); allyEnts.delete(id); const b = bars.get('a' + id); if (b) { scene.remove(b.g); disposeDeep(b.g); bars.delete('a' + id); } }
     for (const [id, en] of ents) if (!alive.has(id)) dropEnt(id, en);
 
     // события боя → эффекты и подписи (подписи отдаёт hooks.onText)

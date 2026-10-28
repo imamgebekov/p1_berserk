@@ -172,6 +172,7 @@ export function drawMap(ctx, W, v) {
     for (const e of W.enemies) if (!e.dead && !e.boss && (e.elite || e.guard) && (under || !full || isSeen(W, e.x, e.z))) { const x = X(e.x), y = Y(e.z); if (x > 0 && x < w && y > 0 && y < h) { if (full) badge(ctx, 'map:mini', x, y, 6.5 * U, '#d8741a'); else mark(x, y, 3.5, '#ff9a2a', false); } } }
   // свои бойцы
   ctx.fillStyle = '#6ab0ff'; for (const a of W.allies || []) if (!a.dead && !a.guest) { ctx.beginPath(); ctx.arc(X(a.x), Y(a.z), 2.6, 0, 6.2832); ctx.fill(); }
+  if (!under) { ctx.fillStyle = '#9fe0c0'; for (const a of W.bots || []) if (!a.dead) { const x = X(a.x), y = Y(a.z); if (x > 0 && x < w && y > 0 && y < h) { ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 6.2832); ctx.fill(); } } }     // боты-«игроки» (этап 5)
   // повозка сказочного торговца: видна и сквозь туман; на миникарте прижимается к краю, показывая направление
   if (!under && W.wanderer) { const m = 6, x = Math.min(w - m, Math.max(m, X(W.wanderer.x))), y = Math.min(h - m, Math.max(m, Y(W.wanderer.z))); if (full) badge(ctx, 'map:coach', x, y, 8 * U, '#7a4ab8'); else { ctx.fillStyle = '#c8a0ff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, 6.2832); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(x - 1, y - 1, 2, 2); } }
   // событие: золотой «!» над подопечным или местом засады; на миникарте прижимается к краю

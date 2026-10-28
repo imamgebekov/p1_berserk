@@ -158,7 +158,7 @@ function allyShot(W, a, T, e, k = 1) {
 function updateShots(W, dt) {
   const S = W.cfg.squad.shot;
   for (let i = W.proj.length - 1; i >= 0; i--) {
-    const q = W.proj[i]; if (!q.ally) continue;
+    const q = W.proj[i]; if (!q.ally || q.bot) continue;     // стрелы ботов летят в bots3d.js
     q.life -= dt; const ox = q.x, oz = q.z; q.x += q.vx * dt; q.z += q.vz * dt;
     let end = q.life <= 0 || hitsWall(W.map, q.x, q.z) || lineBlocked(W.map, ox, oz, q.x, q.z);
     if (!end) for (const e of W.enemies) { if (e.dead || len(e.x - q.x, e.z - q.z) > W.cfg.enemies[e.type].radius + S.hitR) continue; allyHit(W, W.cfg.squad.types[q.type], q.ally, e, q.dmg, { x: ox, z: oz }, .4); end = true; break; }
