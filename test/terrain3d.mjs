@@ -68,7 +68,7 @@ const br = rv.bridges[0], bs = Math.sin(br.ang), bc = Math.cos(br.ang), half = b
   const W = mk(), p = W.player, ax = Math.cos(br.ang), az = -Math.sin(br.ang);     // вдоль русла (поперёк моста)
   p.x = br.x - bs * (half + 1) + ax * 6; p.z = br.z - bc * (half + 1) + az * 6;
   let minD = 1e9; for (let i = 0; i < 180; i++) { step(W, 1 / 60, { mx: bs, mz: bc }); minD = Math.min(minD, waterDist(rv, p.x, p.z)); }
-  ok(minD > -.05, `герой зашёл в воду: ${minD.toFixed(2)}`);
+  ok(minD > -(CFG3.phys && CFG3.phys.water && CFG3.phys.water.on ? CFG3.phys.water.ford : 0) - .05, `герой зашёл в воду глубже брода: ${minD.toFixed(2)}`);     // план физики, этап 5: брод у берега
 }
 {
   const W = mk(), p = W.player; p.x = br.x - bs * (half + 1); p.z = br.z - bc * (half + 1);

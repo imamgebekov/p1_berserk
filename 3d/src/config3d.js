@@ -1582,7 +1582,33 @@ const BASE = {
   // turn — разворот больше deg° после бега в одну сторону не короче run с: упор — скорость сразу ×k от полной и t с не быстрее; roll — кривая переката: lo + hi·(1−u)^p, средняя avg
   // (путь как раньше); rollCarry — доля скорости после переката; dashCarry — после рывка умения. on: false — как раньше
   phys: {
-    move: { on: true, brake: 30, turn: { deg: 120, k: .55, t: .08, run: .3 }, roll: { p: 1.5, lo: .5, avg: .875 }, rollCarry: .7, dashCarry: .2 }
+    move: { on: true, brake: 30, turn: { deg: 120, k: .55, t: .08, run: .3 }, roll: { p: 1.5, lo: .5, avg: .875 }, rollCarry: .7, dashCarry: .2 },
+    // этап 2 — отбрасывание с весом: скорость = base × сила удара / вес (не больше max); вес врага — mass или scale² (не меньше minMass),
+    // тяжёлый ×heavy; герой — hero.base × √(вес бьющего, до attMax) / вес героя, noPlant с без упора разворота; спутники — ally
+    // poise — стойкость боссов: урон за t с больше frac здоровья — пробита (отлёт ×brk, сбитый приём, оглушение stun), иначе ×k
+    // slam — удар о стену: летел быстрее v — урон dmg от удара, оглушение stun, не чаще cd; chain — толкнул соседа: быстрее v отдаёт долю k, t с без передачи дальше
+    knock: { on: true, base: 6.9, minMass: .5, heavy: 2, max: 14, hero: { base: 5, attMax: 1, mass: { thorn: 1.25, brand: 1.25 }, noPlant: .3 },
+      ally: { base: 3.5, hurt: 3, mass: { tank: 1.4 } }, poise: { t: 3, frac: .08, k: 1, brk: 6, stun: .5 }, slam: { v: 4, dmg: .15, stun: .4, cd: .5 }, chain: { v: 4, k: .5, t: .3 } },
+    // этап 3 — тела: убивающий удар толкает тело (скорость отлёта ×carry), оно скользит с трением fric и замирает у стены;
+    // лежит life с (с добычей — пока она есть); в кадре не больше max тел (low — на «Низком» качестве), лишнее уходит в землю за sink с;
+    // keep — сколько тел помнит бой; freeze — через столько с анимация тела замирает
+    body: { on: true, carry: 1.3, fric: 6, life: 90, keep: 24, max: { phone: 6, pc: 16, low: 3 }, sink: .8, freeze: 2.5 },
+    // этап 4 — бьющиеся бочки, ящики, кувшины в залах подземелий: зал с ними — с шансом room, по n штук у стен (не ближе linkGap к проходу,
+    // gap — к другим препятствиям); kind — радиус и запас ударов (тяжёлый удар — за два); внутри — пепел ash и с шансом item расходник из items
+    // debris — обломки: в кадре не больше max (телефон, ПК), живут life с, отскок bounce, трение fric
+    brk: { on: true, room: .55, n: [1, 3], linkGap: 2.6, gap: .5, kinds: ['crate', 'barrel', 'jar', 'crate', 'barrel'], kind: { crate: { r: .45, hp: 2 }, barrel: { r: .4, hp: 2 }, jar: { r: .28, hp: 1 } },
+      ash: [2, 8], item: .35, items: ['f_crust', 'f_rusk', 'f_berries', 'h_rag_bandage', 'p_heal1'] },
+    debris: { on: true, max: { phone: 120, pc: 300 }, life: 4, bounce: .35, fric: .6 },
+    // этап 5 — вода: брод ford м от берега реки и озера (центр героя; глубже нельзя), глубина 0..1 по броду, ручей — stream; замедление до deepSlow
+    // на краю брода (ручей ×0,85, как раньше); перекат в воде ×roll; течение flow — ручей и брод реки, м/с; вещи плывут и к берегу toBank м/с
+    water: { on: true, ford: 1, stream: .375, deepSlow: .6, roll: .7, flow: { stream: 1.2, river: 2 }, toBank: .6, bridgeCalm: 2 },     // bridgeCalm — у моста ближе стольких м течение не сносит
+    // этап 6 — склоны: уклон по шагу (пробы ±probe м); вверх ×(1 − up·уклон), вниз ×(1 − down·уклон), не дальше ±max; враги — ближе foeR м к герою и проснувшиеся
+    slope: { on: true, probe: .6, up: .35, down: .15, max: .3, foeR: 30 },
+    // обрыв: у края плато герой жмёт наружу hold с — спрыгивает: полёт fall с без управления, приземление land с (скорость ×landSlow),
+    // отброшенный быстрее v врага с края — падает вниз
+    cliff: { on: true, hold: .12, fall: .35, land: .2, landSlow: .4, v: 3 },
+    // лестница дома и подземелья: проход по ступеням walk с без управления, потом переход
+    stairs: { on: true, walk: .6 }
   },
 
   enemies: {

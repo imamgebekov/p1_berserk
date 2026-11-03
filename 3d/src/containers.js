@@ -91,9 +91,9 @@ export function buildContainers(map, Y = () => 0, lazy = false) {     // lazy (2
       beam.visible = rar >= 2; if (beam.visible) { const h = 1.6 + rar * 1.1; beam.scale.set(1 + rar * .4, h, 1 + rar * .4); beam.position.set(q.x, gy + h / 2, q.z); beam.material.opacity = (.25 + .1 * rar) * (.75 + .25 * Math.sin(t * 5 + i)) * blink; }
     }
   }
-  return { group, update: (W, t) => { update(W, t); corpses(W, t); }, items, near: lazy ? near : null };
+  return { group, update: (W, t, shown) => { update(W, t); corpses(W, t, shown); }, items, near: lazy ? near : null };
   // тела с добычей (4.21): кольцо на земле и ромб цвета лучшей вещи; редкое — со столбом света; последние 20 с — мигает
-  function corpses(W, t) {
+  function corpses(W, t, shown) {
     const L = (W.corpses || []).filter(c => c.lvl === W.lvl);
     while (corpsePool.length < L.length) { const m = new THREE.Mesh(dropGeo, new THREE.MeshBasicMaterial({ color: '#fff' })), ring = new THREE.Mesh(new THREE.RingGeometry(.55, .75, 28), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: .55, depthWrite: false, side: THREE.DoubleSide })), beam = new THREE.Mesh(geo(.09, 1, .09), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: .45, depthWrite: false, blending: THREE.AdditiveBlending })); ring.rotation.x = -Math.PI / 2; m.userData = { ring, beam }; group.add(m, ring, beam); corpsePool.push(m); }
     for (let i = 0; i < corpsePool.length; i++) {
@@ -102,7 +102,7 @@ export function buildContainers(map, Y = () => 0, lazy = false) {     // lazy (2
       let best = 0; for (const q of W.drops) if (q.corpse === c.id) best = Math.max(best, BY_ID[q.id].rar);
       const col = RARITY[best].color, gy = Y(c.x, c.z), blink = c.life - c.t < 20 ? .5 + .5 * Math.abs(Math.sin(t * 10)) : 1;
       if (m.userData.col !== col) { m.userData.col = col; m.material.color.set(col); ring.material.color.set(col); beam.material.color.set(col); }
-      m.visible = ring.visible = true; m.position.set(c.x, gy + .9 + Math.sin(t * 3 + i) * .08, c.z); m.rotation.y = t * 2; m.scale.setScalar((1 + best * .15) * blink);
+      m.visible = !(shown && shown.has(c.id)); ring.visible = true; m.position.set(c.x, gy + .9 + Math.sin(t * 3 + i) * .08, c.z); m.rotation.y = t * 2; m.scale.setScalar((1 + best * .15) * blink);
       ring.position.set(c.x, gy + .06, c.z); ring.scale.setScalar(1 + .08 * Math.sin(t * 4 + i)); ring.material.opacity = .45 * blink;
       beam.visible = best >= 2; if (beam.visible) { const h = 1.6 + best * 1.1; beam.scale.set(1 + best * .4, h, 1 + best * .4); beam.position.set(c.x, gy + h / 2, c.z); beam.material.opacity = (.25 + .1 * best) * blink; }
     }

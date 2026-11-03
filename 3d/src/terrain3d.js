@@ -73,9 +73,9 @@ export function pushWater(rv, o, r, segs) {
   let hit = false;
   const list = segs || [...rv.pts.slice(1).map((_, i) => i), ...(rv.lakes || []).map((_, k) => -(k + 1))];
   for (const i of list) {
-    if (i < 0) { const Lk = rv.lakes[-i - 1], d0 = Math.hypot(o.x - Lk.x, o.z - Lk.z), dx = d0 > 1e-3 ? o.x - Lk.x : 1, dz = d0 > 1e-3 ? o.z - Lk.z : 0, dd = Math.hypot(dx, dz), R = lakeR(Lk, Math.atan2(dx, dz)) + r;     // озеро — на берег (из центра — на восток)
+    if (i < 0) { const Lk = rv.lakes[-i - 1], d0 = Math.hypot(o.x - Lk.x, o.z - Lk.z), dx = d0 > 1e-3 ? o.x - Lk.x : 1, dz = d0 > 1e-3 ? o.z - Lk.z : 0, dd = Math.hypot(dx, dz), R = lakeR(Lk, Math.atan2(dx, dz)) + (rv.ford ? -rv.ford : r);     // брод (план физики, этап 5): центр — до ford м в воду     // озеро — на берег (из центра — на восток)
       if (dd < R) { o.x = Lk.x + dx / dd * R; o.z = Lk.z + dz / dd * R; hit = true; } continue; }
-    const a = rv.pts[i], b = rv.pts[i + 1], q = segDist(o.x, o.z, a, b), m = rv.w / 2 + r;
+    const a = rv.pts[i], b = rv.pts[i + 1], q = segDist(o.x, o.z, a, b), m = rv.w / 2 + (rv.ford ? -rv.ford : r);
     if (q.d >= m) continue;
     hit = true;
     if (q.d > 1e-9) { const k = m / q.d; o.x = q.px + (o.x - q.px) * k; o.z = q.pz + (o.z - q.pz) * k; }

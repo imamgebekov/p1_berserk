@@ -30,13 +30,15 @@ for (const [i, S] of RV.streams.entries()) { const e = S.pts[S.pts.length - 1];
 // ---------- 2. озеро и ручей в бою ----------
 function mk() { const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.weather.force = 'clear'; cfg.enemies.roam.on = false; cfg.events.on = false; cfg.wanderer.on = false;
   const W = createWorld(cfg, () => .5); W.player.inv = 1e9; step(W, 1 / 60, {}); return W; }
-{ const W = mk(), L = big[0]; W.player.x = L.x; W.player.z = L.z; step(W, 1 / 60, {}); ok(lakeDist(L, W.player.x, W.player.z) >= -.05, 'герой остался в озере'); }
+{ const W = mk(), L = big[0]; W.player.x = L.x; W.player.z = L.z; step(W, 1 / 60, {}); ok(lakeDist(L, W.player.x, W.player.z) >= -(CFG3.phys.water.on ? CFG3.phys.water.ford : 0) - .05, 'герой остался в глубине озера'); }     // план физики, этап 5: брод у берега
 { const W = mk(), L = big[0]; W.player.x = L.x + lakeR(L, Math.PI / 2) + 3; W.player.z = L.z; for (let i = 0; i < 120; i++) step(W, 1 / 60, { mx: -1, mz: 0 });
-  ok(waterDist(W.map.river, W.player.x, W.player.z) > -.1, 'герой зашёл в озеро'); }
+  const wd = waterDist(W.map.river, W.player.x, W.player.z); ok(wd > -(CFG3.phys.water.on ? CFG3.phys.water.ford : 0) - .1, `герой зашёл глубже брода: ${wd.toFixed(2)} м`); if (CFG3.phys.water.on) ok(wd < -.5, `в брод озера не зайти: ${wd.toFixed(2)} м`); }
 const S = RV.streams.find(s => s.pts.length > 6), mid = S.pts[3];
-{ const run = inS => { const W = mk(), p = W.player, a = S.pts[2], b = S.pts[4], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz);
+{ const run = (inS, dir = 1) => { const W = mk(), p = W.player, a = S.pts[2], b = S.pts[4], dx = (b.x - a.x) * dir, dz = (b.z - a.z) * dir, l = Math.hypot(dx, dz);
     p.x = inS ? mid.x : mid.x - dz / l * 6; p.z = inS ? mid.z : mid.z + dx / l * 6; const x0 = p.x, z0 = p.z; for (let i = 0; i < 20; i++) step(W, 1 / 60, { mx: dx / l, mz: dz / l }); return Math.hypot(p.x - x0, p.z - z0); };
-  const dry = run(false), wet = run(true); ok(wet < dry * .92 && wet > dry * .75, `в ручье не медленнее: ${wet.toFixed(2)} против ${dry.toFixed(2)}`); }
+  const dry = run(false), wet = run(true); if (!CFG3.phys.water.on) ok(wet < dry * .92 && wet > dry * .75, `в ручье не медленнее: ${wet.toFixed(2)} против ${dry.toFixed(2)}`);
+  else { const up = run(true, -1), mean = (wet + up) / 2;     // план физики, этап 5: течение несёт вниз по ручью, против — медленнее; без течения — ×0,85, как раньше
+    ok(wet > dry && up < dry * .8, `течение ручья не заметно: вниз ${wet.toFixed(2)}, вверх ${up.toFixed(2)}, по суху ${dry.toFixed(2)}`); ok(mean < dry * .92 && mean > dry * .75, `в ручье не медленнее: ${mean.toFixed(2)} против ${dry.toFixed(2)}`); } }
 { const W = mk(); W.player.x = mid.x; W.player.z = mid.z; ok(inStream(W.map.river, mid.x, mid.z), 'середина ручья — не ручей'); applyPlayer(W, 'burn', 3, 5); step(W, 1 / 60, {}); ok(!W.pst.burn, 'горение не гаснет в ручье'); }
 { const W = mk(), e = spawnEnemy(W, 'brute', mid.x, mid.z); W.player.x = mid.x + 30; W.player.z = mid.z; e.cd = 99; step(W, 1 / 60, {}); ok(e.st && e.st.wet, 'враг в ручье не мокрый'); }
 

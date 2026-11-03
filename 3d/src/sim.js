@@ -20,9 +20,9 @@ import { restock } from './economy3d.js';
 import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
 import { useSlot, dashStep, tickAbilities } from './abilities3d.js';
 import { abilityPointsAt } from './data/abilities3d.js';
-import { waterDist, inStream } from './terrain3d.js';
+import { waterDist, inStream, buildHeights, heightAt } from './terrain3d.js';
 import { pathGoal } from './path3d.js';
-import { inCliff } from './cliffs3d.js';
+import { inCliff, WALL } from './cliffs3d.js';
 import { firesOf, discoverFires } from './fires3d.js';
 import { addFires, campAt } from './map.js';
 import { BY_ID, CATALOG } from './data/items.js';
@@ -49,7 +49,8 @@ import { affixFor, gemsFor } from './affix3d.js';
 import { partyTravel } from './party3d.js';
 import { wearHit, wearHurt, wearDeath, repairKit } from './dur3d.js';
 import { DEFAULT_HERO, HEROES, canOff, canWield } from './data/heroes3d.js';
-import { physMove, rollK, moveStep } from './phys3d.js';
+import { physMove, rollK, moveStep, physKnock, foeMass, knockV, poiseHit, slammed, chainBump, hurtKnock, physBody, bodyOf, tickBodies, physWater, waterAt, physSlope, slopeK } from './phys3d.js';
+import { smashArc } from './brk3d.js';
 import { makeMap, insideOf, nearBuilding, resolve, slide, regionOf, placeAt, keepIn, pathStep, roomHops, lineBlocked, insideCamp, blockFoe, roomAt } from './map.js';
 import { initLevels, withLevel, depthAt, levelOfDepth, levelAt, onSurface, portalNear, backToSurface, travel, SURFACE } from './levels3d.js';
 import { resGain } from './resource3d.js';
@@ -352,7 +353,8 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   if (relicHurt(W, dmg, att)) return false;     // дар «Зеркальный щит»
   if (W.setFx.lastStand && p.hp < p.maxhp * .4) dmg *= 1 - W.setFx.lastStand;
   // щит: удар спереди ослаблен на блок %, отброс меньше; пока герой бьёт или заряжает — щит не закрывает
-  let knock = 5;
+  const KN = physKnock(W.cfg), AC = KN && att && att.type && W.cfg.enemies[att.type];
+  let knock = KN ? hurtKnock(KN.hero.base, AC ? foeMass(KN, AC, AC.heavy) : 1, KN.hero.attMax, KN.hero.mass[W.hero] || 1) : 5;     // план физики, этап 2: по весу бьющего и героя
   if (W.gear.block > 0 && fromX !== undefined && p.state !== 'atk' && p.state !== 'charge' && Math.abs(angDiff(Math.atan2(fromX - p.x, fromZ - p.z), p.face)) < W.cfg.block.arc * DEG / 2) {
     if (W.gfx.reflect && att && !att.dead) { dealDamage(W, att, Math.round(dmg * W.gfx.reflect), null); W.ev.push({ k: 'reflect', x: att.x, z: att.z }); }     // Щит Восхода
     dmg *= 1 - Math.min(80, W.gear.block) / 100; knock *= W.cfg.block.knock; W.ev.push({ k: 'block', x: p.x, z: p.z, face: p.face, hero: true });
@@ -367,7 +369,7 @@ export function hurtPlayer(W, dmg, fromX, fromZ, on, att) {
   dmg = duelGuard(W, dmg); p.hp -= dmg; if (W.life && W.life.mount.on) dismount(W); p.inv = W.cfg.player.hurtInvuln;     // поединок Акта I: герой не гибнет     // ранен — спешился (этап 6)
   W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4);
   const d = len(p.x - fromX, p.z - fromZ) || 1;
-  p.vx += (p.x - fromX) / d * knock; p.vz += (p.z - fromZ) / d * knock;
+  p.vx += (p.x - fromX) / d * knock; p.vz += (p.z - fromZ) / d * knock; if (KN && knock > 0) p.knockT = KN.hero.noPlant;
   W.ev.push({ k: 'hurt', x: p.x, z: p.z, dmg }); resGain(W, 'hurt', dmg); if (dmg > 0 && wearHurt(W)) refreshGear(W);     // износ брони (4.03)     // ярость копится от урона
   if (on && W.rng() < on[1]) applyPlayer(W, on[0], on[2], on[3]);
   const fx = W.setFx;
@@ -384,7 +386,7 @@ export function killEnemy(W, e, share) {
   if (e.dead) return;
   if (e.boss && e.b && e.b.def && e.b.def.stage2 && !e.b.st2) { bossRise(W, e); return; }     // вторая стадия (4.18б)
   const d0 = W.drops.length;     // 4.21: добыча убитого — в его тело (corpseOf в конце)
-  e.dead = true; e.deadT = 0; W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
+  e.dead = true; e.deadT = 0; e.slain = true; fallFace(W, e); W.kills++; if (!W.known.bestiary[e.type]) W.known.bestiary[e.type] = 1; questEvent(W, 'kill', { enemy: e.type, id: e.id }); storyKill(W, e); if (e.boss) { questEvent(W, 'boss', { boss: e.type }); bossDefeated(W, e); storyBoss(W, e.type); } W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: !!e.boss });
   dropLoot(W, e); zoneDrop(W, e); addXp(W, e, share); eliteOnDeath(W, e); relicKill(W, e, share);     // дары Затмения: жатва, охотник, печати с боссов
   { const H = heroMul(W), kh = H.killHeal ? H.killHeal * clamp((H.healLv[1] - W.lv) / (H.healLv[1] - H.healLv[0]), 0, 1) : 0, p = W.player; if (kh && !p.dead && p.hp > 0 && len(p.x - e.x, p.z - e.z) < 6 && W.enemies.filter(o => !o.dead && len(o.x - p.x, o.z - p.z) < 6).length >= 2) p.hp = Math.min(p.maxhp, p.hp + p.maxhp * kh); }     // «второе дыхание» Торна: убил рядом — подлечился
   { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: lootIl(W, e, e.id) ?? ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
@@ -402,10 +404,27 @@ export function killEnemy(W, e, share) {
   if (e.grp) campKill(W, e);     // после тела: награда лежит у костра, а не в теле
 }
 
+// план физики, этап 6: у края плато (не у въезда) и жмёт наружу — куда приземлиться внизу; иначе null
+function edgeOf(PL, o, r, mx, mz) {
+  for (const P of PL) {
+    const dx = o.x - P.x, dz = o.z - P.z, d = len(dx, dz); if (d >= P.r || d < P.r - WALL / 2 - r - .2) continue;
+    const ux = dx / d, uz = dz / d; if (mx * ux + mz * uz < .7 || !inCliff(PL, P.x + ux * P.r, P.z + uz * P.r)) continue;
+    const to = P.r + WALL / 2 + r + .5; return { x: P.x + ux * to, z: P.z + uz * to };
+  }
+  return null;
+}
+// план физики, этап 6: склон — множитель скорости; высоты земли — лениво, только на поверхности (как у рендера: buildHeights)
+function slopeAt(W, x, z, ux, uz, moving) {
+  const S = physSlope(W.cfg); if (!S || !moving || !onSurface(W)) return 1;
+  const hf = W.hfS || (W.hfS = buildHeights(W.cfg, W.levels ? W.levels[SURFACE].map : W.map)); if (hf.flat) return 1;
+  return slopeK(S, (a, b) => heightAt(hf, a, b), x, z, ux, uz);
+}
+// план физики, этап 3: тело падает по удару — лицом к удару (клип смерти валит назад), скорость удара ×carry
+function fallFace(W, e) { const B = physBody(W.cfg); if (!B) return; e.lie = true; e.vx *= B.carry; e.vz *= B.carry; if (len(e.vx, e.vz) > .5) e.face = Math.atan2(-e.vx, -e.vz); const sc = W.cfg.enemies[e.type].scale || 1; if (sc > 1.4) W.shake = Math.max(W.shake, W.cfg.fx.shake * .5 * sc); }     // тяжёлое тело трясёт землю
 // убийство ботом (этап 5 «живого мира»): смерть, тело с добычей (бот его залутает), лагерь врагов считает; герою — ни опыта, ни заданий
 export function botKill(W, e, a) {
   if (e.dead || e.boss) return;
-  const d0 = W.drops.length; e.dead = true; e.deadT = 0; e.byBot = a.id;
+  const d0 = W.drops.length; e.dead = true; e.deadT = 0; e.slain = true; fallFace(W, e); e.byBot = a.id;
   W.ev.push({ k: 'die', x: e.x, z: e.z, type: e.type, id: e.id, elite: !!e.elite, boss: false });
   dropLoot(W, e); corpseOf(W, e, d0);
   if (e.grp) campKill(W, e);
@@ -418,6 +437,13 @@ function corpseOf(W, e, d0) {
   (W.corpses || (W.corpses = [])).push({ id, x: e.x, z: e.z, type: e.type, name: W.cfg.enemies[e.type].name, boss: !!e.boss, t: 0, life: e.boss ? C.boss : C.life, empty: 0, lvl: W.lvl, fight: false });
 }
 export const corpseItems = (W, cid) => W.drops.filter(q => q.corpse === cid);
+// план физики, этап 3: тело скользит по удару с трением, у стены замирает; добыча в теле едет с ним
+function deadSlide(W, e, dt) {
+  const B = physBody(W.cfg); if (!B || !e.slain || !(len(e.vx, e.vz) > .05)) return;
+  slide(W.map, e, e.vx * dt, e.vz * dt, W.cfg.enemies[e.type].radius); const f = Math.exp(-B.fric * dt); e.vx *= f; e.vz *= f;
+  const c = W.corpses && W.corpses.find(q => q.id === 'c' + e.id); if (!c) return;
+  c.x = e.x; c.z = e.z; for (const q of W.drops) if (q.corpse === c.id) { q.x = e.x; q.z = e.z; }
+}
 export function tickCorpses(W, dt) {
   const C = W.cfg.corpse, L = W.corpses, p = W.player; W.nearCorpse = null; if (!C || !C.on || !L || !L.length) return;
   const fight = W.enemies.some(e => !e.dead && e.alert && len(e.x - p.x, e.z - p.z) < C.combatR);     // бой рядом — таймер тел стоит (босс: суета дольше 3 минут)
@@ -507,7 +533,10 @@ function strike(W, e, dmg, o) {
   if (hasAff(e, 'mirror') && dmg > 0 && !p.dead) { const r = Math.max(1, Math.round(dmg * affOf(W, 'mirror').k)); p.hp -= r; W.ev.push({ k: 'mirror', x: p.x, z: p.z, dmg: r }); if (p.hp <= 0) { p.hp = 0; killPlayer(W); } }     // зеркальная элита возвращает часть удара (этап 2 «круче»)
   if (e.b && (o.heavy || o.ab)) e.b.kick = true;     // тяжёлый удар или умение сбивает чтение босса (этап 5)     // угроза героя (этап 4); последняя цель — для «моей цели»
   { const thirst = W.wp.mix && W.wp.mix.a === 'blood' && W.wp.mix.b === 'blood' ? W.cfg.stones.thirst[0] : 0, lch = (W.gear.leech + thirst + relicLeech(W) + (W.abuf.blood > 0 ? W.abuf.bloodLeech : 0)) * (e.st && e.st.bleed && W.cfg.elements.react && isWet(W, e) ? W.cfg.elements.mix.tide : 1); if (lch > 0) p.hp = Math.min(p.maxhp, p.hp + dmg * lch / 100); }     // «Кровавый прилив»: мокрый и кровоточащий     // «Кровавый порыв» Торна добавляет вампиризм
-  const heavy = C.heavy || hasAff(e, 'armored'), k = P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1), n = o.d || 1;
+  const heavy = C.heavy || hasAff(e, 'armored'), KN = physKnock(W.cfg), pk = KN && e.boss && KN.poise ? poiseHit(KN.poise, e, dmg, W.t) : 1, n = o.d || 1;     // план физики, этап 2: вес и стойкость босса
+  const k = KN ? knockV(KN, KN.base * o.knock * pk, foeMass(KN, C, heavy)) : P.knockback * o.knock / (C.scale > 1.2 ? 2.2 : 1) * (heavy ? .5 : 1);
+  if (KN) e.lastHit = dmg;
+  if (KN && KN.poise && pk === KN.poise.brk && pk !== KN.poise.k) { if (e.b) e.b.kick = true; applyStatus(W, e, 'stun', 0, KN.poise.stun); W.ev.push({ k: 'poise', x: e.x, z: e.z, id: e.id }); }     // стойкость пробита
   e.vx += o.dx / n * k; e.vz += o.dz / n * k;
   if (e.state === 'wind' && !heavy && gm >= 1) { e.state = 'chase'; e.t = 0; e.cd = .3; }       // удар прерывает замах (щит — нет)
   W.ev.push({ k: 'hit', x: e.x, z: e.z, dmg, crit: o.crit, fin: !!o.fin, id: e.id, fx: o.fx || null });
@@ -694,6 +723,7 @@ export function abilityHit(W, e, mult, o = {}) {
 function attackHit(W, mult = 1, echo = false) {
   const p = W.player, P = W.cfg.player, wp = W.wp, tr = wp.trait, pm = wp.pm, H = P.heavy, hk = echo ? 0 : p.heavy || 0;
   const half = ((tr.arc || P.attackArc) + W.gear.arc + H.arc * hk) * DEG / 2, reach = P.attackRange + W.gear.reach + H.reach * hk;
+  if (!echo) smashArc(W, p.x, p.z, p.face, half, reach, hk > 0);     // план физики, этап 4: бочки и ящики в дуге удара
   const cb = 1 + Math.min(.3, W.combo.n * .02);                       // комбо: +2% урона за каждое попадание в серии, до +30%
   let hits = 0;
   for (const e of W.enemies.slice()) {
@@ -741,6 +771,16 @@ function attackHit(W, mult = 1, echo = false) {
 function updatePlayer(W, dt, input) {
   const p = W.player, P = W.cfg.player;
   if (p.dead) { p.deadT += dt; p.vx = p.vz = 0; return; }
+  if (p.fall) {     // план физики, этап 6: полёт с обрыва — без управления, по прямой от края вниз
+    const F = p.fall; F.t += dt; const k = Math.min(1, F.t / F.T); p.x = F.x0 + (F.x1 - F.x0) * k; p.z = F.z0 + (F.z1 - F.z0) * k; p.vx = p.vz = 0;
+    if (k >= 1) { p.fall = null; p.state = 'idle'; p.landT = W.cfg.phys.cliff.land; W.shake = Math.max(W.shake, W.cfg.fx.shake * .6); W.ev.push({ k: 'land', x: p.x, z: p.z }); }
+    return;
+  }
+  if (p.stair) {     // проход по ступеням к лестнице (walkPortal), потом переход — в начале следующего шага
+    const Sg = p.stair; Sg.t += dt; const dx = Sg.q.x - p.x, dz = Sg.q.z - p.z, d = len(dx, dz); p.vx = p.vz = 0; if (d > .05) { const s = Math.min(d, 2 * dt); p.x += dx / d * s; p.z += dz / d * s; p.face = Math.atan2(dx, dz); }
+    if (Sg.t >= Sg.T) W.portalGo = true; return;
+  }
+  if (p.landT > 0) p.landT -= dt;
   if (p.inv > 0) p.inv -= dt;
   if (p.rollCd > 0) p.rollCd -= dt;
   if (p.dodgeCd > 0) p.dodgeCd -= dt;
@@ -776,7 +816,7 @@ function updatePlayer(W, dt, input) {
     if (p.atkBuf > 0) p.atkBuf -= dt;
     p.rollT += dt;
     const RM = physMove(W.cfg), k = RM ? rollK(RM.roll, Math.min(1, p.rollT / P.rollTime)) : 1.25 - .75 * (p.rollT / P.rollTime);     // план физики, этап 1: кривая переката
-    p.vx = p.rollDirX * P.rollSpeed * k; p.vz = p.rollDirZ * P.rollSpeed * k;
+    { const PW = physWater(W.cfg), wk = PW && p.inW > 0 ? PW.roll : 1; p.vx = p.rollDirX * P.rollSpeed * k * wk; p.vz = p.rollDirZ * P.rollSpeed * k * wk; }     // в воде перекат короче (этап 5 физики)
     if (p.rollT >= P.rollTime) { p.state = 'idle'; p.lastRollEnd = W.t; if (RM) { p.vx *= RM.rollCarry; p.vz *= RM.rollCarry; } if (p.rollPress) { p.rollPress = false; p.atkBuf = H.buffer; } }
   } else {
     // удар: нажатие — обычный (запоминается на buffer, если нажато во время удара: быстрые нажатия дают серию без пауз);
@@ -800,9 +840,9 @@ function updatePlayer(W, dt, input) {
       if (p.atkT >= P.attackTime * p.swingMul) { p.state = 'idle'; p.lastAtkEnd = W.t; p.heavy = 0; }
     }
     // бег с разгоном; при ударе медленнее
-    const wet = W.map.river && inStream(W.map.river, p.x, p.z);     // ручей (2026-10-18): медленнее, горение гаснет
+    const PWm = physWater(W.cfg), wet = W.map.river && (inStream(W.map.river, p.x, p.z) || (PWm && p.inW > 0));     // ручей (2026-10-18): медленнее, горение гаснет
     if (wet && W.pst.burn) { delete W.pst.burn; W.ev.push({ k: 'douse', x: p.x, z: p.z }); }
-    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd + relicSpd(W), -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (wet ? W.cfg.water.slow : 1) * (W.bossRoom && W.bossRoom.kind === 'flood' && W.bossRoom.lvl === W.lvl ? W.cfg.bosses.room.flood : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
+    const sp = P.speed * heroMul(W).speed * mountMul(W) * (1 + clamp(W.gear.spd + relicSpd(W), -30, W.cfg.gear.maxSpd) / 100) * (p.state === 'atk' ? P.attackSlow : p.state === 'charge' ? H.slow : 1) * (PWm && p.inW > 0 ? 1 - (1 - PWm.deepSlow) * p.inW : wet ? W.cfg.water.slow : 1) * slopeAt(W, p.x, p.z, mx, mz, moving) * (p.landT > 0 ? W.cfg.phys.cliff.landSlow : 1) * (W.bossRoom && W.bossRoom.kind === 'flood' && W.bossRoom.lvl === W.lvl ? W.cfg.bosses.room.flood : 1) * (W.chillT > 0 ? W.cfg.elite.chill : 1);     // ледяная элита (этап 2 «круче»)
     const tx = moving ? mx * sp : 0, tz = moving ? mz * sp : 0;
     const MV = physMove(W.cfg);
     if (MV) moveStep(p, tx, tz, dt, P.accel, MV, moving, sp);     // план физики, этап 1: торможение и разворот
@@ -816,6 +856,11 @@ function updatePlayer(W, dt, input) {
   else if (!onSurface(W) && W.map.fire && len(p.x - W.map.fire.x, p.z - W.map.fire.z) < W.cfg.dungeons.fire.r && p.hp < p.maxhp) p.hp = Math.min(p.maxhp, p.hp + P.fire.perSec * dt);     // костёр в подземелье лечит (план подземелий, 1е)
   if (!onSurface(W) && W.map.fire && len(p.x - W.map.fire.x, p.z - W.map.fire.z) < W.cfg.dungeons.fire.r && !(W.dfire && W.dfire.lvl === W.lvl)) { W.dfire = { lvl: W.lvl, x: W.map.fire.x, z: W.map.fire.z }; W.ev.push({ k: 'dfire', x: p.x, z: p.z }); }     // точка возврата после смерти
   slide(W.map, p, p.vx * dt, p.vz * dt, P.radius);
+  { const PW = physWater(W.cfg), WA = PW && W.map.river ? waterAt(W.map.river, p.x, p.z, PW) : null; p.inW = WA ? WA.dk : 0;     // план физики, этап 5: глубина и течение
+    if (WA && (WA.fx || WA.fz) && p.state !== 'dash') slide(W.map, p, WA.fx * dt, WA.fz * dt, P.radius); }
+  { const CL = W.cfg.phys && W.cfg.phys.cliff, PL = W.map.plateaus, E = CL && CL.on && PL && PL.length && moving && (p.state === 'run' || p.state === 'idle') ? edgeOf(PL, p, P.radius, mx, mz) : null;     // план физики, этап 6: спрыгнуть с плато
+    p.edgeT = E ? (p.edgeT || 0) + dt : 0;
+    if (E && p.edgeT >= CL.hold) { p.edgeT = 0; p.fall = { t: 0, T: CL.fall, x0: p.x, z0: p.z, x1: E.x, z1: E.z }; p.state = 'idle'; W.ev.push({ k: 'jump', x: p.x, z: p.z }); } }
   keepIn(W.map, p, W.cfg.world.radius, wcOf(W.cfg));
   W.inside = insideOf(W.map, p.x, p.z);
 }
@@ -843,17 +888,28 @@ function updateEnemies(W, dt) {
   for (const e of W.enemies) {
     const C = E[e.type];
     if (e.flash > 0) e.flash -= dt;
-    if (e.dead) { e.deadT += dt; continue; }
+    if (e.dead) { e.deadT += dt; deadSlide(W, e, dt); continue; }
     if (!e.boss && W.lvl === SURFACE && len(p.x - e.x, p.z - e.z) > E.sleep.r) { e.sleep = true; continue; }     // далеко от героя — спит (C1)
     e.sleep = false;
     tickEnemy(W, e, dt); if (e.dead) continue;
     if (e.hasteT > 0) e.hasteT -= dt; if (e.skinT > 0) e.skinT -= dt; if (e.phaseT > 0) e.phaseT -= dt;     // приёмы врагов (этап 2 «круче»)
     if (e.elite && e.alert && (hasAff(e, 'blink') || hasAff(e, 'summoner'))) eliteTick(W, e, dt);
+    const PWe = physWater(W.cfg), EW = PWe && e.alert && W.map.river ? waterAt(W.map.river, e.x, e.z, PWe) : null; e.inW = EW ? EW.dk : 0;     // план физики, этап 5: проснувшийся враг в воде — медленнее, течение сносит
     const ws = W.map.river && W.map.river.streams && W.map.river.streams.length && inStream(W.map.river, e.x, e.z);     // враг в ручье: медленнее и мокрый
     if (ws && W.cfg.elements.react && !(e.st && e.st.wet && e.st.wet.t > 1)) applyStatus(W, e, 'wet', 0, W.cfg.elements.mark.wet);
-    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1) * (e.hasteT > 0 ? e.haste || 1 : 1) * (ws ? W.cfg.water.slow : 1);
+    const dx = p.x - e.x, dz = p.z - e.z, d = len(dx, dz) || 1e-6, spd = C.speed * speedMul(e) * (e.spdMul || 1) * (e.hasteT > 0 ? e.haste || 1 : 1) * (EW ? 1 - (1 - PWe.deepSlow) * EW.dk : ws ? W.cfg.water.slow : 1) * (e.alert && d < (W.cfg.phys.slope || {}).foeR ? slopeAt(W, e.x, e.z, dx, dz, true) : 1);
+    if (e.fall) { const F = e.fall; F.t += dt; const k = Math.min(1, F.t / F.T); e.x = F.x0 + (F.x1 - F.x0) * k; e.z = F.z0 + (F.z1 - F.z0) * k; if (k >= 1) { e.fall = null; applyStatus(W, e, 'stun', 0, W.cfg.phys.cliff.land * 2); W.ev.push({ k: 'land', x: e.x, z: e.z, foe: true }); } continue; }     // план физики, этап 6: сброшен с обрыва
+    const KN = physKnock(W.cfg), ks = len(e.vx, e.vz), kx0 = e.x, kz0 = e.z;
+    { const CL = W.cfg.phys && W.cfg.phys.cliff; if (CL && CL.on && !e.boss && ks > CL.v && W.map.plateaus && W.map.plateaus.length) { const E = edgeOf(W.map.plateaus, e, C.radius, e.vx / ks, e.vz / ks); if (E) { e.fall = { t: 0, T: CL.fall, x0: e.x, z0: e.z, x1: E.x, z1: E.z }; e.vx = e.vz = 0; continue; } } }     // отброшен с края — падает
     slide(W.map, e, e.vx * dt, e.vz * dt, C.radius);
+    if (KN) { if (e.slamCd > 0) e.slamCd -= dt; if (e.chainT > 0) e.chainT -= dt; }
+    if (KN && KN.slam && !(e.slamCd > 0) && slammed(KN.slam, ks, ks * dt, len(e.x - kx0, e.z - kz0))) {     // план физики, этап 2: удар о стену
+      const sd = Math.max(1, Math.round((e.lastHit || 0) * KN.slam.dmg)); e.slamCd = KN.slam.cd; e.vx = e.vz = 0;
+      W.ev.push({ k: 'slam', x: e.x, z: e.z, id: e.id }); W.shake = Math.max(W.shake, W.cfg.fx.shake); applyStatus(W, e, 'stun', 0, KN.slam.stun); dealDamage(W, e, sd, null);
+      if (e.dead) continue;
+    }
     const kd = Math.exp(-E.knockDecay * dt); e.vx *= kd; e.vz *= kd;
+    if (EW && (EW.fx || EW.fz)) slide(W.map, e, EW.fx * dt, EW.fz * dt, C.radius);
     if (e.boss) { updateBoss(W, e, dt, spd); continue; }
     if (isStunned(e)) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); continue; }        // оглушённый не двигается и не бьёт
     if (e.st && e.st.fear) { if (e.state !== 'chase') { e.state = 'chase'; e.t = 0; } e.cd = Math.max(e.cd, .3); e.face = Math.atan2(-dx, -dz); slide(W.map, e, -dx / d * spd * W.cfg.abilities.fearSpeed * dt, -dz / d * spd * W.cfg.abilities.fearSpeed * dt, C.radius); continue; }     // в страхе бежит от героя и не бьёт
@@ -916,14 +972,14 @@ function updateEnemies(W, dt) {
     }
   }
   // расталкивание: враги друг с другом и с героем
-  const live = W.enemies.filter(e => !e.dead);
+  const live = W.enemies.filter(e => !e.dead), KC = physKnock(W.cfg) && W.cfg.phys.knock.chain;
   for (let i = 0; i < live.length; i++) {
     const a = live[i], ra = E[a.type].radius;
     for (let j = i + 1; j < live.length; j++) {
       const b = live[j], rb = E[b.type].radius, m = ra + rb;
       let dx = b.x - a.x, dz = b.z - a.z, d = len(dx, dz);
       if (d < 1e-6) { const ang = (i * 7 + j) * 2.399; dx = Math.cos(ang) * 1e-6; dz = Math.sin(ang) * 1e-6; d = 1e-6; }   // стояли в одной точке
-      if (d < m) { const k = (m - d) / 2 / d; a.x -= dx * k; a.z -= dz * k; b.x += dx * k; b.z += dz * k; }
+      if (d < m) { const k = (m - d) / 2 / d; a.x -= dx * k; a.z -= dz * k; b.x += dx * k; b.z += dz * k; if (KC && chainBump(KC, a, b, dx, dz)) W.ev.push({ k: 'bump', x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 }); }     // этап 2: толкнул соседа
     }
     if (!p.dead && !p.dashMix && !p.dashThru) {     // выпад умения оружия и рывок Бесогона (Г8) проходят сквозь врагов
       const dx = a.x - p.x, dz = a.z - p.z, d = len(dx, dz), m = ra + P_RADIUS(W);
@@ -934,6 +990,7 @@ function updateEnemies(W, dt) {
   resolve(W.map, p, W.cfg.player.radius);
   blockCart(W, p, W.cfg.player.radius);
   keepIn(W.map, p, W.cfg.world.radius, wcOf(W.cfg));                         // расталкивание не выносит героя за границу
+  for (const e of W.enemies) if (e.dead && e.deadT > .6 && !e.gone) bodyOf(W, e);     // план физики, этап 3: тело остаётся лежать
   W.enemies = W.enemies.filter(e => !(e.dead && e.deadT > .6));
   // держим нужное число врагов (кольцом вокруг героя — только на поверхности; в подземельях свои правила)
   if (!onSurface(W)) return;
@@ -1046,9 +1103,11 @@ function updateHouses(W, dt) {
     else { c.ready = false; c.t = 0; }
   }
   // вещи на земле: подбираем вблизи (с «притягиванием»), по таймеру исчезают
+  const PWd = physWater(W.cfg);
   for (let i = W.drops.length - 1; i >= 0; i--) {
     const q = W.drops[i]; q.t += dt;
     if (q.corpse) continue;     // 4.21: вещь в теле — только из окна добычи
+    if (PWd && W.map.river) { const DW = waterAt(W.map.river, q.x, q.z, PWd); if (DW) { q.x += (DW.fx + DW.ox * PWd.toBank) * dt; q.z += (DW.fz + DW.oz * PWd.toBank) * dt; } }     // этап 5 физики: вещь плывёт по течению к берегу
     const d = len(p.x - q.x, p.z - q.z);
     if (!p.dead && d < W.cfg.gear.pickup * 2.2) { const k = Math.min(1, dt * 8); q.x += (p.x - q.x) * k * .5; q.z += (p.z - q.z) * k * .5; }
     if (!p.dead && d < W.cfg.gear.pickup * .8 && (q.up || q.g || q.il)) { if (roomFor(W.inv, q.id, bagSlots(W))) { W.inv.bag.push(entryOf(q.id, q.up, q.g || (q.up || q.af || q.mine ? null : gemsFor(W, q.id, socketsOf(BY_ID[q.id], W.cfg))), q.il, q.af || (q.up || q.g || q.mine ? null : affixFor(W, q.id, q.il)))); W.known.items[q.id] = 1; W.ev.push({ k: 'pickup', id: q.id, n: 1 }); W.drops.splice(i, 1); continue; } if (!(q.cd > 0)) { q.cd = 2; W.ev.push({ k: 'full', x: q.x, z: q.z }); } }     // вещь с заточкой или камнями — целиком     // свойства — у новой вещи с земли (этап 4 «круче»)
@@ -1056,7 +1115,7 @@ function updateHouses(W, dt) {
     if (q.cd > 0) q.cd -= dt;
     if (q.t > W.cfg.gear.dropLife) W.drops.splice(i, 1);
   }
-  tickCorpses(W, dt);
+  tickCorpses(W, dt); tickBodies(W, dt);     // план физики, этап 3: лежащие тела
 }
 
 // использовать вещь из сумки (еда, зелья, мешочки пепла); возвращает true, если вещь потрачена
@@ -1154,6 +1213,8 @@ export function refreshGear(W) {
 export function step(W, dt, input = {}) {
   if (!(dt > 0)) return;                                          // нулевой или отрицательный шаг (первый кадр rAF) ничего не двигает
   W.t += dt; const ev0 = W.ev.length;
+  if (W.map.river) { const PW = physWater(W.cfg); W.map.river.ford = PW ? PW.ford : 0; }     // план физики, этап 5: брод у берега
+  if (W.portalGo) { W.portalGo = false; const q = W.player.stair && W.player.stair.q; W.player.stair = null; if (q) travel(W, q.to, q.tx, q.tz); }     // этап 6: прошёл по ступеням — переход
   { const D = W.cfg.daynight, n = isNight(W.t, D); W.light = lightOf(W.t, D); if (n !== W.night) { W.night = n; W.ev.push({ k: n ? 'dusk' : 'dawn' }); } }
   if (W.storyDark) W.light = Math.min(W.light, .06);     // Затмение (этап 7): солнце чернеет
   for (let i = W.buffs.length - 1; i >= 0; i--) { W.buffs[i].t -= dt; if (W.buffs[i].t <= 0) W.buffs.splice(i, 1); }

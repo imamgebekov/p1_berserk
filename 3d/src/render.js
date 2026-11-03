@@ -577,6 +577,40 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const roomFx = { kind: null, k: 0 }, FLOOD_C = new THREE.Color('#1c4a66'), waterRoom = new THREE.Mesh(new THREE.PlaneGeometry(70, 70).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#2a6a8a', transparent: true, opacity: 0, depthWrite: false })); waterRoom.visible = false; scene.add(waterRoom);     // вода затопленного зала (план подземелий, 3б)
   // второй этаж (2026-10-21): виден мир вокруг, как с первого этажа; этаж — над своим домом на высоте floors.lift
   let liftY = null;
+  const bodyCid = new Set();     // этап 3 физики: тела с добычей, что лежат моделью (метка добычи — без значка)
+  // этап 4 физики: наборы обломков (n — кусков, c — цвета, s — размер) и модели бьющихся бочек, ящиков, кувшинов текущего уровня
+  const KIT = { crate: { n: 12, c: ['#6b4a2c', '#4a3220', '#8a643c'], s: .2 }, barrel: { n: 12, c: ['#5a3d26', '#2a2220', '#7a7068'], s: .19 }, jar: { n: 9, c: ['#a0603a', '#8a4a2a', '#c07a50'], s: .14 }, stone: { c: ['#7a756c', '#5e5a52', '#8a857a'] } };
+  const brkMesh = new Map(), brkGeo = { crate: new THREE.BoxGeometry(.8, .7, .8).translate(0, .35, 0), band: new THREE.BoxGeometry(.84, .08, .84).translate(0, .66, 0), barrel: new THREE.CylinderGeometry(.36, .36, .9, 12).translate(0, .45, 0), hoop: new THREE.CylinderGeometry(.385, .385, .07, 12), jar: new THREE.SphereGeometry(.28, 10, 8).translate(0, .3, 0), neck: new THREE.CylinderGeometry(.1, .14, .16, 8).translate(0, .6, 0) };
+  const brkMat = { wood: new THREE.MeshLambertMaterial({ color: '#6b4a2c' }), dark: new THREE.MeshLambertMaterial({ color: '#3a281a' }), stave: new THREE.MeshLambertMaterial({ color: '#5a3d26' }), iron: new THREE.MeshLambertMaterial({ color: '#2a2220' }), clay: new THREE.MeshLambertMaterial({ color: '#a0603a' }) };
+  function brkModel(t) {
+    const g = new THREE.Group(), M = (geo, mat, y = 0) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; m.castShadow = true; g.add(m); };
+    if (t === 'barrel') { M(brkGeo.barrel, brkMat.stave); M(brkGeo.hoop, brkMat.iron, .2); M(brkGeo.hoop, brkMat.iron, .7); }
+    else if (t === 'jar') { M(brkGeo.jar, brkMat.clay); M(brkGeo.neck, brkMat.clay); }
+    else { M(brkGeo.crate, brkMat.wood); M(brkGeo.band, brkMat.dark); }
+    return g;
+  }
+  let brkLvl = null;
+  // этап 6 физики: полёт с обрыва — дуга от высоты края к земле внизу (подскок hop), после приземления высота без рывка
+  function fallY(o, a, y) {
+    if (!a.fall) { if (o.fallOn) { o.fallOn = false; o.gy = y; } return y; }
+    const F = a.fall, k = Math.min(1, F.t / F.T); if (!o.fallOn) { o.fallOn = true; o.fy0 = o.gy ?? y; }
+    const y1 = Y(F.x1, F.z1); return o.fy0 + (y1 - o.fy0) * k * k + 2 * k * (1 - k);
+  }
+  // этап 5 физики: брызги из-под ног по шагу и круги на воде (пул колец, без теней)
+  const WY = cfg.terrain && cfg.terrain.on ? cfg.terrain.water : .02, rings = [], RING_N = 24; let ringI = 0;
+  for (let i = 0; i < RING_N; i++) { const m = new THREE.Mesh(new THREE.RingGeometry(.28, .34, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#e8f4ff', transparent: true, opacity: 0, depthWrite: false })); m.visible = false; m.userData.t = 0; scene.add(m); rings.push(m); }
+  function splash(x, z, big) { const y = Math.max(Y(x, z), WY); fx.burst(x, y + .15, z, big ? 7 : 4, '#cfe6f4', big ? 2.2 : 1.4); const m = rings[ringI = (ringI + 1) % RING_N]; m.visible = true; m.position.set(x, y + .03, z); m.userData.t = .9; }
+  function ringsUpdate(dt) { for (const m of rings) if (m.visible) { const u = m.userData; u.t -= dt; if (u.t <= 0) { m.visible = false; continue; } const k = 1 - u.t / .9; m.scale.setScalar(1 + k * 3); m.material.opacity = .5 * (1 - k); } }
+  function wade(o, x, z, dk, moving, dt) { if (!(dk > 0)) { o.spT = 0; return; } if ((o.spT = (o.spT || 0) - dt) > 0) return; o.spT = moving ? .28 : 1.4; splash(x, z, moving && dk > .5); }     // идёт — часто, стоит — редко
+  function brkUpdate(W, dt) {
+    if (brkLvl !== W.lvl) { for (const m of brkMesh.values()) scene.remove(m); brkMesh.clear(); brkLvl = W.lvl; }
+    for (const b of W.map.brk || []) {
+      const key = W.lvl + ':' + b.i; let m = brkMesh.get(key);
+      if (b.gone) { if (m) { scene.remove(m); brkMesh.delete(key); } continue; }
+      if (!m) { m = brkModel(b.t); m.position.set(b.x, Y(b.x, b.z), b.z); m.rotation.y = b.rot; scene.add(m); brkMesh.set(key, m); }
+      if (m.userData.shk > 0) { m.userData.shk -= dt; const k = m.userData.shk / .18; m.rotation.z = Math.sin(m.userData.shk * 60) * .12 * k; } else m.rotation.z = 0;     // дрожь от удара
+    }
+  }
   const GV = cfg.view.ground;     // план физики, этап 1: высота модели догоняет землю (без дрожи на кочках), корпус наклоняется по склону
   function groundY(o, x, z, face, dt) {
     const y = Y(x, z); if (!GV || o.gy === undefined || Math.abs(y - o.gy) > GV.snap) { o.gy = y; o.lean = 0; return y; }
@@ -735,6 +769,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     fx.spray(v.x, 1, v.z, dx, dz, Math.round(10 * s), '#6d0c14', 6, 1.1);
     fx.ash(v.x, .6, v.z, Math.round(16 * s));
     fx.decal(v.x, v.z, 1.1 * s, BLOOD);
+    if (s > 1.4 && cfg.phys && cfg.phys.body && cfg.phys.body.on) { fx.burst(v.x, .3, v.z, Math.round(10 * s), '#8a7a66', 2.5 * s); }     // этап 3 физики: тяжёлое тело поднимает пыль
     if (v.boss || v.elite) { const k = v.boss ? 2.4 : 1.4; fx.flash(v.x, 1.4 * s, v.z, 2.2 * k, v.boss ? '#fff4d8' : '#ffd27a'); fx.ash(v.x, 1, v.z, Math.round(30 * k)); }     // элита и босс — ярче (этап 1 «круче»)
   }
   function levelFx(v) {                                              // новый уровень: кольцо по земле и столб искр вверх (только вид)
@@ -798,7 +833,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // ---- размеры: гладкий вид — полное разрешение до dprMax; «Ретро» — маленькое разрешение, растянутое без сглаживания ----
   let cssW = 1, cssH = 1, retro = false, dprMax = cfg.view.smooth ? cfg.view.smooth.dprMax.desk : 1;
   // качество (шаг 14): пресет и доля разрешения («Авто» меняет её по кадрам); тени — только в гладком виде
-  let Q = { scale: 1, grass: 1, shafts: true, shadows: false }, resScale = 1, shadowsOn = false;
+  let Q = { scale: 1, grass: 1, shafts: true, shadows: false }, resScale = 1, shadowsOn = false, deskNow = true, qualId = 'mid';     // deskNow, qualId — лимит лежащих тел (этап 3 физики)
   function applyShadows() {
     const on = shadowsOn && !retro && !asciiOn; if (gl.shadowMap.enabled === on && sun.castShadow === on) return;
     gl.shadowMap.enabled = on; sun.castShadow = on;
@@ -811,6 +846,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });     // шейдеры с тенями и без — разные
   }
   function setQuality(id, desk, eco) {
+    deskNow = !!desk; qualId = id; { const DB = cfg.phys && cfg.phys.debris; fx.debrisCfg(DB && DB.on ? (desk ? DB.max.pc : DB.max.phone) : 0, DB); }     // обломки: предел по устройству (этап 4 физики)
     const q0 = qualityOf(cfg, id, desk), nq = eco ? { ...q0, grass: Math.min(q0.grass, eco.grass), life: Math.min(q0.life ?? 1, eco.life), shafts: false } : q0, regrow = nq.grass !== Q.grass; Q = nq; resScale = nq.scale; shadowsOn = nq.shadows; setPaintLevel(nq.paint ?? 1);     // экономия заряда — реже трава и жизнь, без столбов света
     if (regrow) for (const k of [...liveLand.keys()]) dropLand(k);     // густота травы — при постройке участка: перестроить
     applyShadows(); resize();
@@ -1038,7 +1074,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       } }
 
     if (!under) { town.update(FL ? FL.map.house : W.inside, dt, W.levels ? W.levels.surface.map : W.map); const sv = views.get('surface'); if (sv && sv.stairs) for (const m of sv.stairs) m.visible = W.inside === m.userData.house; }     // лестница видна изнутри дома (снаружи — крыша)
-    conts.update(W, t);
+    conts.update(W, t, bodyCid); brkUpdate(W, dt); ringsUpdate(dt); wade(hero, p.x, p.z, p.inW, Math.hypot(p.vx, p.vz) > .5, dt);
     // герои сюжета (этап 3): модель жителя своего цвета; над головой «!» — начать сцену, «?» — вернуться
     { const list = under ? [] : storyActors(W), seen = new Set();
       for (const a of list) { seen.add(a.kind); let s = storyNpcs.get(a.kind);
@@ -1101,7 +1137,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     ap.needsUpdate = true; ash.position.set(cam.x, 0, cam.z);
 
     // герой
-    const py = liftY ?? groundY(hero, p.x, p.z, p.face, dt); hero.group.position.set(p.x, py + (p.hopY || 0), p.z); if (hero.group.rotation.order !== 'YXZ') hero.group.rotation.order = 'YXZ'; hero.group.rotation.x = liftY == null && !(W.life && W.life.mount.on) ? hero.lean || 0 : 0;     // Г8: прыжок Бесогона поднимает героя
+    const py = fallY(hero, p, liftY ?? groundY(hero, p.x, p.z, p.face, dt)) + (p.stair ? (p.stair.up ? 1 : -1) * p.stair.h * .9 * Math.min(1, p.stair.t / p.stair.T) : 0); hero.group.position.set(p.x, py + (p.hopY || 0), p.z); if (hero.group.rotation.order !== 'YXZ') hero.group.rotation.order = 'YXZ'; hero.group.rotation.x = liftY == null && !(W.life && W.life.mount.on) ? hero.lean || 0 : 0;     // Г8: прыжок Бесогона поднимает героя     // этап 6 физики: дуга с обрыва, ступени
     { const ms = W.abuf && W.abuf.morph > 0 ? W.abuf.morphScale || 1.2 : 1, s0 = hero.group.scale.x; if (Math.abs(s0 - ms) > .001) hero.group.scale.setScalar(s0 + (ms - s0) * Math.min(1, dt * 6)); }     // облик демона — крупнее
     asciiLamp.visible = asciiOn && !under; if (asciiLamp.visible) asciiLamp.position.set(p.x, py + 2.6, p.z); { const BL = cfg.view.blend, early = p.state === 'atk' && p.atkT < cfg.player.attackHitAt * .6; hero.group.rotation.y = BL && hero.yawInit ? dampAngle(hero.group.rotation.y, p.face, early ? BL.yawWind : BL.yawHero, dt) : p.face; hero.yawInit = true; }     // поворот модели — плавно (шаг 3)
     { const it = W.inv.eq.weapon && BY_ID[W.inv.eq.weapon]; hero.setWeapon(W.wp.kind, it ? it.mat : 'steel', it && it.kind === W.wp.kind ? it.id : null); if (hero.wkey !== rimKey) { rimKey = hero.wkey; rimify(hero.group, RS && RS.hero); } }
@@ -1132,7 +1168,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       let en = entity(e);
       if (!en.m.gltf && !e.dead && (en.swapT = (en.swapT || 0) - dt) <= 0) { en.swapT = 1; const fk = actorKey(cfg, 'foe', e.type); if (fk && actorReady(fk)) { dropEnt(e.id, en); en = entity(e); } }     // готовая модель пришла позже — пересобрать
       if (en.hid) { en.hid = false; en.m.group.visible = en.sh.visible = en.ring.visible = true; }
-      const ey = groundY(en, e.x, e.z, e.face, dt); en.m.group.position.set(e.x, ey, e.z); if (en.m.group.rotation.order !== 'YXZ') en.m.group.rotation.order = 'YXZ'; en.m.group.rotation.x = e.dead ? 0 : en.lean || 0; if (!en.yawInit || !cfg.view.blend) en.m.group.rotation.y = e.face; else if (!e.dead) en.m.group.rotation.y = dampAngle(en.m.group.rotation.y, e.face, e.state === 'dash' ? cfg.view.blend.hit : cfg.view.blend.yawFoe, dt); en.yawInit = true;     // поворот — плавно (шаг 3), мёртвый не крутится
+      const ey = fallY(en, e, groundY(en, e.x, e.z, e.face, dt)); en.m.group.position.set(e.x, ey, e.z); if (en.m.group.rotation.order !== 'YXZ') en.m.group.rotation.order = 'YXZ'; en.m.group.rotation.x = e.dead ? 0 : en.lean || 0; if (!en.yawInit || !cfg.view.blend) en.m.group.rotation.y = e.face; else if (!e.dead || e.deadT < .3) en.m.group.rotation.y = dampAngle(en.m.group.rotation.y, e.face, e.state === 'dash' || e.dead ? cfg.view.blend.hit : cfg.view.blend.yawFoe, dt); en.yawInit = true;     // поворот — плавно (шаг 3), мёртвый — только к удару (этап 3 физики)
       { const base = cfg.enemies[e.type].scale * (e.scaleMul || 1); if (en.m.group.scale.x !== base) en.m.group.scale.setScalar(base); }
       if (en.m.gltf) { driveFoe(en.m, e, t, dt, cfg); en.m.flash(e.flash > 0 ? .9 : 0, e.st && !e.dead ? (e.st.freeze ? [.04, .22, .45] : e.st.burn ? [.5, .16, 0] : e.st.poison ? [0, .3, .04] : null) : null); }
       else animateMonster(en.m, e, t, cfg, p.x, p.z);
@@ -1142,11 +1178,31 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         en.elite.position.set(e.x, .07 + ey, e.z); en.elite.visible = !e.dead; en.elite.scale.setScalar(cfg.enemies[e.type].scale * (e.scaleMul || 1) * (1 + .06 * Math.sin(t * 5)));
       }
       en.sh.position.set(e.x, .03 + ey, e.z);
+      if (e.inW > 0 && Math.hypot(e.x - p.x, e.z - p.z) < 15) wade(en, e.x, e.z, e.inW, e.state === 'chase', dt);     // враг в воде рядом с камерой — брызги
       const wind = e.state === 'wind' && !e.dead;
       en.ring.position.set(e.x, .06 + ey, e.z); en.ring.scale.setScalar(cfg.enemies[e.type].range + .5);
       en.ring.material.opacity = wind && !cfg.enemies[e.type].ranged ? .35 + .3 * Math.sin(t * 40) : 0;
       const b = bar(e, e.elite ? e.affColor : undefined), dmg = (e.hp < e.maxhp || e.elite) && !e.dead;
       b.g.visible = dmg; if (dmg) { b.g.position.set(e.x, 2.5 * cfg.enemies[e.type].scale + .3 + ey, e.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, e.hp / e.maxhp); }
+    }
+    // план физики, этап 3: лежащие тела — модель остаётся, анимация замирает; сверх лимита (телефон, ПК, «Низкое») — уходят в землю; с добычей — последними
+    { const BB = cfg.phys && cfg.phys.body && cfg.phys.body.on ? cfg.phys.body : null, L = BB && W.bodies ? W.bodies.filter(b => b.lvl === W.lvl) : [];
+      const cap = !BB ? 0 : qualId === 'low' ? BB.max.low : deskNow ? BB.max.pc : BB.max.phone, loot = new Set((W.corpses || []).map(c => c.id));
+      const keep = new Set([...L].sort((a, b) => (loot.has(b.cid) - loot.has(a.cid)) || a.t - b.t).slice(0, cap).map(b => b.id)); bodyCid.clear();
+      for (const b of L) {
+        const en = ents.get(b.id); if (!en || alive.has(b.id)) continue;
+        const sink = !keep.has(b.id) && !(b.boss && loot.has(b.cid)), sc = cfg.enemies[b.type].scale * b.sm;
+        if (sink && (en.sinkT = (en.sinkT || 0) + dt) > BB.sink) { dropEnt(b.id, en); continue; }
+        alive.add(b.id);
+        if (Math.hypot(b.x - p.x, b.z - p.z) > CL.foe) { dropEnt(b.id, en); alive.delete(b.id); continue; }
+        if (!inView(b.x, Y(b.x, b.z) + .5, b.z, 2 * sc + 1)) { hideEnt(b.id, en); continue; }
+        if (en.hid) { en.hid = false; en.m.group.visible = en.sh.visible = true; }
+        en.m.group.position.set(b.x, Y(b.x, b.z) - (sink ? en.sinkT / BB.sink * 1.2 * sc : 0), b.z); en.m.group.rotation.x = 0; en.m.group.rotation.y = b.face;
+        const de = en.de || (en.de = { id: b.id, type: b.type, dead: true, lie: true, deadT: .6, x: b.x, z: b.z, face: b.face, state: 'idle', flash: 0, t: 0, st: null }); de.deadT = .6 + b.t;
+        if (en.m.gltf) { if (b.t < BB.freeze) driveFoe(en.m, de, t, dt, cfg); } else animateMonster(en.m, de, t, cfg, p.x, p.z);     // замершее тело — без микшера
+        en.ring.material.opacity = 0; if (en.elite) en.elite.visible = false; { const bb = bars.get(b.id); if (bb) bb.g.visible = false; }
+        en.sh.position.set(b.x, .03 + Y(b.x, b.z), b.z); if (!sink && loot.has(b.cid)) bodyCid.add(b.cid);
+      }
     }
     // отряд
     const aliveA = new Set();
@@ -1196,7 +1252,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'react') { const cs = v.key ? v.key.split('+').map(k => ELEMENT_COLOR[k]) : ['#bfe8ff', '#bfe8ff']; if (v.r) ringFx(v.x, v.z, v.r, cs[0]); burst(v.x, 1.2, v.z, 10, cs[0], 5); burst(v.x, 1.2, v.z, 10, cs[1], 5); hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }     // цвета двух стихий смеси
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
-      else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); }
+      else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); fx.debris(v.x, .3, v.z, 0, 0, 6, KIT.stone.c, 3 + (v.r || 3) * .6, .14); }     // и камни (этап 4 физики)
       else if (v.k === 'drop' && BY_ID[v.id] && BY_ID[v.id].rar >= 4) { const c = RARITY[BY_ID[v.id].rar].color; fx.flash(v.x, 1.4, v.z, 2.6, c); burst(v.x, 1, v.z, 12, c, 4); }
       else if (v.k === 'sun') { fx.flash(v.x, 1.2, v.z, v.r + 1, '#ffd86a'); burst(v.x, .8, v.z, 18, '#ffd86a', v.r * 1.6); }          // золото (G3b)
       else if (v.k === 'aegisUp' || v.k === 'aegis' || v.k === 'reflect') burst(v.x, 1.1, v.z, v.k === 'aegis' ? 10 : 6, '#f5c542', 2.2);
@@ -1274,6 +1330,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'swing') swingFx = 1;
       else if (v.k === 'roll') burst(v.x, .2, v.z, 6, '#6a5a4a', 2.5);
       else if (v.k === 'dodge') hooks.onText && hooks.onText(v.x, 2.6, v.z, 'Уклон!', 'dodge');
+      else if (v.k === 'slam') { fx.debris(v.x, .6, v.z, 0, 0, 4, KIT.stone.c, 2.5, .12); fx.burst(v.x, .5, v.z, 14, '#8a7a66', 3.5); fx.ash(v.x, .4, v.z, 6, ['#6a5e50', '#4a4038', '#8a7a66']); fx.decal(v.x, v.z, .9, '#2a241e'); }     // план физики, этап 2: удар о стену — пыль и крошки
+      else if (v.k === 'bump') fx.burst(v.x, .7, v.z, 6, '#9a8a76', 2.5);     // толкнул соседа
+      else if (v.k === 'jump') fx.burst(v.x, Y(v.x, v.z) + .2, v.z, 5, '#8a7a66', 1.5);     // этап 6 физики: спрыгнул с обрыва
+      else if (v.k === 'land') { const y = Y(v.x, v.z); fx.burst(v.x, y + .2, v.z, v.foe ? 10 : 14, '#8a7a66', 3); fx.debris(v.x, y + .2, v.z, 0, 0, 4, KIT.stone.c, 2, .1); }     // приземлился — пыль и крошки
+      else if (v.k === 'smash') { const K = KIT[v.t] || KIT.crate; fx.debris(v.x, .45, v.z, v.dx, v.dz, K.n, K.c, 4, K.s); fx.burst(v.x, .4, v.z, 8, '#8a7a66', 2.5); const m = brkMesh.get(W.lvl + ':' + v.i); if (m) m.userData.gone = true; }     // этап 4 физики: разбит — обломки по удару
+      else if (v.k === 'crack') { fx.debris(v.x, 1, v.z, 0, 0, 12, KIT.stone.c, 4, .2); fx.burst(v.x, 1, v.z, 12, '#8a857a', 3); }     // трещина-тайник вскрыта: каменный выброс
+      else if (v.k === 'brkHit') { const m = brkMesh.get(W.lvl + ':' + v.i); if (m) m.userData.shk = .18; fx.debris(v.x, .5, v.z, 0, 0, 2, (KIT[v.t] || KIT.crate).c, 2, .1); }     // треснул: дрожит, пара щепок
+      else if (v.k === 'poise') { ringFx(v.x, v.z, 2.2, '#ffd27a'); fx.flash(v.x, 1.4, v.z, 2.4, '#ffd27a'); hooks.onText && hooks.onText(v.x, 3.2, v.z, 'Пробит!', 'crit'); }     // стойкость босса пробита
     }
     W.ev.length = 0;
     // частицы

@@ -11,7 +11,8 @@ import { initAbyss, abyssGo } from './abyss3d.js';
 import { floorsOf, floorMap, isFloor } from './floors3d.js';
 import { genDef } from './dungeongen3d.js';
 import { styleDef } from './dungeonstyle3d.js';
-import { wildOn, freeDef, makeWildMap } from './wilds3d.js';     // малые миры (2026-10-27)
+import { wildOn, freeDef, makeWildMap } from './wilds3d.js';
+import { placeBrk, resetBrk } from './brk3d.js';     // бьющиеся бочки и ящики (план физики, этап 4)     // малые миры (2026-10-27)
 import { unwarpDist, warpOf } from './coremap3d.js';
 import { runStart, runEnd } from './runexit3d.js';     // выход из подземелья кнопкой (2026-11-03)
 
@@ -27,7 +28,7 @@ export function initLevels(W) {
   W.levels = { [SURFACE]: { id: SURFACE, def: null, map: W.map, enemies: W.enemies, drops: W.drops, spawnT: W.spawnT, seen: W.seen, seenN: W.seenN, seenR: cfg.world.radius, seenX: W.seenX || 0, seenZ: W.seenZ || 0, seenC: cfg.map.cell, revR: cfg.map.reveal, rng: W.rng } };
   // у подземелья свой поток случайных чисел: новые подземелья не сдвигают добычу и бои наверху (в тестах с зерном — воспроизводимо, в игре — Math.random)
   ((cfg.dungeons && cfg.dungeons.list) || []).forEach((def, i) => {
-    const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
+    const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2; placeBrk(cfg, map, cfg.dungeons.seed * 31 + i);
     const rng = W.rng === Math.random ? Math.random : mulberry32(cfg.dungeons.seed + i);
     W.levels[def.id] = { id: def.id, def, map, enemies: [], drops: [], spawnT: 1, rng, ...fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal) };
   });
@@ -111,7 +112,7 @@ function arrive(W) {
   const L = W.levels[W.lvl], away = L.leftT === undefined ? Infinity : W.t - L.leftT;
   for (const e of W.enemies) if (e.boss) bossAway(W, e, away);
   if (!L.def) return;
-  if (away >= W.cfg.dungeons.respawnAway) { const keep = W.enemies.filter(e => e.boss); W.enemies = L.enemies = keep; spawnFoes(W, L); }     // босс замка не пропадает при наполнении этажа
+  if (away >= W.cfg.dungeons.respawnAway) { const keep = W.enemies.filter(e => e.boss); W.enemies = L.enemies = keep; spawnFoes(W, L); resetBrk(L.map); }     // босс замка не пропадает при наполнении этажа
 }
 // враги по комнатам: spawns [{ room, n, type? }], тип без указания — по весам foes; не у входа и не у стен
 export function spawnFoes(W, L) {
@@ -156,7 +157,7 @@ export function regenLevel(W, id) {
   const def = genDef(cfg, { ...base, styled: false, bosses: bosses.map(b => ({ type: b.type })) }, seed);
   bosses.forEach((b, k) => { const r = def.rooms.find(q => q.id === def.bosses[k].room); if (r) { b.x = r.x; b.z = r.z; } });
   styleDef(cfg, def, bosses); delete def.bosses;
-  const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
+  const map = makeLevelMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2; placeBrk(cfg, map, seed * 31 + 7);
   Object.assign(L, { def, map, enemies: [], drops: [], spawnT: 1 }, fogFor(R, cfg.dungeons.cell, cfg.dungeons.reveal));
   withLevel(W, id, () => { spawnFoes(W, L); for (const b of bosses) { delete W.bossDead[b.type]; spawnBoss(W, b); } });     // новый заход — все боссы на месте (план подземелий: вход и бой — всегда, награду держит откат); внутри захода убитый не встаёт
   refillLevel(W, id);
@@ -189,6 +190,13 @@ export function setHeroic(W, id, on) {
   return true;
 }
 export function eclipseGo(W, week) { const q = portalNear(W); return q && q.abyssEnter ? abyssGo(W, q, travel, spawnFoes, week) : false; }     // «Затмение недели» (этап 6 «круче»)
+// план физики, этап 6: кнопка лестницы — сначала проход по ступеням (phys.stairs.walk с, без управления; sim.js), потом переход; Бездна — сразу
+export function walkPortal(W) {
+  const q = portalNear(W), S = W.cfg.phys && W.cfg.phys.stairs; if (!q) return false;
+  if (!S || !S.on || q.abyssEnter || q.abyssNext) return usePortal(W);
+  if (!W.player.stair) W.player.stair = { q, t: 0, T: S.walk, up: !!(q.up || (q.stair && !q.down)), h: q.stair ? W.cfg.map.floors.lift || 2.6 : 1.2 };
+  return true;
+}
 export function usePortal(W) { const q = portalNear(W); if (q && (q.abyssEnter || q.abyssNext)) return abyssGo(W, q, travel, spawnFoes); return q ? travel(W, q.to, q.tx, q.tz) : false; }
 
 // после смерти герой встаёт у костра: возвращаем его на поверхность
