@@ -50,3 +50,6 @@
 | `anvil.mp3` | Hammer on Anvil (из «Hammer and anvil» — Duasun, Freesound, CC0) | themightyglider | https://opengameart.org/node/108999 |
 | `step_*.mp3` | Impact Sounds (шаги: трава, камень, дерево, песок — из grass, concrete, wood, snow) | Kenney | https://kenney.nl/assets/impact-sounds |
 | `coins_*`, `book_*`, `cloth_*`, `belt_*`, `creak_*`, `latch`, `leather` | RPG Audio | Kenney | https://kenney.nl/assets/rpg-audio |
+
+## Спрайты эффектов
+- **Kenney Particle Pack** — Kenney Vleugels (Kenney.nl), CC0, https://opengameart.org/content/particle-pack-80-sprites . 24 спрайта (кольцо, вспышка, язык пламени, дым, молния, звёзды, серп, штрих, вихрь, руна, сердце, брызги) в атласе `models/vfx_atlas.webp` (5×5 по 96 px; ячейка 0 — мягкая точка). Сборка — tools/vfx-atlas.py.

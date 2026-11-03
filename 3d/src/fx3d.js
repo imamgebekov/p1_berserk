@@ -2,9 +2,10 @@
 // Частицы и пятна — InstancedMesh: сотни штук без лишних вызовов отрисовки (важно для iPhone).
 import * as THREE from 'three';
 
-export function createFx(scene, camera, n = { parts: 400, glow: 600, decals: 64, flashes: 8, debris: 300 }, groundY = () => 0) {
+export function createFx(scene, camera, n = { parts: 400, glow: 900, decals: 64, flashes: 8, debris: 300 }, groundY = () => 0) {
   const dummy = new THREE.Object3D(), col = new THREE.Color(), HIDE = new THREE.Matrix4().makeScale(0, 0, 0);
 
+  const STRETCH = { 0: 1, 2: 1, 11: 1, 14: 1, 15: 1, 22: 1 };     // спрайты, что тянем вдоль полёта: линии, дуги, молнии
   // ---- частицы: позиция, скорость, жизнь, гравитация, размер ----
   const NP = n.parts, P = { x: new Float32Array(NP), y: new Float32Array(NP), z: new Float32Array(NP), vx: new Float32Array(NP), vy: new Float32Array(NP), vz: new Float32Array(NP), life: new Float32Array(NP), max: new Float32Array(NP), g: new Float32Array(NP), s: new Float32Array(NP) };
   const parts = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: '#fff' }), NP);
@@ -17,19 +18,26 @@ export function createFx(scene, camera, n = { parts: 400, glow: 600, decals: 64,
     parts.setColorAt(i, col.set(color));
   }
   // светящиеся частицы (V1): огонь, искры, иней — аддитивно, без тяжести о землю; своя кольцевая очередь
-  const NG = n.glow || 0, Gp = { x: new Float32Array(NG), y: new Float32Array(NG), z: new Float32Array(NG), vx: new Float32Array(NG), vy: new Float32Array(NG), vz: new Float32Array(NG), life: new Float32Array(NG), max: new Float32Array(NG), g: new Float32Array(NG), s: new Float32Array(NG) };
+  const NG = n.glow || 0, Gp = { sp: new Float32Array(NG), x: new Float32Array(NG), y: new Float32Array(NG), z: new Float32Array(NG), vx: new Float32Array(NG), vy: new Float32Array(NG), vz: new Float32Array(NG), life: new Float32Array(NG), max: new Float32Array(NG), g: new Float32Array(NG), s: new Float32Array(NG) };
   // мягкое свечение (2026-11-03, просьба владельца «не кубики»): плоский квадрат лицом к камере с радиальной текстурой; быстрые частицы вытянуты вдоль полёта — штрихи-шлейфы
   const dotTex = (() => { if (typeof document === 'undefined') return null; const cv = document.createElement('canvas'); cv.width = cv.height = 64; const cx = cv.getContext('2d'), g = cx.createRadialGradient(32, 32, 0, 32, 32, 32);
     g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.25, 'rgba(255,255,255,.75)'); g.addColorStop(.6, 'rgba(255,255,255,.2)'); g.addColorStop(1, 'rgba(255,255,255,0)'); cx.fillStyle = g; cx.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; })();
-  const glow = NG ? new THREE.InstancedMesh(dotTex ? new THREE.PlaneGeometry(1, 1) : new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: '#fff', map: dotTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), NG) : null;
+  // атлас спрайтов Kenney Particle Pack (CC0, 2026-11-03): 5×5 ячеек по 96 px, ячейка 0 — мягкая точка; у частицы свой номер ячейки (aSp); пока атлас грузится — одна точка
+  let atlasOn = 0;
+  const ATL = 5, atlasTex = (() => { if (typeof Image === 'undefined' || !dotTex) return null; const im = new Image(), t = new THREE.Texture(im); t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; im.onload = () => { atlasOn = 1; t.needsUpdate = true; if (glowMat.userData.sh) glowMat.userData.sh.uniforms.uAt.value = 1; glowMat.map = t; glowMat.needsUpdate = true; }; im.src = new URL('../models/vfx_atlas.webp', import.meta.url).href; return t; })();
+  const glowMat = new THREE.MeshBasicMaterial({ color: '#fff', map: dotTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });     // fog: false — туман подмешивал свой цвет в чёрные места спрайта (светлые квадраты)
+  if (dotTex) glowMat.onBeforeCompile = sh => { glowMat.userData.sh = sh; sh.uniforms.uAt = { value: atlasOn };
+    sh.vertexShader = 'attribute float aSp; uniform float uAt;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n#ifdef USE_MAP\n if (uAt > .5) vMapUv = (uv + vec2(mod(aSp, 5.), 4. - floor(aSp / 5.))) / 5.;\n#endif'); };
+  const glow = NG ? new THREE.InstancedMesh(dotTex ? new THREE.PlaneGeometry(1, 1) : new THREE.BoxGeometry(1, 1, 1), glowMat, NG) : null;
+  const spA = new Float32Array(NG || 1); if (glow && dotTex) glow.geometry.setAttribute('aSp', new THREE.InstancedBufferAttribute(spA, 1));
   const camQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion(), zAxis = new THREE.Vector3(0, 0, 1), cr = new THREE.Vector3(), cu = new THREE.Vector3();
   if (glow) { glow.frustumCulled = false; for (let i = 0; i < NG; i++) { glow.setMatrixAt(i, HIDE); glow.setColorAt(i, col.set('#000')); } glow.renderOrder = 2; scene.add(glow); }
   let gi = 0;
   // частица: add — светящаяся (огонь, искры), иначе обычная (дым, кровь, пузыри)
-  function emit(x, y, z, vx, vy, vz, color, life, g, s, add = false) {
+  function emit(x, y, z, vx, vy, vz, color, life, g, s, add = false, sp = 0) {
     if (!add || !glow) return emitP(x, y, z, vx, vy, vz, color, life, g, s);
     const i = gi = (gi + 1) % NG;
-    Gp.x[i] = x; Gp.y[i] = y; Gp.z[i] = z; Gp.vx[i] = vx; Gp.vy[i] = vy; Gp.vz[i] = vz; Gp.life[i] = Gp.max[i] = life; Gp.g[i] = g; Gp.s[i] = s;
+    Gp.x[i] = x; Gp.y[i] = y; Gp.z[i] = z; Gp.vx[i] = vx; Gp.vy[i] = vy; Gp.vz[i] = vz; Gp.life[i] = Gp.max[i] = life; Gp.g[i] = g; Gp.s[i] = s; Gp.sp[i] = sp; spA[i] = sp;
     glow.setColorAt(i, col.set(color));
   }
   // во все стороны (как раньше)
@@ -82,7 +90,7 @@ export function createFx(scene, camera, n = { parts: 400, glow: 600, decals: 64,
 
   // ---- вспышки попадания: светлая плоскость к камере, гаснет за доли секунды ----
   const flashes = [];
-  for (let i = 0; i < n.flashes; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); m.visible = false; m.userData.t = 0; scene.add(m); flashes.push(m); }
+  for (let i = 0; i < n.flashes; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#fff', map: dotTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); m.visible = false; m.userData.t = 0; scene.add(m); flashes.push(m); }
   let fi = 0;
   function flash(x, y, z, size, color) { const m = flashes[fi = (fi + 1) % flashes.length]; m.visible = true; m.position.set(x, y, z); m.material.color.set(color); m.userData = { t: .1, s: size }; }
 
@@ -105,12 +113,14 @@ export function createFx(scene, camera, n = { parts: 400, glow: 600, decals: 64,
         Gp.vy[i] -= Gp.g[i] * dt; Gp.x[i] += Gp.vx[i] * dt; Gp.y[i] += Gp.vy[i] * dt; Gp.z[i] += Gp.vz[i] * dt;
         const k = Math.min(1, Gp.life[i] / Gp.max[i] * 1.4), s = Gp.s[i] * k;
         dummy.position.set(Gp.x[i], Gp.y[i], Gp.z[i]);
-        if (dotTex) { const sx = Gp.vx[i] * cr.x + Gp.vy[i] * cr.y + Gp.vz[i] * cr.z, sy = Gp.vx[i] * cu.x + Gp.vy[i] * cu.y + Gp.vz[i] * cu.z, sp = Math.hypot(sx, sy), st = 1 + Math.min(3.2, sp * .3);     // штрих вдоль скорости на экране
+        const STR = STRETCH[Gp.sp[i]];
+        if (dotTex && !STR) { rollQ.setFromAxisAngle(zAxis, (Gp.sp[i] === 16 || Gp.sp[i] === 23 || Gp.sp[i] === 6 ? Gp.life[i] * 2.5 : 0)); dummy.quaternion.copy(camQ).multiply(rollQ); dummy.scale.set(s * 2.2, s * 2.2, 1); }
+        else if (dotTex) { const sx = Gp.vx[i] * cr.x + Gp.vy[i] * cr.y + Gp.vz[i] * cr.z, sy = Gp.vx[i] * cu.x + Gp.vy[i] * cu.y + Gp.vz[i] * cu.z, sp = Math.hypot(sx, sy), st = 1 + Math.min(3.2, sp * .3);     // штрих вдоль скорости на экране
           rollQ.setFromAxisAngle(zAxis, Math.atan2(sy, sx)); dummy.quaternion.copy(camQ).multiply(rollQ); dummy.scale.set(s * 2.2 * st, s * 2.2, 1); }
         else { dummy.rotation.set(Gp.life[i] * 5, Gp.life[i] * 7, 0); dummy.scale.set(s, s, s); }
         dummy.updateMatrix(); glow.setMatrixAt(i, dummy.matrix);
       }
-      glow.instanceMatrix.needsUpdate = true; if (glow.instanceColor) glow.instanceColor.needsUpdate = true;
+      glow.instanceMatrix.needsUpdate = true; if (glow.instanceColor) glow.instanceColor.needsUpdate = true; if (dotTex) glow.geometry.attributes.aSp.needsUpdate = true;
     }
     for (let i = 0; i < ND; i++) {
       if (D.life[i] <= 0) continue;

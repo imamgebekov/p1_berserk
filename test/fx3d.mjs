@@ -7,7 +7,7 @@ const ok = (c, m) => { if (!c) fails.push(m); };
 const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(48, 1, .5, 700);
 const fx = createFx(scene, camera);
 const run = (sec, dt = 1 / 60) => { for (let i = 0; i < Math.round(sec / dt); i++) fx.update(dt); };
-const parts = scene.children.find(o => o.isInstancedMesh && o.count === 400), glow = scene.children.find(o => o.isInstancedMesh && o.count === 600), decals = scene.children.find(o => o.isInstancedMesh && o.count === 64);
+const parts = scene.children.find(o => o.isInstancedMesh && o.count === 400), glow = scene.children.find(o => o.isInstancedMesh && o.count === 900), decals = scene.children.find(o => o.isInstancedMesh && o.count === 64);
 ok(parts && glow && decals, 'частицы, свечение (V1) и пятна — по одному InstancedMesh');
 ok(scene.children.filter(o => o.isInstancedMesh).length === 4, 'лишних InstancedMesh нет (частицы, свечение, пятна, обломки)');
 ok(glow.material.blending === THREE.AdditiveBlending && !glow.material.depthWrite, 'свечение не аддитивное');
@@ -33,7 +33,7 @@ run(4.5); ok(fx.live().decals === 0, 'пятна не исчезли за 9.5 с
 for (let i = 0; i < 100; i++) fx.burst(i, 1, 0, 10, '#fff');
 for (let i = 0; i < 200; i++) fx.decal(i, 0, .5, '#000');
 for (let i = 0; i < 1000; i++) fx.emit(i, 1, 0, 0, 1, 0, '#ff8a30', .5, -2, .1, true);                  // светящиеся (V1)
-ok(fx.live().parts <= 400 + 600 && fx.live().decals <= 64, 'пул переполнен: ' + JSON.stringify(fx.live()));
+ok(fx.live().parts <= 400 + 900 && fx.live().decals <= 64, 'пул переполнен: ' + JSON.stringify(fx.live()));
 fx.update(1 / 60);
 // смена уровня стирает всё
 fx.flash(0, 1, 0, 1, '#fff'); fx.clear();
