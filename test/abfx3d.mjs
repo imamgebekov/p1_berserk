@@ -12,6 +12,6 @@ for (const [hero, list] of Object.entries(ABILITIES)) for (const a of list) { n+
   total += r.emit; maxE = Math.max(maxE, r.emit); sig.add(a.id && [a.kind || 'own', a.el || '-', r.emit].join()); kinds.add(a.kind || a.id); for (const c of r.colors) cols.add(c); }
 ok(sig.size >= 90, `разных эффектов (вид, стихия, число частиц) только ${sig.size} из ${n}`); ok(cols.size >= 18, `красок только ${cols.size}`); ok(maxE <= 320, `частиц у одного умения ${maxE}`);
 const half = run({ id: 'th_slam', kind: 'cone', el: 'earth', x: 0, z: 0, face: 0 }, .5), full = run({ id: 'th_slam', kind: 'cone', el: 'earth', x: 0, z: 0, face: 0 }, 1); ok(half.emit < full.emit, 'низкое качество не режет частицы');
-ok(run({ id: 'ir_ring', kind: 'nova', el: 'fire', x: 0, z: 0 }).add > 0 && run({ id: 'th_ring', kind: 'nova', el: 'earth', x: 0, z: 0 }).add === 0, 'огонь не светится или земля светится');
+{ const f = run({ id: 'ir_ring', kind: 'nova', el: 'fire', x: 0, z: 0 }), e = run({ id: 'th_ring', kind: 'nova', el: 'earth', x: 0, z: 0 }); ok(f.add === f.emit && e.add > 0 && e.add < e.emit * .6, 'огонь светится целиком, земля — частично (ореол)'); }
 if (fails.length) { console.log('ПРОВАЛ:\n' + [...new Set(fails)].slice(0, 15).join('\n')); process.exit(1); }
 console.log(`Эффекты умений 3D: OK (умений ${n}, разных эффектов ${sig.size}, красок ${cols.size}, частиц в среднем ${Math.round(total / n)}, максимум ${maxE})`);

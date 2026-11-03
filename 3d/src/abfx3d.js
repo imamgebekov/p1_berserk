@@ -29,7 +29,9 @@ export function createAbilityFx(fx, hooks = {}) {
     const own = OWN[v.id], kind = v.kind && v.kind !== 'own' ? v.kind : own ? own[0] : 'strike', el = v.el || (own && own[1]) || 'none', h = hash(v.id || ''), P = PAL[el] || PAL.none, F = FLAVOR[el] || FLAVOR.none;
     const alt = rnd(h, 1) > .5, c1 = alt ? P[1] : P[0], c2 = alt ? P[0] : P[1], n = k => Math.max(1, Math.round(k * 1.6 * S() * (.85 + rnd(h, 2) * .3))), ph = rnd(h, 3) * 6.283, f = v.face || 0, sx = Math.sin(f), cz = Math.cos(f);
     const X = v.x, Z = v.z, ahead = d => [X + sx * d, Z + cz * d];
-    const p = (x, y, z, vx, vy, vz, c, k = 1) => fx.emit(x, y, z, vx * (F.jit ? 1 + (Math.random() - .5) * F.jit : 1), vy + F.up * Math.random(), vz, F.add ? dim(c, .5) : c, F.life * 1.25 * (.7 + Math.random() * .6) * k, F.g, F.s * 2.1 * (.8 + Math.random() * .5), !!F.add);
+    const p = (x, y, z, vx, vy, vz, c, k = 1) => { const j = F.jit ? 1 + (Math.random() - .5) * F.jit : 1, vy2 = vy + F.up * Math.random(), L = F.life * 1.25 * (.7 + Math.random() * .6) * k, sz = F.s * 1.5 * (.8 + Math.random() * .5);
+      fx.emit(x, y, z, vx * j, vy2, vz, F.add ? dim(c, .7) : c, L, F.g, sz, !!F.add);
+      if (!F.add && Math.random() < .5) fx.emit(x, y, z, vx * j, vy2, vz, dim(c, .6), L * .8, 0, sz * 1.3, true); };     // тёмные и тяжёлые частицы (тьма, земля, кровь, яд) — с мягким ореолом: иначе тонут
     const ring = (cx, cz0, r, cnt, c, out = 3, y = .35) => { for (let i = 0; i < cnt; i++) { const a = i / cnt * 6.283 + ph; p(cx + Math.sin(a) * r, y, cz0 + Math.cos(a) * r, Math.sin(a) * out, .4, Math.cos(a) * out, i % 3 ? c : c === c1 ? c2 : c1); } };
     switch (kind) {
       case 'strike': {     // дуга клинка перед героем и удар в точке
