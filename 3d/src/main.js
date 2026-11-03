@@ -1,7 +1,7 @@
 import { GI } from './data/gicons.js';     // значки game-icons.net на панели умений (2026-10-20)
 import { CFG3 } from './config3d.js';
 import { createWorld, step, respawnPlayer, spawnEnemy, spawnBoss, rerollRare, corpseItems, lootCorpse } from './sim.js';
-import { BY_ID, RARITY, STAT_NAME, SLOT_NAME } from './data/items.js';
+import { BY_ID, RARITY, STAT_NAME, SLOT_NAME, statLine } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith, createCaptain } from './shop.js';
@@ -26,7 +26,7 @@ import { isNight } from './daynight.js';
 import { bagUsed, createInv } from './inv.js';
 import { createHeroView } from './bagview3d.js';
 import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, eclipseGo, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
-import { HEROES, HERO_IDS } from './data/heroes3d.js';
+import { HEROES, HERO_IDS, heroOf } from './data/heroes3d.js';
 import { abilityView, resView, barOf, abilityAim } from './abilities3d.js';
 import { createFeel, unlocksAt } from './feel3d.js';
 import { ABILITIES, abilityPointsAt } from './data/abilities3d.js';
@@ -44,6 +44,7 @@ import { SPEAKERS } from './data/story3d.js';
 import { liveAllies, squadCommand } from './squad3d.js';
 import { setHeroic, isInstance, heroicOpen, portalInfo } from './levels3d.js';
 import { exitRun, exitPreview, exitBlock } from './runexit3d.js';
+import { nearBot, stockOf, buyFrom, recruit, recruitBlock, recruitCost } from './botsocial3d.js';
 import { roomEventLine } from './roomev3d.js';     // план подземелий, 2д
 import { nodeNear, gather, mountToggle, coachNear, coachList, flightCost, fly } from './life3d.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
@@ -456,7 +457,7 @@ let hoverItem = null;
 addEventListener('mouseover', e => { const t = e.target.closest && e.target.closest('[data-item]'); hoverItem = t ? t.dataset.item : null; });
 function whereFrom() {
   const id = hoverItem; hideTipAll();
-  for (const s of document.querySelectorAll('#bag:not([hidden]) button.close, #smith:not([hidden]) button.close, #lib:not([hidden]) button.close, #shop:not([hidden]) button.close')) s.click();
+  for (const s of document.querySelectorAll('#botTalk:not([hidden]) button.close, #bag:not([hidden]) button.close, #smith:not([hidden]) button.close, #lib:not([hidden]) button.close, #shop:not([hidden]) button.close')) s.click();
   journal.open('sources', id || null);
 }
 const hideTipAll = () => { const t = $('bagTip'); if (t) t.hidden = true; };
@@ -675,6 +676,25 @@ window.addEventListener('resize', () => { if (!firesSec.hidden) travelDraw(); })
 function dungeonLine() { const L = W.levels && W.levels[W.lvl], d = L && L.def; if (!d || !d.inst) return null; const tot = cfg.bosses.list.filter(b => b.level === d.id).length, alive = W.enemies.filter(e => e.boss && !e.dead).length, cs = W.map.containers || []; return `${d.name}${L.heroic ? ' · героик' : ''}: боссы ${Math.max(0, tot - alive)}/${tot} · сундуки ${cs.filter(c => !c.ready).length}/${cs.length}`; }     // трекер в подземелье (план подземелий, 1г)
 function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write(); }
 fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
+// разговор с ботом (шаг 2, 2026-11-03): кнопка рядом с ботом → окно: позвать в отряд за пепел, купить вещь из его товара
+const botBtn = $('botBtn'), botWin = $('botTalk'), botList = $('botList'), botFlash = $('botFlash'); let botCur = null, botFlashT = 0;
+const botSay = t => { botFlash.textContent = t; clearTimeout(botFlashT); botFlashT = setTimeout(() => { botFlash.textContent = ''; }, 2400); };
+const BOT_WHY = { far: 'Подойдите ближе', own: 'Такой боец уже в отряде или это ваш герой', full: 'В отряде нет места', ash: 'Не хватает пепла', none: 'Нет такого' };
+function botRender() {
+  const a = botCur; if (!a || a.dead) { botClose(); return; } botList.textContent = '';
+  const K = cfg.bots.classes[a.hero], ROLE = { tank: 'защитник', heal: 'лекарь', melee: 'боец', ranged: 'стрелок' };
+  $('botHead').textContent = a.name.replace(/_/g, ' '); $('botSub').textContent = `${heroOf(a.hero).name} · ${ROLE[K.role]} · ${a.lv} ур.`; $('botAsh').textContent = `${W.inv.ash} пепла`;
+  const mk = (cls, ...kids) => { const e = document.createElement('div'); e.className = cls; e.append(...kids); return e; }, tx = (t, c) => { const e = document.createElement('span'); e.className = c || ''; e.textContent = t; return e; };
+  const btn = (label, ok, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'buy' + (ok ? '' : ' no'); b.textContent = label; b.addEventListener('click', fn); return b; };
+  { const why = recruitBlock(W, a), cost = recruitCost(W, a), info = mk('sinfo', tx('Позвать в отряд', 'nm'), mk('sub', document.createTextNode('Пойдёт с вами, со своими вещами. Бойцы отряда растут вместе с вами.')));
+    botList.append(mk('srow', info, btn(`Позвать · ${cost}`, !why, () => { const r = recruit(W, a); if (r === 'ok') { botSay(`${a.name.replace(/_/g, ' ')} в отряде`); botClose(); sfx('travel'); saver.write(); } else botSay(BOT_WHY[r] || 'Нельзя'); }))); }
+  botList.append(Object.assign(document.createElement('div'), { className: 'ssec', textContent: 'Продаёт' }));
+  const st = stockOf(W, a); if (!st.length) botList.append(Object.assign(document.createElement('div'), { className: 'emptyl', textContent: 'Всё продано.' }));
+  st.forEach((s, i) => { const it = BY_ID[s.id], nm = tx(it.name, 'nm'); nm.style.color = RARITY[it.rar].color; botList.append(mk('srow', mk('sinfo', nm, mk('sub', document.createTextNode(statLine(it) || ''))), btn(`Купить · ${s.price}`, W.inv.ash >= s.price, () => { const r = buyFrom(W, a, i); botSay(r === 'ok' ? `Куплено: ${it.name}` : r === 'full' ? 'Сумка полна' : BOT_WHY[r] || 'Нельзя'); botRender(); saver.write(); }))); });
+}
+function botOpen(a) { botCur = a; botRender(); botWin.hidden = false; panelOpen = true; input.release(); }
+function botClose() { botWin.hidden = true; botCur = null; panelOpen = false; }
+botBtn.addEventListener('click', e => { e.stopImmediatePropagation(); const a = nearBot(W); if (a) botOpen(a); }, true); $('botClose').addEventListener('click', botClose);
 const exitBtn = $('exitBtn'); let exitArm = 0;     // выход из подземелья: первое нажатие — предупреждение о потерях, второе в течение 4 с — выход
 exitBtn.addEventListener('click', e => { e.stopImmediatePropagation(); if (exitBlock(W)) return; const L = exitPreview(W);
   if (!L.free && !exitArm) { exitArm = performance.now() + 4000; exitBtn.classList.add('arm'); exitBtn.textContent = 'Потеряете половину добычи. Ещё раз?'; return; }
@@ -949,6 +969,7 @@ function frame(now) {
   const hud = (hudT += real) >= cfg.cull.hud || paused !== hudP; if (hud) { hudT = 0; hudP = paused; }     // кнопки, статусы и умения — 10 раз в секунду (и сразу при открытии меню)
   if (hud) { const show = !!W.nearNpc && (storyTalkable(W, W.nearNpc) || !npcLocked(W.nearNpc)) && !panelOpen && !landscape;     // сюжетный разговор — даже у закрытого жителя
   if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'scribe' ? 'Библиотека' : W.nearNpc === 'keeper' ? 'Дары Затмения' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
+  if (hud) { const nb = !panelOpen && !landscape && !!nearBot(W) && !W.nearNpc; if (botBtn.hidden === nb) botBtn.hidden = !nb; if (nb) { const l = 'Поговорить: ' + nearBot(W).name.replace(/_/g, ' '); if (botBtn.textContent !== l) botBtn.textContent = l; } }
   if (hud) { const wp = W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead && knownFires(W).length > 1; if (warpBtn.hidden === wp) warpBtn.hidden = !wp;
     const ex = !panelOpen && !landscape && !exitBlock(W) && !W.player.dead; if (exitBtn.hidden === ex) exitBtn.hidden = !ex; if (exitArm && (performance.now() > exitArm || !ex)) { exitArm = 0; exitBtn.classList.remove('arm'); } if (ex && !exitArm) { const l = 'Выйти' + (desk ? ' · T' : ''); if (exitBtn.textContent !== l) exitBtn.textContent = l; }
     if (document.body.classList.contains('warp') !== (wp || ex)) document.body.classList.toggle('warp', wp || ex);
