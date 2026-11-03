@@ -20,7 +20,7 @@ import { trackerLines, questMarks, questMark, questsOf } from './quests3d.js';
 import { eventLine, eventAt } from './events3d.js';
 import { abyssLine, weekOf, eclipseMods, eclipseDoneThisWeek, modName } from './abyss3d.js';
 import { ngOpen, startNg } from './ng3d.js';
-import { fireNear, knownFires, fastTravel, travelBlock, sanitizeFires } from './fires3d.js';
+import { fireNear, knownFires, fastTravel, travelBlock, travelCost, sanitizeFires } from './fires3d.js';
 import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
 import { isNight } from './daynight.js';
 import { bagUsed, createInv } from './inv.js';
@@ -499,6 +499,7 @@ if (desk) {
     if (c === 'Escape' && aiming && !panelOpen) { e.preventDefault(); aimCancel = true; return; }     // Esc — отмена прицела
     if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.close'); if (open) open.click(); else $('gear').click(); return; }
     if (c === 'KeyH' && !panelOpen) { if (vis('heroicBtn')) heroicBtn.click(); return; }
+    if (c === 'KeyT' && !panelOpen && !warpBtn.hidden) { warpBtn.click(); return; }     // перенос к кострам
     if ((c === 'KeyZ' || c === 'KeyX' || c === 'KeyC') && !panelOpen) { partyCmd(c === 'KeyZ' ? 'follow' : c === 'KeyX' ? 'hold' : 'assist'); return; }     // команды отряда (этап 4)
     if (c === 'KeyM') { if (!panelOpen || !mapEl.hidden) $('miniBtn').click(); return; }
     if (c === 'KeyI') { if (vis('bag')) $('bagClose').click(); else if (!panelOpen) $('bagBtn').click(); return; }
@@ -629,14 +630,14 @@ talk.addEventListener('click', e => { e.stopImmediatePropagation(); if (storyTal
 const fireBtn = $('fireBtn'), firesSec = $('fires');
 function openFires() {
   const here = fireNear(W), list = $('firesList'), block = travelBlock(W); list.textContent = ''; firesSec.querySelector('h2').textContent = 'Костры — перенос';
-  $('firesNote').textContent = block && block !== 'Подойдите к костру' ? block + ' — перенос невозможен.' : 'Нажмите на костёр на карте или в списке.';
+  const P = cfg.fires.pay; $('firesNote').textContent = block ? block + ' — перенос невозможен.' : here ? 'От костра перенос бесплатный. Нажмите на костёр на карте или в списке.' : `Не от костра перенос платный: от ${P.base} пепла, дальше дороже. У костра — бесплатно.`;
   const p = W.player, pts = [];
   for (const f of knownFires(W).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))) {
-    const me = !!(here && here.id === f.id), go = () => { if (fastTravel(W, f.id)) { closeFires(); sfx('travel'); } };
+    const me = !!(here && here.id === f.id), cost = travelCost(W, f), poor = W.inv.ash < cost, go = () => { const r = fastTravel(W, f.id); if (r === 'ok') { closeFires(); sfx('travel'); if (cost) toast(`Перенос: ${f.name}, −${cost} пепла`); } else if (r === 'ash') toast(`Не хватает пепла: нужно ${cost}`, 'bad'); };
     const d = Math.round(Math.hypot(f.x - p.x, f.z - p.z)), b = document.createElement('button'); b.type = 'button'; b.dataset.id = f.id;
-    setIconText(b, 'fire', f.name); const sm = document.createElement('small'); sm.textContent = me ? 'вы здесь' : d + ' м' + (f.danger ? ' · опасность ' + '▮'.repeat(f.danger) : ''); b.appendChild(sm);
-    b.disabled = !!block || me; b.addEventListener('click', go); list.appendChild(b);
-    pts.push({ x: f.x, z: f.z, name: f.name, icon: 'map:fire', bg: '#d8701c', me, off: !!block, go });
+    setIconText(b, 'fire', f.name); const sm = document.createElement('small'); sm.textContent = me ? 'вы здесь' : (cost ? cost + ' пепла · ' : '') + d + ' м' + (f.danger ? ' · опасность ' + '▮'.repeat(f.danger) : ''); b.appendChild(sm);
+    b.disabled = !!block || me || poor; b.addEventListener('click', go); list.appendChild(b);
+    pts.push({ x: f.x, z: f.z, name: f.name, sub: me ? '' : cost ? cost + ' пепла' : '', icon: 'map:fire', bg: '#d8701c', me, off: !!block || poor, go });
   }
   firesSec.hidden = false; panelOpen = true; input.release(); travelShow(pts);
 }
@@ -671,6 +672,8 @@ window.addEventListener('resize', () => { if (!firesSec.hidden) travelDraw(); })
 function dungeonLine() { const L = W.levels && W.levels[W.lvl], d = L && L.def; if (!d || !d.inst) return null; const tot = cfg.bosses.list.filter(b => b.level === d.id).length, alive = W.enemies.filter(e => e.boss && !e.dead).length, cs = W.map.containers || []; return `${d.name}${L.heroic ? ' · героик' : ''}: боссы ${Math.max(0, tot - alive)}/${tot} · сундуки ${cs.filter(c => !c.ready).length}/${cs.length}`; }     // трекер в подземелье (план подземелий, 1г)
 function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write(); }
 fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
+const warpBtn = $('warpBtn');     // перенос к кострам не от костра, за пепел (2026-11-03): кнопка под миникартой и клавиша T
+warpBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
 // жизнь мира (этап 6): повозка — окно костров без карты; сбор; конь
 const coachBtn = $('coachBtn'), gatherBtn = $('gatherBtn'), mountBtn = $('mountBtn');
 // окно добычи по макету А (4.21, выбор владельца): у тела с добычей — кнопка «Добыча · E»; окно — имя врага, таймер тела, вещи (клик — взять), «Взять всё» (E)
@@ -939,7 +942,8 @@ function frame(now) {
   const hud = (hudT += real) >= cfg.cull.hud || paused !== hudP; if (hud) { hudT = 0; hudP = paused; }     // кнопки, статусы и умения — 10 раз в секунду (и сразу при открытии меню)
   if (hud) { const show = !!W.nearNpc && (storyTalkable(W, W.nearNpc) || !npcLocked(W.nearNpc)) && !panelOpen && !landscape;     // сюжетный разговор — даже у закрытого жителя
   if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'scribe' ? 'Библиотека' : W.nearNpc === 'keeper' ? 'Дары Затмения' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
-  if (hud) { const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : ''));
+  if (hud) { const wp = W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead && knownFires(W).length > 1; if (warpBtn.hidden === wp) { warpBtn.hidden = !wp; document.body.classList.toggle('warp', wp); }
+    const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : ''));
     const free = !f && !W.nearPortal && !panelOpen && !landscape && !W.player.dead, cn = free && W.life && coachNear(W), nd = free && !cn && W.life && nodeNear(W);     // этап 6: повозка, сбор, конь
     if (coachBtn.hidden === !!cn) coachBtn.hidden = !cn; if (cn) { const l = 'Повозка' + (desk ? ' · E' : ''); if (coachBtn.textContent !== l) coachBtn.textContent = l; }
     lootUi(free);     // 4.21: окно и кнопка добычи

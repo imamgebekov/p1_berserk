@@ -1,10 +1,10 @@
 // Тест костров быстрого перемещения 3D (шаг C3d): костёр у каждого посёлка и у каждого опасного места, все — на свободном месте
-// и в мире; костёр лагеря открыт сразу, другие — когда подходишь; перенос только от костра, только к открытому и не при
-// встревоженных врагах рядом; отряд переносится с героем, погоня — нет; сохранение v6 хранит костры, старое — только лагерь.
+// и в мире; костёр лагеря открыт сразу, другие — когда подходишь; перенос у костра бесплатный, не от костра — за пепел (base + perM × расстояние),
+// только с поверхности, только к открытому и не при встревоженных врагах рядом; отряд переносится с героем, погоня — нет; сохранение v6 хранит костры, старое — только лагерь.
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, spawnEnemy } from '../3d/src/sim.js';
 import { resolve, nearBuilding } from '../3d/src/map.js';
-import { fireNear, discoverFires, fastTravel, travelBlock, knownFires, sanitizeFires } from '../3d/src/fires3d.js';
+import { fireNear, discoverFires, fastTravel, travelBlock, travelCost, knownFires, sanitizeFires } from '../3d/src/fires3d.js';
 import { createSaver, loadSave, migrate } from '../3d/src/save3d.js';
 import { waterDist } from '../3d/src/terrain3d.js';
 import { wdist } from '../3d/src/geo3d.js';     // Мир 5.0: край — от центра мира
@@ -33,18 +33,24 @@ p.x = far.x + 12; p.z = far.z; step(W, 1 / 60, {}); ok(!W.fires[far.id], 'кос
 p.x = far.x + 5; p.z = far.z; W.ev.length = 0; step(W, 1 / 60, {}); ok(W.fires[far.id] && W.ev.some(v => v.k === 'fireFound' && v.id === far.id), 'костёр не открылся рядом или нет надписи');
 
 // ---------- 3. перенос ----------
-{ p.x = 30; p.z = 30; ok(!fastTravel(W, 'camp') && travelBlock(W) === 'Подойдите к костру', 'перенос не от костра');
-  p.x = far.x + 2; p.z = far.z; resolve(W.map, p, .5); ok(!!fireNear(W), 'у костра не находится костёр');
-  const dark = F.find(f => !W.fires[f.id]); ok(!fastTravel(W, dark.id), 'перенос к неоткрытому костру');
-  const e = spawnEnemy(W, 'imp', p.x + 6, p.z); e.alert = true; ok(!fastTravel(W, 'camp') && travelBlock(W) === 'Рядом враги', 'перенос при враге рядом'); e.alert = false;
+{ p.x = 30; p.z = 30; W.inv.ash = 0; const camp = F.find(f => f.home), cost = travelCost(W, camp), want = Math.round(CFG3.fires.pay.base + CFG3.fires.pay.perM * Math.hypot(camp.x - p.x, camp.z - p.z));
+  ok(!travelBlock(W) && cost === want && cost > 0, `цена не от костра ${cost}, ждали ${want}`); ok(fastTravel(W, 'camp') === 'ash' && W.inv.ash === 0 && Math.hypot(p.x - 30, p.z - 30) < 1, 'перенос без пепла прошёл');
+  p.x = far.x + 2; p.z = far.z; resolve(W.map, p, .5); ok(!!fireNear(W), 'у костра не находится костёр'); ok(travelCost(W, F.find(f => f.home)) === 0, 'у костра перенос не бесплатный');
+  const dark = F.find(f => !W.fires[f.id]); ok(fastTravel(W, dark.id) === 'closed', 'перенос к неоткрытому костру');
+  const e = spawnEnemy(W, 'imp', p.x + 6, p.z); e.alert = true; ok(fastTravel(W, 'camp') === 'block' && travelBlock(W) === 'Рядом враги', 'перенос при враге рядом'); e.alert = false;
   W.allies.push({ id: 99, type: 'spear', x: p.x + 1, z: p.z, hp: 10, maxhp: 10, vx: 0, vz: 0, dead: false });
   e.alert = false; const chaser = spawnEnemy(W, 'brute', p.x - 30, p.z); chaser.alert = true;
-  W.ev.length = 0; ok(fastTravel(W, 'camp'), 'перенос к лагерю не прошёл');
+  W.ev.length = 0; W.inv.ash = 500; ok(fastTravel(W, 'camp') === 'ok' && W.inv.ash === 500, 'перенос к лагерю не прошёл или у костра взяли пепел');
   ok(Math.hypot(p.x, p.z) < 4 && !resolve(W.map, { x: p.x, z: p.z }, .45), 'герой не у костра лагеря или в стене');
   ok(Math.hypot(W.allies[0].x - p.x, W.allies[0].z - p.z) < 3, 'отряд не перенёсся с героем');
   ok(!W.enemies.includes(chaser), 'погоня перенеслась за героем');
   ok(W.ev.some(v => v.k === 'travel' && v.fire === 'camp'), 'нет события переноса');
-  ok(knownFires(W).length === 2, 'список открытых костров неверный'); }
+  ok(knownFires(W).length === 2, 'список открытых костров неверный');
+  // не от костра, за пепел: пепел списан, герой у цели, в событии цена
+  p.x = far.x + 40; p.z = far.z; W.ev.length = 0; const price = travelCost(W, far); W.inv.ash = price + 7; ok(price > 0 && !fireNear(W), 'не от костра цена нулевая');
+  ok(fastTravel(W, far.id) === 'ok' && W.inv.ash === 7 && Math.hypot(p.x - far.x, p.z - far.z) < 4 && W.ev.some(v => v.k === 'travel' && v.cost === price), 'платный перенос не списал пепел или не перенёс');
+  // под землёй и мёртвым нельзя
+  W.lvl = 'dun'; ok(travelBlock(W) === 'Под землёй переноса нет' && fastTravel(W, 'camp') === 'block', 'перенос из подземелья'); W.lvl = 'surface'; p.dead = true; ok(travelBlock(W) === 'Вы мертвы', 'перенос мёртвым'); p.dead = false; }
 
 // ---------- 4. сохранение ----------
 { const st = mem(); createSaver(W, st).write(true); const s = loadSave(30, st);

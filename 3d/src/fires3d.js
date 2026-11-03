@@ -52,20 +52,27 @@ export function discoverFires(W) {
   for (const f of W.map.fires || []) if (!W.fires[f.id] && (f.home || Math.hypot(f.x - p.x, f.z - p.z) < F.open)) { W.fires[f.id] = 1; if (!f.home) { n = true; W.ev.push({ k: 'fireFound', id: f.id, name: f.name, x: f.x, z: f.z }); } }
   return n;
 }
-// почему нельзя перенестись (строка) или null
+// почему нельзя перенестись (строка) или null: только с поверхности, не мёртвым и без встревоженных врагов рядом
 export function travelBlock(W) {
   const p = W.player, F = W.cfg.fires;
-  if (W.lvl !== 'surface') return 'Под землёй костров нет';
-  if (!fireNear(W)) return 'Подойдите к костру';
+  if (W.lvl !== 'surface') return 'Под землёй переноса нет';
+  if (p.dead) return 'Вы мертвы';
   if (W.enemies.some(e => !e.dead && e.alert && Math.hypot(e.x - p.x, e.z - p.z) < F.safeR)) return 'Рядом враги';
   return null;
 }
-// перенос к открытому костру id
+// цена переноса к костру f, пепел: у костра — 0, не от костра — base + perM × расстояние
+export function travelCost(W, f) {
+  if (fireNear(W)) return 0;
+  const P = W.cfg.fires.pay || { base: 0, perM: 0 }, p = W.player; return Math.round(P.base + P.perM * Math.hypot(f.x - p.x, f.z - p.z));
+}
+// перенос к открытому костру id; 'ok' или причина: 'block' (враги, под землёй), 'closed' (нет такого или не открыт), 'ash' (не хватает пепла)
 export function fastTravel(W, id) {
-  const f = fireById(W, id); if (!f || !W.fires || !W.fires[id] || travelBlock(W)) return false;
-  relocate(W, f.x, f.z);
-  W.ev.push({ k: 'travel', to: 'surface', up: false, fire: id });
-  return true;
+  const f = fireById(W, id); if (!f || !W.fires || !W.fires[id]) return 'closed';
+  if (travelBlock(W)) return 'block';
+  const cost = travelCost(W, f); if (W.inv.ash < cost) return 'ash';
+  W.inv.ash -= cost; relocate(W, f.x, f.z);
+  W.ev.push({ k: 'travel', to: 'surface', up: false, fire: id, cost });
+  return 'ok';
 }
 // перенести героя и отряд к точке (x, z) на поверхности: встать в 2,2 м от неё со стороны лагеря; погоня не переносится (костры, повозки этапа 6)
 export function relocate(W, x, z) {
