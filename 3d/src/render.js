@@ -675,7 +675,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (m) m.group.visible = near; }
   }
   // тень-двойник Вейла: тёмная копия героя с его клинком
-  const MATE_W = { thorn: 'sword', vale: 'dagger', jay: 'bow', irga: 'staff', warlock: 'sickle', priest: 'mace', brand: 'greatsword', hunter: 'sword' };     // спутник-герой (этап 4): облик героя и его оружие
+  const MATE_W = { thorn: 'sword', vale: 'dagger', jay: 'bow', irga: 'staff', warlock: 'sickle', priest: 'mace', brand: 'greatsword', hunter: 'sword', selene: 'sword' };     // спутник-герой (этап 4): облик героя и его оружие
   const mateModel = T => { const k = actorKey(cfg, 'hero', T.hero), A = k && makeActor(k, kitOf(k), 'hero'); if (A) { A.setWeapon(MATE_W[T.hero] || 'sword', 'steel'); return A; } const h = makeHero(); h.setLook(heroOf(T.hero).look); h.setWeapon(MATE_W[T.hero] || 'sword', 'steel'); return h; };
   // имя и уровень бота-«игрока» над головой (этап 5 «живого мира»)
   const nameTag = text => { const c = document.createElement('canvas'); c.width = 256; c.height = 48; const g = c.getContext('2d'); g.font = '600 25px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 6; g.strokeStyle = '#120a04'; g.strokeText(text, 128, 24); g.fillStyle = '#9fd0ff'; g.fillText(text, 128, 24);

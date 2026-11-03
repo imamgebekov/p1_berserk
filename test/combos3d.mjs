@@ -1,4 +1,4 @@
-// Тест связок умений (2026-10-18; школы 2026-10-22): 24 связки (по одной на школу) — умение a, потом b не позже окна: событие «связка» и своё усиление
+// Тест связок умений (2026-10-18; школы 2026-10-22): 27 связок (по одной на школу) — умение a, потом b не позже окна: событие «связка» и своё усиление
 // (сравнение с тем же b без связки на одинаковом поле); окно закрывается; b без a — без связки; цифры умений не портятся.
 import { CFG3 } from '../3d/src/config3d.js';
 import { ABILITIES } from '../3d/src/data/abilities3d.js';
@@ -8,7 +8,7 @@ import { COMBOS, comboReady, boosted } from '../3d/src/combos3d.js';
 import { applyStatus } from '../3d/src/status3d.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
-const WEAPON = { thorn: 'w_sword_iron', jay: 'w_bow_iron', vale: 'w_rapier_iron', irga: 'w_staff_iron', warlock: 'w_scythe_iron', priest: 'w_mace_iron', brand: 'w_greatsword_iron', hunter: 'w_sword_iron' }, X = CFG3.combos;
+const WEAPON = { thorn: 'w_sword_iron', jay: 'w_bow_iron', vale: 'w_rapier_iron', irga: 'w_staff_iron', warlock: 'w_scythe_iron', priest: 'w_mace_iron', brand: 'w_greatsword_iron', hunter: 'w_sword_iron', selene: 'w_sword_iron' }, X = CFG3.combos;
 function mk(hero) {
   const cfg = JSON.parse(JSON.stringify(CFG3)); cfg.enemies.count = 0; cfg.map.places = []; cfg.map.outposts = []; cfg.map.citadel = null; cfg.weather.force = 'clear'; cfg.enemies.roam.on = false;
   const W = createWorld(cfg, () => .5); W.hero = hero; W.lv = 30; W.player.x = 300; W.player.z = 0; W.player.face = 0; W.player.inv = 1e9;
@@ -44,6 +44,9 @@ const CASE = {     // школы (2026-10-22): по связке на школу
   verdict: { setup: W => ({ e: foe(W, 0, 6) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.5, time: 4.4 },
   bloodfeast: { setup: W => ({ e: foe(W, 0, 4) }), pre: W => { W.player.hp = W.player.maxhp * .3; }, m: W => W.player.hp, better: (a, b) => a > b + 1, now: true },     // Морок-Кровь
   bloodimp: { setup: () => ({}), m: W => (W.allies.find(a => a.imp) || { t: 0 }).t, better: (a, b) => a > b * 1.4, now: true },
+  lunarrush: { setup: W => ({ e: foe(W, 0, 5) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.3, now: true },     // Селена-Серп
+  nightlight: { setup: () => ({}), m: W => last('zones')(W).r || 0, better: (a, b) => a > b * 1.3, now: true },     // Селена-Звёзды
+  blindbeam: { setup: W => ({ e: foe(W, 0, 3) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.3, time: .8 },     // Селена-Ночь
   firerain: { setup: () => ({}), m: W => last('meteors')(W).r || 0, better: (a, b) => a > b * 1.3, now: true },     // Ирга-Огонь
   icearmor: { setup: W => ({ e: foe(W, 5, 0) }), m: (W, c) => (W.buffs.some(b => b.src === 'icearmor') ? 1 : 0) + (hurt(c.e) > 0 ? 1 : 0), better: (a, b) => a === 2 && b === 0, now: true },
   breach: { setup: W => ({ e: foe(W, 0, 8) }), pre: (W, c) => applyStatus(W, c.e, 'shock', 10, 9), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.4, now: true }
@@ -69,7 +72,7 @@ for (const [hero, list] of Object.entries(COMBOS)) for (const c of list) {
   ok(!b.combo, `${c.name}: связка без первого умения`);
   ok(CASE[c.id].better(a.v, b.v), `${c.name}: нет усиления — со связкой ${a.v}, без ${b.v}`);
 }
-ok(n === 24, 'связок не 24: ' + n);
+ok(n === 27, 'связок не 27: ' + n);
 
 // окно закрывается; подсветка; числа умения не портятся
 { const W = mk('thorn'); foe(W, 2, 0); cast(W, 'charge'); ok(comboReady(W).some(q => q.id === 'bash'), 'после рывка нет подсветки сокрушающего удара');
@@ -80,4 +83,4 @@ ok(n === 24, 'связок не 24: ' + n);
   for (const [h, L] of Object.entries(COMBOS)) { ok(L.length === 3, `${h}: связок не 3`); L.forEach((c, i) => ok(schoolOfAbility(h, c.a, CFG3) === i && schoolOfAbility(h, c.b, CFG3) === i, `${h}/${c.name}: части не в школе ${i}`)); } }
 
 if (fails.length) { console.error('Связки умений 3D: ПРОВАЛ\n- ' + fails.join('\n- ')); process.exit(1); }
-console.log('Связки умений 3D: OK (24, по одной на школу)');
+console.log('Связки умений 3D: OK (27, по одной на школу)');

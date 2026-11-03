@@ -13,8 +13,8 @@ const foe = (W, type, dx, dz, hp = 1e5) => { const e = spawnEnemy(W, type, W.pla
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const T = CFG3.squad.types;
 
-// данные: четыре спутника-героя с ролями, найм не показывает своего героя
-{ const C = Object.entries(T).filter(([, t]) => t.hero); ok(C.length === 4 && ['tank', 'heal', 'ranged', 'melee'].every(r => C.some(([, t]) => t.role === r)), 'спутники-герои: защитник, лекарь, стрелок, боец');
+// данные: пять спутников-героев с ролями, найм не показывает своего героя
+{ const C = Object.entries(T).filter(([, t]) => t.hero); ok(C.length === 5 && ['tank', 'heal', 'ranged', 'melee'].every(r => C.some(([, t]) => t.role === r)), 'спутники-герои: защитник, лекарь, стрелок, боец');
   const W = mk(1, 'thorn'); ok(!hireable(W, 'c_thorn') && hireable(W, 'c_jay'), 'Торн нанимает себя'); }
 // угроза: кто больше навредил, того и бьют; цель меняется только при перевесе > 10%
 { const W = mk(2); const [a] = party(W, 'c_vale'); const e = foe(W, 'brute', 0, 4); a.x = e.x + 1; a.z = e.z;

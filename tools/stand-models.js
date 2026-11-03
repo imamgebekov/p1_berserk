@@ -8,7 +8,7 @@ import { makeWeapon, weaponKinds, kkWeapon } from '../3d/src/weaponview.js';
 import { heroOf } from '../3d/src/data/heroes3d.js';
 
 const A = cfg.actors, kitOf = k => A.kits[k];
-export const HERO_W = { thorn: ['sword', ['shield', 'iron']], vale: ['dagger', ['dagger', 'steel']], jay: ['bow'], irga: ['staff'], warlock: ['scythe'], priest: ['mace', ['shield', 'iron']], brand: ['greatsword'], hunter: ['sword', ['sword', 'steel']] };
+export const HERO_W = { thorn: ['sword', ['shield', 'iron']], vale: ['dagger', ['dagger', 'steel']], jay: ['bow'], irga: ['staff'], warlock: ['scythe'], priest: ['mace', ['shield', 'iron']], brand: ['greatsword'], hunter: ['sword', ['sword', 'steel']], selene: ['rapier'] };
 
 export async function ready() { await Promise.all([...Object.entries(A.kits).map(([k, kit]) => loadActor(k, kit)), loadKkWeapons()]); }
 
