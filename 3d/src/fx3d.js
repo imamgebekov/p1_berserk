@@ -25,7 +25,7 @@ export function createFx(scene, camera, n = { parts: 400, glow: 900, decals: 64,
   // атлас спрайтов Kenney Particle Pack (CC0, 2026-11-03): 5×5 ячеек по 96 px, ячейка 0 — мягкая точка; у частицы свой номер ячейки (aSp); пока атлас грузится — одна точка
   let atlasOn = 0;
   const ATL = 5, atlasTex = (() => { if (typeof Image === 'undefined' || !dotTex) return null; const im = new Image(), t = new THREE.Texture(im); t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; im.onload = () => { atlasOn = 1; t.needsUpdate = true; if (glowMat.userData.sh) glowMat.userData.sh.uniforms.uAt.value = 1; glowMat.map = t; glowMat.needsUpdate = true; }; im.src = new URL('../models/vfx_atlas.webp', import.meta.url).href; return t; })();
-  const glowMat = new THREE.MeshBasicMaterial({ color: '#fff', map: dotTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });     // fog: false — туман подмешивал свой цвет в чёрные места спрайта (светлые квадраты)
+  const glowMat = new THREE.MeshBasicMaterial({ color: '#fff', map: dotTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, depthTest: false });     // depthTest: false — крупные плоские спрайты не режутся землёй (прямой срез снизу); fog: false — туман подмешивал свой цвет в чёрные места спрайта (светлые квадраты)
   if (dotTex) glowMat.onBeforeCompile = sh => { glowMat.userData.sh = sh; sh.uniforms.uAt = { value: atlasOn };
     sh.vertexShader = 'attribute float aSp; uniform float uAt;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n#ifdef USE_MAP\n if (uAt > .5) vMapUv = (uv + vec2(mod(aSp, 5.), 4. - floor(aSp / 5.))) / 5.;\n#endif'); };
   const glow = NG ? new THREE.InstancedMesh(dotTex ? new THREE.PlaneGeometry(1, 1) : new THREE.BoxGeometry(1, 1, 1), glowMat, NG) : null;
@@ -89,8 +89,21 @@ export function createFx(scene, camera, n = { parts: 400, glow: 900, decals: 64,
   }
 
   // ---- вспышки попадания: светлая плоскость к камере, гаснет за доли секунды ----
+  // дым и взрывы (Kenney Smoke Particles, CC0, 2026-11-03): цветные спрайты с прозрачностью, обычное смешивание; ячейки 5×5 по 128 px: 0–6 белый дым, 7–11 чёрный, 12–16 взрыв, 17–21 вспышка, 22–24 ядовито-зелёный
+  const NQ = dotTex ? (n.puff ?? 260) : 0, Q = { x: new Float32Array(NQ), y: new Float32Array(NQ), z: new Float32Array(NQ), vx: new Float32Array(NQ), vy: new Float32Array(NQ), vz: new Float32Array(NQ), life: new Float32Array(NQ), max: new Float32Array(NQ), g: new Float32Array(NQ), s: new Float32Array(NQ), gr: new Float32Array(NQ), sp: new Float32Array(NQ) };
+  let puff = null, qi = 0; const opA = new Float32Array(NQ || 1);
+  if (NQ) { const im = new Image(), t = new THREE.Texture(im); t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter;
+    const mat = new THREE.MeshBasicMaterial({ color: '#fff', map: t, transparent: true, depthWrite: false });
+    mat.onBeforeCompile = sh => { sh.vertexShader = 'attribute float aSp; attribute float aOp; varying float vOp;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n vOp = aOp;\n#ifdef USE_MAP\n vMapUv = (uv + vec2(mod(aSp, 5.), 4. - floor(aSp / 5.))) / 5.;\n#endif'); sh.fragmentShader = 'varying float vOp;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', '#include <opaque_fragment>\n gl_FragColor.a *= vOp;'); };
+    puff = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mat, NQ); puff.frustumCulled = false; puff.visible = false; puff.renderOrder = 1; puff.geometry.setAttribute('aSp', new THREE.InstancedBufferAttribute(new Float32Array(NQ), 1)); puff.geometry.setAttribute('aOp', new THREE.InstancedBufferAttribute(opA, 1));
+    for (let i = 0; i < NQ; i++) { puff.setMatrixAt(i, HIDE); puff.setColorAt(i, col.set('#fff')); } scene.add(puff); im.onload = () => { t.needsUpdate = true; puff.visible = true; }; im.src = new URL('../models/vfx_puff.webp', import.meta.url).href; }
+  // облако: sp — ячейка атласа, gr — во сколько раз вырастает за жизнь
+  function emitPuff(x, y, z, vx, vy, vz, color, life, g, s, sp = 0, gr = 1.2) {
+    if (!NQ) return; const i = qi = (qi + 1) % NQ;
+    Q.x[i] = x; Q.y[i] = y; Q.z[i] = z; Q.vx[i] = vx; Q.vy[i] = vy; Q.vz[i] = vz; Q.life[i] = Q.max[i] = life; Q.g[i] = g; Q.s[i] = s; Q.gr[i] = gr; Q.sp[i] = sp; puff.geometry.attributes.aSp.array[i] = sp; puff.setColorAt(i, col.set(color));
+  }
   const flashes = [];
-  for (let i = 0; i < n.flashes; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#fff', map: dotTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); m.visible = false; m.userData.t = 0; scene.add(m); flashes.push(m); }
+  for (let i = 0; i < n.flashes; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#fff', map: dotTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, depthTest: false })); m.visible = false; m.userData.t = 0; scene.add(m); flashes.push(m); }
   let fi = 0;
   function flash(x, y, z, size, color) { const m = flashes[fi = (fi + 1) % flashes.length]; m.visible = true; m.position.set(x, y, z); m.material.color.set(color); m.userData = { t: .1, s: size }; }
 
@@ -121,6 +134,13 @@ export function createFx(scene, camera, n = { parts: 400, glow: 900, decals: 64,
         dummy.updateMatrix(); glow.setMatrixAt(i, dummy.matrix);
       }
       glow.instanceMatrix.needsUpdate = true; if (glow.instanceColor) glow.instanceColor.needsUpdate = true; if (dotTex) glow.geometry.attributes.aSp.needsUpdate = true;
+    }
+    if (NQ && puff.visible) {
+      camera.updateMatrixWorld(); camQ.copy(camera.quaternion);
+      for (let i = 0; i < NQ; i++) { if (Q.life[i] <= 0) continue; Q.life[i] -= dt; if (Q.life[i] <= 0) { puff.setMatrixAt(i, HIDE); opA[i] = 0; continue; }
+        Q.vy[i] -= Q.g[i] * dt; Q.x[i] += Q.vx[i] * dt; Q.y[i] += Q.vy[i] * dt; Q.z[i] += Q.vz[i] * dt; const k = Q.life[i] / Q.max[i], sz = Q.s[i] * (1 + (1 - k) * Q.gr[i]); opA[i] = Math.min(1, k * 2.2) * Math.min(1, (1 - k) * 12 + .25);
+        rollQ.setFromAxisAngle(zAxis, Q.sp[i] * 1.7 + (1 - k) * .6); dummy.position.set(Q.x[i], Q.y[i], Q.z[i]); dummy.quaternion.copy(camQ).multiply(rollQ); dummy.scale.set(sz, sz, 1); dummy.updateMatrix(); puff.setMatrixAt(i, dummy.matrix); }
+      puff.instanceMatrix.needsUpdate = true; if (puff.instanceColor) puff.instanceColor.needsUpdate = true; puff.geometry.attributes.aOp.needsUpdate = true; puff.geometry.attributes.aSp.needsUpdate = true;
     }
     for (let i = 0; i < ND; i++) {
       if (D.life[i] <= 0) continue;
@@ -156,10 +176,11 @@ export function createFx(scene, camera, n = { parts: 400, glow: 900, decals: 64,
     for (let i = 0; i < NP; i++) { P.life[i] = 0; parts.setMatrixAt(i, HIDE); }
     if (glow) { for (let i = 0; i < NG; i++) { Gp.life[i] = 0; glow.setMatrixAt(i, HIDE); } glow.instanceMatrix.needsUpdate = true; }
     for (let i = 0; i < ND; i++) { D.life[i] = 0; decals.setMatrixAt(i, HIDE); }
+    for (let i = 0; i < NQ; i++) { Q.life[i] = 0; puff.setMatrixAt(i, HIDE); }
     if (deb) { for (let i = 0; i < NB; i++) { Bd.life[i] = 0; deb.setMatrixAt(i, HIDE); } deb.instanceMatrix.needsUpdate = true; }
     parts.instanceMatrix.needsUpdate = decals.instanceMatrix.needsUpdate = true;
     for (const m of flashes) m.visible = false;
   }
   const live = () => { let a = 0, b = 0; for (let i = 0; i < NP; i++) if (P.life[i] > 0) a++; for (let i = 0; i < NG; i++) if (Gp.life[i] > 0) a++; for (let i = 0; i < ND; i++) if (D.life[i] > 0) b++; let c = 0; for (let i = 0; i < NB; i++) if (Bd.life[i] > 0) c++; return { parts: a, decals: b, debris: c }; };
-  return { burst, spray, ash, decal, flash, update, clear, live, emit, debris, debrisCfg };
+  return { burst, spray, ash, decal, flash, update, clear, live, emit, emitPuff, debris, debrisCfg };
 }
