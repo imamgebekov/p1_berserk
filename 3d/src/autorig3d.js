@@ -26,6 +26,19 @@ export function riggedParts(P, N, o = {}) {
   for (const n of ['L', 'R']) seg.push(['rg_thigh' + n, J['hipj' + n], J['knee' + n], half * .1], ['rg_shin' + n, J['knee' + n], J['toe' + n], half * .08], ['rg_arm' + n, J['sh' + n], J['elb' + n], half * .08, [cx, half * .55]], ['rg_fore' + n, J['elb' + n], J['hand' + n], half * .08, [cx, half * .55]]);     // у рук — ещё и отступ от оси тела: плащ и живот руку за собой не тянут
   return { bones, seg, H, y0, cx, cz, half };
 }
+// четвероногие (2026-11-03): тело вытянуто по z (лицом +z); кости — таз, спина, голова, хвост из двух частей, четыре ноги из двух частей
+export function quadParts(P, o = {}) {
+  let y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity; for (let i = 0; i < P.length; i += 3) { x0 = Math.min(x0, P[i]); x1 = Math.max(x1, P[i]); y0 = Math.min(y0, P[i + 1]); y1 = Math.max(y1, P[i + 1]); z0 = Math.min(z0, P[i + 2]); z1 = Math.max(z1, P[i + 2]); }
+  const H = y1 - y0, L = z1 - z0, cx = (x0 + x1) / 2, F = { body: .5, knee: .22, ...o }, Y = f => y0 + H * f, Zf = f => z0 + L * f, side = (x1 - x0) * .28;
+  const J = { hip: [cx, Y(F.body), Zf(.3)], chest: [cx, Y(F.body + .05), Zf(.68)], neck: [cx, Y(F.body + .12), Zf(.82)], nose: [cx, Y(F.body + .08), z1], tail1: [cx, Y(F.body), Zf(.15)], tail2: [cx, Y(F.body - .1), z0] };
+  const bones = [['rg_root', null, [0, 0, 0]], ['rg_hips', 'rg_root', J.hip], ['rg_spine', 'rg_hips', J.chest], ['rg_head', 'rg_spine', J.neck], ['rg_tail1', 'rg_hips', J.tail1], ['rg_tail2', 'rg_tail1', J.tail2]];
+  const seg = [['rg_hips', [cx, Y(F.body), Zf(.2)], J.hip, side * 1.2], ['rg_spine', J.hip, J.chest, side * 1.3], ['rg_head', J.neck, J.nose, side * .8], ['rg_tail1', J.hip, J.tail1, side * .4], ['rg_tail2', J.tail1, J.tail2, side * .3]];
+  for (const [n, sx] of [['L', 1], ['R', -1]]) for (const [m, zf] of [['F', .72], ['B', .26]]) {
+    const top = [cx + sx * side, Y(F.body - .02), Zf(zf)], knee = [cx + sx * side, Y(F.knee), Zf(zf)], foot = [cx + sx * side, y0, Zf(zf)];
+    bones.push(['rg_up' + m + n, m === 'F' ? 'rg_spine' : 'rg_hips', top], ['rg_dn' + m + n, 'rg_up' + m + n, knee]); seg.push(['rg_up' + m + n, top, knee, side * .45], ['rg_dn' + m + n, knee, foot, side * .35]);
+  }
+  return { bones, seg, H, y0 };
+}
 // веса вершин: до 3 ближайших костей, вес ~ 1 / (расстояние² + e²)²; внутри радиуса сегмента расстояние нулевое
 export function skinWeights(P, seg, H) {
   const n = P.length / 3, idx = new Uint16Array(n * 4), wt = new Float32Array(n * 4), names = [...new Set(seg.map(s => s[0]))], e2 = (H * .02) ** 2;
@@ -67,10 +80,22 @@ function clipsFor(bones, H, hipPos) {
   mk('Hit_A', .5, 10, (f, o) => { const k = S(Math.min(1, f * 1.4) * Math.PI), q = k * (1 - f * .3); o.rg_spine = [-.5 * q, .12 * q, 0]; o.rg_head = [-.35 * q, 0, 0]; o.rg_armL = [.5 * q, 0, .3 * q]; o.rg_armR = [.5 * q, 0, -.3 * q]; o.rg_thighL = [-.2 * q, 0, 0]; });
   return out;
 }
+function quadClips(bones, H, hipPos) {
+  const out = [], mk = (name, dur, N, pose, bob) => { const c = clip(name, dur, N, pose, bones, hipPos[1], H, bob), tr = [...c.tr]; if (bob) tr.push(new THREE.VectorKeyframeTrack('rg_hips.position', c.times, c.pos.map((v, i) => hipPos[i % 3] + v))); out.push(new THREE.AnimationClip(name, dur, tr)); };
+  const gait = (A, B, wag) => (f, o) => { const p = f * PI2;     // шаг по диагонали: левая передняя с правой задней
+    for (const [m, ph] of [['FL', 0], ['BR', 0], ['FR', Math.PI], ['BL', Math.PI]]) { const s = S(p + ph); o['rg_up' + m[0] + m[1]] = [-A * s, 0, 0]; o['rg_dn' + m[0] + m[1]] = [B * Math.max(0, S(p + ph + 1.2)), 0, 0]; }
+    o.rg_spine = [.03 * S(p * 2), wag * .5 * S(p), 0]; o.rg_head = [-.04 * S(p * 2), -wag * S(p), 0]; o.rg_tail1 = [0, wag * 2 * S(p), 0]; o.rg_tail2 = [0, wag * 2.5 * S(p + 1), 0]; };
+  mk('Idle', 2.4, 12, (f, o) => { const p = f * PI2; o.rg_spine = [.02 * S(p), 0, 0]; o.rg_head = [.04 * S(p + 1), .05 * S(p), 0]; o.rg_tail1 = [0, .15 * S(p), 0]; o.rg_tail2 = [0, .2 * S(p + 1), 0]; });
+  mk('Walk', .8, 16, gait(.5, .6, .1), .012); mk('Run', .45, 16, gait(.85, 1, .12), .03);
+  mk('Attack1', .8, 16, (f, o) => { const w = Math.min(1, f / .4), s = f < .4 ? 0 : Math.min(1, (f - .4) / .15), b = f < .55 ? 0 : (f - .55) / .45, k = 1 - b;     // замах назад и вниз, выпад вперёд с головой
+    o.rg_spine = [(-.25 * w + .45 * s) * k, 0, 0]; o.rg_head = [(-.3 * w + .7 * s) * k, 0, 0]; o.rg_upFL = [(.4 * w - .7 * s) * k, 0, 0]; o.rg_upFR = [(.4 * w - .7 * s) * k, 0, 0]; o.rg_tail1 = [-.3 * s * k, 0, 0]; });
+  mk('Hit_A', .5, 10, (f, o) => { const q = S(Math.min(1, f * 1.4) * Math.PI) * (1 - f * .3); o.rg_spine = [-.35 * q, .1 * q, 0]; o.rg_head = [-.4 * q, .2 * q, 0]; o.rg_tail1 = [0, .4 * q, 0]; });
+  return out;
+}
 // собрать скелет на сцене (одна обычная сетка) → { clips }; сетка заменяется на SkinnedMesh. kit.rig — поправки долей роста
-export function autoRig(scene, over = {}) {
+export function autoRig(scene, over = {}, type = 'biped') {
   let mesh = null; scene.traverse(o => { if (o.isMesh && !mesh) mesh = o; }); if (!mesh) return null;
-  const geo = mesh.geometry, P = geo.attributes.position.array, { bones, seg, H, y0 } = riggedParts(P, null, over), W = skinWeights(P, seg, H), parent = mesh.parent;
+  const geo = mesh.geometry, P = geo.attributes.position.array, { bones, seg, H, y0 } = type === 'quad' ? quadParts(P, over) : riggedParts(P, null, over), W = skinWeights(P, seg, H), parent = mesh.parent;
   const bm = new Map(), list = [];
   for (const [nm, par, pt] of bones) { const b = new THREE.Bone(); b.name = nm; const pp = par ? bones.find(x => x[0] === par)[2] : [0, 0, 0]; b.position.set(pt[0] - pp[0], pt[1] - pp[1], pt[2] - pp[2]); bm.set(nm, b); list.push(b); if (par) bm.get(par).add(b); }
   const nameOrder = W.names, remap = list.map(b => b.name), order = new Map(remap.map((n, i) => [n, i]));
@@ -79,5 +104,5 @@ export function autoRig(scene, over = {}) {
   const sm = new THREE.SkinnedMesh(geo, mesh.material); sm.name = mesh.name; sm.castShadow = true; sm.frustumCulled = false; sm.matrix.copy(mesh.matrix); sm.matrix.decompose(sm.position, sm.quaternion, sm.scale);
   parent.add(sm, bm.get('rg_root')); parent.remove(mesh); parent.updateMatrixWorld(true);
   sm.bind(new THREE.Skeleton(list));
-  return { clips: clipsFor(bones, H, bones[1][2]), height: H, y0 };
+  return { clips: type === 'quad' ? quadClips(bones, H, bones[1][2]) : clipsFor(bones, H, bones[1][2]), height: H, y0 };
 }

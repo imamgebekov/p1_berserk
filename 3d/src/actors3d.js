@@ -124,7 +124,7 @@ export function loadActor(key, kit) {
     if (kit.mats || kit.glow) g.scene.traverse(o => { if (!o.isMesh) return; const m = o.material, c = kit.mats && kit.mats[m.name], e = kit.glow && kit.glow[m.name]; if (c) m.color.set(c); if (e) m.emissive.set(e); });     // монстры без текстур: цвет и свечение по имени материала
     if (kit.cut) cutAbove(g.scene, kit.cut);
     if (kit.hot) g.scene.traverse(o => { if (o.isMesh && o.material.map) { o.material.emissiveMap = hotMap(o.material.map, kit.hot); o.material.emissive.set(kit.hot.color || '#ffffff'); } });     // светятся раскалённые места текстуры (модели из Meshy)
-    if (kit.rig) { const R = autoRig(g.scene, kit.rig === true ? {} : kit.rig); if (R) clips.push(...R.clips); }     // автоскелет двуногих моделей Meshy (autorig3d.js, 2026-11-03)
+    if (kit.rig) { const R = autoRig(g.scene, kit.rig === true || kit.rig === 'quad' ? {} : kit.rig, kit.rig === 'quad' || (kit.rig && kit.rig.type === 'quad') ? 'quad' : 'biped'); if (R) clips.push(...R.clips); }     // автоскелет двуногих моделей Meshy (autorig3d.js, 2026-11-03)
     inPlace(clips, g.scene);
     let box = new THREE.Box3().setFromObject(g.scene); if (!Number.isFinite(box.max.y - box.min.y)) box = boxOf(g.scene); const h = Math.max(.01, box.max.y - box.min.y);
     const v = { scene: g.scene, clips, h, minY: box.min.y }; lib.set(key, v); return v;

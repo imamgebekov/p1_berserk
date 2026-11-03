@@ -23,5 +23,15 @@ ok(/thighL|shinL/.test(boneOf(legV)), 'нога +x не у ноги: ' + boneOf(
 const mixer = new THREE.AnimationMixer(scene), pos = (v) => { sm.skeleton.update(); const t = new THREE.Vector3(); t.fromBufferAttribute(P, v); sm.applyBoneTransform(v, t); return t; };
 scene.updateMatrixWorld(true); const p0 = pos(legV); mixer.clipAction(R.clips[1]).play(); mixer.update(.225); scene.updateMatrixWorld(true); const p1 = pos(legV); ok(p0.distanceTo(p1) > .05, 'шаг не двигает ногу: ' + p0.distanceTo(p1));
 mixer.stopAllAction(); mixer.clipAction(R.clips[3]).reset().play(); mixer.update(.3); scene.updateMatrixWorld(true); const a1 = pos(armV); ok(a1.y !== undefined && Math.abs(a1.z - 0) > .1, 'удар не двигает руку');
+
+// четвероногий: тело вдоль z, четыре ноги; кости — 6 корпусных и 8 ножных, клипы те же
+{ const pp = [box(.5, .5, 1.2, 0, .7, 0), box(.15, .5, .15, .2, .25, .45), box(.15, .5, .15, -.2, .25, .45), box(.15, .5, .15, .2, .25, -.45), box(.15, .5, .15, -.2, .25, -.45), box(.3, .3, .4, 0, .85, .8)];
+  const g = new THREE.BufferGeometry(), ps = [], ns = [], uv = [], ix = []; let o = 0; for (const p of pp) { ps.push(...p.attributes.position.array); ns.push(...p.attributes.normal.array); uv.push(...p.attributes.uv.array); ix.push(...[...p.index.array].map(i => i + o)); o += p.attributes.position.count; }
+  g.setAttribute('position', new THREE.Float32BufferAttribute(ps, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(ns, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(ix);
+  const sc = new THREE.Group(), nd = new THREE.Group(); nd.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial())); sc.add(nd);
+  const Q = autoRig(sc, {}, 'quad'); let q = null, nb = 0; sc.traverse(x => { if (x.isSkinnedMesh) q = x; if (x.isBone) nb++; });
+  ok(Q && Q.clips.map(c => c.name).join() === 'Idle,Walk,Run,Attack1,Hit_A' && q && nb === 14, `четвероногий: костей ${nb}`);
+  const bn = q.skeleton.bones.map(b => b.name), I2 = q.geometry.attributes.skinIndex, P2 = q.geometry.attributes.position; let fl = -1; for (let v = 0; v < P2.count; v++) if (P2.getX(v) > .15 && P2.getZ(v) > .35 && P2.getY(v) < .3) { fl = v; break; }
+  ok(/FL|upF/.test(bn[I2.getX(fl)]) || /dnFL|upFL/.test(bn[I2.getX(fl)]), 'передняя левая нога не у своей кости: ' + bn[I2.getX(fl)]); }
 if (fails.length) { console.log('ПРОВАЛ:\n' + [...new Set(fails)].join('\n')); process.exit(1); }
 console.log('Автоскелет 3D: OK');
