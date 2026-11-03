@@ -170,6 +170,13 @@ body:has(#boss:not([hidden])) #place{display:none}
 .jrow.ready{box-shadow:inset 3px 0 0 #8fd07a}.jrow.mixcard{box-shadow:inset 4px 0 0 var(--ca),inset 8px 0 0 var(--cb)}.mixwrap{overflow-x:auto;flex:none;padding-bottom:4px}
 .mixt{border-collapse:separate;border-spacing:3px}.mixt th{font-size:11px;font-weight:600;padding:2px 4px;white-space:nowrap}.mixt td{padding:0}
 .mixc{width:76px;min-height:44px;padding:2px;overflow-wrap:anywhere;hyphens:auto;border-radius:8px;border:2px solid transparent;background:linear-gradient(135deg,var(--ca) 0 50%,var(--cb) 50% 100%);color:#140e0a;font-size:10px;font-weight:700;line-height:1.1;text-shadow:0 0 3px rgba(255,248,236,.9)}.mixc.on{border-color:#fff2d0;outline:2px solid #140e0a;outline-offset:-4px}
+#journal .jbody{display:flex;gap:10px;flex:1;min-height:0}
+#journal .jcard{flex:0 0 min(44%,330px);overflow:auto;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(20,10,8,.55);display:flex;flex-direction:column;gap:7px}
+#journal .jcard[hidden]{display:none}
+#journal .jcn{font-size:19px;line-height:1.2}#journal .jcr{font-size:13px;opacity:.7}#journal .jcs{font-size:15px;color:#ffd9a0}#journal .jct{font-size:14.5px;line-height:1.4;opacity:.85}
+#journal .jcl{font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin-top:4px}#journal .jcnote{font-size:14px;color:#ffd27a}
+#journal .jrow.sel{border-color:#e8c04a;background:rgba(232,192,74,.1)}#journal .jrow.pick{cursor:pointer}
+@media (max-width:640px){#journal .jbody{flex-direction:column-reverse}#journal .jcard{flex:0 0 auto;max-height:46%;padding:9px 10px}#journal .jcn{font-size:16px}#journal .jct,#journal .jcs{font-size:13.5px}}
 #journalList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:5px;min-height:90px;padding-bottom:6px}
 .jrow{padding:8px 10px;background:#1b1211;border:2px solid var(--line);border-radius:8px;flex:none;font-size:13px;line-height:1.35;text-align:left}
 .jrow.dim{opacity:.45}.jrow b{font-size:14px}.jrow .sub{opacity:.65;font-size:12px;margin-top:2px}.jrow .k{color:#e8c04a}.jrow .z{color:#ff9a8a}.jrow .g{color:#a8e0a0}
@@ -1088,3 +1095,15 @@ html:not([data-desk]) #hpTxt{grid-row:1;grid-column:2;justify-self:center;min-wi
   #heroCards .hlist{grid-row:4}
   #heroCards .hgo{grid-row:5;width:100%}
 }
+
+/* кузнец, вкладка «Улучшение»: сетка вещей и карточка справа (2026-11-03) */
+#smith .sbody{display:flex;gap:10px;flex:1;min-height:0}
+#smith .sbody>#smithList.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));grid-auto-rows:64px;gap:8px;align-content:start}
+#smith .scell{position:relative;display:flex;align-items:center;justify-content:center;min-height:64px;border:2px solid var(--line);border-radius:10px;background:#1b1211;padding:0}
+#smith .scell.on{border-color:#e8c04a;background:rgba(232,192,74,.12)}#smith .scell.worn{box-shadow:inset 0 0 0 1px rgba(143,208,122,.5)}
+#smith .scell .sl{position:absolute;right:4px;bottom:2px;font-size:12px;font-weight:700;color:#8fd07a;text-shadow:0 1px 2px #000}
+#smith .scard{flex:0 0 min(42%,300px);overflow:auto;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(20,10,8,.55);display:flex;flex-direction:column;gap:7px}
+#smith .scard[hidden]{display:none}#smith .scn{font-size:19px;line-height:1.2}#smith .scr{font-size:13px;opacity:.7}#smith .scs{font-size:15px;color:#ffd9a0}#smith .sct{font-size:14px;line-height:1.4;opacity:.85}#smith .sct.lack{color:#ff9a8a;opacity:1}
+#smith .scl{font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin-top:4px}#smith .scard .buy{min-height:46px;margin-top:4px}
+@media (max-width:640px){#smith .sbody{flex-direction:column-reverse}#smith .scard{flex:0 0 auto;max-height:46%;padding:9px 10px}#smith .scn{font-size:16px}#smith .sct,#smith .scs{font-size:13.5px}}
+#smith .scard .buy{min-height:46px;padding:0 18px;border-radius:22px;border:1px solid #d9b27a;background:#3a2a1a;color:#f0d3a0;font-family:var(--serif);font-size:16px;font-weight:500}#smith .scard .buy.no{border-color:#4a3626;background:transparent;color:#8a7e6c;font-family:var(--sans);font-size:14px}

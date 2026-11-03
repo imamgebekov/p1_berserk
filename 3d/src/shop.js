@@ -130,6 +130,8 @@ export function createShop(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
 export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource } = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('smith'), listEl = $('smithList'), headEl = $('smithHead'), flashEl = $('smithFlash'), tabsEl = $('smithTabs'), noteEl = $('smithNote');
+  const sbody = doc.createElement('div'), scard = doc.createElement('aside'); sbody.className = 'sbody'; scard.className = 'scard'; scard.hidden = true; listEl.parentNode.insertBefore(sbody, listEl); sbody.append(listEl, scard);     // вкладка «Улучшение»: сетка вещей слева, карточка выбранной справа (на телефоне — над сеткой)
+  let usel = null;
   let flashT = 0, tab = 'up', onlyReady = false;     // по умолчанию — все известные рецепты, с нехваткой
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const flash = t => { flashEl.textContent = t; clearTimeout(flashT); flashT = setTimeout(() => { flashEl.textContent = ''; }, 2200); };
@@ -234,7 +236,7 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
   function render() {
     refreshGear(W);
     for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.tab === tab);
-    headEl.textContent = 'Кузнец'; listEl.textContent = '';     // макет А (2026-10-27): название, место, пепел — отдельно
+    headEl.textContent = 'Кузнец'; listEl.textContent = ''; listEl.classList.remove('sgrid'); scard.hidden = true; scard.textContent = '';     // макет А (2026-10-27): название, место, пепел — отдельно
     { const sub = $('smithSub'), ash = $('smithAsh'), sh = smithShop(W); if (sub) sub.textContent = sh && sh.name ? sh.name : 'улучшение до +' + cfg.smith.max + ', ковка, камни'; if (ash) ash.textContent = `${W.inv.ash} пепла`; }
     if (tab === 'gems') { gemsTab(); return; }
     if (tab === 'trade') { tradeTab(); return; }
@@ -251,10 +253,22 @@ export function createSmith(doc, W, cfg, { onOpen, onClose, onChange, onSource }
     { const L = repairList(W), cost = L.reduce((a, x) => a + x.cost, 0);     // починка (4.03): всё надетое и в сумке разом
       if (L.length) { const b = el('button', 'junk' + (W.inv.ash < cost ? ' no' : ''), `Починить всё · ${cost} пепла (${L.length} ${L.length === 1 ? 'вещь' : L.length < 5 ? 'вещи' : 'вещей'})`); b.type = 'button';
         b.addEventListener('click', () => { const r = repairAll(W); flash(r && r.n ? `Починено: ${r.n}, −${r.cost} пепла` : r === 'ash' ? 'Не хватает пепла' : r === 'far' ? 'Подойдите к кузнецу' : 'Чинить нечего'); render(); onChange && onChange(); }); listEl.appendChild(b); } }
-    let n = 0;
-    for (const slot of SLOTS) { const id = W.inv.eq[slot]; if (id) { listEl.appendChild(rowFor(id, W.inv.up[slot] || 0, { slot }, SLOT_NAME[slot] + ' · надето')); n++; } }
-    W.inv.bag.forEach((s, i) => { if (BY_ID[s.id].slot) { listEl.appendChild(rowFor(s.id, s.up || 0, { idx: i }, 'в сумке')); n++; } });
-    if (!n) listEl.appendChild(el('div', 'emptyl', 'У вас нет снаряжения. Найдите или купите, потом приходите.'));
+    const things = [];     // вещи для улучшения: надетое и снаряжение в сумке; ключ — ячейка
+    for (const slot of SLOTS) { const id = W.inv.eq[slot]; if (id) things.push({ key: 'e:' + slot, id, lvl: W.inv.up[slot] || 0, where: { slot }, tag: SLOT_NAME[slot] + ' · надето', worn: true }); }
+    W.inv.bag.forEach((s2, i) => { if (BY_ID[s2.id].slot) things.push({ key: 'b:' + i, id: s2.id, lvl: s2.up || 0, where: { idx: i }, tag: 'в сумке' }); });
+    if (!things.length) { listEl.appendChild(el('div', 'emptyl', 'У вас нет снаряжения. Найдите или купите, потом приходите.')); return; }
+    if (!things.some(t => t.key === usel)) usel = things[0].key;
+    listEl.classList.add('sgrid');
+    for (const t of things) { const it = BY_ID[t.id], c = el('button', 'scell' + (t.key === usel ? ' on' : '') + (t.worn ? ' worn' : '')); c.type = 'button'; c.title = nameOf(t.id, t.lvl); c.append(icoOf(doc, it));
+      if (t.lvl) c.append(el('span', 'sl', '+' + t.lvl)); c.addEventListener('click', () => { usel = t.key; render(); }); listEl.appendChild(c); }
+    const t = things.find(q => q.key === usel), it = BY_ID[t.id], max = t.lvl >= cfg.smith.max, cost = upgradeCost(it, t.lvl, cfg); scard.hidden = false;
+    const nm = el('b', 'scn', nameOf(t.id, t.lvl)); nm.style.color = RARITY[it.rar].color; scard.append(nm, el('div', 'scr', RARITY[it.rar].name + ' · ' + t.tag));
+    if (statLine(it)) scard.append(el('div', 'scs', statLine(it)));
+    const wr = wearOf(t.where.slot ? W.inv.af && W.inv.af[t.where.slot] : W.inv.bag[t.where.idx] && W.inv.bag[t.where.idx].af); if (wr >= 1) scard.append(el('div', 'sct', `Износ ${Math.round(wr)}%`));
+    scard.append(el('div', 'scl', 'Улучшение'), el('div', 'sct', max ? 'Предел: выше некуда.' : `+${t.lvl} → +${t.lvl + 1}: статы +${Math.round(cfg.smith.bonus * 100)}% к исходным`));
+    const b = el('button', 'buy' + (max || W.inv.ash < cost ? ' no' : ''), max ? 'Максимум' : `Улучшить · ${cost}`); b.type = 'button';
+    b.addEventListener('click', () => { const res = upgradeItem(W, t.where); if (res === 'ash') flash('Не хватает пепла'); else if (res === 'max') flash('Выше некуда'); else if (res === 'far') flash('Подойдите к кузнецу'); render(); onChange && onChange(); });
+    scard.append(b); if (!max && W.inv.ash < cost) scard.append(el('div', 'sct lack', `Не хватает ${cost - W.inv.ash} пепла`));
   }
   const open = () => { render(); root.hidden = false; onOpen && onOpen(); };
   const close = () => { root.hidden = true; onClose && onClose(); };

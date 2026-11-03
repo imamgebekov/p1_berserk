@@ -1,6 +1,6 @@
 // Журнал знаний (он же книга рецептов, клавиша R): рецепты с нехваткой материалов, сплавы стихий, камни силы, источники вещей —
 // открыты с начала; бестиарий и атлас — после первого босса («Путь пепла»). Материал в рецепте — кнопка «где взять».
-import { BY_ID, RARITY, CATALOG } from './data/items.js';
+import { BY_ID, RARITY, CATALOG, SLOT_NAME, KIND_NAME, statLine } from './data/items.js';
 const GOLD_IDS = CATALOG.filter(i => i.pool === 'gold').map(i => i.id);     // золотые вещи в журнале видны всегда — с подсказкой, где взять
 import { TOMES, TOME_BY_ID } from './data/tomes3d.js';
 import { RECIPES } from './data/recipes3d.js';
@@ -18,7 +18,8 @@ const TYPES = ['imp', 'brute', 'hound', 'ghoul', 'archer', 'witch', 'devourer', 
 export function createJournal(doc, W, cfg, { onOpen, onClose, onCraft } = {}) {
   const $ = id => doc.getElementById(id);
   const root = $('journal'), listEl = $('journalList'), tabsEl = $('journalTabs');
-  let tab = 'recipes', sel = null, filter = 'all', mixSel = 'water+storm', prof = 'smith', note = '';
+  const body = doc.createElement('div'), cardEl = doc.createElement('aside'); body.className = 'jbody'; cardEl.className = 'jcard'; cardEl.hidden = true; listEl.parentNode.insertBefore(body, listEl); body.append(listEl, cardEl);     // список слева, карточка выбранного рецепта справа (на телефоне — над списком)
+  let tab = 'recipes', rsel = null, sel = null, filter = 'all', mixSel = 'water+storm', prof = 'smith', note = '';
   const el = (tag, cls, txt) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const row = (cls, html) => { const r = el('div', 'jrow ' + (cls || '')); r.innerHTML = html; return r; };
   const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -59,15 +60,29 @@ export function createJournal(doc, W, cfg, { onOpen, onClose, onCraft } = {}) {
   }
   // материал — кнопка: «где взять» (вкладка «Источники»)
   const matBtn = (id, txt, okk) => { const b = el('button', 'mat ' + (okk ? 'have' : 'lack'), txt); b.type = 'button'; b.dataset.item = id; b.title = 'Где взять (G)'; b.addEventListener('click', () => { tab = 'sources'; sel = id; render(); }); return b; };
+  // карточка рецепта справа: что получится, свойства, материалы (нажмите — где взять), пепел, кнопка «Ковать»
+  function recipeCard(r) {
+    const it = BY_ID[r.result.id], st = craftStatus(W, r), h = el('div', 'jch'); cardEl.hidden = false; cardEl.textContent = '';
+    const nm = el('b', 'jcn', it.name + (r.result.n > 1 ? ' ×' + r.result.n : '')); nm.style.color = RARITY[it.rar].color; h.append(nm); cardEl.append(h);
+    cardEl.append(el('div', 'jcr', RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : it.kind ? ' · ' + (KIND_NAME[it.kind] || '') : '')));
+    if (it.stats && Object.keys(it.stats).length) cardEl.append(el('div', 'jcs', statLine(it)));
+    if (it.text) cardEl.append(el('div', 'jct', it.text));
+    cardEl.append(el('div', 'jcl', 'Нужно'));
+    const m = el('div', 'mats'); for (const [id, n, have] of missing(W, r)) m.append(matBtn(id, `${BY_ID[id].name} ${Math.min(have, n)}/${n}`, have >= n)); m.append(el('span', W.inv.ash >= r.ash ? 'have' : 'lack', `пепел ${Math.min(W.inv.ash, r.ash)}/${r.ash}`)); cardEl.append(m);
+    const b = el('button', 'craftb', st === 'ok' ? 'Ковать' : ST[st] || '—'); b.type = 'button'; b.disabled = st !== 'ok';
+    b.addEventListener('click', () => { const res = craft(W, r.id); note = res === 'ok' ? `Готово: ${it.name}` : ST[res] || ''; onCraft && onCraft(res); render(); }); cardEl.append(b);
+    if (note) cardEl.append(el('div', 'jcnote', note));
+  }
   function recipes() {
     const L = unlocks(W), known = RECIPES.filter(r => recipeKnown(K(), r));
     listEl.appendChild(row('', `<b>Известно рецептов: ${known.length} из ${RECIPES.length}</b><div class="sub">Куётся у кузнеца, вкладка «Ковка». Нажмите на материал — увидите, где его взять.${L.smith ? '' : ' Кузнец раздует горн, когда падёт Пожиратель Погоста.'}</div>`));
     const need = r => missing(W, r).reduce((a, [, n, have]) => a + Math.max(0, n - have), 0) + (W.inv.ash >= r.ash ? 0 : 1);
-    for (const r of known.slice().sort((a, b) => need(a) - need(b))) {
-      const it = BY_ID[r.result.id], ready = need(r) === 0, card = row(ready ? 'ready' : '', `<b style="color:${RARITY[it.rar].color}">${esc(it.name)}${r.result.n > 1 ? ' ×' + r.result.n : ''}</b> <span class="${ready ? 'g' : 'z'}">${ready ? 'можно ковать' : 'не хватает'}</span>`);
-      const m = el('div', 'mats'); for (const [id, n, have] of missing(W, r)) m.append(matBtn(id, `${BY_ID[id].name} ${Math.min(have, n)}/${n}`, have >= n)); m.append(el('span', W.inv.ash >= r.ash ? 'have' : 'lack', `пепел ${r.ash}`)); card.append(m);
-      listEl.appendChild(card);
+    const sorted = known.slice().sort((a, b) => need(a) - need(b)); if (!sorted.some(r => r.id === rsel)) rsel = sorted.length ? sorted[0].id : null;
+    for (const r of sorted) {
+      const it = BY_ID[r.result.id], ready = need(r) === 0, lack = missing(W, r).filter(([, n, have]) => have < n).length, card = row('pick ' + (ready ? 'ready ' : '') + (r.id === rsel ? 'sel' : ''), `<b style="color:${RARITY[it.rar].color}">${esc(it.name)}${r.result.n > 1 ? ' ×' + r.result.n : ''}</b> <span class="${ready ? 'g' : 'z'}">${ready ? 'можно ковать' : lack ? 'не хватает: ' + lack : 'мало пепла'}</span>`);
+      card.tabIndex = 0; card.addEventListener('click', () => { rsel = r.id; render(); }); listEl.appendChild(card);
     }
+    const cur = sorted.find(r => r.id === rsel); if (cur) recipeCard(cur);
     const locked = TOMES.filter(t => !K().tomes[t.id] && RECIPES.some(r => r.needs === t.id));
     if (locked.length) listEl.appendChild(row('', '<b>Закрытые рецепты</b><div class="sub">Их открывают книги. Слухи о том, где искать:</div>'));
     for (const t of locked) listEl.appendChild(row('dim', `<b>«${esc(t.name)}»</b> · ${RECIPES.filter(r => r.needs === t.id).length} рец.<div class="sub">${esc(t.hint)}</div>`));
@@ -170,7 +185,7 @@ export function createJournal(doc, W, cfg, { onOpen, onClose, onCraft } = {}) {
   function render() {
     const lock = !unlocks(W).journal; if (lock && LOCKED.includes(tab)) tab = 'recipes';
     for (const b of tabsEl.children) { b.classList.toggle('on', b.dataset.tab === tab); b.hidden = lock && LOCKED.includes(b.dataset.tab); }
-    listEl.textContent = ''; const sub = doc.getElementById('journalSub'); if (sub) sub.textContent = `Рецептов известно ${RECIPES.filter(r => recipeKnown(K(), r)).length} из ${RECIPES.length}`;     // подзаголовок шапки (макет А, 2026-10-27)
+    listEl.textContent = ''; cardEl.hidden = true; cardEl.textContent = ''; const sub = doc.getElementById('journalSub'); if (sub) sub.textContent = `Рецептов известно ${RECIPES.filter(r => recipeKnown(K(), r)).length} из ${RECIPES.length}`;     // подзаголовок шапки (макет А, 2026-10-27)
     ({ bestiary, atlas, recipes, mixes, stones, combos, sources, trades, rep, ach })[tab]();
   }
   // open(вкладка, вещь): книга на нужной вкладке; вещь — сразу карточка «где взять»
