@@ -151,3 +151,8 @@ export function smoothPose(store, channels, lambda, dt, skip = null) {
     const v = prev + (cur - prev) * k; o[prop][ax] = v; S.set(key, v);
   }
 }
+// клип позы умения: свои умения — по id, остальные — по стилю героя и виду; null — без позы (рывок и прыжок двигают героя сами)
+export function castClipFor(cfg, hero, id, kind) {
+  const C = cfg.actors && cfg.actors.cast; if (!C || !C.on) return null; if (id in C.byId) return C.byId[id];
+  const K = C.kinds[C.style[hero] || 'melee']; return kind in K ? K[kind] : K.own;
+}

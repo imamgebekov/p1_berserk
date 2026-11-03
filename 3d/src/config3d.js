@@ -1257,6 +1257,21 @@ const BASE = {
     // hit — реакция на урон (не чаще hitGap с); пороги шага и бега — доли скорости героя/врага с запасом (on — включить, off — выключить);
     // sp — сглаживание оценки скорости (1/с)
     anim: { loco: .25, atk: .1, roll: .08, hit: .1, death: .15, hitGap: .8, walkOn: .1, walkOff: .05, runOn: .62, runOff: .48, sp: 10 },
+    // поза героя при умении (2026-11-03, задача владельца «улучшить анимации скиллов»): клип KayKit по стилю героя и виду умения (kind), свои умения — по id;
+    // нет клипа (null) — движение само показывает умение (рывок). time — за сколько секунд проигрывается клип (быстрее — ускоряем)
+    cast: { on: true, time: .6, style: { thorn: 'melee', brand: 'melee', hunter: 'melee', vale: 'melee', irga: 'magic', priest: 'magic', warlock: 'magic', jay: 'bow' },
+      kinds: {
+        melee: { strike: 'Melee_1H_Attack_Jump_Chop', cone: 'Melee_2H_Attack_Slice', nova: 'Melee_2H_Attack_Spin', zone: 'Melee_2H_Attack_Chop', field: 'Melee_2H_Attack_Chop', cloud: 'Throw', bolt: 'Throw', buff: 'Skeletons_Taunt', ward: 'Melee_Block', heal: 'Use_Item', gheal: 'Use_Item', mark: 'Throw', pull: 'Melee_1H_Attack_Stab', dash: null, jump: null, own: 'Melee_1H_Attack_Slice_Diagonal' },
+        magic: { strike: 'Ranged_Magic_Shoot', cone: 'Ranged_Magic_Shoot', nova: 'Ranged_Magic_Summon', zone: 'Ranged_Magic_Summon', field: 'Ranged_Magic_Spellcasting', cloud: 'Ranged_Magic_Spellcasting', bolt: 'Ranged_Magic_Shoot', buff: 'Ranged_Magic_Raise', ward: 'Ranged_Magic_Raise', heal: 'Ranged_Magic_Spellcasting', gheal: 'Ranged_Magic_Raise', mark: 'Ranged_Magic_Shoot', pull: 'Ranged_Magic_Spellcasting', dash: 'Dodge_Forward', jump: null, own: 'Ranged_Magic_Spellcasting' },
+        bow: { strike: 'Melee_Unarmed_Attack_Kick', cone: 'Ranged_Bow_Release', nova: 'Ranged_Magic_Summon', zone: 'Throw', field: 'Ranged_Bow_Release', cloud: 'Throw', bolt: 'Ranged_Bow_Release', buff: 'Use_Item', ward: 'Melee_Block', heal: 'Use_Item', gheal: 'Use_Item', mark: 'Ranged_Bow_Draw', pull: 'Throw', dash: null, jump: null, own: 'Ranged_Bow_Release' } },
+      byId: { cry: 'Skeletons_Taunt', whirl: 'Melee_2H_Attack_Spin', iron: 'Melee_Block', rage: 'Skeletons_Taunt', bash: 'Melee_1H_Attack_Jump_Chop', quake: 'Melee_1H_Attack_Jump_Chop', blood: 'Melee_1H_Attack_Slice_Diagonal', charge: null,     // Торн
+        fireball: 'Ranged_Magic_Shoot', nova: 'Ranged_Magic_Summon', chain: 'Ranged_Magic_Shoot', meteor: 'Ranged_Magic_Summon', shield: 'Ranged_Magic_Raise', spear: 'Ranged_Magic_Shoot',     // Ирга
+        chaos: 'Melee_Dualwield_Attack_Slice', djump: 'Melee_1H_Attack_Jump_Chop', felrush: null, glaive: 'Throw', blades: 'Melee_Dualwield_Attack_Slice', eyebeam: 'Ranged_Magic_Shoot', sigil: 'Ranged_Magic_Summon', meta: 'Skeletons_Taunt',     // Бесогон
+        cleaver: 'Melee_2H_Attack_Chop', cannon: 'Throw', volley: 'Throw', fury: 'Skeletons_Taunt', endure: 'Melee_Block', rush: null, darkcut: 'Melee_2H_Attack_Slice', howl: 'Skeletons_Taunt',     // Клеймёный
+        smite: 'Ranged_Magic_Shoot', mend: 'Ranged_Magic_Raise', sanctum: 'Ranged_Magic_Raise', hymn: 'Ranged_Magic_Raise', radiance: 'Ranged_Magic_Summon', hallow: 'Ranged_Magic_Summon', penance: 'Ranged_Magic_Shoot',     // Жрец
+        summon: 'Ranged_Magic_Summon', terror: 'Ranged_Magic_Raise', pact: 'Ranged_Magic_Raise', souls: 'Ranged_Magic_Summon', doom: 'Ranged_Magic_Shoot',     // Морок
+        leap: null, trap: 'Throw', venom: 'Use_Item', hawk: 'Ranged_Magic_Raise',     // Ирга-лучница Джей
+        blink: 'Dodge_Forward', parry: 'Melee_Block', dance: 'Melee_Dualwield_Attack_Slice', shadow: 'Use_Item', execute: 'Melee_Dualwield_Attack_Stab', fan: 'Throw', smoke: 'Throw', bloodlet: 'Melee_Dualwield_Attack_Slice' } },     // Вейл
     kw: { on: true, grey: .06, dark: .04,     // оружие KayKit в руках моделей KayKit (путь А, 2026-10-22; kk_weapons.glb): map — вид → меш, size — множитель, shield — форма щита → меш; grey — разброс каналов, ниже — металл (красится цветом материала); dark — темнее не красим
       map: { sword: 'sword_1handed', greatsword: 'sword_2handed', rapier: 'Skeleton_Blade', dagger: 'dagger', knife: 'dagger', axe: 'axe_1handed', war_axe: 'axe_2handed',
         bow: 'bow_withString', longbow: 'bow_withString', crossbow: 'crossbow_1handed', staff: 'staff', wand: 'wand',

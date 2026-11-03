@@ -200,6 +200,7 @@ export function makeActor(key, kit, kind = 'actor') {
     return true;
   };
   // шаг смешивания и анимации: прежние гаснут с одной скоростью, текущий — остаток до 1
+  A.cast = (clip, T = .6) => { if (!clip || !A.has(clip)) return false; const d = A.dur(clip), sp = Math.max(.9, d / T); A.play(clip, { once: true, fade: .08, speed: sp, restart: true }); A.castT = d / sp; return true; };     // поза умения: один раз, до конца клипа; ходьба и стойка ждут
   A.update = dt => {
     if (kit.anims === 'kk' && kkReady() && !A.kkOn) { A.kkOn = true; if (A.wArgs) A.setWeapon(...A.wArgs); if (A.oArgs) A.setOff(...A.oArgs); }     // оружие KayKit пришло позже модели
     if (A.mwWait && A.wArgs && mwState(A.wArgs[2]) !== 'wait') A.setWeapon(...A.wArgs); if (A.owWait && A.oArgs && mwState(A.oArgs[0]) !== 'wait') A.setOff(...A.oArgs);     // модель вещи (Meshy) пришла
@@ -260,6 +261,7 @@ export function driveHero(A, p, dt, cfg, swingMul = 1) {
   const P = cfg.player, N = AN(cfg), raw = Math.hypot(p.vx || 0, p.vz || 0);
   A.sp = A.sp === undefined ? raw : A.sp + (raw - A.sp) * (1 - Math.exp(-N.sp * dt)); A.hitGap = Math.max(0, (A.hitGap || 0) - dt);
   const speed = A.sp;
+  if (A.castT > 0) { if (p.dead || p.state === 'roll' || p.state === 'atk' || p.state === 'dash') A.castT = 0; else A.castT -= dt; }
   if (p.dead || p.state === 'dead') { if (A.curName !== 'death') A.play('death', { once: true, fade: N.death }); }
   else if (p.state === 'roll') A.play('roll', { once: true, fade: N.roll, speed: A.dur('roll') / P.rollTime, restart: A.curName !== 'roll' });
   else if (p.state === 'atk') {
@@ -269,6 +271,7 @@ export function driveHero(A, p, dt, cfg, swingMul = 1) {
     A.lastAtkT = p.atkT;
   } else if (p.state === 'charge') A.play('charge', { fade: N.atk });
   else if (p.state === 'dash') A.play('run', { fade: N.roll, speed: 1.6 });
+  else if (A.castT > 0) { /* клип умения идёт сам */ }
   else if (A.hurtT > 0 && A.curName !== 'hit' && !A.hitGap && raw < .5) { A.hitGap = N.hitGap; A.play('hit', { once: true, fade: N.hit, restart: true }); }     // не чаще раза в hitGap с
   else if (!(A.once && A.cur && A.cur.isRunning() && A.curName === 'hit')) {
     const st = loco(A, speed, P.speed, N); A.play(st, { fade: N.loco, speed: st === 'idle' ? 1 : Math.max(.6, speed / (st === 'run' ? P.speed : P.speed * .45)) });

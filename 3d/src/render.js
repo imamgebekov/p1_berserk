@@ -35,7 +35,7 @@ import { mulberry32 } from './sim.js';
 import { questMark } from './quests3d.js';
 import { skyAt } from './daynight.js';
 import { BY_ID, RARITY } from './data/items.js';
-import { trailOn, dampAngle } from './anim3d.js';
+import { trailOn, dampAngle, castClipFor } from './anim3d.js';
 import { createFx } from './fx3d.js';
 import { RATE, statusPart, emitCount, lightning, stunStar } from './vfx3d.js';
 import { ELEMENT_COLOR } from './elements3d.js';
@@ -1232,7 +1232,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         else if (K === 'mark') { burst(v.x, 2.2, v.z, 14, c, 2); fx.flash(v.x, 1.6, v.z, 1.6, c); hooks.onText && hooks.onText(v.x, 3, v.z, 'Метка', 'alarm'); }
         else { for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; burst(v.x + Math.sin(a) * 1.1, .3, v.z + Math.cos(a) * 1.1, 2, c, 2.5); } fx.flash(v.x, 1.4, v.z, 2, c); if (K === 'heal' && hooks.onText) hooks.onText(v.x, 3, v.z, 'Лечение', 'loot'); }     // усиление и лечение — столб искр вокруг героя
       }
-      else if (v.k === 'ability') {                   // умения: вспышки и кольца
+      else if (v.k === 'ability') {                   // умения: поза героя, вспышки и кольца
+        if (hero.cast) hero.cast(castClipFor(cfg, W.hero, v.id, v.kind), cfg.actors.cast.time);
         const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30', blink: '#c8a0ff', parry: '#fff0c0', dance: '#c8d8ff', shadow: '#2a1838', execute: '#ff3030', leap: '#c8e0b0', volley: '#eef4ff', trap: '#8a8478', venom: '#7ad060', rain: '#eef4ff', fireball: '#ff8a30', chain: '#ffe27a', cloud: '#7ad060', meteor: '#ff6a3a', shield: '#7a8aff', blizzard: '#e8f8ff', spear: '#8a5aff' }[v.id] || '#ffe8b0';
         if (v.id === 'cry' || v.id === 'whirl') for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r = v.id === 'cry' ? 2.5 : 1.8; burst(v.x + Math.sin(a) * r, 1, v.z + Math.cos(a) * r, 2, col, 3); }
         else burst(v.x, 1.2, v.z, 18, col, 3);

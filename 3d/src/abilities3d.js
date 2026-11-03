@@ -77,7 +77,7 @@ export function useAbility(W, i) {
   if (res === false) return 'target';
   resSpend(W, cost); if (!again) W.acd[def.id] = A.cd[r]; noteAbility(W, def.id);
   if (A.kind === 'jump') W.abuf.hopId = def.id;
-  W.ev.push({ k: 'ability', id: def.id, x: p.x, z: p.z, face: p.face });
+  W.ev.push({ k: 'ability', id: def.id, kind: def.kind || A.kind || 'own', x: p.x, z: p.z, face: p.face });
   if (cb) W.ev.push({ k: 'combo', id: cb.id, name: cb.name, x: p.x, z: p.z });
   return 'ok';
 }
