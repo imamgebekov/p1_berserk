@@ -23,7 +23,7 @@ for (const base of I) for (const seed of [1, 7, 42]) {
   if (seed === 1) { const d2 = genDef(CFG3, { ...base, bosses: Array.from({ length: nb }, () => ({})) }, 1); ok(JSON.stringify(d2.rooms) === JSON.stringify(def.rooms), tag + ': одно зерно — разные раскладки'); }
 }
 // заход: новая раскладка каждый раз; враги, боссы, сундуки
-{ const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; const W = createWorld(c, mulberry32(5));
+{ const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.dungeons.wild.on = false; const W = createWorld(c, mulberry32(5));
   const id = 'inst_moss', d = c.dungeons.list.find(q => q.id === id), lay = [];
   for (let k = 0; k < 2; k++) {
     travel(W, id, d.entry.x, d.entry.z); step(W, 1 / 60, {}); const L = W.levels[id];
@@ -61,7 +61,7 @@ for (const base of I) for (const seed of [1, 7, 42]) {
     const reach = new Set([0]), q = [0]; while (q.length) { const r = q.shift(); for (const li of M.adj[r]) { const l = M.links[li]; if (M.doors.some(d => d.link === li && d.locked)) continue; const o = l.a === r ? l.b : l.a; if (!reach.has(o)) { reach.add(o); q.push(o); } } }
     for (const d of KD) { const kc = M.containers.find(c => c.key === d.lock), ri = kc ? roomAt(M, kc.x, kc.z) : -1; ok(kc && reach.has(ri), `${tag}: ключ ${d.lock} не достать без дверей`);
       const L = M.links[d.link], behind = reach.has(L.a) ? L.b : L.a; ok(!reach.has(behind) && M.containers.some(c => c.kind === 'ironchest' && roomAt(M, c.x, c.z) === behind), `${tag}: за дверью ${d.lock} нет железного сундука`); } }
-  const W = createWorld((() => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; return c; })(), mulberry32(4)), id = I[0].id;
+  const W = createWorld((() => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.dungeons.wild.on = false; return c; })(), mulberry32(4)), id = I[0].id;
   travel(W, id, 0, 0); W.keys[id + '_k1'] = true; travel(W, 'surface', 0, 4); travel(W, id, 0, 0); ok(!W.keys[id + '_k1'], 'новый заход не сбросил ключи подземелья');
   ok(CFG3.dungeons.keys[id + '_k1'] && /ключ/.test(CFG3.dungeons.keys[id + '_k1']), 'у ключа нет имени'); }
 
@@ -74,7 +74,7 @@ for (const base of I) for (const seed of [1, 7, 42]) {
     for (const d of cr) { const hid = M.rooms.filter(r => r.crackDoor === d.id); ok(hid.length === 2 && hid.some(r => !r.corridor) && hid.some(r => r.corridor), `${tag}: за трещиной не зал с коридором`);
       const hall = hid.find(r => !r.corridor); ok(hall && M.containers.some(c => c.kind === 'cache' && roomAt(M, c.x, c.z) === hall.i), `${tag}: в тайнике нет «Тайника»`); }
     const halls = M.rooms.filter(r => !r.corridor); for (const a of halls) for (const b of halls) if (a !== b) ok(!(a.x0 < b.x1 - .01 && b.x0 < a.x1 - .01 && a.z0 < b.z1 - .01 && b.z0 < a.z1 - .01), `${tag}: залы ${a.id} и ${b.id} перекрываются`); }
-  const W = createWorld((() => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; return c; })(), mulberry32(6)), id = I[0].id;
+  const W = createWorld((() => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.dungeons.wild.on = false; return c; })(), mulberry32(6)), id = I[0].id;     // трещина в зале; в малом мире — wilds3d
   travel(W, id, 0, 0); const d = W.map.doors.find(q => q.crack), p = W.player, hall = W.map.rooms.find(r => r.crackDoor === d.id && !r.corridor);
   ok(!pathStep(W.map, W.map.rooms[0].x0 + 2, (W.map.rooms[0].z0 + W.map.rooms[0].z1) / 2, (hall.x0 + hall.x1) / 2, (hall.z0 + hall.z1) / 2, W.keys), 'путь в тайник через целую трещину');
   W.enemies.length = 0; p.x = d.x + (d.vert ? -.9 : 0) * 1; p.z = d.z + (d.vert ? 0 : -.9); for (let i = 0; i < 30; i++) step(W, 1 / 60, {}); ok(d.locked && W.ev.some(v => v.k === 'crackNear'), 'трещина рухнула без удара или нет подсказки');

@@ -147,7 +147,8 @@ export function regenLevel(W, id) {
   for (let k = 1; k <= 3; k++) if (W.keys) delete W.keys[`${id}_k${k}`];     // новая раскладка — старые ключи от её дверей не подходят (план подземелий, 2б)
   W.genN = (W.genN || 0) + 1; const seed = W.rng === Math.random ? (Math.random() * 2147483647) | 0 : (cfg.dungeons.seed * 977 + W.genN * 7919 + id.length * 131) | 0;
   if (wildOn(cfg, base)) {     // малый мир: свободная земля с зонами по боссам, карта открыта сразу
-    const def = freeDef(cfg, { ...base, styled: false }, seed, bosses), map = makeWildMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
+    const ws = (seed ^ [...id].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7)) | 0;     // своё зерно у каждого мира (в игре зерно и так случайное)
+    const def = freeDef(cfg, { ...base, styled: false }, ws, bosses), map = makeWildMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
     Object.assign(L, { def, map, enemies: [], drops: [], spawnT: 1 }, fogFor(R, cfg.map.cell, cfg.map.reveal)); L.seen.fill(1);
     withLevel(W, id, () => { spawnFoes(W, L); for (const b of bosses) { delete W.bossDead[b.type]; spawnBoss(W, b); } });
     refillLevel(W, id); return true;

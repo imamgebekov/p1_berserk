@@ -2,6 +2,7 @@
 // и печати — раз в период (подземелье — до полуночи, рейд — до понедельника); героик — свой откат, уровень не ниже обычного
 // (max(свой, heroic.lv) + add), печати на героике — ×heroic; откат и включённый героик переживают сохранение;
 // костёр перед финальным боссом (лечит, возврат после гибели); подсказка у входа (уровень, отряд, боссы, откат, «Опасно»).
+import { wildSdfAt } from '../3d/src/wilds3d.js';
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, spawnBoss, killEnemy, refreshGear, respawnPlayer } from '../3d/src/sim.js';
 import { travel, levelAt, setHeroic, portalInfo } from '../3d/src/levels3d.js';
@@ -11,7 +12,7 @@ import { BY_ID } from '../3d/src/data/items.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const T0 = new Date(2026, 9, 21, 15, 0).getTime();     // среда, 15:00 по местному времени
 const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.corpse.on = false; const W = createWorld(c, mulberry32(11)); W.lv = 62; refreshGear(W); let t = T0; W.now = () => t; W.setNow = v => { t = v; }; return W; };
-const at = (W, id) => { const L = W.levels[id], r = L.map.rooms.find(q => q.x1 - q.x0 > 6) || L.map.rooms[0]; travel(W, id, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2); };
+const at = (W, id) => { travel(W, id, 0, 0); const L = W.levels[id], r = L.map.rooms.find(q => q.x1 - q.x0 > 6) || L.map.rooms[0], o = r ? { x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 } : L.def.entry; W.player.x = o.x; W.player.z = o.z; };     // малый мир (этап Б) — у входа
 const kill = (W, id, fin = true) => { const p = W.player, def = W.cfg.bosses.list.find(b => b.level === id && !!b.final === fin); const d0 = W.drops.length, s0 = W.inv.seals || 0, e = spawnBoss(W, { ...def, x: p.x + 2, z: p.z }); killEnemy(W, e, 1); const got = W.drops.slice(d0).map(q => q.id); return { e, gear: got.filter(id => BY_ID[id].slot).length, own: got.filter(id => (def.loot || []).includes(id)).length, seals: (W.inv.seals || 0) - s0 }; };
 
 // часы отката
@@ -44,7 +45,7 @@ const W = mk(), C = W.cfg.relic, dun = W.cfg.dungeons.list.find(d => d.inst && !
 
 // костёр перед финальным боссом: есть в каждом подземелье с боссами, лечит, после гибели — возврат к нему; выход наверх гасит его
 { const W3 = mk(); W3.setNow(T0); const id = dun.id; at(W3, id); const F = W3.map.fire;
-  ok(F && W3.map.rooms.some(r => F.x >= r.x0 && F.x <= r.x1 && F.z >= r.z0 && F.z <= r.z1), 'нет костра в подземелье или он вне залов');
+  ok(F && (W3.map.wild ? wildSdfAt(W3.map, F.x, F.z) > 0 : W3.map.rooms.some(r => F.x >= r.x0 && F.x <= r.x1 && F.z >= r.z0 && F.z <= r.z1)), 'нет костра в подземелье или он вне земли');
   if (F) { const p = W3.player; travel(W3, id, F.x + 1, F.z); p.hp = p.maxhp * .3; p.calm = 0; W3.enemies.length = 0; for (let i = 0; i < 120; i++) step(W3, 1 / 60, {});
     ok(p.hp > p.maxhp * .3 + 1, 'костёр в подземелье не лечит'); ok(W3.dfire && W3.dfire.lvl === id, 'костёр не стал точкой возврата');
     p.x = F.x + 10; p.dead = true; respawnPlayer(W3); ok(W3.lvl === id && Math.hypot(p.x - F.x, p.z - F.z) < 3 && !p.dead, 'после гибели герой не у костра подземелья');

@@ -84,7 +84,7 @@ function attachFx(W) {
   W.fx = {
     kill: e => killEnemy(W, e, 1),
     deal: (e, dmg, fx) => dealDamage(W, e, dmg, fx),
-    roomOf: (x, z) => { const i = roomAt(W.map, x, z); return i >= 0 ? W.map.rooms[i] : null; },     // зал подземелья в точке (смена зала у босса, план подземелий 3б)
+    roomOf: (x, z) => { if (W.map.wild) { const A = W.cfg.dungeons.wild.arena; return { x0: x - A, x1: x + A, z0: z - A, z1: z + A }; } const i = roomAt(W.map, x, z); return i >= 0 ? W.map.rooms[i] : null; },     // зал подземелья в точке (смена зала у босса, план подземелий 3б)
     hp: (e, frac, base) => Math.round(base + e.maxhp * frac),
     slide: (e, dx, dz, r) => slide(W.map, e, dx, dz, r),
     reveal: (x, z, r) => reveal(W, x, z, r),

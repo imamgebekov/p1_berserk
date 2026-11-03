@@ -82,7 +82,7 @@ const BASE = {
     // forts — лагеря размером с наш: n штук, полуширина H м (квадрат частокола, двое ворот шириной gate), шатров tents; gap — до других мест
     // cities — n городов в кольце ring м: полуширина H (каменные стены, ворота на четыре стороны), домов houses, площадь plaza м у центра,
     // боссы — свои у каждого города (тип, удары, фазы); villages — посёлки крупнее: ещё домов extra (от–до) внешним кольцом ring м
-    forts: { n: 5, H: 30, gate: 6, tents: 8, gap: 60, pad: 38 },     // H 19 → 30: лагерь 60 м, как наш (владелец 2026-10-28; мир пересоздан); pad — свободно от центра до дорог и мест (было H × 1,42 + 4 — влезало 7 из 31)
+    forts: { n: 5, H: 30, gate: 6, tents: 8, gap: 60, pad: 38, taken: 42 },     // H 19 → 30: лагерь 60 м, как наш (владелец 2026-10-28; мир пересоздан); pad — свободно от центра до дорог и мест (было H × 1,42 + 4 — влезало 7 из 31)
     cities: { n: 2, H: 34, gate: 6, ring: [300, 520], gap: 110, houses: 14, plaza: 11,
       bosses: [
         { type: 'ashking', attacks: [{ kind: 'slam', wind: .8, r: 4.8, mul: 1.15, cd: 3, range: 5 }, { kind: 'charge', wind: .9, len: 15, width: 3, mul: 1.2, cd: 6, range: 17 }, { kind: 'nova', wind: 1.2, r: 9, inner: 3, mul: 1, cd: 9, range: 99 }],
@@ -666,14 +666,40 @@ const BASE = {
     // edge — валуны и деревья у края: band — от края внутрь, м; p — доля; r — радиус, м; tree — доля деревьев. grove — рощи и груды камней в зоне. decorArea — м² на предмет темы
     // view — холмы: hillH — высота, м; hillW — ширина склона, м; grid — шаг сетки земли, м; margin — земля за краем, м; band — полоса леса за краем, м; trees, rocks, bushes — на м²;
     // camSide — склон к югу от земли (к камере) ниже на долю camLow и без деревьев; grass — травинок; chunk — куски для отсечения, м
-    wild: { on: false, only: ['inst_olkh'], extra: 1,
+    // этап Б (владелец 2026-10-28 «делай все подряд»): малые миры — у всех подземелий и рейдов (only: null), рейд крупнее в raidR раз; ?rooms — прежние залы
+    wild: { on: true, only: null, extra: 1, raidR: 1.25,
       zone: { r: [46, 62], blobs: [3, 6], spread: 38, gap: 26, pass: [11, 15], passLen: [30, 46], straight: .1 },
       pocket: { n: [1, 2], r: [13, 19], len: [20, 34], w: 8, chest: .8, pack: .5 },
       noise: { amp: 5, scale: 16 }, sdf: 1.5, arena: 16, eventR: 15, pond: [5, 9],
-      packs: { area: 4200, n: [2, 5], raidMul: 1.3, keep: 18, apart: 13 },
+      packs: { area: 6000, n: [2, 5], raidMul: .8, keep: 18, apart: 13 },     // этап Б: реже (было 4200 и 1,3) — проход ботом ~37 мин подземелье и 100+ мин рейд, цель 8–25 и 25–70
       edge: { band: [.6, 2.4], p: .55, r: [1.1, 2.4], tree: .45 }, grove: { n: [1, 3], trees: [5, 11], r: 7, rock: .35 }, decorArea: 500,
       view: { hillH: 11, hillW: 24, grid: 3, margin: 70, band: 26, trees: .016, rocks: .004, bushes: .006, camSide: 24, camLow: .8, grass: 12000, chunk: 160 },
-      themes: { by: { inst_olkh: 'alder' },
+      // of — тема мира по теме залов (dungeons.themes.by); ponds — озёр на зону (1,4 — одно и ещё одно с долей 0,4); у гари и магмы «вода» — лава
+      themes: { by: { inst_olkh: 'alder' }, of: { cave: 'alder', crypt: 'gloom', swamp: 'marsh', ice: 'snow', forge: 'scorch', deepforge: 'magma', temple: 'shore', obsidian: 'blight', flooded: 'isles' },
+        gloom: { name: 'погост в сумрачном лесу', ground: '#4a4a38', path: '#6a5a44', hill: '#3e3a2e', top: '#2e2a22', rock: '#76706a', fogK: .95, water: '#2a3a3a', ponds: .2,
+          look: { leaf: ['#4a5232', '#56603a', '#3e4428'], trunk: ['#2e241c', '#3a2e24'], rock: ['#6a665e', '#5a564e'], bare: .45 },
+          decor: [['tomb', 1.4], ['cross', 1], ['mausoleum', .15], ['dead_tree', 1.2], ['candles', .5], ['bones', .8], ['skulls', .4], ['rubble_s', .6], ['column_d', .3], ['stump', 1]] },
+        marsh: { name: 'гнилое болото', ground: '#4a5228', path: '#5e5434', hill: '#3a4420', top: '#2a3418', rock: '#5e5a4a', fogK: 1.05, water: '#3a4a2a', ponds: 1.6,
+          look: { leaf: ['#4a6028', '#56702e', '#3e5020'], trunk: ['#2e2a1a', '#3a3420'], rock: ['#5a5646', '#4a4a3a'], bare: .3 },
+          decor: [['reed', 3], ['dead_tree', 1.2], ['stump', 2], ['bones', .6], ['wreck', .2], ['stake', .8], ['hut_s', .15], ['mound', .6]] },
+        snow: { name: 'снежный перевал', ground: '#c8d4dc', path: '#a8b0b4', hill: '#9aaabb', top: '#e8f0f4', rock: '#8a96a2', fogK: .75, water: '#6a9ab8', ponds: .4,
+          look: { leaf: ['#3a5a4a', '#46664e', '#52705a'], trunk: ['#3a2e26', '#46382c'], rock: ['#8a96a2', '#7a8692'], bare: .2 },
+          decor: [['menhir', 1], ['rubble', 1], ['bones', .6], ['dead_tree', .8], ['stump', 1], ['w_stuck', .4], ['shield_lie', .3], ['ruinwall', .25]] },
+        scorch: { name: 'выжженная кузня', ground: '#4a3a30', path: '#6a4a34', hill: '#3a2a22', top: '#2a1c16', rock: '#5a4a40', fogK: 1.1, water: '#c04a10', ponds: .5,
+          look: { leaf: ['#5a4a2a', '#4a3a22', '#6a5030'], trunk: ['#2a1c14', '#34241a'], rock: ['#5a4a40', '#4a3a32'], bare: .6 },
+          decor: [['brazier', .8], ['barrel_d', 1], ['crate_d', 1], ['wagon', .2], ['rubble_l', .6], ['w_stuck', .8], ['armor_pile', .4], ['wheel', .4], ['woodpile', .6], ['dead_tree', 1]] },
+        magma: { name: 'огненные недра', ground: '#3a2620', path: '#5a3a28', hill: '#2e1c16', top: '#1e120e', rock: '#4a3630', fogK: 1.2, water: '#e05a10', ponds: .9,
+          look: { leaf: ['#4a3420', '#3a2a1a', '#5a4026'], trunk: ['#22140e', '#2a1a12'], rock: ['#4a3630', '#3a2a26'], bare: .75 },
+          decor: [['brazier', 1], ['rubble_l', 1], ['column_d', .5], ['w_lie', .6], ['skulls', .6], ['chain', .4], ['dead_tree', 1], ['armor_pile', .3]] },
+        shore: { name: 'берег затонувшего храма', ground: '#5a7060', path: '#8a8060', hill: '#46604e', top: '#34483a', rock: '#7a8078', fogK: .8, water: '#2a6a78', ponds: .9,
+          look: { leaf: ['#3e6a4a', '#4e7a52', '#5e8a5a'], trunk: ['#3a2e22', '#46382a'], rock: ['#7a8078', '#6a706a'], bare: .1 },
+          decor: [['column_d', 1.2], ['arch_q', .4], ['statue', .3], ['rubble_s', 1], ['vine', 1], ['flowers', 1], ['wreck', .3], ['shrine', .15], ['candles', .3]] },
+        blight: { name: 'обсидиановая пустошь', ground: '#3a3242', path: '#4e4458', hill: '#2e2838', top: '#221c2a', rock: '#4a4258', fogK: 1, water: '#6a4ac0', ponds: .3,
+          look: { leaf: ['#4a3a5a', '#5a4a6a', '#3a2e48'], trunk: ['#1e1824', '#2a2230'], rock: ['#4a4258', '#3a3448'], bare: .55 },
+          decor: [['menhir', 1], ['dead_tree', 1.2], ['bones', 1], ['skulls', .6], ['rubble_l', .5], ['totem', .4], ['column_d', .4], ['chain', .3]] },
+        isles: { name: 'озёрные острова', ground: '#4e6a5a', path: '#7a7458', hill: '#3e5a4a', top: '#2e4638', rock: '#6a7270', fogK: .8, water: '#2a5a70', ponds: 1.8,
+          look: { leaf: ['#3a6a50', '#4a7a5a', '#2e5a42'], trunk: ['#33281e', '#3e3024'], rock: ['#6a7270', '#5a6260'], bare: .15 },
+          decor: [['pier', .3], ['wreck', .5], ['reed', 2], ['stump', 1], ['rubble_s', .8], ['column_d', .5], ['vine', .6], ['flowers', .8]] },
         alder: { name: 'ольховый лес', ground: '#566f30', path: '#76603e', hill: '#3f5a26', top: '#2f4420', rock: '#7a756a', fogK: .8, water: '#3a6a7a', ponds: .4,
           look: { leaf: ['#3e6a28', '#4e7a30', '#5e8a36'], trunk: ['#3a2a1e', '#4a3626'], rock: ['#6e6a62', '#5a5650'], bare: .12 },
           decor: [['barrow', .5], ['mound', 1.2], ['menhir', .8], ['stump', 2], ['flowers', 3], ['dead_tree', .6], ['bones', .6], ['rubble', .5]] } } },

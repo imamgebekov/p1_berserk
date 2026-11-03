@@ -8,7 +8,7 @@ import { roomAt } from '../3d/src/map.js';
 import { trapPhase, trapHits } from '../3d/src/traps3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const T = CFG3.dungeons.traps, I = CFG3.dungeons.list.filter(d => d.inst);
-const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; const W = createWorld(c, mulberry32(8)); W.lv = 40; return W; };
+const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.dungeons.wild.on = false; const W = createWorld(c, mulberry32(8)); W.lv = 40; return W; };     // ловушки залов; в малом мире — wilds3d
 const W = mk();
 // раскладка
 for (const d of I) { travel(W, d.id, 0, 0); const M = W.map, lim = d.raid ? T.raid : T.dungeon, Q = M.traps;

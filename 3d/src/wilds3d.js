@@ -8,8 +8,8 @@ import { propsOf } from './keyrooms3d.js';
 import { vnoise } from './terrain3d.js';
 import { ROOM_EVENTS } from './roomev3d.js';
 
-export const wildOn = (cfg, def) => { const X = cfg.dungeons.wild; return !!(X && X.on && def && def.inst && X.only.includes(def.id)); };
-export const wildTheme = (cfg, def) => { const T = cfg.dungeons.wild.themes; return T[T.by[def.id]] || null; };
+export const wildOn = (cfg, def) => { const X = cfg.dungeons.wild; return !!(X && X.on && def && def.inst && (!X.only || X.only.includes(def.id))); };     // only — пробный список; без него — все подземелья и рейды
+export const wildTheme = (cfg, def) => { const T = cfg.dungeons.wild.themes, R = cfg.dungeons.themes; return T[T.by[def.id] || (T.of || {})[R && R.by && R.by[def.id]]] || null; };     // своя тема мира или по теме залов
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const rr = (rnd, a) => a[0] + rnd() * (a[1] - a[0]);
 
@@ -17,8 +17,8 @@ const rr = (rnd, a) => a[0] + rnd() * (a[1] - a[0]);
 export function shapeSdf(S, x, z) {
   let s = -Infinity;
   for (const c of S.circles) s = Math.max(s, c.r - Math.hypot(x - c.x, z - c.z));
-  for (const q of S.caps) { const dx = q.bx - q.ax, dz = q.bz - q.az, L2 = dx * dx + dz * dz, t = L2 ? Math.max(0, Math.min(1, ((x - q.ax) * dx + (z - q.az) * dz) / L2)) : 0; s = Math.max(s, q.r - Math.hypot(x - q.ax - dx * t, z - q.az - dz * t)); }
   s += S.amp * (vnoise(x / S.scale, z / S.scale, S.seed) - .5) * 2 * Math.min(1, Math.max(0, s + 6) / 6);     // неровность — у края, не в глубине
+  for (const q of S.caps) { const dx = q.bx - q.ax, dz = q.bz - q.az, L2 = dx * dx + dz * dz, t = L2 ? Math.max(0, Math.min(1, ((x - q.ax) * dx + (z - q.az) * dz) / L2)) : 0; s = Math.max(s, q.r - Math.hypot(x - q.ax - dx * t, z - q.az - dz * t)); }     // проходы — ровные, без неровности (иначе горлышко в 1 м)
   for (const h of S.holes) s = Math.min(s, Math.hypot(x - h.x, z - h.z) - h.r);
   return s;
 }
@@ -30,7 +30,7 @@ export function freeDef(cfg, def0, seed, bosses) {
   // зоны вдоль оси: прямо или с поворотом, не налезая на прежние
   let cx = 0, cz = 0, dir = 0;
   for (let k = 0; k < nZ; k++) {
-    const r = rr(rnd, Z.r), ext = r + Z.spread;
+    const r = rr(rnd, Z.r) * (raid ? X.raidR || 1 : 1), ext = r + Z.spread;     // рейд крупнее
     if (k) {
       const prev = zones[k - 1], len = rr(rnd, Z.passLen), opts = [dir, (dir + 1) % 4, (dir + 3) % 4].map(d => [d, (d === dir ? Z.straight : 0) + rnd()]).sort((a, b) => b[1] - a[1]).map(v => v[0]);
       let ok = null;
@@ -110,7 +110,7 @@ export function freeDef(cfg, def0, seed, bosses) {
       if (events.some(e => (e.kind === 'ambush' || e.kind === 'trial') && Math.hypot(e.x - x, e.z - y) < e.r + 4) || spawns.some(s => Math.hypot(s.x - x, s.z - y) < X.packs.apart)) continue;
       spawns.push({ x, z: y, r: 4, n: Math.round(rr(rnd, X.packs.n)) }); k++; } }
   // озёра в зонах (по теме): не ходить, в виде — вода
-  for (const z of zones) if (rnd() < (th ? th.ponds || 0 : 0)) for (let t = 0; t < 12; t++) { const a = rnd() * 6.283, d = z.r * (.3 + rnd() * .5), x = z.x + Math.cos(a) * d, y = z.z + Math.sin(a) * d, r = rr(rnd, X.pond);
+  for (const z of zones) for (let np = th ? Math.floor(th.ponds || 0) + (rnd() < (th.ponds || 0) % 1 ? 1 : 0) : 0; np > 0; np--) for (let t = 0; t < 12; t++) { const a = rnd() * 6.283, d = z.r * (.3 + rnd() * .5), x = z.x + Math.cos(a) * d, y = z.z + Math.sin(a) * d, r = rr(rnd, X.pond);     // ponds > 1 — несколько озёр в зоне
     if (!inside(x, y, r + 6) || busy().some(b => Math.hypot(b.x - x, b.z - y) < r + 8) || spawns.some(s => Math.hypot(s.x - x, s.z - y) < r + 6)) continue; holes.push({ x, z: y, r }); break; }
   if ((def0.chests || []).length && bossAt.length) { const q = bossAt[bossAt.length - 1]; chests.push({ kind: 'altar', x: q.x, z: q.z + 3 }); }     // награда за главным боссом
   return { ...def0, wild: { theme: th ? Object.keys(X.themes).find(k => X.themes[k] === th) : null, S, seed, zones: zones.map(z => ({ k: z.k, x: z.x, z: z.z, r: z.r, ext: z.ext })),
@@ -132,7 +132,8 @@ export function makeWildMap(cfg, def) {
   for (let j = 0; j < m; j++) for (let i = 0; i < n; i++) data[j * n + i] = shapeSdf(S, B.x0 + i * c, B.z0 + j * c);
   const sdf = { x0: B.x0, z0: B.z0, n, m, c, data }, map0 = { sdf };
   const props = (def.props || []).slice(), solids = [], busy = [def.entry, def.exit, def.fire, ...(def.chests || []), ...(def.events || []), ...(def.traps || []).flatMap(q => [q, q.lever]), ...(def.bossPts || [])].filter(Boolean);
-  const free = (x, z, d) => busy.every(b => Math.hypot(b.x - x, b.z - z) > d) && (def.doors || []).every(g => Math.hypot(g.x - x, g.z - z) > g.w / 2 + 6) && (def.spawns || []).every(s => Math.hypot(s.x - x, s.z - z) > s.r + 1);
+  const capD = (x, z) => S.caps.reduce((m, q) => { const dx = q.bx - q.ax, dz = q.bz - q.az, L2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - q.ax) * dx + (z - q.az) * dz) / L2)); return Math.min(m, Math.hypot(x - q.ax - dx * t, z - q.az - dz * t) - q.r); }, Infinity);     // до прохода, м (внутри < 0)
+  const free = (x, z, d) => capD(x, z) > 2.5 && busy.every(b => Math.hypot(b.x - x, b.z - z) > d) && (def.doors || []).every(g => Math.hypot(g.x - x, g.z - z) > g.w / 2 + 6) && (def.spawns || []).every(s => Math.hypot(s.x - x, s.z - z) > s.r + 1);
   // валуны и деревья у края: неровный край без невидимой стены; ближний к камере край — без деревьев
   const E = X.edge;
   for (let j = 0; j < m; j += 2) for (let i = 0; i < n; i += 2) { const s = data[j * n + i], x = B.x0 + i * c + (rnd() - .5) * c * 2, z = B.z0 + j * c + (rnd() - .5) * c * 2;
@@ -174,13 +175,25 @@ export function wildSdfAt(map, x, z) {
 }
 // область пути (зона или карман), где стоит точка: ближайшая, внутри которой точка; −1 — нигде
 export function navArea(map, x, z) { const A = map.nav.areas; let best = -1, bd = Infinity; for (let i = 0; i < A.length; i++) { const d = Math.hypot(x - A[i].x, z - A[i].z) - A[i].r; if (d < bd) { bd = d; best = i; } } return best; }
+// стоит в проходе (между устьями, у оси): вдоль прохода — к устью со стороны цели; иначе пути не нужно (напрямик)
+function inPass(map, x, z, tx, tz) {
+  for (const l of map.nav.links) {
+    const ux = l.pb.x - l.pa.x, uz = l.pb.z - l.pa.z, L2 = ux * ux + uz * uz || 1, t = ((x - l.pa.x) * ux + (z - l.pa.z) * uz) / L2;
+    if (t <= .05 || t >= .95 || Math.abs((x - l.pa.x) * uz - (z - l.pa.z) * ux) / Math.sqrt(L2) > 8) continue;
+    const end = Math.hypot(tx - l.pa.x, tz - l.pa.z) < Math.hypot(tx - l.pb.x, tz - l.pb.z) ? l.pa : l.pb;
+    return Math.hypot(x - end.x, z - end.z) > 3 ? end : null;
+  }
+  return null;
+}
 // следующая точка пути к цели в другой области: устье прохода (сначала своё, потом — за проходом); запертая дверь без ключа — пути нет
 export function navStep(map, x, z, tx, tz, keys = null) {
-  const a = navArea(map, x, z), b = navArea(map, tx, tz); if (a < 0 || b < 0 || a === b) return null;
+  const a = navArea(map, x, z), b = navArea(map, tx, tz); if (a < 0 || b < 0) return null;
+  if (a === b) return inPass(map, x, z, tx, tz);
   const L = map.nav.links, prev = new Map([[a, -1]]), q = [a], shut = l => { const d = l.door >= 0 && map.doors[l.door]; return !!d && d.locked && !(keys && keys[d.lock]); };
   while (q.length && !prev.has(b)) { const r = q.shift(); L.forEach((l, i) => { const o = l.a === r ? l.b : l.b === r ? l.a : -1; if (o >= 0 && !prev.has(o) && !shut(l)) { prev.set(o, i); q.push(o); } }); }
   if (!prev.has(b)) return null;
   let r = b, li = prev.get(r); for (;;) { const l = L[li], o = l.a === r ? l.b : l.a; if (o === a) break; r = o; li = prev.get(r); }
   const l = L[li], [mine, far] = l.a === a ? [l.pa, l.pb] : [l.pb, l.pa];
-  return Math.hypot(x - mine.x, z - mine.z) > 4 ? mine : far;
+  const ux = far.x - mine.x, uz = far.z - mine.z, uL = Math.hypot(ux, uz) || 1, past = (x - mine.x) * ux + (z - mine.z) * uz >= 0 && Math.abs((x - mine.x) * uz - (z - mine.z) * ux) / uL < 8;     // уже за своим устьем у оси прохода — к дальнему (иначе качается у устья)
+  return Math.hypot(x - mine.x, z - mine.z) > 4 && !past ? mine : far;
 }

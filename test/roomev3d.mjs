@@ -7,7 +7,7 @@ import { travel } from '../3d/src/levels3d.js';
 import { roomAt } from '../3d/src/map.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const R = CFG3.dungeons.roomEvents, I = CFG3.dungeons.list.filter(d => d.inst);
-const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.dungeons.traps.on = false; const W = createWorld(c, mulberry32(12)); W.lv = 40; return W; };
+const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false; c.dungeons.traps.on = false; c.dungeons.wild.on = false; const W = createWorld(c, mulberry32(12)); W.lv = 40; return W; };
 const run = (W, sec, f) => { for (let i = 0; i < Math.round(sec * 60); i++) { if (f) f(i); step(W, 1 / 60, {}); } };
 const killAll = W => { for (const e of W.enemies) if (!e.dead && !e.boss) killEnemy(W, e, 1); };
 // раскладка

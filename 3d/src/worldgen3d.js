@@ -441,7 +441,7 @@ export function expandWorld(base) {
       cfg.map.places.push({ id, name: nameOf(rc, 'warcamp', used), type: 'danger', x: s.x, z: s.z, r: F.H + 5, danger: Math.min(3, 2 + Math.floor(k * 1.6)), gen: 1, fort: true });
       cfg.map.zones.push({ type: 'warcamp', x: s.x, z: s.z, w: F.H * 2 - 4, d: F.H * 2 - 4, gen: 1 });
       const toC = Math.abs(s.x) > Math.abs(s.z) ? (s.x > 0 ? 'w' : 'e') : (s.z > 0 ? 'n' : 's'), opp = { w: 'e', e: 'w', n: 's', s: 'n' }[toC];
-      cfg.map.forts.push({ id, x: s.x, z: s.z, H: F.H, gate: F.gate, gates: [toC, opp], tents: F.tents }); taken.push({ x: s.x, z: s.z, r: F.H * 1.45 + 8 });
+      cfg.map.forts.push({ id, x: s.x, z: s.z, H: F.H, gate: F.gate, gates: [toC, opp], tents: F.tents }); taken.push({ x: s.x, z: s.z, r: F.taken ?? F.H * 1.45 + 8 });
     }
     // павшие города: каменные стены, ворота на четыре стороны, дома кварталами вокруг площади, босс на площади; дорога — к ближайшему посёлку
     const CI = G.cities; cfg.map.cities = [];
@@ -499,7 +499,7 @@ export function expandWorld(base) {
     for (const I of (cfg.instances && cfg.instances.list) || []) {
       let at = I.at || null;
       let best = 1e9;     // Мир 5.0: из всех проб — ближайшая по уровню
-      for (let k = 0; (PUD || !at) && k < 3000; k++) {
+      for (let k = 0; (PUD || !at) && (k < 3000 || (best > 1.5 && k < 12000)); k++) {     // не нашёл места по уровню — ещё пробы (большие лагеря 5.25 заняли место)
         const { x, z } = pspot(ri, G.coreR + 30, R - 30); if (x > 1e8) continue; const q = zoneAt(cfg, x, z), dl = q && Math.abs(zoneLevel(cfg, x, z) - I.lv);
         if (!q || q.id !== I.zone || dl > (PUD ? Math.min(best, 12) : 1) || wet3(x, z, 14) || taken.some(t => Math.hypot(t.x - x, t.z - z) < t.r + 22) || cfg.map.links.some(([p0, p1]) => segD(x, z, p0, p1) < 20)) continue;
         at = { x, z }; best = dl;
