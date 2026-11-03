@@ -13,7 +13,7 @@ const T0 = CFG3.worldgen.castles[0];
 
 // ---------- 1. генератор ----------
 for (let seed = 1; seed <= 300; seed++) {
-  const T = { ...T0, at: { x: 0, z: 0 }, back: { x: 0, z: 3 } }, C = castleFloors(T, seed); let have = [];
+  const T = { ...T0, at: { x: 0, z: 0 }, back: { x: 0, z: 3 } }, C = castleFloors(T, seed, CFG3.dungeons.castleSize || 1, CFG3.dungeons.castleCrowd || 1); let have = [];
   ok(C.floors.length === T.floors && C.floors[T.floors - 1].throne, `зерно ${seed}: нет этажей или трона`);
   for (const d of C.floors) {
     const R = d.rooms.map(r => ({ id: r.id, x0: r.x - r.w / 2, x1: r.x + r.w / 2, z0: r.z - r.d / 2, z1: r.z + r.d / 2 }));

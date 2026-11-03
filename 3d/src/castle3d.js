@@ -8,9 +8,9 @@ const mul = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a
 const pick = (r, a) => a[(r() * a.length) | 0];
 
 // один этаж: gw×gh клеток; start — клетка входа; throne — пристроить тронный зал к самому дальнему залу
-function floorPlan(r, gw, gh, start, throne) {
-  const cell = (i, j) => j * gw + i, rooms = [], size = [];
-  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const w = 8 + Math.round(r() * 3), d = 8 + Math.round(r() * 3); size.push([w, d]); rooms.push({ id: `r${i}_${j}`, x: i * PITCH, z: j * PITCH, w, d }); }
+function floorPlan(r, gw, gh, start, throne, K = 1) {     // K — крупность залов (этап В, 2026-11-03): шаг сетки и размеры залов × K
+  const cell = (i, j) => j * gw + i, rooms = [], size = [], PT = PITCH * K;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const w = Math.round((8 + Math.round(r() * 3)) * K), d = Math.round((8 + Math.round(r() * 3)) * K); size.push([w, d]); rooms.push({ id: `r${i}_${j}`, x: i * PT, z: j * PT, w, d }); }
   // остов: случайный обход в глубину; петли — случайные соседи
   const seen = new Set([cell(...start)]), edges = [], stack = [start];
   while (stack.length) {
@@ -36,7 +36,7 @@ function floorPlan(r, gw, gh, start, throne) {
   let throneRoom = null, throneCor = null;
   if (throne) {
     // трон — справа или снизу от дальнего зала, за пределами сетки (там свободно)
-    const fi = far % gw, fj = (far / gw) | 0, right = fi === gw - 1, w = 20, d = 20, gap = 8;
+    const fi = far % gw, fj = (far / gw) | 0, right = fi === gw - 1, w = Math.round(20 * K), d = Math.round(20 * K), gap = Math.round(8 * K);
     if (right || fj !== gh - 1) { const x0 = farRoom.x + farRoom.w / 2 + gap; throneRoom = { id: 'throne', x: x0 + w / 2, z: farRoom.z, w, d }; throneCor = { id: 'ct', x: farRoom.x + farRoom.w / 2 + gap / 2, z: farRoom.z, w: gap, d: COR, from: farRoom.id, to: 'throne' }; }
     else { const z0 = farRoom.z + farRoom.d / 2 + gap; throneRoom = { id: 'throne', x: farRoom.x, z: z0 + d / 2, w, d }; throneCor = { id: 'ct', x: farRoom.x, z: farRoom.z + farRoom.d / 2 + gap / 2, w: COR, d: gap, from: farRoom.id, to: 'throne' }; }
     // справа от последнего столбца могут стоять другие залы этого ряда? — нет: дальний зал в крайнем столбце или ряду, иначе трон пересечёт сетку
@@ -46,12 +46,12 @@ function floorPlan(r, gw, gh, start, throne) {
 }
 
 // все этажи одного замка. T — описание замка (id, name, floors, foes, tier, at, back, depth[], danger[]), seed — зерно
-export function castleFloors(T, seed) {
+export function castleFloors(T, seed, K = 1, crowd = 1) {
   const r = mul(seed), out = [], keys = {}, n = T.floors;
   for (let f = 1; f <= n; f++) {
     const last = f === n, gw = 3 + (f > 1 ? 1 : 0), gh = 3, start = [0, (r() * gh) | 0];
-    let P = floorPlan(r, gw, gh, start, last);
-    for (let tries = 0; last && !P.throneRoom && tries < 30; tries++) P = floorPlan(r, gw, gh, start, last);
+    let P = floorPlan(r, gw, gh, start, last, K);
+    for (let tries = 0; last && !P.throneRoom && tries < 30; tries++) P = floorPlan(r, gw, gh, start, last, K);
     const id = `${T.id}_${f}`, rooms = [...P.rooms, ...P.cors.map(({ e, from, to, ...c }) => c)], doors = [], chests = [], spawns = [];
     if (P.throneRoom) rooms.push(P.throneRoom, P.throneCor);
     // запертые двери на остове: от самого глубокого ребра; ключ — в зале, куда можно дойти без этой и следующих дверей
@@ -70,9 +70,9 @@ export function castleFloors(T, seed) {
     if (P.throneRoom) { const kid = `${T.id}_throne`; keys[kid] = `${T.keyName} тронный`; doors.push({ a: 'ct', b: 'throne', lock: kid }); }
     // сундуки и враги по залам (не у входа)
     for (const room of P.rooms) {
-      const d = P.dist.get(P.cell(...[room.x / PITCH, room.z / PITCH]));
+      const d = P.dist.get(P.cell(...[Math.round(room.x / (PITCH * K)), Math.round(room.z / (PITCH * K))]));
       if (d === 0) continue;
-      spawns.push({ room: room.id, n: 1 + (r() < .5 ? 1 : 0) + (d > 2 ? 1 : 0) });
+      spawns.push({ room: room.id, n: Math.max(1, Math.round((1 + (r() < .5 ? 1 : 0) + (d > 2 ? 1 : 0)) * crowd)) });
       if (r() < .45) chests.push({ kind: pick(r, T.chests), x: room.x + (r() - .5) * (room.w - 3), z: room.z + (r() - .5) * (room.d - 3) });
     }
     const guard = f === n - 1 && T.guard ? { ...T.guard, x: P.farRoom.x - 2, z: P.farRoom.z, key: `${T.id}_throne`, room: P.farRoom.id } : null;     // страж с ключом трона — в дальнем зале предпоследнего этажа

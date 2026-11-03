@@ -99,6 +99,7 @@ const BASE = {
         phases: [{ at: .7, summon: { type: 'eclipse_fiend', n: 3 } }, { at: .45, summon: { type: 'shade', n: 3 } }, { at: .3, enrage: true }] }
     ],
     // замки (C4): вход в кольце r м от костра, этажей floors; foes — кто живёт в залах; depth и danger — по этажам
+    castleSize: 1.5, castleCrowd: 1.4,     // этап В (2026-11-03): залы замков крупнее в castleSize раз, врагов в залах в castleCrowd раз больше
     castles: [
       { id: 'castle_ash', name: 'Пепельная Твердыня', keyName: 'Ключ Твердыни', r: [260, 380], floors: 3, guard: { type: 'shield', hp: 7, dmg: 1.4 },
         boss: { type: 'castellan', attacks: [{ kind: 'slam', wind: .9, r: 4.6, mul: 1.1, cd: 3, range: 5 }, { kind: 'charge', wind: 1.1, len: 13, width: 2.8, mul: 1.1, cd: 7, range: 14 }, { kind: 'slam', wind: 1.5, r: 7.5, mul: 1.3, cd: 12, range: 99 }],
@@ -1200,7 +1201,7 @@ const BASE = {
   // «Бездна» (этап 6 «круче»): люк у лагеря (at) с уровня lv; ярус — арены arenas[0]+ярус/arenaEvery (до arenas[1]), врагов foes[0]+ярус×foes[1] на арену,
   // уровень врагов level[0]+ярус×level[1] (за 60 — сила растёт дальше), время time+ярус×timeTier с; модификатор каждые modEvery ярусов (до 2),
   // страж каждые guardEvery, окованный сундук каждые chestEvery; пепел ash×ярус. types: [вид, с какого яруса]
-  abyss: { on: true, at: { x: 12, z: -24 }, lv: 30, arenas: [2, 5], arenaEvery: 6, foes: [3, .2], level: [30, 1.5], time: 150, timeTier: 4, modEvery: 5, guardEvery: 5, guardHp: 2.5, chestEvery: 5, ash: 40,
+  abyss: { on: true, size: 1.6, crowd: 1.4, at: { x: 12, z: -24 }, lv: 30, arenas: [2, 5], arenaEvery: 6, foes: [3, .2], level: [30, 1.5], time: 210, timeTier: 4, modEvery: 5, guardEvery: 5, guardHp: 2.5, chestEvery: 5, ash: 40,
     eclipse: { goal: 8, ash: 2500 }, heal: .3,     // heal — доля здоровья за зачищенный ярус     // «Затмение недели»: пройти ярус goal — награда раз в неделю
     mod: { thick: 1.4, swift: 1.25, frail: 1.3, packs: 1.5, greedy: 1.6, dark: .55 },
     types: [['hound', 1], ['ghoul', 1], ['brute', 1], ['archer', 2], ['shield', 3], ['blackdog', 4], ['kad_soldier', 5], ['golem', 7], ['eclipse_fiend', 9], ['troll', 12], ['shrieker', 14], ['war_ghost', 16], ['demon_guard', 20]] },     // достижения (этап 6 «круче»): награды пепел, титулы, цвета плаща

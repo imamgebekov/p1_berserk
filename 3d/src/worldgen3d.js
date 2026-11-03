@@ -350,7 +350,7 @@ export function expandWorld(base) {
   for (const [k, T0] of (G.castles || []).entries()) {
     let s = null; for (let t = 0; t < 40; t++) { s = freeSpot(rNew(T0.r[0]), rNew(T0.r[1]), 70, 30, PUD); if (!s || !cfg.map.links.some(([a, b]) => segD(s.x, s.z, a, b) < 48)) break; s = null; }     // не на тропе (с запасом на изгиб)
     if (!s) continue;
-    const T = { ...T0, at: { x: s.x, z: s.z }, back: { x: s.x, z: s.z + 3 } }, C = castleFloors(T, cfg.world.seed * 7 + k * 101);
+    const T = { ...T0, at: { x: s.x, z: s.z }, back: { x: s.x, z: s.z + 3 } }, C = castleFloors(T, cfg.world.seed * 7 + k * 101, cfg.dungeons.castleSize || 1, cfg.dungeons.castleCrowd || 1);
     cfg.dungeons.list.push(...C.floors); Object.assign(cfg.dungeons.keys, C.keys);
     cfg.map.places.push({ id: T.id, name: T.name, type: 'danger', x: s.x, z: s.z, r: 16, danger: 3, gen: 1, castle: true });
     cfg.map.castles.push({ id: T.id, x: s.x, z: s.z, name: T.name }); taken.push({ x: s.x, z: s.z, r: 34 });

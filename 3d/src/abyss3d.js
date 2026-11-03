@@ -15,12 +15,12 @@ export const modName = id => (MODS[id] || { name: id }).name;
 // ярус: комнаты цепочкой вдоль оси x (зал входа, коридоры, арены), спуск в последней арене
 export function abyssDef(cfg, tier, back, fixed = null) {     // fixed — модификаторы недели (Затмение)
   const A = cfg.abyss, r = mulberry32((cfg.world.seed || 1) * 977 + tier * 7919), n = Math.min(A.arenas[1], A.arenas[0] + Math.floor(tier / A.arenaEvery));
-  const rooms = [{ id: 'hall', x: 0, z: 0, w: 10, d: 8 }], spawns = []; let x = 5, zc = 0;
+  const K = A.size || 1, rooms = [{ id: 'hall', x: 0, z: 0, w: Math.round(10 * K), d: Math.round(8 * K) }], spawns = []; let x = Math.round(5 * K), zc = 0;     // K — крупность (этап В, 2026-11-03)
   for (let i = 1; i <= n; i++) {
-    rooms.push({ id: 'c' + i, x: x + 3, z: 0, w: 6, d: 2.4 }); x += 6;
-    const w = 10 + Math.round(r() * 4), d = 9 + Math.round(r() * 4); zc = Math.round((r() - .5) * 2 * (d / 2 - 2.2) * 10) / 10;
+    const cl = Math.round(6 * K); rooms.push({ id: 'c' + i, x: x + cl / 2, z: 0, w: cl, d: 2.4 }); x += cl;
+    const w = Math.round((10 + Math.round(r() * 4)) * K), d = Math.round((9 + Math.round(r() * 4)) * K); zc = Math.round((r() - .5) * 2 * (d / 2 - 2.2) * 10) / 10;
     rooms.push({ id: 'a' + i, x: x + w / 2, z: zc, w, d }); x += w;
-    spawns.push({ room: 'a' + i, n: Math.round(A.foes[0] + tier * A.foes[1]) });
+    spawns.push({ room: 'a' + i, n: Math.round((A.foes[0] + tier * A.foes[1]) * (A.crowd || 1)) });
   }
   const mods = fixed ? fixed.slice() : [], pool = Object.keys(MODS); if (!fixed) for (let k = 0; k < Math.min(2, Math.floor(tier / A.modEvery)) && pool.length; k++) mods.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
   if (mods.includes('packs')) for (const s of spawns) s.n = Math.round(s.n * A.mod.packs);
