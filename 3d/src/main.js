@@ -43,6 +43,7 @@ import { storyTalk, storyTalked, storyTalkable, storyGoal, storyAutoPending, sto
 import { SPEAKERS } from './data/story3d.js';
 import { liveAllies, squadCommand } from './squad3d.js';
 import { setHeroic, isInstance, heroicOpen, portalInfo } from './levels3d.js';
+import { exitRun, exitPreview, exitBlock } from './runexit3d.js';
 import { roomEventLine } from './roomev3d.js';     // план подземелий, 2д
 import { nodeNear, gather, mountToggle, coachNear, coachList, flightCost, fly } from './life3d.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
@@ -300,6 +301,7 @@ function onEvent(v) {
   else if (v.k === 'drop') { const it = BY_ID[v.id]; if (it && it.rar >= 3) { toast(`Выпало: ${it.name}`, '', RARITY[it.rar].color, 'gem'); sfx(it.rar >= 4 ? 'brand' : 'rare'); } }
   else if (v.k === 'key') toast(`Ключ на связке: ${cfg.dungeons.keys[v.key] || 'ключ'}`, '', '#e8c04a', 'key');
   else if (v.k === 'doorLocked') toast(String(v.key).startsWith('gate:') ? `Ворота закрыты: откроются, когда падёт ${(cfg.enemies[v.key.slice(5)] || {}).name || 'страж'}` : `Заперто: нужен ${cfg.dungeons.keys[v.key] || 'ключ'}`, 'bad');     // gate: — ворота малого мира
+  else if (v.k === 'runExit') toast(v.free ? 'Вы вышли: вся добыча осталась' : `Вы вышли: потеряно ${v.ash} пепла и вещей: ${v.items}`, v.free ? '' : 'bad');
   else if (v.k === 'campDone') toast(`${v.name}: лагерь разбит — добыча вожака у костра`, '', '#e8c04a');
   else if (v.k === 'horn') toast('Вожак трубит в рог — идёт подмога', '', '#e07040');
   else if (v.k === 'gateOpen') toast(`${v.name} пал — ворота открыты`, '', '#e8c04a');
@@ -499,6 +501,7 @@ if (desk) {
     if (c === 'Escape' && aiming && !panelOpen) { e.preventDefault(); aimCancel = true; return; }     // Esc — отмена прицела
     if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.close'); if (open) open.click(); else $('gear').click(); return; }
     if (c === 'KeyH' && !panelOpen) { if (vis('heroicBtn')) heroicBtn.click(); return; }
+    if (c === 'KeyT' && !panelOpen && !exitBtn.hidden) { exitBtn.click(); return; }
     if (c === 'KeyT' && !panelOpen && !warpBtn.hidden) { warpBtn.click(); return; }     // перенос к кострам
     if ((c === 'KeyZ' || c === 'KeyX' || c === 'KeyC') && !panelOpen) { partyCmd(c === 'KeyZ' ? 'follow' : c === 'KeyX' ? 'hold' : 'assist'); return; }     // команды отряда (этап 4)
     if (c === 'KeyM') { if (!panelOpen || !mapEl.hidden) $('miniBtn').click(); return; }
@@ -672,6 +675,10 @@ window.addEventListener('resize', () => { if (!firesSec.hidden) travelDraw(); })
 function dungeonLine() { const L = W.levels && W.levels[W.lvl], d = L && L.def; if (!d || !d.inst) return null; const tot = cfg.bosses.list.filter(b => b.level === d.id).length, alive = W.enemies.filter(e => e.boss && !e.dead).length, cs = W.map.containers || []; return `${d.name}${L.heroic ? ' · героик' : ''}: боссы ${Math.max(0, tot - alive)}/${tot} · сундуки ${cs.filter(c => !c.ready).length}/${cs.length}`; }     // трекер в подземелье (план подземелий, 1г)
 function closeFires() { firesSec.hidden = true; panelOpen = false; saver.write(); }
 fireBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
+const exitBtn = $('exitBtn'); let exitArm = 0;     // выход из подземелья: первое нажатие — предупреждение о потерях, второе в течение 4 с — выход
+exitBtn.addEventListener('click', e => { e.stopImmediatePropagation(); if (exitBlock(W)) return; const L = exitPreview(W);
+  if (!L.free && !exitArm) { exitArm = performance.now() + 4000; exitBtn.classList.add('arm'); exitBtn.textContent = 'Потеряете половину добычи. Ещё раз?'; return; }
+  exitArm = 0; exitBtn.classList.remove('arm'); input.release(); if (exitRun(W) === 'ok') { sfx('travel'); saver.write(); } }, true);
 const warpBtn = $('warpBtn');     // перенос к кострам не от костра, за пепел (2026-11-03): кнопка под миникартой и клавиша T
 warpBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
 // жизнь мира (этап 6): повозка — окно костров без карты; сбор; конь
@@ -942,7 +949,9 @@ function frame(now) {
   const hud = (hudT += real) >= cfg.cull.hud || paused !== hudP; if (hud) { hudT = 0; hudP = paused; }     // кнопки, статусы и умения — 10 раз в секунду (и сразу при открытии меню)
   if (hud) { const show = !!W.nearNpc && (storyTalkable(W, W.nearNpc) || !npcLocked(W.nearNpc)) && !panelOpen && !landscape;     // сюжетный разговор — даже у закрытого жителя
   if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'scribe' ? 'Библиотека' : W.nearNpc === 'keeper' ? 'Дары Затмения' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
-  if (hud) { const wp = W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead && knownFires(W).length > 1; if (warpBtn.hidden === wp) { warpBtn.hidden = !wp; document.body.classList.toggle('warp', wp); }
+  if (hud) { const wp = W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead && knownFires(W).length > 1; if (warpBtn.hidden === wp) warpBtn.hidden = !wp;
+    const ex = !panelOpen && !landscape && !exitBlock(W) && !W.player.dead; if (exitBtn.hidden === ex) exitBtn.hidden = !ex; if (exitArm && (performance.now() > exitArm || !ex)) { exitArm = 0; exitBtn.classList.remove('arm'); } if (ex && !exitArm) { const l = 'Выйти' + (desk ? ' · T' : ''); if (exitBtn.textContent !== l) exitBtn.textContent = l; }
+    if (document.body.classList.contains('warp') !== (wp || ex)) document.body.classList.toggle('warp', wp || ex);
     const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : ''));
     const free = !f && !W.nearPortal && !panelOpen && !landscape && !W.player.dead, cn = free && W.life && coachNear(W), nd = free && !cn && W.life && nodeNear(W);     // этап 6: повозка, сбор, конь
     if (coachBtn.hidden === !!cn) coachBtn.hidden = !cn; if (cn) { const l = 'Повозка' + (desk ? ' · E' : ''); if (coachBtn.textContent !== l) coachBtn.textContent = l; }

@@ -13,6 +13,7 @@ import { genDef } from './dungeongen3d.js';
 import { styleDef } from './dungeonstyle3d.js';
 import { wildOn, freeDef, makeWildMap } from './wilds3d.js';     // малые миры (2026-10-27)
 import { unwarpDist, warpOf } from './coremap3d.js';
+import { runStart, runEnd } from './runexit3d.js';     // выход из подземелья кнопкой (2026-11-03)
 
 export const SURFACE = 'surface';
 export const onSurface = W => W.lvl === SURFACE;
@@ -165,7 +166,8 @@ export function travel(W, id, x, z) {
   if (id !== W.lvl && regenLevel(W, id)) { const e = W.levels[id].def.entry; x = e.x; z = e.z; }     // 4.15: новая раскладка — вход новый
   if (id !== W.lvl) { W.dfire = null; W.allies = W.allies.filter(a => !a.roomEv); endBossRoom(W); }     // костёр подземелья — до выхода (план подземелий, 1е); пленник события зала остаётся в зале (2д)
   const p = W.player; if (W.lvl === SURFACE && id !== SURFACE) W.surfPos = { x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100 };     // место спуска: здесь герой встанет после загрузки и смены героя
-  leave(W); stash(W); load(W, id); arrive(W);
+  if (id !== W.lvl) runStart(W, W.lvl, id);
+  leave(W); stash(W); load(W, id); arrive(W); if (!isInstance(W, id)) runEnd(W);
   Object.assign(p, { x, z, vx: 0, vz: 0, state: 'idle', atkT: 0, rollT: 0 });
   p.inv = Math.max(p.inv, .8);
   resolve(W.map, p, W.cfg.player.radius);
@@ -189,4 +191,4 @@ export function eclipseGo(W, week) { const q = portalNear(W); return q && q.abys
 export function usePortal(W) { const q = portalNear(W); if (q && (q.abyssEnter || q.abyssNext)) return abyssGo(W, q, travel, spawnFoes); return q ? travel(W, q.to, q.tx, q.tz) : false; }
 
 // после смерти герой встаёт у костра: возвращаем его на поверхность
-export function backToSurface(W) { if (W.lvl === SURFACE) return; leave(W); stash(W); load(W, SURFACE); arrive(W); W.inside = -1; }
+export function backToSurface(W) { if (W.lvl === SURFACE) return; runEnd(W); leave(W); stash(W); load(W, SURFACE); arrive(W); W.inside = -1; }
