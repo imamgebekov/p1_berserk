@@ -36,6 +36,7 @@ import { questMark } from './quests3d.js';
 import { skyAt } from './daynight.js';
 import { BY_ID, RARITY } from './data/items.js';
 import { trailOn, dampAngle, castClipFor } from './anim3d.js';
+import { createAbilityFx } from './abfx3d.js';
 import { createFx } from './fx3d.js';
 import { RATE, statusPart, emitCount, lightning, stunStar } from './vfx3d.js';
 import { ELEMENT_COLOR } from './elements3d.js';
@@ -711,7 +712,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
 
   // эффекты боя: частицы, пятна на земле, вспышки (fx3d.js)
-  const fx = createFx(scene, camera, undefined, Y), BLOOD = '#4a080c', HURT_T = .22;
+  const fx = createFx(scene, camera, undefined, Y), abfx = createAbilityFx(fx, { scale: () => (Q && Q.life !== undefined ? Math.max(.5, Math.min(1, .5 + Q.life * .5)) : 1) }), BLOOD = '#4a080c', HURT_T = .22;
   for (const k of ['burst', 'flash', 'spray', 'ash']) { const f = fx[k]; fx[k] = (x, y, z, ...a) => f(x, y + Y(x, z), z, ...a); }     // эффекты — над землёй
   const burst = fx.burst;
   const DECAL_FX = { burn: '#1a1410', venom: '#2e4a1a', bleed: BLOOD };      // холод и гроза пятен не оставляют
@@ -1234,10 +1235,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       }
       else if (v.k === 'ability') {                   // умения: поза героя, вспышки и кольца
         if (hero.cast) hero.cast(castClipFor(cfg, W.hero, v.id, v.kind), cfg.actors.cast.time);
-        const col = { charge: '#e8d8c0', cry: '#ffd27a', whirl: '#f0e0c8', iron: '#9fd0ff', rage: '#ff4a30', blink: '#c8a0ff', parry: '#fff0c0', dance: '#c8d8ff', shadow: '#2a1838', execute: '#ff3030', leap: '#c8e0b0', volley: '#eef4ff', trap: '#8a8478', venom: '#7ad060', rain: '#eef4ff', fireball: '#ff8a30', chain: '#ffe27a', cloud: '#7ad060', meteor: '#ff6a3a', shield: '#7a8aff', blizzard: '#e8f8ff', spear: '#8a5aff' }[v.id] || '#ffe8b0';
-        if (v.id === 'cry' || v.id === 'whirl') for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r = v.id === 'cry' ? 2.5 : 1.8; burst(v.x + Math.sin(a) * r, 1, v.z + Math.cos(a) * r, 2, col, 3); }
-        else burst(v.x, 1.2, v.z, 18, col, 3);
-        fx.flash(v.x, 1.3, v.z, v.id === 'whirl' ? 2.6 : 1.6, col);
+        abfx.play(v);     // форма — по виду, цвет и повадка — по стихии (abfx3d.js)
         if (v.id === 'cry' && hooks.onText) hooks.onText(v.x, 3.2, v.z, 'А-а-а!', 'alarm');
       }
       else if (v.k === 'blink') { burst(v.x, 1.2, v.z, 14, '#8a6ad8', 3); burst(v.x2, 1.2, v.z2, 18, '#c8a0ff', 3); fx.flash(v.x2, 1.2, v.z2, 1.6, '#c8a0ff'); }
@@ -1295,7 +1293,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         if (!calm && Math.random() < dt * SL.motes * s.a) burst(s.x + (Math.random() - .5) * SL.shafts.w * .6, 1 + Math.random() * 4, s.z + (Math.random() - .5) * 2, 1, '#fffbe0', .3);
       });
     }
-    fx.update(dt);
+    fx.update(dt); abfx.update(dt);
 
     stepFx(dt); updateTele(W, t); updateLines(W, t); updateFoes(W, t);
     if (W.tomb && (W.tomb.lvl || 'surface') === W.lvl) { if (!tomb) { tomb = new THREE.Group(); const m = new THREE.MeshLambertMaterial({ color: '#8a867c' }); const a = new THREE.Mesh(new THREE.BoxGeometry(.7, 1, .18), m); a.position.y = .5; const b = new THREE.Mesh(new THREE.BoxGeometry(.4, .2, .18), m); b.position.y = 1.1; const g = new THREE.Mesh(new THREE.OctahedronGeometry(.2), new THREE.MeshBasicMaterial({ color: '#ffd45a' })); g.position.y = 1.9; tomb.add(a, b, g); tomb.userData.gem = g; scene.add(tomb); } tomb.visible = true; tomb.position.set(W.tomb.x, Y(W.tomb.x, W.tomb.z), W.tomb.z); tomb.userData.gem.position.y = 1.9 + Math.sin(t * 3) * .1; tomb.userData.gem.rotation.y = t * 2; } else if (tomb) tomb.visible = false;
