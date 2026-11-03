@@ -73,7 +73,7 @@ const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
 // iOS Safari местами игнорирует touch-action: страницу нельзя ни листать, ни тянуть, ни масштабировать, пока открыта не панель
-const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith, #lib, #skills, #map, #captain, #journal, #quests');
+const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith, #lib, #skills, #map, #captain, #journal, #quests, #heroPick, #botTalk, #fires, #relic');     // окна, где касание прокручивает (2026-11-03: + выбор героя, бот, костры, дары — не прокручивались на телефоне)
 document.addEventListener('touchmove', e => { if (!inPanel(e)) e.preventDefault(); }, { passive: false });
 for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -103,9 +103,11 @@ if (renderer && cfg.view.zoom) {
   canvas.addEventListener('wheel', e => { e.preventDefault(); setZ(renderer.camZoom() * Math.exp(e.deltaY * Z.wheel)); }, { passive: false });
   addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey || (e.target && e.target.closest && e.target.closest('input, textarea'))) return; if (e.code === 'Equal' || e.code === 'NumpadAdd') setZ(renderer.camZoom() / Z.key); else if (e.code === 'Minus' || e.code === 'NumpadSubtract') setZ(renderer.camZoom() * Z.key); });
   const tp = new Map(); let pd = 0, pz = 1;     // касания по полю: два пальца — щипок
-  canvas.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2) { const [a, b] = [...tp.values()]; pd = Math.hypot(a[0] - b[0], a[1] - b[1]); pz = renderer.camZoom(); } });
-  canvas.addEventListener('pointermove', e => { if (!tp.has(e.pointerId)) return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2 && pd > 20) { const [a, b] = [...tp.values()]; setZ(pz * pd / Math.max(20, Math.hypot(a[0] - b[0], a[1] - b[1]))); } });
-  for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, e => { tp.delete(e.pointerId); if (tp.size < 2) pd = 0; });
+  for (const el of [canvas, document.getElementById('zone')].filter(Boolean)) {     // поле управления (#zone) перекрывает холст — щипок ловим на обоих (2026-11-03)
+    el.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2) { const [a, b] = [...tp.values()]; pd = Math.hypot(a[0] - b[0], a[1] - b[1]); pz = renderer.camZoom(); } });
+    el.addEventListener('pointermove', e => { if (!tp.has(e.pointerId)) return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2 && pd > 20) { const [a, b] = [...tp.values()]; setZ(pz * pd / Math.max(20, Math.hypot(a[0] - b[0], a[1] - b[1]))); } });
+    for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, e => { tp.delete(e.pointerId); if (tp.size < 2) pd = 0; });
+  }
 }
 const BENCH = new URLSearchParams(location.search).has('bench');      // ?bench: замер на устройстве — новая игра, сохранение не трогаем
 const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; } }; })();

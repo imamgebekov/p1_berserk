@@ -1110,3 +1110,27 @@ html:not([data-desk]) #hpTxt{grid-row:1;grid-column:2;justify-self:center;min-wi
 #smith .scard .buy{min-height:46px;padding:0 18px;border-radius:22px;border:1px solid #d9b27a;background:#3a2a1a;color:#f0d3a0;font-family:var(--serif);font-size:16px;font-weight:500}#smith .scard .buy.no{border-color:#4a3626;background:transparent;color:#8a7e6c;font-family:var(--sans);font-size:14px}
 #botBtn{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:48px;padding:0 22px;background:#2a3a1a;color:#e8ffd0;font-weight:700;border:3px solid #000;border-radius:12px;z-index:6;touch-action:none;white-space:nowrap}#botBtn[hidden]{display:none}
 [data-desk] #botBtn{zoom:var(--dz,1)}
+/* телефон боком (2026-11-03, замечания владельца с iPhone): окна на всю высоту, компактная шапка, сумка в две колонки, древо и выбор героя прокручиваются */
+[data-land] #botTalk .pbox,[data-land] #bag .pbox,[data-land] #shop .pbox,[data-land] #smith .pbox,[data-land] #lib .pbox,[data-land] #relic .pbox,[data-land] #skills .pbox,[data-land] #map .pbox,[data-land] #captain .pbox,[data-land] #journal .pbox,[data-land] #quests .pbox,[data-land] #fires .pbox{max-height:100%;height:100%;padding:6px 14px 8px}
+[data-land] .pbox .bhead{min-height:0;margin:0 0 2px}[data-land] .pbox .bhead h2{font-size:19px}[data-land] .pbox .bhead .close,[data-land] .pbox .bhead .jbtn{width:38px;height:38px;min-width:0;min-height:0}
+[data-land] .pbox .bhead::after{display:none}
+[data-land] #skills #skillXp{margin:0;font-size:12.5px;min-height:0}[data-land] #skills .reset,[data-land] #skillReset{min-height:34px!important;height:34px;font-size:13px;padding:0 14px}
+[data-land] #skillList{min-height:0;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+[data-land] #skills .tview{min-height:0}[data-land] #skills .tabs button,[data-land] #skills .tab,[data-land] #skills .tbtab{min-height:34px!important;height:36px;font-size:15px}
+[data-land] #bag .pbox{display:grid;grid-template-columns:minmax(230px,38%) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);column-gap:12px;row-gap:4px;align-items:stretch}
+[data-land] #bag .bhead{grid-column:1/-1;grid-row:1}
+[data-land] #bag .bhero{grid-column:1;grid-row:2;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;gap:6px}
+[data-land] #bag .bitems{grid-column:2;grid-row:2;min-height:0;display:flex;flex-direction:column}
+[data-land] #bagList{flex:1;min-height:0;max-height:none;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;grid-template-columns:repeat(auto-fill,minmax(54px,1fr))}
+[data-land] #bag .doll{gap:5px}[data-land] #bag .doll .slot{width:48px;height:48px;min-height:0}
+[data-land] #bag .bstats{font-size:12.5px;line-height:1.25}
+[data-land] #heroPick{overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;align-content:flex-start}
+[data-land] #heroCards{max-height:none}[data-land] #heroCards .hcard{min-height:46px;padding:5px 10px}
+[data-land] #shopList,[data-land] #smithList,[data-land] #journalList,[data-land] #captainList,[data-land] #botList,[data-land] #firesList,[data-land] #relicList,[data-land] #questList{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+[data-land] #smith .sbody,[data-land] #journal .jbody{min-height:0}
+[data-land] .tbsw{margin:0}[data-land] .tbsb{min-height:34px!important;height:34px;padding:0 10px;font-size:14px}[data-land] #skills .tcard{padding:6px 10px}[data-land] #skills .tbranch{padding-bottom:4px}
+[data-land] #skills .tgrid{row-gap:14px!important}[data-land] #skills .tbh{font-size:16px}[data-land] #skills .tbr,[data-land] #skills .tgt{font-size:12px;margin:0}
+[data-land] #bag .doll .slot{width:44px;height:44px}[data-land] #bag .bhero{grid-template-columns:none}
+[data-land] #heroPick{padding-top:calc(6px + env(safe-area-inset-top));gap:4px}[data-land] #heroPick h2{font-size:16px}[data-land] #heroPick .hstage{height:calc(100dvh - 76px);min-height:0}[data-land] #heroPick .hlist{height:100%;max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+[data-land] #heroGo{position:fixed;left:14px;bottom:calc(8px + env(safe-area-inset-bottom));width:calc(50% - 40px);height:46px;min-height:0;z-index:3}[data-land] #heroNote{display:none}
+[data-land] #skills #skillXp{display:none}[data-land] #skills .bhead{min-height:0}
