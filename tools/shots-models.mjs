@@ -32,6 +32,8 @@ try {
         [['front', 0], ['side', Math.PI / 2], ['back', Math.PI]].forEach(([v, r]) => { out['ref_' + nm + '_' + v] = S.shoot(R, W, [{ m: mk(), label: '', rot: r }], R0); });
       return out;
     }
+    if (only.startsWith('rig:')) { const ks = only.slice(4).split(','), poses = [['idle', 0], ['walk', .22], ['walk', .6], ['run', .3], ['a1', .35], ['a1', .52], ['hit', .2]];     // автоскелет: каждая модель в разных позах
+      for (const k of ks) out['rig_' + k] = S.shoot(R, W, poses.map(([a, t]) => { const m = S.keyModel(k); m.play(a, { fade: 0 }); if (m.cur) { m.cur.time = t * m.cur.getClip().duration; m.cur.paused = true; } m.update(0); return { m, label: k + ' ' + a + ' ' + t, rot: .9 }; }), { w: 1800 }); return out; }
     if (only === 'mf') { const seen = new Set(), ts = Object.keys(A.foes).filter(t => A.foes[t].startsWith('mf_') && cfg.enemies[t] && (A.tints[t] || !seen.has(A.foes[t])) && seen.add(A.foes[t]));     // модели Meshy: по виду на модель и все с оттенком
       for (let i = 0; i < ts.length; i += 8) out['mf_' + (i / 8 + 1)] = S.shoot(R, W, ts.slice(i, i + 8).map(t => ({ m: S.foeModel(t), label: t + ' · ' + A.foes[t] })), { w: 1800 }); return out; }
     if (only === 'mwrot') { const { CATALOG } = await import('/3d/src/data/items.js'), it = CATALOG.find(i => i.id === 's_buckler_iron'), kk = { kind: 'shield', id: 'shield', mat: 'iron' }; await S.mwLoad([it.id]);
