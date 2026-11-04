@@ -1213,3 +1213,23 @@ html:not([data-desk]):not([data-land]) #shop .tsel .tact{min-height:44px;padding
 html:not([data-desk]):not([data-land]) #shop .tchips .tchip{min-height:36px;padding:0 10px;font-size:13px}
 /* то же для аукциона и сундука-добычи */
 html:not([data-desk]):not([data-land]) #auction .acard{max-height:34vh;overflow-y:auto}
+
+/* ===== кнопки действий (2026-11-05, просьба владельца): мельче, ниже, под iPhone 14 Pro Max (430×932): одна «главная» кнопка над джойстиком, остальные — этажом выше; зверь и почта — справа над кнопками умений ===== */
+html:not([data-desk]):not([data-land]) :is(#talk,#botBtn,#lootBtn,#gatherBtn,#coachBtn,#fireBtn,#portalBtn,#heroicBtn,#sleepBtn){min-height:36px!important;padding:0 14px!important;font-size:13.5px!important;border-width:2px!important;border-radius:10px!important;max-width:calc(100vw - 24px)!important}
+html:not([data-desk]):not([data-land]) :is(#talk,#botBtn,#lootBtn,#gatherBtn,#coachBtn,#fireBtn){bottom:calc(184px + env(safe-area-inset-bottom))!important}
+html:not([data-desk]):not([data-land]) :is(#portalBtn,#heroicBtn){bottom:calc(226px + env(safe-area-inset-bottom))!important}
+html:not([data-desk]):not([data-land]) #sleepBtn{bottom:calc(268px + env(safe-area-inset-bottom))!important}
+html:not([data-desk]):not([data-land]) #portalBtn small{font-size:11px;margin:-1px 0 2px}
+html:not([data-desk]):not([data-land]) :is(#mountBtn,#mountNextBtn,#mailBtn){min-height:34px!important;min-width:0!important;padding:0 11px!important;font-size:12.5px!important;border-radius:9px!important;right:calc(12px + env(safe-area-inset-right))!important}
+html:not([data-desk]):not([data-land]) #mountBtn{bottom:calc(214px + env(safe-area-inset-bottom))!important}
+html:not([data-desk]):not([data-land]) #mountNextBtn{bottom:calc(254px + env(safe-area-inset-bottom))!important}
+html:not([data-desk]):not([data-land]) #mailBtn{bottom:calc(294px + env(safe-area-inset-bottom))!important}
+/* телефон боком (932×430): кнопки действий — по центру снизу, мелкие; звери и почта — справа над умениями */
+html[data-land]:not([data-desk]) :is(#talk,#botBtn,#lootBtn,#gatherBtn,#coachBtn,#fireBtn,#portalBtn,#heroicBtn,#sleepBtn){min-height:34px!important;padding:0 12px!important;font-size:13px!important;border-width:2px!important;border-radius:10px!important}
+html[data-land]:not([data-desk]) :is(#talk,#botBtn,#lootBtn,#gatherBtn,#coachBtn,#fireBtn){bottom:calc(20px + env(safe-area-inset-bottom))!important}
+html[data-land]:not([data-desk]) :is(#portalBtn,#heroicBtn){bottom:calc(60px + env(safe-area-inset-bottom))!important}
+html[data-land]:not([data-desk]) #sleepBtn{bottom:calc(100px + env(safe-area-inset-bottom))!important}
+html[data-land]:not([data-desk]) :is(#mountBtn,#mountNextBtn,#mailBtn){min-height:32px!important;min-width:0!important;padding:0 10px!important;font-size:12px!important;border-radius:9px!important;right:calc(270px + env(safe-area-inset-right))!important}
+html[data-land]:not([data-desk]) #mountBtn{bottom:calc(20px + env(safe-area-inset-bottom))!important}
+html[data-land]:not([data-desk]) #mountNextBtn{bottom:calc(58px + env(safe-area-inset-bottom))!important}
+html[data-land]:not([data-desk]) #mailBtn{bottom:calc(96px + env(safe-area-inset-bottom))!important}
