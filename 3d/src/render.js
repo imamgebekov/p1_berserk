@@ -145,7 +145,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
 #endif
     diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb / max(base.rgb, vec3(.02)) * tc * uGTGain, uGTK); }`); };
     hillsMat.customProgramCacheKey = () => key0 + '-gtex';
-    new THREE.ImageLoader().load(new URL('../models/ground.webp', import.meta.url).href, img => {
+    new THREE.ImageLoader().load((cfg.groundTex.dark ? new URL('../models/ground_dark.webp', import.meta.url) : new URL('../models/ground.webp', import.meta.url)).href, img => {
       const N = img.width, L = Math.round(img.height / N), c = document.createElement('canvas'); c.width = N; c.height = N * L; const g2 = c.getContext('2d'); g2.drawImage(img, 0, 0);
       const t = new THREE.DataArrayTexture(new Uint8Array(g2.getImageData(0, 0, N, N * L).data.buffer), N, N, L); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 4; t.needsUpdate = true;
       GU.uGT.value = t; GU.uGTK.value = 1; gtexOn = true; for (const k of [...liveLand.keys()]) dropLand(k);     // участки пересобираются с долями текстур

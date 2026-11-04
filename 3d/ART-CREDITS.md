@@ -54,3 +54,6 @@
 ## Спрайты эффектов
 - **Kenney Particle Pack** — Kenney Vleugels (Kenney.nl), CC0, https://opengameart.org/content/particle-pack-80-sprites . 24 спрайта (кольцо, вспышка, язык пламени, дым, молния, звёзды, серп, штрих, вихрь, руна, сердце, брызги) в атласе `models/vfx_atlas.webp` (5×5 по 96 px; ячейка 0 — мягкая точка). Сборка — tools/vfx-atlas.py.
 - **Kenney Smoke Particles** — Kenney Vleugels (Kenney.nl), CC0, https://opengameart.org/content/smoke-particle-assets . 25 спрайтов дыма, взрывов и вспышек в атласе `models/vfx_puff.webp` (5×5 по 128 px).
+
+## Текстуры земли (проба «мрачного» вида, `?style=dark`)
+- **ambientCG** — Lennart Demes, CC0, https://ambientcg.com . `ground_dark.webp` собран из материалов Ground037, Ground071, Ground080, Ground100, Rocks011, Snow011, Snow015 (цвет, 512 px, приглушена насыщенность и яркость).
