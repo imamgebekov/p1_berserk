@@ -20,7 +20,8 @@ const count = () => { let n = 0; for (const m of R.listMeshes()) for (const p of
 const t0 = count(); console.log(hero, 'исходно', Math.round(t0), 'треугольников');
 // только цвет: нормали, металл-шероховатость, окклюзия и свечение игре не нужны (материалы без PBR, память телефона)
 for (const m of R.listMaterials()) { m.setNormalTexture(null); m.setOcclusionTexture(null); m.setMetallicRoughnessTexture(null); m.setEmissiveTexture(null); m.setMetallicFactor(0); m.setRoughnessFactor(1); m.setEmissiveFactor([0, 0, 0]); }
-await doc.transform(flatten(), join(), weld());
+const skinned = R.listSkins().length > 0;     // со скелетом сетки не склеиваем: кости привязаны к узлам
+await doc.transform(...(skinned ? [weld()] : [flatten(), join(), weld()]));
 await doc.transform(simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, target / t0), error: 0.01, lockBorder: false }));
 await doc.transform(dedup(), prune(), textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [1024, 1024], quality: 82 }));
 await io.write(out, doc);
