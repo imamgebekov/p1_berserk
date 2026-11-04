@@ -4,7 +4,7 @@
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, spawnEnemy, killEnemy } from '../3d/src/sim.js';
 import { travel } from '../3d/src/levels3d.js';
-import { nodeNear, gather, profCap, recipeColor, tradeUp, mountToggle, coachNear, discoverCoaches, fly, flightCost, addRep, tierOf, repOf, repEvents, rewardStatus, takeReward, serializeLife, sanitizeLife, priceRep } from '../3d/src/life3d.js';
+import { giveMount, hasMount, mountNext, mountPick, ownedMounts, mountDrop, nodeNear, gather, profCap, recipeColor, tradeUp, mountToggle, coachNear, discoverCoaches, fly, flightCost, addRep, tierOf, repOf, repEvents, rewardStatus, takeReward, serializeLife, sanitizeLife, priceRep } from '../3d/src/life3d.js';
 import { craft, craftStatus } from '../3d/src/craft3d.js';
 import { priceMulOf } from '../3d/src/economy3d.js';
 import { RECIPE_BY_ID } from '../3d/src/data/recipes3d.js';
@@ -56,6 +56,29 @@ const L = CFG3.life;
   mountToggle(W); W.player.inv = 0; const e = spawnEnemy(W, 'imp', W.player.x + 30, W.player.z); e.alert = false; W.life.mount.on = true; e.x = W.player.x + 1; e.state = 'wind'; e.t = CFG3.enemies.imp.wind - .01; e.alert = true; run(W, .2); ok(!W.life.mount.on, 'урон не спешил'); e.dead = true;
   W.player.inv = 1e9; const e2 = spawnEnemy(W, 'brute', W.player.x + 5, W.player.z); e2.alert = true; ok(mountToggle(W) === 'danger', 'сели рядом с врагом'); e2.dead = true;
   const d = CFG3.dungeons.list[0]; travel(W, d.id, d.entry.x, d.entry.z); ok(mountToggle(W) === 'place', 'верхом в подземелье'); }
+// ---------- 4б. несколько зверей ----------
+{ const L = CFG3.life.mount.list, sp = id => L.find(m => m.id === id).speed;
+  ok(L.length >= 4 && L.every(m => m.speed > 1 && CFG3.actors.beasts[m.actor]), 'список зверей: у каждого скорость и модель');
+  ok(sp('wolf') > sp('stag') && sp('stag') > sp('horse') && sp('ghost') > sp('wolf'), 'скорости зверей по порядку');
+  const W = mk(5); W.player.x = 50; W.player.z = 50; ok(!giveMount(W, 'nope') && mountToggle(W) === 'none', 'чужой зверь выдан');
+  ok(giveMount(W, 'wolf') && !giveMount(W, 'wolf') && hasMount(W, 'wolf') && !hasMount(W, 'horse'), 'волк не выдан или выдан дважды');
+  ok(mountPick(W).id === 'wolf', 'единственный зверь не выбран');
+  const go = (id) => { const W2 = mk(5); W2.player.x = 50; W2.player.z = 50; giveMount(W2, id); mountToggle(W2); const x0 = W2.player.x; run(W2, 2, { mx: 1, mz: 0 }); return W2.player.x - x0; };
+  const dw = go('wolf'), dh = (() => { const W2 = mk(5); W2.player.x = 50; W2.player.z = 50; giveMount(W2, 'horse'); mountToggle(W2); const x0 = W2.player.x; run(W2, 2, { mx: 1, mz: 0 }); return W2.player.x - x0; })();
+  ok(dw > dh * 1.05, `волк не быстрее коня: ${dh.toFixed(1)} → ${dw.toFixed(1)}`);
+  giveMount(W, 'horse'); ok(ownedMounts(W).length === 2 && W.life.mount.owned, 'два зверя не учтены, конь не отмечен');
+  const a = mountPick(W).id; ok(mountNext(W).id !== a && mountNext(W).id === a, 'выбор по кругу не работает');
+  mountToggle(W); ok(W.life.mount.cur === mountPick(W).id && mountNext(W) === null, 'верхом выбор не меняется');
+  const back = sanitizeLife(JSON.parse(JSON.stringify(serializeLife(W))), CFG3); ok(back.mount.have.wolf && back.mount.have.horse && back.mount.owned && back.mount.sel === W.life.mount.sel, 'звери не сохранились');
+  const old = sanitizeLife({ mount: 1 }, CFG3); ok(old.mount.owned && old.mount.have.horse && !old.mount.have.wolf, 'старое сохранение: конь потерян');
+  const bad = sanitizeLife({ mount: 0, mounts: ['x', 5, 'stag'], msel: 'zzz' }, CFG3); ok(bad.mount.have.stag && !bad.mount.have.x && bad.mount.sel === 'horse', 'мусор в зверях принят');
+  // награды стороны: олень и волк в списке, нужные ступени
+  const R = CFG3.life.rep; ok(R.rewards.some(r => r.mount === 'stag' && r.f === 'olkh') && R.rewards.some(r => r.mount === 'wolf' && r.f === 'band'), 'в наградах нет оленя или волка');
+  // редкий зверь с вожаков и боссов: без потока случайных чисел, один раз
+  const W3 = mk(11); let got = 0, n = 0; for (let i = 0; i < 400 && !got; i++) { W3.kills = i; n++; got = mountDrop(W3, { x: i * 3.7, z: -i * 2.3 }, 'boss') ? 1 : 0; }
+  ok(got && hasMount(W3, 'ghost') && n < 60, `призрачный жеребец не выпал за ${n} боссов`);
+  ok(!mountDrop(W3, { x: 1, z: 1 }, 'boss'), 'жеребец выпал дважды');
+  const W4 = mk(12); let m4 = 0; for (let i = 0; i < 100; i++) { W4.kills = i; if (mountDrop(W4, { x: i, z: i * 2 }, 'mob')) m4++; } ok(m4 === 0, 'жеребец выпал с обычного врага'); }
 // ---------- 5. повозки ----------
 { const W = mk(6), Cs = W.map.coaches, camp = Cs.find(c => c.id === 'camp'), hubs = CFG3.map.places.filter(p => p.hub);
   ok(camp && Math.hypot(camp.x - W.map.camp.x, camp.z - W.map.camp.z) < W.map.camp.r - 2, 'нет повозки в лагере'); ok(hubs.length >= 5 && hubs.every(h => Cs.some(c => c.id === h.id)), 'не у всех узлов есть повозка');

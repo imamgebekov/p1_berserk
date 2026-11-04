@@ -54,9 +54,9 @@ button{font:inherit;color:var(--ink)}
 .toast{font-size:14px;font-weight:600;text-shadow:0 1px 0 #000,0 0 4px #000;animation:toast 3.4s ease-out forwards}
 .toast.sys{color:#e8d9c0;opacity:.8}.toast.bad{color:#ff7a6a}
 @keyframes toast{0%{opacity:0;transform:translateX(-8px)}8%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
-#botTalk,#bag,#shop,#auction,#smith,#lib,#relic,#skills,#map,#captain,#journal,#quests,#fires{position:fixed;inset:0;z-index:15;background:rgba(8,4,5,.45);display:flex;align-items:flex-end;touch-action:pan-y}
-#botTalk[hidden],#bag[hidden],#shop[hidden],#auction[hidden],#smith[hidden],#lib[hidden],#relic[hidden],#skills[hidden],#map[hidden],#captain[hidden],#journal[hidden],#quests[hidden],#fires[hidden]{display:none}
-#botTalk .pbox,#bag .pbox,#shop .pbox,#auction .pbox,#smith .pbox,#lib .pbox,#relic .pbox,#skills .pbox,#map .pbox,#captain .pbox,#journal .pbox,#quests .pbox,#fires .pbox{max-height:88%;display:flex;flex-direction:column;overflow:hidden}
+#botTalk,#bag,#shop,#auction,#mail,#smith,#lib,#relic,#skills,#map,#captain,#journal,#quests,#fires{position:fixed;inset:0;z-index:15;background:rgba(8,4,5,.45);display:flex;align-items:flex-end;touch-action:pan-y}
+#botTalk[hidden],#bag[hidden],#shop[hidden],#auction[hidden],#mail[hidden],#smith[hidden],#lib[hidden],#relic[hidden],#skills[hidden],#map[hidden],#captain[hidden],#journal[hidden],#quests[hidden],#fires[hidden]{display:none}
+#botTalk .pbox,#bag .pbox,#shop .pbox,#auction .pbox,#mail .pbox,#smith .pbox,#lib .pbox,#relic .pbox,#skills .pbox,#map .pbox,#captain .pbox,#journal .pbox,#quests .pbox,#fires .pbox{max-height:88%;display:flex;flex-direction:column;overflow:hidden}
 .bhead{display:flex;justify-content:space-between;align-items:center;gap:10px}.bhead h2{margin:0;font-size:17px}
 .bhead button{min-height:44px;padding:0 18px;border:2px solid #000;border-radius:10px;background:var(--red);color:#fff;font-weight:700}
 .bstats{font-size:12.5px;opacity:.8;margin:4px 0 8px}
@@ -208,7 +208,7 @@ html[data-lefty] #combo{right:auto;left:calc(20px + env(safe-area-inset-left));t
 [data-desk] #hud,[data-desk] #miniBtn,[data-desk] #place,[data-desk] #toasts,[data-desk] #statusRow,[data-desk] #boss,[data-desk] #tracker,[data-desk] #talk,[data-desk] #questBtn,[data-desk] #portalBtn,[data-desk] #fireBtn,[data-desk] #warpBtn,[data-desk] #exitBtn,[data-desk] #sleepBtn,[data-desk] #combo,[data-desk] #fps{zoom:var(--dz,1)}
 [data-desk] #boss{width:calc((100vw - 96px * var(--dz,1)) / var(--dz,1) - 3 * var(--pad))}
 [data-desk] .pbox{max-width:760px;margin:0 auto;max-height:var(--pbh,84%);border:2px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;zoom:var(--pz,1)}
-[data-desk] #bag .pbox,[data-desk] #shop .pbox,[data-desk] #auction .pbox,[data-desk] #smith .pbox,[data-desk] #lib .pbox,[data-desk] #relic .pbox,[data-desk] #skills .pbox,[data-desk] #map .pbox,[data-desk] #captain .pbox,[data-desk] #journal .pbox,[data-desk] #quests .pbox,[data-desk] #fires .pbox{max-height:var(--pbh,84%)}
+[data-desk] #bag .pbox,[data-desk] #shop .pbox,[data-desk] #auction .pbox,[data-desk] #mail .pbox,[data-desk] #smith .pbox,[data-desk] #lib .pbox,[data-desk] #relic .pbox,[data-desk] #skills .pbox,[data-desk] #map .pbox,[data-desk] #captain .pbox,[data-desk] #journal .pbox,[data-desk] #quests .pbox,[data-desk] #fires .pbox{max-height:var(--pbh,84%)}
 [data-desk] #gl{cursor:crosshair}
 
 /* сумка: значки и плитки с рамкой редкости */
@@ -305,7 +305,7 @@ html[data-lefty] #abil .ab[data-i="4"]{left:calc(182px + env(safe-area-inset-lef
 .hold{position:relative;overflow:hidden}.hold .fill{position:absolute;inset:0;transform-origin:left;transform:scaleX(var(--k,0));background:rgba(196,22,28,.45);pointer-events:none}.hold .lbl{position:relative}
 #tweakBox[hidden]{display:none}
 /* шаг 5: окна появляются мягко — фон проявляется, блок окна поднимается; при «уменьшить движение» — только проявление */
-#botTalk:not([hidden]),#shop:not([hidden]),#auction:not([hidden]),#map:not([hidden]),#fires:not([hidden]),#skills:not([hidden]),#captain:not([hidden]),#quests:not([hidden]),#journal:not([hidden]),#smith:not([hidden]),#lib:not([hidden]),#relic:not([hidden]),#bag:not([hidden]),#panel:not([hidden]),.veil:not([hidden]){animation:sheetFade .18s ease-out both}
+#botTalk:not([hidden]),#shop:not([hidden]),#auction:not([hidden]),#mail:not([hidden]),#map:not([hidden]),#fires:not([hidden]),#skills:not([hidden]),#captain:not([hidden]),#quests:not([hidden]),#journal:not([hidden]),#smith:not([hidden]),#lib:not([hidden]),#relic:not([hidden]),#bag:not([hidden]),#panel:not([hidden]),.veil:not([hidden]){animation:sheetFade .18s ease-out both}
 section:not([hidden])>.pbox{animation:sheetIn .22s cubic-bezier(.2,.8,.2,1) both}
 @keyframes sheetIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
 @keyframes sheetFade{from{opacity:0}to{opacity:1}}
@@ -315,7 +315,7 @@ section:not([hidden])>.pbox{animation:sheetIn .22s cubic-bezier(.2,.8,.2,1) both
 #hpFill{position:relative}
 @media (prefers-reduced-motion:reduce){#hpGhost{transition:none}}
 /* ===== окна по центру (шаг «окна и сумка как в MMO») ===== */
-#botTalk,#bag,#shop,#auction,#smith,#lib,#relic,#skills,#map,#captain,#journal,#quests,#fires,#panel{align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 10px) 10px calc(env(safe-area-inset-bottom) + 10px)}
+#botTalk,#bag,#shop,#auction,#mail,#smith,#lib,#relic,#skills,#map,#captain,#journal,#quests,#fires,#panel{align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 10px) 10px calc(env(safe-area-inset-bottom) + 10px)}
 .pbox{border:2px solid var(--line);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03) inset;max-height:92%}
 [data-desk] .pbox{border-bottom:2px solid var(--line);border-radius:16px}
 /* ===== сумка: слева «кукла» и сводка, в центре сетка, справа карточка ===== */
@@ -481,7 +481,9 @@ kbd{font:600 12px/1 system-ui,-apple-system,sans-serif;padding:4px 7px;min-width
 #boss.shield #bossFill{background:linear-gradient(90deg,#8a9ab8,#d8e4ff)}
 /* жизнь мира (этап 6): повозка, сбор, конь; ремёсла и слава в журнале */
 #coachBtn,#gatherBtn{position:fixed;left:50%;bottom:calc(262px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:48px;max-width:calc(100vw - 32px);padding:0 18px;background:#2a3a24;color:#e0f0c8;font-weight:700;border:3px solid #000;border-radius:12px}
-#coachBtn{background:#3a2c20;color:#ffe2b0}#coachBtn[hidden],#gatherBtn[hidden],#mountBtn[hidden]{display:none}
+#coachBtn{background:#3a2c20;color:#ffe2b0}#coachBtn[hidden],#gatherBtn[hidden],#mountBtn[hidden],#mountNextBtn[hidden]{display:none}
+#mountNextBtn{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(382px + env(safe-area-inset-bottom));min-height:40px;min-width:64px;padding:0 12px;background:#2c2018;color:#ffe2b0;font-weight:700;border:2px solid #6a5238;border-radius:12px}
+[data-desk] #mountNextBtn{bottom:148px;right:24px}
 #mountBtn{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(330px + env(safe-area-inset-bottom));min-height:44px;min-width:64px;padding:0 12px;background:#3a2a1c;color:#ffe2b0;font-weight:700;border:2px solid #000;border-radius:12px}
 [data-desk] #coachBtn,[data-desk] #gatherBtn{bottom:150px}[data-desk] #mountBtn{bottom:96px;right:24px}
 .jtabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.jtabs .tab{min-height:40px}
@@ -1111,7 +1113,7 @@ html:not([data-desk]) #hpTxt{grid-row:1;grid-column:2;justify-self:center;min-wi
 #botBtn{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);min-height:48px;padding:0 22px;background:#2a3a1a;color:#e8ffd0;font-weight:700;border:3px solid #000;border-radius:12px;z-index:6;touch-action:none;white-space:nowrap}#botBtn[hidden]{display:none}
 [data-desk] #botBtn{zoom:var(--dz,1)}
 /* телефон боком (2026-11-03, замечания владельца с iPhone): окна на всю высоту, компактная шапка, сумка в две колонки, древо и выбор героя прокручиваются */
-[data-land] #botTalk .pbox,[data-land] #bag .pbox,[data-land] #shop .pbox,[data-land] #auction .pbox,[data-land] #smith .pbox,[data-land] #lib .pbox,[data-land] #relic .pbox,[data-land] #skills .pbox,[data-land] #map .pbox,[data-land] #captain .pbox,[data-land] #journal .pbox,[data-land] #quests .pbox,[data-land] #fires .pbox{max-height:100%;height:100%;padding:6px 14px 8px}
+[data-land] #botTalk .pbox,[data-land] #bag .pbox,[data-land] #shop .pbox,[data-land] #auction .pbox,[data-land] #mail .pbox,[data-land] #smith .pbox,[data-land] #lib .pbox,[data-land] #relic .pbox,[data-land] #skills .pbox,[data-land] #map .pbox,[data-land] #captain .pbox,[data-land] #journal .pbox,[data-land] #quests .pbox,[data-land] #fires .pbox{max-height:100%;height:100%;padding:6px 14px 8px}
 [data-land] .pbox .bhead{min-height:0;margin:0 0 2px}[data-land] .pbox .bhead h2{font-size:19px}[data-land] .pbox .bhead .close,[data-land] .pbox .bhead .jbtn{width:38px;height:38px;min-width:0;min-height:0}
 [data-land] .pbox .bhead::after{display:none}
 [data-land] #skills #skillXp{margin:0;font-size:12.5px;min-height:0}[data-land] #skills .reset,[data-land] #skillReset{min-height:34px!important;height:34px;font-size:13px;padding:0 14px}
@@ -1136,7 +1138,7 @@ html:not([data-desk]) #hpTxt{grid-row:1;grid-column:2;justify-self:center;min-wi
 [data-land] #skills #skillXp{display:none}[data-land] #skills .bhead{min-height:0}
 
 /* аукцион (2026-11-04): список слева, карточка лота справа; на телефоне карточка уходит под список */
-[data-desk] #auction .pbox{max-width:1100px}
+[data-desk] #auction .pbox,[data-desk] #mail .pbox{max-width:1100px}
 #auction .shead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}#auction .shead h2{font-size:22px;letter-spacing:.03em;color:#d9b27a}#auction .ssub{font-size:13.5px;color:#b39f84;flex:1;min-width:0}#auction .shead .tash{font-size:16px}
 #aucTabs{display:flex;gap:6px;margin:8px 0 6px;overflow-x:auto;flex:none}
 #aucFlash{min-height:0;font-size:12.5px;color:#ff9a8a;margin-bottom:4px}#aucFlash.good{color:#9fe08a}
@@ -1170,3 +1172,14 @@ html:not([data-desk]) #hpTxt{grid-row:1;grid-column:2;justify-self:center;min-wi
 #auction .tchips,#auction .afil.nums{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}#auction .tchips>*,#auction .afil.nums>*{flex:none}
 @media (max-width:760px),(max-height:520px){#auction .apane{overflow:auto;-webkit-overflow-scrolling:touch;display:block}#auction .apane>*{margin-bottom:6px}#auction .alist{flex:none;overflow:visible;display:flex}#auction .ssub{display:none}#auction .tab{min-height:34px}#aucTabs{margin:4px 0}#auction .shead{gap:8px}#auction .bhead button.close{min-height:38px;padding:0 14px}}
 #auction .tchips,#auction .afil.nums{scrollbar-width:none}#auction .tchips::-webkit-scrollbar,#auction .afil.nums::-webkit-scrollbar{display:none}
+
+#mailBtn{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(434px + env(safe-area-inset-bottom));min-height:40px;min-width:64px;padding:0 12px;background:#2c2018;color:#ffe2b0;font-weight:700;border:2px solid #6a5238;border-radius:12px}#mailBtn[hidden]{display:none}#mailBtn.new{border-color:#e8c04a;color:#ffe9a0}
+[data-desk] #mailBtn{bottom:200px;right:24px}
+#mail .mlist{display:flex;flex-direction:column;gap:6px;padding:8px}#mail .mrow{background:rgba(255,255,255,.04);border:1px solid #3a2a20;border-radius:10px}#mail .mrow.unread{border-color:#e8c04a}
+#mail .mhead{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:10px 12px;background:none;border:0;color:inherit;text-align:left;min-height:44px}#mail .mhead span{font-size:.8em;opacity:.7}
+#mail .mdet{padding:4px 12px 12px}#mail .mtext{line-height:1.45;padding:6px 12px 10px}#mail .mdet .mtext{padding:4px 0 8px}#mail .matt{color:#e8c04a;margin:2px 0 8px}
+#mail .macts,#mail .gquick{display:flex;flex-wrap:wrap;gap:8px;padding:6px 8px}#mail .mbtn{min-height:44px;padding:0 14px;background:#3a2a1c;color:#ffe2b0;border:2px solid #6a5238;border-radius:12px;font-weight:700}#mail .mbtn.ghost{background:none}
+#mail .mempty{padding:24px;text-align:center;opacity:.7}#mail .gname{font-size:1.2em;font-weight:800;padding:10px 12px 0}#mail .gsub{padding:0 12px 6px;opacity:.7;font-size:.85em}
+#mail .glog{max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch;margin:0 8px;padding:8px;background:rgba(0,0,0,.25);border-radius:10px}#mail .gline{padding:3px 0;line-height:1.4}#mail .gline b{color:#9ad0ff}#mail .gline.me b{color:#e8c04a}
+#mailFlash{min-height:1.2em;padding:0 12px;color:#ff9a8a}#mailFlash.good{color:#9ae89a}
+#mail .grank{display:flex;flex-direction:column;gap:6px;padding:8px}#mail .grow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 10px;background:rgba(255,255,255,.04);border:1px solid #3a2a20;border-radius:10px}#mail .grow.me{border-color:#9ad0ff}#mail .grow .gn{font-weight:700;flex:1 1 140px}#mail .grow .gs{opacity:.75;font-size:.85em}

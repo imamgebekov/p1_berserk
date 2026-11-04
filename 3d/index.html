@@ -59,7 +59,7 @@
 <button id="gatherBtn" type="button" hidden>Собрать</button>
 <button id="lootBtn" type="button" hidden>Добыча</button>
 <section id="loot" hidden aria-label="Добыча"><div class="lhead"><div class="lht"><div id="lootName" class="lname"></div><div id="lootTime" class="ltime"></div></div><button id="lootClose" type="button" class="lclose" aria-label="Закрыть">×</button></div><div id="lootList"></div><div class="lfoot"><button id="lootAll" type="button" class="lall">Взять всё</button><span class="lkey" aria-hidden="true">E</span></div></section>
-<button id="mountBtn" type="button" hidden>Конь</button>
+<button id="mountBtn" type="button" hidden>Конь</button><button id="mailBtn" type="button" hidden>Почта</button><button id="mountNextBtn" type="button" hidden aria-label="Другой зверь">⇄</button>
 <button id="fireBtn" type="button" hidden data-icon="fire">Костёр</button>
 <button id="warpBtn" type="button" hidden data-icon="fire">Костры</button>
 <button id="exitBtn" type="button" hidden>Выйти</button>
@@ -135,6 +135,15 @@
     <div id="aucPend" class="apend" hidden></div>
     <div id="aucFlash"></div>
     <div id="aucBody"></div>
+  </div>
+</section>
+
+<section id="mail" hidden>
+  <div class="pbox">
+    <div class="bhead shead"><h2>Почта</h2><span id="mailSub" class="ssub"></span><button id="mailClose" type="button" class="close" aria-label="Закрыть" title="Закрыть (Esc)">×</button></div>
+    <div id="mailTabs" class="tabs"></div>
+    <div id="mailFlash"></div>
+    <div id="mailBody"></div>
   </div>
 </section>
 

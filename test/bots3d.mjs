@@ -3,6 +3,7 @@
 // вдали бот в дешёвом режиме (не в W.allies) и растёт по таймеру; в сохранение отряда боты не попадают; без W.wantBots ботов нет.
 import { CFG3 } from '../3d/src/config3d.js';
 import { createWorld, step, mulberry32, spawnEnemy } from '../3d/src/sim.js';
+import { insideOf } from '../3d/src/map.js';
 import { packSquad } from '../3d/src/squad3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); }, C = CFG3.bots;
 { const W = createWorld(CFG3, mulberry32(3)); step(W, 1 / 30, {}); ok(!W.bots, 'боты появились без wantBots (тесты боя сдвинутся)'); }
@@ -12,10 +13,10 @@ ok(new Set(W.bots.map(b => b.name)).size === W.bots.length && W.bots.every(b => 
 ok(W.bots.every(b => b.lv >= 1 && b.lv <= 60 && C.classes[b.hero] && b.eq.weapon && b.maxhp > 0), 'у бота нет уровня, класса, оружия или здоровья');
 { const cut = W.botHomes.map(h => h.lv).sort((u, v) => u - v)[C.start - 1] + 2; ok(W.bots.filter(b => b.lv <= cut).length >= C.start, `у начала мало ботов малого уровня (до ${cut})`); }
 // бой рядом с героем: бот находит врага, бьёт, враг бьёт бота; опыта и счёта убийств герою нет; бот лутает тело
-const b = W.bots.slice().sort((u, v) => u.lv - v.lv)[0];
+const b = W.bots.filter(x => !x.guild).sort((u, v) => u.lv - v.lv)[0];     // одиночка: соратники по гильдии убили бы врага раньше, чем он ударит
 p.x = b.x + 12; p.z = b.z; W.enemies.length = 0; step(W, 1 / 30, {});
 ok(W.allies.includes(b), 'бот рядом не в бою (нет в W.allies)');
-const xp0 = W.xp, k0 = W.kills, e = spawnEnemy(W, 'brute', b.x + 4, b.z); e.lvl = b.lv; let minHp = b.hp, t = 0;
+const xp0 = W.xp, k0 = W.kills, ex = [[4, 0], [-4, 0], [0, 4], [0, -4], [3, 3], [-3, -3]].find(([dx, dz]) => insideOf(W.map, b.x + dx, b.z + dz) === -1 && insideOf(W.map, b.x + dx * 2, b.z + dz * 2) === -1) || [4, 0], e = spawnEnemy(W, 'brute', b.x + ex[0], b.z + ex[1]); e.lvl = b.lv; let minHp = b.hp, t = 0;
 for (; t < 40 && !e.dead && !b.dead; t += 1 / 30) { step(W, 1 / 30, {}); minHp = Math.min(minHp, b.hp); p.x = b.x + 12; p.z = b.z; }
 ok(e.dead && W.bots.some(x => x.id === e.byBot), `бот не убил врага за ${t.toFixed(0)} с (враг ${e.hp}/${e.maxhp}, бот ${b.dead ? 'погиб' : b.hp})`);
 ok(minHp < b.maxhp, 'враг не бил бота');

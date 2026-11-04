@@ -651,7 +651,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // жители и звери (2026-10-20): готовая модель по виду, если пришла; tint и рост — по виду
   const ambMake = (g, id, tint) => { const k = actorKey(cfg, g, id); if (!k || !actorReady(k)) return null; const A0 = cfg.actors, h = (A0.sizes || {})[id]; return makeActor(k, { ...kitOf(k), ...(h ? { height: h } : {}), tint: tint || A0.tints[id] }, id); };
   let ambSwapT = 0;
-  let horse = makeHorse(); horse.group.visible = false; scene.add(horse.group);     // ездовое животное (этап 6)
+  const rides = {};     // ездовые звери по id: модель создаётся при первой посадке
+  const rideOf = id => { let r = rides[id]; if (r) return r; const d = cfg.life.mount.list.find(m => m.id === id) || cfg.life.mount.list[0]; const A = ambMake('beast', d.actor); r = A || makeHorse(); r.group.visible = false; scene.add(r.group); rides[id] = r; r.seat = d.seat ?? .95; return r; };     // ездовое животное (этап 6)
   // точки сбора (этап 6): по виду — основа и яркая метка, по одному InstancedMesh на часть (мало вызовов отрисовки); собранная — скрыта до роста
   const NODE_LOOK = { herb: [new THREE.ConeGeometry(.42, .7, 6), '#3e7a30', new THREE.SphereGeometry(.12, 6, 4), '#f0d860', .62], ore: [new THREE.DodecahedronGeometry(.55, 0), '#66666e', new THREE.BoxGeometry(.5, .1, .14), '#e8b040', .45], hide: [new THREE.BoxGeometry(1.1, .4, .6), '#6a4630', new THREE.BoxGeometry(.7, .08, .08), '#e8e0c8', .3] };
   let nodeParts = null, nodeT = 0; const NM = new THREE.Matrix4(), NQ = new THREE.Quaternion(), NS = new THREE.Vector3(), NP = new THREE.Vector3(), NY = new THREE.Vector3(0, 1, 0);
@@ -1088,7 +1089,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       for (const c of crows) if (!c.m.gltf) { const A = ambMake('beast', 'crow'); if (A) c.m = swapIn(c.m, A, life); }
       for (const c of ducks) if (!c.m.gltf) { const A = ambMake('beast', 'duck'); if (A) c.m = swapIn(c.m, A, life); }
       for (const c of beasts) for (const [k, m] of Object.entries(c.ms)) if (!m.gltf && actorKey(cfg, 'beast', k) && actorReady(actorKey(cfg, 'beast', k))) { life.remove(m.group); disposeDeep(m.group); delete c.ms[k]; if (c.m === m) c.m = null; }
-      if (!horse.gltf) { const A = ambMake('beast', 'horse'); if (A) horse = swapIn(horse, A, scene); } }
+      for (const [id, r] of Object.entries(rides)) if (!r.gltf) { const d = cfg.life.mount.list.find(m => m.id === id), A = d && ambMake('beast', d.actor); if (A) { A.seat = r.seat; rides[id] = swapIn(r, A, scene); } } }
     for (const n of npcs) { { const vis = !under && inView(n.pos.x, Y(n.pos.x, n.pos.z) + 1, n.pos.z, 2.2); if (n.group.visible !== vis) n.group.visible = vis; if (!vis) continue; }     // житель-торговец вне кадра — не рисуется и не анимируется (экономия)
       if (n.gltf) n.tick(dt, 'idle'); const dx = p.x - n.pos.x, dz = p.z - n.pos.z; if (Math.hypot(dx, dz) < 9) n.group.rotation.y += angDiffTo(Math.atan2(dx, dz), n.group.rotation.y) * Math.min(1, dt * 6); n.root.position.y = Math.sin(t * 2) * .02; { const mk = storyTalkable(W, n.kind || n.pos.kind) ? 'available' : questMark(W, n.kind || n.pos.kind); n.mark.visible = !!mk; if (mk) { n.mark.material.color.set(mk === 'ready' ? '#7ad06a' : '#e8c04a'); n.mark.position.y = 2.6 + Math.sin(t * 3) * .08; n.mark.rotation.y = t * 2; } } n.armL.rotation.x = Math.sin(t * 1.6) * .08; n.armR.rotation.x = -Math.sin(t * 1.6) * .08; }
     { const w = W.wanderer; cart.group.visible = !under && !!w;
@@ -1147,8 +1148,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     heroBlade.set(hero.weapon, bladeOn() ? bladeEls(W.wp).filter(hasBladeStyle) : []); heroBlade.update(dt, t, calm);
     updateChevs(W, p, t);
     if (hero.gltf) { driveHero(hero, p, dt, cfg, p.swingMul || W.gear.swing || 1); if (W.abuf && W.abuf.morph > 0) hero.flash(0, [.01, .07 + .03 * Math.sin(t * 6), .01]); else hero.flash(p.inv > 0 && p.inv < 5 && p.state !== 'roll' ? .25 : 0); } else animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);     // Г8: облик демона — зелёное свечение
-    { const on = !!(W.life && W.life.mount.on) && !p.dead; horse.group.visible = on;     // верхом: конь под героем, герой выше и сидит
-      if (on) { horse.group.position.set(p.x, py, p.z); horse.group.rotation.y = hero.group.rotation.y; horse.step(t, Math.hypot(p.vx, p.vz)); hero.group.position.y = py + .95; if (hero.legL) hero.legL.rotation.x = hero.legR.rotation.x = -1.2; } }
+    { const on = !!(W.life && W.life.mount.on) && !p.dead, cur = on ? W.life.mount.cur : null; for (const [id, r] of Object.entries(rides)) if (r.group.visible !== (id === cur)) r.group.visible = id === cur;     // верхом: зверь под героем, герой выше и сидит
+      if (on) { const horse = rideOf(cur); horse.group.visible = true; horse.group.position.set(p.x, py, p.z); horse.group.rotation.y = hero.group.rotation.y; horse.step(t, Math.hypot(p.vx, p.vz)); hero.group.position.y = py + horse.seat; if (hero.legL) hero.legL.rotation.x = hero.legR.rotation.x = -1.2; } }
     updateNodes(W, dt); updateCoaches(W);
     statusFx(heroFx, p.dead ? null : W.pst, p.x, Y(p.x, p.z), p.z, 1.7, 1, dt);
     updateCharge(p, t);

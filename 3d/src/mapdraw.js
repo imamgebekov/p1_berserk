@@ -183,6 +183,9 @@ export function drawMap(ctx, W, v) {
   if (!under) for (const q of W.qmarks || []) { if (W.goal && q.x === W.goal.x && q.z === W.goal.z) continue; const m = 6, [x, y] = edge(X(q.x), Y(q.z), m), r = full ? 5 : 4;
     if (full) { badge(ctx, 'map:quest', x, y, 8 * U, q.ready ? '#3a9a3a' : '#b8901c'); continue; }
     ctx.fillStyle = q.ready ? '#8fe08a' : '#e8d07a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  // мировые события (2026-11-05): вторжение — оранжевый, бродячий босс — красный, дракон — фиолетовый; на миникарте прижимаются к краю
+  if (!under && W.wev) for (const q of W.wev.list) { const m = 8, [x, y] = edge(X(q.x), Y(q.z), m), r = full ? 7 : 5, col = q.kind === 'dragon' ? '#b070ff' : q.kind === 'roamer' ? '#ff5a4a' : '#ff9a3a', t = performance.now() / 1000;
+    ctx.fillStyle = col; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(x, y, r + (Math.sin(t * 3) + 1) * .8, 0, 6.2832); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#1a0808'; ctx.fillRect(x - 1, y - r * .55, 2, r * .7); ctx.fillRect(x - 1, y + r * .3, 2, 2); }
   // цель (шаг 12): золотое кольцо с точкой; на миникарте за краем — прижимается к краю, показывая направление
   if (W.goal && Number.isFinite(W.goal.x)) { const m = 7, [x, y] = edge(X(W.goal.x), Y(W.goal.z), m), t = performance.now() / 1000, r = (5 + (full ? 0 : Math.sin(t * 4) * .8)) * (full ? U * 1.4 : 1);
     ctx.lineWidth = 2.5; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.arc(x, y, r + 1, 0, 6.2832); ctx.stroke(); ctx.strokeStyle = '#ffd45a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.stroke(); ctx.fillStyle = '#ffd45a'; ctx.beginPath(); ctx.arc(x, y, 1.8, 0, 6.2832); ctx.fill(); }

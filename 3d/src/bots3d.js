@@ -46,6 +46,7 @@ function outside(W, a) {
   const b = W.map.buildings[i], o = b && b.door && b.door.out; if (o) { a.x = o.x; a.z = o.z; } resolve(W.map, a, R);
 }
 function newHome(W, a) {
+  if (a.guild) { const m = W.bots.find(o => o.guild === a.guild && o !== a && Math.abs(o.home.lv - a.lv) <= 2); if (m) return m.home; }     // соратники держатся вместе
   const H = W.botHomes, best = H.filter(h => Math.abs(h.lv - a.lv) <= 2); return best.length ? pickOf(W, best) : H.reduce((b, h) => (Math.abs(h.lv - a.lv) < Math.abs(b.lv - a.lv) ? h : b), H[0]);
 }
 function statsOf(W, a) {
@@ -62,6 +63,7 @@ export function initBots(W) {
     const name = names.splice(Math.floor(W.brng() * names.length), 1)[0], ang = rnd(W, 0, TAU), rr = rnd(W, 0, h.r);
     const b = { id: 100000 + i, bot: true, guest: true, type: 'bot', name, hero, T: { hero, ...C.classes[hero] }, lv, home: h, x: h.x + Math.sin(ang) * rr, z: h.z + Math.cos(ang) * rr,
       vx: 0, vz: 0, face: ang, hp: 1, maxhp: 0, state: 'idle', t: 0, cd: 0, dead: false, deadT: 0, flash: 0, moving: false, mode: 'roam', goal: null, idleT: 0, huntT: rnd(W, ...C.farKill), kills: 0, sayT: 0 };
+    { const G = (W.cfg.mail && W.cfg.mail.guild) || null, gi = G && Math.floor(i / G.per); if (G && gi < G.list.length) { b.guild = G.list[gi].id; const m = W.bots.find(o => o.guild === b.guild); if (m) { b.home = m.home; b.lv = clamp(m.home.lv + (lv - h.lv), 1, 60); b.x = m.home.x + Math.sin(ang) * Math.min(rr, m.home.r); b.z = m.home.z + Math.cos(ang) * Math.min(rr, m.home.r); } } }     // гильдия: соратники живут в одном месте
     outside(W, b); gearFor(W, b); statsOf(W, b); b.hp = b.maxhp; W.bots.push(b);
   }
 }
@@ -70,6 +72,8 @@ function gotKill(W, a) {
   const C = W.cfg.bots; a.kills++;
   if (a.kills % C.lvKills === 0 && a.lv < 60) { a.lv++; say(W, a, 'lvl', true); if (a.lv % 12 === 0) gearFor(W, a); if (a.lv > a.home.lv + C.move) { a.home = newHome(W, a); a.goal = null; } }
 }
+// награда за общий бой: боту засчитываются убийства (уровни растут, как от охоты)
+export function botCredit(W, a, n) { for (let i = 0; i < n; i++) gotKill(W, a); }
 function wanderGoal(W, a) {
   const C = W.cfg.bots, h = a.home; let g = null;
   for (let k = 0; k < 6; k++) { const ang = rnd(W, 0, TAU), r = rnd(W, C.wander[0], h.r + C.wander[1]); g = { x: h.x + Math.sin(ang) * r, z: h.z + Math.cos(ang) * r }; if (insideOf(W.map, g.x, g.z) < 0) break; }     // не в дом
@@ -191,6 +195,7 @@ export function updateBots(W, dt) {
   const p = W.player, inA = new Set(W.allies.filter(a => a.bot)); let n = 0;
   const order = W.bots.map(a => [len(a.x - p.x, a.z - p.z), a]).sort((u, v) => u[0] - v[0]);
   for (const [d, a] of order) {
+    if (a.arena) { if (inA.has(a)) W.allies.splice(W.allies.indexOf(a), 1); a.near = false; continue; }     // дуэль на арене: бот сейчас — враг героя (arena3d.js)
     const keep = on && (!a.dead || a.deadT < C.rot) && d < C.near && n < C.cap;
     if (keep) { n++; if (!inA.has(a)) { outside(W, a); resolve(W.map, a, R); statsOf(W, a); W.allies.push(a); if (!a.greeted && d < 14) { a.greeted = true; a.near = true; say(W, a, 'hi'); } } }
     else if (inA.has(a)) { W.allies.splice(W.allies.indexOf(a), 1); if (a.dead) a.deadT = Math.max(a.deadT, C.rot); }

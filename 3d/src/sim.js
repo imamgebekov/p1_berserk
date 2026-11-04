@@ -14,11 +14,13 @@ import { hurtAlly, updateAllies, packSquad, restoreAllies } from './squad3d.js';
 import { updateBots } from './bots3d.js';
 import { threatPick, addThreat } from './threat3d.js';
 import { zoneAt } from './zones3d.js';
-import { lifeFresh, nodesOf, coachesOf, mountMul, mountInput, dismount, repEvents, discoverCoaches } from './life3d.js';
+import { lifeFresh, nodesOf, coachesOf, mountMul, mountDrop, mountInput, dismount, repEvents, discoverCoaches } from './life3d.js';
 import { trackPlace, reveal } from './places3d.js';
 import { addXp, gainXp, paceXp } from './progress3d.js';
 import { restock } from './economy3d.js';
 import { updateWanderer, nearWanderer, blockCart, updateEvents } from './events3d.js';
+import { wevTick } from './worldev3.js';
+import { arenaTick } from './arena3d.js';     // арена: дуэль с ботом (2026-11-05)     // мировые события (2026-11-05)
 import { useSlot, dashStep, tickAbilities } from './abilities3d.js';
 import { abilityPointsAt } from './data/abilities3d.js';
 import { waterDist, inStream, buildHeights, heightAt } from './terrain3d.js';
@@ -393,6 +395,7 @@ export function killEnemy(W, e, share) {
   { const mid = magicDropOf(W, e, clamp(depthAt(W, e.x, e.z) + .1 * (e.danger || 0), 0, 1)); if (mid) { W.drops.push({ id: mid, n: 1, x: e.x - .5, z: e.z + .5, t: 0, cd: 0, il: lootIl(W, e, e.id) ?? ilRoll(W, e.lvl, e.id) }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: mid }); } }     // посох или жезл (Ирга)
   { const gid = gemDropOf(W, e); if (gid) { W.drops.push({ id: gid, n: 1, x: e.x + .5, z: e.z - .5, t: 0, cd: 0 }); W.ev.push({ k: 'drop', x: e.x, z: e.z, id: gid }); } }     // камень силы
   if (share >= 1) mixOnDeath(W, e);
+  if (share >= 1 && (e.boss || e.elite || e.guard)) mountDrop(W, e, e.boss ? 'boss' : 'mini');     // редкий зверь
   if (share >= 1 && W.gfx.midas && !e.boss && W.rng() < W.gfx.midas) dropLoot(W, e);                         // Перстень Мидаса: добыча дважды
   if (share >= 1 && W.gfx.gale) { const ex = W.buffs.find(b => b.src === 'gale'); if (ex) ex.t = W.gfx.gale[1]; else W.buffs.push({ stat: 'spd', amt: W.gfx.gale[0], t: W.gfx.gale[1], src: 'gale' }); }     // Сапоги Ветра
   if (e.guard && !W.keys[e.guard]) { W.keys[e.guard] = true; W.ev.push({ k: 'key', key: e.guard, x: e.x, z: e.z }); }     // страж замка отдаёт ключ трона (C4)
@@ -996,7 +999,7 @@ function updateEnemies(W, dt) {
   // держим нужное число врагов (кольцом вокруг героя — только на поверхности; в подземельях свои правила)
   if (!onSurface(W)) return;
   // бродячие, ушедшие дальше drop, забываются (место освобождается); живыми вокруг считаются только не спящие
-  const keepFar = e => e.boss || e.evId || (e.mode && !e.pack && !e.garr);              // стайки и гарнизоны забываются, как бродячие
+  const keepFar = e => e.boss || e.evId || e.wev || (e.mode && !e.pack && !e.garr);              // стайки и гарнизоны забываются, как бродячие
   if (W.enemies.some(e => !keepFar(e) && len(e.x - p.x, e.z - p.z) > E.sleep.drop)) {
     for (const e of W.enemies) if (e.garr && !e.dead && len(e.x - p.x, e.z - p.z) > E.sleep.drop) { W.garr[e.garr] = 0; if (W.camps) delete W.camps[e.garr]; }     // гарнизон не зачищен — заселится снова
     W.enemies = W.enemies.filter(e => keepFar(e) || len(e.x - p.x, e.z - p.z) <= E.sleep.drop);
@@ -1217,6 +1220,8 @@ export function step(W, dt, input = {}) {
   if (W.map.river) { const PW = physWater(W.cfg); W.map.river.ford = PW ? PW.ford : 0; }     // план физики, этап 5: брод у берега
   if (W.portalGo) { W.portalGo = false; const q = W.player.stair && W.player.stair.q; W.player.stair = null; if (q) travel(W, q.to, q.tx, q.tz); }     // этап 6: прошёл по ступеням — переход
   { const D = W.cfg.daynight, n = isNight(W.t, D); W.light = lightOf(W.t, D); if (n !== W.night) { W.night = n; W.ev.push({ k: n ? 'dusk' : 'dawn' }); } }
+  if (W.arena && W.arena.duel) arenaTick(W, dt);
+  if (W.wantBots && W.bots) wevTick(W, dt);     // мировые события: вторжение, бродячий босс, дракон
   if (W.auction || (W.wantBots && W.bots)) auctionTick(W);     // аукцион: рынок живёт по игровому времени (auction3d.js)
   if (W.storyDark) W.light = Math.min(W.light, .06);     // Затмение (этап 7): солнце чернеет
   for (let i = W.buffs.length - 1; i >= 0; i--) { W.buffs[i].t -= dt; if (W.buffs[i].t <= 0) W.buffs.splice(i, 1); }
@@ -1253,7 +1258,7 @@ export function step(W, dt, input = {}) {
   tickBossZones(W, dt);
   updateHouses(W, dt);
   for (const def of W.cfg.bosses.list) { if ((def.level && !W.levels[def.level]) || (def.inst && W.cfg.dungeons.gen && W.cfg.dungeons.gen.on)) continue; const t = W.bossDead[def.type]; if (t !== undefined && (W.bossDead[def.type] = t - dt) <= 0) withLevel(W, def.level || SURFACE, () => spawnBoss(W, def)); }     // боссы живут на своём уровне, даже если герой на другом
-  { let hb = null; for (const e of W.enemies) if ((e.boss || e.duel) && !e.dead && (e.alert || e.duel) && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!(e.b && e.b.enraged), id: e.id, shield: !!(e.b && e.b.shield), cast: e.b && e.b.state === 'wind' && e.b.atk && e.b.atk.kind === 'cast' ? { name: e.b.atk.name, k: e.b.atk.t / e.b.atk.wind } : null }; if (e.duel) break; } W.hudBoss = hb; }     // противник поединка — тоже с полосой     // этап 5: щит и чтение на полосе босса
+  { let hb = null; for (const e of W.enemies) if ((e.boss || e.duel) && !e.dead && (e.alert || e.duel) && len(e.x - W.player.x, e.z - W.player.z) < 55) { hb = { name: e.nick || W.cfg.enemies[e.type].name, frac: e.hp / e.maxhp, enraged: !!(e.b && e.b.enraged), id: e.id, shield: !!(e.b && e.b.shield), cast: e.b && e.b.state === 'wind' && e.b.atk && e.b.atk.kind === 'cast' ? { name: e.b.atk.name, k: e.b.atk.t / e.b.atk.wind } : null }; if (e.duel) break; } W.hudBoss = hb; }     // противник поединка — тоже с полосой     // этап 5: щит и чтение на полосе босса
   if (W.shake > 0) W.shake = Math.max(0, W.shake - dt * 1.4);
   if (W.life) { repEvents(W, ev0); discoverCoaches(W); }
   achEvents(W); achTick(W, dt);     // достижения (этап 6 «круче»)     // репутация по событиям шага, повозки рядом (этап 6)

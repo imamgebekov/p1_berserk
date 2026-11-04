@@ -5,6 +5,9 @@ import { BY_ID, RARITY, STAT_NAME, SLOT_NAME, statLine } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith, createCaptain } from './shop.js';
+import { createMail } from './mailui.js';     // почта и гильдия (2026-11-05)
+import { arenaOf, startDuel, duelBlock, winChance, botRating, prizeOf, sanitizeArena, dueling } from './arena3d.js';
+import { mailTick, mailOnEvent, unread as mailUnread, mailOf, sanitizeMail } from './mail3d.js';
 import { createAuction } from './auctionui.js';     // аукцион (2026-11-04)
 import { tick as auctionTick, auctionOf, pendCount, sanitizeAuction } from './auction3d.js';
 import { createLibrary } from './libui.js';
@@ -48,7 +51,7 @@ import { setHeroic, isInstance, heroicOpen, portalInfo } from './levels3d.js';
 import { exitRun, exitPreview, exitBlock } from './runexit3d.js';
 import { nearBot, stockOf, buyFrom, recruit, recruitBlock, recruitCost } from './botsocial3d.js';
 import { roomEventLine } from './roomev3d.js';     // план подземелий, 2д
-import { nodeNear, gather, mountToggle, coachNear, coachList, flightCost, fly } from './life3d.js';
+import { nodeNear, gather, mountToggle, mountNext, mountPick, ownedMounts, anyMount, coachNear, coachList, flightCost, fly } from './life3d.js';
 import { STATUS_NAME, STATUS_COLOR } from './status3d.js';
 import { loadSaveAny, createSaver, unpackSeenChunks, applyDseen, applyDungeonState, exportSave, importSave, saveFileName } from './save3d.js';
 import { createRenderer } from './render.js';
@@ -75,7 +78,7 @@ const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
 // iOS Safari местами игнорирует touch-action: страницу нельзя ни листать, ни тянуть, ни масштабировать, пока открыта не панель
-const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #auction, #smith, #lib, #skills, #map, #captain, #journal, #quests, #heroPick, #botTalk, #fires, #relic');     // окна, где касание прокручивает (2026-11-03: + выбор героя, бот, костры, дары — не прокручивались на телефоне)
+const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #auction, #mail, #smith, #lib, #skills, #map, #captain, #journal, #quests, #heroPick, #botTalk, #fires, #relic');     // окна, где касание прокручивает (2026-11-03: + выбор героя, бот, костры, дары — не прокручивались на телефоне)
 document.addEventListener('touchmove', e => { if (!inPanel(e)) e.preventDefault(); }, { passive: false });
 for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -116,7 +119,7 @@ const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : 
 const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)
 if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
-if (saved) { W.questFocus = saved.qf || null; W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (saved.ach) W.ach = saved.ach; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); W.auction = sanitizeAuction(W, saved.auc); }
+if (saved) { W.questFocus = saved.qf || null; W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (saved.ach) W.ach = saved.ach; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); W.auction = sanitizeAuction(W, saved.auc); W.mail = sanitizeMail(W, saved.mail); W.arena = sanitizeArena(saved.arena); }
 W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);
 W.mentor = saved && saved.prog.mentor ? sanitizeMentor(saved.prog.mentor) : mentorFresh();     // советы первопроходцу (4.01)     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
 W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);
@@ -264,6 +267,7 @@ function showLevelCard(lv) {                                                    
   lvlCard.append(t, box); lvlCard.hidden = false; lvlCard.style.animation = 'none'; void lvlCard.offsetWidth; lvlCard.style.animation = ''; lvlCardT = 3.2;
 }
 function onEvent(v) {
+  mailOnEvent(W, v);     // итоги аукциона → письма
   { const fs = feel.event(v, W.player.maxhp); if (fs) { sfx(fs); if (fs === 'streak') { const n = feel.state().shown; streakEl.textContent = `Серия ×${n}`; streakEl.hidden = false; streakEl.classList.remove('pop'); void streakEl.offsetWidth; streakEl.classList.add('pop'); } } }
   sparkEvent(W, v);     // «Первая искра»: враги за оградой (шаг 12)
   mentorEvent(W, v);    // советы: сбор, ковка, продажа, библиотека (4.01)
@@ -364,6 +368,12 @@ function onEvent(v) {
   else if (v.k === 'mount') toast(v.on ? 'Верхом' : 'Спешились');
   else if (v.k === 'coachFound') toast(`Открыта повозка: ${v.name}`, '', '#ffd27a');
   else if (v.k === 'repTier') { toast(`${v.name}: ${v.tier}`, '', '#ffd27a', 'scroll'); sfx('level'); }
+  else if (v.k === 'arenaStart') toast(`Дуэль: ${v.name.replace(/_/g, ' ')} · ур. ${v.lv}${v.bet ? ` · ставка ${v.bet}` : ''}`, '', '#ff9a8a', 'horn');
+  else if (v.k === 'arenaEnd') toast(v.win ? `Победа в дуэли! Рейтинг ${v.rating} (${v.delta >= 0 ? '+' : ''}${v.delta})${v.ash ? ` · +${v.ash} пепла` : ''}` : `Поражение${v.why === 'fled' ? ' (бегство)' : v.why === 'time' ? ' (время)' : ''}. Рейтинг ${v.rating} (${v.delta})`, v.win ? '' : 'bad', v.win ? '#ffd27a' : '#c8c0b0', 'horn');
+  else if (v.k === 'wevStart') toast(`${v.kind === 'dragon' ? 'Дракон над землями' : v.kind === 'invasion' ? 'Вторжение' : 'Бродячий мини-босс'}: ${v.place}. Метка на карте`, '', '#ffb070', 'horn');
+  else if (v.k === 'wevDone') toast(v.hero ? `${v.name}: побеждено! Награда: ${v.ash} пепла и добыча` : `${v.name}: побеждено без вас${v.bots ? ` (отличились боты: ${v.bots})` : ''}`, '', v.hero ? '#ffd27a' : '#c8c0b0', 'horn');
+  else if (v.k === 'wevFail') toast(`${v.name}: ушло, время вышло`, 'bad');
+  else if (v.k === 'mail') toast(`Письмо: ${v.subj} (${v.from})`, '', '#e8c04a', 'shop');
   else if (v.k === 'reward') toast(`Награда: ${v.name}`, '', '#ffd27a');
   else if (v.k === 'bossCast') { toast(`${v.name} читает «${v.what}» — собейте тяжёлым ударом или умением`, 'bad', '#c8a0ff', 'warn'); sfx('fuse'); }     // этап 5
   else if (v.k === 'bossInterrupt') { toast(`Чтение сбито: ${v.name} оглушён`, '', '#ffd27a'); sfx('block'); }
@@ -448,6 +458,11 @@ const auction = createAuction(document, W, cfg, {
   onClose: () => { panelOpen = false; saver.write(); bag.render(); },
   onChange: () => { saver.write(); bag.render(); }
 });
+const mail = createMail(document, W, cfg, {
+  onOpen: () => { panelOpen = true; input.release(); },
+  onClose: () => { panelOpen = false; saver.write(); },
+  onChange: () => saver.write()
+});
 const smith = createSmith(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); },
   onClose: () => { panelOpen = false; saver.write(); },
@@ -470,7 +485,7 @@ let hoverItem = null;
 addEventListener('mouseover', e => { const t = e.target.closest && e.target.closest('[data-item]'); hoverItem = t ? t.dataset.item : null; });
 function whereFrom() {
   const id = hoverItem; hideTipAll();
-  for (const s of document.querySelectorAll('#botTalk:not([hidden]) button.close, #bag:not([hidden]) button.close, #smith:not([hidden]) button.close, #lib:not([hidden]) button.close, #shop:not([hidden]) button.close, #auction:not([hidden]) button.close')) s.click();
+  for (const s of document.querySelectorAll('#botTalk:not([hidden]) button.close, #bag:not([hidden]) button.close, #smith:not([hidden]) button.close, #lib:not([hidden]) button.close, #shop:not([hidden]) button.close, #auction:not([hidden]) button.close, #mail:not([hidden]) button.close')) s.click();
   journal.open('sources', id || null);
 }
 const hideTipAll = () => { const t = $('bagTip'); if (t) t.hidden = true; };
@@ -527,6 +542,7 @@ if (desk) {
     if (c === 'KeyG') { if (!panelOpen || vis('bag') || vis('smith') || vis('shop') || vis('journal')) whereFrom(); return; }
     if (c === 'KeyB' && !panelOpen && vis('sleepBtn')) sleepBtn.click();
     if (c === 'KeyE' && !panelOpen) { if (lootOpen) $('lootAll').click(); else if (vis('lootBtn')) lootBtn.click(); else if (vis('portalBtn')) portalBtn.click(); else if (vis('fireBtn')) fireBtn.click(); else if (vis('coachBtn')) coachBtn.click(); else if (vis('gatherBtn')) gatherBtn.click(); else if (vis('talk')) talk.click(); }
+    if (c === 'KeyK') { if (mail.isOpen) mail.close(); else if (!panelOpen) mail.open(); }     // почта
     if (c === 'KeyV' && !panelOpen) mountBtn.click();     // конь (этап 6)
   });
 }
@@ -702,6 +718,10 @@ function botRender() {
   const btn = (label, ok, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'buy' + (ok ? '' : ' no'); b.textContent = label; b.addEventListener('click', fn); return b; };
   { const why = recruitBlock(W, a), cost = recruitCost(W, a), info = mk('sinfo', tx('Позвать в отряд', 'nm'), mk('sub', document.createTextNode('Пойдёт с вами, со своими вещами. Бойцы отряда растут вместе с вами.')));
     botList.append(mk('srow', info, btn(`Позвать · ${cost}`, !why, () => { const r = recruit(W, a); if (r === 'ok') { botSay(`${a.name.replace(/_/g, ' ')} в отряде`); botClose(); sfx('travel'); saver.write(); } else botSay(BOT_WHY[r] || 'Нельзя'); }))); }
+  { const A = cfg.arena, ch = Math.round(winChance(W, a) * 100); botList.append(Object.assign(document.createElement('div'), { className: 'ssec', textContent: 'Дуэль на арене' }));
+    botList.append(mk('srow', mk('sinfo', tx(`Рейтинг бота ${botRating(W, a)} · ваш ${arenaOf(W).rating}`, 'nm'), mk('sub', document.createTextNode(`Шанс победы около ${ch}%. Приз ${prizeOf(W, a)} пепла и ставка вдвое. Поражение — ставка пропала.`)))));
+    for (const bet of A.bets) { const why = duelBlock(W, a, bet), lab = bet ? `Дуэль · ставка ${bet}` : 'Дуэль на рейтинг';
+      botList.append(mk('srow', mk('sinfo', tx(lab, 'nm')), btn(why ? ({ ash: 'Не хватает пепла', rest: 'Бот отдыхает', tired: 'Бот ранен', danger: 'Рядом враги', busy: 'Уже идёт бой', place: 'Не здесь', far: 'Подойдите', dead: '', bet: '', off: '' }[why] || 'Нельзя') : 'Начать', !why, () => { const r = startDuel(W, a, bet); if (r === 'ok') { botClose(); saver.write(); } else botSay('Нельзя'); }))); } }
   botList.append(Object.assign(document.createElement('div'), { className: 'ssec', textContent: 'Продаёт' }));
   const st = stockOf(W, a); if (!st.length) botList.append(Object.assign(document.createElement('div'), { className: 'emptyl', textContent: 'Всё продано.' }));
   st.forEach((s, i) => { const it = BY_ID[s.id], nm = tx(it.name, 'nm'); nm.style.color = RARITY[it.rar].color; botList.append(mk('srow', mk('sinfo', nm, mk('sub', document.createTextNode(statLine(it) || ''))), btn(`Купить · ${s.price}`, W.inv.ash >= s.price, () => { const r = buyFrom(W, a, i); botSay(r === 'ok' ? `Куплено: ${it.name}` : r === 'full' ? 'Сумка полна' : BOT_WHY[r] || 'Нельзя'); botRender(); saver.write(); }))); });
@@ -716,7 +736,7 @@ exitBtn.addEventListener('click', e => { e.stopImmediatePropagation(); if (exitB
 const warpBtn = $('warpBtn');     // перенос к кострам не от костра, за пепел (2026-11-03): кнопка под миникартой и клавиша T
 warpBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openFires(); }, true);
 // жизнь мира (этап 6): повозка — окно костров без карты; сбор; конь
-const coachBtn = $('coachBtn'), gatherBtn = $('gatherBtn'), mountBtn = $('mountBtn');
+const coachBtn = $('coachBtn'), gatherBtn = $('gatherBtn'), mountBtn = $('mountBtn'), mountNextBtn = $('mountNextBtn');
 // окно добычи по макету А (4.21, выбор владельца): у тела с добычей — кнопка «Добыча · E»; окно — имя врага, таймер тела, вещи (клик — взять), «Взять всё» (E)
 const lootBtn = $('lootBtn'), lootBox = $('loot'); let lootOpen = null, lootKey = '';
 const lootEl = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
@@ -756,8 +776,10 @@ function openCoach() {
 coachBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openCoach(); }, true);
 const GATHER = { danger: 'Рядом враги — не до сбора', full: 'Сумка полна', none: 'Нечего собирать' };
 gatherBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const r = gather(W); if (r === 'ok') sfx('pickup'); else toast(GATHER[r] || 'Нельзя', 'bad'); }, true);
-const MOUNT = { none: 'Коня нет: его даёт Застава (слава «Дружелюбие»)', place: 'Здесь верхом нельзя', danger: 'Рядом враги — не сесть', dead: '' };
+const MOUNT = { none: 'Зверя нет: коня даёт Застава, оленя — Ольховые общины, волка — Пепельные Крылья', place: 'Здесь верхом нельзя', danger: 'Рядом враги — не сесть', dead: '' };
 mountBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const r = mountToggle(W); if (MOUNT[r]) toast(MOUNT[r], 'bad'); }, true);
+$('mailBtn').addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); mail.open(); }, true);
+mountNextBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const m = mountNext(W); if (m) toast('Зверь: ' + m.name, ''); }, true);
 // сон (G4): затемнение, ночь проживается разом, утром — полное здоровье (или «разбудили»)
 const sleepBtn = $('sleepBtn'), sleepFade = $('sleepFade'); let sleepingUI = false;
 sleepBtn.addEventListener('click', e => {
@@ -968,7 +990,7 @@ function frame(now) {
     if (desk && renderer && inp.cursor) inp.aimPt = renderer.groundAt(inp.cursor.x, inp.cursor.y);     // прицел курсором: удар, выстрел и умения — в сторону мыши        // «вверх» на джойстике = вверх на экране при любом повороте камеры
     if (W.player.dead) inp.attack = inp.roll = false;
     if (desk) aimStep(inp);
-    step(W, dt * simK * fk.scale, inp);
+    step(W, dt * simK * fk.scale, inp); mailTick(W, dt);
   }
   feelPeak.scale = Math.min(feelPeak.scale, fk.scale); feelPeak.flash = Math.max(feelPeak.flash, fk.flash.a); feelPeak.zoom = Math.max(feelPeak.zoom, fk.zoom);
   { const fa = fk.flash.a > .01, va = !paused && fk.vig > .01; if (feelFlash.hidden === fa) feelFlash.hidden = !fa; if (feelVig.hidden === va) feelVig.hidden = !va;     // скрытый слой не смешивается с кадром
@@ -992,7 +1014,9 @@ function frame(now) {
     if (coachBtn.hidden === !!cn) coachBtn.hidden = !cn; if (cn) { const l = 'Повозка' + (desk ? ' · E' : ''); if (coachBtn.textContent !== l) coachBtn.textContent = l; }
     lootUi(free);     // 4.21: окно и кнопка добычи
     if (gatherBtn.hidden === !!nd) gatherBtn.hidden = !nd; if (nd) { const l = 'Собрать: ' + cfg.life.gather.names[nd.kind] + (desk ? ' · E' : ''); if (gatherBtn.textContent !== l) gatherBtn.textContent = l; }
-    const ms = !!(W.life && W.life.mount.owned) && W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mountBtn.hidden === ms) mountBtn.hidden = !ms; if (ms) { const l = (W.life.mount.on ? 'Спешиться' : 'Конь') + (desk ? ' · V' : ''); if (mountBtn.textContent !== l) mountBtn.textContent = l; } }
+    const ms = !!(W.life && anyMount(W)) && W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mountBtn.hidden === ms) mountBtn.hidden = !ms; if (ms) { const l = (W.life.mount.on ? 'Спешиться' : mountPick(W).name) + (desk ? ' · V' : ''); if (mountBtn.textContent !== l) mountBtn.textContent = l; }
+    { const mb = $('mailBtn'), n = mailUnread(W), sh = !!mailOf(W).box.length && W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mb.hidden === sh) mb.hidden = !sh; if (sh) { const l = n ? `Почта · ${n}` : 'Почта'; if (mb.textContent !== l) mb.textContent = l; mb.classList.toggle('new', n > 0); } }
+    const mn = ms && !W.life.mount.on && ownedMounts(W).length > 1; if (mountNextBtn.hidden === mn) mountNextBtn.hidden = !mn; }
   if (hud) { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
   if (hud) { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''), inf = portalInfo(W, q), key = l + (inf ? '|' + inf.text : ''); if (portalBtn.dataset.k !== key) { portalBtn.dataset.k = key; portalBtn.textContent = l; if (inf) { const sm = document.createElement('small'); sm.textContent = inf.text; sm.className = inf.warn ? 'warn' : ''; portalBtn.append(sm); } } }     // подсказка у входа (план подземелий, 1в)
     const ecl = show && q.abyssEnter && W.lv >= cfg.abyss.lv, wk = weekOf(Date.now()), hshow = ecl || (show && !q.up && isInstance(W, q.to) && heroicOpen(W)); if (heroicBtn.hidden === hshow) heroicBtn.hidden = !hshow; if (hshow) { const l = (ecl ? `Затмение недели: ${eclipseMods(wk).map(modName).join(', ')}${eclipseDoneThisWeek(W, wk) ? ' · пройдено' : ''}` : 'Героическая: ' + W.levels[q.to].def.name) + (desk ? ' · H' : ''); if (heroicBtn.textContent !== l) heroicBtn.textContent = l; } }
@@ -1039,5 +1063,5 @@ function frame(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { reliefDone: () => reliefDone, openWin: n => ({ journal, auction, smith, captain, shop, quests }[n] || { open() {} }).open(), emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
+window.__b3d = { reliefDone: () => reliefDone, openWin: n => ({ journal, mail, auction, smith, captain, shop, quests }[n] || { open() {} }).open(), emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
 if (BENCH) setTimeout(() => runBench(W, cfg, input, renderer), 1500);

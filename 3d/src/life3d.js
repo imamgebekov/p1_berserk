@@ -12,7 +12,7 @@ import { worldSpot } from './geo3d.js';     // Мир 5.0
 const len = (x, z) => Math.hypot(x, z);
 const mul = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 export const PROFS = { smith: 'Кузнечное дело', alch: 'Алхимия', leather: 'Кожевенное дело' };
-export const lifeFresh = () => ({ prof: { smith: 0, alch: 0, leather: 0 }, rep: {}, mount: { owned: false, on: false }, coaches: { camp: 1 }, nodes: {} });
+export const lifeFresh = () => ({ prof: { smith: 0, alch: 0, leather: 0 }, rep: {}, mount: { owned: false, on: false, have: {}, sel: 'horse', cur: 'horse' }, coaches: { camp: 1 }, nodes: {} });
 const L = W => W.life || (W.life = lifeFresh());
 const safeNow = (W, r) => !W.enemies.some(e => !e.dead && e.alert && len(e.x - W.player.x, e.z - W.player.z) < r);
 
@@ -99,17 +99,36 @@ export function tradeBlock(W, r) {
 }
 
 // ---------- ездовое животное ----------
+const mountList = W => W.cfg.life.mount.list;
+export const hasMount = (W, id) => { const M = L(W).mount; return !!M.have[id] || (id === 'horse' && !!M.owned); };
+export const ownedMounts = W => mountList(W).filter(m => hasMount(W, m.id));
+export const anyMount = W => ownedMounts(W).length > 0;
+export function mountPick(W) { const o = ownedMounts(W), M = L(W).mount; return o.find(m => m.id === M.sel) || o[0] || null; }
+export function mountNext(W) {     // выбрать следующего зверя (пока спешен)
+  const o = ownedMounts(W), M = L(W).mount; if (o.length < 2 || M.on) return null;
+  const i = o.findIndex(m => m.id === M.sel); M.sel = o[(i + 1) % o.length].id; return mountPick(W);
+}
+export function giveMount(W, id) {
+  if (!mountList(W).some(m => m.id === id)) return false; const M = L(W).mount; if (hasMount(W, id)) return false;
+  M.have[id] = 1; if (id === 'horse') M.owned = true; if (!ownedMounts(W).some(m => m.id === M.sel)) M.sel = id; return true;
+}
 export function mountToggle(W) {
   const M = L(W).mount, p = W.player;
-  if (!M.owned) return 'none';
+  if (!anyMount(W)) return 'none';
   if (M.on) { dismount(W); return 'off'; }
   if (p.dead) return 'dead';
   if ((W.lvl && W.lvl !== 'surface') || W.inside >= 0) return 'place';
   if (!safeNow(W, W.cfg.life.mount.safeR)) return 'danger';
-  M.on = true; W.ev.push({ k: 'mount', on: true, x: p.x, z: p.z }); return 'on';
+  M.cur = mountPick(W).id; M.on = true; W.ev.push({ k: 'mount', on: true, id: M.cur, x: p.x, z: p.z }); return 'on';
 }
-export function dismount(W) { const M = L(W).mount; if (!M.on) return false; M.on = false; W.ev.push({ k: 'mount', on: false, x: W.player.x, z: W.player.z }); return true; }
-export const mountMul = W => (W.life && W.life.mount.on ? W.cfg.life.mount.speed : 1);
+export function dismount(W) { const M = L(W).mount; if (!M.on) return false; M.on = false; W.ev.push({ k: 'mount', on: false, id: M.cur, x: W.player.x, z: W.player.z }); return true; }
+export const mountMul = W => { const M = W.life && W.life.mount; if (!M || !M.on) return 1; const m = W.cfg.life.mount.list.find(x => x.id === M.cur); return m ? m.speed : W.cfg.life.mount.speed; };
+// редкий зверь с вожаков и боссов: шанс по ступени врага; бросок — по координатам и числу убийств, потоки случайных чисел не трогаем
+export function mountDrop(W, e, tier) {
+  const D = W.cfg.life.mount.drop, ch = D && D.tiers[tier]; if (!ch || !W.life || hasMount(W, D.id)) return false;
+  const h = Math.abs(Math.sin(W.kills * 12.9898 + e.x * 78.233 + e.z * 37.719) * 43758.5453) % 1; if (h >= ch) return false;
+  giveMount(W, D.id); W.ev.push({ k: 'reward', name: mountList(W).find(m => m.id === D.id).name }); return true;
+}
 // удар, перекат или умение верхом — сначала спешиться (зовёт sim.js перед шагом героя)
 export function mountInput(W, input) {
   if (!W.life || !W.life.mount.on) return;
@@ -179,7 +198,7 @@ export const priceRep = W => 1 - W.cfg.life.rep.brodDiscount * tierOf(W, 'brod')
 // награды стороны: можно ли взять ('ok' | 'tier' | 'ash' | 'far' | 'have' | 'full') и взять
 export function rewardStatus(W, i) {
   const r = W.cfg.life.rep.rewards[i]; if (!r) return 'none';
-  if (r.mount ? L(W).mount.owned : r.item && BY_ID[r.item].cat === 'tome' && (W.known.tomes[BY_ID[r.item].tome] || W.inv.bag.some(s => s.id === r.item))) return 'have';
+  if (r.mount ? hasMount(W, r.mount === true ? 'horse' : r.mount) : r.item && BY_ID[r.item].cat === 'tome' && (W.known.tomes[BY_ID[r.item].tome] || W.inv.bag.some(s => s.id === r.item))) return 'have';
   if (tierOf(W, r.f) < r.tier) return 'tier';
   if (!['merchant', 'smith', 'captain'].includes(W.nearNpc)) return 'far';
   if (W.inv.ash < r.ash) return 'ash';
@@ -187,18 +206,20 @@ export function rewardStatus(W, i) {
 }
 export function takeReward(W, i) {
   const st = rewardStatus(W, i); if (st !== 'ok') return st; const r = W.cfg.life.rep.rewards[i];
-  if (r.mount) L(W).mount.owned = true;
+  if (r.mount) giveMount(W, r.mount === true ? 'horse' : r.mount);
   else if (addItem(W.inv, r.item, 1, W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0)) > 0) return 'full';
   W.inv.ash -= r.ash; W.ev.push({ k: 'reward', name: r.mount ? r.name : BY_ID[r.item].name }); return 'ok';
 }
 
 // ---------- сохранение ----------
-export const serializeLife = W => { const S = L(W); return { prof: S.prof, rep: S.rep, mount: S.mount.owned ? 1 : 0, coaches: Object.keys(S.coaches) }; };
+export const serializeLife = W => { const S = L(W); return { prof: S.prof, rep: S.rep, mount: S.mount.owned ? 1 : 0, mounts: Object.keys(S.mount.have).filter(k => k !== 'horse'), msel: S.mount.sel, coaches: Object.keys(S.coaches) }; };
 export function sanitizeLife(d, cfg) {
   const out = lifeFresh(); if (!d || typeof d !== 'object') return out; const C = cfg.life;
   for (const k of Object.keys(out.prof)) { const v = d.prof && d.prof[k]; if (Number.isFinite(v)) out.prof[k] = Math.max(0, Math.min(C.trades.max, Math.floor(v))); }
   for (const f of C.rep.factions) { const v = d.rep && d.rep[f.id]; if (Number.isFinite(v) && v > 0) out.rep[f.id] = Math.min(1e6, Math.floor(v)); }
-  out.mount.owned = d.mount === 1;
+  out.mount.owned = d.mount === 1; if (out.mount.owned) out.mount.have.horse = 1;
+  if (Array.isArray(d.mounts)) for (const id of d.mounts) if (C.mount.list.some(m => m.id === id)) out.mount.have[id] = 1;
+  if (typeof d.msel === 'string' && C.mount.list.some(m => m.id === d.msel)) out.mount.sel = d.msel;
   if (Array.isArray(d.coaches)) for (const id of d.coaches) if (typeof id === 'string' && id.length < 40) out.coaches[id] = 1;
   return out;
 }

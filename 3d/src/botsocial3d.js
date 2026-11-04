@@ -9,7 +9,7 @@ import { hireable, liveAllies, squadMax, spawnAlly, allyKit, refreshAlly } from 
 // ближайший живой бот в радиусе разговора
 export function nearBot(W) {
   const C = W.cfg.bots, T = C && C.talk, p = W.player; if (!T || !W.bots || W.lvl !== 'surface' || p.dead) return null;
-  let best = null, bd = T.reach; for (const a of W.bots) { if (a.dead) continue; const d = len(a.x - p.x, a.z - p.z); if (d < bd) { bd = d; best = a; } }
+  let best = null, bd = T.reach; for (const a of W.bots) { if (a.dead || a.arena) continue; const d = len(a.x - p.x, a.z - p.z); if (d < bd) { bd = d; best = a; } }
   return best;
 }
 let POOL = null;

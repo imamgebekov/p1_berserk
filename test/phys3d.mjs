@@ -52,7 +52,7 @@ const foe = (W, type, x, z) => { const e = spawnEnemy(W, type, x, z); e.hp = e.m
 const kick = (W, e) => { e.vx = e.vz = 0; const p = W.player; p.x = e.x; p.z = e.z - 1.5; abilityHit(W, e, .05, { knock: 1 }); return Math.hypot(e.vx, e.vz); };
 const clear = W => { W.enemies.length = 0; W.ev.length = 0; };
 // 5. обычные враги в среднем отлетают как раньше; крупные и тяжёлые — меньше; босс почти не сдвигается
-{ const W = mk(), E = CFG3.enemies, norm = Object.keys(E).filter(t => E[t] && E[t].hp && !E[t].boss && !E[t].heavy && (E[t].scale || 1) <= 1.25);
+{ const W = mk(), E = CFG3.enemies, norm = Object.keys(E).filter(t => E[t] && E[t].hp && !t.startsWith('arena_') && t !== 'drake' && !E[t].boss && !E[t].heavy && (E[t].scale || 1) <= 1.25);
   let a = 0, b = 0; for (const t of norm) { clear(W); W.cfg.phys.knock.on = true; a += kick(W, foe(W, t, home.x + 3, home.z + 3)); clear(W); W.cfg.phys.knock.on = false; b += kick(W, foe(W, t, home.x + 3, home.z + 3)); }
   W.cfg.phys.knock.on = true; ok(Math.abs(a / b - 1) < .1, `средний отлёт обычных врагов изменился: ${(a / norm.length).toFixed(2)} / ${(b / norm.length).toFixed(2)} м/с`);
   clear(W); const imp = kick(W, foe(W, 'imp', home.x + 3, home.z + 3)); clear(W); const brute = kick(W, foe(W, 'brute', home.x + 3, home.z + 3)); clear(W); const troll = kick(W, foe(W, 'troll', home.x + 3, home.z + 3));

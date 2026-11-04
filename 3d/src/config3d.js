@@ -455,6 +455,34 @@ const BASE = {
   vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1.1, speed: 1.05, crit: 2 }, warlock: { hp: .9, speed: 1.05, crit: 3 }, priest: { hp: .85, speed: 1.05, crit: 1 }, brand: { hp: 1.3, speed: 1, crit: 2, killHeal: .04, healLv: [14, 20] }, hunter: { hp: 1, speed: 1.12, crit: 4 }, selene: { hp: 1.2, speed: 1.08, crit: 3, killHeal: .04, healLv: [14, 20] } },     // 4.27 (2026-10-23): сталь у границы — Жрец 0% и Морок 17% против средних 52% (здоровье ×0,9), Клеймёный 92% (×1,3)     // 4.28: Клеймёный до 14-го ур. лечится за убийство в гуще, как Торн (к 20-му — на нет): на стали у границы гиб 90%     // 4.29: Ирга здоровье ×1,1 — на стали в середине гибла 50% при средней 14%
   // аукцион (2026-11-04, как в WoW): общий рынок; step — игровых секунд на шаг рынка (сутки = daynight.len), target — лотов на рынке, dur — сроки в сутках,
   // fee — комиссия с продажи, deposit — залог от цены у торговца за сутки срока (вернётся при продаже), bidStep — минимальная надбавка к ставке, soft — продление торгов (сутки)
+  // арена (2026-11-05): дуэль героя с ботом — вызов в окне разговора; ставка bets (пепел, 0 — просто на рейтинг); победа возвращает ставку вдвое и даёт приз prize + perLv × ур. бота;
+  // рейтинг Эло, K; рейтинг бота = base + perLv × ур. + perKill × убийств; hpK/dmgK — крепость противника к «боевому» боту того же уровня; time — предел боя, с; leash — дальше м от места боя = побег (поражение);
+  // reach — подойти к боту; cd — бот отдыхает после боя, с; foe — вид бойца; class — какого типа боец у героя-бота (melee или ranged); safeR — врагов рядом нет
+  arena: { on: true, bets: [0, 50, 200, 1000], prize: 25, prizeLv: 4, K: 32, base: 800, perLv: 14, perKill: .3, hpK: .85, dmgK: 1, time: 240, leash: 55, cd: 600, safeR: 22, start: 10, loseHp: .25,
+    foe: { melee: { hp: 400, speed: 3.7, damage: 24, range: 2.2, wind: .5, recover: .7, radius: .55 }, ranged: { hp: 300, speed: 3.2, damage: 20, range: 13, wind: .8, recover: 1.1, radius: .5 } },
+    class: { thorn: 'melee', vale: 'melee', jay: 'ranged', irga: 'ranged', warlock: 'ranged', priest: 'melee', brand: 'melee', hunter: 'ranged', selene: 'melee' },
+    say: { win: ['Хороший бой. Ещё раз?', 'Ты сильнее, чем кажешься.', 'Признаю, твоя взяла.'], lose: ['Слабоват ещё.', 'Приходи, когда подрастёшь.', 'Бой был честный.'] } },
+  // мировые события (2026-11-05): раз в every с (игрового времени, пока герой наверху) в мире начинается одно из kinds (веса); max — разом;
+  // dist — как далеко от героя; near — ближе этого герой уже «рядом» (настоящий бой), дальше боты бьются по таймеру: need — «ботов-секунд» (0 — боты не справятся);
+  // join — сколько ботов уровня ±botLv приходит; botR — их радиус у события; shareR — кому награда и счёт убийств; credit — убийств ботам за победу
+  worldEv: { on: true, first: [240, 420], every: [600, 1100], retry: 60, max: 2, dist: [70, 800], near: 90, botR: 30, shareR: 70, join: 4, botLv: 12, credit: 6,
+    kinds: { invasion: 4, roamer: 3, dragon: 1 },
+    invasion: { n: [6, 9], hpK: 2.2, need: 90, time: 480 },
+    roamer: { hpK: 4, need: 240, time: 1200, r: 80, pts: 5, names: ['Бродячий душегуб', 'Бродячий людоед', 'Лютый скиталец', 'Проклятый наёмник'] },
+    dragon: { hpK: 1, time: 900, r: 110, pts: 5 },
+    reward: { invasion: { ash: [90, 150], box: 'ironchest' }, roamer: { ash: [140, 220], box: 'ironchest', epic: 1 }, dragon: { ash: [320, 520], box: 'ironchest', epic: 2 } } },
+  // почта и гильдия (2026-11-05): письма (аукцион, приглашения, подарки), гильдия ботов с общим чатом; max — писем в ящике; inviteLv — с какого уровня зовут в гильдию;
+  // guild.list — гильдии ботов, per — ботов в каждой (остальные одиночки), world — шанс, что болтовня чужой гильдии виден в общем канале, follow — шанс ответа соратника; chat — период болтовни, с игрового времени; reply — шанс и задержка ответа бота на фразу героя; quick — быстрые фразы героя
+  mail: { on: true, max: 40, safeR: 14, itemsMax: 4, welcomeAt: 4, log: 60,
+    guild: { list: [{ id: 'circle', name: 'Пепельный Круг', tag: 'ПК' }, { id: 'wolves', name: 'Серые Волки', tag: 'СВ' }, { id: 'lamp', name: 'Дозор Лампады', tag: 'ДЛ' }, { id: 'fist', name: 'Железная Рука', tag: 'ЖР' }], per: 4, inviteLv: 5, world: .5, follow: .35, chat: [28, 70], reply: [.7, [3, 9]], gift: 120,
+      quick: ['Привет всем', 'Кто идёт в подземелье?', 'Спасибо!', 'Что на аукционе?'],
+      replies: [['Здарова!', 'Привет, живой!', 'О, наш пришёл.'], ['Я бы сходил, если лекарь будет.', 'Позже, я ещё не отдохнул.', 'Бери меня, только без боссов.'], ['Не за что.', 'Обращайся.', 'Свои же.'], ['Мечи дорожают, берут быстро.', 'Броню завезли, смотрел вчера.', 'Дорого всё, как всегда.']],
+      lines: {
+        lvl: ['Взял {lv} уровень, идём дальше!', 'Уровень {lv}! Теперь пободаемся.', '{lv} уровень. Устал, но доволен.'],
+        kill: ['Положил ещё одного, счёт — {k}.', 'Охота идёт, уже {k} на счету.', 'Тут тварей хватает.'],
+        rest: ['Присел у костра, отдыхаю.', 'Здоровье на нуле, отхожу.', 'Лечусь, не ждите.'],
+        idle: ['Кто-нибудь видел новые лоты?', 'Дорога тихая, подозрительно.', 'Ночью лучше не соваться.', 'Нужна хорошая броня, подскажите.', 'Продам хлам, берите за недорого.', 'Погода портится.', 'Слышал, у Брода снова шумно.'],
+        follow: ['Согласен.', 'Ха, и не говори.', 'Держись там.', 'Я рядом, если что.', 'Потом расскажешь.', 'Береги спину.'] } } },
   auction: { on: true, npc: 'auctioneer', step: 30, maxCatch: 120, target: 520, fill: .3, extra: [1, 5], maxNew: 40, tries: 24, dur: [.5, 1, 2], durName: ['12 ч', '24 ч', '48 ч'], fee: .05, deposit: .04, bidStep: .05, soft: .01,
     baseMul: 1.5, startK: [.55, .85], buyK: [1.15, 1.6], buyP: .6, worth: [.8, 1.25], bidAct: .35, buyAct: .12, ilSpread: 6, maxStack: 20, maxMine: 20, pendMax: 80, maxPrice: 9999999, hotN: 6, hotMul: 1.5,
     demand: { min: .65, max: 1.6, pull: .12, jit: .06, bump: .015 }, supply: { k: .03, min: .7 },
@@ -762,7 +790,12 @@ const BASE = {
     // меньше 10 — +1 наверняка, меньше 20 — с шансом .6, меньше 30 — .25, дальше — ничего. Алхимия и кожевенное — где угодно, если рядом нет врагов (safeR)
     trades: { max: 150, base: 25, perLv: 3, chance: [[10, 1], [20, .6], [30, .25]], safeR: 14 },
     // ездовое животное: скорость ×speed; сесть нельзя, если враги ближе safeR; удар, перекат, умение и урон — спешивают
-    mount: { speed: 1.65, safeR: 16 },
+    mount: { speed: 1.65, safeR: 16, drop: { tiers: { mini: .06, boss: .25 }, id: 'ghost' },
+      list: [     // звери: speed — множитель скорости; actor — модель (config.actors.beasts); size — ростом выше коня на этом уровне
+        { id: 'horse', name: 'Конь Заставы', actor: 'horse', speed: 1.65, text: 'Надёжный и неприхотливый.' },
+        { id: 'stag', name: 'Ольховый олень', actor: 'stagride', speed: 1.75, text: 'Быстрый и лёгкий на лесных тропах.' },
+        { id: 'wolf', name: 'Серый волк', actor: 'wolfride', speed: 1.85, seat: .6, text: 'Самый быстрый из купленных.' },
+        { id: 'ghost', name: 'Призрачный жеребец', actor: 'ghosthorse', speed: 2.05, text: 'Падает редко с вожаков и боссов.' }] },
     // повозки между узлами: в лагере и в городах-узлах зон; open — открывается, когда герой рядом; цена = base + perM × расстояние, пепел
     coach: { reach: 3, open: 14, base: 15, perM: .12, safeR: 14 },
     // репутация у четырёх сторон: пороги ступеней; за что даётся; brodDiscount — скидка у торговцев за ступень у Пепельного Брода;
@@ -775,7 +808,9 @@ const BASE = {
       givers: { merchant: 'brod', smith: 'brod', captain: 'zastava', irma: 'band', timka: 'band', kord: 'band', alaric: 'band', quarter: 'zastava', smuggler: 'brod', masked: 'band', widow: 'olkh', gedeon: 'brod' },
       dungeons: { inst_brod: 'zastava', inst_olkh: 'olkh' },
       rewards: [
-        { f: 'zastava', tier: 1, mount: true, name: 'Конь Заставы', ash: 600, text: 'Быстрее в пути. Удар или перекат — спешиться.' },
+        { f: 'zastava', tier: 1, mount: 'horse', name: 'Конь Заставы', ash: 600, text: 'Быстрее в пути. Удар или перекат — спешиться.' },
+        { f: 'olkh', tier: 2, mount: 'stag', name: 'Ольховый олень', ash: 900, text: 'Быстрее коня на тропах. Удар или перекат — спешиться.' },
+        { f: 'band', tier: 3, mount: 'wolf', name: 'Серый волк', ash: 1400, text: 'Самый быстрый. Удар или перекат — спешиться.' },
         { f: 'zastava', tier: 2, item: 'tome_blackarm', ash: 500 }, { f: 'zastava', tier: 3, item: 'a_cloak_pelt_black', ash: 900 },
         { f: 'brod', tier: 1, item: 'tome_medic', ash: 150 }, { f: 'brod', tier: 2, item: 'p_elixir', ash: 200 }, { f: 'brod', tier: 3, item: 'tome_alloy', ash: 700 },
         { f: 'band', tier: 1, item: 'p_heal3', ash: 90 }, { f: 'band', tier: 2, item: 'tome_fine', ash: 350 }, { f: 'band', tier: 4, item: 'a_cloak_wings', ash: 1500 },
@@ -1340,16 +1375,16 @@ const BASE = {
       imp: 'q_demonfly', bomber: 'q_demonfly', ash_thief: 'mf_ash_thief', hound: 'q_wolf', blackdog: 'q_wolf', garm: 'q_wolf', eclipse_fiend: 'q_wolf', garm_beast: 'q_wolf', greywolf: 'q_wolf', towerhound: 'q_wolf',
       lunger: 'kk_skel_warrior', war_ghost: 'kk_skel_minion', witch: 'kk_skel_mage', archer: 'kk_rogue_hooded', kad_xbow: 'kk_rogue_hooded', shield: 'kk_knight', kad_soldier: 'kk_knight', kad_spear: 'kk_knight', kad_banner: 'kk_knight',
       royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'mf_troll', castellan: 'kk_king', ashking: 'kk_king', brandlord: 'kk_knight', abyssking: 'kk_king', oakking: 'kk_king',
-      brute: 'mf_brute', ghoul: 'um_ghoul', devourer: 'mf_devourer', golem: 'mf_golem', firegolem: 'mf_golem', drowned: 'um_fish', drownedmaid: 'um_fish', silt: 'um_fish', swampelder: 'um_fish',
+      brute: 'mf_brute', drake: 'um_dragon', ghoul: 'um_ghoul', devourer: 'mf_devourer', golem: 'mf_golem', firegolem: 'mf_golem', drowned: 'um_fish', drownedmaid: 'um_fish', silt: 'um_fish', swampelder: 'um_fish',
       demon_guard: 'mf_demon_guard', lord: 'um_orc', gatebeast: 'um_orc', hand_lord: 'mf_hand_lord', chief: 'mf_chief', tidewyrm: 'mf_tidewyrm', bonetyrant: 'kk_skel_warrior', namelessking: 'kk_skel_mage', gravewight: 'kk_skel_warrior', abbot: 'kk_skel_mage' },
     npcs: { keeper: 'kk_keeper', merchant: 'kk_merchant', smith: 'kk_barbarian', captain: 'kk_captain', auctioneer: 'kk_auctioneer', villager: 'kk_villager', villagerF: 'kk_villagerF', traveler: 'kk_traveler' },     // жители — KayKit с перекраской (путь А, 2026-10-22)
     squad: { guard: { kit: 'kk_knight', w: 'spear', cells: ['0,1', '7,0'] }, soldier: { kit: 'kk_knight', w: 'sword', off: 'shield', form: 'shield_round', cells: ['0,1', '7,0'] },     // солдаты отряда: модель, оружие, щит; cells — ячейки текстуры в цвет отряда (tint типа)
       veteran: { kit: 'kk_knight', w: 'greatsword', cells: ['0,1', '7,0'], paint: { '3,0': '#4a4a52' } }, kad_xbow: { kit: 'kk_knight', w: 'crossbow', cells: ['0,1', '7,0'] },
       irma: { kit: 'kk_rogue', w: 'sword', cells: ['0,1', '1,1'] }, timka: { kit: 'kk_ranger', w: 'dagger', cells: ['0,1'], hide: ['Ranger_Hat'] }, kord: { kit: 'kk_barbarian', w: 'hammer' },
       alaric: { kit: 'kk_knight', w: 'sword', cells: ['0,1'], hide: ['Knight_Helmet', 'Knight_HelmetVisor'], paint: { '3,0': '#c8c8c4', '7,0': '#e0dcd0' } } },
-    beasts: { deer: 'q_stag', fox: 'q_fox', goat: 'q_cow', duck: 'q_chicken', heron: 'q_pigeon', crow: 'q_pigeon', horse: 'q_horse' },     // живность
-    sizes: { heron: 1.3 },     // свой рост модели для вида (голубь в роли цапли)
-    tints: { ashgolem: '#a8a29a', heron: '#c8d0d8', crow: '#3a3438', bomber: '#ffb070', blackdog: '#404048', garm: '#a06050', eclipse_fiend: '#b080ff', garm_beast: '#c04838', greywolf: '#c8c8c0', towerhound: '#c09060',
+    beasts: { deer: 'q_stag', fox: 'q_fox', goat: 'q_cow', duck: 'q_chicken', heron: 'q_pigeon', crow: 'q_pigeon', horse: 'q_horse', stagride: 'q_stag', wolfride: 'q_wolf', ghosthorse: 'q_horse' },     // живность
+    sizes: { heron: 1.3, stagride: 2.7, wolfride: 1.7 },     // свой рост модели для вида (голубь в роли цапли)
+    tints: { ghosthorse: '#a8c0ff', stagride: '#b89060', ashgolem: '#a8a29a', heron: '#c8d0d8', crow: '#3a3438', bomber: '#ffb070', blackdog: '#404048', garm: '#a06050', eclipse_fiend: '#b080ff', garm_beast: '#c04838', greywolf: '#c8c8c0', towerhound: '#c09060',
       kad_soldier: '#8aa0ff', kad_spear: '#8aa0ff', kad_banner: '#a0b0ff', kad_xbow: '#a0b8ff', royal_guard: '#ff8a8a', masked_knight: '#605870', brandshade: '#ff6a6a', shrieker: '#ffe0b0', ashking: '#c0a080', oakking: '#a0d080', firegolem: '#ff9a60', drownedmaid: '#a0e0d0', silt: '#b0c080', swampelder: '#c0a070', lord: '#ff9070', gatebeast: '#ff7060', gravewight: '#c0d080', abbot: '#ffe0a0' },
     kits: {
       kk_knight: { anims: 'kk', height: 2.25, gear: ['sword', 'iron', 'shield', 'shield_badge'], helm: ['Knight_Helmet', 'Knight_HelmetVisor'], cape: ['Knight_Cape'] },
@@ -1651,6 +1686,7 @@ const BASE = {
     brutePart: .3,        // доля рогачей среди врагов
     ash_thief: { name: 'Пепельный вор', ai: 'flee', flee: 24, run: [3.5, 1.5], noElite: true, xp: 40, hp: 120, speed: 5, damage: 0, range: 1, wind: 1, recover: 1, radius: .45, scale: .9, immune: ['fear'] },     // убегает с мешком (этап 4 «круче»)
     imp:   { name: 'Бес', xp: 14, hp: 126, speed: 3.4, damage: 11,  range: 1.5, wind: .45, recover: .75, radius: .45, scale: 1, ai: 'move', move: { kind: 'leap', min: 3.5, max: 7, cd: 7, first: 2 }, lunge: { min: 3.5, max: 7, aim: .5, speed: 14, len: 5.5, w: .8, cd: 7, mul: .7 } },
+    drake: { name: 'Пепельный дракон', noElite: true, xp: 380, hp: 3200, speed: 3.2, damage: 40, range: 3.4, wind: .9, recover: 1.1, radius: 1.5, scale: 2.8, ai: 'move', move: { kind: 'slam', r: 5, wind: .9, mul: .7, cd: 8, first: 2 }, immune: ['fear'] },     // мировое событие: дракон над зоной
     brute: { name: 'Рогач', xp: 45, hp: 390, speed: 2.2, damage: 28, range: 2.1, wind: .7,  recover: 1.0, radius: .8,  scale: 1.6, ai: 'move', move: { kind: 'slam', r: 2.6, wind: .7, mul: .55, cd: 9, first: 3 } },
     hound: { name: 'Гончая', g: 'f', on: ['bleed', .6, 2.5, 4], xp: 10, hp: 90, speed: 5.6, damage: 10,  range: 1.3, wind: .28, recover: .55, radius: .4,  scale: .85, ai: 'move', move: { kind: 'howl', r: 12, t: 5, spd: 1.2, cd: 20, first: .5 } },   // быстрая, хрупкая; рыщет у руин и лагеря
     ghoul: { name: 'Упырь', on: ['poison', .7, 2, 6], xp: 33, hp: 270, speed: 2.8, damage: 20, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2, ai: 'move', move: { kind: 'spit', min: 4, max: 9, wind: .15, delay: 1, r: 1.6, mul: .45, cd: 8, first: 2 } },   // упырь: у кладбища и в часовне
@@ -1845,6 +1881,12 @@ const BASE = {
 stretchCore(BASE);     // лагерь крупнее: ядро раздвинуто до сборки мира (и в CFG3, и в CORE3)
 // готовый мир (2026-10-28): в выложенной сборке мир берётся из файла, сделанного при сборке (tools/bake-world.mjs) — генерация 1,3 с
 // заменяется чтением за миллисекунды. Файл годится, только если совпал отпечаток настроек; иначе, в разработке и в тестах — генерируем
+// арена: боец-дуэлянт на каждого героя — тот же облик, что у героя, свой тип боя (melee или ranged), числа из BASE.arena
+for (const h of Object.keys(BASE.actors.heroes)) {
+  const t = BASE.arena.class[h] || 'melee', F = BASE.arena.foe[t];
+  BASE.enemies['arena_' + h] = { name: 'Дуэлянт', noElite: true, xp: 0, scale: 1, ...F, ...(t === 'ranged' ? { ranged: { kind: h === 'jay' || h === 'hunter' ? 'arrow' : 'hex', speed: 14, r: 2, delay: 1, keep: [6, 10] } } : {}) };
+  BASE.actors.foes['arena_' + h] = BASE.actors.heroes[h];
+}
 export const worldKey = base => { const s = JSON.stringify(base); let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return (h >>> 0).toString(36) + ':' + s.length; };     // FNV-1a
 let BAKED = null; try { if (import.meta.env.PROD) BAKED = Object.values(import.meta.glob('./data/world.bake.json', { eager: true, import: 'default' }))[0] || null; } catch (e) { /* Node: без готового мира */ }
 export const WORLD_KEY = worldKey(BASE);
