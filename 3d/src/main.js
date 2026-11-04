@@ -5,6 +5,8 @@ import { BY_ID, RARITY, STAT_NAME, SLOT_NAME, statLine } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith, createCaptain } from './shop.js';
+import { createAuction } from './auctionui.js';     // аукцион (2026-11-04)
+import { tick as auctionTick, auctionOf, pendCount, sanitizeAuction } from './auction3d.js';
 import { createLibrary } from './libui.js';
 import { createRelic } from './relicui.js';     // дары Затмения (2026-10-23)
 import { createMapClouds } from './mapclouds.js';
@@ -73,7 +75,7 @@ const cfg = JSON.parse(JSON.stringify(CFG3));
 loadTweaks(cfg);
 
 // iOS Safari местами игнорирует touch-action: страницу нельзя ни листать, ни тянуть, ни масштабировать, пока открыта не панель
-const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #smith, #lib, #skills, #map, #captain, #journal, #quests, #heroPick, #botTalk, #fires, #relic');     // окна, где касание прокручивает (2026-11-03: + выбор героя, бот, костры, дары — не прокручивались на телефоне)
+const inPanel = e => e.target.closest && e.target.closest('#panel, #bag, #shop, #auction, #smith, #lib, #skills, #map, #captain, #journal, #quests, #heroPick, #botTalk, #fires, #relic');     // окна, где касание прокручивает (2026-11-03: + выбор героя, бот, костры, дары — не прокручивались на телефоне)
 document.addEventListener('touchmove', e => { if (!inPanel(e)) e.preventDefault(); }, { passive: false });
 for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -114,7 +116,7 @@ const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : 
 const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)
 if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
-if (saved) { W.questFocus = saved.qf || null; W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (saved.ach) W.ach = saved.ach; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); }
+if (saved) { W.questFocus = saved.qf || null; W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (saved.ach) W.ach = saved.ach; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); W.auction = sanitizeAuction(W, saved.auc); }
 W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);
 W.mentor = saved && saved.prog.mentor ? sanitizeMentor(saved.prog.mentor) : mentorFresh();     // советы первопроходцу (4.01)     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
 W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);
@@ -321,6 +323,10 @@ function onEvent(v) {
   else if (v.k === 'evFail') { const t = { dead: v.kind === 'caravan' ? 'Обоз разбит' : 'Путник погиб', late: v.kind === 'caravan' ? 'Обоз уехал без вас' : 'Путник не дождался помощи', fled: 'Вы ушли от засады', escaped: 'Вор скрылся в пепле', gone: '' }[v.why]; if (t) toast(t, 'bad'); }
   else if (v.k === 'rainStart') { const R = cfg.weather.combat; toast(`Дождь: враги слышат и видят хуже, огонь слабее${R.storm > 1 ? ', гроза сильнее' : ''}`, '', '#9ac0e0', 'rain'); }
   else if (v.k === 'rainStop') toast('Дождь кончился', '', '#c8d8e8', 'sun');
+  else if (v.k === 'aucSold') toast(`Аукцион: «${BY_ID[v.id].name}» ${v.n > 1 ? '×' + v.n + ' ' : ''}куплен${v.who ? ' — ' + v.who : ''}, выручка ${v.ash} (заберите у аукционера)`, '', '#e8c04a', 'shop');
+  else if (v.k === 'aucOutbid') toast(`Аукцион: вашу ставку на «${BY_ID[v.id].name}» перебил ${v.by}`, '', '#ff9a8a', 'warn');
+  else if (v.k === 'aucWon') toast(`Аукцион: вы выиграли «${BY_ID[v.id].name}» — заберите у аукционера`, '', '#8fd07a', 'shop');
+  else if (v.k === 'aucExpired') toast(`Аукцион: лот «${BY_ID[v.id].name}» не продан — вещь ждёт у аукционера`, '', '#c8b090', 'shop');
   else if (v.k === 'shopRare') { const it = BY_ID[v.id]; toast(`У торговца в лагере: ${cfg.shop.rare.tiers[v.tier - 1].name.toLowerCase()} — ${it.name}`, '', RARITY[it.rar].color, 'shop'); sfx(v.tier >= 3 ? 'brand' : 'rare'); }
   else if (v.k === 'shrine') { toast(`${v.name}: ${v.stat === 'regen' ? `+${v.amt} здоровья в секунду` : `+${v.amt} ${STAT_NAME[v.stat]}`} на ${Math.round(v.t / 60)} мин`, '', '#9ad8ff', 'sparkle'); sfx('buff'); }
   else if (v.k === 'wanderer') { toast('У дороги остановилась повозка сказочного торговца', '', '#c8a0ff', 'bell'); sfx('wanderer'); }
@@ -437,6 +443,11 @@ const captain = createCaptain(document, W, cfg, {
   onClose: () => { panelOpen = false; saver.write(); },
   onChange: () => saver.write()
 });
+const auction = createAuction(document, W, cfg, {
+  onOpen: () => { panelOpen = true; input.release(); },
+  onClose: () => { panelOpen = false; saver.write(); bag.render(); },
+  onChange: () => { saver.write(); bag.render(); }
+});
 const smith = createSmith(document, W, cfg, {
   onOpen: () => { panelOpen = true; input.release(); },
   onClose: () => { panelOpen = false; saver.write(); },
@@ -459,7 +470,7 @@ let hoverItem = null;
 addEventListener('mouseover', e => { const t = e.target.closest && e.target.closest('[data-item]'); hoverItem = t ? t.dataset.item : null; });
 function whereFrom() {
   const id = hoverItem; hideTipAll();
-  for (const s of document.querySelectorAll('#botTalk:not([hidden]) button.close, #bag:not([hidden]) button.close, #smith:not([hidden]) button.close, #lib:not([hidden]) button.close, #shop:not([hidden]) button.close')) s.click();
+  for (const s of document.querySelectorAll('#botTalk:not([hidden]) button.close, #bag:not([hidden]) button.close, #smith:not([hidden]) button.close, #lib:not([hidden]) button.close, #shop:not([hidden]) button.close, #auction:not([hidden]) button.close')) s.click();
   journal.open('sources', id || null);
 }
 const hideTipAll = () => { const t = $('bagTip'); if (t) t.hidden = true; };
@@ -496,6 +507,7 @@ if (desk) {
   const vis = id => !$(id).hidden;
   addEventListener('keydown', e => {
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.code !== 'Escape' && e.target && e.target.closest && e.target.closest('input, select, textarea')) return;     // печатаем в окне аукциона
     const c = e.code;
     if (!$('heroPick').hidden) { const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'].indexOf(c), k = HERO_IDS.indexOf(heroSel);     // выбор героя А: цифра — сразу, стрелки — по списку, Enter — войти
       if (n >= 0 && HERO_IDS[n]) pickHero(HERO_IDS[n]); else if ((c === 'ArrowDown' || c === 'ArrowUp') && k >= 0) { heroSel = HERO_IDS[(k + (c === 'ArrowDown' ? 1 : HERO_IDS.length - 1)) % HERO_IDS.length]; drawHeroPick(); } else if (c === 'Enter') pickHero(heroSel); else if (c === 'Escape' && heroSwitching) closeHeroPick(); return; }
@@ -631,7 +643,7 @@ $('impBtn').addEventListener('click', () => {
 const questBtn = $('questBtn'), trackerEl = $('tracker'); questBtn.addEventListener('click', e => { e.stopImmediatePropagation(); quests.open('here'); }, true);
 let lastTrack = '', lastMark = '';
 const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
-talk.addEventListener('click', e => { e.stopImmediatePropagation(); if (storyTalkable(W, W.nearNpc)) { dlgOpen(storyTalk(W, W.nearNpc)); return; } if (W.nearActor) { if (questsOf(W, W.nearNpc).length) quests.open('here'); else toast(`${W.nearActor.name.split(',')[0]}: «Потом. Делай, что должен.»`, '', W.nearActor.tint); return; } (W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : W.nearNpc === 'scribe' ? library : W.nearNpc === 'keeper' ? relic : shop).open(); }, true);     // сюжет первым (этап 3)
+talk.addEventListener('click', e => { e.stopImmediatePropagation(); if (storyTalkable(W, W.nearNpc)) { dlgOpen(storyTalk(W, W.nearNpc)); return; } if (W.nearActor) { if (questsOf(W, W.nearNpc).length) quests.open('here'); else toast(`${W.nearActor.name.split(',')[0]}: «Потом. Делай, что должен.»`, '', W.nearActor.tint); return; } (W.nearNpc === 'auctioneer' ? auction : W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : W.nearNpc === 'scribe' ? library : W.nearNpc === 'keeper' ? relic : shop).open(); }, true);     // сюжет первым (этап 3)
 // костры (C3d): у костра — список открытых, перенос к выбранному
 const fireBtn = $('fireBtn'), firesSec = $('fires');
 function openFires() {
@@ -970,7 +982,7 @@ function frame(now) {
   { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
   const hud = (hudT += real) >= cfg.cull.hud || paused !== hudP; if (hud) { hudT = 0; hudP = paused; }     // кнопки, статусы и умения — 10 раз в секунду (и сразу при открытии меню)
   if (hud) { const show = !!W.nearNpc && (storyTalkable(W, W.nearNpc) || !npcLocked(W.nearNpc)) && !panelOpen && !landscape;     // сюжетный разговор — даже у закрытого жителя
-  if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'scribe' ? 'Библиотека' : W.nearNpc === 'keeper' ? 'Дары Затмения' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
+  if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'auctioneer' ? (pendCount(W) ? 'Аукцион · есть что забрать' : 'Аукцион') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'scribe' ? 'Библиотека' : W.nearNpc === 'keeper' ? 'Дары Затмения' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
   if (hud) { const nb = !panelOpen && !landscape && !!nearBot(W) && !W.nearNpc; if (botBtn.hidden === nb) botBtn.hidden = !nb; if (nb) { const l = 'Поговорить: ' + nearBot(W).name.replace(/_/g, ' '); if (botBtn.textContent !== l) botBtn.textContent = l; } }
   if (hud) { const wp = W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead && knownFires(W).length > 1; if (warpBtn.hidden === wp) warpBtn.hidden = !wp;
     const ex = !panelOpen && !landscape && !exitBlock(W) && !W.player.dead; if (exitBtn.hidden === ex) exitBtn.hidden = !ex; if (exitArm && (performance.now() > exitArm || !ex)) { exitArm = 0; exitBtn.classList.remove('arm'); } if (ex && !exitArm) { const l = 'Выйти' + (desk ? ' · T' : ''); if (exitBtn.textContent !== l) exitBtn.textContent = l; }
@@ -1027,5 +1039,5 @@ function frame(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { reliefDone: () => reliefDone, openWin: n => ({ journal, smith, captain, shop, quests }[n] || { open() {} }).open(), emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
+window.__b3d = { reliefDone: () => reliefDone, openWin: n => ({ journal, auction, smith, captain, shop, quests }[n] || { open() {} }).open(), emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
 if (BENCH) setTimeout(() => runBench(W, cfg, input, renderer), 1500);

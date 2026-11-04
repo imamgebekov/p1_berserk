@@ -25,7 +25,7 @@ function fogOf(doc, W, full) {
 }
 
 const KIND = { keep: '#8a8aa8', house: '#8a6a52', shop: '#d8b04a', smithy: '#e0722c', tavern: '#c88a3a', chapel: '#9a94b8', barracks: '#6a8aa8', warehouse: '#8a7a52', hut: '#6a5a48' };
-const NPC = { keeper: '#e8405a', merchant: '#ffd45a', smith: '#ff8a3a', captain: '#6ab0ff', scribe: '#b48aff' };
+const NPC = { keeper: '#e8405a', merchant: '#ffd45a', smith: '#ff8a3a', captain: '#6ab0ff', auctioneer: '#d98aff', scribe: '#b48aff' };
 
 // малый мир: подложка из поля края (клетка — пиксель), запоминается на карту; ворота — красные, пока заперты
 const WILDBG = new WeakMap();
@@ -114,7 +114,7 @@ export function drawMap(ctx, W, v) {
   // костёр
   ctx.fillStyle = '#ff7a30'; ctx.beginPath(); ctx.arc(X(0), Y(0), Math.max(2, sc * .9), 0, 6.2832); ctx.fill();
   // торговцы и прочие NPC
-  const NPC_IC = { keeper: ['ui:sparkle', '#a8203a'], merchant: ['map:shop', '#b8901c'], smith: ['map:smith', '#c05a1c'], captain: ['map:fight', '#2a6ab8'], scribe: ['ui:book', '#6a4ab8'] };
+  const NPC_IC = { keeper: ['ui:sparkle', '#a8203a'], merchant: ['map:shop', '#b8901c'], smith: ['map:smith', '#c05a1c'], captain: ['map:fight', '#2a6ab8'], auctioneer: ['map:shop', '#8a3ab8'], scribe: ['ui:book', '#6a4ab8'] };
   for (const b of M.buildings) if (b.npc) { if (full && NPC_IC[b.npc.kind]) { if (zs >= 1.2) badge(ctx, NPC_IC[b.npc.kind][0], X(b.npc.x), Y(b.npc.z), 7 * U, NPC_IC[b.npc.kind][1]); continue; } ctx.fillStyle = NPC[b.npc.kind] || '#fff'; ctx.beginPath(); ctx.arc(X(b.npc.x), Y(b.npc.z), Math.max(2.5, sc * 1.1), 0, 6.2832); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); }
   }
   // люки и лестницы

@@ -47,7 +47,7 @@ export function createJournal(doc, W, cfg, { onOpen, onClose, onCraft } = {}) {
     listEl.appendChild(row('', '<b>Места</b>'));
     for (const p of cfg.map.places) {
       if (!K().places[p.id]) { listEl.appendChild(row('dim', '<b>???</b><div class="sub">Неизвестное место.</div>')); continue; }
-      const npcs = W.map.buildings.filter(b => b.npc && Math.hypot(b.x - p.x, b.z - p.z) < p.r).map(b => ({ merchant: 'торговец', smith: 'кузнец', captain: 'капитан' }[b.npc.kind]));
+      const npcs = W.map.buildings.filter(b => b.npc && Math.hypot(b.x - p.x, b.z - p.z) < p.r).map(b => ({ merchant: 'торговец', smith: 'кузнец', captain: 'капитан', auctioneer: 'аукционер' }[b.npc.kind]));
       const bosses = cfg.bosses.list.filter(b => Math.hypot(b.x - p.x, b.z - p.z) < p.r).map(b => cfg.enemies[b.type].name);
       listEl.appendChild(row('', `<b>${esc(p.name)}</b> <span class="${p.safe ? 'g' : 'z'}">${p.safe ? 'безопасно' : 'опасность ' + p.danger + '/3'}</span>${npcs.length ? `<div class="sub">Здесь: ${esc(npcs.join(', '))}</div>` : ''}${bosses.length && K().bestiary[cfg.bosses.list.find(b => cfg.enemies[b.type].name === bosses[0]).type] ? `<div class="sub z">Логово: ${esc(bosses.join(', '))}</div>` : ''}`));
     }
