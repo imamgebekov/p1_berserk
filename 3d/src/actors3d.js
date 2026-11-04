@@ -215,7 +215,7 @@ export function makeActor(key, kit, kind = 'actor') {
   const scaleFix = () => { const v = new THREE.Vector3(); A.hand.getWorldScale(v); return v.x > 0 ? 1 / v.x : 1; };
   // оружие в руке: своя модель оружия (те же размеры, что у героя из кубиков), рукоять — в ладони
   A.setWeapon = (wk, mat, id) => {
-    A.wArgs = [wk, mat, id];
+    A.wArgs = [wk, mat, id]; if (kit.ownWeapon) { A.family = familyOf(wk); return; }     // модель уже с оружием в руках (Meshy): своё не рисуем, семейство ударов — по виду
     const ms = kit.anims === 'kk' ? mwState(id) : 'none'; A.mwWait = ms === 'wait';     // своя модель вещи (Meshy) ещё грузится — пока оружие KayKit
     const key2 = wk + '|' + mat + (ms === 'ready' ? '|mw:' + id : '') + (kit.anims === 'kk' && kkReady() ? '|kk' : ''); if (key2 === A.wkey || !A.hand) return; A.wkey = key2;     // |kk — оружие KayKit пришло: заменить своё
     if (A.weapon) A.hand.remove(A.weapon.group);
@@ -225,7 +225,7 @@ export function makeActor(key, kit, kind = 'actor') {
     A.hand.add(w.group); A.weapon = w;
   };
   A.setOff = (key0, kindO, mat, form) => {
-    A.oArgs = [key0, kindO, mat, form];
+    A.oArgs = [key0, kindO, mat, form]; if (kit.ownWeapon) return;
     const ms = kit.anims === 'kk' ? mwState(key0) : 'none'; A.owWait = ms === 'wait';
     const key2 = key0 && key0 + (ms === 'ready' ? '|mw' : '') + (kit.anims === 'kk' && kkReady() ? '|kk' : ''); if (key2 === A.okey || !A.handL) return; A.okey = key2;
     if (A.off) A.handL.remove(A.off); A.off = null; if (!key2) return;
