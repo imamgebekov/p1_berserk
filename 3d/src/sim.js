@@ -448,6 +448,24 @@ function deadSlide(W, e, dt) {
   const c = W.corpses && W.corpses.find(q => q.id === 'c' + e.id); if (!c) return;
   c.x = e.x; c.z = e.z; for (const q of W.drops) if (q.corpse === c.id) { q.x = e.x; q.z = e.z; }
 }
+// сундук как добыча (2026-11-05, просьба владельца): кнопка «Открыть» у сундука — вещи ложатся «в тело» (как у убитого врага), выбираешь в окне добычи
+export const boxReach = (W, def) => (def.reach || 1.3) + (W.cfg.map.boxReachAdd || 0);
+export const boxName = c => (CONTAINERS[c.kind] || {}).name || 'Сундук';
+export function openBox(W, c) {
+  const p = W.player, def = c && CONTAINERS[c.kind]; if (!c || !def || !c.ready || p.dead) return 'none';
+  if (len(p.x - c.x, p.z - c.z) >= boxReach(W, def) + .4) return 'far';
+  if (c.locked) {     // ключ подходит, если уровень не ниже замка; тратим самый слабый из подходящих
+    let best = -1; W.inv.bag.forEach((s, i) => { const k = BY_ID[s.id].keyTier; if (k >= c.keyTier && (best < 0 || k < BY_ID[W.inv.bag[best].id].keyTier)) best = i; });
+    if (best < 0) { W.ev.push({ k: 'locked', x: c.x, z: c.z, tier: c.keyTier }); return 'locked'; }
+    removeAt(W.inv, best, 1); c.locked = false; W.ev.push({ k: 'unlock', x: c.x, z: c.z });
+  }
+  if (c.key && !W.keys[c.key]) { W.keys[c.key] = true; W.ev.push({ k: 'key', key: c.key, x: c.x, z: c.z }); }
+  const id = 'b' + W.lvl + ':' + c.id, C = W.cfg.corpse; let n = 0;
+  for (const it of c.items) { W.drops.push({ id: it.id, n: it.n || 1, x: c.x, z: c.z, t: 0, cd: 0, corpse: id, ...(it.il ? { il: it.il } : {}), ...(it.af ? { af: it.af } : {}), ...(it.g ? { g: it.g } : {}) }); n++; }
+  c.items = []; c.ready = false; c.t = 0; W.known.kinds[c.kind] = 1; questEvent(W, 'open', { kind: c.kind }); W.ev.push({ k: 'open', kind: c.kind, x: c.x, z: c.z });
+  const body = { id, x: c.x, z: c.z, type: 'box', name: boxName(c), boss: false, t: 0, life: C.life, empty: 0, lvl: W.lvl, fight: false, box: true };
+  (W.corpses || (W.corpses = [])).push(body); W.nearCorpse = body; return n ? 'ok' : 'empty';
+}
 export function tickCorpses(W, dt) {
   const C = W.cfg.corpse, L = W.corpses, p = W.player; W.nearCorpse = null; if (!C || !C.on || !L || !L.length) return;
   const fight = W.enemies.some(e => !e.dead && e.alert && len(e.x - p.x, e.z - p.z) < C.combatR);     // бой рядом — таймер тел стоит (босс: суета дольше 3 минут)
@@ -1088,10 +1106,12 @@ function updateHouses(W, dt) {
   W.nearPortal = portalNear(W);
   // контейнеры других уровней тоже наполняются со временем
   for (const L of Object.values(W.levels)) if (L.id !== W.lvl) for (const c of L.map.containers) if (!c.ready && !c.far && (c.t += dt) >= M.containerRespawn) withLevel(W, L.id, () => refill(W, c));
+  W.nearBox = null; let nbD = 1e9;     // сундук рядом (ручное открытие, M.boxManual)
   for (const c of W.map.containers) {
     const def = CONTAINERS[c.kind];
     if (c.cd > 0) c.cd -= dt;
     if (!c.ready) { if (c.far && len(p.x - c.x, p.z - c.z) > 70) continue; c.t += dt; if (c.t >= M.containerRespawn) refill(W, c); continue; }     // дальний сундук ждёт героя
+    if (M.boxManual) { const d = len(p.x - c.x, p.z - c.z); if (!p.dead && d < boxReach(W, def) && d < nbD) { nbD = d; W.nearBox = c; } continue; }     // сундук открывается кнопкой: вещи — в окно добычи
     if (p.dead || len(p.x - c.x, p.z - c.z) >= (def.reach || 1.3)) continue;
     if (c.locked) {
       // ключ подходит, если уровень не ниже замка; тратим самый слабый из подходящих

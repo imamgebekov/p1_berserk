@@ -4,6 +4,7 @@ import { RARITY, BY_ID } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { paintMat } from './paint3d.js';
 
+export const containerStyle = { scale: 1 };     // размер сундуков и ящиков в игре (map.containerScale), мебель не растёт
 const mats = new Map(), geos = new Map();
 // вид детали по цвету (T3): обручи, оковки, замки, клинки и доспехи — металл; мешки и одежда — ткань; прочее — по цвету (доски, камень)
 const METAL = new Set(['#2a1c12', '#1e1c1a', '#1a1816', '#8a6a3a', '#8a8478', '#7a746a', '#c8a24a', '#2a2220', '#a8a294', '#6a6258', '#7a7468', '#6a645c', '#3a3632', '#34302d', '#3a3633']);
@@ -46,7 +47,7 @@ export function buildContainers(map, Y = () => 0, lazy = false) {     // lazy (2
   const make = c => {
     const g = new THREE.Group(); g.position.set(c.x, Y(c.x, c.z), c.z);
     // повернуть лицом к центру деревни (костру), чтобы замок и крышка смотрели на игрока
-    g.rotation.y = Math.atan2(-c.x, -c.z) + (c.b >= 0 ? 0 : 0);
+    g.rotation.y = Math.atan2(-c.x, -c.z) + (c.b >= 0 ? 0 : 0); const S = containerStyle.scale || 1; if (S !== 1 && !/^(wardrobe|rack|armorstand|shelf|wagon|corpse|grave|altar)$/.test(c.kind)) g.scale.setScalar(S);
     const lid = (SHAPES[c.kind] || SHAPES.crate)(g) || null;
     const gem = new THREE.Mesh(gemGeo, new THREE.MeshBasicMaterial({ color: '#fff' })); gem.position.set(0, 1.5, 0); gem.rotation.y = 0;
     const beam = new THREE.Mesh(geo(.05, 1.2, .05), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: .35, depthWrite: false })); beam.position.y = .9;

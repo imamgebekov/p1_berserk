@@ -1,10 +1,11 @@
 import { GI } from './data/gicons.js';     // значки game-icons.net на панели умений (2026-10-20)
 import { CFG3 } from './config3d.js';
-import { createWorld, step, respawnPlayer, spawnEnemy, spawnBoss, rerollRare, corpseItems, lootCorpse } from './sim.js';
+import { createWorld, step, respawnPlayer, spawnEnemy, spawnBoss, rerollRare, corpseItems, lootCorpse, openBox, boxName } from './sim.js';
 import { BY_ID, RARITY, STAT_NAME, SLOT_NAME, statLine } from './data/items.js';
 import { CONTAINERS } from './data/loot.js';
 import { createBag } from './bag.js';
 import { createShop, createSmith, createCaptain } from './shop.js';
+import { containerStyle } from './containers.js';
 import { createMail } from './mailui.js';     // почта и гильдия (2026-11-05)
 import { arenaOf, startDuel, duelBlock, winChance, botRating, prizeOf, sanitizeArena, dueling } from './arena3d.js';
 import { mailTick, mailOnEvent, unread as mailUnread, mailOf, sanitizeMail } from './mail3d.js';
@@ -94,6 +95,8 @@ if (desk) document.documentElement.setAttribute('data-desk', '');
 const canvas = $('gl');
 let renderer;
 const W = createWorld(cfg);     // мир — до отрисовки: она берёт его карту, а не строит свою (загрузка, 2026-10-28)
+containerStyle.scale = CFG3.map.containerScale;
+CFG3.map.boxManual = true;     // сундуки открываются кнопкой «Открыть» и дают окно добычи (2026-11-05)
 window.__tWorld = performance.now();     // для ?mem: когда мир готов
 W.wantBots = true;     // боты-«игроки» (этап 5 «живого мира») — только в игре, не в тестах createWorld
 if (new URLSearchParams(location.search).has('showcase')) ['barrel_l', 'keg', 'barrels', 'crates', 'chest_d', 'trunk_d', 'table_set', 'table_broken', 'shelf_d', 'candles3', 'swsh_broken', 'swsh', 'rubble_s', 'rubble_l', 'column_d', 'arch_k', 'arch_q', 'wall_br', 'wall_hf', 'torch_d', 'barrier_d', 'vine', 'fence_q', 'w_lie', 'w_stuck', 'shield_lie', 'armor_lie', 'armor_pole', 'armor_pile', 'armor_rack'].forEach((t, i) => W.map.decor.push({ t, x: 40 + (i % 10) * 4, z: 40 + Math.floor(i / 10) * 5, rot: 0 }));     // ?showcase — витрина новых мелочей у лагеря (2026-10-28)
@@ -748,7 +751,7 @@ const lootEl = (tag, cls, txt) => { const e = document.createElement(tag); if (c
 function openLoot() { const c = W.nearCorpse; if (!c) return; lootOpen = c.id; lootKey = ''; lootBox.hidden = false; drawLoot(c); }
 function closeLoot() { lootOpen = null; lootBox.hidden = true; }
 function drawLoot(c) {
-  const its = corpseItems(W, c.id), left = Math.max(0, Math.ceil(c.life - c.t)), tt = c.fight ? 'Бой идёт — таймер тела стоит' : `Тело исчезнет через ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const its = corpseItems(W, c.id), left = Math.max(0, Math.ceil(c.life - c.t)), tt = c.fight ? 'Бой идёт — таймер тела стоит' : c.box ? `Что останется, пропадёт через ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : `Тело исчезнет через ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   const key = its.map(q => q.id + ':' + q.n).join(',') + '|' + tt; if (key === lootKey) return; lootKey = key;
   $('lootName').textContent = c.name; $('lootTime').textContent = tt; const list = $('lootList'); list.textContent = '';
   its.forEach((q, k) => { const it = BY_ID[q.id], b = lootEl('button', 'lrow'), ic = lootEl('span', 'lic'), im = lootEl('img'), tx = lootEl('span', 'ltx'), nm = lootEl('span', 'lnm', it.name);
@@ -759,10 +762,11 @@ function drawLoot(c) {
 function lootUi(free) {
   const c = lootOpen && (W.corpses || []).find(x => x.id === lootOpen && x.lvl === W.lvl), p = W.player;
   if (lootOpen && (!c || p.dead || Math.hypot(c.x - p.x, c.z - p.z) > cfg.corpse.r + 1.5 || !corpseItems(W, c.id).length)) closeLoot();
-  const nb = !!(free && W.nearCorpse && !lootOpen); if (lootBtn.hidden === nb) lootBtn.hidden = !nb; if (nb) { const l = 'Добыча' + (desk ? ' · E' : ''); if (lootBtn.textContent !== l) lootBtn.textContent = l; }
+  const bx = !W.nearCorpse && W.nearBox && W.nearBox.ready ? W.nearBox : null, nb = !!(free && (W.nearCorpse || bx) && !lootOpen); if (lootBtn.hidden === nb) lootBtn.hidden = !nb; if (nb) { const l = (bx ? 'Открыть: ' + boxName(bx).toLowerCase() : 'Добыча') + (desk ? ' · E' : ''); if (lootBtn.textContent !== l) lootBtn.textContent = l; }
   if (lootOpen && c) drawLoot(c);
 }
-lootBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); openLoot(); }, true);
+const BOXWHY = { locked: 'Заперто: нужен ключ подходящего уровня', far: 'Подойдите ближе', none: 'Уже пусто', empty: 'Пусто' };
+lootBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); if (!W.nearCorpse && W.nearBox) { const r = openBox(W, W.nearBox); if (r !== 'ok') { toast(BOXWHY[r] || 'Нельзя', 'bad'); return; } sfx('pickup'); } openLoot(); }, true);
 $('lootAll').addEventListener('click', e => { e.stopImmediatePropagation(); if (lootOpen) { lootCorpse(W, lootOpen); lootKey = ''; } }, true);
 $('lootClose').addEventListener('click', e => { e.stopImmediatePropagation(); closeLoot(); }, true);
 const FLY = { far: 'Подойдите к повозке', unknown: 'Этот узел ещё не открыт', danger: 'Рядом враги', ash: 'Не хватает пепла' };
