@@ -94,6 +94,8 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const desk = matchMedia('(hover: hover) and (pointer: fine)').matches && !(navigator.maxTouchPoints > 0);
 if (desk) document.documentElement.setAttribute('data-desk', '');
 const canvas = $('gl');
+// кнопки действий складываются в стопку, а не лежат каждая на своём месте: две сразу (сундук и костёр) не налезают друг на друга (2026-11-05)
+for (const [id, ids] of [['actStack', ['talk', 'botBtn', 'lootBtn', 'gatherBtn', 'coachBtn', 'fireBtn', 'portalBtn', 'heroicBtn', 'sleepBtn']], ['actSide', ['mountBtn', 'mountNextBtn', 'mailBtn']]]) { const box = document.createElement('div'); box.id = id; document.body.append(box); for (const b of ids) { const el = $(b); if (el) box.append(el); } }
 let renderer;
 const W = createWorld(cfg);     // мир — до отрисовки: она берёт его карту, а не строит свою (загрузка, 2026-10-28)
 containerStyle.scale = CFG3.map.containerScale;
