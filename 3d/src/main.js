@@ -90,6 +90,7 @@ if (desk) document.documentElement.setAttribute('data-desk', '');
 const canvas = $('gl');
 let renderer;
 const W = createWorld(cfg);     // мир — до отрисовки: она берёт его карту, а не строит свою (загрузка, 2026-10-28)
+window.__tWorld = performance.now();     // для ?mem: когда мир готов
 W.wantBots = true;     // боты-«игроки» (этап 5 «живого мира») — только в игре, не в тестах createWorld
 if (new URLSearchParams(location.search).has('showcase')) ['barrel_l', 'keg', 'barrels', 'crates', 'chest_d', 'trunk_d', 'table_set', 'table_broken', 'shelf_d', 'candles3', 'swsh_broken', 'swsh', 'rubble_s', 'rubble_l', 'column_d', 'arch_k', 'arch_q', 'wall_br', 'wall_hf', 'torch_d', 'barrier_d', 'vine', 'fence_q', 'w_lie', 'w_stuck', 'shield_lie', 'armor_lie', 'armor_pole', 'armor_pile', 'armor_rack'].forEach((t, i) => W.map.decor.push({ t, x: 40 + (i % 10) * 4, z: 40 + Math.floor(i / 10) * 5, rot: 0 }));     // ?showcase — витрина новых мелочей у лагеря (2026-10-28)
 try {
@@ -923,6 +924,20 @@ const CALM_UI = matchMedia('(prefers-reduced-motion: reduce)').matches;
 // замер кадра (C5): время процессора на симуляцию и подготовку отрисовки, вызовы и треугольники; окно последних 600 кадров
 const perf = { sim: [], draw: [], calls: 0, tris: 0, max: 0, n: 0 }, PERF_N = 600;
 const perfPush = (a, v) => { a.push(v); if (a.length > PERF_N) a.shift(); };
+// ?mem — счётчик памяти и нагрузки для телефона (2026-11-05): нажатие копирует текст в буфер, чтобы прислать цифры; на iOS кучи JS нет — смотрим геометрии, текстуры, вызовы, треугольники
+if (new URLSearchParams(location.search).has('mem')) {
+  const box = document.createElement('pre'); box.setAttribute('aria-label', 'Счётчик памяти'); box.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:99;margin:0;padding:6px 8px;font:10px/1.35 ui-monospace,Menlo,monospace;color:#cfe8cf;background:rgba(0,0,0,.72);border-radius:8px;white-space:pre;max-width:92vw;pointer-events:auto';
+  document.body.append(box); const pk = { calls: 0, tris: 0, geo: 0, tex: 0, foes: 0, heap: 0 }; let lastN = 0, fps = 0, minFps = 999, text = '';
+  box.addEventListener('click', () => { try { navigator.clipboard.writeText(text); toast('Цифры скопированы', ''); } catch (e) { /* буфер недоступен */ } });
+  setInterval(() => {
+    const gi = renderer && renderer.dbg && renderer.dbg.gl && renderer.dbg.gl.info, m = gi ? gi.memory : { geometries: 0, textures: 0 }, n = perf.n; fps = n - lastN; lastN = n; if (n > 120) minFps = Math.min(minFps, fps);
+    const heap = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : 0, foes = W.enemies.length;
+    pk.calls = Math.max(pk.calls, perf.calls); pk.tris = Math.max(pk.tris, perf.tris); pk.geo = Math.max(pk.geo, m.geometries); pk.tex = Math.max(pk.tex, m.textures); pk.foes = Math.max(pk.foes, foes); pk.heap = Math.max(pk.heap, heap);
+    const sim = perf.sim.length ? perf.sim.reduce((a, b) => a + b, 0) / perf.sim.length : 0, dr = perf.draw.length ? perf.draw.reduce((a, b) => a + b, 0) / perf.draw.length : 0, nav = performance.getEntriesByType('navigation')[0];
+    text = [`кадр ${fps} к/с (мин ${minFps === 999 ? '-' : minFps}) · шаг ${sim.toFixed(1)} мс · рисование ${dr.toFixed(1)} мс`, `вызовов ${perf.calls} (пик ${pk.calls}) · треуг. ${Math.round(perf.tris / 1000)}k (пик ${Math.round(pk.tris / 1000)}k)`, `геометрий ${m.geometries} (пик ${pk.geo}) · текстур ${m.textures} (пик ${pk.tex})`, `враги ${foes} (пик ${pk.foes}) · боты ${(W.bots || []).length} · канвас ${canvas.width}×${canvas.height} · dpr ${(window.devicePixelRatio || 1).toFixed(1)}`, `куча JS ${heap ? heap + ' МБ (пик ' + pk.heap + ')' : 'н/д'} · страница ${nav ? Math.round(nav.domContentLoadedEventEnd) : '?'} мс · игра ${Math.round(window.__tWorld || 0)} мс · 1-й кадр ${Math.round(window.__tFrame || 0)} мс`, `${navigator.userAgent.replace(/\(.*?\)/, '').slice(0, 60)} · нажмите — скопировать`].join('\n');
+    box.textContent = text;
+  }, 1000);
+}
 // защита от сбоев (шаг 11): ошибка в кадре не останавливает игру — прогресс сохраняется, следующий кадр всё равно будет;
 // ошибки подряд — плашка с перезагрузкой
 let crashN = 0, crashShown = false;
@@ -1001,7 +1016,7 @@ function frame(now) {
   { const n = bagUsed(W.inv), m = bagSlots(W), s = n + '/' + m, cls = n >= m ? 'full' : n >= m * .8 ? 'warn' : ''; if (bagFill.textContent !== s) bagFill.textContent = s; if (bagFill.className !== cls) bagFill.className = cls; }     // заполненность сумки на кнопке
   const t1 = performance.now();
   if (renderer) renderer.render(W, dt);
-  { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
+  { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (perf.n === 1) window.__tFrame = performance.now(); if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
   const hud = (hudT += real) >= cfg.cull.hud || paused !== hudP; if (hud) { hudT = 0; hudP = paused; }     // кнопки, статусы и умения — 10 раз в секунду (и сразу при открытии меню)
   if (hud) { const show = !!W.nearNpc && (storyTalkable(W, W.nearNpc) || !npcLocked(W.nearNpc)) && !panelOpen && !landscape;     // сюжетный разговор — даже у закрытого жителя
   if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'auctioneer' ? (pendCount(W) ? 'Аукцион · есть что забрать' : 'Аукцион') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'scribe' ? 'Библиотека' : W.nearNpc === 'keeper' ? 'Дары Затмения' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
