@@ -74,7 +74,7 @@ if (new URLSearchParams(location.search).get('style') === 'dark') {     // ?styl
   const S = CFG3.daynight.sky, G = CFG3.groundTex; G.dark = true; G.gain = 1.9; G.tint = .22;
   Object.assign(S.day, { fog: '#6f7468', hemiSky: '#aab4b0', hemiGround: '#343a2a', hemiI: 1.15, sun: '#e6d6b8', sunI: 2.5 }); Object.assign(S.night, { fog: '#12161f', hemiI: 1.5, sunI: .55 }); CFG3.view.fogDensity = .03;
 }
-if (new URLSearchParams(location.search).has('mh')) for (const h of new URLSearchParams(location.search).get('mh').split(',').filter(Boolean)) if (CFG3.actors.kits['mh_' + h]) CFG3.actors.heroes[h] = 'mh_' + h;     // ?mh=thorn — герои из Meshy вместо KayKit (проба, 2026-11-05)
+if (new URLSearchParams(location.search).has('mh')) for (const h of (new URLSearchParams(location.search).get('mh') === 'all' ? Object.keys(CFG3.actors.heroes) : new URLSearchParams(location.search).get('mh').split(',').filter(Boolean))) if (CFG3.actors.kits['mh_' + h]) CFG3.actors.heroes[h] = 'mh_' + h;     // ?mh=thorn — герои из Meshy вместо KayKit (проба, 2026-11-05)
 if (new URLSearchParams(location.search).has('boxy')) CFG3.shapes.volume = false;     // ?boxy — прежние модели из кубиков (сравнение)
 if (new URLSearchParams(location.search).has('flat') && CFG3.shaders.paint) CFG3.shaders.paint.on = false;
 if (new URLSearchParams(location.search).has('nodetails') && CFG3.details) CFG3.details.on = false;     // ?nodetails — без деталей мира (сравнение T5)

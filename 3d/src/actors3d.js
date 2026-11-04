@@ -45,6 +45,24 @@ const CHAIN = { slash: ['a1', 'a2', 'a3'], thrust: ['p1', 'a1', 'p1'], smash: ['
 const famKey = f => (CHAIN[f] ? f : 'slash');
 const LOCO = new Set(['walk', 'run']);     // циклы шага: при смене — та же фаза ног
 
+let mhsP = null;     // общие клипы героев из Meshy (Mixamo): те же имена костей, но у каждой модели своя поза покоя — клипы пересчитываются под неё (retargetMhs)
+async function loadMhs() { if (!mhsP) mhsP = (async () => { const u = urlOf('mh_anims'); if (!u) return null; const g = await ld().loadAsync(u); return { clips: g.animations, scene: g.scene }; })().catch(() => null); return mhsP; }
+const nodeKey = o => THREE.PropertyBinding.sanitizeNodeName(o.name);
+function restOf(scene) { const m = new Map(); scene.traverse(o => { let ps = 1, p = o.parent; while (p) { ps *= p.scale.y; p = p.parent; } m.set(nodeKey(o), { q: o.quaternion.clone(), y: o.position.y, ps }); }); return m; }
+// поворот кости: поза покоя героя × (покой источника⁻¹ × клип); качание таза — по отношению высот тазов
+function retargetMhs(src, heroScene) {
+  const S = restOf(src.scene), H = restOf(heroScene), sh = S.get('mixamorigHips'), hh = H.get('mixamorigHips'), ratio = sh && hh && sh.y ? (hh.y * hh.ps) / (sh.y * sh.ps) : 1, out = [], qa = new THREE.Quaternion();
+  for (const c of src.clips) {
+    const tracks = [];
+    for (const t of c.tracks) {
+      const i = t.name.lastIndexOf('.'), node = t.name.slice(0, i), prop = t.name.slice(i + 1), s = S.get(node), h = H.get(node); if (!s || !h) continue;
+      if (prop === 'quaternion') { const v = Float32Array.from(t.values), inv = s.q.clone().invert(); for (let k = 0; k < v.length; k += 4) { qa.set(v[k], v[k + 1], v[k + 2], v[k + 3]); qa.premultiply(inv).premultiply(h.q); v[k] = qa.x; v[k + 1] = qa.y; v[k + 2] = qa.z; v[k + 3] = qa.w; } tracks.push(new THREE.QuaternionKeyframeTrack(t.name, t.times, v)); }
+      else if (prop === 'position' && node === 'mixamorigHips') { const v = Float32Array.from(t.values).map(x => x * ratio / hh.ps); tracks.push(new THREE.VectorKeyframeTrack(t.name, t.times, v)); }
+    }
+    out.push(new THREE.AnimationClip(c.name, c.duration, tracks));
+  }
+  return out;
+}
 async function loadKk() {
   if (kkClips) return kkClips;
   const all = []; for (const k of KK_ANIMS) { const u = urlOf(k); if (u) all.push(...(await ld().loadAsync(u)).animations); }
@@ -117,7 +135,7 @@ export function loadActor(key, kit) {
   const u = urlOf(kit.src || key); if (!u) { lib.set(key, null); return null; }     // src — другой файл модели (вариант с перекраской)
   const p = (async () => {
     if (kit.attach && kit.attach.some(a => a.p.startsWith('kw:'))) await loadKkWeapons();     // детали из набора оружия нужны до сборки
-    const g = await ld().loadAsync(u), clips = [...g.animations, ...(kit.anims === 'kk' ? await loadKk() : [])];
+    const g = await ld().loadAsync(u), mhs = kit.anims === 'mhs' ? await loadMhs() : null, clips = [...g.animations, ...(kit.anims === 'kk' ? await loadKk() : mhs ? retargetMhs(mhs, g.scene) : [])];
     for (const [nm, [t0, t1]] of Object.entries(kit.split || {})) { const c = clips[0]; if (c) clips.push(THREE.AnimationUtils.subclip(c, nm, Math.round(t0 * 30), Math.round(t1 * 30), 30)); }     // одна склейка «поза-стойка-ходьба» → свои клипы
     g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.geometry.userData.shared = true; o.frustumCulled = false; const ms = Array.isArray(o.material) ? o.material : [o.material]; o.material = ms.map(m => new THREE.MeshLambertMaterial({ name: m.name, map: m.map || null, color: m.color ? m.color.clone() : 0xffffff, transparent: m.transparent, alphaTest: m.alphaTest || 0, emissive: m.emissive ? m.emissive.clone().multiplyScalar(m.emissiveIntensity ?? 1) : 0x000000, emissiveMap: m.emissiveMap || null }))[0]; } });
     if (kit.recolor) recolor(g.scene, kit);

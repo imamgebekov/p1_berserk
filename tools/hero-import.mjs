@@ -12,17 +12,18 @@ import { statSync } from 'node:fs';
 
 const [hero, tri = '15000', src = pj(process.env.HOME, 'p1_berserk_models/heroes_raw')] = process.argv.slice(2);
 if (!hero) { console.log('node tools/hero-import.mjs <герой> [треугольников] [папка]'); process.exit(1); }
-const root = pj(dirname(fileURLToPath(import.meta.url)), '..'), out = pj(root, '3d/models', `mh_${hero}.glb`), target = Number(tri);
+const root = pj(dirname(fileURLToPath(import.meta.url)), '..'), out = process.env.HERO_OUT ? pj(process.env.HERO_OUT, `${hero}.glb`) : pj(root, '3d/models', `mh_${hero}.glb`), target = Number(tri), TEX = process.env.HERO_TEX || 'webp';     // HERO_OUT/HERO_TEX=png — файл для загрузки в Meshy (риггинг)
 await MeshoptSimplifier.ready; await MeshoptDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
 const doc = await io.read(pj(src, hero + '.glb')), R = doc.getRoot();
 const count = () => { let n = 0; for (const m of R.listMeshes()) for (const p of m.listPrimitives()) { const i = p.getIndices(); n += (i ? i.getCount() : p.getAttribute('POSITION').getCount()) / 3; } return n; };
+if (process.env.HERO_NOANIM) for (const a of R.listAnimations()) a.dispose();     // клипы — общие (3d/models/mh_anims.glb), у героя только скелет
 const t0 = count(); console.log(hero, 'исходно', Math.round(t0), 'треугольников');
 // только цвет: нормали, металл-шероховатость, окклюзия и свечение игре не нужны (материалы без PBR, память телефона)
 for (const m of R.listMaterials()) { m.setNormalTexture(null); m.setOcclusionTexture(null); m.setMetallicRoughnessTexture(null); m.setEmissiveTexture(null); m.setMetallicFactor(0); m.setRoughnessFactor(1); m.setEmissiveFactor([0, 0, 0]); }
 const skinned = R.listSkins().length > 0;     // со скелетом сетки не склеиваем: кости привязаны к узлам
 await doc.transform(...(skinned ? [weld()] : [flatten(), join(), weld()]));
 await doc.transform(simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, target / t0), error: 0.01, lockBorder: false }));
-await doc.transform(dedup(), prune(), textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [1024, 1024], quality: 82 }));
+await doc.transform(dedup(), prune(), textureCompress({ encoder: sharp, targetFormat: TEX, resize: [1024, 1024], quality: 82 }));
 await io.write(out, doc);
 console.log(hero, 'теперь', Math.round(count()), 'треугольников,', (statSync(out).size / 1024).toFixed(0), 'КБ →', out);

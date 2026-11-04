@@ -1388,7 +1388,9 @@ const BASE = {
     tints: { ghosthorse: '#a8c0ff', stagride: '#b89060', ashgolem: '#a8a29a', heron: '#c8d0d8', crow: '#3a3438', bomber: '#ffb070', blackdog: '#404048', garm: '#a06050', eclipse_fiend: '#b080ff', garm_beast: '#c04838', greywolf: '#c8c8c0', towerhound: '#c09060',
       kad_soldier: '#8aa0ff', kad_spear: '#8aa0ff', kad_banner: '#a0b0ff', kad_xbow: '#a0b8ff', royal_guard: '#ff8a8a', masked_knight: '#605870', brandshade: '#ff6a6a', shrieker: '#ffe0b0', ashking: '#c0a080', oakking: '#a0d080', firegolem: '#ff9a60', drownedmaid: '#a0e0d0', silt: '#b0c080', swampelder: '#c0a070', lord: '#ff9070', gatebeast: '#ff7060', gravewight: '#c0d080', abbot: '#ffe0a0' },
     kits: {
-      mh_thorn: { height: 2.2, ownWeapon: true },     // новый Торн из Meshy (?mh): автоскелет, цвет 1024 px
+      mh_thorn: { height: 2.2, ownWeapon: true },
+      mh_vale: { height: 2.15, ownWeapon: true, anims: 'mhs' }, mh_jay: { height: 2.15, ownWeapon: true, anims: 'mhs' }, mh_irga: { height: 2.3, ownWeapon: true, anims: 'mhs' }, mh_warlock: { height: 2.2, ownWeapon: true, anims: 'mhs' },
+      mh_priest: { height: 2.2, ownWeapon: true, anims: 'mhs' }, mh_brand: { height: 2.3, ownWeapon: true, anims: 'mhs' }, mh_hunter: { height: 2.2, ownWeapon: true, anims: 'mhs' },     // новый Торн из Meshy (?mh): автоскелет, цвет 1024 px
       kk_knight: { anims: 'kk', height: 2.25, gear: ['sword', 'iron', 'shield', 'shield_badge'], helm: ['Knight_Helmet', 'Knight_HelmetVisor'], cape: ['Knight_Cape'] },
       kk_rogue: { anims: 'kk', height: 2.15, cape: ['Rogue_Cape'] },
       kk_rogue_hooded: { anims: 'kk', height: 2.15, aim: 'aim', atk: 'bow', gear: ['crossbow', 'iron'] },     // gear — оружие врага: вид или меш KayKit, материал, щит, форма щита
