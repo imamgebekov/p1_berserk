@@ -19,7 +19,7 @@ import { RANGED, mainSchool, spend, near, ready, abilities, escape, bot } from '
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const SEEDS = Number(process.env.HB_SEEDS || 12), SECONDS = 90, TOL = Number(process.env.HB_TOL || .15), CELL = Number(process.env.HB_CELL || .3), QUIET = !!process.env.HB_QUIET;
-const HEROES = ['thorn', 'jay', 'vale', 'irga', 'warlock', 'priest', 'brand', 'hunter'], NAME = { thorn: 'Торн', jay: 'Сойка', vale: 'Вейл', irga: 'Ирга', warlock: 'Морок', priest: 'Жрец', brand: 'Клеймёный', hunter: 'Бесогон' };     // 2026-10-23: + Жрец, Клеймёный, Бесогон
+const HEROES = ['thorn', 'jay', 'vale', 'irga', 'warlock', 'priest', 'brand', 'hunter', 'selene'], NAME = { thorn: 'Торн', jay: 'Сойка', vale: 'Вейл', irga: 'Ирга', warlock: 'Морок', priest: 'Жрец', brand: 'Клеймёный', hunter: 'Бесогон', selene: 'Селена' };     // 2026-10-23: + Жрец, Клеймёный, Бесогон
 const ARMOR = {
   'железо': { body: 'a_body_jerkin_leather', head: 'a_head_cap_leather', boots: 'a_boots_boots_leather' },
   'сталь': { body: 'a_body_mail_mail', head: 'a_head_helm_mail', boots: 'a_boots_greaves_mail', ring: 'r_ring_might', amulet: 'm_amulet_ward' },
@@ -39,7 +39,8 @@ const ARMS = {
   vale:  { 'железо': { weapon: 'w_rapier_iron', offhand: 'w_dagger_iron' }, 'сталь': { weapon: 'w_sword_steel', offhand: 'w_rapier_steel' }, 'чёрное': { weapon: 'w_rapier_black', offhand: 'w_dagger_black' } },
   priest: { 'железо': { weapon: 'w_mace_iron', offhand: 's_buckler_iron' }, 'сталь': { weapon: 'w_mace_steel', offhand: 's_buckler_steel' }, 'чёрное': { weapon: 'w_mace_black', offhand: 's_tower_black' } },
   brand: { 'железо': { weapon: 'w_greatsword_iron' }, 'сталь': { weapon: 'w_greatsword_steel' }, 'чёрное': { weapon: 'w_greatsword_black' } },
-  hunter: { 'железо': { weapon: 'w_sword_iron', offhand: 'w_dagger_iron' }, 'сталь': { weapon: 'w_sword_steel', offhand: 'w_dagger_steel' }, 'чёрное': { weapon: 'w_sword_black', offhand: 'w_dagger_black' } }
+  hunter: { 'железо': { weapon: 'w_sword_iron', offhand: 'w_dagger_iron' }, 'сталь': { weapon: 'w_sword_steel', offhand: 'w_dagger_steel' }, 'чёрное': { weapon: 'w_sword_black', offhand: 'w_dagger_black' } },
+  selene: { 'железо': { weapon: 'w_sword_iron' }, 'сталь': { weapon: 'w_sword_steel' }, 'чёрное': { weapon: 'w_sword_black' } }
 };
 const LV = { 'железо': 6, 'сталь': 12, 'чёрное': 22 }, TIERS = Object.keys(LV);
 const PLACES = { 'у костра': [6, 6], 'середина': [-20, -40], 'у границы': [-62, -5] };

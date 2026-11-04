@@ -329,6 +329,7 @@ const BASE = {
       hunter: { name: 'Гнев', color: '#7ae03a', max: 100, start: 60, hit: 6, hurt: 0, roll: 0, regen: 4, decay: 0, idle: 0, perLv: 2 },     // Г8: гнев Бесогона — от ударов и сам по себе
       brand: { name: 'Клеймо', color: '#c8282a', max: 100, start: 0, hit: 3, hurt: .5, roll: 0, regen: 0, decay: 5, idle: 4, perLv: 2 },     // 4.17: клеймо копится от ударов и боли, гаснет без боя
       priest: { name: 'Вера', color: '#ffe08a', max: 120, start: 120, hit: 2, hurt: 0, roll: 0, regen: 8, decay: 0, idle: 0, perLv: 3 },     // 4.16: вера Жреца
+      selene: { name: 'Лунный свет', color: '#b8c8ff', max: 100, start: 50, hit: 4, hurt: 0, roll: 0, regen: 5, decay: 0, idle: 0, perLv: 2 },     // Г9: лунный свет Селены — от ударов и сам по себе
       warlock: { name: 'Души', color: '#b04aff', max: 100, start: 60, hit: 4, hurt: 3, roll: 0, regen: 5, decay: 0, idle: 0, perLv: 2 }     // души: копятся от ударов и боли
     },
     thorn: {
@@ -390,6 +391,16 @@ const BASE = {
       sigil:   { kind: 'field', el: 'fire', st: null, cd: [12, 11, 10], cost: 25, r: 3, range: 12, ahead: 5, t: 5, tick: .5, mul: [.3, .4, .5], slow: 0 },
       meta:    { kind: 'morph', el: 'shadow', st: 'stun', cd: [40, 36, 32], cost: 50, t: [10, 12, 15], dmg: [8, 12, 16], spd: [20, 25, 30], leech: [3, 4, 5], r: 4, mul: [1, 1.3, 1.6], knock: 1.2, sd: [1, 1.2, 1.5], scale: 1.25 }     // облик демона на t с: урон, скорость (%), вампиризм (%); при входе — удар и оглушение в r м; модель крупнее в scale раз
     },
+    selene: {     // Селена, лунная воительница (Г9): все умения — из готовых видов (kind); starfall — поле, night: во сколько раз сильнее ночью
+      crescent: { kind: 'cone', el: 'light', st: 'slow', cd: [5, 4.5, 4], cost: 20, r: 3.6, cone: 120, mul: [1.5, 1.9, 2.3], knock: 1, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
+      lglaive:  { kind: 'bolt', el: 'light', st: null, cd: [6, 5.5, 5], cost: 25, mul: [.7, .9, 1.1], n: 3, spread: 36, pierce: 2, sd: [1, 1, 1], dps: [0, 0, 0], t: 0 },
+      lstride:  { kind: 'dash', el: 'light', st: null, cd: [8, 7, 6], cost: 20, dist: 6, time: .26, width: 2, stop: .9, mul: [1.1, 1.4, 1.7], knock: 1, sd: [0, 0, 0], dps: [0, 0, 0], t: 0 },
+      moonbeam: { kind: 'bolt', el: 'light', st: 'blind', cd: [6, 5.5, 5], cost: 30, mul: [2.2, 2.8, 3.4], n: 1, spread: 0, pierce: 0, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
+      flare:    { kind: 'nova', el: 'light', st: 'blind', cd: [10, 9, 8], cost: 35, r: 4, mul: [1, 1.3, 1.6], knock: 1, sd: [1.5, 2, 2.5], dps: [0, 0, 0], t: 0 },
+      starfall: { kind: 'field', el: 'light', st: null, cd: [24, 22, 20], cost: 60, r: 4.5, t: 6, tick: .4, mul: [.45, .6, .75], range: 12, ahead: 5, slow: 0, night: 1.5 },     // ульт: лучи света сыплются на врагов в круге; ночью урон ×night
+      lveil:    { kind: 'ward', cd: [16, 14, 12], cost: 30, r: 10, abs: [.1, .15, .2], t: 8 },
+      glow:     { kind: 'buff', stat: 'armor', cd: [18, 16, 14], cost: 20, t: [8, 10, 12], amt: [8, 12, 16] }
+    },
     brand: {     // Клеймёный рыцарь (Г4, 4.17): свои умения — из видов действия (kind), числа здесь
       cleaver:  { kind: 'cone', el: 'steel', st: 'bleed', cd: [7, 6, 5], cost: 30, r: 3.8, cone: 140, mul: [1.7, 2.2, 2.7], knock: 1.5, sd: [1, 1.3, 1.6], dps: [5, 8, 11], t: 4 },
       cannon:   { kind: 'bolt', el: 'fire', st: 'burn', cd: [9, 8, 7], cost: 35, mul: [2, 2.6, 3.2], n: 1, spread: 0, pierce: 1, sd: [1, 1, 1], dps: [6, 9, 12], t: 4 },
@@ -432,6 +443,7 @@ const BASE = {
     brandrage: { mul: { mul: 1.4 } }, ironram: { mul: { mul: 1.4 } }, darkpain: { mul: { mul: 1.4 } },
     sermon: { mul: { k: 1.3 } }, judgement: { mul: { mul: 1.3, sd: 1.3 } }, purge: { mul: { mul: 1.4 } },
     verdict: { k: 1.5 }, bloodfeast: { mul: { heal: 1.5, cap: 1.5 } }, bloodimp: { mul: { t: 1.5, mul: 1.3 } },
+    lunarrush: { mul: { mul: 1.4 } }, nightlight: { mul: { r: 1.4 } }, blindbeam: { mul: { mul: 1.5 } },
     firerain: { mul: { r: 1.4 } }, icearmor: { mul: { r: 1.4 }, armor: 15, t: 6 }, breach: { k: 1.5 }
   },
   // вторая рука (B2b): block.arc — ширина щита спереди, °; block.knock — доля отброса при блоке; dual.mul — доля урона второго клинка
@@ -439,7 +451,7 @@ const BASE = {
   block: { arc: 120, knock: .4 }, dual: { mul: .8, swing: .92 },
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
   heroes: { thorn: { hp: 1.15, speed: 1, crit: 0, killHeal: .03, healLv: [8, 12] },     // Торн — защитник: здоровья больше; убийство рядом (до 6 м), когда вокруг ещё двое и больше, лечит на killHeal до healLv[0] ур., к healLv[1] — на нет (на «железе» гиб чаще всех)
-  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1.1, speed: 1.05, crit: 2 }, warlock: { hp: .9, speed: 1.05, crit: 3 }, priest: { hp: .85, speed: 1.05, crit: 1 }, brand: { hp: 1.3, speed: 1, crit: 2, killHeal: .04, healLv: [14, 20] }, hunter: { hp: 1, speed: 1.12, crit: 4 } },     // 4.27 (2026-10-23): сталь у границы — Жрец 0% и Морок 17% против средних 52% (здоровье ×0,9), Клеймёный 92% (×1,3)     // 4.28: Клеймёный до 14-го ур. лечится за убийство в гуще, как Торн (к 20-му — на нет): на стали у границы гиб 90%     // 4.29: Ирга здоровье ×1,1 — на стали в середине гибла 50% при средней 14%
+  vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1.1, speed: 1.05, crit: 2 }, warlock: { hp: .9, speed: 1.05, crit: 3 }, priest: { hp: .85, speed: 1.05, crit: 1 }, brand: { hp: 1.3, speed: 1, crit: 2, killHeal: .04, healLv: [14, 20] }, hunter: { hp: 1, speed: 1.12, crit: 4 }, selene: { hp: 1.2, speed: 1.08, crit: 3, killHeal: .04, healLv: [14, 20] } },     // 4.27 (2026-10-23): сталь у границы — Жрец 0% и Морок 17% против средних 52% (здоровье ×0,9), Клеймёный 92% (×1,3)     // 4.28: Клеймёный до 14-го ур. лечится за убийство в гуще, как Торн (к 20-му — на нет): на стали у границы гиб 90%     // 4.29: Ирга здоровье ×1,1 — на стали в середине гибла 50% при средней 14%
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
     // rar — редкость вещи (3 — великий, фиолетовый; 4 — клеймёный, оранжевый; 5 — золотой, только здесь), mul — наценка;
@@ -1089,7 +1101,8 @@ const BASE = {
       thorn: { role: 'tank', range: 2.1, wind: .36, recover: .55, hp: 1.3, dmg: .85 }, vale: { role: 'melee', range: 1.9, wind: .26, recover: .4, hp: .9, dmg: 1.1 },
       jay: { role: 'ranged', ranged: true, range: 9, wind: .45, recover: .5, hp: .8, dmg: .9 }, irga: { role: 'heal', ranged: true, range: 8, wind: .5, recover: .7, hp: .8, dmg: .6, heal: [.25, 7] },
       warlock: { role: 'ranged', ranged: true, range: 8, wind: .5, recover: .6, hp: .85, dmg: 1 }, priest: { role: 'heal', range: 2, wind: .4, recover: .55, hp: 1.1, dmg: .7, heal: [.2, 8] },
-      brand: { role: 'melee', range: 2.3, wind: .45, recover: .6, hp: 1.15, dmg: 1.2 }, hunter: { role: 'melee', range: 2, wind: .3, recover: .45, hp: 1, dmg: 1 } },
+      brand: { role: 'melee', range: 2.3, wind: .45, recover: .6, hp: 1.15, dmg: 1.2 }, hunter: { role: 'melee', range: 2, wind: .3, recover: .45, hp: 1, dmg: 1 },
+      selene: { role: 'melee', range: 2.1, wind: .32, recover: .48, hp: 1, dmg: 1 } },
     names: ['Сова', 'Ржавый_Клинок', 'Вереск', 'Тёмный_Лис', 'Кузнечик', 'Морошка', 'Ястреб77', 'Бродяга', 'Сивый', 'Рагнар_Хмурый', 'Лучина', 'Стрига', 'Медовуха', 'Полынь',
       'Хромой_Ян', 'Дикий_Кот', 'Ворон13', 'Пепельник', 'Мизгирь', 'Кольчужка', 'Барсук', 'Тихоня', 'Зорька', 'Гром_и_Молот', 'Седой_Волк', 'Чертополох'],
     talk: { reach: 3.2, stock: 3, markup: 1.5, hire: { base: 40, perLv: 12 } },     // разговор с ботом (2026-11-03): рядом reach м; товар — stock вещей по его уровню, цена = стоимость × markup; позвать в отряд — base + perLv × уровень бота пепла
@@ -1102,7 +1115,7 @@ const BASE = {
       lvl: ['Новый уровень!', 'Ап!', 'Растём потихоньку'],
       loot: ['Ну-ка, что тут у нас', 'Негусто', 'О, железо!'] } },
   party: { on: true, dungeon: { tank: 1, heal: 1, melee: 1, ranged: 1 }, raid: { tank: 2, heal: 3, melee: 3, ranged: 2 },
-    heroRole: { thorn: ['tank', 'melee', 'melee'], vale: ['melee', 'melee', 'melee'], jay: ['ranged', 'ranged', 'ranged'], irga: ['ranged', 'ranged', 'ranged'], warlock: ['ranged', 'ranged', 'ranged'], priest: ['heal', 'heal', 'ranged'], brand: ['melee', 'tank', 'melee'], hunter: ['melee', 'tank', 'melee'] },     // школы (2026-10-22): роль — по школе героя (0, 1, 2)
+    heroRole: { thorn: ['tank', 'melee', 'melee'], vale: ['melee', 'melee', 'melee'], jay: ['ranged', 'ranged', 'ranged'], irga: ['ranged', 'ranged', 'ranged'], warlock: ['ranged', 'ranged', 'ranged'], priest: ['heal', 'heal', 'ranged'], brand: ['melee', 'tank', 'melee'], hunter: ['melee', 'tank', 'melee'], selene: ['melee', 'ranged', 'ranged'] },     // школы (2026-10-22): роль — по школе героя (0, 1, 2)
     bots: { tank: ['c_thorn', 'soldier'], heal: ['c_irga'], melee: ['c_vale', 'veteran'], ranged: ['c_jay'] },
     roleName: { tank: 'защитник', heal: 'лекарь', melee: 'боец', ranged: 'стрелок' },
     names: { tank: ['Гронт', 'Борвин', 'Ульф', 'Хаген', 'Дарек'], heal: ['Велла', 'Мирна', 'Ведана', 'Агна', 'Зоряна', 'Лада'], melee: ['Кай', 'Рагнар', 'Ивар', 'Торвин', 'Ярош'], ranged: ['Эйра', 'Ставр', 'Нежка', 'Олаф', 'Сигрун'] } },
@@ -1138,6 +1151,7 @@ const BASE = {
       c_irga:  { name: 'Ирга', hero: 'irga', role: 'heal', heal: { amt: 34, cd: 2.4, r: 11, below: .85 }, ranged: true, kite: 5, hp: 220, dmg: 12, speed: 4.9, range: 9, wind: .5, recover: .7, cost: 34000, tint: '#a88ad8', text: 'Лекарь: лечит вас и отряд, издали бьёт искрой.' },
       c_jay:   { name: 'Сойка', hero: 'jay', role: 'ranged', ranged: true, kite: 4, hp: 200, dmg: 30, speed: 5.2, range: 10, wind: .45, recover: .5, cost: 28000, tint: '#9ab86a', text: 'Стрелок: бьёт из лука и держит дистанцию.' },
       c_vale:  { name: 'Вейл', hero: 'vale', role: 'melee', hp: 260, dmg: 34, speed: 5.4, range: 1.9, wind: .26, recover: .4, cost: 28000, tint: '#8aa8e8', text: 'Боец: быстрые удары, лучше всего — по вашей цели.' },
+      c_selene: { name: 'Селена', hero: 'selene', role: 'melee', hp: 260, dmg: 33, speed: 5.3, range: 2.1, wind: .3, recover: .46, cost: 30000, tint: '#b8c8ff', text: 'Боец: клинок и лунный свет, хорошо держится в гуще.' },
       // герои сюжета (этап 3): идут с героем по сюжету, не нанимаются (story); Аларик — модель для поединка
       irma:    { name: 'Ирма', story: true, hp: 420, dmg: 34, speed: 5, range: 2.1, wind: .32, recover: .5, cost: 0, tint: '#4a2a30', text: 'Правая рука Аларика.' },
       timka:   { name: 'Тимка', story: true, hp: 300, dmg: 26, speed: 5.4, range: 1.9, wind: .28, recover: .45, cost: 0, tint: '#4a5a34', text: 'Разведчик отряда.' },
@@ -1287,7 +1301,7 @@ const BASE = {
     anim: { loco: .25, atk: .1, roll: .08, hit: .1, death: .15, hitGap: .8, walkOn: .1, walkOff: .05, runOn: .62, runOff: .48, sp: 10 },
     // поза героя при умении (2026-11-03, задача владельца «улучшить анимации скиллов»): клип KayKit по стилю героя и виду умения (kind), свои умения — по id;
     // нет клипа (null) — движение само показывает умение (рывок). time — за сколько секунд проигрывается клип (быстрее — ускоряем)
-    cast: { on: true, time: .6, style: { thorn: 'melee', brand: 'melee', hunter: 'melee', vale: 'melee', irga: 'magic', priest: 'magic', warlock: 'magic', jay: 'bow' },
+    cast: { on: true, time: .6, style: { thorn: 'melee', brand: 'melee', hunter: 'melee', selene: 'melee', vale: 'melee', irga: 'magic', priest: 'magic', warlock: 'magic', jay: 'bow' },
       kinds: {
         melee: { strike: 'Melee_1H_Attack_Jump_Chop', cone: 'Melee_2H_Attack_Slice', nova: 'Melee_2H_Attack_Spin', zone: 'Melee_2H_Attack_Chop', field: 'Melee_2H_Attack_Chop', cloud: 'Throw', bolt: 'Throw', buff: 'Skeletons_Taunt', ward: 'Melee_Block', heal: 'Use_Item', gheal: 'Use_Item', mark: 'Throw', pull: 'Melee_1H_Attack_Stab', dash: null, jump: null, own: 'Melee_1H_Attack_Slice_Diagonal' },
         magic: { strike: 'Ranged_Magic_Shoot', cone: 'Ranged_Magic_Shoot', nova: 'Ranged_Magic_Summon', zone: 'Ranged_Magic_Summon', field: 'Ranged_Magic_Spellcasting', cloud: 'Ranged_Magic_Spellcasting', bolt: 'Ranged_Magic_Shoot', buff: 'Ranged_Magic_Raise', ward: 'Ranged_Magic_Raise', heal: 'Ranged_Magic_Spellcasting', gheal: 'Ranged_Magic_Raise', mark: 'Ranged_Magic_Shoot', pull: 'Ranged_Magic_Spellcasting', dash: 'Dodge_Forward', jump: null, own: 'Ranged_Magic_Spellcasting' },
@@ -1296,6 +1310,7 @@ const BASE = {
         fireball: 'Ranged_Magic_Shoot', nova: 'Ranged_Magic_Summon', chain: 'Ranged_Magic_Shoot', meteor: 'Ranged_Magic_Summon', shield: 'Ranged_Magic_Raise', spear: 'Ranged_Magic_Shoot',     // Ирга
         chaos: 'Melee_Dualwield_Attack_Slice', djump: 'Melee_1H_Attack_Jump_Chop', felrush: null, glaive: 'Throw', blades: 'Melee_Dualwield_Attack_Slice', eyebeam: 'Ranged_Magic_Shoot', sigil: 'Ranged_Magic_Summon', meta: 'Skeletons_Taunt',     // Бесогон
         cleaver: 'Melee_2H_Attack_Chop', cannon: 'Throw', volley: 'Throw', fury: 'Skeletons_Taunt', endure: 'Melee_Block', rush: null, darkcut: 'Melee_2H_Attack_Slice', howl: 'Skeletons_Taunt',     // Клеймёный
+        crescent: 'Melee_2H_Attack_Slice', lglaive: 'Throw', lstride: null, moonbeam: 'Ranged_Magic_Shoot', flare: 'Ranged_Magic_Summon', starfall: 'Ranged_Magic_Summon', lveil: 'Ranged_Magic_Raise', glow: 'Ranged_Magic_Raise',     // Селена
         smite: 'Ranged_Magic_Shoot', mend: 'Ranged_Magic_Raise', sanctum: 'Ranged_Magic_Raise', hymn: 'Ranged_Magic_Raise', radiance: 'Ranged_Magic_Summon', hallow: 'Ranged_Magic_Summon', penance: 'Ranged_Magic_Shoot',     // Жрец
         summon: 'Ranged_Magic_Summon', terror: 'Ranged_Magic_Raise', pact: 'Ranged_Magic_Raise', souls: 'Ranged_Magic_Summon', doom: 'Ranged_Magic_Shoot',     // Морок
         leap: null, trap: 'Throw', venom: 'Use_Item', hawk: 'Ranged_Magic_Raise',     // Ирга-лучница Джей
@@ -1311,7 +1326,7 @@ const BASE = {
         scythe: [2.5, .12], sickle: [1.13, .12], mace: [1.14, .1], club: [1.35, .08], hammer: [1.9, .1], pick: [1.3, .08], flail: [1.45, .08], chain_ball: [1.75, .06], staff: [2.15, .42], wand: [.97, .28],
         bow: [1.98, 0], longbow: [2.38, 0], crossbow: [1.22, .23] },     // вид → [длина, доля длины ниже ладони] в единицах скелета KayKit (по мешам kk_weapons); лук и арбалет — по z
       shield: { def: .88, buckler: .88, tower: 1.2 } },     // щит: размер большей стороны
-    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'kk_warlock', priest: 'kk_priest', brand: 'kk_barbarian', hunter: 'kk_hunter' },     // Морок и Жрец — KayKit с перекраской (путь А, 2026-10-22); Бесогону (ветка g8) — kk_hunter
+    heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'kk_warlock', priest: 'kk_priest', brand: 'kk_barbarian', hunter: 'kk_hunter', selene: 'kk_selene' },     // Морок и Жрец — KayKit с перекраской (путь А, 2026-10-22); Бесогону (ветка g8) — kk_hunter
     foes: { queen: 'kb_queen', gravekeeper: 'kb_gravekeeper', ashsister: 'kb_ashsister', boneshepherd: 'kb_boneshepherd', thornwitch: 'kb_thornwitch', sapper: 'mf_sapper', gatewarden: 'mf_gatewarden', gneis: 'mf_gneis', borot: 'mf_borot', armorer: 'mf_armorer', towerwarden: 'kb_towerwarden', keymaster: 'kb_keymaster', lampwarden: 'kb_lampwarden', tidecaller: 'kb_tidecaller', bloodbanner: 'kb_bloodbanner', hagmother: 'mf_hagmother', drownchoir: 'kb_drownchoir', abbess: 'kb_abbess', cinderpriest: 'mf_cinderpriest', sporemother: 'gen_sporemother', twinflame: 'gen_twinflame', hollowqueen: 'gen_hollowqueen', feeder: 'mf_feeder', swarm: 'mf_swarm', nestlord: 'ae_spider', abbeyshriek: 'kb_abbeyshriek', choir: 'kb_choir', ap_serpent: 'kb_ap_serpent', ap_boar: 'kb_ap_boar', ap_moth: 'kb_ap_moth', hand_womb: 'gen_hand_womb', hand_whisper: 'kb_hand_whisper', hand_net: 'mf_hand_net', alaric: 'kb_alaric', alaric2: 'kb_alaric',     // боссы-сборки
       mossbeast: 'gen_mossbeast', drownqueen: 'gen_drownqueen', smelter: 'gen_smelter', barghest: 'q_wolf', rootgnaw: 'um_ghoul', thornlord: 'kk_king', oldoak: 'q_golem', saltwarden: 'mf_saltwarden', cathkraken: 'mf_tidewyrm', drowngod: 'um_fish',     // рейды 20 и 40 (4.18)
       bogwarden: 'mf_saltwarden', leviathan: 'mf_leviathan', ashgolem: 'mf_golem', cinderlord: 'kk_king', rotmaw: 'um_ghoul', riftheart: 'mf_riftheart', voidwarden: 'mf_voidwarden', abyssmaw: 'mf_leviathan', voidking: 'kk_king',     // Г5 (4.18)
@@ -1338,6 +1353,7 @@ const BASE = {
       kk_warlock: { src: 'kk_rogue_hooded', anims: 'kk', height: 2.15, cape: ['RogueHooded_Cape'], recolor: { '0,1': '#3a2c48', '1,1': '#2a2232', '3,0': '#8a2230', '5,0': '#4a3438', '6,0': '#3e3036', '7,1': '#2a2430' } },     // перекраска: ячейка текстуры «столбец,строка» → цвет
       kk_priest: { src: 'kk_mage', anims: 'kk', height: 2.2, hide: ['Mage_Hat'], cape: ['Mage_Cape'], recolor: { '0,1': '#e6dfcc', '7,1': '#b89a5a', '2,1': '#d8b04a', '5,0': '#7a5a3a', '2,2': '#8a6a4a', '1,0': '#8a6a4a' } },
       kk_hunter: { src: 'kk_ranger', anims: 'kk', height: 2.15, hide: ['Ranger_Hat', 'Ranger_Quiver'], cape: ['Ranger_Cape'], recolor: { '0,1': '#5a2228', '1,1': '#3a3034', '7,0': '#3a3032', '6,0': '#5a4038', '5,0': '#a03030', '1,0': '#2a2224' } },
+      kk_selene: { src: 'kk_rogue_hooded', anims: 'kk', height: 2.15, cape: ['RogueHooded_Cape'], recolor: { '0,1': '#dfe6f5', '1,1': '#8aa0d8', '3,0': '#6a7ad8', '5,0': '#c8d0e8', '6,0': '#9aa8d8', '7,1': '#3a4478' } },     // Г9: перекраска серебром и синью
       kk_skel_warrior: { anims: 'kk', height: 2.2, atk: 'p1', gear: ['Skeleton_Axe', 'iron', 'shield', 'Skeleton_Shield_Small_A'] }, kk_skel_minion: { anims: 'kk', height: 2.0, gear: ['Skeleton_Blade', 'iron'] }, kk_skel_mage: { anims: 'kk', height: 2.2, atk: 'cast', aim: 'spell', gear: ['Skeleton_Staff', 'iron'] },
       q_demonfly: { height: 1.8, atk: 'a1', cut: [{ mat: 'Black', above: .6 }] }, q_wolf: { height: 1.3, atk: 'a1' }, q_ghostskull: { height: 1.8, atk: 'a1' },     // cut — без нимба
       q_yeti: { height: 2.1, atk: 'a1' },

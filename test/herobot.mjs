@@ -37,7 +37,7 @@ export function abilities(W, hero, tgt, bd) {
     if (p.hp < p.maxhp * .75 && bd < 9 && use(1)) return; if (near(W, 12) >= 2 && use(4)) return;
     if (bd < 11 && !(tgt.st && tgt.st.crack) && use(0)) return; if ((tgt.elite || tgt.boss || tgt.maxhp > 150) && bd < 13 && use(7)) return;
     if (bd < 12 && use(6)) return; if (resNow(W) < 30 && p.hp > p.maxhp * .7 && use(5)) return;
-  } else if (hero === 'priest' || hero === 'brand' || hero === 'hunter') {     // новые герои: общий бот по виду умения (лечение, оберег, по площади, выстрел, рывок)
+  } else if (hero === 'priest' || hero === 'brand' || hero === 'hunter' || hero === 'selene') {     // новые герои: общий бот по виду умения (лечение, оберег, по площади, выстрел, рывок)
     const L = heroAbilities(W), kind = i => (L[i] && ((W.cfg.abilities[hero][L[i].id] || {}).kind || L[i].kind)) || '';
     for (let i = 0; i < Math.min(8, L.length); i++) { const k = kind(i);
       if ((k === 'heal' || k === 'gheal') && p.hp < p.maxhp * .6 && use(i)) return;

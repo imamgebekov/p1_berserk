@@ -15,7 +15,7 @@ import { useWeaponSkill, skillOfItem } from '../3d/src/weaponskill3d.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const MIN = Number(process.env.BR_MIN || .6), SEC = Number(process.env.BR_SEC || 30), HEROES = (process.env.BR_HEROES || 'thorn,vale,jay,irga,warlock').split(',');     // ветки помощи (Выживание Сойки) упираются в запас ресурса — 0,6
-const ARMS = { thorn: { weapon: 'w_sword_steel', offhand: 's_buckler_steel' }, jay: { weapon: 'w_longbow_steel' }, irga: { weapon: 'w_staff_steel' }, warlock: { weapon: 'w_scythe_steel' }, vale: { weapon: 'w_sword_steel', offhand: 'w_rapier_steel' } };
+const ARMS = { thorn: { weapon: 'w_sword_steel', offhand: 's_buckler_steel' }, jay: { weapon: 'w_longbow_steel' }, irga: { weapon: 'w_staff_steel' }, warlock: { weapon: 'w_scythe_steel' }, vale: { weapon: 'w_sword_steel', offhand: 'w_rapier_steel' }, selene: { weapon: 'w_sword_steel' } };
 const ARMOR = { body: 'a_body_mail_mail', head: 'a_head_helm_mail', boots: 'a_boots_greaves_mail', ring: 'r_ring_might', amulet: 'm_amulet_ward' };
 const X0 = 0, Z0 = 200;     // открытое поле за ядром
 const RANGED = h => h === 'jay' || h === 'irga';

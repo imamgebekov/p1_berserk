@@ -280,7 +280,7 @@ const GEN = {
     p.inv = Math.max(p.inv, A.time); gfx(W, A, { x: p.x, z: p.z, face: p.face, r: dist });
   },
   zone(W, A, r) { const at = spot(W, A); for (const e of W.enemies) if (!e.dead && len(e.x - at.x, e.z - at.z) < A.r + W.cfg.enemies[e.type].radius) { abilityHit(W, e, A.mul[r], { knock: .6 }); inflict(W, e, A, r); } gfx(W, A, { x: at.x, z: at.z, r: A.r }); W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.4); },
-  field(W, A, r) { const at = spot(W, A); W.zones.push({ x: at.x, z: at.z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r], lvl: W.lvl, slow: A.slow || 0, el: A.el, snow: A.el === 'ice' }); gfx(W, A, { x: at.x, z: at.z, r: A.r }); },
+  field(W, A, r) { const at = spot(W, A); W.zones.push({ x: at.x, z: at.z, r: A.r, t: A.t, tick: A.tick, acc: 0, mul: A.mul[r] * (W.night && A.night ? A.night : 1), lvl: W.lvl, slow: A.slow || 0, el: A.el, snow: A.el === 'ice' }); gfx(W, A, { x: at.x, z: at.z, r: A.r }); },
   cloud(W, A, r) { const at = spot(W, A); W.ezones.push({ kind: 'cloud', x: at.x, z: at.z, r: A.r, t: A.t, tick: A.tick, acc: 0, lvl: W.lvl, dps: A.dps[r] }); gfx(W, A, { x: at.x, z: at.z, r: A.r }); },
   pull(W, A, r) { const list = near(W, A.r), p = W.player; if (!list.length) return false; for (const e of list) { abilityHit(W, e, A.mul[r], { knock: 0 }); if (!e.dead) pull(W, e, 10); inflict(W, e, A, r); } gfx(W, A, { x: p.x, z: p.z, r: A.r }); },
   mark(W, A, r) { const { e } = aimAt(W, A.range, A.cone); if (!e) return false; (W.dooms = W.dooms || []).push({ id: e.id, t: A.delay, mul: A.mul[r], jump: false, lvl: W.lvl, el: A.el }); gfx(W, A, { x: e.x, z: e.z, r: 1.2 }); },
