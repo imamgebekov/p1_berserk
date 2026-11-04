@@ -8,6 +8,7 @@ export function mulberry32(a) {
 }
 
 import { TAU, DEG, clamp, len, rr } from './util3d.js';
+import { tick as auctionTick } from './auction3d.js';
 import { biomeAt } from './worldgen3d.js';
 import { hurtAlly, updateAllies, packSquad, restoreAllies } from './squad3d.js';
 import { updateBots } from './bots3d.js';
@@ -1216,6 +1217,7 @@ export function step(W, dt, input = {}) {
   if (W.map.river) { const PW = physWater(W.cfg); W.map.river.ford = PW ? PW.ford : 0; }     // план физики, этап 5: брод у берега
   if (W.portalGo) { W.portalGo = false; const q = W.player.stair && W.player.stair.q; W.player.stair = null; if (q) travel(W, q.to, q.tx, q.tz); }     // этап 6: прошёл по ступеням — переход
   { const D = W.cfg.daynight, n = isNight(W.t, D); W.light = lightOf(W.t, D); if (n !== W.night) { W.night = n; W.ev.push({ k: n ? 'dusk' : 'dawn' }); } }
+  if (W.auction || (W.wantBots && W.bots)) auctionTick(W);     // аукцион: рынок живёт по игровому времени (auction3d.js)
   if (W.storyDark) W.light = Math.min(W.light, .06);     // Затмение (этап 7): солнце чернеет
   for (let i = W.buffs.length - 1; i >= 0; i--) { W.buffs[i].t -= dt; if (W.buffs[i].t <= 0) W.buffs.splice(i, 1); }
   for (const k of ['reap', 'bul']) { const o = W[k]; if (o.n && (o.t -= dt) <= 0) { o.n = 0; o.t = 0; } }

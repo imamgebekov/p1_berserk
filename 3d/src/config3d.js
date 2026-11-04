@@ -146,6 +146,7 @@ const BASE = {
       { x: -18, z: 14,  w: 7,  d: 7, door: 'e', kind: 'house',     chests: ['locked', 'shelf', 'shelf'], npc: 'scribe' },     // библиотека: книжница зачаровывает вещи (4.00)
       { x: 6,   z: 24,  w: 8,  d: 6, door: 'n', kind: 'house',     chests: ['medchest', 'crate', 'barrel'] },
       { x: -8,  z: 9,   w: 7,  d: 6, door: 'e', kind: 'shop',      chests: ['crate', 'coffer'], npc: 'merchant' },
+      { x: -24, z: -24, w: 5.8, d: 6, door: 'e', kind: 'shop',     chests: ['crate'], npc: 'auctioneer' },     // аукцион (2026-11-04): аукционер
       { x: -28, z: 30,  w: 9,  d: 7, door: 'n', kind: 'smithy',    chests: ['smithchest', 'smithchest', 'rack', 'ironchest'] },     // старая кузница
       { x: 28,  z: -26, w: 12, d: 8, door: 'w', kind: 'tavern',    chests: ['barrel', 'barrel', 'crate', 'chest'] },
       { x: -34, z: -20, w: 7,  d: 11, door: 's', kind: 'chapel',   chests: ['altar', 'shelf', 'coffer'] },
@@ -452,6 +453,12 @@ const BASE = {
   // герои (B1): множители здоровья и скорости бега, прибавка к криту (%). У Торна всё как раньше — бой и баланс прежние
   heroes: { thorn: { hp: 1.15, speed: 1, crit: 0, killHeal: .03, healLv: [8, 12] },     // Торн — защитник: здоровья больше; убийство рядом (до 6 м), когда вокруг ещё двое и больше, лечит на killHeal до healLv[0] ур., к healLv[1] — на нет (на «железе» гиб чаще всех)
   vale: { hp: .95, speed: 1.1, crit: 6 }, jay: { hp: 1, speed: 1.05, crit: 0 }, irga: { hp: 1.1, speed: 1.05, crit: 2 }, warlock: { hp: .9, speed: 1.05, crit: 3 }, priest: { hp: .85, speed: 1.05, crit: 1 }, brand: { hp: 1.3, speed: 1, crit: 2, killHeal: .04, healLv: [14, 20] }, hunter: { hp: 1, speed: 1.12, crit: 4 }, selene: { hp: 1.2, speed: 1.08, crit: 3, killHeal: .04, healLv: [14, 20] } },     // 4.27 (2026-10-23): сталь у границы — Жрец 0% и Морок 17% против средних 52% (здоровье ×0,9), Клеймёный 92% (×1,3)     // 4.28: Клеймёный до 14-го ур. лечится за убийство в гуще, как Торн (к 20-му — на нет): на стали у границы гиб 90%     // 4.29: Ирга здоровье ×1,1 — на стали в середине гибла 50% при средней 14%
+  // аукцион (2026-11-04, как в WoW): общий рынок; step — игровых секунд на шаг рынка (сутки = daynight.len), target — лотов на рынке, dur — сроки в сутках,
+  // fee — комиссия с продажи, deposit — залог от цены у торговца за сутки срока (вернётся при продаже), bidStep — минимальная надбавка к ставке, soft — продление торгов (сутки)
+  auction: { on: true, npc: 'auctioneer', step: 30, maxCatch: 120, target: 520, fill: .3, extra: [1, 5], maxNew: 40, tries: 24, dur: [.5, 1, 2], durName: ['12 ч', '24 ч', '48 ч'], fee: .05, deposit: .04, bidStep: .05, soft: .01,
+    baseMul: 1.5, startK: [.55, .85], buyK: [1.15, 1.6], buyP: .6, worth: [.8, 1.25], bidAct: .35, buyAct: .12, ilSpread: 6, maxStack: 20, maxMine: 20, pendMax: 80, maxPrice: 9999999, hotN: 6, hotMul: 1.5,
+    demand: { min: .65, max: 1.6, pull: .12, jit: .06, bump: .015 }, supply: { k: .03, min: .7 },
+    mix: { weapon: 26, armor: 28, jewel: 9, consumable: 10, material: 11, gem: 6, tome: 3, other: 7 }, page: 40 },
   shop: { buyMul: 2.2, sellMul: .5, restock: 300, reach: 3.4,
     // полка редкостей (G3): при каждом обновлении витрины — бросок по уровням; chance — шанс уровня, n — сколько вещей,
     // rar — редкость вещи (3 — великий, фиолетовый; 4 — клеймёный, оранжевый; 5 — золотой, только здесь), mul — наценка;
@@ -1335,7 +1342,7 @@ const BASE = {
       royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'mf_troll', castellan: 'kk_king', ashking: 'kk_king', brandlord: 'kk_knight', abyssking: 'kk_king', oakking: 'kk_king',
       brute: 'mf_brute', ghoul: 'um_ghoul', devourer: 'mf_devourer', golem: 'mf_golem', firegolem: 'mf_golem', drowned: 'um_fish', drownedmaid: 'um_fish', silt: 'um_fish', swampelder: 'um_fish',
       demon_guard: 'mf_demon_guard', lord: 'um_orc', gatebeast: 'um_orc', hand_lord: 'mf_hand_lord', chief: 'mf_chief', tidewyrm: 'mf_tidewyrm', bonetyrant: 'kk_skel_warrior', namelessking: 'kk_skel_mage', gravewight: 'kk_skel_warrior', abbot: 'kk_skel_mage' },
-    npcs: { keeper: 'kk_keeper', merchant: 'kk_merchant', smith: 'kk_barbarian', captain: 'kk_captain', villager: 'kk_villager', villagerF: 'kk_villagerF', traveler: 'kk_traveler' },     // жители — KayKit с перекраской (путь А, 2026-10-22)
+    npcs: { keeper: 'kk_keeper', merchant: 'kk_merchant', smith: 'kk_barbarian', captain: 'kk_captain', auctioneer: 'kk_auctioneer', villager: 'kk_villager', villagerF: 'kk_villagerF', traveler: 'kk_traveler' },     // жители — KayKit с перекраской (путь А, 2026-10-22)
     squad: { guard: { kit: 'kk_knight', w: 'spear', cells: ['0,1', '7,0'] }, soldier: { kit: 'kk_knight', w: 'sword', off: 'shield', form: 'shield_round', cells: ['0,1', '7,0'] },     // солдаты отряда: модель, оружие, щит; cells — ячейки текстуры в цвет отряда (tint типа)
       veteran: { kit: 'kk_knight', w: 'greatsword', cells: ['0,1', '7,0'], paint: { '3,0': '#4a4a52' } }, kad_xbow: { kit: 'kk_knight', w: 'crossbow', cells: ['0,1', '7,0'] },
       irma: { kit: 'kk_rogue', w: 'sword', cells: ['0,1', '1,1'] }, timka: { kit: 'kk_ranger', w: 'dagger', cells: ['0,1'], hide: ['Ranger_Hat'] }, kord: { kit: 'kk_barbarian', w: 'hammer' },
@@ -1404,6 +1411,7 @@ const BASE = {
       kb_smelter: { src: 'um_orc', height: 2.4, atk: 'a1', mats: { Orc_Main: '#5a4a44', Orc_Secondary: '#3a3430', Belt: '#7a4a2a', Gold: '#b08a3a', Orc_Hair: '#2a2420', Wood: '#3a2a20', Metal: '#6a3a1a', Eye_White: '#301008' }, glow: { Metal: '#ff6a10', Eye_White: '#ff8a2a' },
         attach: [{ p: 'helm', bone: 'Head', at: [0, .42, .12], s: 1.15 }] },
       kk_merchant: { src: 'kk_rogue', anims: 'kk', height: 2.1, hide: ['Rogue_Cape'], recolor: { '0,1': '#8a6a3a', '1,1': '#6a4a2a', '5,0': '#5a3a24', '3,0': '#c8a050', '7,1': '#4a3a2a' } },     // жители — варианты KayKit
+      kk_auctioneer: { src: 'kk_rogue', anims: 'kk', height: 2.1, hide: ['Rogue_Cape'], recolor: { '0,1': '#3a2a5a', '1,1': '#2a1c44', '5,0': '#2a1c14', '3,0': '#e8c04a', '7,1': '#4a3a2a' } },     // аукционер: фиолетовый камзол с золотом
       kk_villager: { src: 'kk_ranger', anims: 'kk', height: 2.05, hide: ['Ranger_Hat', 'Ranger_Quiver', 'Ranger_Cape'], recolor: { '0,1': '#8a7a5a', '1,1': '#6a5a42', '7,0': '#5a4a36', '6,0': '#4a3a2a', '5,0': '#6a4a30', '7,1': '#4a4034' } },
       kk_villagerF: { src: 'kk_mage', anims: 'kk', height: 2.0, hide: ['Mage_Hat', 'Mage_Cape'], recolor: { '0,1': '#8a4a3a', '7,1': '#5a3a30', '2,2': '#6a5a3a', '5,0': '#6a4a2a', '1,0': '#5a3a24' } },
       kk_keeper: { src: 'kk_mage', anims: 'kk', height: 2.1, hide: ['Mage_Hat'], recolor: { '0,1': '#5a1a22', '7,1': '#3a1218', '2,2': '#7a5a3a', '5,0': '#4a1a1e', '1,0': '#3a1418' } },     // хранительница печатей (2026-10-23): багровая ряса

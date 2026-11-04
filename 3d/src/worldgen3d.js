@@ -259,7 +259,7 @@ function placeCitadel(cfg) {
   if (!best) return;
   const { x, z } = best, id = D.id;
   cfg.map.places.push({ id, name: D.name, type: 'hamlet', x, z, r: H + 4, safe: true, gen: 1, citadel: D.lv });
-  for (const [ox, oz, w, d, kind, npc, door] of [[0, -22, 26, 22, 'keep', 'captain', 's'], [-30, 18, 11, 8, 'shop', 'merchant', 'e'], [30, 18, 11, 8, 'smithy', 'smith', 'w'], [-34, -32, 12, 9, 'tavern', null, 'e'], [34, -32, 11, 9, 'barracks', null, 'w'], [-44, 46, 9, 7, 'house', null, 'e'], [44, 46, 9, 7, 'warehouse', null, 'w']])
+  for (const [ox, oz, w, d, kind, npc, door] of [[0, -22, 26, 22, 'keep', 'captain', 's'], [-30, 18, 11, 8, 'shop', 'merchant', 'e'], [30, 18, 11, 8, 'smithy', 'smith', 'w'], [-34, -32, 12, 9, 'tavern', null, 'e'], [34, -32, 11, 9, 'barracks', null, 'w'], [-44, 46, 9, 7, 'house', 'auctioneer', 'e'], [44, 46, 9, 7, 'warehouse', null, 'w']])
     cfg.map.buildings.push({ x: x + ox, z: z + oz, w, d, door, kind, chests: kind === 'keep' ? ['locked', 'armorstand', 'rack'] : kind === 'tavern' ? ['barrel', 'crate'] : kind === 'house' || kind === 'warehouse' ? ['chest', 'crate'] : [], vil: id, citadel: 1, ...(npc ? { npc } : {}) });
   cfg.map.citadel = { id, name: D.name, x, z, H, gate: D.gate, lv: D.lv, q: D.q, price: D.price, tier: D.tier, square: true };
   const gs = [{ x, z: z + H + 8 }, { x, z: z - H - 8 }, { x: x + H + 8, z }, { x: x - H - 8, z }], hs = cfg.map.places.filter(p => p.type === 'hamlet' && p.id !== id && !p.outpost && !p.citadel);
