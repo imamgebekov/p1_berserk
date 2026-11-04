@@ -21,7 +21,7 @@ export function riggedParts(P, N, o = {}) {
     J['sh' + n] = [cx + (A - cx) * .75, Y(F.sh), cz]; J['elb' + n] = [A, Y(F.elb), cz]; J['wr' + n] = [A, Y(F.wr), cz]; J['hand' + n] = [A, Y(F.wr - .1), cz];
   }
   const bones = [['rg_root', null, [0, 0, 0]], ['rg_hips', 'rg_root', J.hip], ['rg_spine', 'rg_hips', J.spine], ['rg_head', 'rg_spine', J.neck]];
-  for (const n of ['L', 'R']) bones.push(['rg_thigh' + n, 'rg_hips', J['hipj' + n]], ['rg_shin' + n, 'rg_thigh' + n, J['knee' + n]], ['rg_arm' + n, 'rg_spine', J['sh' + n]], ['rg_fore' + n, 'rg_arm' + n, J['elb' + n]]);
+  for (const n of ['L', 'R']) bones.push(['rg_thigh' + n, 'rg_hips', J['hipj' + n]], ['rg_shin' + n, 'rg_thigh' + n, J['knee' + n]], ['rg_arm' + n, 'rg_spine', J['sh' + n]], ['rg_fore' + n, 'rg_arm' + n, J['elb' + n]], ['rg_hand' + n, 'rg_fore' + n, J['hand' + n]]);     // кисть — только точка для оружия, вершин не ведёт
   const R = half * .55, seg = [['rg_hips', [cx, Y(F.hip - .06), cz], J.hip, R], ['rg_spine', J.hip, J.spine, R], ['rg_head', J.neck, J.top, half * .35]];
   for (const n of ['L', 'R']) seg.push(['rg_thigh' + n, J['hipj' + n], J['knee' + n], half * .1], ['rg_shin' + n, J['knee' + n], J['toe' + n], half * .08], ['rg_arm' + n, J['sh' + n], J['elb' + n], half * .08, [cx, half * .55]], ['rg_fore' + n, J['elb' + n], J['hand' + n], half * .08, [cx, half * .55]]);     // у рук — ещё и отступ от оси тела: плащ и живот руку за собой не тянут
   return { bones, seg, H, y0, cx, cz, half };

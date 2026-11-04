@@ -12,7 +12,7 @@ const scene = new THREE.Group(), node = new THREE.Group(); node.name = 'Model'; 
 const before = merged.attributes.position.array.slice();
 const R = autoRig(scene); ok(R && R.clips.length === 5, 'клипов не 5: ' + (R && R.clips.length));
 const names = R.clips.map(c => c.name).join(); ok(names === 'Idle,Walk,Run,Attack1,Hit_A', 'имена клипов: ' + names);
-let sm = null, bones = 0; scene.traverse(o => { if (o.isSkinnedMesh) sm = o; if (o.isBone) bones++; }); ok(sm && bones === 12, `костей ${bones}, сетка со скелетом ${!!sm}`);
+let sm = null, bones = 0; scene.traverse(o => { if (o.isSkinnedMesh) sm = o; if (o.isBone) bones++; }); ok(sm && bones === 14, `костей ${bones}, сетка со скелетом ${!!sm}`);
 const W = sm.geometry.attributes.skinWeight, I = sm.geometry.attributes.skinIndex; let bad = 0; for (let v = 0; v < W.count; v++) { const s = W.getX(v) + W.getY(v) + W.getZ(v) + W.getW(v); if (Math.abs(s - 1) > 1e-4) bad++; }
 ok(bad === 0, 'веса не в сумме 1 у ' + bad + ' вершин');
 const names2 = sm.skeleton.bones.map(b => b.name);
