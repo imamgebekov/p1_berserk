@@ -116,11 +116,12 @@ const ACT = {
   whirl(W, A, r) { const C = W.cmb, T = tw(W, r); for (const e of near(W, A.r + (T ? 2 : 0))) { abilityHit(W, e, A.mul[r] * (C && C.id === 'rift' && e.st && e.st.root ? C.k : 1), { knock: T ? 0 : A.knock }); if (T && !e.dead) pull(W, e, 9); } W.shake = Math.max(W.shake, W.cfg.fx.shake * 1.6); },     // «Разлом»: по корням сильнее
   iron(W, A, r) { W.abuf.iron = A.t[r]; W.abuf.ironTaken = A.taken; if (tw(W, r)) cleansePlayer(W, ['burn', 'poison', 'bleed']); },     // мастерство: снимает горение, яд и кровь
   rage(W, A, r) { W.abuf.rage = A.t[r]; W.abuf.rageMul = 1 + A.dmg[r] / 100; W.abuf.rageSwing = A.swing; W.abuf.rageDrain = tw(W, r) ? 0 : A.drain; },     // мастерство: ярость не тает здоровьем
-  bash(W, A, r) {                                  // конус перед собой: удар и оглушение (доворот на ближайшего)
-    const p = W.player, { ang } = aimAt(W, A.r + 1); p.face = ang; let hit = 0;
-    for (const e of near(W, A.r)) { const d = Math.atan2(e.x - p.x, e.z - p.z) - p.face; if (Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) > A.cone / 2 * Math.PI / 180) continue;
+  bash(W, A, r) {                                  // Молот правосудия: молот света в круге в точке под мышью (или перед героем): урон и оглушение
+    const at = spot(W, A); let hit = 0;
+    for (const e of W.enemies) { if (e.dead || len(e.x - at.x, e.z - at.z) >= A.r + W.cfg.enemies[e.type].radius) continue;
       const fear = W.cmb && W.cmb.id === 'dread' && e.st && e.st.fear;     // «Устрашение»: испуганных оглушает дольше
       abilityHit(W, e, A.mul[r], { knock: A.knock }); if (!e.dead) applyStatus(W, e, 'stun', 0, A.stun[r] * (fear ? W.cmb.stun : 1)); if (!e.dead && tw(W, r)) applyStatus(W, e, 'crack', 1.25, 5); hit++; }     // мастерство: раскалывает броню
+    W.ev.push({ k: 'gfx', kind: 'zone', el: 'light', x: at.x, z: at.z, r: A.r });
     if (!hit) return false;
   },
   quake(W, A, r) {

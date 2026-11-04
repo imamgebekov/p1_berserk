@@ -23,7 +23,7 @@ const hurt = e => e.maxhp - e.hp;
 const h0 = (W, c) => { c.h0 = c.e.hp; }, dealt = (W, c) => c.h0 - c.e.hp;     // урон только второго умения (первое могло задеть цель)
 const last = k => W => { const L = W[k] || []; return L.length ? L[L.length - 1] : {}; };
 const CASE = {     // школы (2026-10-22): по связке на школу, обе части — в одной школе
-  dread: { setup: W => ({ near: foe(W, 0, 2), e: foe(W, Math.sin(.87) * 2.2, Math.cos(.87) * 2.2) }), m: (W, c) => hurt(c.e), better: (a, b) => a > 0 && b === 0, now: true },     // Торн-Страж: конус шире — задет сосед под 50°
+  dread: { setup: W => ({ near: foe(W, 0, 2), e: foe(W, 4.6, 2) }), m: (W, c) => hurt(c.e), better: (a, b) => a > 0 && b === 0, now: true },     // Торн-Страж: конус шире — задет сосед под 50°
   runup: { setup: W => ({ e: foe(W, 0, 4) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.3, now: true },     // Торн-Палач
   rift: { setup: W => { const e = foe(W, 2, 0); return { e }; }, pre: (W, c) => applyStatus(W, c.e, 'root', 0, 9), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.5 },
   aimcold: { setup: W => ({ e: foe(W, 0, 8) }), m: W => (W.proj.find(q => q.friendly && q.freeze) || { pierce: 0 }).pierce, better: (a, b) => a > 10 && b < 5, now: true },
@@ -37,9 +37,9 @@ const CASE = {     // школы (2026-10-22): по связке на школу
   demonsight: { setup: () => ({}), m: W => (W.abuf.beam ? W.abuf.beam.t : 0), better: (a, b) => a > b * 1.4, now: true },
   brandrage: { setup: W => ({ e: foe(W, 0, 2.5) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, now: true },
   ironram: { setup: W => ({ e: foe(W, 0, 5) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.3, time: .6 },     // Клеймёный-Сталь
-  darkpain: { setup: W => ({ e: foe(W, 0, 2.5) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.3, now: true },     // Клеймёный-Тьма
+  darkpain: { setup: W => ({ e: foe(W, 0, 2.5) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.3, time: .9 },     // Клеймёный-Тьма
   sermon: { setup: () => ({}), pre: W => { W.player.hp = W.player.maxhp * .3; }, m: W => W.player.hp, better: (a, b) => a > b + 1, now: true },
-  judgement: { setup: W => ({ e: foe(W, 0, 2.5) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.2, now: true },     // Жрец-Щиты
+  judgement: { setup: W => ({ e: foe(W, 0, 2.5) }), pre: h0, m: dealt, better: (a, b) => a > b * 1.2, time: .9 },     // Жрец-Щиты
   purge: { setup: W => ({ e: foe(W, 0, 6) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.3, time: .8 },
   verdict: { setup: W => ({ e: foe(W, 0, 6) }), m: (W, c) => hurt(c.e), better: (a, b) => a > b * 1.5, time: 4.4 },
   bloodfeast: { setup: W => ({ e: foe(W, 0, 4) }), pre: W => { W.player.hp = W.player.maxhp * .3; }, m: W => W.player.hp, better: (a, b) => a > b + 1, now: true },     // Морок-Кровь

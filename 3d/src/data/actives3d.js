@@ -10,36 +10,36 @@ export const NEW_ACTIVES = {
   thorn: [
     L(0, 'th_wall', 'Стена щитов', 'buff', 'steel', null, 'lorc/checked-shield', { stat: 'armor' }),
     L(0, 'th_taunt', 'Вызов', 'pull', 'steel', 'slow', 'lorc/shouting', { k: 1.4 }),
-    L(0, 'th_slam', 'Удар щитом', 'cone', 'earth', 'stun', 'delapouite/shield-bash', { cone: 70, k: 1.3 }),
+    L(0, 'th_slam', 'Молот правосудия', 'zone', 'light', 'stun', 'delapouite/shield-bash', { k: 1.3 }),
     L(0, 'th_stone', 'Каменная плоть', 'heal', 'earth', null, 'lorc/stone-sphere'),
     L(0, 'th_aegis', 'Эгида', 'buff', 'light', null, 'lorc/aura', { stat: 'regen' }),
     L(0, 'th_rampart', 'Бастион', 'nova', 'earth', 'root', 'delapouite/stone-wall', { k: 1.3 }),
     L(0, 'th_oath', 'Натиск щита', 'dash', 'steel', 'stun', 'delapouite/sword-brandish'),     // школы (2026-10-22): у Стража — рывок к врагу
-    L(0, 'th_judg', 'Кара', 'strike', 'light', 'stun', 'lorc/hammer-drop', { k: 1.2 }),     // школы: удар по одной цели
-    L(1, 'th_cleave', 'Рассечение', 'cone', 'blood', 'bleed', 'lorc/sword-slice'),
-    L(1, 'th_pierce', 'Пронзающий выпад', 'strike', 'steel', 'crack', 'lorc/sword-wound'),
+    L(0, 'th_judg', 'Щит мстителя', 'bolt', 'light', 'stun', 'lorc/hammer-drop', { k: 1.2 }),     // школы: удар по одной цели
+    L(1, 'th_cleave', 'Кипящая кровь', 'nova', 'blood', 'bleed', 'lorc/sword-slice'),
+    L(1, 'th_pierce', 'Громовой удар', 'zone', 'storm', 'crack', 'lorc/sword-wound'),
     L(1, 'th_hurl', 'Метательный топор', 'bolt', 'steel', 'bleed', 'lorc/thrown-daggers'),
-    L(1, 'th_ember', 'Огненный замах', 'cone', 'fire', 'burn', 'lorc/fire-wave'),
+    L(1, 'th_ember', 'Священный огонь', 'zone', 'fire', 'burn', 'lorc/fire-wave'),
     L(1, 'th_lunge', 'Бросок палача', 'dash', 'steel', 'stun', 'lorc/sprint'),
-    L(1, 'th_behead', 'Обезглавливание', 'strike', 'blood', null, 'lorc/decapitation', { k: 1.4 }),
+    L(1, 'th_behead', 'Жатва душ', 'mark', 'blood', null, 'lorc/decapitation', { k: 1.4 }),
     L(1, 'th_warcry', 'Клич крови', 'buff', 'blood', null, 'delapouite/barbarian', { stat: 'crit' }),
     L(2, 'th_stomp', 'Топот', 'nova', 'earth', 'slow', 'lorc/foot-trip'),
     L(2, 'th_lust', 'Жажда битвы', 'buff', 'fire', null, 'delapouite/enrage', { stat: 'spd' }),
-    L(2, 'th_rend', 'Рваная рана', 'strike', 'steel', 'bleed', 'lorc/bloody-sword'),     // школы: у Берсерка — удар по одной цели
+    L(2, 'th_rend', 'Кровавые цепи', 'bolt', 'blood', 'bleed', 'lorc/bloody-sword'),     // школы: у Берсерка — удар по одной цели
     L(2, 'th_jump', 'Прыжок берсерка', 'dash', 'earth', 'stun', 'delapouite/jump-across'),     // школы: рывок к врагу
     L(2, 'th_storm', 'Буря клинков', 'field', 'steel', null, 'lorc/spinning-blades'),
     L(2, 'th_howl', 'Рёв зверя', 'nova', 'shadow', 'fear', 'lorc/wolf-howl'),
     L(2, 'th_wrath', 'Кровожадность', 'buff', 'blood', null, 'lorc/fist', { stat: 'leech' }),     // школы: выживание Берсерка
     L(0, 'th_xrift', 'Раскол земли', 'nova', 'earth', 'root', '', { k: 1.5 }),     // ряд 9 (4.06, предел 70)
     L(0, 'th_xheaven', 'Молот небес', 'zone', 'light', 'stun', '', { k: 2 }),     // вершина ветки
-    L(1, 'th_xexecute', 'Казнь', 'strike', 'blood', 'bleed', '', { k: 1.9 }),
-    L(1, 'th_xreaper', 'Жнец', 'cone', 'blood', 'bleed', '', { cone: 110, k: 2.1 }),
+    L(1, 'th_xexecute', 'Кара небес', 'zone', 'light', 'bleed', '', { k: 1.5 }),
+    L(1, 'th_xreaper', 'Кровавая жатва', 'field', 'blood', null, ''),
     L(2, 'th_xfury', 'Неистовство', 'buff', 'fire', null, '', { stat: 'dmg' }),
     L(2, 'th_xeclipse', 'Затмение ярости', 'nova', 'shadow', 'fear', '', { k: 2.2 })
   ],
   irga: [
     L(0, 'ir_flame', 'Огненная стрела', 'bolt', 'fire', 'burn', 'lorc/fire-ray'),
-    L(0, 'ir_wave', 'Огненная волна', 'cone', 'fire', 'burn', 'lorc/fire-breath'),
+    L(0, 'ir_wave', 'Огненная глыба', 'zone', 'fire', 'burn', 'lorc/fire-breath'),
     L(0, 'ir_ring', 'Кольцо огня', 'nova', 'fire', 'burn', 'lorc/fire-ring'),
     L(0, 'ir_pillar', 'Столп пламени', 'zone', 'fire', 'burn', 'lorc/fire-zone'),
     L(0, 'ir_wall', 'Стена огня', 'field', 'fire', null, 'delapouite/firewall', { slow: .5 }),     // школы: контроль Огня
@@ -47,7 +47,7 @@ export const NEW_ACTIVES = {
     L(0, 'ir_phoenix', 'Крылья феникса', 'dash', 'fire', 'burn', 'lorc/fire-dash'),
     L(0, 'ir_inferno', 'Пекло', 'buff', 'fire', null, 'delapouite/fire-spell-cast', { stat: 'dmg' }),
     L(1, 'ir_shard', 'Ледяной осколок', 'bolt', 'ice', 'freeze', 'lorc/ice-bolt'),
-    L(1, 'ir_cone', 'Конус холода', 'cone', 'ice', 'slow', 'lorc/frozen-orb'),
+    L(1, 'ir_cone', 'Ледяной шар', 'zone', 'ice', 'slow', 'lorc/frozen-orb'),
     L(1, 'ir_spike', 'Ледяные шипы', 'zone', 'ice', 'freeze', 'lorc/ice-spear'),
     L(1, 'ir_barrier', 'Ледяная преграда', 'buff', 'ice', null, 'lorc/ice-shield', { stat: 'armor' }),
     L(1, 'ir_frostbite', 'Обморожение', 'mark', 'ice', null, 'lorc/frostfire'),
@@ -58,19 +58,19 @@ export const NEW_ACTIVES = {
     L(2, 'ir_void', 'Вихрь бездны', 'pull', 'shadow', 'slow', 'lorc/vortex'),
     L(2, 'ir_rot', 'Гнилой туман', 'cloud', 'venom', null, 'sbed/poison-cloud'),
     L(2, 'ir_blind', 'Ослепляющая вспышка', 'nova', 'light', 'blind', 'lorc/sun-radiations'),
-    L(2, 'ir_jinx', 'Сглаз', 'strike', 'shadow', 'crack', 'skoll/evil-eyes', { range: 12, cone: 60 }),
+    L(2, 'ir_jinx', 'Чародейские стрелы', 'bolt', 'storm', 'crack', 'skoll/evil-eyes', { n: 3, spread: 20, k: 0.7 }),
     L(2, 'ir_surge', 'Шаг сквозь бездну', 'dash', 'shadow', null, 'lorc/power-lightning'),     // школы: выживание Проклятий
     L(0, 'ir_xcomet', 'Комета', 'zone', 'fire', 'burn', '', { k: 1.9 }),     // ряд 9 (4.06, предел 70)
     L(0, 'ir_xsun', 'Падающее солнце', 'field', 'fire', null, '', { k: 2 }),     // вершина ветки
-    L(1, 'ir_xglacier', 'Ледник', 'cone', 'ice', 'freeze', '', { k: 1.6 }),
+    L(1, 'ir_xglacier', 'Абсолютный ноль', 'zone', 'ice', 'freeze', '', { k: 1.5 }),
     L(1, 'ir_xwinter', 'Вечная зима', 'field', 'ice', null, '', { k: 1.9 }),
     L(2, 'ir_xvoid', 'Бездна', 'nova', 'shadow', 'fear', '', { k: 1.6 }),
     L(2, 'ir_xplague', 'Мор', 'cloud', 'venom', 'poison', '', { k: 2 })
   ],
   hunter: [     // Бесогон, охотник на демонов (Г8): Хаос — клинки в ближнем бою, Месть — печати и защита, Скверна — огонь и взор
-    L(0, 'dh_slash', 'Рассечение', 'cone', 'steel', 'bleed', 'lorc/sword-slice', { k: 1.2 }),
+    L(0, 'dh_slash', 'Иммоляция', 'nova', 'fire', 'burn', 'lorc/sword-slice'),
     L(0, 'dh_prey', 'Азарт охоты', 'buff', 'fire', null, 'lorc/run', { stat: 'spd' }),
-    L(0, 'dh_annihil', 'Истребление', 'strike', 'shadow', 'crack', 'lorc/sword-wound', { k: 1.3 }),
+    L(0, 'dh_annihil', 'Опустошение', 'zone', 'shadow', 'crack', 'lorc/sword-wound', { k: 1.4 }),
     L(0, 'dh_whirl', 'Круговорот клинков', 'nova', 'steel', 'bleed', 'lorc/spinning-blades'),
     L(0, 'dh_throw', 'Шквал клинков', 'bolt', 'steel', 'slow', 'lorc/thrown-daggers', { n: 3, spread: 30 }),     // школы: контроль Хаоса
     L(0, 'dh_essence', 'Сущность хаоса', 'buff', 'shadow', null, 'lorc/aura', { stat: 'crit' }),
@@ -84,13 +84,13 @@ export const NEW_ACTIVES = {
     L(1, 'dh_veil', 'Покров скверны', 'ward', 'fire', null, 'lorc/checked-shield'),
     L(1, 'dh_infernal', 'Удар инферно', 'zone', 'fire', 'burn', 'lorc/fire-zone', { k: 1.3 }),
     L(2, 'dh_felbolt', 'Сгусток скверны', 'bolt', 'fire', 'burn', 'lorc/fire-ball'),
-    L(2, 'dh_gaze', 'Взгляд бездны', 'strike', 'shadow', 'fear', 'lorc/eye-target', { range: 10, cone: 60 }),
+    L(2, 'dh_gaze', 'Устрашающий взор', 'mark', 'shadow', null, 'lorc/eye-target'),
     L(2, 'dh_burn', 'Пламя скверны', 'field', 'fire', null, 'lorc/flame'),
     L(2, 'dh_torment', 'Мучение', 'mark', 'shadow', null, 'lorc/eclipse'),
     L(2, 'dh_shards', 'Залп осколков', 'bolt', 'shadow', null, 'lorc/shards', { n: 5, spread: 50, k: .6 }),
     L(2, 'dh_rage', 'Скачок скверны', 'dash', 'fire', 'burn', 'lorc/enrage'),     // школы: выживание Скверны
     L(2, 'dh_blast', 'Взрыв скверны', 'nova', 'fire', 'burn', 'lorc/explosion-rays'),
-    L(0, 'dh_xfirst', 'Первый удар', 'strike', 'shadow', 'crack', '', { k: 2.2 }),     // ряд 9 (предел 70)
+    L(0, 'dh_xfirst', 'Взрыв душ', 'nova', 'shadow', 'crack', '', { k: 1.4 }),     // ряд 9 (предел 70)
     L(0, 'dh_xstorm', 'Буря клинков', 'nova', 'steel', 'bleed', '', { k: 2 }),     // вершина ветки
     L(1, 'dh_xhide', 'Шкура демона', 'ward', 'fire', null, '', { boost: 1.6 }),
     L(1, 'dh_xsigil', 'Великая печать', 'zone', 'fire', 'stun', '', { k: 2 }),
@@ -98,15 +98,15 @@ export const NEW_ACTIVES = {
     L(2, 'dh_xgaze', 'Взор бездны', 'bolt', 'shadow', 'fear', '', { k: 2.1, pierce: 4 })
   ],
   brand: [     // Клеймёный рыцарь (Г4, 4.17): Клеймо — ярость и кровь, Сталь — защита, Тьма — тень и страх
-    L(0, 'bk_rend', 'Разрыв', 'cone', 'blood', 'bleed', 'lorc/sword-slice', { k: 1.2 }),
+    L(0, 'bk_rend', 'Багровая волна', 'nova', 'blood', 'bleed', 'lorc/sword-slice'),
     L(0, 'bk_frenzy', 'Неистовство', 'buff', 'blood', null, 'lorc/aura', { stat: 'spd' }),
     L(0, 'bk_brand', 'Знак жертвы', 'mark', 'blood', null, 'lorc/bleeding-eye', { k: 1.1 }),
     L(0, 'bk_wrath', 'Гнев', 'nova', 'fire', 'burn', 'lorc/fire-zone'),
     L(0, 'bk_hunger', 'Голод клейма', 'buff', 'blood', null, 'lorc/heart-drop', { stat: 'leech' }),
     L(0, 'bk_chase', 'Погоня', 'dash', 'steel', 'stun', 'lorc/sword-wound'),
-    L(0, 'bk_execute', 'Казнь', 'strike', 'steel', 'crack', 'lorc/hammer-drop', { k: 1.3 }),
+    L(0, 'bk_execute', 'Лик смерти', 'bolt', 'shadow', 'crack', 'lorc/hammer-drop', { k: 1.3 }),
     L(1, 'bk_wall', 'Стена', 'buff', 'steel', null, 'lorc/checked-shield', { stat: 'armor' }),
-    L(1, 'bk_bash', 'Удар эфесом', 'strike', 'steel', 'stun', 'delapouite/shield-bash', { k: 1.2 }),     // школы: у Стали — удар по одной цели
+    L(1, 'bk_bash', 'Ледяные цепи', 'zone', 'ice', 'stun', 'delapouite/shield-bash'),     // школы: у Стали — удар по одной цели
     L(1, 'bk_stand', 'Выстоять', 'heal', 'steel', null, 'lorc/stone-sphere'),
     L(1, 'bk_quake', 'Сотрясение', 'nova', 'earth', 'root', 'delapouite/stone-wall', { k: 1.2 }),
     L(1, 'bk_iron', 'Железная кожа', 'buff', 'steel', null, 'lorc/aura', { stat: 'regen' }),
@@ -114,14 +114,14 @@ export const NEW_ACTIVES = {
     L(1, 'bk_guard', 'Броня клейма', 'ward', 'steel', null, 'lorc/checked-shield'),
     L(1, 'bk_bastion', 'Бастион', 'zone', 'earth', 'stun', 'lorc/hammer-drop', { k: 1.2 }),
     L(2, 'bk_shade', 'Тень клинка', 'bolt', 'shadow', 'fear', 'lorc/shadow-grasp'),
-    L(2, 'bk_drain', 'Кровопийца', 'strike', 'blood', 'bleed', 'lorc/sword-wound', { range: 12, cone: 60 }),
+    L(2, 'bk_drain', 'Захват крови', 'mark', 'blood', null, 'lorc/sword-wound'),
     L(2, 'bk_void', 'Бездна', 'field', 'shadow', null, 'lorc/portal'),
     L(2, 'bk_dread', 'Ужас', 'nova', 'shadow', 'fear', 'lorc/screaming'),
     L(2, 'bk_curse', 'Проклятие клейма', 'mark', 'shadow', null, 'lorc/eclipse'),
     L(2, 'bk_eclipse', 'Затмение', 'zone', 'shadow', 'blind', 'lorc/magic-portal'),
     L(2, 'bk_ghost', 'Шаг тени', 'dash', 'shadow', 'fear', 'lorc/skull-bolt'),     // школы: выживание Тьмы
     L(0, 'bk_xberserk', 'Берсерк', 'nova', 'blood', 'bleed', '', { k: 2 }),     // ряд 9 (предел 70)
-    L(0, 'bk_xslayer', 'Убийца драконов', 'strike', 'steel', 'crack', '', { k: 2.2 }),     // вершина ветки
+    L(0, 'bk_xslayer', 'Взрыв смерти', 'zone', 'shadow', 'crack', '', { k: 1.5 }),     // вершина ветки
     L(1, 'bk_xaegis', 'Несокрушимый', 'ward', 'steel', null, '', { boost: 1.6 }),
     L(1, 'bk_xfortress', 'Крепость', 'nova', 'earth', 'stun', '', { k: 2 }),
     L(2, 'bk_xabyss', 'Пасть бездны', 'field', 'shadow', null, '', { k: 2 }),
@@ -137,7 +137,7 @@ export const NEW_ACTIVES = {
     L(0, 'pr_dawn', 'Рассветный луч', 'bolt', 'light', 'blind', 'lorc/burning-meteor', { pierce: 2 }),
     L(1, 'pr_bulwark', 'Твердыня', 'ward', 'light', null, 'lorc/checked-shield'),
     L(1, 'pr_barrier', 'Барьер', 'ward', 'light', null, 'lorc/stone-sphere', { boost: 1.3 }),
-    L(1, 'pr_bash', 'Удар щитом', 'cone', 'light', 'stun', 'delapouite/shield-bash', { cone: 70, k: 1.2 }),
+    L(1, 'pr_bash', 'Слово: Оглушение', 'zone', 'light', 'stun', 'delapouite/shield-bash'),
     L(1, 'pr_iron', 'Железная вера', 'buff', 'steel', null, 'lorc/aura', { stat: 'armor' }),
     L(1, 'pr_aegis', 'Святая эгида', 'nova', 'light', 'root', 'delapouite/stone-wall', { k: 1.2 }),
     L(1, 'pr_martyr', 'Мученик', 'heal', 'blood', null, 'delapouite/heart-beats'),
@@ -149,7 +149,7 @@ export const NEW_ACTIVES = {
     L(2, 'pr_sear', 'Растворение во тьме', 'ward', 'shadow', null, 'lorc/burning-meteor'),     // школы: выживание Тени
     L(2, 'pr_fiend', 'Тень-изверг', 'zone', 'shadow', 'blind', 'lorc/portal'),
     L(2, 'pr_dread', 'Крик ужаса', 'nova', 'shadow', 'fear', 'lorc/screaming'),
-    L(2, 'pr_spike', 'Шип тьмы', 'strike', 'shadow', 'crack', 'lorc/sword-wound', { range: 12, cone: 60 }),
+    L(2, 'pr_spike', 'Взрыв разума', 'bolt', 'shadow', 'crack', 'lorc/sword-wound', { k: 1.2 }),
     L(0, 'pr_xsalvation', 'Спасение', 'gheal', 'light', null, '', { boost: 1.6 }),     // ряд 9 (предел 70)
     L(0, 'pr_xsun', 'Полуденное солнце', 'nova', 'light', 'blind', '', { k: 2 }),     // вершина ветки
     L(1, 'pr_xsanctuary', 'Святилище', 'ward', 'light', null, '', { boost: 1.6 }),
@@ -158,11 +158,11 @@ export const NEW_ACTIVES = {
     L(2, 'pr_xeclipse', 'Затмение разума', 'bolt', 'shadow', 'fear', '', { k: 2.1 })
   ],
   selene: [     // Селена, лунная воительница (Г9): Серп — клинок и рывок, Звёзды — область и звездопад, Ночь — луч, тень и холод
-    L(0, 'sn_slash', 'Росчерк луны', 'cone', 'light', null, ''),
-    L(0, 'sn_sickle', 'Серп ночи', 'cone', 'steel', 'crack', '', { cone: 140 }),
+    L(0, 'sn_slash', 'Лунный огонь', 'bolt', 'light', 'slow', ''),
+    L(0, 'sn_sickle', 'Звёздный выброс', 'zone', 'storm', 'crack', ''),
     L(0, 'sn_whirl', 'Вихрь серпов', 'nova', 'light', 'slow', ''),
     L(0, 'sn_lunge', 'Прыжок к луне', 'dash', 'light', null, ''),
-    L(0, 'sn_blade', 'Клинок сумерек', 'strike', 'shadow', 'crack', '', { k: 1.2 }),
+    L(0, 'sn_blade', 'Солнечный огонь', 'nova', 'light', 'burn', ''),
     L(0, 'sn_edge', 'Заточка светом', 'buff', 'ice', null, '', { stat: 'crit' }),
     L(0, 'sn_ripple', 'Рябь лунной воды', 'nova', 'water', 'slow', ''),
     L(1, 'sn_shower', 'Звёздный ливень', 'field', 'light', null, ''),
@@ -180,7 +180,7 @@ export const NEW_ACTIVES = {
     L(2, 'sn_eclipse', 'Затмение', 'nova', 'shadow', 'fear', ''),
     L(2, 'sn_mist', 'Лунный туман', 'field', 'shadow', null, '', { slow: .45 }),
     L(2, 'sn_drink', 'Ночной глоток', 'heal', 'earth', null, ''),
-    L(0, 'sn_xcrescent', 'Полумесяц', 'cone', 'light', 'crack', '', { k: 1.7 }),     // ряд 9 (предел 70)
+    L(0, 'sn_xcrescent', 'Новолуние', 'zone', 'light', 'crack', '', { k: 1.5 }),     // ряд 9 (предел 70)
     L(0, 'sn_xfull', 'Полная луна', 'nova', 'light', 'blind', '', { k: 2 }),     // вершина ветки
     L(1, 'sn_xvault', 'Небесный свод', 'field', 'light', null, '', { k: 2 }),
     L(1, 'sn_xveil', 'Покров созвездий', 'ward', 'light', null, '', { boost: 1.6 }),
@@ -189,13 +189,13 @@ export const NEW_ACTIVES = {
   ],
   warlock: [
     L(0, 'wl_bolt', 'Стрела тьмы', 'bolt', 'shadow', 'crack', 'lorc/shadow-grasp'),
-    L(0, 'wl_wither', 'Увядание', 'cone', 'shadow', 'slow', 'lorc/dead-wood'),
+    L(0, 'wl_wither', 'Проклятие слабости', 'zone', 'shadow', 'slow', 'lorc/dead-wood'),
     L(0, 'wl_agony', 'Агония', 'mark', 'shadow', null, 'lorc/bleeding-eye'),
     L(0, 'wl_blight', 'Чума', 'cloud', 'venom', null, 'lorc/skull-bolt'),
-    L(0, 'wl_corrupt', 'Скверна', 'strike', 'venom', 'poison', 'lorc/poison-bottle', { range: 12, cone: 60 }),
+    L(0, 'wl_corrupt', 'Порча', 'mark', 'shadow', null, 'lorc/poison-bottle'),
     L(0, 'wl_eclipse', 'Затмение', 'nova', 'shadow', 'blind', 'lorc/eclipse'),
     L(0, 'wl_void', 'Покров пустоты', 'ward', 'shadow', null, 'lorc/portal'),     // школы: выживание Проклятий Морока
-    L(1, 'wl_leech', 'Кровавая пиявка', 'strike', 'blood', 'bleed', 'lorc/leeching-worm', { range: 12, cone: 60 }),
+    L(1, 'wl_leech', 'Похищение жизни', 'mark', 'blood', null, 'lorc/leeching-worm'),
     L(1, 'wl_boil', 'Кипение крови', 'nova', 'blood', 'bleed', 'lorc/heart-drop'),
     L(1, 'wl_tap', 'Отворение жил', 'heal', 'blood', null, 'delapouite/heart-beats'),
     L(1, 'wl_rite', 'Обряд', 'buff', 'blood', null, 'lorc/bloody-stash', { stat: 'leech' }),
@@ -207,14 +207,14 @@ export const NEW_ACTIVES = {
     L(2, 'wl_rain', 'Огненный дождь', 'field', 'fire', null, 'lorc/burning-meteor'),
     L(2, 'wl_gate', 'Врата преисподней', 'zone', 'fire', 'stun', 'lorc/magic-portal'),
     L(2, 'wl_howl', 'Вой бездны', 'nova', 'shadow', 'fear', 'lorc/screaming'),
-    L(2, 'wl_rake', 'Когти беса', 'cone', 'blood', 'bleed', 'lorc/claw-slashes'),
+    L(2, 'wl_rake', 'Кровавая стрела', 'bolt', 'blood', 'bleed', 'lorc/claw-slashes'),
     L(2, 'wl_leap', 'Прыжок демона', 'dash', 'fire', 'burn', 'lorc/bat-wing'),
     L(2, 'wl_dark', 'Тёмный дар', 'buff', 'shadow', null, 'lorc/imp-laugh', { stat: 'spd' }),
     L(0, 'wl_xwither', 'Иссушение', 'mark', 'shadow', null, '', { k: 1.8 }),     // ряд 9 (4.06, предел 70)
     L(0, 'wl_xruin', 'Погибель', 'zone', 'shadow', 'blind', '', { k: 2.1 }),     // вершина ветки
     L(1, 'wl_xfeast', 'Кровавый пир', 'heal', 'blood', null, ''),
     L(1, 'wl_xbloodstorm', 'Кровавый шторм', 'nova', 'blood', 'bleed', '', { k: 2 }),
-    L(2, 'wl_xhellfire', 'Адское пламя', 'cone', 'fire', 'burn', '', { k: 1.7 }),
+    L(2, 'wl_xhellfire', 'Огонь преисподней', 'nova', 'fire', 'burn', '', { k: 1.4 }),
     L(2, 'wl_xgate', 'Врата бездны', 'field', 'shadow', null, '', { k: 2 })
   ],
   jay: [
@@ -226,7 +226,7 @@ export const NEW_ACTIVES = {
     L(0, 'jy_pierce', 'Пробивная стрела', 'bolt', 'steel', null, 'lorc/striking-arrows', { pierce: 4 }),
     L(0, 'jy_calm', 'Холодная голова', 'ward', 'ice', null, 'lorc/archery-target'),     // школы: выживание Меткости
     L(1, 'jy_net', 'Ловчая сеть', 'zone', 'earth', 'root', 'lorc/fishing-net', { k: 1.6 }),
-    L(1, 'jy_kick', 'Пинок', 'strike', 'earth', 'stun', 'lorc/boot-kick', { k: 1.6 }),     // школы: у Выживания — удар по одной цели
+    L(1, 'jy_kick', 'Оглушающий выстрел', 'bolt', 'earth', 'stun', 'lorc/boot-kick'),     // школы: у Выживания — удар по одной цели
     L(1, 'jy_run', 'Стремительный бег', 'buff', 'storm', null, 'darkzaitzev/running-ninja', { stat: 'spd' }),
     L(1, 'jy_bandage', 'Перевязка', 'heal', 'light', null, 'delapouite/arm-bandage'),
     L(1, 'jy_stakes', 'Колья', 'field', 'earth', null, 'delapouite/spiked-wall', { slow: .45, k: 1.6 }),
@@ -236,7 +236,7 @@ export const NEW_ACTIVES = {
     L(2, 'jy_barrage', 'Шквал', 'bolt', 'steel', null, 'lorc/arrow-cluster', { n: 5, spread: 30, k: .55 }),
     L(2, 'jy_burst', 'Разрывная стрела', 'zone', 'fire', 'burn', 'lorc/arrow-flights'),
     L(2, 'jy_hail', 'Ледяной град', 'field', 'ice', null, 'lorc/ice-bolt', { slow: .4 }),
-    L(2, 'jy_shrapnel', 'Шрапнель', 'cone', 'steel', 'bleed', 'lorc/shatter'),
+    L(2, 'jy_shrapnel', 'Взрывная ловушка', 'zone', 'fire', 'burn', 'lorc/shatter'),
     L(2, 'jy_fog', 'Ядовитый туман', 'cloud', 'venom', null, 'sbed/poison-cloud'),
     L(2, 'jy_peal', 'Раскат', 'nova', 'storm', 'stun', 'lorc/lightning-storm'),
     L(2, 'jy_wind', 'Попутный ветер', 'buff', 'storm', null, 'lorc/wind-slap', { stat: 'spd' }),
@@ -248,14 +248,14 @@ export const NEW_ACTIVES = {
     L(2, 'jy_xskyfall', 'Небесный дождь', 'field', 'storm', null, '', { k: 2 })
   ],
   vale: [
-    L(0, 'vl_flurry', 'Шквал ударов', 'cone', 'steel', null, 'lorc/sword-spin', { k: 1.15 }),
+    L(0, 'vl_flurry', 'Теневой шквал', 'nova', 'shadow', null, 'lorc/sword-spin'),
     L(0, 'vl_throw', 'Бросок кинжала', 'bolt', 'steel', 'slow', 'lorc/thrown-daggers'),     // школы: контроль Клинков
     L(0, 'vl_spin', 'Вращение', 'nova', 'steel', 'bleed', 'lorc/spinning-blades'),
     L(0, 'vl_lunge', 'Выпад', 'dash', 'steel', null, 'lorc/sprint', { dist: 5 }),
-    L(0, 'vl_sunder', 'Рассечь доспех', 'strike', 'steel', 'crack', 'lorc/broken-shield'),
-    L(0, 'vl_venom', 'Отравленный клинок', 'strike', 'venom', 'poison', 'lorc/dripping-blade'),
+    L(0, 'vl_sunder', 'Теневая вспышка', 'bolt', 'shadow', 'crack', 'lorc/broken-shield'),
+    L(0, 'vl_venom', 'Дымка яда', 'cloud', 'venom', 'poison', 'lorc/dripping-blade'),
     L(0, 'vl_edge', 'Острота', 'buff', 'steel', null, 'delapouite/sharp-axe', { stat: 'crit' }),
-    L(1, 'vl_ambush', 'Засада', 'strike', 'shadow', 'stun', 'lorc/backstab', { k: 1.3 }),
+    L(1, 'vl_ambush', 'Удар из тени', 'mark', 'shadow', null, 'lorc/backstab'),
     L(1, 'vl_veil', 'Покров ночи', 'buff', 'shadow', null, 'lorc/hood', { stat: 'spd' }),
     L(1, 'vl_shroud', 'Саван', 'nova', 'shadow', 'blind', 'lorc/shadow-follower'),
     L(1, 'vl_mark', 'Метка смерти', 'mark', 'shadow', null, 'lorc/death-note'),
@@ -263,17 +263,17 @@ export const NEW_ACTIVES = {
     L(1, 'vl_snare', 'Тени-путы', 'zone', 'shadow', 'root', 'lorc/shadow-grasp'),
     L(1, 'vl_fade', 'Тёмное исцеление', 'heal', 'shadow', null, 'lorc/heart-drop'),
     L(2, 'vl_hemo', 'Кровавый вихрь', 'nova', 'blood', 'bleed', 'lorc/bleeding-wound'),
-    L(2, 'vl_rupture', 'Разрыв', 'strike', 'blood', 'bleed', 'lorc/bleeding-wound'),
+    L(2, 'vl_rupture', 'Кровавая метка', 'mark', 'blood', null, 'lorc/bleeding-wound'),
     L(2, 'vl_dew', 'Кровавая роса', 'field', 'blood', null, 'lorc/drop'),
     L(2, 'vl_drink', 'Испить', 'heal', 'blood', null, 'lorc/heart-bottle'),
     L(2, 'vl_rush', 'Кровавое неистовство', 'buff', 'blood', null, 'delapouite/enrage', { stat: 'dmg' }),
     L(2, 'vl_hook', 'Крюк', 'pull', 'blood', 'slow', 'lorc/grapple'),
-    L(2, 'vl_slash', 'Багровый взмах', 'cone', 'blood', 'bleed', 'lorc/bloody-sword'),
+    L(2, 'vl_slash', 'Кровавый всплеск', 'nova', 'blood', 'bleed', 'lorc/bloody-sword'),
     L(2, 'vl_vamp', 'Вампирский клинок', 'buff', 'blood', null, 'delapouite/vampire-dracula', { stat: 'leech' }),
-    L(0, 'vl_xtempest', 'Вихрь клинков', 'cone', 'storm', 'crack', '', { k: 1.7 }),     // ряд 9 (4.06, предел 70)
+    L(0, 'vl_xtempest', 'Теневая буря', 'field', 'storm', null, ''),     // ряд 9 (4.06, предел 70)
     L(0, 'vl_xdeathmark', 'Метка смерти', 'mark', 'blood', null, '', { k: 2.3 }),     // вершина ветки
     L(1, 'vl_xvanish', 'Исчезновение', 'buff', 'shadow', null, '', { stat: 'crit' }),
-    L(1, 'vl_xumbra', 'Удар из тьмы', 'strike', 'shadow', 'blind', '', { k: 2.2 }),
+    L(1, 'vl_xumbra', 'Покров тьмы', 'mark', 'shadow', null, ''),
     L(2, 'vl_xhemo', 'Кровопускание', 'nova', 'blood', 'bleed', '', { k: 1.6 }),
     L(2, 'vl_xsanguine', 'Кровавая жатва', 'zone', 'blood', 'bleed', '', { k: 2.1 })
   ]
@@ -291,7 +291,7 @@ export const OLD_BRANCH = {
   vale: { dance: 0, execute: 0, fan: 0, blink: 1, shadow: 1, smoke: 1, parry: 2, bloodlet: 2 }
 };
 // прежние умения с прицелом по точке (кружок под мышью до удара)
-export const OLD_AIM = new Set(['cloud', 'meteor', 'blizzard', 'grasp', 'rain', 'hallow', 'sigil', 'starfall']);
+export const OLD_AIM = new Set(['bash', 'chaos', 'crescent', 'cleaver', 'cloud', 'meteor', 'blizzard', 'grasp', 'rain', 'hallow', 'sigil', 'starfall']);
 // запасной значок game-icons для умений 61–70 (4.06): значок похожего умения той же ветки (основной — рисованный, spellart3d.js)
 // значки Жреца (4.16): копия уже собранных значков игры (gicons.json), без новых загрузок
 export const ICON_SAME = {

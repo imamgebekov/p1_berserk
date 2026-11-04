@@ -162,7 +162,7 @@ const mem = () => { const o = {}; return { getItem: k => (k in o ? o[k] : null),
 // ---------- 10. новые умения: каждое делает своё ----------
 const mkJ = () => { const W = mk(30); W.hero = 'jay'; W.inv.eq.weapon = 'w_bow_iron'; refreshGear(W); return W; }, mkV = () => { const W = mk(30); W.hero = 'vale'; W.inv.eq.weapon = 'w_rapier_iron'; refreshGear(W); return W; };
 const st = (e, k) => !!(e.st && e.st[k] && e.st[k].t > 0);
-{ const W = mk(30); max(W, 'bash'); W.player.face = 0; const a = foe(W, 0, 1.6), b = foe(W, 0, -1.6); still(W); ok(useAbility(W, 5) === 'ok' && st(a, 'stun') && !st(b, 'stun') && a.hp < a.maxhp, 'сокрушающий удар: не оглушил цель перед собой или задел заднего'); }
+{ const W = mk(30); max(W, 'bash'); W.player.face = 0; const a = foe(W, 0, 1.6), b = foe(W, 0, -6.5); still(W); ok(useAbility(W, 5) === 'ok' && st(a, 'stun') && !st(b, 'stun') && a.hp < a.maxhp, 'молот правосудия: не оглушил цель перед собой или задел заднего'); }
 { const W = mk(30); max(W, 'quake'); const a = foe(W, 2, 0), b = foe(W, -2, 1), c = foe(W, 9, 0); still(W); useAbility(W, 6); ok(st(a, 'root') && st(b, 'root') && !st(c, 'root'), 'землетрясение: не корни вокруг или задело далёкого'); }
 { const W = mk(30); max(W, 'blood'); W.player.hp = 50; useAbility(W, 7); const e = foe(W, 0, 1.4); W.player.face = 0; const h0 = W.player.hp; run(W, 1.5, i => (i % 20 < 2 ? { attack: true } : {})); ok(W.player.hp > h0 && e.hp < e.maxhp, 'кровавый порыв: удары не лечат'); }
 { const W = mkJ(); max(W, 'frost'); const e = foe(W, 0, 6); W.player.face = 0; still(W); useAbility(W, 5); run(W, .8); ok(st(e, 'freeze'), 'ледяная стрела не заморозила'); }

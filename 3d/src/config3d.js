@@ -340,7 +340,7 @@ const BASE = {
       whirl:  { cd: [6, 5, 4], cost: 35, r: 3.4, mul: [1.5, 2.1, 2.7], knock: 1.6 },                                  // вихрь
       iron:   { cd: [28, 25, 22.5], cost: 45, t: [5, 7, 9], taken: .5 },                                                     // несокрушимость
       rage:   { cd: [21, 19, 17], cost: 70, t: [8, 10, 12], dmg: [30, 50, 70], swing: .8, drain: 2 },              // ярость берсерка (dmg — %)
-      bash:   { cd: [4, 3.5, 3], cost: 25, r: 3, cone: 70, mul: [1.1, 1.4, 1.7], stun: [1.2, 1.6, 2], knock: 1 },     // сокрушающий удар
+      bash:   { kind: 'zone', el: 'light', cd: [4, 3.5, 3], cost: 25, r: 3, range: 14, ahead: 3.5, mul: [1.1, 1.4, 1.7], stun: [1.2, 1.6, 2], knock: 1 },     // сокрушающий удар
       quake:  { cd: [9, 8, 7], cost: 45, r: 4, mul: [1, 1.3, 1.6], root: [1.5, 2, 2.5] },     // землетрясение
       blood:  { cd: [20, 18, 16], cost: 50, t: [6, 7, 8], leech: [15, 20, 25] },     // кровавый порыв (вампиризм, %),
     },
@@ -386,7 +386,7 @@ const BASE = {
     hunter: {     // Бесогон, охотник на демонов (Г8): свои умения — из видов действия (kind); beam, jump, morph — новые виды
       glaive:  { kind: 'bolt', el: 'steel', st: 'slow', cd: [5, 4.5, 4], cost: 15, mul: [1.2, 1.5, 1.8], n: 1, spread: 0, pierce: 3, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
       felrush: { kind: 'dash', el: 'fire', st: 'burn', cd: [7, 6, 5], cost: 20, dist: 9, time: .25, width: 2.2, stop: -5, thru: true, mul: [1, 1.3, 1.6], knock: .8, sd: [0, 0, 0], dps: [5, 8, 11], t: 3 },     // stop −5 и thru: проскакивает сквозь цель
-      chaos:   { kind: 'strike', el: 'shadow', st: 'crack', cd: [4, 3.5, 3], cost: 25, range: 3, cone: 100, mul: [2, 2.5, 3], knock: .8, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
+      chaos:   { kind: 'zone', el: 'shadow', st: 'crack', cd: [6, 5.5, 5], cost: 25, r: 3, range: 14, ahead: 3.5, mul: [2, 2.5, 3], knock: .8, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
       djump:   { kind: 'jump', cd: [9, 8, 7], cost: 10, dist: 5, time: .42, h: 1.6, again: .4 },     // прыжок на dist м за time с высотой h м, неуязвим в воздухе; второй — в воздухе или в again с после приземления, без платы
       blades:  { kind: 'nova', el: 'steel', st: 'bleed', cd: [9, 8, 7], cost: 30, r: 3.6, mul: [1.3, 1.7, 2.1], knock: .6, sd: [0, 0, 0], dps: [5, 8, 11], t: 4 },
       eyebeam: { kind: 'beam', el: 'fire', st: 'burn', cd: [14, 12, 10], cost: 40, range: 12, w: 1.6, cone: 60, dur: 1.8, tick: .3, mul: [.5, .65, .8], sd: [0, 0, 0], dps: [5, 8, 11], t: 3 },     // луч на range м шириной w, dur с, удар каждые tick с; идёт за взглядом героя
@@ -394,7 +394,7 @@ const BASE = {
       meta:    { kind: 'morph', el: 'shadow', st: 'stun', cd: [40, 36, 32], cost: 50, t: [10, 12, 15], dmg: [8, 12, 16], spd: [20, 25, 30], leech: [3, 4, 5], r: 4, mul: [1, 1.3, 1.6], knock: 1.2, sd: [1, 1.2, 1.5], scale: 1.25 }     // облик демона на t с: урон, скорость (%), вампиризм (%); при входе — удар и оглушение в r м; модель крупнее в scale раз
     },
     selene: {     // Селена, лунная воительница (Г9): все умения — из готовых видов (kind); starfall — поле, night: во сколько раз сильнее ночью
-      crescent: { kind: 'cone', el: 'light', st: 'slow', cd: [5, 4.5, 4], cost: 20, r: 3.6, cone: 120, mul: [1.5, 1.9, 2.3], knock: 1, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
+      crescent: { kind: 'zone', el: 'light', st: 'slow', cd: [5, 4.5, 4], cost: 20, r: 3.4, range: 14, ahead: 3.5, mul: [1.5, 1.9, 2.3], knock: 1, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
       lglaive:  { kind: 'bolt', el: 'light', st: null, cd: [6, 5.5, 5], cost: 25, mul: [.7, .9, 1.1], n: 3, spread: 36, pierce: 2, sd: [1, 1, 1], dps: [0, 0, 0], t: 0 },
       lstride:  { kind: 'dash', el: 'light', st: null, cd: [8, 7, 6], cost: 20, dist: 6, time: .26, width: 2, stop: .9, mul: [1.1, 1.4, 1.7], knock: 1, sd: [0, 0, 0], dps: [0, 0, 0], t: 0 },
       moonbeam: { kind: 'bolt', el: 'light', st: 'blind', cd: [6, 5.5, 5], cost: 30, mul: [2.2, 2.8, 3.4], n: 1, spread: 0, pierce: 0, sd: [1, 1.3, 1.6], dps: [0, 0, 0], t: 0 },
@@ -404,13 +404,13 @@ const BASE = {
       glow:     { kind: 'buff', stat: 'armor', cd: [18, 16, 14], cost: 20, t: [8, 10, 12], amt: [8, 12, 16] }
     },
     brand: {     // Клеймёный рыцарь (Г4, 4.17): свои умения — из видов действия (kind), числа здесь
-      cleaver:  { kind: 'cone', el: 'steel', st: 'bleed', cd: [7, 6, 5], cost: 30, r: 3.8, cone: 140, mul: [1.7, 2.2, 2.7], knock: 1.5, sd: [1, 1.3, 1.6], dps: [5, 8, 11], t: 4 },
+      cleaver:  { kind: 'zone', el: 'fire', st: 'burn', cd: [7, 6, 5], cost: 30, r: 3.4, range: 14, ahead: 3.5, mul: [1.7, 2.2, 2.7], knock: 1, sd: [1, 1.3, 1.6], dps: [5, 8, 11], t: 4 },
       cannon:   { kind: 'bolt', el: 'fire', st: 'burn', cd: [9, 8, 7], cost: 35, mul: [2, 2.6, 3.2], n: 1, spread: 0, pierce: 1, sd: [1, 1, 1], dps: [6, 9, 12], t: 4 },
       volley:   { kind: 'bolt', el: 'steel', st: null, cd: [8, 7, 6], cost: 30, mul: [.6, .8, 1], n: 5, spread: 40, pierce: 0, sd: [1, 1, 1], dps: [0, 0, 0], t: 0 },
       fury:     { kind: 'buff', stat: 'dmg', cd: [20, 18, 16], cost: 30, t: [6, 8, 10], amt: [6, 9, 12] },
       endure:   { kind: 'heal', cd: [22, 20, 18], cost: 25, k: [.18, .24, .3] },
       rush:     { kind: 'dash', el: 'steel', st: 'stun', cd: [8, 7, 6], cost: 25, dist: 7, time: .3, width: 2, stop: .9, mul: [1.2, 1.6, 2], knock: 2.2, sd: [.6, .8, 1], dps: [0, 0, 0], t: 0 },
-      darkcut:  { kind: 'strike', el: 'shadow', st: 'crack', cd: [9, 8, 7], cost: 30, range: 3.2, cone: 70, mul: [1.8, 2.3, 2.8], knock: 1.2, sd: [1.5, 2, 2.5], dps: [0, 0, 0], t: 0 },
+      darkcut:  { kind: 'bolt', el: 'shadow', st: 'crack', cd: [9, 8, 7], cost: 30, mul: [1.8, 2.3, 2.8], n: 1, spread: 0, pierce: 0, sd: [1.5, 2, 2.5], dps: [0, 0, 0], t: 0 },
       howl:     { kind: 'nova', el: 'steel', st: 'fear', cd: [16, 14, 12], cost: 35, r: 4.5, mul: [.8, 1, 1.2], knock: 1, sd: [1.5, 2, 2.5], dps: [0, 0, 0], t: 0 }
     },
     priest: {     // Жрец (Г3, 4.16): свои умения собраны из видов действия (kind в data/abilities3d.js), числа — здесь
@@ -421,7 +421,7 @@ const BASE = {
       radiance: { kind: 'nova', el: 'light', st: 'blind', cd: [9, 8, 7], cost: 35, r: 4, mul: [1, 1.3, 1.6], knock: 1, sd: [1.5, 2, 2.5], dps: [0, 0, 0], t: 0 },
       hallow:   { kind: 'field', el: 'light', st: null, cd: [14, 12, 10], cost: 35, r: 3.5, t: 6, tick: 1, mul: [.4, .55, .7], range: 12, ahead: 6, slow: 0 },
       vtouch:   { kind: 'mark', el: 'shadow', st: null, cd: [12, 11, 10], cost: 30, range: 14, cone: 60, delay: 3, mul: [2.5, 3.2, 4] },
-      penance:  { kind: 'strike', el: 'light', st: 'stun', cd: [10, 9, 8], cost: 25, range: 3, cone: 60, mul: [1.6, 2, 2.4], knock: 1, sd: [.8, 1, 1.2], dps: [0, 0, 0], t: 0 }
+      penance:  { kind: 'bolt', el: 'light', st: 'stun', cd: [10, 9, 8], cost: 25, mul: [.8, 1, 1.2], n: 3, spread: 18, pierce: 0, sd: [.8, 1, 1.2], dps: [0, 0, 0], t: 0 }
     },
     warlock: {     // Морок-чернокнижник (2026-10-20)
       hex:    { cd: [6, 5, 4], cost: 20, range: 12, cone: 60, crack: [.2, .3, .4], dps: [4, 6, 8], t: 6 },     // порча: трещина (урон по цели +crack) и яд
@@ -438,7 +438,7 @@ const BASE = {
   // set — замена; прочее — числа особых эффектов (stun — множитель оглушения испуганных, k — множитель урона по условию, …)
   combos: {
     window: 3,
-    dread: { mul: { cone: 1.5 } }, runup: { mul: { mul: 1.4 } }, rift: { k: 1.6 },     // школы (2026-10-22): одна связка на школу
+    dread: { mul: { r: 1.5 } }, runup: { mul: { mul: 1.4 } }, rift: { k: 1.6 },     // школы (2026-10-22): одна связка на школу
     aimcold: { pierce: 99 }, snaretrap: { mul: { root: 1.5 } }, poisonhail: { mul: { mul: 1.3 } },
     riposte: { set: { kill: .4 } }, shadowstrike: { crit: true }, crimsonfan: { mul: { r: 1.4 } },
     glaivecut: { mul: { mul: 1.4 } }, firefall: { mul: { r: 1.4 } }, demonsight: { mul: { dur: 1.5 } },
@@ -1351,9 +1351,9 @@ const BASE = {
         bow: { strike: 'Melee_Unarmed_Attack_Kick', cone: 'Ranged_Bow_Release', nova: 'Ranged_Magic_Summon', zone: 'Throw', field: 'Ranged_Bow_Release', cloud: 'Throw', bolt: 'Ranged_Bow_Release', buff: 'Use_Item', ward: 'Melee_Block', heal: 'Use_Item', gheal: 'Use_Item', mark: 'Ranged_Bow_Draw', pull: 'Throw', dash: null, jump: null, own: 'Ranged_Bow_Release' } },
       byId: { cry: 'Skeletons_Taunt', whirl: 'Melee_2H_Attack_Spin', iron: 'Melee_Block', rage: 'Skeletons_Taunt', bash: 'Melee_1H_Attack_Jump_Chop', quake: 'Melee_1H_Attack_Jump_Chop', blood: 'Melee_1H_Attack_Slice_Diagonal', charge: null,     // Торн
         fireball: 'Ranged_Magic_Shoot', nova: 'Ranged_Magic_Summon', chain: 'Ranged_Magic_Shoot', meteor: 'Ranged_Magic_Summon', shield: 'Ranged_Magic_Raise', spear: 'Ranged_Magic_Shoot',     // Ирга
-        chaos: 'Melee_Dualwield_Attack_Slice', djump: 'Melee_1H_Attack_Jump_Chop', felrush: null, glaive: 'Throw', blades: 'Melee_Dualwield_Attack_Slice', eyebeam: 'Ranged_Magic_Shoot', sigil: 'Ranged_Magic_Summon', meta: 'Skeletons_Taunt',     // Бесогон
-        cleaver: 'Melee_2H_Attack_Chop', cannon: 'Throw', volley: 'Throw', fury: 'Skeletons_Taunt', endure: 'Melee_Block', rush: null, darkcut: 'Melee_2H_Attack_Slice', howl: 'Skeletons_Taunt',     // Клеймёный
-        crescent: 'Melee_2H_Attack_Slice', lglaive: 'Throw', lstride: null, moonbeam: 'Ranged_Magic_Shoot', flare: 'Ranged_Magic_Summon', starfall: 'Ranged_Magic_Summon', lveil: 'Ranged_Magic_Raise', glow: 'Ranged_Magic_Raise',     // Селена
+        chaos: 'Ranged_Magic_Summon', djump: 'Melee_1H_Attack_Jump_Chop', felrush: null, glaive: 'Throw', blades: 'Melee_Dualwield_Attack_Slice', eyebeam: 'Ranged_Magic_Shoot', sigil: 'Ranged_Magic_Summon', meta: 'Skeletons_Taunt',     // Бесогон
+        cleaver: 'Ranged_Magic_Summon', cannon: 'Throw', volley: 'Throw', fury: 'Skeletons_Taunt', endure: 'Melee_Block', rush: null, darkcut: 'Ranged_Magic_Shoot', howl: 'Skeletons_Taunt',     // Клеймёный
+        crescent: 'Ranged_Magic_Summon', lglaive: 'Throw', lstride: null, moonbeam: 'Ranged_Magic_Shoot', flare: 'Ranged_Magic_Summon', starfall: 'Ranged_Magic_Summon', lveil: 'Ranged_Magic_Raise', glow: 'Ranged_Magic_Raise',     // Селена
         smite: 'Ranged_Magic_Shoot', mend: 'Ranged_Magic_Raise', sanctum: 'Ranged_Magic_Raise', hymn: 'Ranged_Magic_Raise', radiance: 'Ranged_Magic_Summon', hallow: 'Ranged_Magic_Summon', penance: 'Ranged_Magic_Shoot',     // Жрец
         summon: 'Ranged_Magic_Summon', terror: 'Ranged_Magic_Raise', pact: 'Ranged_Magic_Raise', souls: 'Ranged_Magic_Summon', doom: 'Ranged_Magic_Shoot',     // Морок
         leap: null, trap: 'Throw', venom: 'Use_Item', hawk: 'Ranged_Magic_Raise',     // Ирга-лучница Джей
@@ -1369,6 +1369,7 @@ const BASE = {
         scythe: [2.5, .12], sickle: [1.13, .12], mace: [1.14, .1], club: [1.35, .08], hammer: [1.9, .1], pick: [1.3, .08], flail: [1.45, .08], chain_ball: [1.75, .06], staff: [2.15, .42], wand: [.97, .28],
         bow: [1.98, 0], longbow: [2.38, 0], crossbow: [1.22, .23] },     // вид → [длина, доля длины ниже ладони] в единицах скелета KayKit (по мешам kk_weapons); лук и арбалет — по z
       shield: { def: .88, buckler: .88, tower: 1.2 } },     // щит: размер большей стороны
+    heroesMh: { thorn: 'mh_thorn', vale: 'mh_vale', warlock: 'mh_warlock', brand: 'mh_brand', hunter: 'mh_hunter' },     // герои из Meshy (2026-11-05): в игре вместо KayKit, ?mh=0 — вернуть KayKit; Джей, Ирга, Жрец и Селена пока на KayKit
     heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'kk_warlock', priest: 'kk_priest', brand: 'kk_barbarian', hunter: 'kk_hunter', selene: 'kk_selene' },     // Морок и Жрец — KayKit с перекраской (путь А, 2026-10-22); Бесогону (ветка g8) — kk_hunter
     foes: { queen: 'kb_queen', gravekeeper: 'kb_gravekeeper', ashsister: 'kb_ashsister', boneshepherd: 'kb_boneshepherd', thornwitch: 'kb_thornwitch', sapper: 'mf_sapper', gatewarden: 'mf_gatewarden', gneis: 'mf_gneis', borot: 'mf_borot', armorer: 'mf_armorer', towerwarden: 'kb_towerwarden', keymaster: 'kb_keymaster', lampwarden: 'kb_lampwarden', tidecaller: 'kb_tidecaller', bloodbanner: 'kb_bloodbanner', hagmother: 'mf_hagmother', drownchoir: 'kb_drownchoir', abbess: 'kb_abbess', cinderpriest: 'mf_cinderpriest', sporemother: 'gen_sporemother', twinflame: 'gen_twinflame', hollowqueen: 'gen_hollowqueen', feeder: 'mf_feeder', swarm: 'mf_swarm', nestlord: 'ae_spider', abbeyshriek: 'kb_abbeyshriek', choir: 'kb_choir', ap_serpent: 'kb_ap_serpent', ap_boar: 'kb_ap_boar', ap_moth: 'kb_ap_moth', hand_womb: 'gen_hand_womb', hand_whisper: 'kb_hand_whisper', hand_net: 'mf_hand_net', alaric: 'kb_alaric', alaric2: 'kb_alaric',     // боссы-сборки
       mossbeast: 'gen_mossbeast', drownqueen: 'gen_drownqueen', smelter: 'gen_smelter', barghest: 'q_wolf', rootgnaw: 'um_ghoul', thornlord: 'kk_king', oldoak: 'q_golem', saltwarden: 'mf_saltwarden', cathkraken: 'mf_tidewyrm', drowngod: 'um_fish',     // рейды 20 и 40 (4.18)
@@ -1389,8 +1390,8 @@ const BASE = {
       kad_soldier: '#8aa0ff', kad_spear: '#8aa0ff', kad_banner: '#a0b0ff', kad_xbow: '#a0b8ff', royal_guard: '#ff8a8a', masked_knight: '#605870', brandshade: '#ff6a6a', shrieker: '#ffe0b0', ashking: '#c0a080', oakking: '#a0d080', firegolem: '#ff9a60', drownedmaid: '#a0e0d0', silt: '#b0c080', swampelder: '#c0a070', lord: '#ff9070', gatebeast: '#ff7060', gravewight: '#c0d080', abbot: '#ffe0a0' },
     kits: {
       mh_thorn: { height: 2.2, ownWeapon: true },
-      mh_vale: { height: 2.15, ownWeapon: true, anims: 'mhs' }, mh_jay: { height: 2.15, ownWeapon: true, anims: 'mhs' }, mh_irga: { height: 2.3, ownWeapon: true, anims: 'mhs' }, mh_warlock: { height: 2.2, ownWeapon: true, anims: 'mhs' },
-      mh_priest: { height: 2.2, ownWeapon: true, anims: 'mhs' }, mh_brand: { height: 2.3, ownWeapon: true, anims: 'mhs' }, mh_hunter: { height: 2.2, ownWeapon: true, anims: 'mhs' },     // новый Торн из Meshy (?mh): автоскелет, цвет 1024 px
+      mh_vale: { height: 2.15, ownWeapon: true, anims: 'mhs' }, mh_warlock: { height: 2.2, ownWeapon: true, anims: 'mhs' },
+      mh_brand: { height: 2.3, ownWeapon: true, anims: 'mhs' }, mh_hunter: { height: 2.2, ownWeapon: true, anims: 'mhs' },     // новый Торн из Meshy (?mh): автоскелет, цвет 1024 px
       kk_knight: { anims: 'kk', height: 2.25, gear: ['sword', 'iron', 'shield', 'shield_badge'], helm: ['Knight_Helmet', 'Knight_HelmetVisor'], cape: ['Knight_Cape'] },
       kk_rogue: { anims: 'kk', height: 2.15, cape: ['Rogue_Cape'] },
       kk_rogue_hooded: { anims: 'kk', height: 2.15, aim: 'aim', atk: 'bow', gear: ['crossbow', 'iron'] },     // gear — оружие врага: вид или меш KayKit, материал, щит, форма щита
