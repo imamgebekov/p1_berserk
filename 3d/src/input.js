@@ -17,6 +17,7 @@ export function createInput(doc, win) {
 
   zone.addEventListener('pointerdown', e => {
     if (pid !== null) return;
+    if (e.pointerType === 'touch' && doc.documentElement.hasAttribute('data-land') && e.clientX > win.innerWidth * .5) return;     // боком: правая половина — камера и бой, стик только слева (main.js)
     e.preventDefault(); pid = e.pointerId; try { zone.setPointerCapture(pid); } catch (_) { /* не критично */ }
     ox = e.clientX; oy = e.clientY; stick.style.left = ox + 'px'; stick.style.top = oy + 'px'; stick.classList.add('on'); move(e);
   });

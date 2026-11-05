@@ -131,13 +131,18 @@ if (renderer && cfg.view.zoom) {
   renderer.camZoom(z0);
   canvas.addEventListener('wheel', e => { e.preventDefault(); setZ(renderer.camZoom() * Math.exp(e.deltaY * Z.wheel)); }, { passive: false });
   addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey || (e.target && e.target.closest && e.target.closest('input, textarea'))) return; if (e.code === 'Equal' || e.code === 'NumpadAdd') setZ(renderer.camZoom() / Z.key); else if (e.code === 'Minus' || e.code === 'NumpadSubtract') setZ(renderer.camZoom() * Z.key); });
-  const tp = new Map(); let pd = 0, pz = 1, pa = 0;     // касания по полю: два пальца — щипок
-  for (const el of [canvas, document.getElementById('zone')].filter(Boolean)) {     // поле управления (#zone) перекрывает холст — щипок ловим на обоих (2026-11-03)
-    el.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2) { const [a, b] = [...tp.values()]; pd = Math.hypot(a[0] - b[0], a[1] - b[1]); pz = renderer.camZoom(); pa = Math.atan2(b[1] - a[1], b[0] - a[0]); } });
-    el.addEventListener('pointermove', e => { if (!tp.has(e.pointerId)) return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2 && pd > 20) { const [a, b] = [...tp.values()]; setZ(pz * pd / Math.max(20, Math.hypot(a[0] - b[0], a[1] - b[1])));
-      const an = Math.atan2(b[1] - a[1], b[0] - a[0]); let da = an - pa; if (da > Math.PI) da -= 2 * Math.PI; else if (da < -Math.PI) da += 2 * Math.PI; pa = an; turnCam(da * 180 / Math.PI * CY.touch); } });     // поворот камеры: закрутили пальцы по часовой — мир по часовой
-    for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, e => { tp.delete(e.pointerId); if (tp.size < 2) pd = 0; });
-  }
+  // касания по полю (5.44): боком правая половина — камера одним пальцем; щипок приближает, даже если пальцы на разных половинах
+  // (оба пальца движутся навстречу или врозь вдоль линии между ними; один палец на стике стоит — это камера, а не щипок)
+  const tp = new Map(), fieldEl = document.getElementById('zone'), isField = e => e.pointerType === 'touch' && (e.target === canvas || e.target === fieldEl);
+  addEventListener('pointerdown', e => { if (isField(e)) tp.set(e.pointerId, { x: e.clientX, y: e.clientY, cam: document.documentElement.hasAttribute('data-land') && e.clientX > innerWidth * .5, mv: [] }); }, true);
+  addEventListener('pointermove', e => {
+    const f = tp.get(e.pointerId); if (!f) return; const dx = e.clientX - f.x, dy = e.clientY - f.y, t = e.timeStamp; f.x = e.clientX; f.y = e.clientY; f.mv.push([t, dx, dy]); while (f.mv.length && t - f.mv[0][0] > 150) f.mv.shift();
+    const o = [...tp.entries()].find(([id]) => id !== e.pointerId);
+    if (o) { const g = o[1], ax = f.x - g.x, ay = f.y - g.y, L = Math.hypot(ax, ay) || 1, ux = ax / L, uy = ay / L, sum = h => h.mv.reduce((r, m) => [r[0] + m[1], r[1] + m[2]], [0, 0]), mf = sum(f), mo = sum(g), pf = mf[0] * ux + mf[1] * uy, po = mo[0] * ux + mo[1] * uy, same = (f.x > innerWidth / 2) === (g.x > innerWidth / 2);
+      if (same ? L > 20 : (pf * po < 0 && Math.abs(pf) >= 8 && Math.abs(po) >= 8)) { const L0 = Math.hypot(f.x - dx - g.x, f.y - dy - g.y); if (L0 > 20) setZ(renderer.camZoom() * L0 / L); return; } }
+    if (f.cam && dx) turnCam(dx * CY.drag);     // не щипок: палец в правой половине тянет камеру
+  }, true);
+  for (const ev of ['pointerup', 'pointercancel']) addEventListener(ev, e => { tp.delete(e.pointerId); }, true);
 }
 const BENCH = new URLSearchParams(location.search).has('bench');      // ?bench: замер на устройстве — новая игра, сохранение не трогаем
 const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; } }; })();
