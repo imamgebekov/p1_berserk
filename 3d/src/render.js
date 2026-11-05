@@ -289,7 +289,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const decor = { group: new THREE.Group() }, decorLive = new Map(), decorMats = {}; scene.add(decor.group);
   const decorCell = k => { const [i, j] = k.split(',').map(Number), g = buildDecor({ decor: decorBy.get(k) }, mulberry32(cfg.world.seed + 2 + i * 7919 + j * 104729), cfg.shaders && cfg.shaders.grime, decorMats, Y).group.children[0];
     if (!g) return null; g.traverse(m => { if (m.material) [].concat(m.material).forEach(xray); if (m.isMesh) m.castShadow = sun.castShadow; }); freeze(g); decor.group.add(g); return g; };
-  const dropDecor = k => { const g = decorLive.get(k); decorLive.delete(k); if (g) { decor.group.remove(g); g.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); } };
+  const dropDecor = k => { const g = decorLive.get(k); decorLive.delete(k); if (g) { decor.group.remove(g); g.traverse(o => { if (o.isInstancedMesh) o.dispose(); if (o.isMesh) o.geometry.dispose(); }); } };
   function streamDecor(x, z, budget = 2) {     // в пределах cull.decor — строятся (budget клеток за вызов), дальше cull.decor + 48 м — выгружаются
     const R = CL.decor, ci = Math.floor(x / 64), cj = Math.floor(z / 64), n = Math.ceil(R / 64) + 1;
     for (const k of [...decorLive.keys()]) { const [i, j] = k.split(',').map(Number); if (Math.hypot((i + .5) * 64 - x, (j + .5) * 64 - z) > R + 48) dropDecor(k); }
@@ -416,7 +416,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   const jobs = new Map();
   const buildLand = (ci, cj) => { for (const _ of landJob(ci, cj)); };      // целиком сразу (старт, перенос)
-  function dropLand(key) { jobs.delete(key); const L = liveLand.get(key); land.remove(L.g); L.g.traverse(o => { if (o.isMesh && o.geometry !== grassGeo) o.geometry.dispose(); }); liveLand.delete(key); }
+  function dropLand(key) { jobs.delete(key); const L = liveLand.get(key); land.remove(L.g); L.g.traverse(o => { if (o.isInstancedMesh) o.dispose(); if (o.isMesh && o.geometry !== grassGeo) o.geometry.dispose(); });     /* трава — InstancedMesh на общей геометрии: освобождаем её буферы экземпляров, иначе они копятся в видеопамяти */ liveLand.delete(key); }
   // подгрузка: нужные участки вокруг камеры; если не хватает многих (старт, перенос) — все сразу, иначе по одному за кадр
   const LAND_VIEW = 96, LAND_MS = 6;     // LAND_MS — сколько миллисекунд за кадр строить землю в фоне
   function streamLand(x, z) {
