@@ -40,6 +40,7 @@ function wildMap(ctx, M, doc, X, Y, sc) {
   for (const d of M.doors) if (d.locked || d.open < .6) { ctx.fillStyle = d.crack ? '#6e6a62' : d.locked ? '#d03a2a' : '#7a5030'; ctx.fillRect(X(d.rect.x0), Y(d.rect.z0), Math.max(3, (d.rect.x1 - d.rect.x0) * sc), Math.max(3, (d.rect.z1 - d.rect.z0) * sc)); }
 }
 export function drawMap(ctx, W, v) {
+  const hid = v.hide || new Set();     // скрытые категории значков (легенда карты)
   const { w, h, scale: sc, cx, cz, full } = v, U = v.ui || 1, zs = sc / (v.dpr || 1), R = W.seenR || W.cfg.world.radius, OX = W.seenX || 0, OZ = W.seenZ || 0, p = W.player, M = W.map, under = !!M.bounds;     // OX/OZ — центр круга мира и сетки тумана (Мир 5.0)
   const X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc;
   ctx.clearRect(0, 0, w, h);
@@ -117,13 +118,15 @@ export function drawMap(ctx, W, v) {
   ctx.fillStyle = '#ff7a30'; ctx.beginPath(); ctx.arc(X(0), Y(0), Math.max(2, sc * .9), 0, 6.2832); ctx.fill();
   // торговцы и прочие NPC
   const NPC_IC = { keeper: ['ui:sparkle', '#a8203a'], merchant: ['map:shop', '#b8901c'], smith: ['map:smith', '#c05a1c'], captain: ['map:fight', '#2a6ab8'], auctioneer: ['map:shop', '#8a3ab8'], scribe: ['ui:book', '#6a4ab8'] };
-  for (const b of M.buildings) if (b.npc) { if (full && NPC_IC[b.npc.kind]) { if (zs >= 1.2) badge(ctx, NPC_IC[b.npc.kind][0], X(b.npc.x), Y(b.npc.z), 7 * U, NPC_IC[b.npc.kind][1]); continue; } ctx.fillStyle = NPC[b.npc.kind] || '#fff'; ctx.beginPath(); ctx.arc(X(b.npc.x), Y(b.npc.z), Math.max(2.5, sc * 1.1), 0, 6.2832); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); }
+  const NPC_NAME = { keeper: 'Хранитель огня', merchant: 'Торговец', smith: 'Кузнец', captain: 'Капитан', auctioneer: 'Аукцион', scribe: 'Библиотека' }, labs = [];     // подписи у значков (5.45): видно, где аукцион и кузнец; наползающие пропускаем
+  for (const b of M.buildings) if (b.npc) { if (hid.has('npc:' + b.npc.kind)) continue; if (full && NPC_IC[b.npc.kind]) { if (zs >= .45) { const nx = X(b.npc.x), ny = Y(b.npc.z); badge(ctx, NPC_IC[b.npc.kind][0], nx, ny, 8 * U, NPC_IC[b.npc.kind][1]);
+        if (zs >= .8 && nx > -40 && nx < w + 40 && ny > -20 && ny < h + 20 && !labs.some(q => Math.abs(q[0] - nx) < 64 * U && Math.abs(q[1] - ny) < 15 * U)) { labs.push([nx, ny]); ctx.save(); ctx.font = `700 ${Math.round(12 * U)}px "Iowan Old Style", Palatino, Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3.5 * U; ctx.strokeStyle = 'rgba(10,6,4,.9)'; ctx.fillStyle = '#f4e8cc'; const ty = ny + 15 * U; ctx.strokeText(NPC_NAME[b.npc.kind], nx, ty); ctx.fillText(NPC_NAME[b.npc.kind], nx, ty); ctx.restore(); } } continue; } ctx.fillStyle = NPC[b.npc.kind] || '#fff'; ctx.beginPath(); ctx.arc(X(b.npc.x), Y(b.npc.z), Math.max(2.5, sc * 1.1), 0, 6.2832); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); }
   }
   // люки и лестницы
   for (const q of M.portals || []) { if (!under && (q.stair || !isSeen(W, q.x, q.z))) continue; const r = Math.max(2.5, sc * .8); ctx.fillStyle = q.up ? '#e8d0a0' : '#8a5a30'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.fillRect(X(q.x) - r, Y(q.z) - r, r * 2, r * 2); ctx.strokeRect(X(q.x) - r, Y(q.z) - r, r * 2, r * 2); }     // лестницы в домах — не входы в подземелья
   // непустые контейнеры в открытых клетках
   ctx.fillStyle = '#ffc860';
-  for (const c of M.containers) if (c.ready && isSeen(W, c.x, c.z) && !(full && zs < 2 && !under)) ctx.fillRect(X(c.x) - 1.5, Y(c.z) - 1.5, 3, 3);
+  for (const c of M.containers) if (!(v.hide && v.hide.has('chest')) && c.ready && isSeen(W, c.x, c.z) && !(full && zs < 2 && !under)) ctx.fillRect(X(c.x) - 1.5, Y(c.z) - 1.5, 3, 3);
   // логова боссов (видны в открытых клетках; серые — убитые и ещё не вернувшиеся)
   // логова боссов — поверх дымки, ниже (блок «боссы и мини-боссы»)
   // могила с потерянным пеплом
@@ -163,15 +166,15 @@ export function drawMap(ctx, W, v) {
     const named = (x, y, txt) => { if (!full) return; ctx.font = `700 ${Math.round(13 * U)}px "Iowan Old Style", Palatino, Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3.5 * U; const FL = W.cfg.mapView && W.cfg.mapView.flat; ctx.strokeStyle = FL ? 'rgba(10,20,34,.92)' : 'rgba(244,236,214,.92)'; ctx.fillStyle = FL ? '#ffc0b0' : '#5a1a10'; ctx.strokeText(txt, x, y); ctx.fillText(txt, x, y); ctx.textBaseline = 'alphabetic'; };
     const inMap = (x, y) => x > -8 && x < w + 8 && y > -8 && y < h + 8, BR = full ? 7 : 5;
     if (!under) {
-      for (const d of W.cfg.bosses.list) { if (d.level) continue; const x = X(d.x), y = Y(d.z); if (!inMap(x, y)) continue; const dead = W.bossDead[d.type] !== undefined, slain = W.path && W.path.slain[d.type]; const col = slain ? '#8a7a5a' : dead ? '#6a6a6a' : '#c8281c'; if (full) { badge(ctx, 'map:boss', x, y, 9 * U, col); if (zs >= 1.2) named(x, y + 17 * U, W.cfg.enemies[d.type].name); } else mark(x, y, BR, col === '#c8281c' ? '#ff3a2a' : col, true); }     // имя босса — только вблизи     // боссы замков — внутри, на поверхности их место — замок
+      for (const d of W.cfg.bosses.list) { if (d.level || hid.has('boss')) continue; const x = X(d.x), y = Y(d.z); if (!inMap(x, y)) continue; const dead = W.bossDead[d.type] !== undefined, slain = W.path && W.path.slain[d.type]; const col = slain ? '#8a7a5a' : dead ? '#6a6a6a' : '#c8281c'; if (full) { badge(ctx, 'map:boss', x, y, 9 * U, col); if (zs >= 1.2) named(x, y + 17 * U, W.cfg.enemies[d.type].name); } else mark(x, y, BR, col === '#c8281c' ? '#ff3a2a' : col, true); }     // имя босса — только вблизи     // боссы замков — внутри, на поверхности их место — замок
       for (const d of W.cfg.dungeons.list) { if (!d.inst || !d.at) continue; const x = X(d.at.x), y = Y(d.at.z); if (!inMap(x, y)) continue; const ab = W.cfg.bosses.list.filter(b => b.level === d.id), done = ab.length && ab.every(b => lockedBoss(W, d.id, false, b.type));     // серое — награда со всех боссов взята (откат, план подземелий 1б)     // подземелья зон (этап 5): видны всегда, как замки
         const cl = done ? '#6a6a6a' : d.raid ? '#2a8a4a' : '#2a6ab8';     // 4.18в: синий — подземелье, зелёный — рейд; вокруг — кружок
         ctx.beginPath(); ctx.arc(x, y, (full ? 15 : 9) * (full ? U : 1), 0, 6.2832); ctx.lineWidth = (full ? 3 : 2) * (full ? U : 1); ctx.strokeStyle = done ? '#8a8a8a' : d.raid ? '#4adf6a' : '#4a9aff'; ctx.stroke();
         if (full) { badge(ctx, 'map:dungeon', x, y, 10 * U, cl); if (zs >= .45) named(x, y + 21 * U, (d.raid ? 'Рейд: ' : '') + (zs >= 1.5 ? `${d.name} · ур. ${d.level}` : d.name)); } else mark(x, y, BR + 1, done ? '#6a6a6a' : d.raid ? '#4adf6a' : '#3a8adf', true); }
-      for (const c of M.cfg.castles || []) { if (!Number.isFinite(c.x)) continue; const x = X(c.x), y = Y(c.z), t = c.boss && c.boss.type; if (!inMap(x, y)) continue; const col = t && W.bossDead[t] !== undefined ? '#6a6a6a' : '#9a2ab8'; if (full) { badge(ctx, 'map:castle', x, y, 11 * U, col); if (zs >= .45) named(x, y + 20 * U, c.name); } else mark(x, y, BR + 1, col, true); }
+      for (const c of M.cfg.castles || []) { if (!Number.isFinite(c.x) || hid.has('castle')) continue; const x = X(c.x), y = Y(c.z), t = c.boss && c.boss.type; if (!inMap(x, y)) continue; const col = t && W.bossDead[t] !== undefined ? '#6a6a6a' : '#9a2ab8'; if (full) { badge(ctx, 'map:castle', x, y, 11 * U, col); if (zs >= .45) named(x, y + 20 * U, c.name); } else mark(x, y, BR + 1, col, true); }
     }
     if (under) for (const e of W.enemies) if (!e.dead && e.boss) { const x = X(e.x), y = Y(e.z); if (!inMap(x, y)) continue; if (full) { badge(ctx, 'map:boss', x, y, 9 * U, '#c8281c'); if (zs >= .45) named(x, y + 18 * U, W.cfg.enemies[e.type].name); } else mark(x, y, BR, '#c8281c', true); }     // боссы подземелья на его карте (план подземелий, 1г)
-    for (const e of W.enemies) if (!e.dead && !e.boss && (e.elite || e.guard) && (under || !full || isSeen(W, e.x, e.z))) { const x = X(e.x), y = Y(e.z); if (x > 0 && x < w && y > 0 && y < h) { if (full) badge(ctx, 'map:mini', x, y, 6.5 * U, '#d8741a'); else mark(x, y, 3.5, '#ff9a2a', false); } } }
+    for (const e of W.enemies) if (!hid.has('mini') && !e.dead && !e.boss && (e.elite || e.guard) && (under || !full || isSeen(W, e.x, e.z))) { const x = X(e.x), y = Y(e.z); if (x > 0 && x < w && y > 0 && y < h) { if (full) badge(ctx, 'map:mini', x, y, 6.5 * U, '#d8741a'); else mark(x, y, 3.5, '#ff9a2a', false); } } }
   // свои бойцы
   ctx.fillStyle = '#6ab0ff'; for (const a of W.allies || []) if (!a.dead && !a.guest) { ctx.beginPath(); ctx.arc(X(a.x), Y(a.z), 2.6, 0, 6.2832); ctx.fill(); }
   if (!under) { ctx.fillStyle = '#9fe0c0'; for (const a of W.bots || []) if (!a.dead) { const x = X(a.x), y = Y(a.z); if (x > 0 && x < w && y > 0 && y < h) { ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 6.2832); ctx.fill(); } } }     // боты-«игроки» (этап 5)

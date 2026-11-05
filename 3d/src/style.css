@@ -1227,3 +1227,45 @@ html:not([data-desk]) #portalBtn small{font-size:11px;margin:-1px 0 2px}
 html[data-land]:not([data-desk]) #actStack{bottom:calc(20px + env(safe-area-inset-bottom))}
 html[data-land]:not([data-desk]) #actStack>*{min-height:34px!important;font-size:13px!important;padding:0 12px!important}
 html[data-land]:not([data-desk]) #actSide>*{min-height:32px!important;font-size:12px!important}
+
+/* 5.45: торговец боком (замечание владельца 2026-11-05): слева витрина с прокруткой, справа карточка вещи; вкладки — в одну строку */
+[data-land] #shop .pbox{display:grid;grid-template-columns:minmax(0,1fr) 262px;grid-template-rows:auto auto minmax(0,1fr);column-gap:10px;row-gap:4px}
+[data-land] #shop .shead{grid-column:1/-1;grid-row:1;gap:10px;flex-wrap:nowrap}[data-land] #shop .shead h2{font-size:19px}[data-land] #shop .ssub{font-size:11.5px}
+[data-land] #shopTabs{grid-column:1;grid-row:2;margin:0;gap:6px}[data-land] #shopTabs .tab{min-height:32px;height:32px;padding:0 14px;font-size:14px}
+[data-land] #shopFlash{position:absolute;left:14px;bottom:6px;z-index:2;margin:0}
+[data-land] #shopList{display:contents}
+[data-land] #shop .trade{grid-column:1;grid-row:3;min-height:0;overflow:hidden}
+[data-land] #shop .trade .tpane{min-height:0;padding:6px;gap:4px;overflow:hidden}[data-land] #shop .tph{display:none}
+[data-land] #shop .tchips{gap:5px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}[data-land] #shop .tchips .tchip{min-height:30px;padding:0 10px;font-size:13px;flex:none}
+[data-land] #shop .tgridx{max-height:none;flex:1;min-height:0;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));touch-action:pan-y}
+[data-land] #shop .tsel{grid-column:2;grid-row:2/4;min-height:0;max-height:none;overflow-y:auto;-webkit-overflow-scrolling:touch;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:8px;padding:10px}
+[data-land] #shop .tsel .tsi{align-self:flex-start}[data-land] #shop .tsel .tact{margin-top:auto;min-height:44px;flex:none}
+[data-land] #shop .tsellb{flex:none}[data-land] #shop .junk{min-height:34px;font-size:12px}
+/* 5.45: древо умений боком — дерево слева, карточка узла справа (как на компьютере), школы одной строкой, кнопка сброса плавает */
+[data-land] #skills .pbox{position:relative}
+[data-land] #skills .tbsw{margin:0 0 4px;gap:6px}[data-land] #skills .tbsb{min-height:30px!important;height:30px;font-size:14px}
+[data-land] #skills .tbh{font-size:15px}[data-land] #skills .tbr{margin-bottom:2px}
+[data-land] #skillReset{position:absolute;right:14px;bottom:6px;width:auto;z-index:3;opacity:.9;background:rgba(20,10,8,.85)}
+[data-land] #skillList{padding-bottom:34px}
+html[data-land] #skills .tcard.tsheet{left:auto;right:10px;top:118px;bottom:46px;width:250px;max-height:none;display:flex;flex-direction:column;gap:6px;box-shadow:-8px 0 24px rgba(0,0,0,.55)!important}     /* карточка узла — справа, дерево слева остаётся видно */
+html[data-land] #skills .tview:has(.tcard.tsheet) .tree{margin-right:262px}
+
+/* 5.45: легенда карты сворачивается, значки в ней — переключатели */
+#mapLegend .here{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0}
+#mapLegend .legtg{flex:none;min-height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:#f0e2c8;font:inherit;font-size:13px}
+#mapLegend .chips{display:none;margin-top:6px}#mapLegend.open .chips{display:flex}
+#mapLegend .chip.tog{cursor:pointer;color:inherit;font:inherit;min-height:30px}#mapLegend .chip.tog.off{opacity:.38;text-decoration:line-through}
+[data-land] #mapLegend{margin-top:4px;padding:4px 8px;max-height:46%;overflow-y:auto}
+/* 5.45: иконки умений закрывают весь круг; значки кнопок HUD ровно по центру (замечание владельца 2026-11-05) */
+html #abil .ab img.abgi.own{inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;transform:scale(1.2);filter:none}
+html:not([data-desk]) #abil .ab{overflow:hidden}
+#skillBtn,#bookBtn,#bagBtn,#gear,#questBtn{display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:0}
+#skillBtn .ic,#bookBtn .ic,#bagBtn .ic,#gear .ic,#questBtn .ic{display:block;flex:none;margin:0}
+/* 5.45: боком задания — слева под здоровьем, а не по центру; контекстные кнопки («Сдать задание», «Торговать») — справа от дуги умений, камера остаётся свободной */
+html[data-land] #tracker{left:calc(var(--pad) + env(safe-area-inset-left));right:auto;transform:none;top:calc(env(safe-area-inset-top) + 66px);max-width:33%;text-align:left;font-size:11.5px;max-height:calc(1.3em * 5 + 12px);overflow:hidden;padding:4px 8px}
+html[data-land]:not([data-desk]) #actStack{left:auto;right:calc(250px + env(safe-area-inset-right));transform:none;align-items:flex-end;bottom:calc(18px + env(safe-area-inset-bottom))}
+/* 5.45: добыча боком — маленькое окно справа внизу (как в WoW), а не полоса во всю ширину сверху */
+html[data-land]:not([data-desk]) #loot{left:auto;right:calc(250px + env(safe-area-inset-right));width:260px;top:auto;bottom:calc(14px + env(safe-area-inset-bottom));max-height:calc(100dvh - 28px)}
+html[data-land] #loot .lhead{padding:6px 6px 4px 12px}html[data-land] #loot .lname{font-size:16px}html[data-land] #loot .lclose{width:36px;height:36px}
+html[data-land] #lootList{max-height:calc(100dvh - 150px);padding:4px}html[data-land] #loot .lrow{min-height:46px;gap:10px;padding:4px 6px}html[data-land] #loot .lic{width:38px;height:38px}
+html[data-land] #loot .lfoot{padding:6px 8px 8px}html[data-land] #loot .lall{min-height:40px}

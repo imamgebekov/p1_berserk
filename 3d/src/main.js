@@ -74,7 +74,7 @@ if (new URLSearchParams(location.search).get('style') !== 'bright') {     // м�
   const S = CFG3.daynight.sky, G = CFG3.groundTex; G.dark = true; G.gain = 1.9; G.tint = .22;
   const dim = (h, k, sat) => { const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), g = (v[0] + v[1] + v[2]) / 3; return '#' + v.map(x => Math.max(0, Math.min(255, Math.round((g + (x - g) * sat) * k))).toString(16).padStart(2, '0')).join(''); }, walk = (o) => { if (!o || typeof o !== 'object') return; for (const k of Object.keys(o)) { if ((k === 'leaf' || k === 'ground') && Array.isArray(o[k]) && typeof o[k][0] === 'string') o[k] = o[k].map(h => dim(h, .8, .7)); else walk(o[k]); } };     // листва и земля биомов — темнее и бледнее
   walk(CFG3.look); walk(CFG3.worldgen);
-  Object.assign(S.day, { fog: '#6f7468', hemiSky: '#aab4b0', hemiGround: '#343a2a', hemiI: 1.15, sun: '#e6d6b8', sunI: 2.5 }); Object.assign(S.night, { fog: '#12161f', hemiI: 1.5, sunI: .55 }); CFG3.view.fogDensity = .03;
+  Object.assign(S.day, { fog: '#6f7468', hemiSky: '#aab4b0', hemiGround: '#343a2a', hemiI: 1.15, sun: '#e6d6b8', sunI: 2.5 }); Object.assign(S.night, { fog: '#12161f', hemiI: 1.5, sunI: .55 }); CFG3.view.fogDensity = .015;
 }
 if (new URLSearchParams(location.search).get('mh') !== '0') Object.assign(CFG3.actors.heroes, CFG3.actors.heroesMh);     // герои из Meshy по умолчанию; ?mh=0 — прежние KayKit (сравнение)
 if (new URLSearchParams(location.search).has('boxy')) CFG3.shapes.volume = false;     // ?boxy — прежние модели из кубиков (сравнение)
@@ -886,14 +886,18 @@ const mapSide = () => Math.min(mapCv.width, mapCv.height);     // масштаб
 const mapZoom = (k, px = mapCv.width / 2, py = mapCv.height / 2) => { const Wd = mapCv.width, Hd = mapCv.height, S = mapSide(), s0 = mv.span, wx = mv.cx + (px - Wd / 2) / S * s0, wz = mv.cz + (py - Hd / 2) / S * s0; mv.span *= k; mapClamp(); mv.cx = wx - (px - Wd / 2) / S * mv.span; mv.cz = wz - (py - Hd / 2) / S * mv.span; mapClamp(); mapRedraw(); };     // точка под курсором остаётся на месте
 let mapView = null;     // последний вид большой карты — для облаков
 function drawFull() { const B = mapW().map.bounds, cx = B ? (B.x0 + B.x1) / 2 : mv.cx, cz = B ? (B.z0 + B.z1) / 2 : mv.cz, span = B ? Math.max(B.x1 - B.x0, B.z1 - B.z0) + 6 : mv.span; $('mapZoom').hidden = !!B; mapFit(); drawMap(mapCtx, W, { w: mapCv.width, h: mapCv.height, scale: mapSide() / span,     // по меньшей стороне: «весь мир» влезает целиком
- cx, cz, full: true, ui: mapDpr() * 1.15, dpr: mapDpr() }); mapView = { w: mapCv.width, h: mapCv.height, sc: mapSide() / span, cx, cz, under: !!B }; const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
+ cx, cz, full: true, ui: mapDpr() * 1.15, dpr: mapDpr(), hide: mapHide }); mapView = { w: mapCv.width, h: mapCv.height, sc: mapSide() / span, cx, cz, under: !!B }; const pl = W.place; legend(B ? `Вы здесь: ${pl ? pl.name : 'подземелье'}` : pl ? `Вы здесь: ${pl.name}` : 'Вы в глуши', B ? LEG_UNDER : LEG_SURF); }
 // легенда карты — чипы «значок + слово» вместо абзаца (шаг 10): sq — квадрат, ring — круг-граница, dot — точка, fog — туман
-const LEG_SURF = [['sq', '#8a5a30', 'Люк'], ['ring', '#82c878', 'Безопасно'], ['ring', '#dc4632', 'Опасно'], ['dot', '#ffc860', 'Сундук'], ['dot', '#ffd45a', 'Торговец'], ['dot', '#ff8a3a', 'Кузнец'], ['dia', '#ff3a2a', 'Босс'], ['dia', '#c03adf', 'Замок'], ['dia', '#ff9a2a', 'Мини-босс'], ['sq', '#7a4a2a', 'Лагерь врагов'], ['sq', '#b0a898', 'Город'], ['fog', '#2a1e17', 'Не исследовано']];
-const LEG_UNDER = [['sq', '#e8d0a0', 'Лестница наверх'], ['dot', '#ffc860', 'Сундук'], ['fog', '#2a1e17', 'Не исследовано']];
+// ключ четвёртым значением — категорию можно скрыть с карты (кнопка «Обозначения»); без ключа — просто пояснение
+const LEG_SURF = [['sq', '#8a5a30', 'Люк'], ['ring', '#82c878', 'Безопасно'], ['ring', '#dc4632', 'Опасно'], ['dot', '#ffc860', 'Сундук', 'chest'], ['dot', '#ffd45a', 'Торговец', 'npc:merchant'], ['dot', '#ff8a3a', 'Кузнец', 'npc:smith'], ['dot', '#d98aff', 'Аукцион', 'npc:auctioneer'], ['dot', '#6ab0ff', 'Капитан', 'npc:captain'], ['dot', '#b48aff', 'Библиотека', 'npc:scribe'], ['dot', '#e8405a', 'Хранитель огня', 'npc:keeper'], ['dia', '#ff3a2a', 'Босс', 'boss'], ['dia', '#c03adf', 'Замок', 'castle'], ['dia', '#ff9a2a', 'Мини-босс', 'mini'], ['sq', '#7a4a2a', 'Лагерь врагов'], ['sq', '#b0a898', 'Город'], ['fog', '#2a1e17', 'Не исследовано']];
+const LEG_UNDER = [['sq', '#e8d0a0', 'Лестница наверх'], ['dot', '#ffc860', 'Сундук', 'chest'], ['fog', '#2a1e17', 'Не исследовано']];
+const LEGK = 'berserk3d.mapHide'; let mapHide = new Set(), legOpen = false; try { mapHide = new Set(JSON.parse(localStorage.getItem(LEGK) || '[]')); } catch (e) { /* без сохранения */ }
 function legend(here, items) {
-  const box = $('mapLegend'), key = here + items.length; if (box.dataset.k === key) return; box.dataset.k = key;
-  const h = document.createElement('div'); h.className = 'here'; h.textContent = here; const row = document.createElement('div'); row.className = 'chips';
-  for (const [shape, color, word] of items) { const c = document.createElement('span'), sw = document.createElement('i'); c.className = 'chip'; sw.className = 'sw ' + shape; sw.style.setProperty('--c', color); c.append(sw, word); row.append(c); }
+  const box = $('mapLegend'), key = here + items.length + (legOpen ? 1 : 0) + [...mapHide].join(); if (box.dataset.k === key) return; box.dataset.k = key; box.classList.toggle('open', legOpen);
+  const h = document.createElement('div'); h.className = 'here'; const t = document.createElement('span'); t.textContent = here; const tg = document.createElement('button'); tg.type = 'button'; tg.className = 'legtg'; tg.textContent = legOpen ? 'Скрыть обозначения ▴' : 'Обозначения ▾'; tg.addEventListener('click', () => { legOpen = !legOpen; box.dataset.k = ''; legend(here, items); requestAnimationFrame(() => { mapFit(); mapRedraw(); }); }); h.append(t, tg);
+  const row = document.createElement('div'); row.className = 'chips';
+  for (const [shape, color, word, hk] of items) { const c = document.createElement(hk ? 'button' : 'span'), sw = document.createElement('i'); c.className = 'chip' + (hk ? ' tog' : '') + (hk && mapHide.has(hk) ? ' off' : ''); sw.className = 'sw ' + shape; sw.style.setProperty('--c', color); c.append(sw, word);
+    if (hk) { c.type = 'button'; c.title = 'Показать или скрыть на карте'; c.addEventListener('click', () => { mapHide.has(hk) ? mapHide.delete(hk) : mapHide.add(hk); try { localStorage.setItem(LEGK, JSON.stringify([...mapHide])); } catch (e) { /* без сохранения */ } box.dataset.k = ''; legend(here, items); mapRedraw(); }); } row.append(c); }
   box.replaceChildren(h, row);
 }
 // облака над картой (4.05): свой холст поверх #mapCv, кадры — только пока карта открыта; «меньше движения» — облака стоят
@@ -956,7 +960,7 @@ const perf = { sim: [], draw: [], calls: 0, tris: 0, max: 0, n: 0 }, PERF_N = 60
 const perfPush = (a, v) => { a.push(v); if (a.length > PERF_N) a.shift(); };
 // ?mem — счётчик памяти и нагрузки для телефона (2026-11-05): нажатие копирует текст в буфер, чтобы прислать цифры; на iOS кучи JS нет — смотрим геометрии, текстуры, вызовы, треугольники
 if (new URLSearchParams(location.search).has('mem')) {
-  const box = document.createElement('pre'); box.setAttribute('aria-label', 'Счётчик памяти'); box.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:99;margin:0;padding:6px 8px;font:10px/1.35 ui-monospace,Menlo,monospace;color:#cfe8cf;background:rgba(0,0,0,.72);border-radius:8px;white-space:pre;max-width:92vw;pointer-events:auto';
+  const box = document.createElement('pre'); box.setAttribute('aria-label', 'Счётчик памяти'); box.style.cssText = 'position:fixed;left:50%;top:74px;transform:translateX(-50%);z-index:9999;margin:0;padding:6px 8px;font:10px/1.35 ui-monospace,Menlo,monospace;color:#cfe8cf;background:rgba(0,0,0,.72);border-radius:8px;white-space:pre;max-width:92vw;pointer-events:auto';
   document.body.append(box); const pk = { calls: 0, tris: 0, geo: 0, tex: 0, foes: 0, heap: 0 }; let lastN = 0, fps = 0, minFps = 999, text = '';
   box.addEventListener('click', () => { try { navigator.clipboard.writeText(text); toast('Цифры скопированы', ''); } catch (e) { /* буфер недоступен */ } });
   setInterval(() => {

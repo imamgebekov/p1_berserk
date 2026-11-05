@@ -1013,7 +1013,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
   }
 
-  let feelZoom = 0, cine = null, cineA = 0, cineT = 0, zoomT = 1, zoomC = 1;     // zoomT — приближение игрока (4.12), zoomC — плавное
+  let fogInK = 1, feelZoom = 0, cine = null, cineA = 0, cineT = 0, zoomT = 1, zoomC = 1;     // zoomT — приближение игрока (4.12), zoomC — плавное
   const cf = { x: 0, z: 0 };     // «кинокамера» сцен (этап 5 «круче»): точка, куда смотрит камера в разговоре
   function render(W, dt) {
     if (later.length) runLater();
@@ -1049,7 +1049,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     { const k = actorKey(cfg, 'hero', W.hero); if ((k || '') !== (hero.key || '')) { const A = k && makeActor(k, kitOf(k), 'hero'); if (A || !k) { scene.remove(hero.group); if (hero.gltf) disposeActor(hero); disposeDeep(hero.group); hero = A || makeHero(); hero.key = k || ''; scene.add(hero.group); heroLook = null; rimKey = ''; if (shadowsOn) hero.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); } } }     // готовая модель героя пришла или герой сменился
     { const cp = W.ach && W.ach.cape, lk = lookKey(W.hero, W.inv, cp); if (lk !== heroLook) { heroLook = lk; hero.setLook(dressedLook(heroOf(W.hero).look, W.inv, cp)); } }     // облик по надетому и цвет плаща — награда подвига
     if (wsched) { wNow = WE.force ? { kind: WE.force, cloud: WE.force === 'clear' ? 0 : WE.force === 'cloudy' ? .7 : WE.force === 'fog' ? .35 : 1, rain: WE.force === 'rain' ? 1 : 0, mist: WE.force === 'fog' ? 1 : 0 } : weatherAt(wsched, W.t, WE); eff = effectsOf(wNow, WE); }
-    scene.fog.density = (dark ? cfg.view.fogDensity * (String(W.lvl).startsWith('up:') ? .5 : 2.2) * (curTheme ? curTheme.fogK : 1) : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog * wk) / zoomC;     // 4.12: туман — на приближение, иначе отдаление темнит     // в дождь туман гуще     // на рассвете туман гуще
+    fogInK += ((W.inside >= 0 && !dark ? cfg.view.fogIndoor : 1) - fogInK) * Math.min(1, dt * 3);     // внутри здания туман улицы почти не виден (2026-11-05, замечание владельца)
+    scene.fog.density = (dark ? cfg.view.fogDensity * (String(W.lvl).startsWith('up:') ? .5 : 2.2) * (curTheme ? curTheme.fogK : 1) : cfg.view.fogDensity * (AMB.on ? fogMul(W.t, cfg.daynight, AMB) : 1) * eff.fog * wk * fogInK) / zoomC;     // 4.12: туман — на приближение, иначе отдаление темнит     // в дождь туман гуще     // на рассвете туман гуще
     if (under) { if (dark) lantern.position.set(p.x, 3.2, p.z); if (curView.flame) curView.flame.material.color.setHSL(.08, 1, .55 + .08 * Math.sin(t * 13)); if (curView.update) curView.update(W, t); }
     if (under && curTheme) { const R = W.bossRoom && W.bossRoom.lvl === W.lvl ? W.bossRoom.kind : null; if (R) roomFx.kind = R; roomFx.k += ((R ? 1 : 0) - roomFx.k) * Math.min(1, dt * 1.5); const k = roomFx.k, th = curTheme;     // смена зала у финального босса (план подземелий, 3б): тьма — свет гаснет, затопление — вода и синий туман
       hemi.intensity = th.hemi[2] * (roomFx.kind === 'dark' ? 1 - .65 * k : 1); scene.fog.color.set(th.bg); if (roomFx.kind === 'flood') scene.fog.color.lerp(FLOOD_C, .55 * k); scene.background.copy(scene.fog.color);
@@ -1149,7 +1150,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (hero.hurtT > 0) hero.hurtT = Math.max(0, hero.hurtT - dt);
     heroBlade.set(hero.weapon, bladeOn() ? bladeEls(W.wp).filter(hasBladeStyle) : []); heroBlade.update(dt, t, calm);
     updateChevs(W, p, t);
-    if (hero.gltf) { driveHero(hero, p, dt, cfg, p.swingMul || W.gear.swing || 1); if (W.abuf && W.abuf.morph > 0) hero.flash(0, [.01, .07 + .03 * Math.sin(t * 6), .01]); else hero.flash(p.inv > 0 && p.inv < 5 && p.state !== 'roll' ? .25 : 0); } else animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);     // Г8: облик демона — зелёное свечение
+    if (hero.gltf) { const rid = !!(W.life && W.life.mount.on) && !p.dead && p.state !== 'atk' && p.state !== 'roll'; driveHero(hero, rid ? { ...p, vx: 0, vz: 0, state: 'idle' } : p, dt, cfg, p.swingMul || W.gear.swing || 1);     // верхом (2026-11-05): всадник не бежит на месте — спокойная стойка, бегает конь
+       if (W.abuf && W.abuf.morph > 0) hero.flash(0, [.01, .07 + .03 * Math.sin(t * 6), .01]); else hero.flash(p.inv > 0 && p.inv < 5 && p.state !== 'roll' ? .25 : 0); } else animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);     // Г8: облик демона — зелёное свечение
     { const on = !!(W.life && W.life.mount.on) && !p.dead, cur = on ? W.life.mount.cur : null; for (const [id, r] of Object.entries(rides)) if (r.group.visible !== (id === cur)) r.group.visible = id === cur;     // верхом: зверь под героем, герой выше и сидит
       if (on) { const horse = rideOf(cur); horse.group.visible = true; horse.group.position.set(p.x, py, p.z); horse.group.rotation.y = hero.group.rotation.y; horse.step(t, Math.hypot(p.vx, p.vz)); hero.group.position.y = py + horse.seat; if (hero.legL) hero.legL.rotation.x = hero.legR.rotation.x = -1.2; } }
     updateNodes(W, dt); updateCoaches(W);
