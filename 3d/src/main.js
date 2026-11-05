@@ -112,6 +112,16 @@ try {
   $('nogl').hidden = false; console.warn('WebGL недоступен', e);
 }
 
+// 5.43: поворот камеры вокруг героя на поверхности (просьба владельца: «как в WoW»). Два пальца — закрутить, на компьютере [ и ] (шаг), средняя кнопка мыши — тянуть, \ — сброс. Помнится в браузере; в подземельях и домах-срезах угол прежний
+const CY = cfg.view.camTurn || { on: false }, YK = 'berserk3d.yaw', yawBase = cfg.view.camYaw; let yawUser = yawBase;
+try { const v = Number(localStorage.getItem(YK)); if (CY.on && Number.isFinite(v) && localStorage.getItem(YK) !== null) yawUser = v; } catch (e) { /* без сохранения */ }
+function turnCam(d) { if (!CY.on) return; yawUser += d; try { localStorage.setItem(YK, String(Math.round(yawUser * 10) / 10)); } catch (e) { /* без сохранения */ } }
+if (CY.on) {
+  addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey || (e.target && e.target.closest && e.target.closest('input, textarea'))) return; if (e.code === 'BracketLeft') turnCam(-CY.key); else if (e.code === 'BracketRight') turnCam(CY.key); else if (e.code === 'Backslash') { yawUser = yawBase; turnCam(0); } });
+  let md = null; addEventListener('pointerdown', e => { if (e.button === 1 && e.target === document.getElementById('gl')) { md = e.clientX; e.preventDefault(); } });
+  addEventListener('pointermove', e => { if (md === null) return; turnCam((e.clientX - md) * CY.drag); md = e.clientX; });
+  addEventListener('pointerup', e => { if (e.button === 1) md = null; });
+}
 // 4.12: приближение камеры — колесо, + и −, щипок двумя пальцами; запоминается в этом браузере
 if (renderer && cfg.view.zoom) {
   const ZK = 'berserk3d.zoom', Z = cfg.view.zoom; let z0 = 1; try { z0 = Number(localStorage.getItem(ZK)) || 1; } catch (e) { /* без сохранения */ }
@@ -120,10 +130,11 @@ if (renderer && cfg.view.zoom) {
   renderer.camZoom(z0);
   canvas.addEventListener('wheel', e => { e.preventDefault(); setZ(renderer.camZoom() * Math.exp(e.deltaY * Z.wheel)); }, { passive: false });
   addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey || (e.target && e.target.closest && e.target.closest('input, textarea'))) return; if (e.code === 'Equal' || e.code === 'NumpadAdd') setZ(renderer.camZoom() / Z.key); else if (e.code === 'Minus' || e.code === 'NumpadSubtract') setZ(renderer.camZoom() * Z.key); });
-  const tp = new Map(); let pd = 0, pz = 1;     // касания по полю: два пальца — щипок
+  const tp = new Map(); let pd = 0, pz = 1, pa = 0;     // касания по полю: два пальца — щипок
   for (const el of [canvas, document.getElementById('zone')].filter(Boolean)) {     // поле управления (#zone) перекрывает холст — щипок ловим на обоих (2026-11-03)
-    el.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2) { const [a, b] = [...tp.values()]; pd = Math.hypot(a[0] - b[0], a[1] - b[1]); pz = renderer.camZoom(); } });
-    el.addEventListener('pointermove', e => { if (!tp.has(e.pointerId)) return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2 && pd > 20) { const [a, b] = [...tp.values()]; setZ(pz * pd / Math.max(20, Math.hypot(a[0] - b[0], a[1] - b[1]))); } });
+    el.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2) { const [a, b] = [...tp.values()]; pd = Math.hypot(a[0] - b[0], a[1] - b[1]); pz = renderer.camZoom(); pa = Math.atan2(b[1] - a[1], b[0] - a[0]); } });
+    el.addEventListener('pointermove', e => { if (!tp.has(e.pointerId)) return; tp.set(e.pointerId, [e.clientX, e.clientY]); if (tp.size === 2 && pd > 20) { const [a, b] = [...tp.values()]; setZ(pz * pd / Math.max(20, Math.hypot(a[0] - b[0], a[1] - b[1])));
+      const an = Math.atan2(b[1] - a[1], b[0] - a[0]); let da = an - pa; if (da > Math.PI) da -= 2 * Math.PI; else if (da < -Math.PI) da += 2 * Math.PI; pa = an; turnCam(da * 180 / Math.PI * CY.touch); } });     // поворот камеры: закрутили пальцы по часовой — мир по часовой
     for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, e => { tp.delete(e.pointerId); if (tp.size < 2) pd = 0; });
   }
 }
@@ -1013,6 +1024,7 @@ function frame(now) {
   const fk = lastFk = feel.tick(dt, W.player.dead ? 1 : W.player.hp / W.player.maxhp, CALM_UI);     // шаг не длиннее 0,05 с: долгий кадр не «съедает» замедление     // замедление и вспышки — только здесь, не в симуляции
   if (aiming && (paused || !desk)) { aiming = null; if (renderer) renderer.setAim(null); }     // меню открыто — прицел снят
   if (simK > 0) {
+    if (CY.on) { const want = W.lvl === 'surface' ? yawUser : yawBase; let dd = want - cfg.view.camYaw; dd = ((dd % 360) + 540) % 360 - 180; cfg.view.camYaw += Math.abs(dd) < .05 ? dd : dd * Math.min(1, real * CY.ease); }     // плавный доворот; вход в подземелье — к прежнему углу кратчайшим путём
     const inp = paused ? {} : input.read();
     Object.assign(inp, rotateInput(inp.mx || 0, inp.mz || 0, cfg.view.camYaw));
     if (desk && renderer && inp.cursor) inp.aimPt = renderer.groundAt(inp.cursor.x, inp.cursor.y);     // прицел курсором: удар, выстрел и умения — в сторону мыши        // «вверх» на джойстике = вверх на экране при любом повороте камеры

@@ -1363,7 +1363,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         if (far && s.a > .01) s.a = Math.max(0, s.a - dt * 1.5);                // старое место гаснет
         else { if (w && far) { s.x = w.x; s.z = w.z; } s.a = Math.min(w ? w.k : 0, s.a + dt * 1.5); }
         s.m.visible = s.a > .01; if (!s.m.visible) return;
-        s.m.position.set(s.x, Y(s.x, s.z), s.z); s.m.material.opacity = s.a * SL.shafts.op * (.4 + .6 * L) * eff.light; s.m.material.color.copy(lightMat.color);
+        s.m.rotation.y = cfg.view.camYaw * Math.PI / 180; s.m.position.set(s.x, Y(s.x, s.z), s.z); s.m.material.opacity = s.a * SL.shafts.op * (.4 + .6 * L) * eff.light; s.m.material.color.copy(lightMat.color);
         if (!calm && Math.random() < dt * SL.motes * s.a) burst(s.x + (Math.random() - .5) * SL.shafts.w * .6, 1 + Math.random() * 4, s.z + (Math.random() - .5) * 2, 1, '#fffbe0', .3);
       });
     }
