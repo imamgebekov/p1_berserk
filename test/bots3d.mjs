@@ -29,5 +29,18 @@ p.x += 600; const kills0 = b.kills; for (let i = 0; i < 300; i++) step(W, .5, {}
 ok(!W.allies.some(a => a.bot), 'боты вдали остались в W.allies');
 ok(b.kills > kills0, 'бот вдали не растёт');
 ok(W.allies.filter(a => a.bot).length <= C.cap, 'ботов в бою больше cap');
+
+// сохранение ботов (2026-11-05): уровень и убийства переживают перезагрузку; за часы отсутствия доначисляются убийства (с потолком)
+{ const { createSaver, loadSaveAny } = await import('../3d/src/save3d.js'), mem = () => { const o = {}; return { o, getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; } }; };
+  const W1 = createWorld(CFG3, mulberry32(3)); W1.wantBots = true; step(W1, 1 / 30, {}); const a1 = W1.bots[0], a2 = W1.bots[1]; a1.lv = 33; a1.kills = 495; a2.lv = 12; a2.kills = 7;
+  const st = mem(); createSaver(W1, st).write(true); const r = loadSaveAny(60, st); ok(r && r.save && r.save.bots && r.save.bots.l.length === W1.bots.length, 'боты не попали в сохранение');
+  const L = r.save.bots.l; ok(L.some(([id, lv, k]) => id === a1.id && lv === 33 && k === 495), 'уровень и убийства бота не сохранились');
+  const W2 = createWorld(CFG3, mulberry32(3)); W2.wantBots = true; W2.botsSaved = { l: L, hours: 0 }; step(W2, 1 / 30, {}); const b1 = W2.bots.find(o => o.id === a1.id), b2 = W2.bots.find(o => o.id === a2.id);
+  ok(b1 && b1.lv === 33 && b1.kills >= 495 && b2 && b2.lv === 12 && b2.kills >= 7, `прогресс не восстановился: ${b1 && b1.lv}/${b1 && b1.kills}, ${b2 && b2.lv}/${b2 && b2.kills}`);
+  const W3 = createWorld(CFG3, mulberry32(3)); W3.wantBots = true; W3.botsSaved = { l: L, hours: 10 }; step(W3, 1 / 30, {}); const c1 = W3.bots.find(o => o.id === a1.id), O = CFG3.bots.off;
+  ok(c1.kills - 495 >= O.perHour * 10 - 2 && c1.kills - 495 <= O.cap + 2, `за 10 часов отсутствия убийств: ${c1.kills - 495} (ждём ~${O.perHour * 10})`);
+  const W4 = createWorld(CFG3, mulberry32(3)); W4.wantBots = true; W4.botsSaved = { l: L, hours: 9999 }; step(W4, 1 / 30, {}); ok(W4.bots.find(o => o.id === a1.id).kills - 495 <= O.cap + 2, 'потолок убийств за отсутствие не работает');
+  const bad = mem(); const d = JSON.parse(st.o['berserk3d.save']); d.bots = { h: 'x', l: [[1, 'a', 3], [2, 99, 1], null, 'z', [3, 5, -1]] }; bad.o['berserk3d.save'] = JSON.stringify(d); const r2 = loadSaveAny(60, bad); ok(r2 && r2.save && r2.save.bots && r2.save.bots.l.length === 0, 'мусор в списке ботов не отброшен'); }
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log(`Боты 3D: OK (ботов ${W.bots.length}, бой ${t.toFixed(1)} с, бот после боя ${Math.round(minHp)}/${b.maxhp})`);

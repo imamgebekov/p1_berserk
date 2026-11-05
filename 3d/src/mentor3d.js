@@ -8,6 +8,7 @@ import { canWield } from './data/heroes3d.js';
 import { unlocks } from './ashpath3d.js';
 import { SPEAKERS } from './data/story3d.js';
 import { wearOf } from './dur3d.js';
+import { anyMount } from './life3d.js';
 
 const surf = W => (W.levels ? W.levels.surface.map : W.map);
 const npc = kind => W => { const b = surf(W).buildings.find(q => q.npc && q.npc.kind === kind); return b ? { x: b.npc.x, z: b.npc.z } : null; };
@@ -60,7 +61,20 @@ export const LESSONS = [
     task: 'разберите ненужную вещь у книжницы в лагере', at: npc('scribe'), done: W => seen(W, 'disenchant') > 0 },
   { id: 'enchant', who: 'scribe', when: W => seen(W, 'disenchant') > 0,
     lines: ['Пыль есть. Выбери вещь: добавлю свойство, перекую слабое или подниму качество.', 'Чем чаще зачаровываешь вещь, тем дороже.'],
-    task: 'зачаруйте вещь у книжницы', at: npc('scribe'), done: W => seen(W, 'enchant') > 0 }
+    task: 'зачаруйте вещь у книжницы', at: npc('scribe'), done: W => seen(W, 'enchant') > 0 },
+  // 2026-11-05: советы про новые системы (почта, зверь, арена, гильдия)
+  { id: 'mail', who: 'hostess', when: W => sparkDone(W) && !!(W.mail && W.mail.box && W.mail.box.length),
+    lines: ['Тебе пришло письмо. Аукцион и награды шлют почтой, не носят в руки.', 'Кнопка «Почта» вверху, у карты. На клавиатуре — K.'],
+    task: 'откройте почту (кнопка «Почта» или K) и заберите письма', at: () => null, done: W => seen(W, 'mail') > 0 },
+  { id: 'mount', who: 'merchant', when: W => sparkDone(W) && anyMount(W),
+    lines: ['Зверь у тебя есть, а ты ходишь пешком. Верхом быстрее, но в бою слезешь.', 'Кнопка зверя над картой сажает и снимает. Кнопка ⇄ — выбор зверя.'],
+    task: 'сядьте на зверя (кнопка зверя рядом с картой)', at: () => null, done: W => seen(W, 'mount') > 0 },
+  { id: 'arena', who: 'captain', when: W => sparkDone(W) && W.lv >= 8 && (W.bots || []).length > 0,
+    lines: ['В лагере и вокруг ходят такие же бойцы. С ними можно сойтись на дуэли.', 'Поговори с бойцом рядом, ставка — пеплом. Победа поднимает рейтинг.'],
+    task: 'подойдите к бойцу и нажмите «Поговорить» → «Дуэль»', at: () => null, done: W => !!(W.arena && (W.arena.duel || (W.arena.wins || 0) + (W.arena.losses || 0) > 0)) },
+  { id: 'guild', who: 'hostess', when: W => sparkDone(W) && W.lv >= 5 && (W.bots || []).length > 0,
+    lines: ['Одному в глуши скучно. Бойцы собираются в гильдии, там чат и общие дела.', 'Открой почту (K), вкладка «Гильдия».'],
+    task: 'вступите в гильдию (почта → «Гильдия»)', at: () => null, done: W => !!(W.mail && W.mail.g && W.mail.g.in) }
 ];
 export const mentorFresh = () => ({ done: {}, cur: null, seen: {} });
 export function sanitizeMentor(s) {
@@ -70,7 +84,7 @@ export function sanitizeMentor(s) {
   const cur = LESSONS.some(L => L.id === s.cur) && !done[s.cur] ? s.cur : null; return { done, cur, seen: sn };
 }
 // событие мира → счётчик для советов
-const EV = { repair: 'repair', gather: 'gather', upgrade: 'upgrade', socket: 'socket', tome: 'tome', hire: 'hire', enchant: 'enchant', disenchant: 'disenchant', sell: 'sell' };
+const EV = { mail: 'mail', mount: 'mount', repair: 'repair', gather: 'gather', upgrade: 'upgrade', socket: 'socket', tome: 'tome', hire: 'hire', enchant: 'enchant', disenchant: 'disenchant', sell: 'sell' };
 export function mentorEvent(W, v) {
   const M = W.mentor; if (!M) return;
   let k = EV[v.k]; if (v.k === 'craft') k = String(v.id || '').startsWith('p_') ? 'brew' : W.nearNpc === 'smith' ? 'forge' : 'craft';

@@ -21,6 +21,7 @@ export function questState(W, q) {
   }
   if (st && st.s === 'active') return isReady(W, q, st) ? 'ready' : 'active';
   if (q.after && !(stateOf(W, q.after) && stateOf(W, q.after).s === 'done')) return 'locked';
+  if (q.hideBelow && W.lv < q.hideBelow) return 'locked';     // заказы дальних колец (2026-11-05) появляются, когда герой почти дорос
   if (q.story && W.story && W.story.i <= ACT_ALL.findIndex(c => c.id === q.story)) return 'locked';     // задания отряда — по сюжету (этап 3)
   return 'available';
 }

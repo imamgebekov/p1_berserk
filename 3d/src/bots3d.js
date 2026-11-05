@@ -66,7 +66,19 @@ export function initBots(W) {
     { const G = (W.cfg.mail && W.cfg.mail.guild) || null, gi = G && Math.floor(i / G.per); if (G && gi < G.list.length) { b.guild = G.list[gi].id; const m = W.bots.find(o => o.guild === b.guild); if (m) { b.home = m.home; b.lv = clamp(m.home.lv + (lv - h.lv), 1, 60); b.x = m.home.x + Math.sin(ang) * Math.min(rr, m.home.r); b.z = m.home.z + Math.cos(ang) * Math.min(rr, m.home.r); } } }     // гильдия: соратники живут в одном месте
     outside(W, b); gearFor(W, b); statsOf(W, b); b.hp = b.maxhp; W.bots.push(b);
   }
+  if (W.botsSaved) { restoreBots(W, W.botsSaved); W.botsSaved = null; }
 }
+// прогресс ботов из сохранения (2026-11-05): уровень и убийства по id; пока игрока не было, боты охотились — доначисляем убийства по часам отсутствия (потолок в cfg.bots.off)
+export function restoreBots(W, S) {
+  const C = W.cfg.bots, O = C.off || { perHour: 0, cap: 0 }, extra = Math.min(O.cap, Math.floor(Math.max(0, S.hours || 0) * O.perHour));
+  for (const [id, lv, kills] of S.l || []) {
+    const a = W.bots.find(o => o.id === id); if (!a) continue;
+    a.lv = clamp(lv, 1, 60); a.kills = Math.max(0, kills);
+    if (a.lv > a.home.lv + C.move) { a.home = newHome(W, a); a.goal = null; }
+    gearFor(W, a); statsOf(W, a); a.hp = a.maxhp; if (extra) botCredit(W, a, extra);
+  }
+}
+export const botsSnap = W => (W.bots || []).map(a => [a.id, a.lv, a.kills]);
 // уровень растёт от убийств; ушёл выше места на move — ищет место по силам
 function gotKill(W, a) {
   const C = W.cfg.bots; a.kills++;

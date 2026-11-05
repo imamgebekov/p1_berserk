@@ -57,5 +57,13 @@ ok(LESSONS.every(L => L.lines.length === 2 && L.task && typeof L.when === 'funct
   ok(sanitizeMentor(null).cur === null, 'пустое состояние');
   const W = mk(); W.cfg.mentor.on = false; mentorEvent(W, { k: 'gather' }); ok(mentorTick(W) === null, 'mentor.on=false — советы есть');
 }
+
+// советы про новые системы (2026-11-05): почта приходит по письму и считается по открытию окна; зверь, арена, гильдия — по состоянию
+{ const ids = LESSONS.map(l => l.id); ok(['mail', 'mount', 'arena', 'guild'].every(i => ids.includes(i)), 'нет уроков про новые системы');
+  const W = mk(); W.mentor.done = Object.fromEntries(ids.filter(i => i !== 'mail').map(i => [i, 1])); W.mail = { box: [] }; ok(!tick(W), 'совет про почту без писем');
+  W.mail.box.push({ id: 1 }); const r = tick(W); ok(r && r.k === 'start' && r.L.id === 'mail', 'совет про почту не пришёл при письме');
+  mentorEvent(W, { k: 'mail' }); const r2 = tick(W); ok(r2 && r2.k === 'done' && r2.L.id === 'mail', 'совет про почту не засчитался после открытия окна');
+  const G = mk(); G.mentor.done = Object.fromEntries(ids.filter(i => i !== 'guild').map(i => [i, 1])); G.lv = 6; G.bots = [{}]; G.mail = { box: [], g: { in: false } }; const g1 = tick(G); ok(g1 && g1.L.id === 'guild', 'совет про гильдию не пришёл'); G.mail.g.in = true; const g2 = tick(G); ok(g2 && g2.k === 'done', 'вступление в гильдию не засчитано'); }
+
 if (fails.length) { console.log('ПРОВАЛ:\n' + fails.join('\n')); process.exit(1); }
 console.log('Советы первопроходцу 3D: OK');

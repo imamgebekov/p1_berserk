@@ -1141,7 +1141,7 @@ const BASE = {
   // боты-«игроки» (план «живой мир», этап 5, владелец 2026-10-28 «живут сами»): n на мир, рядом с героем (near м) — не больше cap в бою, дальше — дешёвый режим.
   // start — сколько ботов живёт у мест самого малого уровня (у начала)
   // Сила — от врагов места: удар снимает hit доли запаса врага, запас бота — hits ударов врага; low — доля здоровья, когда уходит отдыхать
-  bots: { on: true, n: 20, start: 6, near: 70, cap: 5, sight: 13, help: 22, gap: 6, speed: 4.6, hit: .13, hits: 26, low: .35, regen: .08, hold: 4,
+  bots: { on: true, off: { perHour: 8, cap: 120, maxH: 336 }, n: 20, start: 6, near: 70, cap: 5, sight: 13, help: 22, gap: 6, speed: 4.6, hit: .13, hits: 26, low: .35, regen: .08, hold: 4,
     respawn: 90, rot: 4, lootT: 1.4, lvKills: 15, move: 4, wander: [8, 28], idle: [2, 6], farKill: [40, 90], ref: ['brute', 'imp', 'hound'], shot: 16,
     classes: {
       thorn: { role: 'tank', range: 2.1, wind: .36, recover: .55, hp: 1.3, dmg: .85 }, vale: { role: 'melee', range: 1.9, wind: .26, recover: .4, hp: .9, dmg: 1.1 },

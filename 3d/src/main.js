@@ -151,7 +151,7 @@ const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded
 if (loaded && loaded.from === 'lost') setTimeout(() => toast('Сохранение не открылось. Старый файл отложен (ключ berserk3d.save.broken), начата новая игра', 'bad', '#ff8a6a', 'warn'), 1200);
 else if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
-if (saved) { W.questFocus = saved.qf || null; W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (saved.ach) W.ach = saved.ach; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.shrines = saved.shrines; rerollRare(W); W.auction = sanitizeAuction(W, saved.auc); W.mail = sanitizeMail(W, saved.mail); W.arena = sanitizeArena(saved.arena); }
+if (saved) { W.questFocus = saved.qf || null; W.hero = saved.hero; W.heroes = saved.heroes || {}; if (W.story && saved.story) W.story = saved.story; if (saved.ach) W.ach = saved.ach; if (W.life && saved.life) W.life = saved.life; W.inv = saved.inv; W.kills = saved.kills; Object.assign(W, saved.prog); unpackSeenChunks(saved.seen, W.seen, W.seenN); if (saved.pos) { W.player.x = saved.pos.x; W.player.z = saved.pos.z; resolve(W.map, W.player, cfg.player.radius); } applyDseen(W, saved.dseen); applyDungeonState(W, saved); restoreAllies(W, saved.squad); W.fires = sanitizeFires(saved.fires, W.map.fires.map(f => f.id)); restoreBosses(W, saved.bosses); if (saved.difficulty) setDifficulty(W, saved.difficulty); W.iron = saved.iron; W.tomb = saved.tomb; W.known = saved.known; W.quests = saved.quests; W.t = saved.t; W.botsSaved = saved.bots || null; W.shrines = saved.shrines; rerollRare(W); W.auction = sanitizeAuction(W, saved.auc); W.mail = sanitizeMail(W, saved.mail); W.arena = sanitizeArena(saved.arena); }
 W.spark = saved && saved.prog.spark ? sanitizeSpark(saved.prog.spark, W) : sparkFresh(W);
 W.mentor = saved && saved.prog.mentor ? sanitizeMentor(saved.prog.mentor) : mentorFresh();     // советы первопроходцу (4.01)     // «Первая искра» (шаг 12): ветерану без неё — сразу пройдена
 W.path = saved && saved.prog.path ? sanitizePath(saved.prog.path, W) : pathFresh(W);
@@ -574,7 +574,7 @@ if (desk) {
     if (c === 'KeyG') { if (!panelOpen || vis('bag') || vis('smith') || vis('shop') || vis('journal')) whereFrom(); return; }
     if (c === 'KeyB' && !panelOpen && vis('sleepBtn')) sleepBtn.click();
     if (c === 'KeyE' && !panelOpen) { if (lootOpen) $('lootAll').click(); else if (vis('lootBtn')) lootBtn.click(); else if (vis('portalBtn')) portalBtn.click(); else if (vis('fireBtn')) fireBtn.click(); else if (vis('coachBtn')) coachBtn.click(); else if (vis('gatherBtn')) gatherBtn.click(); else if (vis('talk')) talk.click(); }
-    if (c === 'KeyK') { if (mail.isOpen) mail.close(); else if (!panelOpen) mail.open(); }     // почта
+    if (c === 'KeyK') { if (mail.isOpen) mail.close(); else if (!panelOpen) { mentorEvent(W, { k: 'mail' }); mail.open(); } }     // почта
     if (c === 'KeyV' && !panelOpen) mountBtn.click();     // конь (этап 6)
   });
 }
@@ -810,8 +810,8 @@ coachBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.re
 const GATHER = { danger: 'Рядом враги — не до сбора', full: 'Сумка полна', none: 'Нечего собирать' };
 gatherBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const r = gather(W); if (r === 'ok') sfx('pickup'); else toast(GATHER[r] || 'Нельзя', 'bad'); }, true);
 const MOUNT = { none: 'Зверя нет: коня даёт Застава, оленя — Ольховые общины, волка — Пепельные Крылья', place: 'Здесь верхом нельзя', danger: 'Рядом враги — не сесть', dead: '' };
-mountBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const r = mountToggle(W); if (MOUNT[r]) toast(MOUNT[r], 'bad'); }, true);
-$('mailBtn').addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); mail.open(); }, true);
+mountBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const r = mountToggle(W); mentorEvent(W, { k: 'mount' }); if (MOUNT[r]) toast(MOUNT[r], 'bad'); }, true);
+$('mailBtn').addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); mentorEvent(W, { k: 'mail' }); mail.open(); }, true);
 mountNextBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const m = mountNext(W); if (m) toast('Зверь: ' + m.name, ''); }, true);
 // сон (G4): затемнение, ночь проживается разом, утром — полное здоровье (или «разбудили»)
 const sleepBtn = $('sleepBtn'), sleepFade = $('sleepFade'); let sleepingUI = false;
