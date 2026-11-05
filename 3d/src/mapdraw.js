@@ -5,7 +5,8 @@ import { makeRelief } from './maprelief.js';
 import { GI } from './data/gicons.js';
 // значок game-icons в круге (2026-10-20, просьба владельца: значки на карте): фон, тёмная кайма, белая фигура
 const P2D = new Map(), pathOf = k => { let p = P2D.get(k); if (!p && GI[k] && typeof Path2D !== 'undefined') { p = new Path2D(GI[k]); P2D.set(k, p); } return p; };
-function badge(ctx, key, x, y, r, bg) { ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fillStyle = bg; ctx.fill(); ctx.lineWidth = Math.max(1.5, r * .16); ctx.strokeStyle = '#1a0e08'; ctx.stroke(); const p = pathOf(key); if (!p) return; const s = r * 1.3 / 512; ctx.save(); ctx.translate(x - r * .65, y - r * .65); ctx.scale(s, s); ctx.fillStyle = '#fff8e8'; ctx.fill(p); ctx.restore(); }
+let RING = '#1a0e08', GLYPH = '#fff8e8';
+function badge(ctx, key, x, y, r, bg) { ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fillStyle = bg; ctx.fill(); ctx.lineWidth = Math.max(1.5, r * .16); ctx.strokeStyle = RING; ctx.stroke(); const p = pathOf(key); if (!p) return; const s = r * 1.3 / 512; ctx.save(); ctx.translate(x - r * .65, y - r * .65); ctx.scale(s, s); ctx.fillStyle = GLYPH; ctx.fill(p); ctx.restore(); }
 
 // подложка с рельефом и мягкая дымка (шаг 10б): одна подложка на мир; дымка — маленькая картинка из клеток тумана, растянутая со сглаживанием
 const RELIEF = new WeakMap(), FOG = new WeakMap();
@@ -43,6 +44,7 @@ export function drawMap(ctx, W, v) {
   const X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc;
   ctx.clearRect(0, 0, w, h);
   const V = W.cfg.mapView, doc = ctx.canvas && ctx.canvas.ownerDocument, RL = !under && V ? reliefOf(doc, W) : null;
+  if (V && V.flat) { RING = V.flat.ring; GLYPH = V.flat.glyph; } else { RING = '#1a0e08'; GLYPH = '#fff8e8'; }
   ctx.fillStyle = under || !V ? '#0c0807' : V.bg; ctx.fillRect(0, 0, w, h);
   if (under && M.sdf) wildMap(ctx, M, doc, X, Y, sc);     // малый мир (2026-10-27): форма земли, озёра, ворота
   else if (under) {
@@ -56,7 +58,7 @@ export function drawMap(ctx, W, v) {
       ctx.fillStyle = '#6a5a4c'; for (const d of M.doors) if (d.crack && d.locked) ctx.fillRect(X(d.rect.x0), Y(d.rect.z0), Math.max(2, (d.rect.x1 - d.rect.x0) * sc), Math.max(2, (d.rect.z1 - d.rect.z0) * sc)); }
   } else {
     // мир: подложка с рельефом (пока строится — ровная земля), край мира
-    if (RL) { ctx.imageSmoothingEnabled = true; ctx.fillStyle = '#7a8a5a'; ctx.beginPath(); ctx.arc(X(OX), Y(OZ), R * sc, 0, 6.2832); ctx.fill(); ctx.drawImage(RL.canvas, X(RL.X0), Y(RL.Z0), RL.W * sc, RL.H * sc); }     // 4.05: подложка шире круга мира
+    if (RL) { ctx.imageSmoothingEnabled = true; ctx.fillStyle = '#7a8a5a'; ctx.beginPath(); ctx.arc(X(OX), Y(OZ), R * sc, 0, 6.2832); ctx.fill(); ctx.drawImage(RL.canvas, X(RL.X0), Y(RL.Z0), RL.W * sc, RL.H * sc); if (V.flat) { ctx.fillStyle = V.flat.tint; ctx.fillRect(X(RL.X0), Y(RL.Z0), RL.W * sc, RL.H * sc); } }     // 4.05: подложка шире круга мира
     else { ctx.fillStyle = '#2a1e17'; ctx.beginPath(); ctx.arc(X(OX), Y(OZ), R * sc, 0, 6.2832); ctx.fill(); }
     ctx.strokeStyle = RL ? 'rgba(70,52,34,.7)' : '#6a2a24'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(OX), Y(OZ), R * sc, 0, 6.2832); ctx.stroke();
     // места
@@ -141,15 +143,15 @@ export function drawMap(ctx, W, v) {
   if (full) {
     const SERIF = '"Iowan Old Style", Palatino, Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     // области (шаг 10б): крупно, разрядкой, видны и под дымкой
-    if (!under && RL) { ctx.font = `600 ${Math.round(Math.max(14, Math.min(26, 60 * sc)) * U)}px ${SERIF}`; ctx.fillStyle = 'rgba(52,38,24,.55)'; ctx.strokeStyle = 'rgba(240,230,205,.5)'; ctx.lineWidth = 3;
+    if (!under && RL) { ctx.font = `600 ${Math.round(Math.max(14, Math.min(26, 60 * sc)) * U)}px ${SERIF}`; ctx.fillStyle = V.flat ? 'rgba(190,212,230,.5)' : 'rgba(52,38,24,.55)'; ctx.strokeStyle = V.flat ? 'rgba(10,20,34,.7)' : 'rgba(240,230,205,.5)'; ctx.lineWidth = 3;
       const boxes = [], shown = RL.labels.filter(L => { const t = L.name.toUpperCase().split('').join('\u2009'), wd = ctx.measureText(t).width, hh = parseFloat(ctx.font.split(' ')[1]) * 2.4, b = [X(L.x) - wd / 2, Y(L.z) - hh / 2, X(L.x) + wd / 2, Y(L.z) + hh / 2];     // мир ×2: подписи, что налезают на уже выведенные, на отдалении не выводятся
         if (boxes.some(q => b[0] < q[2] && q[0] < b[2] && b[1] < q[3] && q[1] < b[3])) return false; boxes.push(b); ctx.strokeText(t, X(L.x), Y(L.z)); ctx.fillText(t, X(L.x), Y(L.z)); return true; });
       if (W.cfg.zones) { const fs = Math.round(Math.max(11, Math.min(16, 34 * sc)) * U); ctx.font = `600 ${fs}px ${SERIF}`; for (const L of shown) if (L.sub) { ctx.strokeText(L.sub, X(L.x), Y(L.z) + fs * 1.3); ctx.fillText(L.sub, X(L.x), Y(L.z) + fs * 1.3); }     // пояс уровней под именем зоны
         const Z = W.cfg.zones; ctx.save(); ctx.setLineDash([6, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(52,38,24,.45)'; ctx.beginPath();     // граница колец зон
         for (let a = 0; a <= 360; a += 3) { const t = a * Math.PI / 180, r = Z.split + Z.wobble * Math.sin(t * 5 + 1.7), x = X(Math.sin(t) * r), y = Y(Math.cos(t) * r); a ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); ctx.restore(); } }
     // места: тёмные подписи со светлой обводкой; наползающие пропускаем
-    const fsP = Math.round(14 * U); ctx.font = `700 ${fsP}px ${SERIF}`; ctx.lineWidth = 4 * U; ctx.strokeStyle = under ? '#000' : 'rgba(244,236,214,.92)';
-    const put = []; if (!under) for (const pl of W.cfg.map.places || []) if (isSeen(W, pl.x, pl.z) && (zs >= 1.6 || pl.hub || pl.city || pl.id === (M.camp && M.camp.place))) { const y = Y(pl.z) - pl.r * sc * .35; if (put.some(q => Math.abs(q[0] - X(pl.x)) < 8 * fsP && Math.abs(q[1] - y) < fsP * 1.3)) continue; put.push([X(pl.x), y]); ctx.strokeText(pl.name, X(pl.x), y); ctx.fillStyle = pl.safe ? '#2e5a26' : '#8a2418'; ctx.fillText(pl.name, X(pl.x), y); }     // мелкий масштаб — только узлы зон, города и замки (этап 1)
+    const fsP = Math.round(14 * U); ctx.font = `700 ${fsP}px ${SERIF}`; ctx.lineWidth = 4 * U; ctx.strokeStyle = under ? '#000' : V && V.flat ? 'rgba(10,20,34,.9)' : 'rgba(244,236,214,.92)';
+    const put = []; if (!under) for (const pl of W.cfg.map.places || []) if (isSeen(W, pl.x, pl.z) && (zs >= 1.6 || pl.hub || pl.city || pl.id === (M.camp && M.camp.place))) { const y = Y(pl.z) - pl.r * sc * .35; if (put.some(q => Math.abs(q[0] - X(pl.x)) < 8 * fsP && Math.abs(q[1] - y) < fsP * 1.3)) continue; put.push([X(pl.x), y]); ctx.strokeText(pl.name, X(pl.x), y); ctx.fillStyle = V && V.flat ? (pl.safe ? '#9fe6a8' : '#ffa090') : pl.safe ? '#2e5a26' : '#8a2418'; ctx.fillText(pl.name, X(pl.x), y); }     // мелкий масштаб — только узлы зон, города и замки (этап 1)
     ctx.textBaseline = 'alphabetic';
   }
   // враги рядом (на большой карте не показываем: туман — это неизвестность)
@@ -158,7 +160,7 @@ export function drawMap(ctx, W, v) {
   // мини-боссы (элита и стражи замков) — оранжевые ромбы: на миникарте рядом, на большой карте — в открытых местах
   { const mark = (x, y, r, col, crown) => { ctx.save(); ctx.translate(x, y); ctx.fillStyle = col; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
       if (crown) { ctx.fillStyle = '#1a0a06'; ctx.fillRect(-r * .45, -r * .05, r * .9, r * .35); for (const k of [-1, 0, 1]) ctx.fillRect(k * r * .33 - r * .1, -r * .4, r * .2, r * .4); } ctx.restore(); };
-    const named = (x, y, txt) => { if (!full) return; ctx.font = `700 ${Math.round(13 * U)}px "Iowan Old Style", Palatino, Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3.5 * U; ctx.strokeStyle = 'rgba(244,236,214,.92)'; ctx.fillStyle = '#5a1a10'; ctx.strokeText(txt, x, y); ctx.fillText(txt, x, y); ctx.textBaseline = 'alphabetic'; };
+    const named = (x, y, txt) => { if (!full) return; ctx.font = `700 ${Math.round(13 * U)}px "Iowan Old Style", Palatino, Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3.5 * U; const FL = W.cfg.mapView && W.cfg.mapView.flat; ctx.strokeStyle = FL ? 'rgba(10,20,34,.92)' : 'rgba(244,236,214,.92)'; ctx.fillStyle = FL ? '#ffc0b0' : '#5a1a10'; ctx.strokeText(txt, x, y); ctx.fillText(txt, x, y); ctx.textBaseline = 'alphabetic'; };
     const inMap = (x, y) => x > -8 && x < w + 8 && y > -8 && y < h + 8, BR = full ? 7 : 5;
     if (!under) {
       for (const d of W.cfg.bosses.list) { if (d.level) continue; const x = X(d.x), y = Y(d.z); if (!inMap(x, y)) continue; const dead = W.bossDead[d.type] !== undefined, slain = W.path && W.path.slain[d.type]; const col = slain ? '#8a7a5a' : dead ? '#6a6a6a' : '#c8281c'; if (full) { badge(ctx, 'map:boss', x, y, 9 * U, col); if (zs >= 1.2) named(x, y + 17 * U, W.cfg.enemies[d.type].name); } else mark(x, y, BR, col === '#c8281c' ? '#ff3a2a' : col, true); }     // имя босса — только вблизи     // боссы замков — внутри, на поверхности их место — замок
@@ -191,5 +193,5 @@ export function drawMap(ctx, W, v) {
     ctx.lineWidth = 2.5; ctx.strokeStyle = '#000'; ctx.beginPath(); ctx.arc(x, y, r + 1, 0, 6.2832); ctx.stroke(); ctx.strokeStyle = '#ffd45a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.stroke(); ctx.fillStyle = '#ffd45a'; ctx.beginPath(); ctx.arc(x, y, 1.8, 0, 6.2832); ctx.fill(); }
   // герой: стрелка по направлению
   ctx.save(); ctx.translate(X(p.x), Y(p.z)); if (full) ctx.scale(U * 1.3, U * 1.3); ctx.rotate(Math.atan2(Math.sin(p.face), -Math.cos(p.face)) + Math.PI);
-  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4.5, 5); ctx.lineTo(0, 2.5); ctx.lineTo(-4.5, 5); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = RING; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4.5, 5); ctx.lineTo(0, 2.5); ctx.lineTo(-4.5, 5); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
 }

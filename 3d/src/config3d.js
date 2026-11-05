@@ -1369,7 +1369,7 @@ const BASE = {
         scythe: [2.5, .12], sickle: [1.13, .12], mace: [1.14, .1], club: [1.35, .08], hammer: [1.9, .1], pick: [1.3, .08], flail: [1.45, .08], chain_ball: [1.75, .06], staff: [2.15, .42], wand: [.97, .28],
         bow: [1.98, 0], longbow: [2.38, 0], crossbow: [1.22, .23] },     // вид → [длина, доля длины ниже ладони] в единицах скелета KayKit (по мешам kk_weapons); лук и арбалет — по z
       shield: { def: .88, buckler: .88, tower: 1.2 } },     // щит: размер большей стороны
-    heroesMh: { thorn: 'mh_thorn', vale: 'mh_vale', warlock: 'mh_warlock', brand: 'mh_brand', hunter: 'mh_hunter' },     // герои из Meshy (2026-11-05): в игре вместо KayKit, ?mh=0 — вернуть KayKit; Джей, Ирга, Жрец и Селена пока на KayKit
+    heroesMh: { thorn: 'mh_thorn', vale: 'mh_vale', warlock: 'mh_warlock', brand: 'mh_brand', hunter: 'mh_hunter', selene: 'mh_selene' },     // герои из Meshy (2026-11-05): в игре вместо KayKit, ?mh=0 — вернуть KayKit; Джей, Ирга и Жрец пока на KayKit
     heroes: { thorn: 'kk_knight', vale: 'kk_rogue', jay: 'kk_ranger', irga: 'kk_mage', warlock: 'kk_warlock', priest: 'kk_priest', brand: 'kk_barbarian', hunter: 'kk_hunter', selene: 'kk_selene' },     // Морок и Жрец — KayKit с перекраской (путь А, 2026-10-22); Бесогону (ветка g8) — kk_hunter
     foes: { queen: 'kb_queen', gravekeeper: 'kb_gravekeeper', ashsister: 'kb_ashsister', boneshepherd: 'kb_boneshepherd', thornwitch: 'kb_thornwitch', sapper: 'mf_sapper', gatewarden: 'mf_gatewarden', gneis: 'mf_gneis', borot: 'mf_borot', armorer: 'mf_armorer', towerwarden: 'kb_towerwarden', keymaster: 'kb_keymaster', lampwarden: 'kb_lampwarden', tidecaller: 'kb_tidecaller', bloodbanner: 'kb_bloodbanner', hagmother: 'mf_hagmother', drownchoir: 'kb_drownchoir', abbess: 'kb_abbess', cinderpriest: 'mf_cinderpriest', sporemother: 'gen_sporemother', twinflame: 'gen_twinflame', hollowqueen: 'gen_hollowqueen', feeder: 'mf_feeder', swarm: 'mf_swarm', nestlord: 'ae_spider', abbeyshriek: 'kb_abbeyshriek', choir: 'kb_choir', ap_serpent: 'kb_ap_serpent', ap_boar: 'kb_ap_boar', ap_moth: 'kb_ap_moth', hand_womb: 'gen_hand_womb', hand_whisper: 'kb_hand_whisper', hand_net: 'mf_hand_net', alaric: 'kb_alaric', alaric2: 'kb_alaric',     // боссы-сборки
       mossbeast: 'gen_mossbeast', drownqueen: 'gen_drownqueen', smelter: 'gen_smelter', barghest: 'q_wolf', rootgnaw: 'um_ghoul', thornlord: 'kk_king', oldoak: 'q_golem', saltwarden: 'mf_saltwarden', cathkraken: 'mf_tidewyrm', drowngod: 'um_fish',     // рейды 20 и 40 (4.18)
@@ -1391,7 +1391,7 @@ const BASE = {
     kits: {
       mh_thorn: { height: 2.2, ownWeapon: true },
       mh_vale: { height: 2.15, ownWeapon: true, anims: 'mhs' }, mh_warlock: { height: 2.2, ownWeapon: true, anims: 'mhs' },
-      mh_brand: { height: 2.3, ownWeapon: true, anims: 'mhs' }, mh_hunter: { height: 2.2, ownWeapon: true, anims: 'mhs' },     // новый Торн из Meshy (?mh): автоскелет, цвет 1024 px
+      mh_brand: { height: 2.3, ownWeapon: true, anims: 'mhs' }, mh_hunter: { height: 2.2, ownWeapon: true, anims: 'mhs' }, mh_selene: { height: 2.1, ownWeapon: true, anims: 'mhs' },     // новый Торн из Meshy (?mh): автоскелет, цвет 1024 px
       kk_knight: { anims: 'kk', height: 2.25, gear: ['sword', 'iron', 'shield', 'shield_badge'], helm: ['Knight_Helmet', 'Knight_HelmetVisor'], cape: ['Knight_Cape'] },
       kk_rogue: { anims: 'kk', height: 2.15, cape: ['Rogue_Cape'] },
       kk_rogue_hooded: { anims: 'kk', height: 2.15, aim: 'aim', atk: 'bow', gear: ['crossbow', 'iron'] },     // gear — оружие врага: вид или меш KayKit, материал, щит, форма щита
@@ -1505,7 +1505,8 @@ const BASE = {
   // waterIn м от кромки воды; светотень: свет light (x, y, z), преувеличение склонов exag, яркость shade[0] + shade[1] × освещённость, выше на
   // 1 м — светлее на lift; bright, desat — карта светлее и спокойнее земли в игре; неисследованное — дымка haze (rgb) с плотностью hazeFull / hazeMini; bg — за краем мира
   mapView: { miniSpan: 80, n: 400, budget: 2, wide: 2.4, tall: 1.2, far: .62, water: '#4f7b94', waterIn: .5, rock: '#8a8478', light: [-1, 1.6, -1], exag: 12, shade: [.62, .5], lift: .03, bright: 4.2, desat: .25,     // 4.05: подложка шире круга в wide раз и выше в tall; за краем — темнее (far)
-    haze: [222, 212, 188], hazeFull: .62, hazeMini: .55, bg: '#a89c80', road: 'rgba(110,84,58,.85)',
+    flat: { tint: 'rgba(10,20,34,.6)', ring: '#0a1420', glyph: '#f2f6fa' },     // 2026-11-05: плоский стиль Kenney Simple Space — тёмная синяя подложка, белые значки
+    haze: [10, 16, 26], hazeFull: .72, hazeMini: .62, bg: '#0a1420', road: 'rgba(200,220,235,.55)',
     regions: { forest: 'Лес', swamp: 'Болота', mountains: 'Горы', waste: 'Пустошь', coast: 'Побережье' },
     // облака над картой (4.05): светлых light штук размером lightSize м, тень сдвинута на shadowOff м; тёмных клубов за краем — dark штук
     // размером darkSize м; дымка у края — veil м с непрозрачностью veilA; ветер — wind м/с; fps — частота кадров облаков
