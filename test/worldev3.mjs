@@ -1,7 +1,8 @@
 // Мировые события: вторжение, бродячий мини-босс, дракон; награда рядом стоящим; боты приходят и справляются без героя; свой поток случайных чисел
 import { createWorld, step, mulberry32 } from '../3d/src/sim.js';
 import { CFG3 } from '../3d/src/config3d.js';
-import { wevTick, activeEvents } from '../3d/src/worldev3.js';
+import { wevTick, activeEvents, wevLine } from '../3d/src/worldev3.js';
+import { addXp } from '../3d/src/progress3d.js';
 let bad = 0; const ok = (c, m) => { if (!c) { bad++; console.log('✗', m); } };
 const mk = seed => { const W = createWorld(CFG3, mulberry32(seed)); W.wantBots = true; W.player.maxhp = W.player.hp = 1e9; step(W, 1 / 30, {}); return W; };
 const K = CFG3.worldEv;
@@ -34,4 +35,13 @@ for (const kind of ['invasion', 'roamer', 'dragon']) {
 { const W = mk(7); W.cfg = { ...W.cfg, worldEv: { ...K, first: [1, 1], every: [1, 1], max: 2 } }; for (let i = 0; i < 400; i++) step(W, 1 / 30, {}); ok(activeEvents(W).length <= 2, 'событий больше max'); }
 // потоки боя и ботов не сдвигаются
 { const A = mk(8), B = mk(8); B.cfg = { ...B.cfg, worldEv: { ...K, first: [1, 1] } }; for (let i = 0; i < 90; i++) { step(A, 1 / 30, {}); step(B, 1 / 30, {}); } ok(activeEvents(B).length >= 1, 'у B нет события'); ok(A.rng() === B.rng(), 'события сдвинули поток боя'); }
+
+// строка события в трекере и бонус опыта гильдии (2026-11-05)
+{ const W = mk(5); W.wev = { list: [], id: 0 }; ok(wevLine(W) === '', 'строка события без событий');
+  W.wev.list.push({ id: 1, kind: 'invasion', x: W.player.x + 30, z: W.player.z, place: 'Тестовый брод', name: 'Вторжение', t: 300, foes: [], bots: [] });
+  const L = wevLine(W); ok(/Вторжение/.test(L) && /Тестовый брод/.test(L) && /30 м/.test(L) && /5 мин/.test(L), 'строка события не та: ' + L);
+  const e = { type: 'imp', x: W.player.x, z: W.player.z, lvl: W.lv, danger: 0 }; const xp0 = () => { W.ev.length = 0; addXp(W, e, 1); const q = W.ev.find(v => v.k === 'xp'); return q ? q.n : 0; };
+  W.mail = { g: { in: false, id: 'circle' } }; W.bots = [{ guild: 'circle', dead: false, x: W.player.x + 5, z: W.player.z }]; const base = xp0();
+  W.mail.g.in = true; const withG = xp0(); ok(withG > base, `бонус гильдии не работает: ${withG} против ${base}`);
+  W.bots[0].x = W.player.x + 500; const far = xp0(); ok(far === base, 'бонус гильдии действует без соратника рядом'); }
 if (bad) { console.log('Мировые события 3D: упало', bad); process.exit(1); } console.log('Мировые события 3D: OK');

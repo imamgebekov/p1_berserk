@@ -76,11 +76,16 @@ function clip(name, dur, N, pose, bones, hipY, H, bob = 0) {
   const times = [], vals = {}, pos = []; for (const b of bones) vals[b[0]] = [];
   for (let k = 0; k <= N; k++) { const f = k / N, o = {}; pose(f, o); times.push(f * dur);
     for (const b of bones) { const a = o[b[0]] || [0, 0, 0], q = a.isQuaternion ? a : E(a[0], a[1], a[2]); vals[b[0]].push(q.x, q.y, q.z, q.w); }
-    pos.push(0, bob ? Math.abs(Math.sin(f * Math.PI * 2)) * bob * H : 0, 0); }
+    pos.push(0, bob ? (typeof bob === 'function' ? bob(f) : Math.abs(Math.sin(f * Math.PI * 2)) * bob) * H : 0, 0); }
   const tr = bones.map(b => new THREE.QuaternionKeyframeTrack(b[0] + '.quaternion', times, vals[b[0]]));
   return { tr, pos, times };
 }
 const S = Math.sin, PI2 = Math.PI * 2;
+// клип смерти (2026-11-05): короткая отдача, затем тело заваливается на бок и опускается к земле; rest — доля роста, на которой лежит таз
+const ease = f => { const t = Math.max(0, Math.min(1, (f - .1) / .9)); return t * t * (3 - 2 * t); };
+let GROUND = 0, HALF_Z = .2, HALF_X = .2;     // полутолщина тела (доли роста): на какой высоте лежит таз, когда тело на спине или на боку
+let _g_ = 0;     // низ модели в её координатах (y0): падать надо до земли, а не до нуля модели (у Meshy начало может стоять посередине тела)
+const deathDrop = (hipPos, H, rest = HALF_Z) => f => -((hipPos[1] - GROUND) / H - rest) * ease(f);
 function clipsFor(bones, H, hipPos) {
   const out = [], mk = (name, dur, N, pose, bob) => { const c = clip(name, dur, N, pose, bones, hipPos[1], H, bob), base = hipPos;
     const tr = [...c.tr]; if (bob) tr.push(new THREE.VectorKeyframeTrack('rg_hips.position', c.times, c.pos.map((v, i) => base[i % 3] + v))); out.push(new THREE.AnimationClip(name, dur, tr)); };
@@ -98,6 +103,9 @@ function clipsFor(bones, H, hipPos) {
     o.rg_armR = [arm, -.3 * w * k, -.1]; o.rg_foreR = [-.5 * w * k - .3, 0, 0]; o.rg_armL = [arm * .55, .3 * w * k, .1]; o.rg_foreL = [-.5 * w * k - .3, 0, 0];
     o.rg_spine = [sp, (.2 * w - .35 * s) * k, 0]; o.rg_head = [-sp * .5, 0, 0]; o.rg_thighL = [-.35 * s * k, 0, 0]; o.rg_thighR = [.2 * w * k, 0, 0]; o.rg_shinR = [.3 * w * k, 0, 0]; });
   mk('Hit_A', .5, 10, (f, o) => { const k = S(Math.min(1, f * 1.4) * Math.PI), q = k * (1 - f * .3); o.rg_spine = [-.5 * q, .12 * q, 0]; o.rg_head = [-.35 * q, 0, 0]; o.rg_armL = [.5 * q, 0, .3 * q]; o.rg_armR = [.5 * q, 0, -.3 * q]; o.rg_thighL = [-.2 * q, 0, 0]; });
+  mk('Death', 1.1, 14, (f, o) => { const k = ease(f), hit = S(Math.min(1, f * 6) * Math.PI) * .35 * (1 - k);
+    o.rg_hips = [-1.5 * k, 0, 0]; o.rg_spine = [hit, 0, 0]; o.rg_head = [-hit * .8, .25 * k, 0]; o.rg_armL = [0, 0, .5 * k]; o.rg_armR = [0, 0, -.3 * k]; o.rg_foreL = [-.4 * k, 0, 0]; o.rg_foreR = [-.3 * k, 0, 0];
+    o.rg_thighL = [0, 0, .25 * k]; o.rg_thighR = [0, 0, -.15 * k]; o.rg_shinL = [.5 * k, 0, 0]; o.rg_shinR = [.3 * k, 0, 0]; }, deathDrop(hipPos, H, HALF_Z));
   return out;
 }
 function quadClips(bones, H, hipPos) {
@@ -110,6 +118,8 @@ function quadClips(bones, H, hipPos) {
   mk('Attack1', .8, 16, (f, o) => { const w = Math.min(1, f / .4), s = f < .4 ? 0 : Math.min(1, (f - .4) / .15), b = f < .55 ? 0 : (f - .55) / .45, k = 1 - b;     // замах назад и вниз, выпад вперёд с головой
     o.rg_spine = [(-.25 * w + .45 * s) * k, 0, 0]; o.rg_head = [(-.3 * w + .7 * s) * k, 0, 0]; o.rg_upFL = [(.4 * w - .7 * s) * k, 0, 0]; o.rg_upFR = [(.4 * w - .7 * s) * k, 0, 0]; o.rg_tail1 = [-.3 * s * k, 0, 0]; });
   mk('Hit_A', .5, 10, (f, o) => { const q = S(Math.min(1, f * 1.4) * Math.PI) * (1 - f * .3); o.rg_spine = [-.35 * q, .1 * q, 0]; o.rg_head = [-.4 * q, .2 * q, 0]; o.rg_tail1 = [0, .4 * q, 0]; });
+  mk('Death', 1, 14, (f, o) => { const k = ease(f), hit = S(Math.min(1, f * 6) * Math.PI) * .3 * (1 - k);
+    o.rg_hips = [0, 0, -1.5 * k]; o.rg_spine = [-hit, 0, 0]; o.rg_head = [-hit * .8, .3 * k, 0]; o.rg_tail1 = [0, .5 * k, 0]; for (const m of ['FL', 'FR', 'BL', 'BR']) { o['rg_up' + m] = [(m[0] === 'F' ? -.6 : .5) * k, 0, 0]; o['rg_dn' + m] = [.7 * k, 0, 0]; } }, deathDrop(hipPos, H, HALF_X));
   return out;
 }
 
@@ -123,6 +133,7 @@ function spiderClips(bones, H, hipPos, legs) {
   mk('Attack1', .85, 17, (f, o) => { const w = Math.min(1, f / .4), s = f < .4 ? 0 : Math.min(1, (f - .4) / .15), b = f < .55 ? 0 : (f - .55) / .45, k = 1 - b;     // передние ноги вверх, корпус назад, затем бросок вперёд
     for (const l of legs) { const fr = l.d[1] > .4 ? 1 : 0; leg(o, l, 0, fr * (1.1 * w - .6 * s) * k); } o.rg_spine = [(-.35 * w + .6 * s) * k, 0, 0]; });
   mk('Hit_A', .5, 10, (f, o) => { const q = S(Math.min(1, f * 1.4) * Math.PI) * (1 - f * .3); for (const l of legs) leg(o, l, 0, .5 * q); o.rg_spine = [-.4 * q, 0, .15 * q]; });
+  mk('Death', 1.1, 14, (f, o) => { const k = ease(f); o.rg_hips = [0, 0, -2.9 * k]; for (const l of legs) leg(o, l, .15 * k, 2 * k); o.rg_spine = [S(Math.min(1, f * 6) * Math.PI) * -.3 * (1 - k), 0, 0]; }, deathDrop(hipPos, H, .56));
   return out;
 }
 function dragonClips(bones, H, hipPos) {
@@ -134,6 +145,7 @@ function dragonClips(bones, H, hipPos) {
   mk('Attack1', 1, 20, (f, o) => { const w = Math.min(1, f / .4), s = f < .4 ? 0 : Math.min(1, (f - .4) / .15), b = f < .55 ? 0 : (f - .55) / .45, k = 1 - b;     // замах: крылья вверх, голова назад; бросок головой вперёд
     o.rg_wingL = [0, 0, (.8 * w - .5 * s) * k]; o.rg_wingR = [0, 0, -(.8 * w - .5 * s) * k]; o.rg_wtipL = [0, 0, .4 * w * k]; o.rg_wtipR = [0, 0, -.4 * w * k]; o.rg_spine = [(-.2 * w + .35 * s) * k, 0, 0]; o.rg_head = [(-.3 * w + .6 * s) * k, 0, 0]; });
   mk('Hit_A', .5, 10, (f, o) => { const q = S(Math.min(1, f * 1.4) * Math.PI) * (1 - f * .3); o.rg_spine = [-.3 * q, 0, 0]; o.rg_head = [-.4 * q, .2 * q, 0]; wings(.5, f, o, 0); });
+  mk('Death', 1.6, 16, (f, o) => { const k = ease(f); o.rg_hips = [.25 * k, 0, 0]; o.rg_spine = [S(Math.min(1, f * 5) * Math.PI) * -.3 * (1 - k) + .2 * k, 0, 0]; o.rg_head = [.8 * k, .3 * k, 0]; o.rg_wingL = [0, 0, -1.1 * k]; o.rg_wingR = [0, 0, 1.1 * k]; o.rg_wtipL = [0, 0, -.5 * k]; o.rg_wtipR = [0, 0, .5 * k]; }, deathDrop(hipPos, H, .45));
   return out;
 }
 // собрать скелет на сцене (одна обычная сетка) → { clips }; сетка заменяется на SkinnedMesh. kit.rig — поправки долей роста
@@ -148,5 +160,8 @@ export function autoRig(scene, over = {}, type = 'biped') {
   const sm = new THREE.SkinnedMesh(geo, mesh.material); sm.name = mesh.name; sm.castShadow = true; sm.frustumCulled = false; sm.matrix.copy(mesh.matrix); sm.matrix.decompose(sm.position, sm.quaternion, sm.scale);
   parent.add(sm, bm.get('rg_root')); parent.remove(mesh); parent.updateMatrixWorld(true);
   sm.bind(new THREE.Skeleton(list));
+  GROUND = Number.isFinite(y0) ? y0 : 0;
+  { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (let i = 0; i < P.length; i += 3) { if (P[i] < x0) x0 = P[i]; if (P[i] > x1) x1 = P[i]; if (P[i + 2] < z0) z0 = P[i + 2]; if (P[i + 2] > z1) z1 = P[i + 2]; }
+    HALF_Z = Math.max(.1, Math.min(.45, (z1 - z0) / 2 / H)); HALF_X = Math.max(.1, Math.min(.4, (x1 - x0) / 2 / H * .6)); }
   return { clips: type === 'quad' ? quadClips(bones, H, bones[1][2]) : type === 'spider' ? spiderClips(bones, H, bones[1][2], parts.legs) : type === 'dragon' ? dragonClips(bones, H, bones[1][2]) : clipsFor(bones, H, bones[1][2]), height: H, y0 };
 }

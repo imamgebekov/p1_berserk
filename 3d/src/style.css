@@ -1285,3 +1285,13 @@ html[data-land] #heroGo{left:max(14px,env(safe-area-inset-left))}
 html[data-land] :is(.tab,.tchip,.tbsb,.tsort,.close,.jbtn,.legtg,#actStack>*,#actSide>*){position:relative}
 html[data-land] :is(.tab,.tchip,.tbsb,.tsort,.close,.jbtn,.legtg,.reset,#actStack>*,#actSide>*)::after{content:'';position:absolute;inset:-7px}
 html[data-land] :is(.tabs,.tchips,.tbsw){padding-block:6px;margin-block:-6px}     /* строка вкладок обрезает ::after по краю: даём ей запас, лишнюю высоту снимаем отрицательным отступом */
+/* 5.48: левша боком — раскладка А зеркалом: дуга и кнопки слева, стик и камера справа (input.js, main.js) */
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="0"]{left:calc(185px + env(safe-area-inset-left));bottom:calc(52px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="1"]{left:calc(170px + env(safe-area-inset-left));bottom:calc(113px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="2"]{left:calc(131px + env(safe-area-inset-left));bottom:calc(162px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="3"]{left:calc(76px + env(safe-area-inset-left));bottom:calc(191px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="4"]{left:calc(16px + env(safe-area-inset-left));bottom:calc(196px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab.wsk{left:calc(246px + env(safe-area-inset-left));bottom:calc(104px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #bRoll{right:auto;left:calc(250px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #actStack{right:auto;left:calc(330px + env(safe-area-inset-left))}
+html[data-lefty][data-land]:not([data-desk]) #loot{right:auto;left:calc(330px + env(safe-area-inset-left))}

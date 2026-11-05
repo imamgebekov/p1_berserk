@@ -17,10 +17,10 @@ export function createInput(doc, win) {
 
   zone.addEventListener('pointerdown', e => {
     if (pid !== null) return;
-    const land = e.pointerType === 'touch' && doc.documentElement.hasAttribute('data-land'), W2 = win.innerWidth / 2, H2 = win.innerHeight / 2;
-    if (land && (e.clientX > W2 || e.clientY < H2)) return;     // боком: стик только в левой нижней четверти; правая половина — камера и бой (main.js), левая верхняя — для кнопок и заданий
+    const land = e.pointerType === 'touch' && doc.documentElement.hasAttribute('data-land'), lefty = doc.documentElement.hasAttribute('data-lefty'), W2 = win.innerWidth / 2, H2 = win.innerHeight / 2;
+    if (land && ((lefty ? e.clientX < W2 : e.clientX > W2) || e.clientY < H2)) return;     // боком: стик только в левой нижней четверти; правая половина — камера и бой (main.js), левая верхняя — для кнопок и заданий
     e.preventDefault(); pid = e.pointerId; try { zone.setPointerCapture(pid); } catch (_) { /* не критично */ }
-    ox = e.clientX; oy = e.clientY; if (land) { ox = Math.max(R + 6, Math.min(W2 - R - 6, ox)); oy = Math.max(H2 + R + 6, Math.min(win.innerHeight - R - 6, oy)); }     /* кольцо стика целиком внутри четверти */ stick.style.left = ox + 'px'; stick.style.top = oy + 'px'; stick.classList.add('on'); move(e);
+    ox = e.clientX; oy = e.clientY; if (land) { ox = lefty ? Math.max(W2 + R + 6, Math.min(win.innerWidth - R - 6, ox)) : Math.max(R + 6, Math.min(W2 - R - 6, ox)); oy = Math.max(H2 + R + 6, Math.min(win.innerHeight - R - 6, oy)); }     /* кольцо стика целиком внутри четверти */ stick.style.left = ox + 'px'; stick.style.top = oy + 'px'; stick.classList.add('on'); move(e);
   });
   zone.addEventListener('pointermove', e => { if (e.pointerId === pid) move(e); });
   for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) zone.addEventListener(t, e => { if (e.pointerId === pid || pid === null) endStick(); });

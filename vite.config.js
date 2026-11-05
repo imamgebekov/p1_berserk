@@ -36,6 +36,7 @@ export default defineConfig({
   build: {
     target: 'es2020', sourcemap: false, chunkSizeWarningLimit: 700, assetsInlineLimit: 0,
     // две страницы: корень (переход в игру) и сама игра (/3d/); старая 2D-игра удалена (2026-10-24)
-    rollupOptions: { input: { main: resolve(here, 'index.html'), three: resolve(here, '3d/index.html') } }
+    rollupOptions: { input: { main: resolve(here, 'index.html'), three: resolve(here, '3d/index.html') },
+      output: { manualChunks(id) { return id.includes('node_modules/three/') ? 'vendor-three' : undefined; } } }     // three.js отдельным файлом: правка игры не сбрасывает его кэш (2026-11-05)
   }
 });

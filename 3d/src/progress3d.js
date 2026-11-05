@@ -17,10 +17,12 @@ export function paceXp(W, raw, kind) {
 }
 // «серый» враг: ниже героя на grey и больше уровней — опыта меньше
 export const greyMul = (W, elv) => { const P = W.cfg.level.pace; if (!P || !P.on || !elv) return 1; const d = W.lv - elv; return d < P.grey ? 1 : Math.max(P.min, 1 - (d - P.grey + 1) * P.greyK); };
+// бонус гильдии (2026-11-05): член гильдии получает больше опыта, пока рядом живой соратник по гильдии
+const guildXp = W => { const G = W.cfg.mail && W.cfg.mail.guild, g = W.mail && W.mail.g; if (!G || !G.xp || !g || !g.in) return 1; const p = W.player; return (W.bots || []).some(a => a.guild === g.id && !a.dead && Math.hypot(a.x - p.x, a.z - p.z) < G.near) ? 1 + G.xp : 1; };
 export function addXp(W, e, share = 1) {
   const L = W.cfg.level, depth = depthAt(W, e.x, e.z), C = W.cfg.enemies[e.type], lv = levelAt(W, e.x, e.z);
   gainXp(W, Math.round(greyMul(W, e.lvl) * (C.xp || 5) * (1 + Math.min(1, depth) * .8) * (1 + Math.max(0, lv - L.core) * L.xp) *     // за ядром опыт растёт по уровню места (этап 0)
-    (1 + W.cfg.enemies.dangerXp * (e.danger || 0)) * (e.elite ? W.cfg.elite.xp : 1) * share) || 1);
+    (1 + W.cfg.enemies.dangerXp * (e.danger || 0)) * (e.elite ? W.cfg.elite.xp : 1) * share * guildXp(W)) || 1);
 }
 export const rankNeed = cfg => Math.round(xpNeed(cfg.level.max - 1, cfg) * cfg.level.ranks.k);
 export function gainXp(W, n) {

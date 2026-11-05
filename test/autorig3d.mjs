@@ -10,8 +10,8 @@ const merged = (() => { const g = new THREE.BufferGeometry(), ps = [], ns = [], 
   g.setAttribute('position', new THREE.Float32BufferAttribute(ps, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(ns, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(ix); return g; })();
 const scene = new THREE.Group(), node = new THREE.Group(); node.name = 'Model'; node.add(new THREE.Mesh(merged, new THREE.MeshBasicMaterial())); scene.add(node);
 const before = merged.attributes.position.array.slice();
-const R = autoRig(scene); ok(R && R.clips.length === 5, 'клипов не 5: ' + (R && R.clips.length));
-const names = R.clips.map(c => c.name).join(); ok(names === 'Idle,Walk,Run,Attack1,Hit_A', 'имена клипов: ' + names);
+const R = autoRig(scene); ok(R && R.clips.length === 6, 'клипов не 6: ' + (R && R.clips.length));
+const names = R.clips.map(c => c.name).join(); ok(names === 'Idle,Walk,Run,Attack1,Hit_A,Death', 'имена клипов: ' + names);
 let sm = null, bones = 0; scene.traverse(o => { if (o.isSkinnedMesh) sm = o; if (o.isBone) bones++; }); ok(sm && bones === 14, `костей ${bones}, сетка со скелетом ${!!sm}`);
 const W = sm.geometry.attributes.skinWeight, I = sm.geometry.attributes.skinIndex; let bad = 0; for (let v = 0; v < W.count; v++) { const s = W.getX(v) + W.getY(v) + W.getZ(v) + W.getW(v); if (Math.abs(s - 1) > 1e-4) bad++; }
 ok(bad === 0, 'веса не в сумме 1 у ' + bad + ' вершин');
@@ -30,7 +30,7 @@ mixer.stopAllAction(); mixer.clipAction(R.clips[3]).reset().play(); mixer.update
   g.setAttribute('position', new THREE.Float32BufferAttribute(ps, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(ns, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(ix);
   const sc = new THREE.Group(), nd = new THREE.Group(); nd.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial())); sc.add(nd);
   const Q = autoRig(sc, {}, 'quad'); let q = null, nb = 0; sc.traverse(x => { if (x.isSkinnedMesh) q = x; if (x.isBone) nb++; });
-  ok(Q && Q.clips.map(c => c.name).join() === 'Idle,Walk,Run,Attack1,Hit_A' && q && nb === 14, `четвероногий: костей ${nb}`);
+  ok(Q && Q.clips.map(c => c.name).join() === 'Idle,Walk,Run,Attack1,Hit_A,Death' && q && nb === 14, `четвероногий: костей ${nb}`);
   const bn = q.skeleton.bones.map(b => b.name), I2 = q.geometry.attributes.skinIndex, P2 = q.geometry.attributes.position; let fl = -1; for (let v = 0; v < P2.count; v++) if (P2.getX(v) > .15 && P2.getZ(v) > .35 && P2.getY(v) < .3) { fl = v; break; }
   ok(/FL|upF/.test(bn[I2.getX(fl)]) || /dnFL|upFL/.test(bn[I2.getX(fl)]), 'передняя левая нога не у своей кости: ' + bn[I2.getX(fl)]); }
 
@@ -40,9 +40,13 @@ for (const [type, nb0, parts2] of [['spider', 19, () => { const a = [box(.6, .4,
   g.setAttribute('position', new THREE.Float32BufferAttribute(ps, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(ns, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(ix);
   const sc = new THREE.Group(), nd = new THREE.Group(); nd.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial())); sc.add(nd);
   const Q = autoRig(sc, {}, type); let q = null, nb = 0; sc.traverse(x => { if (x.isSkinnedMesh) q = x; if (x.isBone) nb++; });
-  ok(Q && Q.clips.map(c => c.name).join() === 'Idle,Walk,Run,Attack1,Hit_A' && q && nb === nb0, `${type}: костей ${nb}, клипы ${Q && Q.clips.length}`);
+  ok(Q && Q.clips.map(c => c.name).join() === 'Idle,Walk,Run,Attack1,Hit_A,Death' && q && nb === nb0, `${type}: костей ${nb}, клипы ${Q && Q.clips.length}`);
   const Wt = q.geometry.attributes.skinWeight; let bad2 = 0; for (let v = 0; v < Wt.count; v++) if (Math.abs(Wt.getX(v) + Wt.getY(v) + Wt.getZ(v) + Wt.getW(v) - 1) > 1e-4) bad2++; ok(bad2 === 0, `${type}: веса не в сумме 1 у ${bad2}`);
   const P3 = q.geometry.attributes.position, tv = new THREE.Vector3(), moved = (clipI, t) => { const mx = new THREE.AnimationMixer(sc); mx.clipAction(Q.clips[clipI]).play(); mx.update(t); sc.updateMatrixWorld(true); q.skeleton.update(); let d = 0; for (let v = 0; v < P3.count; v += 7) { tv.fromBufferAttribute(P3, v); const b = tv.clone(); q.applyBoneTransform(v, tv); d = Math.max(d, tv.distanceTo(b)); } return d; };
   ok(moved(type === 'spider' ? 1 : 3, type === 'spider' ? .2 : .3) > .05, `${type}: клип не двигает вершины`); }
+// клип смерти (2026-11-05): тело заваливается (таз повёрнут больше чем на ~70°) и опускается к земле
+{ const D = R.clips.find(c => c.name === 'Death'), hips = scene.getObjectByName('rg_hips'); ok(D && hips, 'нет клипа Death или кости таза');
+  if (D && hips) { const mx = new THREE.AnimationMixer(scene), a = mx.clipAction(D); a.setLoop(THREE.LoopOnce); a.clampWhenFinished = true; a.play(); mx.update(0); const y0 = hips.position.y; mx.update(D.duration + .01);
+    ok(hips.quaternion.angleTo(new THREE.Quaternion()) > 1.2, 'тело не заваливается: угол таза ' + hips.quaternion.angleTo(new THREE.Quaternion()).toFixed(2)); ok(hips.position.y < y0 - .01, 'таз не опустился'); } }
 if (fails.length) { console.log('ПРОВАЛ:\n' + [...new Set(fails)].join('\n')); process.exit(1); }
 console.log('Автоскелет 3D: OK');

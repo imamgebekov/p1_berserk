@@ -24,6 +24,7 @@ import { clockText, lightOf, phaseOf, mix } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
 import { trackerLines, questMarks, questMark, questsOf } from './quests3d.js';
 import { eventLine, eventAt } from './events3d.js';
+import { wevLine } from './worldev3.js';
 import { abyssLine, weekOf, eclipseMods, eclipseDoneThisWeek, modName } from './abyss3d.js';
 import { ngOpen, startNg } from './ng3d.js';
 import { fireNear, knownFires, fastTravel, travelBlock, travelCost, sanitizeFires } from './fires3d.js';
@@ -135,7 +136,7 @@ if (renderer && cfg.view.zoom) {
   // касания по полю (5.44): боком правая половина — камера одним пальцем; щипок приближает, даже если пальцы на разных половинах
   // (оба пальца движутся навстречу или врозь вдоль линии между ними; один палец на стике стоит — это камера, а не щипок)
   const tp = new Map(), fieldEl = document.getElementById('zone'), isField = e => e.pointerType === 'touch' && (e.target === canvas || e.target === fieldEl);
-  addEventListener('pointerdown', e => { if (isField(e)) tp.set(e.pointerId, { x: e.clientX, y: e.clientY, cam: document.documentElement.hasAttribute('data-land') && e.clientX > innerWidth * .5, mv: [] }); }, true);
+  addEventListener('pointerdown', e => { if (isField(e)) tp.set(e.pointerId, { x: e.clientX, y: e.clientY, cam: document.documentElement.hasAttribute('data-land') && (document.documentElement.hasAttribute('data-lefty') ? e.clientX < innerWidth * .5 : e.clientX > innerWidth * .5), mv: [] }); }, true);
   addEventListener('pointermove', e => {
     const f = tp.get(e.pointerId); if (!f) return; const dx = e.clientX - f.x, dy = e.clientY - f.y, t = e.timeStamp; f.x = e.clientX; f.y = e.clientY; f.mv.push([t, dx, dy]); while (f.mv.length && t - f.mv[0][0] > 150) f.mv.shift();
     const o = [...tp.entries()].find(([id]) => id !== e.pointerId);
@@ -1093,9 +1094,9 @@ function frame(now) {
     const sg = !sp && W.story ? storyGoal(W) : null;     // сюжет (этап 3) — главнее «Пути пепла»
     const g = W.lvl === 'surface' ? (sp ? goalOf(W) : sg || pg || goalOf(W)) : crypt && W.lvl === 'crypt_pogost' ? { text: pg.text, at: null } : String(W.lvl).startsWith('up:') ? { text: 'Второй этаж: сундуки; вниз — по лестнице', at: null } : { text: roomEventLine(W) || dungeonLine() || 'Подземелье: сундуки, ключи и выход наверх', at: null };
     // трекер (этап 5 «круче»): главная строка (событие, искра, сюжет, путь) и до трёх заданий; цель на карте не пропадает
-    const surf = W.lvl === 'surface', ev = eventLine(W) || abyssLine(W), main = ev || (sp || sg || pg || !surf ? g.text : ''), ql = trackerLines(W, 3);
+    const surf = W.lvl === 'surface', wl = surf ? wevLine(W) : '', ev = eventLine(W) || abyssLine(W), main = ev || (sp || sg || pg || !surf ? g.text : ''), ql = trackerLines(W, 3);
     W.qmarks = surf ? questMarks(W, storyActors(W)) : [];
-    const mt = surf ? mentorLine(W) : null, tl = [main || (ql.length || mt ? '' : g.text), mt && mt.text, ...ql].filter(Boolean).join('\n');     // совет — второй строкой
+    const mt = surf ? mentorLine(W) : null, tl = [main || (ql.length || mt ? '' : g.text), wl, mt && mt.text, ...ql].filter(Boolean).join('\n');     // совет — второй строкой
     const fm = W.questFocus && W.qmarks.find(m => m.id === W.questFocus);     // выбранное задание (кнопка «Вести» в «Моих») — главнее
     W.goal = ev && W.event ? eventAt(W) : ev ? null : fm ? fm : main ? (g.at || W.qmarks[0] || null) : W.qmarks.length ? W.qmarks[0] : mt && mt.at ? mt.at : g.at; W.goalFocus = !!fm && !ev;     // метки на земле — только к выбранному заданию
     if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }

@@ -106,3 +106,11 @@ export function wevTick(W, dt) {
   if ((S.t -= dt) > 0 || S.list.length >= K.max) return;
   const kind = pickW(W, Object.entries(K.kinds).filter(([, w]) => w > 0)); if (!begin(W, kind)) S.t = K.retry; else S.t = rnd(W, ...K.every);
 }
+
+// строка в трекере: ближайшее событие мира — название, место, расстояние, сколько осталось (2026-11-05)
+export function wevLine(W) {
+  const L = activeEvents(W); if (!L.length) return ''; const p = W.player; let best = null, bd = Infinity;
+  for (const ev of L) { const d = Math.hypot(ev.x - p.x, ev.z - p.z); if (d < bd) { bd = d; best = ev; } }
+  const mins = Math.max(1, Math.ceil((best.t || 0) / 60)), nm = best.name || (best.kind === 'invasion' ? 'Вторжение' : best.kind === 'dragon' ? 'Дракон' : 'Мини-босс');
+  return `Событие: ${nm} · ${best.place} · ${Math.round(bd)} м · ещё ~${mins} мин`;
+}
