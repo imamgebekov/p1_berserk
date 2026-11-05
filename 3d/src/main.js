@@ -112,12 +112,13 @@ try {
   $('nogl').hidden = false; console.warn('WebGL недоступен', e);
 }
 
-// 5.43: поворот камеры вокруг героя на поверхности (просьба владельца: «как в WoW»). Два пальца — закрутить, на компьютере [ и ] (шаг), средняя кнопка мыши — тянуть, \ — сброс. Помнится в браузере; в подземельях и домах-срезах угол прежний
+// 5.43: поворот камеры вокруг героя на поверхности (просьба владельца: «как в WoW»). Два пальца — закрутить, на компьютере [ и ] (шаг), правая или средняя кнопка мыши — тянуть, \ — сброс. Помнится в браузере; в подземельях и домах-срезах угол прежний
 const CY = cfg.view.camTurn || { on: false }, YK = 'berserk3d.yaw', yawBase = cfg.view.camYaw; let yawUser = yawBase;
 try { const v = Number(localStorage.getItem(YK)); if (CY.on && Number.isFinite(v) && localStorage.getItem(YK) !== null) yawUser = v; } catch (e) { /* без сохранения */ }
 function turnCam(d) { if (!CY.on) return; yawUser += d; try { localStorage.setItem(YK, String(Math.round(yawUser * 10) / 10)); } catch (e) { /* без сохранения */ } }
 if (CY.on) {
   addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey || (e.target && e.target.closest && e.target.closest('input, textarea'))) return; if (e.code === 'BracketLeft') turnCam(-CY.key); else if (e.code === 'BracketRight') turnCam(CY.key); else if (e.code === 'Backslash') { yawUser = yawBase; turnCam(0); } });
+  addEventListener('camturn', e => turnCam(e.detail * CY.drag));     // правая кнопка мыши: input.js
   let md = null; addEventListener('pointerdown', e => { if (e.button === 1 && e.target === document.getElementById('gl')) { md = e.clientX; e.preventDefault(); } });
   addEventListener('pointermove', e => { if (md === null) return; turnCam((e.clientX - md) * CY.drag); md = e.clientX; });
   addEventListener('pointerup', e => { if (e.button === 1) md = null; });

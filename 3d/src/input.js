@@ -36,9 +36,10 @@ export function createInput(doc, win) {
   win.addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey || (e.target && e.target.closest && e.target.closest('input, select, textarea'))) return; if (!e.repeat && /^Digit[1-6]$/.test(e.code)) S.abilQ = +e.code[5]; if (!e.repeat && e.code === 'KeyF') S.abilQ = 7; const k = code(e); if (!k) return; if (k === 'roll') { if (!keys.has('roll')) S.rollQ = true; } if (k === 'atk' && !keys.has('atk')) S.atkQ = true; keys.add(k); if (k === 'atk' || e.code.startsWith('Arrow')) e.preventDefault(); });     // F — умение оружия
   win.addEventListener('keyup', e => { const k = code(e); if (k) keys.delete(k); });
   // мышь (компьютер): левая кнопка по полю — удар (держать — серия), правая — перекат
-  const gl = $('gl');
-  gl.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; e.preventDefault(); if (e.button === 0) { S.mouseAtk = true; S.atkQ = true; } else if (e.button === 2) S.rollQ = true; });
-  win.addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) S.mouseAtk = false; });
+  const gl = $('gl'); let rd = null;
+  gl.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; e.preventDefault(); if (e.button === 0) { S.mouseAtk = true; S.atkQ = true; } else if (e.button === 2) rd = { x: e.clientX, moved: false }; });     // правая: клик — перекат (по отпусканию), тянуть — поворот камеры, как в WoW
+  win.addEventListener('pointermove', e => { if (!rd || e.pointerType !== 'mouse') return; if (!rd.moved && Math.abs(e.clientX - rd.x) > 4) { rd.moved = true; rd.x = e.clientX; } if (rd.moved) { win.dispatchEvent(new CustomEvent('camturn', { detail: e.clientX - rd.x })); rd.x = e.clientX; } });
+  win.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') return; if (e.button === 0) S.mouseAtk = false; else if (e.button === 2 && rd) { if (!rd.moved) S.rollQ = true; rd = null; } });
   gl.addEventListener('contextmenu', e => e.preventDefault());
   gl.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { S.cx = e.clientX; S.cy = e.clientY; S.cur = true; } });     // курсор — прицел (2026-10-18)
   gl.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') S.cur = false; });
