@@ -42,7 +42,7 @@ const mk = () => { const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count =
 
 // темп (этап 3 «круче»): 60-й уровень — к концу Акта IV. Модель прохождения: сцены по порядку, разовые задания поровну между
 // ними, 10/25/40 убийств врагов уровня сцены на сцену (по 3,5% нужного опыта, «серые» — меньше). Уровень к концу акта — в коридоре.
-{ const A = [ACT1, ACT2, ACT3, ACT4].flat(), Q = QUESTS.filter(q => !q.repeat), L = CFG3.level;
+{ const A = [ACT1, ACT2, ACT3, ACT4].flat(), Q = QUESTS.filter(q => !q.repeat && !q.hideBelow), L = CFG3.level;     // заказы дальних колец (hideBelow) скрыты, пока герой не дорос, — в модель темпа не входят
   const play = (kills, cfg = CFG3) => { const W = { cfg, lv: 1, story: { i: 0 } }; let xp = 0, qi = 0; const ends = {};
     const gain = n => { if (W.lv >= L.max) return; xp += n; while (W.lv < L.max && xp >= xpNeed(W.lv, cfg)) { xp -= xpNeed(W.lv, cfg); W.lv++; } };
     A.forEach((c, i) => { W.story.i = i; while (qi < Math.round((i + 1) * Q.length / A.length)) gain(paceXp(W, (Q[qi++].reward || {}).xp || 0, 'quest'));
