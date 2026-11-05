@@ -60,8 +60,8 @@ const clear = W => { W.enemies.length = 0; W.ev.length = 0; };
   clear(W); const B = foe(W, 'devourer', home.x + 3, home.z + 3); B.boss = true; ok(kick(W, B) < 1, 'обычный удар заметно сдвигает босса'); }
 // 6. стойкость босса: накопленный урон пробивает — сильный отлёт и событие poise
 { const W = mk(); clear(W); const B = foe(W, 'devourer', home.x + 3, home.z + 3); B.boss = true; B.maxhp = 400; let small = 0, big = 0, n = 0;
-  for (let i = 0; i < 30 && !big; i++) { W.ev.length = 0; const v = kick(W, B); if (W.ev.some(q => q.k === 'poise')) big = v; else { small = Math.max(small, v); n++; } }
-  ok(big > 0 && n > 0, `стойкость босса не пробивается (ударов ${n})`); ok(big > small * 4, `пробитая стойкость не отбрасывает: ${big.toFixed(2)} против ${small.toFixed(2)} м/с`); }
+  for (let i = 0; i < 60 && !big; i++) { W.ev.length = 0; const v = kick(W, B); if (W.ev.some(q => q.k === 'poise')) big = v; else { small = Math.max(small, v); n++; } }
+  ok(big > 0 && n > 0, `стойкость босса не пробивается (ударов ${n}, порог 32 при ~1 урона за удар — лимит 60, не 30: на 30 хватало впритык)`); ok(big > small * 4, `пробитая стойкость не отбрасывает: ${big.toFixed(2)} против ${small.toFixed(2)} м/с`); }
 // 7. отлёт героя — по весу бьющего и героя; выключено — как раньше (5 м/с)
 { const W = mk(); clear(W); const hv = att => { const p = W.player; Object.assign(p, { x: home.x, z: home.z, vx: 0, vz: 0, inv: 0, state: 'idle' }); hurtPlayer(W, 1, p.x, p.z - 1, null, att); return Math.hypot(p.vx, p.vz); };
   const imp = foe(W, 'imp', home.x, home.z - 1), troll = foe(W, 'troll', home.x, home.z - 1), hound = foe(W, 'hound', home.x, home.z - 1);

@@ -113,6 +113,7 @@ try {
 }
 
 // 5.43: поворот камеры вокруг героя на поверхности (просьба владельца: «как в WoW»). Два пальца — закрутить, на компьютере [ и ] (шаг), правая или средняя кнопка мыши — тянуть, \ — сброс. Помнится в браузере; в подземельях и домах-срезах угол прежний
+let miniYaw = 0; const miniEl = document.getElementById('mini');
 const CY = cfg.view.camTurn || { on: false }, YK = 'berserk3d.yaw', yawBase = cfg.view.camYaw; let yawUser = yawBase;
 try { const v = Number(localStorage.getItem(YK)); if (CY.on && Number.isFinite(v) && localStorage.getItem(YK) !== null) yawUser = v; } catch (e) { /* без сохранения */ }
 function turnCam(d) { if (!CY.on) return; yawUser += d; try { localStorage.setItem(YK, String(Math.round(yawUser * 10) / 10)); } catch (e) { /* без сохранения */ } }
@@ -1035,6 +1036,7 @@ function frame(now) {
   if (aiming && (paused || !desk)) { aiming = null; if (renderer) renderer.setAim(null); }     // меню открыто — прицел снят
   if (simK > 0) {
     if (CY.on) { const want = W.lvl === 'surface' ? yawUser : yawBase; let dd = want - cfg.view.camYaw; dd = ((dd % 360) + 540) % 360 - 180; cfg.view.camYaw += Math.abs(dd) < .05 ? dd : dd * Math.min(1, real * CY.ease); }     // плавный доворот; вход в подземелье — к прежнему углу кратчайшим путём
+    if (Math.abs(cfg.view.camYaw - miniYaw) > .1) { miniYaw = cfg.view.camYaw; miniEl.style.transform = `rotate(${miniYaw}deg)`; }     // миникарта крутится с камерой: «вверх» на ней — туда, куда смотрит камера
     const inp = paused ? {} : input.read();
     Object.assign(inp, rotateInput(inp.mx || 0, inp.mz || 0, cfg.view.camYaw));
     if (desk && renderer && inp.cursor) inp.aimPt = renderer.groundAt(inp.cursor.x, inp.cursor.y);     // прицел курсором: удар, выстрел и умения — в сторону мыши        // «вверх» на джойстике = вверх на экране при любом повороте камеры

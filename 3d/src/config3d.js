@@ -1378,6 +1378,7 @@ const BASE = {
       mossbeast: 'gen_mossbeast', drownqueen: 'gen_drownqueen', smelter: 'gen_smelter', barghest: 'q_wolf', rootgnaw: 'um_ghoul', thornlord: 'kk_king', oldoak: 'q_golem', saltwarden: 'mf_saltwarden', cathkraken: 'mf_tidewyrm', drowngod: 'um_fish',     // рейды 20 и 40 (4.18)
       bogwarden: 'mf_saltwarden', leviathan: 'mf_leviathan', ashgolem: 'mf_golem', cinderlord: 'kk_king', rotmaw: 'um_ghoul', riftheart: 'mf_riftheart', voidwarden: 'mf_voidwarden', abyssmaw: 'mf_leviathan', voidking: 'kk_king',     // Г5 (4.18)
       imp: 'q_demonfly', bomber: 'q_demonfly', ash_thief: 'mf_ash_thief', hound: 'q_wolf', blackdog: 'q_wolf', garm: 'q_wolf', eclipse_fiend: 'q_wolf', garm_beast: 'q_wolf', greywolf: 'q_wolf', towerhound: 'q_wolf',
+      bandit: 'foe_bandit', bandit_archer: 'kk_rogue_hooded', cultist: 'foe_cultist', cult_mage: 'foe_cultmage', merc: 'foe_merc',     // люди-враги
       lunger: 'kk_skel_warrior', war_ghost: 'kk_skel_minion', witch: 'kk_skel_mage', archer: 'kk_rogue_hooded', kad_xbow: 'kk_rogue_hooded', shield: 'kk_knight', kad_soldier: 'kk_knight', kad_spear: 'kk_knight', kad_banner: 'kk_knight',
       royal_guard: 'kk_knight', masked_knight: 'kk_knight', shade: 'q_ghostskull', brandshade: 'q_ghostskull', shrieker: 'q_ghostskull', troll: 'mf_troll', castellan: 'kk_king', ashking: 'kk_king', brandlord: 'kk_knight', abyssking: 'kk_king', oakking: 'kk_king',
       brute: 'mf_brute', drake: 'um_dragon', ghoul: 'um_ghoul', devourer: 'mf_devourer', golem: 'mf_golem', firegolem: 'mf_golem', drowned: 'um_fish', drownedmaid: 'um_fish', silt: 'um_fish', swampelder: 'um_fish',
@@ -1389,9 +1390,13 @@ const BASE = {
       alaric: { kit: 'kk_knight', w: 'sword', cells: ['0,1'], hide: ['Knight_Helmet', 'Knight_HelmetVisor'], paint: { '3,0': '#c8c8c4', '7,0': '#e0dcd0' } } },
     beasts: { deer: 'q_stag', fox: 'q_fox', goat: 'q_cow', duck: 'q_chicken', heron: 'q_pigeon', crow: 'q_pigeon', horse: 'q_horse', stagride: 'q_stag', wolfride: 'q_wolf', ghosthorse: 'q_horse' },     // живность
     sizes: { heron: 1.3, stagride: 2.7, wolfride: 1.7 },     // свой рост модели для вида (голубь в роли цапли)
-    tints: { ghosthorse: '#a8c0ff', stagride: '#b89060', ashgolem: '#a8a29a', heron: '#c8d0d8', crow: '#3a3438', bomber: '#ffb070', blackdog: '#404048', garm: '#a06050', eclipse_fiend: '#b080ff', garm_beast: '#c04838', greywolf: '#c8c8c0', towerhound: '#c09060',
+    tints: { bandit: '#c8a878', bandit_archer: '#b89868', cultist: '#a070b8', cult_mage: '#c04868', merc: '#8a98a8', ghosthorse: '#a8c0ff', stagride: '#b89060', ashgolem: '#a8a29a', heron: '#c8d0d8', crow: '#3a3438', bomber: '#ffb070', blackdog: '#404048', garm: '#a06050', eclipse_fiend: '#b080ff', garm_beast: '#c04838', greywolf: '#c8c8c0', towerhound: '#c09060',
       kad_soldier: '#8aa0ff', kad_spear: '#8aa0ff', kad_banner: '#a0b0ff', kad_xbow: '#a0b8ff', royal_guard: '#ff8a8a', masked_knight: '#605870', brandshade: '#ff6a6a', shrieker: '#ffe0b0', ashking: '#c0a080', oakking: '#a0d080', firegolem: '#ff9a60', drownedmaid: '#a0e0d0', silt: '#b0c080', swampelder: '#c0a070', lord: '#ff9070', gatebeast: '#ff7060', gravewight: '#c0d080', abbot: '#ffe0a0' },
     kits: {
+      foe_bandit: { src: 'kk_rogue', anims: 'kk', height: 2.1, gear: ['dagger', 'iron'], cape: ['Rogue_Cape'] },
+      foe_cultist: { src: 'kk_rogue_hooded', anims: 'kk', height: 2.1, gear: ['dagger', 'iron'] },
+      foe_cultmage: { src: 'kk_mage', anims: 'kk', height: 2.2, gear: ['wand', 'iron'], helm: ['Mage_Hat'], cape: ['Mage_Cape'] },
+      foe_merc: { src: 'kk_barbarian', anims: 'kk', height: 2.3, gear: ['sword', 'iron', 'shield', 'shield_badge'] },
       mh_thorn: { height: 2.2, ownWeapon: true },
       mh_vale: { height: 2.15, ownWeapon: true, anims: 'mhs' }, mh_warlock: { height: 2.2, ownWeapon: true, anims: 'mhs' },
       mh_brand: { height: 2.3, ownWeapon: true, anims: 'mhs' }, mh_hunter: { height: 2.2, ownWeapon: true, anims: 'mhs' }, mh_selene: { height: 2.1, ownWeapon: true, anims: 'mhs' },     // новый Торн из Meshy (?mh): автоскелет, цвет 1024 px
@@ -1702,6 +1707,11 @@ const BASE = {
     ghoul: { name: 'Упырь', on: ['poison', .7, 2, 6], xp: 33, hp: 270, speed: 2.8, damage: 20, range: 1.8, wind: .55, recover: .9,  radius: .55, scale: 1.2, ai: 'move', move: { kind: 'spit', min: 4, max: 9, wind: .15, delay: 1, r: 1.6, mul: .45, cd: 8, first: 2 } },   // упырь: у кладбища и в часовне
     // дальний бой: ranged.keep — на каком расстоянии держится от героя; стрела летит со speed, колдовство накрывает пятно r через delay секунд
     archer: { name: 'Лучник Ржавых', xp: 22, hp: 150, speed: 3.2, damage: 14, range: 13, wind: .9, recover: 1.3, radius: .45, scale: 1, ranged: { kind: 'arrow', speed: 14, keep: [6, 10] } },
+    bandit: { name: 'Разбойник', xp: 20, hp: 170, speed: 3.6, damage: 15, range: 1.7, wind: .5, recover: .8, radius: .5, scale: 1.05 },     // люди-враги (2026-11-05): дороги и леса, склепы и пустоши, лагеря наёмников
+    bandit_archer: { name: 'Стрелок разбойников', xp: 22, hp: 140, speed: 3.2, damage: 14, range: 13, wind: .9, recover: 1.3, radius: .45, scale: 1, ranged: { kind: 'arrow', speed: 15, keep: [6, 10] } },
+    cultist: { name: 'Культист', xp: 26, hp: 200, speed: 3.1, damage: 17, range: 1.7, wind: .55, recover: .9, radius: .5, scale: 1.05, on: ['bleed', .4, 2.5, 4] },
+    cult_mage: { name: 'Жрец культа', xp: 36, hp: 190, speed: 2.8, damage: 24, range: 14, wind: 1.1, recover: 2.3, radius: .5, scale: 1.05, on: ['burn', .4, 3, 5], ranged: { kind: 'hex', r: 2.4, delay: 1.0, keep: [7, 11] } },
+    merc: { name: 'Наёмник', ai: 'shield', xp: 44, hp: 340, speed: 2.5, damage: 24, range: 1.9, wind: .65, recover: .9, radius: .6, scale: 1.2, guard: { arc: 100, mul: .2, turn: 2.2, breakStun: .9 } },
     witch: { name: 'Колдун Затмения', xp: 38, hp: 200, speed: 2.8, damage: 26, range: 14, wind: 1.1, recover: 2.4, radius: .5, scale: 1.05, on: ['burn', .5, 3, 5], ranged: { kind: 'hex', r: 2.4, delay: 1.0, keep: [7, 11] } },
     // особое поведение (ai, 3d/src/foes3d.js); g — род имени ('f' — женский) для подписей элиты
     // shield: щит спереди (guard.arc — ширина, град; mul — сколько урона проходит; turn — скорость поворота, рад/с); пробивают фланг, удар из переката, тяжёлый удар, оглушение
@@ -1715,13 +1725,13 @@ const BASE = {
     shade: { name: 'Тень', g: 'f', ai: 'blink', xp: 26, hp: 110, speed: 3.6, damage: 24, range: 1.5, wind: .75, recover: .8, radius: .45, scale: 1.05, blink: { min: 5, max: 12, cd: 5, behind: 1.7, extra: .3 }, immune: ['bleed', 'poison'] },
     // кто водится в области (по ближайшей зоне карты); третий элемент 'night' — только ночью; остальное — бесы и рогачи по brutePart
     regions: {
-      graveyard: [['ghoul', 6], ['imp', 2], ['brute', 1], ['witch', 1], ['lunger', 2], ['shade', 3, 'night'], ['ghoul', 3, null, 'patrol'], ['lunger', 1, null, 'guard']],
-      ruins: [['hound', 4], ['brute', 3], ['imp', 2], ['witch', 2], ['bomber', 2], ['brute', 2, null, 'guard'], ['witch', 1, null, 'guard']],
+      graveyard: [['cultist', 3], ['cult_mage', 1], ['ghoul', 6], ['imp', 2], ['brute', 1], ['witch', 1], ['lunger', 2], ['shade', 3, 'night'], ['ghoul', 3, null, 'patrol'], ['lunger', 1, null, 'guard']],
+      ruins: [['cultist', 2], ['bandit', 2], ['hound', 4], ['brute', 3], ['imp', 2], ['witch', 2], ['bomber', 2], ['brute', 2, null, 'guard'], ['witch', 1, null, 'guard']],
       camp: [['hound', 3], ['brute', 4], ['imp', 2], ['archer', 4], ['shield', 3], ['archer', 3, null, 'guard'], ['shield', 2, null, 'patrol'], ['brute', 2, null, 'patrol']],
       farm: [['hound', 3], ['imp', 4], ['ghoul', 1], ['archer', 2], ['bomber', 1], ['imp', 2, null, 'patrol']],
-      bandits: [['archer', 3], ['brute', 3], ['hound', 2], ['shield', 1]],                 // стоянки разбойников и курганы большого мира (G2)
-      barrow: [['ghoul', 4], ['shade', 2], ['lunger', 1]],
-      warcamp: [['archer', 4], ['shield', 3], ['brute', 4], ['hound', 2], ['bomber', 2], ['lunger', 1]],     // вражеские лагеря (2026-10-18)
+      bandits: [['bandit', 5], ['bandit_archer', 4], ['archer', 1], ['brute', 2], ['hound', 1], ['merc', 1]],                 // стоянки разбойников и курганы большого мира (G2)
+      barrow: [['cultist', 2], ['ghoul', 4], ['shade', 2], ['lunger', 1]],
+      warcamp: [['merc', 4], ['bandit_archer', 3], ['bandit', 3], ['archer', 3], ['shield', 2], ['brute', 3], ['hound', 2], ['bomber', 2], ['lunger', 1]],     // вражеские лагеря (2026-10-18)
       city: [['shield', 3], ['brute', 3], ['witch', 2], ['shade', 2], ['lunger', 2], ['archer', 3], ['ghoul', 2]]     // павшие города
     },
     // гарнизоны (G2): опасные места и стоянки большого мира заселяются, когда герой ближе near м (но дальше far — вне экрана);
@@ -1734,11 +1744,11 @@ const BASE = {
       camp: { groups: [4, 6], size: [3, 4], guards: 2, at: .7, spot: 2.5, hear: .4, sight: .7, horn: 1, chest: 'ironchest', respawn: 900 } },
     // кто бродит по биому большого мира вне областей (C3b)
     biomes: {
-      forest: [['imp', 4], ['brute', 4], ['hound', 2]],                       // как вне областей ядра (бесы и рогачи) + приправа биома;
+      forest: [['imp', 4], ['brute', 4], ['hound', 2], ['bandit', 2], ['bandit_archer', 1]],                       // как вне областей ядра (бесы и рогачи) + приправа биома;
       swamp: [['imp', 3], ['brute', 3], ['ghoul', 3], ['shade', 1, 'night']],  // сложные смеси — в опасных местах, как в ядре
-      mountains: [['brute', 5], ['imp', 3], ['shield', 1]],
-      waste: [['imp', 5], ['brute', 3], ['bomber', 1]],
-      coast: [['imp', 4], ['brute', 3], ['archer', 1], ['hound', 1]]
+      mountains: [['brute', 5], ['imp', 3], ['shield', 1], ['bandit', 2]],
+      waste: [['imp', 5], ['brute', 3], ['bomber', 1], ['cultist', 2], ['cult_mage', 1]],
+      coast: [['imp', 4], ['brute', 3], ['archer', 1], ['hound', 1], ['bandit', 1]]
     },
     // кто бродит по зонам Акта II (этап 7) — важнее биома: Мшистые топи, Предгорья, Ржавые пустоши
     zones: {

@@ -1269,3 +1269,13 @@ html[data-land]:not([data-desk]) #loot{left:auto;right:calc(250px + env(safe-are
 html[data-land] #loot .lhead{padding:6px 6px 4px 12px}html[data-land] #loot .lname{font-size:16px}html[data-land] #loot .lclose{width:36px;height:36px}
 html[data-land] #lootList{max-height:calc(100dvh - 150px);padding:4px}html[data-land] #loot .lrow{min-height:46px;gap:10px;padding:4px 6px}html[data-land] #loot .lic{width:38px;height:38px}
 html[data-land] #loot .lfoot{padding:6px 8px 8px}html[data-land] #loot .lall{min-height:40px}
+/* 5.46: раскладка А боком (макет владельца): умения дугой вокруг «Удара» (радиус 150, шаг 62 px), перекат слева от дуги, умение оружия над перекатом; контекстные кнопки и добыча — левее */
+html[data-land]:not([data-desk]) #abil .ab[data-i="0"]{right:calc(185px + env(safe-area-inset-right));bottom:calc(52px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab[data-i="1"]{right:calc(170px + env(safe-area-inset-right));bottom:calc(113px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab[data-i="2"]{right:calc(131px + env(safe-area-inset-right));bottom:calc(162px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab[data-i="3"]{right:calc(76px + env(safe-area-inset-right));bottom:calc(191px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab[data-i="4"]{right:calc(16px + env(safe-area-inset-right));bottom:calc(196px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab.wsk{right:calc(246px + env(safe-area-inset-right));bottom:calc(104px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #bRoll{right:calc(250px + env(safe-area-inset-right));bottom:calc(30px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #actStack{right:calc(330px + env(safe-area-inset-right))}
+html[data-land]:not([data-desk]) #loot{right:calc(330px + env(safe-area-inset-right))}
