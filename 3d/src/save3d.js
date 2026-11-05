@@ -178,7 +178,8 @@ export function loadSaveAny(slots, storage = globalThis.localStorage) {
     try { storage.setItem(BROKEN, main); storage.setItem(KEY, raw); } catch (e) { /* хотя бы загрузимся */ }
     return { save: b, from: 'bak' + (i + 1) };
   }
-  return null;
+  try { storage.setItem(BROKEN, main); } catch (e) { /* без копии */ }     // ни основное, ни копии не открылись: основное откладываем, чтобы новая игра его не затёрла
+  return { save: null, from: 'lost' };
 }
 // имя файла сохранения: berserk3d-save-ГГГГ-ММ-ДД.txt
 export const saveFileName = (d = new Date()) => `berserk3d-save-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.txt`;

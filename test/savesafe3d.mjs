@@ -24,7 +24,7 @@ const slots = 60, KEY = 'berserk3d.save';
   // испорчены основное и bak1 — из bak2
   st.o[KEY] = 'мусор'; st.o[BAK[0]] = 'мусор'; const r2 = loadSaveAny(slots, st); ok(r2 && r2.from === 'bak2' && r2.save.kills === 1, 'не загрузилось из bak2');
   // всё испорчено — новая игра, без падения
-  st.o[KEY] = 'x'; st.o[BAK[0]] = 'x'; st.o[BAK[1]] = 'x'; ok(loadSaveAny(slots, st) === null, 'испорченные копии дали сохранение');
+  st.o[KEY] = 'x'; st.o[BAK[0]] = 'x'; st.o[BAK[1]] = 'x'; { const r3 = loadSaveAny(slots, st); ok(r3 && r3.save === null && r3.from === 'lost', 'потеря сохранения не помечена'); ok(st.o[BROKEN] === 'x', 'неоткрытое основное не отложено в BROKEN'); }
   // нет основного — новая игра, копии не воскрешают сброшенную игру
   delete st.o[KEY]; st.o[BAK[0]] = JSON.stringify({ v: 6 }); ok(loadSaveAny(slots, st) === null, 'после сброса поднялась старая копия'); }
 // целое основное — из него
@@ -41,6 +41,13 @@ const slots = 60, KEY = 'berserk3d.save';
 { ok(saveFileName(new Date(2026, 9, 7)) === 'berserk3d-save-2026-10-07.txt', 'имя файла: ' + saveFileName(new Date(2026, 9, 7)));
   const W = mk(), st = mem(); W.kills = 9; createSaver(W, st).write(true); const code = exportSave(st), st2 = mem();
   ok(code.startsWith('B3D1:') && importSave(code + '\n', slots, st2) === 'ok' && JSON.parse(st2.o[KEY]).kills === 9, 'код из файла не загрузился'); }
+
+
+// старые версии сохранения открываются: v1…v5 получаются из свежего v6 вычёркиванием полей, которые добавила каждая версия
+{ const W = mk(), st = mem(); W.kills = 11; createSaver(W, st).write(true); const base = JSON.parse(st.o[KEY]);
+  for (const v of [1, 2, 3, 4, 5]) { const d = JSON.parse(JSON.stringify(base)); d.v = v; if (v <= 5) delete d.fires; if (v <= 2) { delete d.hero; } if (v <= 1) { delete d.keys; delete d.unlocked; }
+    const s2 = mem(); s2.o[KEY] = JSON.stringify(d); const r = loadSaveAny(slots, s2); ok(r && r.save && r.from === 'main' && r.save.kills === 11, `сохранение версии ${v} не открылось`); }
+  const f = JSON.parse(JSON.stringify(base)); f.v = 99; const s3 = mem(); s3.o[KEY] = JSON.stringify(f); const r4 = loadSaveAny(slots, s3); ok(r4 && r4.save === null && r4.from === 'lost' && s3.o[KEY] === JSON.stringify(f), 'сохранение из будущей версии тронуто или не отложено'); }
 
 if (fails.length) { console.log('savesafe3d FAIL\n' + [...new Set(fails)].join('\n')); process.exit(1); }
 console.log('Защита сохранений 3D: OK');

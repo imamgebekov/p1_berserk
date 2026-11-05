@@ -1279,3 +1279,9 @@ html[data-land]:not([data-desk]) #abil .ab.wsk{right:calc(246px + env(safe-area-
 html[data-land]:not([data-desk]) #bRoll{right:calc(250px + env(safe-area-inset-right));bottom:calc(30px + env(safe-area-inset-bottom))}
 html[data-land]:not([data-desk]) #actStack{right:calc(330px + env(safe-area-inset-right))}
 html[data-land]:not([data-desk]) #loot{right:calc(330px + env(safe-area-inset-right))}
+/* 5.47: боком — окна не уходят под вырез и индикатор «домой»; зона касания у мелких кнопок не меньше 44 px (вид прежний, зона шире на 7 px со всех сторон) */
+html[data-land] #botTalk .pbox,html[data-land] #bag .pbox,html[data-land] #shop .pbox,html[data-land] #auction .pbox,html[data-land] #mail .pbox,html[data-land] #smith .pbox,html[data-land] #lib .pbox,html[data-land] #relic .pbox,html[data-land] #skills .pbox,html[data-land] #map .pbox,html[data-land] #captain .pbox,html[data-land] #journal .pbox,html[data-land] #quests .pbox,html[data-land] #fires .pbox{padding:6px max(14px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+html[data-land] #heroGo{left:max(14px,env(safe-area-inset-left))}
+html[data-land] :is(.tab,.tchip,.tbsb,.tsort,.close,.jbtn,.legtg,#actStack>*,#actSide>*){position:relative}
+html[data-land] :is(.tab,.tchip,.tbsb,.tsort,.close,.jbtn,.legtg,.reset,#actStack>*,#actSide>*)::after{content:'';position:absolute;inset:-7px}
+html[data-land] :is(.tabs,.tchips,.tbsw){padding-block:6px;margin-block:-6px}     /* строка вкладок обрезает ::after по краю: даём ей запас, лишнюю высоту снимаем отрицательным отступом */
