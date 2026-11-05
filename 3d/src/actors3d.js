@@ -150,8 +150,20 @@ export function loadActor(key, kit) {
   lib.set(key, p); return p;
 }
 export const actorReady = key => { const v = lib.get(key); return v && !(v instanceof Promise) ? v : null; };
-export function preloadActors(cfg) { const A = cfg.actors; if (!A || !A.on) return; const now = new Set([...Object.values(A.heroes || {}), ...Object.values(A.npcs || {}), ...Object.values(A.beasts || {}), ...Object.values(A.squad || {}).map(s => s && s.kit)]); for (const [k, kit] of Object.entries(A.kits)) if (now.has(k)) loadActor(k, kit); loadKkWeapons(); }     // 2026-10-28: сразу — герои, жители, отряд, звери; враги и боссы — когда появились рядом (needActor)
-export const needActor = (cfg, key) => { if (key && !lib.has(key) && cfg.actors.kits[key]) loadActor(key, cfg.actors.kits[key]); };
+export function preloadActors(cfg) { const A = cfg.actors; if (!A || !A.on) return; const now = new Set([...Object.values(A.heroes || {}), ...Object.values(A.npcs || {}), ...Object.values(A.beasts || {}), ...Object.values(A.squad || {}).map(s => s && s.kit)]); for (const [k, kit] of Object.entries(A.kits)) if (now.has(k)) loadActor(k, kit); loadKkWeapons(); startTrim(cfg); }     // 2026-10-28: сразу — герои, жители, отряд, звери; враги и боссы — когда появились рядом (needActor)
+export const needActor = (cfg, key) => { if (key && !lib.has(key) && cfg.actors.kits[key]) { const v = loadActor(key, cfg.actors.kits[key]); if (v && !(v instanceof Promise)) v.last = performance.now(); } };
+// выгрузка давно не нужных моделей врагов и боссов (2026-11-05, загрузка по кольцам): сверх cap штук без живых экземпляров дольше idle секунд — геометрия и текстуры освобождаются; появится враг — загрузится снова
+let keepSet = null, trimT = null;
+export function trimActors(cfg, now = performance.now()) {
+  const K = cfg.actors && cfg.actors.keep; if (!K || !K.on) return 0;
+  if (!keepSet) keepSet = new Set([...Object.values(cfg.actors.heroes || {}), ...Object.values(cfg.actors.npcs || {}), ...Object.values(cfg.actors.beasts || {}), ...Object.values(cfg.actors.squad || {}).map(x => x && x.kit)]);
+  const cand = []; let n = 0;
+  for (const [k, v] of lib) { if (!v || v instanceof Promise) continue; n++; if (!keepSet.has(k) && !(v.refs > 0) && now - (v.last || 0) > K.idle * 1000) cand.push([k, v]); }
+  cand.sort((a, b) => a[1].last - b[1].last); let out = 0;
+  for (const [k, v] of cand) { if (n - out <= K.cap) break; v.scene.traverse(o => { if (!o.isMesh) return; if (o.geometry) o.geometry.dispose(); for (const m of [].concat(o.material || [])) { if (m.map) m.map.dispose(); if (m.emissiveMap) m.emissiveMap.dispose(); m.dispose(); } }); lib.delete(k); out++; }
+  return out;
+}
+export function startTrim(cfg) { if (trimT || !cfg.actors || !cfg.actors.keep || !cfg.actors.keep.on) return; trimT = setInterval(() => trimActors(cfg), 5000); if (trimT.unref) trimT.unref(); }
 let kwP = null;     // оружие KayKit (путь А): грузится один раз, потом руки моделей KayKit берут его
 export function loadKkWeapons() { if (kwP) return kwP; const u = urlOf('kk_weapons'); if (!u || OFF) return (kwP = Promise.resolve(null));
   return (kwP = ld().loadAsync(u).then(g => { const out = {}; g.scene.traverse(o => { if (o.isMesh) out[o.name] = o.geometry; }); setKkWeapons(out); return out; }).catch(e => { console.warn('оружие KayKit не загрузилось:', e && e.message); return null; })); }
@@ -189,7 +201,7 @@ export function mwShield(id, form) { if (mwState(id) !== 'ready') return null; c
 const byName = (o, n) => o.getObjectByName(n) || o.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(n));     // загрузчик убирает точки из имён (handslot.r → handslotr)
 export function makeActor(key, kit, kind = 'actor') {
   const src = actorReady(key); if (!src) return null;
-  const obj = cloneSkinned(src.scene), g = new THREE.Group(), root = new THREE.Group(); g.add(root); root.add(obj); g.userData.actor = key;     // для тестов: какая модель
+  const obj = cloneSkinned(src.scene), g = new THREE.Group(), root = new THREE.Group(); g.add(root); root.add(obj); g.userData.actor = key; src.refs = (src.refs || 0) + 1; src.last = performance.now();     // для тестов: какая модель
   const s = kit.height / src.h; obj.scale.setScalar(s); obj.position.y = -src.minY * s; if (kit.yaw) obj.rotation.y = kit.yaw;
   const mats = []; obj.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); mats.push(o.material); if (kit.tint) o.material.color.multiply(new THREE.Color(kit.tint)); } });
   for (const n of kit.hide || []) { const o = byName(obj, n); if (o) o.visible = false; }
@@ -335,7 +347,7 @@ export function driveAlly(A, en, a, T, dt, cfg) {     // спутник на г�
   pp.atkT = a.state === 'wind' ? AT * .5 * Math.min(1, a.t / T.wind) : AT * (.5 + .5 * Math.min(1, a.t / T.recover));
   A.flash(a.flash > 0 ? .8 : 0); driveHero(A, pp, dt, cfg);
 }
-export function disposeActor(A) { if (!A) return; A.mixer.stopAllAction(); A.mixer.uncacheRoot(A.obj); for (const m of A.mats) m.dispose(); }
+export function disposeActor(A) { if (!A) return; const sv = A.obj && A.group && A.group.userData.actor && lib.get(A.group.userData.actor); if (sv && !(sv instanceof Promise)) { sv.refs = Math.max(0, (sv.refs || 0) - 1); sv.last = performance.now(); } A.mixer.stopAllAction(); A.mixer.uncacheRoot(A.obj); for (const m of A.mats) m.dispose(); }
 // ключ готовой модели героя (hero) или врага (foe) по виду; null — модели нет или готовые модели выключены
 export function actorKey(cfg, kind, id) {
   const A = cfg.actors; if (!A || !A.on || OFF) return null;
