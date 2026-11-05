@@ -70,8 +70,10 @@ const $ = id => document.getElementById(id);
 applyIcons(document);     // иконки-силуэты вместо эмодзи в кнопках разметки (шаг 10)
 $('keysMore').addEventListener('click', () => menuSec('keys'));     // все клавиши по «?» — раздел «Управление»
 const defaults = JSON.parse(JSON.stringify(CFG3));
-if (new URLSearchParams(location.search).get('style') === 'dark') {     // ?style=dark — проба «мрачного» вида (2026-11-05): текстуры земли ambientCG (CC0), серый туман, холодный свет
+if (new URLSearchParams(location.search).get('style') !== 'bright') {     // мрачный вид по умолчанию (2026-11-05, просьба владельца): текстуры земли ambientCG (CC0), серый туман, холодный свет, тусклая листва; ?style=bright — прежний яркий
   const S = CFG3.daynight.sky, G = CFG3.groundTex; G.dark = true; G.gain = 1.9; G.tint = .22;
+  const dim = (h, k, sat) => { const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), g = (v[0] + v[1] + v[2]) / 3; return '#' + v.map(x => Math.max(0, Math.min(255, Math.round((g + (x - g) * sat) * k))).toString(16).padStart(2, '0')).join(''); }, walk = (o) => { if (!o || typeof o !== 'object') return; for (const k of Object.keys(o)) { if ((k === 'leaf' || k === 'ground') && Array.isArray(o[k]) && typeof o[k][0] === 'string') o[k] = o[k].map(h => dim(h, .8, .7)); else walk(o[k]); } };     // листва и земля биомов — темнее и бледнее
+  walk(CFG3.look); walk(CFG3.worldgen);
   Object.assign(S.day, { fog: '#6f7468', hemiSky: '#aab4b0', hemiGround: '#343a2a', hemiI: 1.15, sun: '#e6d6b8', sunI: 2.5 }); Object.assign(S.night, { fog: '#12161f', hemiI: 1.5, sunI: .55 }); CFG3.view.fogDensity = .03;
 }
 if (new URLSearchParams(location.search).get('mh') !== '0') Object.assign(CFG3.actors.heroes, CFG3.actors.heroesMh);     // герои из Meshy по умолчанию; ?mh=0 — прежние KayKit (сравнение)

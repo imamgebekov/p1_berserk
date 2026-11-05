@@ -391,12 +391,31 @@ export function pushBlob(list, kind, sx, sy, sz, x, y, z, rx, ry, rz, color) {
   const n = geo.attributes.position.count; paint(geo, color); geo.setIndex([...Array(n).keys()]);     // с индексом — сливается с кубиками
   list.push(geo);
 }
+
+// листья-карточки (2026-11-05, просьба владельца: «листва — как листья, а не кубики»): остроконечный ромб с двух сторон (4 треугольника),
+// ставится на поверхность кроны, смотрит наружу со случайным креном; сама крона сжимается к центру и служит тёмным «телом»
+const LK = () => (CFG3.look && CFG3.look.leaves) || null, TS = () => (CFG3.look && CFG3.look.treeScale) || 1;
+const LV = { n: 0, pos: [], nor: [], col: [], sw: [], idx: [] }, _t1 = new THREE.Vector3(), _t2 = new THREE.Vector3(), _n = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _c = new THREE.Color();
+function leafBegin() { LV.n = 0; LV.pos.length = LV.nor.length = LV.col.length = LV.sw.length = LV.idx.length = 0; }
+function leafAdd(rnd, x, y, z, nx, ny, nz, len, wid, color, y0, h, sway) {
+  _n.set(nx, ny, nz).normalize(); _t1.crossVectors(_n, Math.abs(_n.y) > .9 ? new THREE.Vector3(1, 0, 0) : _up).normalize(); _t2.crossVectors(_n, _t1);
+  const a = rnd() * 6.2832, ca = Math.cos(a), sa = Math.sin(a), ux = _t1.x * ca + _t2.x * sa, uy = _t1.y * ca + _t2.y * sa, uz = _t1.z * ca + _t2.z * sa, vx = -_t1.x * sa + _t2.x * ca, vy = -_t1.y * sa + _t2.y * ca, vz = -_t1.z * sa + _t2.z * ca, d = len * .22;     // u — вдоль листа, v — поперёк; кончик чуть провисает
+  const P = [[x, y, z], [x + ux * len * .42 + vx * wid / 2, y + uy * len * .42 + vy * wid / 2, z + uz * len * .42 + vz * wid / 2], [x + ux * len, y + uy * len - d, z + uz * len], [x + ux * len * .42 - vx * wid / 2, y + uy * len * .42 - vy * wid / 2, z + uz * len * .42 - vz * wid / 2]], K = [.7, .95, 1.2, .95];
+  _c.set(color); const vr = .82 + rnd() * .36; _c.multiplyScalar(vr); const b = LV.n;
+  for (let i = 0; i < 4; i++) { LV.pos.push(...P[i]); LV.nor.push(_n.x, _n.y, _n.z); LV.col.push(_c.r * K[i], _c.g * K[i], _c.b * K[i]); LV.sw.push(Math.max(0, Math.min(sway, (P[i][1] - y0) / (h + 1)))); }
+  for (let i = 0; i < 4; i++) { LV.pos.push(...P[i]); LV.nor.push(-_n.x, -_n.y, -_n.z); LV.col.push(_c.r * K[i] * .85, _c.g * K[i] * .85, _c.b * K[i] * .85); LV.sw.push(LV.sw[LV.sw.length - 4]); }
+  LV.idx.push(b, b + 1, b + 3, b + 1, b + 2, b + 3, b + 4, b + 7, b + 5, b + 5, b + 7, b + 6); LV.n += 8;
+}
+function leafEnd(list) {
+  if (!LV.n) return; const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(LV.pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(LV.nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(LV.col, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(LV.n * 2), 2)); g.setAttribute('sway', new THREE.Float32BufferAttribute(LV.sw, 1)); g.setIndex(LV.idx); list.push(g);
+}
 // готовая природа (2026-10-20, выбор владельца: KayKit Forest и Halloween Bits): деревья, сухие и мёртвые деревья, кусты, камни.
 // Цвет запечён в вершины (nature.glb); листва перекрашивается в зелень палитры (look.leaf), камень — в look.rock. Пока не загружено — свои формы
 let NAT = null;
 export function setNature(lib) { NAT = lib; }
 const LEAFC = new THREE.Color(), TMPC = new THREE.Color();
-function pushNat(list, geo, x, y, z, s, ry, look, sway, kind) {
+function pushNat(list, geo, x, y, z, s, ry, look, sway, kind, rnd) {
   const g = geo.clone(); tmpE.set(0, ry, 0); tmpQ.setFromEuler(tmpE); tmpP.set(x, y, z); tmpS.set(s, s, s); tmpM.compose(tmpP, tmpQ, tmpS); g.applyMatrix4(tmpM);
   const c = g.attributes.color, p = g.attributes.position, h = geo.userData.h * s || 1, sw = new Float32Array(p.count);
   if (look) for (let i = 0; i < c.count; i++) {
@@ -405,12 +424,34 @@ function pushNat(list, geo, x, y, z, s, ry, look, sway, kind) {
     else if (gg > r * 1.1 && gg > b) { LEAFC.set(look.leaf[(i >> 4) % look.leaf.length]); const k = .55 + lum * 2.4; c.setXYZ(i, LEAFC.r * k, LEAFC.g * k, LEAFC.b * k); }     // листва — зелень палитры, яркость — своя
   }
   for (let i = 0; i < p.count; i++) sw[i] = Math.max(0, Math.min(sway, (p.getY(i) - y) / (h + 1)));
+  const LKc = (kind === 'tree' || kind === 'bush') && look && rnd ? LK() : null;
+  if (LKc && LKc.on) {     // листья-карточки: крона сжимается к центру (тело), на её поверхность садятся листья; сэмпл — по площади треугольников
+    const ix = g.index.array, leafV = new Uint8Array(p.count); let cx = 0, cy = 0, cz = 0, cn = 0;
+    for (let i = 0; i < c.count; i++) { const r = geo.attributes.color.getX(i), gg = geo.attributes.color.getY(i), b = geo.attributes.color.getZ(i); if (gg > r * 1.1 && gg > b) { leafV[i] = 1; cx += p.getX(i); cy += p.getY(i); cz += p.getZ(i); cn++; } }
+    if (cn > 12) { cx /= cn; cy /= cn; cz /= cn; const tri = [], T = new THREE.Vector3(), A = new THREE.Vector3(), B = new THREE.Vector3(), Cc = new THREE.Vector3(); let tot = 0;
+      for (let t = 0; t < ix.length; t += 3) if (leafV[ix[t]] && leafV[ix[t + 1]] && leafV[ix[t + 2]]) { A.fromBufferAttribute(p, ix[t]); B.fromBufferAttribute(p, ix[t + 1]); Cc.fromBufferAttribute(p, ix[t + 2]); T.crossVectors(B.clone().sub(A), Cc.clone().sub(A)); const ar = T.length() / 2; if (ar > 1e-5) { tot += ar; tri.push([t, tot, T.normalize().clone()]); } }
+      const n = Math.round(LKc.n * (kind === 'bush' ? .3 : 1) * (.75 + rnd() * .5));
+      leafBegin();
+      for (let k = 0; k < n && tri.length; k++) { const r0 = rnd() * tot; let lo = 0, hi = tri.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (tri[m][1] < r0) lo = m + 1; else hi = m; } const [t, , N] = tri[lo];
+        A.fromBufferAttribute(p, ix[t]); B.fromBufferAttribute(p, ix[t + 1]); Cc.fromBufferAttribute(p, ix[t + 2]); let u = rnd(), v = rnd(); if (u + v > 1) { u = 1 - u; v = 1 - v; }
+        const px = A.x + (B.x - A.x) * u + (Cc.x - A.x) * v, py = A.y + (B.y - A.y) * u + (Cc.y - A.y) * v, pz = A.z + (B.z - A.z) * u + (Cc.z - A.z) * v, ox = px - cx, oy = py - cy, oz = pz - cz, ol = Math.hypot(ox, oy, oz) || 1;
+        const nx = N.x * .5 + ox / ol * .5 + (rnd() - .5) * .5, ny = N.y * .5 + oy / ol * .5 + (rnd() - .5) * .5 + .15, nz = N.z * .5 + oz / ol * .5 + (rnd() - .5) * .5, sz = .75 + rnd() * .6;
+        leafAdd(rnd, px, py, pz, nx, ny, nz, LKc.len * sz, LKc.wid * sz, look.leaf[(rnd() * look.leaf.length) | 0], y, h, sway); }
+      for (let i = 0; i < p.count; i++) if (leafV[i]) { p.setXYZ(i, cx + (p.getX(i) - cx) * LKc.core, cy + (p.getY(i) - cy) * LKc.core, cz + (p.getZ(i) - cz) * LKc.core); }
+      g.setAttribute('sway', new THREE.BufferAttribute(sw, 1)); list.push(g); leafEnd(list); return; } }
   g.setAttribute('sway', new THREE.BufferAttribute(sw, 1)); list.push(g);
+}
+
+function leafShell(list, rnd, cx, cy, cz, rx, ry, rz, look, h, sway, n) {
+  const LKc = LK(); if (!LKc || !LKc.on) return; leafBegin();
+  for (let k = 0; k < n; k++) { let dx = rnd() * 2 - 1, dy = rnd() * 2 - .6, dz = rnd() * 2 - 1; const l = Math.hypot(dx, dy, dz) || 1; dx /= l; dy /= l; dz /= l; const sz = .75 + rnd() * .6;
+    leafAdd(rnd, cx + dx * rx, cy + dy * ry, cz + dz * rz, dx + (rnd() - .5) * .4, dy + .15, dz + (rnd() - .5) * .4, LKc.len * sz, LKc.wid * sz, look.leaf[(rnd() * look.leaf.length) | 0], 0, h, sway); }
+  leafEnd(list);
 }
 const pickN = (rnd, a) => a[(rnd() * a.length) | 0];
 export function addTree(list, rnd, x, z, look = null) {
-  if (NAT && look) { const bare = rnd() < look.bare, set = bare ? (rnd() < .5 ? NAT.dead : NAT.bare) : NAT.tree, geo = pickN(rnd, set), h = 3.2 + rnd() * 2.6; pushNat(list, geo, x, 0, z, h / geo.userData.h, rnd() * 6.283, look, 1, 'tree'); return; }
-  const k0 = list.length, h = 2.6 + rnd() * 2.2, col = look ? look.trunk[rnd() < .5 ? 0 : 1] : rnd() < .5 ? '#1a1210' : '#221813';
+  if (NAT && look) { const bare = rnd() < look.bare, set = bare ? (rnd() < .5 ? NAT.dead : NAT.bare) : NAT.tree, geo = pickN(rnd, set), h = (3.2 + rnd() * 2.6) * TS(); pushNat(list, geo, x, 0, z, h / geo.userData.h, rnd() * 6.283, look, 1, 'tree', rnd); return; }
+  const k0 = list.length, h = (2.6 + rnd() * 2.2) * (look ? TS() : 1), col = look ? look.trunk[rnd() < .5 ? 0 : 1] : rnd() < .5 ? '#1a1210' : '#221813';
   pushBox(list, .36, h, .36, x, h / 2, z, 0, 0, (rnd() - .5) * .15, col);
   const n = 2 + (rnd() * 3 | 0);
   for (let i = 0; i < n; i++) {
@@ -419,13 +460,13 @@ export function addTree(list, rnd, x, z, look = null) {
   }
   if (look && rnd() >= look.bare) {                        // крона: 3–5 зелёных кубов у макушки
     const m = 3 + (rnd() * 3 | 0);
-    for (let i = 0; i < m; i++) { const s = (1.1 + rnd() * 1.1) * .62, a = rnd() * Math.PI * 2, r = i ? .5 + rnd() * .7 : 0; pushBlob(list, 'ico', s, s * .85, s, x + Math.cos(a) * r, h + (i ? -.3 - rnd() * .6 : .2), z + Math.sin(a) * r, rnd() * .3, rnd() * 3, rnd() * .3, look.leaf[(rnd() * look.leaf.length) | 0]); }     // округлая крона
+    for (let i = 0; i < m; i++) { const s = (1.1 + rnd() * 1.1) * .62 * TS(), a = rnd() * Math.PI * 2, r = i ? (.5 + rnd() * .7) * TS() : 0, by = h + (i ? (-.3 - rnd() * .6) : .2), bx = x + Math.cos(a) * r, bz = z + Math.sin(a) * r; pushBlob(list, 'ico', s * (LK() && LK().on ? LK().core : 1), s * .85 * (LK() && LK().on ? LK().core : 1), s * (LK() && LK().on ? LK().core : 1), bx, by, bz, rnd() * .3, rnd() * 3, rnd() * .3, look.leaf[(rnd() * look.leaf.length) | 0]); leafShell(list, rnd, bx, by, bz, s, s * .85, s, look, h, 1, 22); }     // округлая крона
   }
   if (look) for (let k = k0; k < list.length; k++) { const p = list[k].attributes.position, sw = new Float32Array(p.count); for (let i = 0; i < p.count; i++) sw[i] = Math.max(0, Math.min(1, p.getY(i) / (h + 1))); list[k].setAttribute('sway', new THREE.BufferAttribute(sw, 1)); }     // F2: доля качания по высоте
 }
 // куст (зелень, 2026-10-17): 2–3 округлых куска листвы у земли размером около s м; качается слабее кроны
 export function addBush(list, rnd, x, z, s, look) {
-  if (NAT && look) { const geo = pickN(rnd, NAT.bush); pushNat(list, geo, x, 0, z, s * 1.6 / Math.max(.3, geo.userData.h), rnd() * 6.283, look, .45, 'bush'); return; }
+  if (NAT && look) { const geo = pickN(rnd, NAT.bush); pushNat(list, geo, x, 0, z, s * 1.6 / Math.max(.3, geo.userData.h), rnd() * 6.283, look, .45, 'bush', rnd); return; }
   const k0 = list.length, n = 2 + (rnd() * 2 | 0);
   for (let i = 0; i < n; i++) { const q = s * (.55 + rnd() * .45), a = rnd() * Math.PI * 2, r = i ? s * (.35 + rnd() * .3) : 0; pushBlob(list, 'ico', q, q * .8, q, x + Math.cos(a) * r, q * .62, z + Math.sin(a) * r, rnd() * .3, rnd() * 3, rnd() * .3, look.leaf[(rnd() * look.leaf.length) | 0]); }
   for (let k = k0; k < list.length; k++) { const p = list[k].attributes.position, sw = new Float32Array(p.count); for (let i = 0; i < p.count; i++) sw[i] = Math.max(0, Math.min(.45, p.getY(i) / (s * 3))); list[k].setAttribute('sway', new THREE.BufferAttribute(sw, 1)); }

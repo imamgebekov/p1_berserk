@@ -301,7 +301,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   for (const b of map.buildings) if (b.npc) { const n = makeNpc(b.npc.kind); n.group.position.set(b.npc.x, 0, b.npc.z); n.pos = b.npc; n.mark = new THREE.Mesh(new THREE.OctahedronGeometry(.22), new THREE.MeshBasicMaterial({ color: '#e8c04a' })); n.mark.position.set(0, 2.6, 0); n.mark.visible = false; n.group.add(n.mark); scene.add(n.group); npcs.push(n); }
 
   // ветер (F2): общие uniform для шейдеров крон и травы; смещение — после всех преобразований, по миру (одно направление)
-  const WC = cfg.wind, WU = { uTime: { value: 0 }, uWind: { value: 0 }, uDir: { value: new THREE.Vector2(0, 1) } };
+  const WC = cfg.wind, WU = { uTime: { value: 0 }, uWind: { value: 0 }, uDir: { value: new THREE.Vector2(0, 1) } }, PUSH_N = 12, PU = { uPush: { value: Array.from({ length: PUSH_N }, () => new THREE.Vector3(0, 0, 0)) } }, grassTrail = [];     // трава-лапша (2026-11-05): герой, его шлейф и ближние бойцы приминают траву; uPush — x, z, сила
   const TREE_PV = `vec4 mvPosition = vec4( transformed, 1.0 );
   { float k = sway; vec2 wp = mvPosition.xz;
     float sw = uWind * uAmp * k * k * ( 0.55 + 0.45 * sin( uTime * ( 1.1 + uWind * 1.6 ) + wp.x * .21 + wp.y * .17 ) );
@@ -316,14 +316,15 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   #endif
   { float k = clamp( position.y / uH, 0., 1. ); vec2 wp = mvPosition.xz;
     float sw = uWind * uAmp * k * k * ( 0.5 + 0.5 * sin( uTime * ( 1.6 + uWind * 2.4 ) + wp.x * .35 + wp.y * .27 ) );
-    mvPosition.xz += uDir * sw; }
+    mvPosition.xz += uDir * sw;
+    for ( int i = 0; i < 12; i ++ ) { vec3 q = uPush[ i ]; vec2 d = wp - q.xy; float L = length( d ) + .001; float f = q.z * ( 1. - smoothstep( .15, 1.5, L ) ); mvPosition.xz += d / L * f * k * 1.1; mvPosition.y -= f * k * uH * .35; } }
   mvPosition = modelViewMatrix * mvPosition;
   gl_Position = projectionMatrix * mvPosition;`;
   const LS = cfg.shaders && cfg.shaders.leaf, LeU = { uDayL: { value: 1 } };
   const windy = (mat, kind) => {
     mat.onBeforeCompile = sh => {
-      Object.assign(sh.uniforms, WU, { uAmp: { value: kind === 'tree' ? WC.sway.tree : WC.sway.grass }, uLeaf: { value: WC.sway.leaf }, uH: { value: WC.grass.h } });
-      sh.vertexShader = (kind === 'tree' ? 'attribute float sway; varying vec3 vWP;\n' : '') + 'uniform float uTime, uWind, uAmp, uLeaf, uH; uniform vec2 uDir;\n' + sh.vertexShader.replace('#include <project_vertex>', kind === 'tree' ? TREE_PV : GRASS_PV);
+      Object.assign(sh.uniforms, WU, kind === 'grass' ? PU : {}, { uAmp: { value: kind === 'tree' ? WC.sway.tree : WC.sway.grass }, uLeaf: { value: WC.sway.leaf }, uH: { value: WC.grass.h } });
+      sh.vertexShader = (kind === 'tree' ? 'attribute float sway; varying vec3 vWP;\n' : '') + 'uniform float uTime, uWind, uAmp, uLeaf, uH; uniform vec2 uDir;' + (kind === 'grass' ? ' uniform vec3 uPush[12];' : '') + '\n' + sh.vertexShader.replace('#include <project_vertex>', kind === 'tree' ? TREE_PV : GRASS_PV);
       if (kind === 'tree' && LS && LS.on) {                                       // листва (V2b): пятна цвета, прогретые участки, мягкий просвет
         Object.assign(sh.uniforms, LeU, { uVary: { value: LS.vary }, uLit: { value: LS.lit } });
         sh.fragmentShader = 'uniform float uVary, uLit, uDayL; varying vec3 vWP;\nfloat lh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat lvn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(lh(i), lh(i + vec2(1., 0.)), f.x), mix(lh(i + vec2(0., 1.)), lh(i + vec2(1., 1.)), f.x), f.y); }\n' + sh.fragmentShader
@@ -362,9 +363,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // трава (F2): пучок из трёх травинок; строится по участкам вокруг героя, качается по ветру
   const flowerMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const grassOn = !!(WC && WC.on && WC.grass.on), grassMat = grassOn ? windy(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'grass') : null;
-  const grassGeo = (() => { const H = WC ? WC.grass.h : .7, v = [], col = [], dark = new THREE.Color(cfg.look.leaf[1]), tip = new THREE.Color(cfg.look.leaf[2]).multiplyScalar(1.6);
-    for (let b = 0; b < 3; b++) { const a = b * Math.PI / 3, c = Math.cos(a), s = Math.sin(a), lean = (b - 1) * .08;
-      v.push(-.11 * c, 0, -.11 * s, .11 * c, 0, .11 * s, lean * s, H * (.8 + b * .12), lean * c); col.push(dark.r, dark.g, dark.b, dark.r, dark.g, dark.b, tip.r, tip.g, tip.b); }
+  const grassGeo = (() => { const H = WC ? WC.grass.h : .7, v = [], col = [], dark = new THREE.Color(cfg.look.leaf[1]).multiplyScalar(.95), tip = new THREE.Color(cfg.look.leaf[2]).multiplyScalar(2), mid = dark.clone().lerp(tip, .5), W0 = .05;     // «лапша»: три тонкие изогнутые травинки, у каждой основание-четырёхугольник и кончик-треугольник, разные наклон и высота
+    for (let b = 0; b < 2; b++) { const a = b * 2.1 + .4, c = Math.cos(a), s = Math.sin(a), bx = (b - 1) * .09 * s, bz = (b - 1) * .09 * c, hh = H * (.8 + b * .25), lean = .24 + b * .1, lx = -s * lean, lz = c * lean;     // lean — сторона изгиба
+      const P = [[-W0 * c + bx, 0, -W0 * s + bz], [W0 * c + bx, 0, W0 * s + bz], [-W0 * .6 * c + bx + lx * .5, hh * .55, -W0 * .6 * s + bz + lz * .5], [W0 * .6 * c + bx + lx * .5, hh * .55, W0 * .6 * s + bz + lz * .5], [bx + lx * 1.4, hh, bz + lz * 1.4]], C = [dark, dark, mid, mid, tip];
+      for (const t of [[0, 1, 2], [1, 3, 2], [2, 3, 4]]) for (const k of t) { v.push(...P[k]); col.push(C[k].r, C[k].g, C[k].b); } }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.computeVertexNormals(); return geo; })();
   // участок земли: холмы, пятна света, деревья и камни, трава (траву — кусками 16 м, чтобы отсекалась вне кадра)
   const land = new THREE.Group(), liveLand = new Map(), allSegs = pathSegs(map); scene.add(land);
@@ -1342,6 +1344,13 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     }
     W.ev.length = 0;
     // частицы
+    if (WC && WC.on && !under) {     // примятая трава: герой (сила 1), шлейф за ним (гаснет за 1,8 с), ближние враги и союзники
+      const P0 = PU.uPush.value, pl = W.player; let n = 0; P0[n++].set(pl.x, pl.z, 1);
+      const lt = grassTrail.length ? grassTrail[grassTrail.length - 1] : null; if (!lt || t - lt.t > .14) { if (!lt || Math.hypot(lt.x - pl.x, lt.z - pl.z) > .35) grassTrail.push({ x: pl.x, z: pl.z, t }); if (grassTrail.length > 24) grassTrail.shift(); }
+      for (let i = grassTrail.length - 1; i >= 0 && n < 7; i--) { const q = grassTrail[i], f = 1 - (t - q.t) / 1.8; if (f > 0 && Math.hypot(q.x - pl.x, q.z - pl.z) > .6) P0[n++].set(q.x, q.z, f * .8); }
+      const near = []; for (const a of W.enemies) if (!a.dead && Math.abs(a.x - pl.x) < 18 && Math.abs(a.z - pl.z) < 18) near.push(a); for (const a of W.allies || []) if (!a.dead) near.push(a);
+      near.sort((a, b) => Math.hypot(a.x - pl.x, a.z - pl.z) - Math.hypot(b.x - pl.x, b.z - pl.z)); for (const a of near) { if (n >= PUSH_N) break; P0[n++].set(a.x, a.z, .9); }
+      while (n < PUSH_N) P0[n++].set(0, 0, 0); }
     if (WC && WC.on) { windNow = windAt(t, WC, cfg.world.seed); WU.uTime.value = t; WU.uWind.value = calm ? 0 : windNow.s; WU.uDir.value.set(windNow.dir[0], windNow.dir[1]); }     // ветер: «Уменьшить движение» — всё стоит
     if (field && !under) {                                           // свет сквозь облака: плывёт по ветру, днём тёплый, ночью лунный
       const tt = calm ? 0 : t, L = W.light, rep = 500 / SL.size;

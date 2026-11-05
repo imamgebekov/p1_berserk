@@ -1422,7 +1422,7 @@ const BASE = {
       gen_hand_womb: { height: 2.6, rigid: { moveAt: .3, stepHz: 1.3, bob: .1, sway: .08, lean: .05, breatheHz: .35, breathe: .04 } },
       mf_golem: { height: 2.1, hot: { min: 170, warm: 90, k: .8, color: '#ffa040' }, rig: true },     // модели сообщества Meshy (2026-10-29, tools/meshy-import.mjs; авторы — CREDITS.tsv): без скелета, движение — rigid
       mf_gatewarden: { height: 2.35, rig: true },
-      mf_feeder: { height: 2.3, rigid: { moveAt: .3, stepHz: 1.5, bob: .08, sway: .06, lean: .05, breatheHz: .35, breathe: .025 } },
+      mf_feeder: { height: 2.3, rig: true },
       mf_ash_thief: { height: 1.8, rig: true },
       mf_devourer: { height: 1.9, rig: 'quad' },
       mf_demon_guard: { height: 2.3, rig: true },
@@ -1430,7 +1430,7 @@ const BASE = {
       mf_voidwarden: { height: 2.3, rig: true },
       mf_hand_lord: { height: 2.3, rig: true },
       mf_hagmother: { height: 2.1, rig: true },
-      mf_leviathan: { height: 2.0, rigid: { moveAt: .3, stepHz: 1.5, bob: .08, sway: .06, lean: .05, breatheHz: .35, breathe: .025 } },
+      mf_leviathan: { height: 2.0, rig: 'dragon' },
       mf_tidewyrm: { height: 2.0, rig: 'quad' },
       mf_troll: { height: 2.1, rig: true },
       mf_saltwarden: { height: 2.1, rig: true },
@@ -1439,8 +1439,8 @@ const BASE = {
       mf_brute: { height: 2.2, rig: true },
       mf_sapper: { height: 2.3, rig: true },
       mf_riftheart: { height: 2.2, rig: true },
-      mf_hand_net: { height: 2.4, rigid: { moveAt: .3, stepHz: 1.5, bob: .08, sway: .06, lean: .05, breatheHz: .35, breathe: .025 } },
-      mf_swarm: { height: 2.0, rigid: { moveAt: .3, stepHz: 1.5, bob: .08, sway: .06, lean: .05, breatheHz: .35, breathe: .025 } },
+      mf_hand_net: { height: 2.4, rig: 'spider' },
+      mf_swarm: { height: 2.0, rig: 'spider' },
       mf_armorer: { height: 2.35, rig: true },
       mf_cinderpriest: { height: 2.2, rig: true },
       kb_mossbeast: { src: 'q_yeti', height: 2.3, atk: 'a1', mats: { Yeti_Main: '#55703a', Yeti_Secondary: '#5a4030', Yeti_Teeth: '#e6dcc0', Tongue: '#3a2020', Eye_White: '#2a1a04' }, glow: { Eye_White: '#f0b030' },     // боссы-пилот, сборка из частей (2026-10-22): основа + перекраска + детали на костях (attach)
@@ -1514,6 +1514,7 @@ const BASE = {
   // палитра поверхности (E2): трава вместо пепла, деревья с кронами (bare — доля сухих), камни, небо (верх и горизонт)
   look: {
     town: { on: true, slate: '#3c4658', stone: .35, cool: [.97, 1, 1.04], roofK: [.18, 1.15], keep: ['market_red', 'tent'] },     // 4.09 «Камень и знамёна»: красные крыши KayKit — в сланец, стены — к серому камню (stone — доля серого); roofK — опорная яркость крыши и предел; keep — не трогать
+    treeScale: 1.6, leaves: { on: true, n: 55, len: .6, wid: .34, core: .82 },     // деревья крупнее в 1,6 раза (2026-11-05); листья-карточки: n на дерево, размер м, core — во сколько сжата тёмная основа кроны
     ground: ['#2c4222', '#35502a', '#4c6c34'], sand: '#a08e5e',
     trunk: ['#3a2a1c', '#4a3524'], leaf: ['#2e5a28', '#3a6a2e', '#4a7a36'], bare: .2,
     rock: ['#5e5c54', '#6c6a60'], skyTop: '#2e4a6a', skyHor: '#c8c098',
@@ -1530,7 +1531,7 @@ const BASE = {
   // направление dirDeg ± dirWander/2; качание крон (tree), дрожь листвы (leaf), травы (grass); трава — пучки с шагом step м,
   // заполнено fill, высота h; шелест — деревья в r м, full деревьев — полная громкость
   wind: { on: true, calm: .06, breeze: .55, gust: .45, gustShare: .3, period: 40, gustPeriod: 5, dirDeg: 235, dirWander: 40,
-    sway: { tree: .35, leaf: .06, grass: .3 }, grass: { on: true, step: 1.6, fill: .7, h: .7 }, rustle: { r: 14, full: 8 } },
+    sway: { tree: .35, leaf: .06, grass: .3 }, grass: { on: true, step: 1.45, fill: .8, h: .85 }, rustle: { r: 14, full: 8 } },
   // костры быстрого перемещения (C3d): открываются ближе open м, у костра (reach м) — список; нет встревоженных врагов в safeR м;
   // у опасного места костёр ставится на gate м снаружи со стороны лагеря; pay — перенос не от костра (2026-11-03, просьба владельца): с поверхности к любому открытому костру за пепел base + perM × расстояние (м); у костра — бесплатно
   fires: { on: true, open: 8, reach: 3.2, safeR: 18, gate: 5, campR: 70, gap: 80, pay: { base: 20, perM: .15 } },     // campR — у лагеря только его костёр; gap — костры не ближе друг к другу (2026-10-20)

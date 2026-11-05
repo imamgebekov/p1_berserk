@@ -39,6 +39,26 @@ export function quadParts(P, o = {}) {
   }
   return { bones, seg, H, y0 };
 }
+
+const bbox = P => { const B = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity }; for (let i = 0; i < P.length; i += 3) { B.x0 = Math.min(B.x0, P[i]); B.x1 = Math.max(B.x1, P[i]); B.y0 = Math.min(B.y0, P[i + 1]); B.y1 = Math.max(B.y1, P[i + 1]); B.z0 = Math.min(B.z0, P[i + 2]); B.z1 = Math.max(B.z1, P[i + 2]); } return B; };
+// пауки (2026-11-05): восемь ног по кругу из двух костей, тело — таз и спина; направление ноги d лежит в плоскости xz
+export function spiderParts(P, o = {}) {
+  const B = bbox(P), H = B.y1 - B.y0, cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2, R = Math.max(B.x1 - B.x0, B.z1 - B.z0) / 2, F = { body: .42, knee: .6, ...o }, Y = f => B.y0 + H * f, by = Y(F.body);
+  const bones = [['rg_root', null, [0, 0, 0]], ['rg_hips', 'rg_root', [cx, by, cz]], ['rg_spine', 'rg_hips', [cx, by + H * .08, cz]]], legs = [];
+  const seg = [['rg_hips', [cx, by, cz], [cx, by, cz], R * .32], ['rg_spine', [cx, by + H * .08, cz], [cx, Y(.8), cz], R * .3]];
+  for (let k = 0; k < 8; k++) { const th = (k + .5) * Math.PI / 4, d = [Math.sin(th), Math.cos(th)], top = [cx + d[0] * R * .22, by, cz + d[1] * R * .22], knee = [cx + d[0] * R * .62, Y(F.knee), cz + d[1] * R * .62], foot = [cx + d[0] * R, B.y0, cz + d[1] * R];
+    bones.push(['rg_up' + k, 'rg_hips', top], ['rg_dn' + k, 'rg_up' + k, knee]); seg.push(['rg_up' + k, top, knee, R * .08], ['rg_dn' + k, knee, foot, R * .07]); legs.push({ k, d }); }
+  return { bones, seg, H, y0: B.y0, legs };
+}
+// дракон (2026-11-05): стоит на месте (ноги и камень не качаем), крылья из двух костей, шея и голова, хвост; тело — таз и спина
+export function dragonParts(P, o = {}) {
+  const B = bbox(P), H = B.y1 - B.y0, cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2, W = (B.x1 - B.x0) / 2, F = { wing: .62, ...o }, Y = f => B.y0 + H * f;
+  const bones = [['rg_root', null, [0, 0, 0]], ['rg_hips', 'rg_root', [cx, Y(.4), cz]], ['rg_spine', 'rg_hips', [cx, Y(.55), cz]], ['rg_head', 'rg_spine', [cx, Y(.78), cz]]];
+  const seg = [['rg_hips', [cx, Y(.2), cz], [cx, Y(.4), cz], W * .5], ['rg_spine', [cx, Y(.4), cz], [cx, Y(.7), cz], W * .3], ['rg_head', [cx, Y(.78), cz], [cx, B.y1, cz], W * .15]];
+  for (const [n, s] of [['L', 1], ['R', -1]]) { const sh = [cx + s * W * .22, Y(F.wing), cz], mid = [cx + s * W * .6, Y(F.wing + .12), cz], tip = [cx + s * W * 1, Y(F.wing + .2), cz];
+    bones.push(['rg_wing' + n, 'rg_spine', sh], ['rg_wtip' + n, 'rg_wing' + n, mid]); seg.push(['rg_wing' + n, sh, mid, W * .12, [cx, W * .3]], ['rg_wtip' + n, mid, tip, W * .15, [cx, W * .3]]); }
+  return { bones, seg, H, y0: B.y0 };
+}
 // веса вершин: до 3 ближайших костей, вес ~ 1 / (расстояние² + e²)²; внутри радиуса сегмента расстояние нулевое
 export function skinWeights(P, seg, H) {
   const n = P.length / 3, idx = new Uint16Array(n * 4), wt = new Float32Array(n * 4), names = [...new Set(seg.map(s => s[0]))], e2 = (H * .02) ** 2;
@@ -55,7 +75,7 @@ const E = (x = 0, y = 0, z = 0) => new THREE.Quaternion().setFromEuler(new THREE
 function clip(name, dur, N, pose, bones, hipY, H, bob = 0) {
   const times = [], vals = {}, pos = []; for (const b of bones) vals[b[0]] = [];
   for (let k = 0; k <= N; k++) { const f = k / N, o = {}; pose(f, o); times.push(f * dur);
-    for (const b of bones) { const a = o[b[0]] || [0, 0, 0], q = E(a[0], a[1], a[2]); vals[b[0]].push(q.x, q.y, q.z, q.w); }
+    for (const b of bones) { const a = o[b[0]] || [0, 0, 0], q = a.isQuaternion ? a : E(a[0], a[1], a[2]); vals[b[0]].push(q.x, q.y, q.z, q.w); }
     pos.push(0, bob ? Math.abs(Math.sin(f * Math.PI * 2)) * bob * H : 0, 0); }
   const tr = bones.map(b => new THREE.QuaternionKeyframeTrack(b[0] + '.quaternion', times, vals[b[0]]));
   return { tr, pos, times };
@@ -92,10 +112,34 @@ function quadClips(bones, H, hipPos) {
   mk('Hit_A', .5, 10, (f, o) => { const q = S(Math.min(1, f * 1.4) * Math.PI) * (1 - f * .3); o.rg_spine = [-.35 * q, .1 * q, 0]; o.rg_head = [-.4 * q, .2 * q, 0]; o.rg_tail1 = [0, .4 * q, 0]; });
   return out;
 }
+
+function spiderClips(bones, H, hipPos, legs) {
+  const out = [], mk = (name, dur, N, pose, bob) => { const c = clip(name, dur, N, pose, bones, hipPos[1], H, bob), tr = [...c.tr]; if (bob) tr.push(new THREE.VectorKeyframeTrack('rg_hips.position', c.times, c.pos.map((v, i) => hipPos[i % 3] + v))); out.push(new THREE.AnimationClip(name, dur, tr)); };
+  const Y = new THREE.Vector3(0, 1, 0), q1 = new THREE.Quaternion(), q2 = new THREE.Quaternion();
+  const leg = (o, l, sweep, lift) => { const t = new THREE.Vector3(-l.d[1], 0, l.d[0]); o['rg_up' + l.k] = q1.clone().setFromAxisAngle(Y, sweep).multiply(q2.clone().setFromAxisAngle(t, lift)); o['rg_dn' + l.k] = new THREE.Quaternion().setFromAxisAngle(t, -lift * .6); };
+  const gait = (A, L) => (f, o) => { const p = f * PI2; for (const l of legs) { const ph = (l.k % 2) * Math.PI, s = S(p + ph); leg(o, l, A * s * (l.d[1] >= 0 ? 1 : -1), L * Math.max(0, S(p + ph + 1.57))); } o.rg_spine = [.02 * S(p * 2), 0, .03 * S(p)]; };
+  mk('Idle', 2.4, 12, (f, o) => { const p = f * PI2; for (const l of legs) leg(o, l, .03 * S(p + l.k), .05 * S(p * 2 + l.k)); o.rg_spine = [.03 * S(p), 0, 0]; });
+  mk('Walk', .7, 16, gait(.35, .5), .012); mk('Run', .4, 16, gait(.5, .7), .02);
+  mk('Attack1', .85, 17, (f, o) => { const w = Math.min(1, f / .4), s = f < .4 ? 0 : Math.min(1, (f - .4) / .15), b = f < .55 ? 0 : (f - .55) / .45, k = 1 - b;     // передние ноги вверх, корпус назад, затем бросок вперёд
+    for (const l of legs) { const fr = l.d[1] > .4 ? 1 : 0; leg(o, l, 0, fr * (1.1 * w - .6 * s) * k); } o.rg_spine = [(-.35 * w + .6 * s) * k, 0, 0]; });
+  mk('Hit_A', .5, 10, (f, o) => { const q = S(Math.min(1, f * 1.4) * Math.PI) * (1 - f * .3); for (const l of legs) leg(o, l, 0, .5 * q); o.rg_spine = [-.4 * q, 0, .15 * q]; });
+  return out;
+}
+function dragonClips(bones, H, hipPos) {
+  const out = [], mk = (name, dur, N, pose, bob) => { const c = clip(name, dur, N, pose, bones, hipPos[1], H, bob), tr = [...c.tr]; if (bob) tr.push(new THREE.VectorKeyframeTrack('rg_hips.position', c.times, c.pos.map((v, i) => hipPos[i % 3] + v))); out.push(new THREE.AnimationClip(name, dur, tr)); };
+  const wings = (A, f, o, ph = 0) => { const p = f * PI2 + ph; o.rg_wingL = [0, 0, A * S(p)]; o.rg_wingR = [0, 0, -A * S(p)]; o.rg_wtipL = [0, 0, A * .8 * S(p - .9)]; o.rg_wtipR = [0, 0, -A * .8 * S(p - .9)]; };     // взмах: крылья вокруг оси z (вверх-вниз), кончик с запаздыванием
+  mk('Idle', 3, 15, (f, o) => { const p = f * PI2; wings(.14, f, o); o.rg_spine = [.025 * S(p), 0, 0]; o.rg_head = [-.04 * S(p + 1), .05 * S(p), 0]; });
+  mk('Walk', 1.1, 16, (f, o) => { const p = f * PI2; wings(.3, f, o); o.rg_spine = [.03 * S(p), .04 * S(p), 0]; o.rg_head = [0, -.06 * S(p), 0]; }, .015);
+  mk('Run', .7, 16, (f, o) => { wings(.5, f, o); o.rg_spine = [.1, 0, 0]; o.rg_head = [-.08, 0, 0]; }, .025);
+  mk('Attack1', 1, 20, (f, o) => { const w = Math.min(1, f / .4), s = f < .4 ? 0 : Math.min(1, (f - .4) / .15), b = f < .55 ? 0 : (f - .55) / .45, k = 1 - b;     // замах: крылья вверх, голова назад; бросок головой вперёд
+    o.rg_wingL = [0, 0, (.8 * w - .5 * s) * k]; o.rg_wingR = [0, 0, -(.8 * w - .5 * s) * k]; o.rg_wtipL = [0, 0, .4 * w * k]; o.rg_wtipR = [0, 0, -.4 * w * k]; o.rg_spine = [(-.2 * w + .35 * s) * k, 0, 0]; o.rg_head = [(-.3 * w + .6 * s) * k, 0, 0]; });
+  mk('Hit_A', .5, 10, (f, o) => { const q = S(Math.min(1, f * 1.4) * Math.PI) * (1 - f * .3); o.rg_spine = [-.3 * q, 0, 0]; o.rg_head = [-.4 * q, .2 * q, 0]; wings(.5, f, o, 0); });
+  return out;
+}
 // собрать скелет на сцене (одна обычная сетка) → { clips }; сетка заменяется на SkinnedMesh. kit.rig — поправки долей роста
 export function autoRig(scene, over = {}, type = 'biped') {
   let mesh = null; scene.traverse(o => { if (o.isMesh && !mesh) mesh = o; }); if (!mesh) return null;
-  const geo = mesh.geometry, P = geo.attributes.position.array, { bones, seg, H, y0 } = type === 'quad' ? quadParts(P, over) : riggedParts(P, null, over), W = skinWeights(P, seg, H), parent = mesh.parent;
+  const geo = mesh.geometry, P = geo.attributes.position.array, parts = type === 'quad' ? quadParts(P, over) : type === 'spider' ? spiderParts(P, over) : type === 'dragon' ? dragonParts(P, over) : riggedParts(P, null, over), { bones, seg, H, y0 } = parts, W = skinWeights(P, seg, H), parent = mesh.parent;
   const bm = new Map(), list = [];
   for (const [nm, par, pt] of bones) { const b = new THREE.Bone(); b.name = nm; const pp = par ? bones.find(x => x[0] === par)[2] : [0, 0, 0]; b.position.set(pt[0] - pp[0], pt[1] - pp[1], pt[2] - pp[2]); bm.set(nm, b); list.push(b); if (par) bm.get(par).add(b); }
   const nameOrder = W.names, remap = list.map(b => b.name), order = new Map(remap.map((n, i) => [n, i]));
@@ -104,5 +148,5 @@ export function autoRig(scene, over = {}, type = 'biped') {
   const sm = new THREE.SkinnedMesh(geo, mesh.material); sm.name = mesh.name; sm.castShadow = true; sm.frustumCulled = false; sm.matrix.copy(mesh.matrix); sm.matrix.decompose(sm.position, sm.quaternion, sm.scale);
   parent.add(sm, bm.get('rg_root')); parent.remove(mesh); parent.updateMatrixWorld(true);
   sm.bind(new THREE.Skeleton(list));
-  return { clips: type === 'quad' ? quadClips(bones, H, bones[1][2]) : clipsFor(bones, H, bones[1][2]), height: H, y0 };
+  return { clips: type === 'quad' ? quadClips(bones, H, bones[1][2]) : type === 'spider' ? spiderClips(bones, H, bones[1][2], parts.legs) : type === 'dragon' ? dragonClips(bones, H, bones[1][2]) : clipsFor(bones, H, bones[1][2]), height: H, y0 };
 }
