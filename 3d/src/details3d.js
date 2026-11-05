@@ -81,7 +81,7 @@ export function surfaceDetails(map, cfg) {
 // подземелье: свечи в углах комнат, цепи и решётки на сплошных стенах, кости и черепа на полу (не в проходах)
 export function dungeonDetails(M, cfg, salt = 0) {
   const D = cfg.details; if (!D || !D.on) return [];
-  const rnd = mulberry32((cfg.world.seed ^ 0x2c1b ^ Math.imul(salt + 1, 2654435761)) >>> 0), out = [], pick = a => a[(rnd() * a.length) | 0];
+  const rnd = mulberry32((cfg.world.seed ^ 0x2c1b ^ Math.imul(salt + 1, 2654435761)) >>> 0), out = [], pick = a => a[(rnd() * a.length) | 0], hr = mulberry32((cfg.world.seed ^ 0x7a11 ^ Math.imul(salt + 3, 2246822519)) >>> 0);     // hr — свой поток для живых залов: прежняя расстановка не сдвигается
   const open = (x, z) => (M.links || []).some(l => (l.vert ? Math.abs(x - l.line) < .3 && z > l.s0 - 1 && z < l.s1 + 1 : Math.abs(z - l.line) < .3 && x > l.s0 - 1 && x < l.s1 + 1));
   const nearPortal = (x, z) => (M.portals || []).some(q => Math.hypot(q.x - x, q.z - z) < 2.5) || (M.containers || []).some(c => Math.hypot(c.x - x, c.z - z) < 1.2);
   const nearLink = (x, z, d) => (M.links || []).some(l => Math.hypot(l.x - x, l.z - z) < d);
@@ -101,7 +101,27 @@ export function dungeonDetails(M, cfg, salt = 0) {
       const k = .2 + rnd() * .6, x = wx ?? r.x0 + k * (r.x1 - r.x0), z = wz ?? r.z0 + k * (r.z1 - r.z0);
       if (!open(x, z) && !nearPortal(x, z) && fr(x, z, -.3)) out.push({ t: rnd() < .5 ? 'chain' : 'grate', x, z, rot, detail: true });
     }
+    hallLife(r, D.hall, hr, out, fr, open, nearPortal, nearLink);     // живой зал (план «живой мир», этап В): утварь вдоль стен и вещь в центре
     if (rnd() < D.floor) { const x = r.x0 + 1 + rnd() * Math.max(.1, r.x1 - r.x0 - 2), z = r.z0 + 1 + rnd() * Math.max(.1, r.z1 - r.z0 - 2); if (!open(x, z) && !nearPortal(x, z) && fr(x, z, .6)) out.push({ t: pick(['bones', 'skulls']), x, z, rot: rnd() * 6.28, detail: true }); }
   }
   return out;
+}
+
+// характер зала: склад, оружейная, руины или жилой угол. Утварь стоит у стен лицом к центру, в больших залах — одна вещь посередине
+const HALL = { store: ['crates', 'barrels', 'barrel_l', 'keg', 'shelf_d', 'sack_d', 'crate_d'], arms: ['armor_rack', 'armor_pole', 'armor_lie', 'shield_lie', 'w_lie', 'dummy', 'w_stuck'],
+  ruin: ['column_d', 'rubble_l', 'rubble_s', 'vine', 'wallfrag', 'bones', 'rubble'], home: ['table_set', 'torch_d', 'brazier', 'banner', 'shelf_d', 'barrel_d', 'rug'] };
+const HALL_MID = { store: ['wagon', 'crates'], arms: ['dummy', 'armor_pile'], ruin: ['statue', 'column_d'], home: ['table_set', 'brazier'] };
+function hallLife(r, H, hr, out, fr, open, nearPortal, nearLink) {
+  if (!H || !H.on) return;
+  const w = r.x1 - r.x0, d = r.z1 - r.z0, area = w * d, kinds = Object.keys(HALL), kind = kinds[(hr() * kinds.length) | 0], set = HALL[kind];
+  if (hr() > H.chance) return;
+  const n = Math.min(H.max, Math.max(2, Math.round(area / H.per)));
+  for (let k = 0, t = 0; k < n && t < 50; t++) {
+    const side = (hr() * 3) | 0, u = .12 + hr() * .76, off = .8 + hr() * .4;     // стены x0, x1, z0; южная (ближняя к камере) пуста
+    const x = side === 0 ? r.x0 + off : side === 1 ? r.x1 - off : r.x0 + u * w, zz = side === 2 ? r.z0 + off : r.z0 + u * d, rot = side === 0 ? Math.PI / 2 : side === 1 ? -Math.PI / 2 : 0;
+    if (!fr(x, zz, .6) || open(x, zz) || nearPortal(x, zz) || nearLink(x, zz, 2.2) || out.some(o => Math.hypot(o.x - x, o.z - zz) < 1.3)) continue;
+    out.push({ t: set[(hr() * set.length) | 0], x, z: zz, rot: rot + (hr() - .5) * .4, s: .85 + hr() * .3, detail: true }); k++;
+  }
+  if (area >= H.mid) { const mid = HALL_MID[kind], x = r.x0 + w / 2 + (hr() - .5) * w * .2, z = r.z0 + d / 2 + (hr() - .5) * d * .2;
+    if (fr(x, z, 1.4) && !nearPortal(x, z) && !nearLink(x, z, 3)) out.push({ t: mid[(hr() * mid.length) | 0], x, z, rot: hr() * 6.28, detail: true }); }
 }
