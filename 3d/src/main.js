@@ -289,7 +289,7 @@ function toast(txt, cls = '', color, ic) {     // ic — иконка из uiico
   const box = $('toasts'), d = document.createElement('div');
   d.className = 'toast ' + cls; if (ic) setIconText(d, ic, txt); else d.textContent = txt; if (color) d.style.color = color;
   box.appendChild(d); while (box.children.length > 3) box.firstChild.remove();     // не больше 3 (шаг 9)
-  setTimeout(() => d.remove(), 3500);
+  setTimeout(() => d.remove(), 5000);     // всплывашка сверху: 5 с и плавное исчезновение
 }
 const P = loadPrefs();
 const feel = createFeel(cfg), feelFlash = $('feelFlash'), feelVig = $('feelVig'), streakEl = $('streak'), lvlCard = $('lvlCard');     // ощущение боя (этап 1 «круче»)
@@ -567,7 +567,7 @@ if (desk) {
     if (c === 'Escape') { e.preventDefault(); const open = document.querySelector('section:not([hidden]) button.close'); if (open) open.click(); else $('gear').click(); return; }
     if (c === 'KeyH' && !panelOpen) { if (vis('heroicBtn')) heroicBtn.click(); return; }
     if (c === 'KeyT' && !panelOpen && !exitBtn.hidden) { exitBtn.click(); return; }
-    if (c === 'KeyT' && !panelOpen && !warpBtn.hidden) { warpBtn.click(); return; }     // перенос к кострам
+    if (c === 'KeyT' && !panelOpen && W.lvl === 'surface' && knownFires(W).length > 1) { input.release(); openFires(); return; }     // перенос к кострам
     if ((c === 'KeyZ' || c === 'KeyX' || c === 'KeyC') && !panelOpen) { partyCmd(c === 'KeyZ' ? 'follow' : c === 'KeyX' ? 'hold' : 'assist'); return; }     // команды отряда (этап 4)
     if (c === 'KeyM') { if (!panelOpen || !mapEl.hidden) $('miniBtn').click(); return; }
     if (c === 'KeyI') { if (vis('bag')) $('bagClose').click(); else if (!panelOpen) $('bagBtn').click(); return; }
@@ -937,6 +937,7 @@ window.addEventListener('resize', () => { if (!mapEl.hidden) mapRedraw(); });
 const mapClose = () => { mapEl.hidden = true; panelOpen = false; };
 $('miniBtn').addEventListener('click', () => (mapEl.hidden ? mapOpen() : mapClose()));
 $('mapClose').addEventListener('click', mapClose);
+$('mapFires').addEventListener('click', () => { if (W.lvl !== 'surface') return; mapClose(); input.release(); openFires(); });     // перенос к кострам — из карты (кнопки на экране больше нет)
 const bossEl = $('boss'), bossFill = $('bossFill'), bossName = $('bossName');
 let lastBoss = '';
 const comboEl = $('combo'), statusRow = $('statusRow');
@@ -1072,9 +1073,9 @@ function frame(now) {
   if (hud) { const show = !!W.nearNpc && (storyTalkable(W, W.nearNpc) || !npcLocked(W.nearNpc)) && !panelOpen && !landscape;     // сюжетный разговор — даже у закрытого жителя
   if (talk.hidden === show) talk.hidden = !show; if (show) { const l = (storyTalkable(W, W.nearNpc) || W.nearActor ? 'Говорить: ' + (SPEAKERS[W.nearNpc] ? SPEAKERS[W.nearNpc].name.split(',')[0] : '') : W.nearNpc === 'auctioneer' ? (pendCount(W) ? 'Аукцион · есть что забрать' : 'Аукцион') : W.nearNpc === 'smith' ? 'Кузнец' : W.nearNpc === 'captain' ? 'Наём' : W.nearNpc === 'scribe' ? 'Библиотека' : W.nearNpc === 'keeper' ? 'Дары Затмения' : W.nearNpc === 'wanderer' ? 'Сказочный торговец' : W.shop.stock.some(s => s.fresh) ? 'Торговать · новинка' : 'Торговать') + (desk ? ' · E' : ''); if (talk.textContent !== l) talk.textContent = l; } }
   if (hud) { const nb = !panelOpen && !landscape && !!nearBot(W) && !W.nearNpc; if (botBtn.hidden === nb) botBtn.hidden = !nb; if (nb) { const l = 'Поговорить: ' + nearBot(W).name.replace(/_/g, ' '); if (botBtn.textContent !== l) botBtn.textContent = l; } }
-  if (hud) { const wp = W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead && knownFires(W).length > 1; if (warpBtn.hidden === wp) warpBtn.hidden = !wp;
+  if (hud) { if (!warpBtn.hidden) warpBtn.hidden = true;     // кнопки «Костры» на экране нет: перенос — из карты и клавишей T (мешала кнопкам умений)
     const ex = !panelOpen && !landscape && !exitBlock(W) && !W.player.dead; if (exitBtn.hidden === ex) exitBtn.hidden = !ex; if (exitArm && (performance.now() > exitArm || !ex)) { exitArm = 0; exitBtn.classList.remove('arm'); } if (ex && !exitArm) { const l = 'Выйти' + (desk ? ' · T' : ''); if (exitBtn.textContent !== l) exitBtn.textContent = l; }
-    if (document.body.classList.contains('warp') !== (wp || ex)) document.body.classList.toggle('warp', wp || ex);
+    if (document.body.classList.contains('warp') !== ex) document.body.classList.toggle('warp', ex);
     const f = fireNear(W), show = !!f && !W.nearPortal && !panelOpen && !landscape; if (fireBtn.hidden === show) fireBtn.hidden = !show; if (show) setIconText(fireBtn, 'fire', 'Костёр' + (desk ? ' · E' : ''));
     const free = !f && !W.nearPortal && !panelOpen && !landscape && !W.player.dead, cn = free && W.life && coachNear(W), nd = free && !cn && W.life && nodeNear(W);     // этап 6: повозка, сбор, конь
     if (coachBtn.hidden === !!cn) coachBtn.hidden = !cn; if (cn) { const l = 'Повозка' + (desk ? ' · E' : ''); if (coachBtn.textContent !== l) coachBtn.textContent = l; }
@@ -1113,7 +1114,7 @@ function frame(now) {
     W.goal = ev && W.event ? eventAt(W) : ev ? null : fm ? fm : main ? (g.at || W.qmarks[0] || null) : W.qmarks.length ? W.qmarks[0] : mt && mt.at ? mt.at : g.at; W.goalFocus = !!fm && !ev;     // метки на земле — только к выбранному заданию
     if (tl !== lastTrack) { lastTrack = tl; trackerEl.textContent = tl; trackerEl.hidden = !tl; } }
   if ((fpsT += real, ++fpsN, fpsT) > .5) { const f = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; if (P.fps) { const q = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length * .95)] || 0; }; $('fps').textContent = `${f} кадр/с · ${(q(perf.sim) + q(perf.draw)).toFixed(1)} мс · ${perf.calls} выз · ${Math.round(perf.tris / 1000)} тыс △`; } }
-  if (!panelOpen && !W.player.dead && (hintT -= real) <= 0) { hintT = 7; const h = nextHint(W, P); if (h) { P.seen[h.id] = true; savePrefs(P); toast((desk && h.desk) || h.text, 'hint', undefined, 'hint'); } }
+  /* обучающие подсказки убраны (2026-11-06, просьба владельца): остались редкие всплывашки о событиях и торговцах */
   if ((ambT += real) > .5) { ambT = 0; setAmbient(W.light, W.place && W.place.danger ? W.place.danger / 3 : 0, underSound(W), renderer ? renderer.wind() : null);
     if (renderer && renderer.crowsUp) { const up = renderer.crowsUp(); if (up.length) { const at = { x: up[0].x, z: up[0].z, px: W.player.x, pz: W.player.z, yaw: cfg.view.camYaw }; worldSample('crow', at); worldSample('wings', at); } } }     // ветер — по силе ветра мира; вороны взлетели — карканье и крылья     // под землёй — фон темы (план подземелий, 2е)
   if ((atmoT += real) > .2) { atmoT = 0; const mx = mixOf(W, cfg.audio, renderer ? { wind: renderer.wind().s, trees: renderer.treesNear(W.player.x, W.player.z), rain: renderer.weather().rain } : null); setScene(mx, cfg.audio); tickAudio(); tracks.tick(mx, ownActive || isMuted(), performance.now() / 1000, cfg.audio.musicVol * uvol.all * uvol.music); if (ownPlayer.playing()) ownPlayer.setVolume(cfg.audio.ownMusic * uvol.all * uvol.music * (mx.fight > 0 ? .45 : 1) * (W.player.dead ? .3 : 1)); }     // своя музыка: в бою тише     // атмосфера: река, птицы, музыка
