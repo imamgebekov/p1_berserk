@@ -39,6 +39,31 @@ export function createAbilityFx(fx, hooks = {}) {
     const puff = (x, y, z, size, life = .7, up = .6, gr = 1.4, vx = 0, vz = 0) => { if (!fx.emitPuff) return; const q = PUFF[el] || PUFF.none; fx.emitPuff(x, y, z, vx, up, vz, q[2], life * (.8 + Math.random() * .4), -.2, size, q[0] + Math.floor(Math.random() * q[1]), gr); };     // облако дыма или взрыва; нет слоя дыма (тесты) — пропуск
     const big = (x, y, z, size, c, spr, life = .5, up = 0) => fx.emit(x, y, z, 0, up, 0, dim(c, .8), life, 0, size / 2.2, true, spr);     // один крупный спрайт: кольцо, руна, сердце, серп     // тёмные и тяжёлые частицы (тьма, земля, кровь, яд) — с мягким ореолом: иначе тонут
     const ring = (cx, cz0, r, cnt, c, out = 3, y = .35) => { for (let i = 0; i < cnt; i++) { const a = i / cnt * 6.283 + ph; p(cx + Math.sin(a) * r, y, cz0 + Math.cos(a) * r, Math.sin(a) * out, .4, Math.cos(a) * out, i % 3 ? c : c === c1 ? c2 : c1); } };
+    // слой эпичности (2026-11-06, просьба владельца «заклинания эпичнее»): растёт с рангом умения (v.r: 0–3). Ударная волна по земле, столб света, обломки, второй залп у стрелы и дуги.
+    const R = Math.min(3, v.r || 0), E = 1 + R * .3;
+    const epic = k => {
+      const core = k === 'zone' ? ahead(3.5) : k === 'field' ? ahead(4.5) : k === 'cloud' || k === 'mark' ? ahead(3.5) : [X, Z], cx = core[0], cz0 = core[1];
+      if (k === 'nova' || k === 'zone' || k === 'field' || k === 'pull') {
+        for (let w = 0; w < 2 + (R >= 2 ? 1 : 0); w++) at(.05 + w * .09, () => { const r = (1.6 + w * 1.5) * E; big(cx, .3 + w * .08, cz0, r * 2.2, w % 2 ? c2 : c1, 6, .5); ring(cx, cz0, r, n(5 + R * 2 + w * 2), w % 2 ? c2 : c1, k === 'pull' ? -3 : 4 + w, .25); });
+        at(.04, () => puff(cx, .3, cz0, 3.4 * E, 1.1, .3, 2.6));
+        for (let i = 0; i < n(3 + R * 3); i++) at(.06 + i * .01, () => { const a = Math.random() * 6.283, d = Math.random() * 2 * E; p(cx + Math.sin(a) * d, .2, cz0 + Math.cos(a) * d, Math.sin(a) * 2, 5 + Math.random() * 4, Math.cos(a) * 2, i % 2 ? c1 : c2, 1.2); });     // обломки и искры вверх
+      }
+      if (k === 'zone' || k === 'field' || k === 'buff' || k === 'ward' || k === 'heal' || k === 'gheal' || k === 'mark') {
+        const h = k === 'mark' ? 1.8 : 0, steps = 7 + R * 2;     // столб: частицы одна над другой, быстро вверх
+        for (let t = 0; t < steps; t++) at(.03 + t * .035, () => { for (let i = 0; i < 2; i++) { const a = ph + t + i * 3.14; p(cx + Math.sin(a) * .35, h + .2 + t * .4, cz0 + Math.cos(a) * .35, 0, 3.5 + R, 0, i ? c1 : c2, .8); } });
+        at(.02, () => big(cx, h + .3, cz0, 2.4 * E, c1, 17, .45, 2));
+      }
+      if (k === 'bolt') {
+        const [mx, mz] = ahead(1.4); at(0, () => { fx.flash(mx, 1.25, mz, 3.4 * E, c1); big(mx, 1.25, mz, 1.8 * E, c1, 12, .3); });
+        for (let i = 0; i < n(8 + R * 4); i++) at(i * .012, () => { const a = f + (Math.random() - .5) * 1.1; p(mx, 1.2, mz, Math.sin(a) * 6, .4, Math.cos(a) * 6, i % 2 ? c1 : c2, .7); });     // веер искр от кисти
+        if (R >= 2) for (let d = 0; d < 6; d++) at(.1 + d * .03, () => { const [x, z] = ahead(2 + d * 1.3); p(x + (Math.random() - .5) * .6, 1.2 + (Math.random() - .5) * .5, z + (Math.random() - .5) * .6, sx * 2, .3, cz * 2, c2, 1.1); });     // шлейф второго залпа
+      }
+      if (k === 'strike' || k === 'cone') {
+        const [bx, bz] = ahead(2.4); at(.08, () => { fx.flash(bx, 1.1, bz, 3.4 * E, c1); big(bx, 1.1, bz, 1.6 * E, c1, 14, .26); });
+        if (R >= 1) for (let i = 0; i < n(6 + R * 3); i++) at(.1 + i * .01, () => { const a = f + (Math.random() - .5) * 1.4; p(bx, 1, bz, Math.sin(a) * 5, 2 + Math.random() * 2, Math.cos(a) * 5, i % 2 ? c1 : c2, .8); });
+      }
+      if (k === 'dash' || k === 'jump' || k === 'blink') at(.03, () => big(X, .35, Z, 2.2 * E, c1, 6, .4));
+    };
     switch (kind) {
       case 'strike': {     // дуга клинка перед героем и удар в точке
         { const [bx, bz] = ahead(1.6); fx.emit(bx, 1.2, bz, sx * 7, 0, cz * 7, dim(c1, .8), .22, 0, 1.3, true, 14); }
@@ -58,6 +83,7 @@ export function createAbilityFx(fx, hooks = {}) {
       case 'blink': { fx.flash(X, 1.2, Z, 3.2, c1); for (let i = 0; i < n(16); i++) p(X + (Math.random() - .5), .2 + Math.random() * 1.6, Z + (Math.random() - .5), 0, .8, 0, i % 2 ? c1 : c2, 1.2); break; }
       default: fx.flash(X, 1.2, Z, 3, c1);
     }
+    epic(kind);
     return kind;
   }
   return { play: v => recipe(v), update(dt) { for (let i = jobs.length - 1; i >= 0; i--) { const j = jobs[i]; if ((j.t -= dt) <= 0) { jobs.splice(i, 1); j.fn(); } } }, pending: () => jobs.length };

@@ -77,7 +77,8 @@ export function useAbility(W, i) {
   if (res === false) return 'target';
   resSpend(W, cost); if (!again) W.acd[def.id] = A.cd[r]; noteAbility(W, def.id);
   if (A.kind === 'jump') W.abuf.hopId = def.id;
-  W.ev.push({ k: 'ability', id: def.id, kind: def.kind || A.kind || 'own', el: def.el || A.el, x: p.x, z: p.z, face: p.face });
+  W.ev.push({ k: 'ability', id: def.id, kind: def.kind || A.kind || 'own', el: def.el || A.el, x: p.x, z: p.z, face: p.face, r });
+  const sk = SHAKE_KIND[def.kind || A.kind]; if (sk) W.shake = Math.max(W.shake, W.cfg.fx.shake * sk * (1 + .25 * r));     // тяжёлые умения встряхивают камеру сильнее с рангом
   if (cb) W.ev.push({ k: 'combo', id: cb.id, name: cb.name, x: p.x, z: p.z });
   return 'ok';
 }
@@ -251,6 +252,7 @@ const ACT = {
 // новые умения древа (2026-10-20): виды действия; A — числа вида с поправками умения (genCfg), A.st — состояние, A.el — стихия (для эффекта)
 const stArgs = (A, r) => { const s = A.st; return s === 'burn' || s === 'poison' || s === 'bleed' ? [s, A.dps[r], A.t] : s === 'slow' ? [s, A.slowK, A.sd[r] * 2] : s === 'crack' ? [s, 1.25, A.sd[r] * 3] : [s, 0, A.sd[r]]; };     // [состояние, сила, длительность]
 function inflict(W, e, A, r) { if (!A.st || e.dead) return; const [s, v, t] = stArgs(A, r); applyStatus(W, e, s, v, t); }
+const SHAKE_KIND = { nova: 1.2, zone: 1.4, field: .8, pull: .8, cone: .7, strike: .5, bolt: .4 };
 const gfx = (W, A, o) => W.ev.push({ k: 'gfx', kind: A.kind, el: A.el, ...o });
 const inCone = (W, e, r, cone) => { const p = W.player, d = Math.atan2(e.x - p.x, e.z - p.z) - p.face; return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) <= cone / 2 * Math.PI / 180; };
 const PROJ = { fire: 'orb', ice: 'orb', storm: 'orb', shadow: 'orb', light: 'orb', water: 'orb', venom: 'venom' };
