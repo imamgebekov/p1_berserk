@@ -24,6 +24,7 @@ export function createAuction(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   const num = v => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
 
   for (const [id, label] of [['buy', 'Купить'], ['sell', 'Продать'], ['mine', 'Мои лоты']]) { const b = el('button', 'tab', label); b.type = 'button'; b.dataset.tab = id; b.addEventListener('click', () => { tab = id; selU = null; selBag = null; page = 1; render(); }); tabsEl.append(b); }
+  { const rf = el('button', 'tab rfr', 'Обновить'); rf.type = 'button'; rf.title = 'Обновить цены и лоты'; rf.addEventListener('click', () => { A.tick(W); render(); flash('Обновлено'); }); tabsEl.append(rf); }     // кнопка «Обновить» (2026-11-06): рынок и так обновляется сам, но так привычнее
 
   // подробности вещи: свойства, сравнение с надетым, свойства-приставки
   function details(e, into) {
@@ -44,11 +45,12 @@ export function createAuction(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
     const sort = el('select', 'tsort'); sort.setAttribute('aria-label', 'Сортировка'); for (const [id, label] of A.SORTS) { const o = el('option', null, label); o.value = id; sort.append(o); } sort.value = F.sort;
     sort.addEventListener('change', () => { F.sort = sort.value; page = 1; refreshList(); });
     const dir = el('button', 'tchip', F.dir === 'asc' ? '↑' : '↓'); dir.type = 'button'; dir.setAttribute('aria-label', 'Направление'); dir.addEventListener('click', () => { F.dir = F.dir === 'asc' ? 'desc' : 'asc'; dir.textContent = F.dir === 'asc' ? '↑' : '↓'; page = 1; refreshList(); });
-    r1.append(sort, dir); box.append(r1);
+    const ft = el('button', 'tchip', 'Фильтры ▾'); ft.type = 'button'; ft.addEventListener('click', () => { const n = box.querySelector('.nums'); if (n) { n.classList.toggle('hid'); ft.textContent = n.classList.contains('hid') ? 'Фильтры ▾' : 'Фильтры ▴'; } });
+    r1.append(sort, dir, ft); box.append(r1);
     const r2 = el('div', 'tchips');
     for (const [id, label] of A.CATS) { const b = el('button', 'tchip' + (F.cat === id ? ' on' : ''), label); b.type = 'button'; b.addEventListener('click', () => { F.cat = id; page = 1; render(); }); r2.append(b); }
     box.append(r2);
-    const r3 = el('div', 'afil nums'); const rs = el('select', 'tsort'); rs.setAttribute('aria-label', 'Редкость'); [['0', 'Любая редкость'], ...[1, 2, 3, 4, 5].map(i => [String(i), RARITY[i].name + ' и выше'])].forEach(([v, l]) => { const o = el('option', null, l); o.value = v; rs.append(o); }); rs.value = String(F.rarMin);
+    const r3 = el('div', 'afil nums' + (F.lvMin || F.lvMax || F.pMax || F.rarMin || F.buyOnly || F.scope === 'bids' ? '' : ' hid')); const rs = el('select', 'tsort'); rs.setAttribute('aria-label', 'Редкость'); [['0', 'Любая редкость'], ...[1, 2, 3, 4, 5].map(i => [String(i), RARITY[i].name + ' и выше'])].forEach(([v, l]) => { const o = el('option', null, l); o.value = v; rs.append(o); }); rs.value = String(F.rarMin);
     rs.addEventListener('change', () => { F.rarMin = +rs.value; page = 1; refreshList(); });
     const bo = el('label', 'acheck'); const cb = el('input'); cb.type = 'checkbox'; cb.checked = F.buyOnly; cb.addEventListener('change', () => { F.buyOnly = cb.checked; page = 1; refreshList(); }); bo.append(cb, el('span', null, 'С выкупом'));
     const bids = el('button', 'tchip' + (F.scope === 'bids' ? ' on' : ''), 'Мои ставки'); bids.type = 'button'; bids.addEventListener('click', () => { F.scope = F.scope === 'bids' ? 'all' : 'bids'; page = 1; render(); });

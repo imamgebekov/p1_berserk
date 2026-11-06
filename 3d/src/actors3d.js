@@ -21,7 +21,7 @@ const clipName = c => c.name.includes('|') ? c.name.slice(c.name.lastIndexOf('|'
 
 // действия → имена клипов по порядку предпочтения (первый найденный)
 const ACT = {
-  idle: ['Combat_Stance', 'Idle_A', 'Idle', 'idle', '@-Idle_01', 'travelidle', 'Warrior_Idle', 'Flying_Idle', 'Idle_Weapon', 'Skeletons_Idle', 'Flying'],
+  idle: ['Idle_Neutral', 'Combat_Stance', 'Idle_A', 'Idle', 'idle', '@-Idle_01', 'travelidle', 'Warrior_Idle', 'Flying_Idle', 'Idle_Weapon', 'Skeletons_Idle', 'Flying'],
   walk: ['Walking', 'Walking_A', 'Walk', '@-walk_01', 'travelmove', 'Warrior_Walk', 'Fast_Flying', 'Flying_Idle', 'Skeletons_Walking', 'Flying'],
   run: ['Running', 'Running_A', 'Run', '@-run_01', 'travelrun', 'Gallop', 'Run_Weapon', 'Fast_Flying', 'Walk'],
   hit: ['Hit_Reaction', 'Hit_A', '@-hit_01', 'hurtsmall', 'Defence1', 'HitReact', 'RecieveHit', 'HitRecieve', 'Idle_HitReact_Left', 'Hit_B'],
@@ -50,7 +50,22 @@ async function loadMhs() { if (!mhsP) mhsP = (async () => { const u = urlOf('mh_
 const nodeKey = o => THREE.PropertyBinding.sanitizeNodeName(o.name);
 function restOf(scene) { const m = new Map(); scene.traverse(o => { let ps = 1, p = o.parent; while (p) { ps *= p.scale.y; p = p.parent; } m.set(nodeKey(o), { q: o.quaternion.clone(), y: o.position.y, ps }); }); return m; }
 // поворот кости: поза покоя героя × (покой источника⁻¹ × клип); качание таза — по отношению высот тазов
-function retargetMhs(src, heroScene) {
+// спокойная стойка героев Meshy (2026-11-06): у Meshy нет простого покоя, а «Combat_Stance» — боевая стойка, герой стоял согнутым.
+// Берём кадр ходьбы, где поза самая прямая, а ноги вместе (по настоящим костям героя), и добавляем дыхание
+function neutralIdle(clips, scene) {
+  const walk = clips.find(c => c.name === 'Walking'), L = walk && walk.tracks.find(t => t.name === 'mixamorigLeftUpLeg.quaternion'), head = scene.getObjectByName('mixamorigHead'), fl = scene.getObjectByName('mixamorigLeftFoot'), fr = scene.getObjectByName('mixamorigRightFoot');
+  if (!L || !head || !fl || !fr) return null;
+  const mx = new THREE.AnimationMixer(scene), act = mx.clipAction(walk), hp = new THREE.Vector3(), lp = new THREE.Vector3(), rp = new THREE.Vector3(); act.play(); let best = 0, bs = -1e9;
+  const Hs = [], Ss = []; for (let k = 0; k < L.times.length; k++) { mx.setTime(L.times[k]); scene.updateMatrixWorld(true); head.getWorldPosition(hp); fl.getWorldPosition(lp); fr.getWorldPosition(rp); Hs.push(hp.y - (lp.y + rp.y) / 2); Ss.push(Math.hypot(lp.x - rp.x, lp.z - rp.z)); }
+  const sMin = Math.min(...Ss), sMax = Math.max(...Ss); for (let k = 0; k < Hs.length; k++) if (Ss[k] <= sMin + .3 * (sMax - sMin) && Hs[k] > bs) { bs = Hs[k]; best = k; }     // из кадров со сведёнными ногами — самый высокий
+  mx.stopAllAction(); mx.uncacheRoot(scene);
+  const T = [0, 1.5, 3], br = new THREE.Quaternion().setFromEuler(new THREE.Euler(.035, 0, 0)), q = new THREE.Quaternion();
+  const tr = walk.tracks.map(t => { const m = t.getValueSize(), v = []; for (let i = 0; i < T.length; i++) for (let j = 0; j < m; j++) v.push(t.values[best * m + j]);
+    if (t.name === 'mixamorigSpine2.quaternion') { q.fromArray(v, 4); q.multiply(br); q.toArray(v, 4); } else if (t.name === 'mixamorigHips.position') { v[m + 1] += .012; }
+    return new t.constructor(t.name, T, v); });
+  return new THREE.AnimationClip('Idle_Neutral', 3, tr);
+}
+export function retargetMhs(src, heroScene) {
   const S = restOf(src.scene), H = restOf(heroScene), sh = S.get('mixamorigHips'), hh = H.get('mixamorigHips'), ratio = sh && hh && sh.y ? (hh.y * hh.ps) / (sh.y * sh.ps) : 1, out = [], qa = new THREE.Quaternion();
   for (const c of src.clips) {
     const tracks = [];
@@ -61,6 +76,7 @@ function retargetMhs(src, heroScene) {
     }
     out.push(new THREE.AnimationClip(c.name, c.duration, tracks));
   }
+  { const ni = neutralIdle(out, heroScene); if (ni) out.push(ni); }
   return out;
 }
 async function loadKk() {
@@ -136,6 +152,7 @@ export function loadActor(key, kit) {
   const p = (async () => {
     if (kit.attach && kit.attach.some(a => a.p.startsWith('kw:'))) await loadKkWeapons();     // детали из набора оружия нужны до сборки
     const g = await ld().loadAsync(u), mhs = kit.anims === 'mhs' ? await loadMhs() : null, clips = [...g.animations, ...(kit.anims === 'kk' ? await loadKk() : mhs ? retargetMhs(mhs, g.scene) : [])];
+    if (kit.ownWeapon && !clips.some(c => c.name === 'Idle_Neutral')) { const ni = neutralIdle(clips, g.scene); if (ni) clips.push(ni); }     // герои Meshy со своими клипами (Торн) — тоже со спокойной стойкой
     for (const [nm, [t0, t1]] of Object.entries(kit.split || {})) { const c = clips[0]; if (c) clips.push(THREE.AnimationUtils.subclip(c, nm, Math.round(t0 * 30), Math.round(t1 * 30), 30)); }     // одна склейка «поза-стойка-ходьба» → свои клипы
     g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.geometry.userData.shared = true; o.frustumCulled = false; const ms = Array.isArray(o.material) ? o.material : [o.material]; o.material = ms.map(m => new THREE.MeshLambertMaterial({ name: m.name, map: m.map || null, color: m.color ? m.color.clone() : 0xffffff, transparent: m.transparent, alphaTest: m.alphaTest || 0, emissive: m.emissive ? m.emissive.clone().multiplyScalar(m.emissiveIntensity ?? 1) : 0x000000, emissiveMap: m.emissiveMap || null }))[0]; } });
     if (kit.recolor) recolor(g.scene, kit);

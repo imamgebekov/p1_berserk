@@ -8,6 +8,8 @@ const P2D = new Map(), pathOf = k => { let p = P2D.get(k); if (!p && GI[k] && ty
 let RING = '#1a0e08', GLYPH = '#fff8e8';
 function badge(ctx, key, x, y, r, bg) { ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fillStyle = bg; ctx.fill(); ctx.lineWidth = Math.max(1.5, r * .16); ctx.strokeStyle = RING; ctx.stroke(); const p = pathOf(key); if (!p) return; const s = r * 1.3 / 512; ctx.save(); ctx.translate(x - r * .65, y - r * .65); ctx.scale(s, s); ctx.fillStyle = GLYPH; ctx.fill(p); ctx.restore(); }
 
+// значок без подложки: силуэт с тёмным контуром (костры на карте переноса, 2026-11-06); size — высота в пикселях
+export function glyph(ctx, key, x, y, size, fill, edge = '#1a0e08') { const p = pathOf(key); if (!p) return false; const s = size / 512; ctx.save(); ctx.translate(x - size / 2, y - size / 2); ctx.scale(s, s); ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(10, 18 / Math.max(.6, size / 28)); ctx.strokeStyle = edge; ctx.stroke(p); ctx.fillStyle = fill; ctx.fill(p); ctx.restore(); return true; }
 // подложка с рельефом и мягкая дымка (шаг 10б): одна подложка на мир; дымка — маленькая картинка из клеток тумана, растянутая со сглаживанием
 const RELIEF = new WeakMap(), FOG = new WeakMap();
 const reliefOf = (doc, W) => { if (W.map.bounds || !doc) return null; let r = RELIEF.get(W.cfg); if (!r) { r = makeRelief(doc, W.cfg, W.map); RELIEF.set(W.cfg, r); } return r; };

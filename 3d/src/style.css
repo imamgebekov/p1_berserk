@@ -14,7 +14,7 @@ html,body{margin:0;height:100%;position:fixed;inset:0;width:100%;background:var(
 #hpTxt{font-weight:700;min-width:2.2em;text-shadow:0 1px 0 #000}
 #kills{flex:1;text-align:center;font-size:12px;line-height:1.2;text-shadow:0 1px 0 #000;opacity:.85}
 #bookBtn{display:none}[data-desk] #bookBtn{display:inline-block}     /* на телефоне книга — из сумки: в шапке нет места */
-#skillBtn,#bookBtn,#bagBtn,#gear{pointer-events:auto;width:44px;height:44px;border:2px solid var(--line);background:#150c0d;color:var(--ink);font-size:22px;border-radius:10px}
+#skillBtn,#bookBtn,#bagBtn,#mailBtn,#gear{pointer-events:auto;width:44px;height:44px;border:2px solid var(--line);background:#150c0d;color:var(--ink);font-size:22px;border-radius:10px}
 #zone{position:fixed;left:0;top:64px;width:100%;bottom:0;touch-action:none}
 #stick{position:fixed;width:112px;height:112px;margin:-56px 0 0 -56px;border:2px solid #5a3a34;border-radius:50%;background:rgba(10,5,6,.35);opacity:0;pointer-events:none;transition:opacity .12s}
 #stick.on{opacity:1}
@@ -410,7 +410,7 @@ html:not([data-desk]) #bagCard:not([hidden]){position:absolute;left:8px;right:8p
 .ic{width:1.15em;height:1.15em;flex:none;fill:currentColor;vertical-align:-.2em;display:inline-block}
 button .ic+*,button .ic{pointer-events:none}
 button > .ic,.toast > .ic,#kills .ic{margin-right:.4em}
-#skillBtn .ic,#bookBtn .ic,#bagBtn .ic,#gear .ic{width:24px;height:24px;margin:0}
+#skillBtn .ic,#bookBtn .ic,#bagBtn .ic,#mailBtn .ic,#gear .ic{width:24px;height:24px;margin:0}
 #bagBtn,#skillBtn,#bookBtn,#gear{color:#e8d2a8}
 .jbtn .ic{width:22px;height:22px;margin:0}
 .toast{display:flex;align-items:center}
@@ -584,7 +584,7 @@ html,body{font-family:var(--sans);font-size:15.5px}
 .slot,.item,.skrow,.qrow,.srow,.jrow,#bagCard,.tcard,.bstats{background:radial-gradient(120% 140% at 50% 0%,#1d140e,#100a07)!important;border:1px solid #070403!important;box-shadow:inset 0 2px 6px rgba(0,0,0,.7),0 0 0 1px var(--br-dd)}
 .bstats{border-radius:9px}
 /* панель HUD: кнопки-медальоны */
-#skillBtn,#bookBtn,#bagBtn,#gear,#questBtn{background:radial-gradient(circle at 45% 35%,#4a3220,#1a100a 72%)!important;border:1px solid #000!important;color:var(--br-hi)!important;
+#skillBtn,#bookBtn,#bagBtn,#mailBtn,#gear,#questBtn{background:radial-gradient(circle at 45% 35%,#4a3220,#1a100a 72%)!important;border:1px solid #000!important;color:var(--br-hi)!important;
   box-shadow:inset 0 0 0 2px var(--br-d),inset 0 0 0 3px #120b06,0 0 0 1px var(--br),0 2px 5px rgba(0,0,0,.6)!important}
 /* ---- древо: ветка — лист со знаком, лента с названием, узлы в бронзе ---- */
 .tbranch{position:relative;overflow:hidden;background:var(--grain),radial-gradient(90% 60% at 50% 30%,color-mix(in srgb,var(--bc) 14%,transparent),transparent 70%),linear-gradient(180deg,#1e140d,#110a07)!important;
@@ -1173,8 +1173,6 @@ html:not([data-desk]) #hpTxt{grid-row:1;grid-column:2;justify-self:center;min-wi
 @media (max-width:760px),(max-height:520px){#auction .apane{overflow:auto;-webkit-overflow-scrolling:touch;display:block}#auction .apane>*{margin-bottom:6px}#auction .alist{flex:none;overflow:visible;display:flex}#auction .ssub{display:none}#auction .tab{min-height:34px}#aucTabs{margin:4px 0}#auction .shead{gap:8px}#auction .bhead button.close{min-height:38px;padding:0 14px}}
 #auction .tchips,#auction .afil.nums{scrollbar-width:none}#auction .tchips::-webkit-scrollbar,#auction .afil.nums::-webkit-scrollbar{display:none}
 
-#mailBtn{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(434px + env(safe-area-inset-bottom));min-height:40px;min-width:64px;padding:0 12px;background:#2c2018;color:#ffe2b0;font-weight:700;border:2px solid #6a5238;border-radius:12px}#mailBtn[hidden]{display:none}#mailBtn.new{border-color:#e8c04a;color:#ffe9a0}
-[data-desk] #mailBtn{bottom:200px;right:24px}
 #mail .mlist{display:flex;flex-direction:column;gap:6px;padding:8px}#mail .mrow{background:rgba(255,255,255,.04);border:1px solid #3a2a20;border-radius:10px}#mail .mrow.unread{border-color:#e8c04a}
 #mail .mhead{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:10px 12px;background:none;border:0;color:inherit;text-align:left;min-height:44px}#mail .mhead span{font-size:.8em;opacity:.7}
 #mail .mdet{padding:4px 12px 12px}#mail .mtext{line-height:1.45;padding:6px 12px 10px}#mail .mdet .mtext{padding:4px 0 8px}#mail .matt{color:#e8c04a;margin:2px 0 8px}
@@ -1259,8 +1257,8 @@ html[data-land] #skills .tview:has(.tcard.tsheet) .tree{margin-right:262px}
 /* 5.45: иконки умений закрывают весь круг; значки кнопок HUD ровно по центру (замечание владельца 2026-11-05) */
 html #abil .ab img.abgi.own{inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;transform:scale(1.2);filter:none}
 html:not([data-desk]) #abil .ab{overflow:hidden}
-#skillBtn,#bookBtn,#bagBtn,#gear,#questBtn{display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:0}
-#skillBtn .ic,#bookBtn .ic,#bagBtn .ic,#gear .ic,#questBtn .ic{display:block;flex:none;margin:0}
+#skillBtn,#bookBtn,#bagBtn,#mailBtn,#gear,#questBtn{display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:0}
+#skillBtn .ic,#bookBtn .ic,#bagBtn .ic,#mailBtn .ic,#gear .ic,#questBtn .ic{display:block;flex:none;margin:0}
 /* 5.45: боком задания — слева под здоровьем, а не по центру; контекстные кнопки («Сдать задание», «Торговать») — справа от дуги умений, камера остаётся свободной */
 html[data-land] #tracker{left:calc(var(--pad) + env(safe-area-inset-left));right:auto;transform:none;top:calc(env(safe-area-inset-top) + 66px);max-width:33%;text-align:left;font-size:11.5px;max-height:calc(1.3em * 5 + 12px);overflow:hidden;padding:4px 8px}
 html[data-land]:not([data-desk]) #actStack{left:auto;right:calc(250px + env(safe-area-inset-right));transform:none;align-items:flex-end;bottom:calc(18px + env(safe-area-inset-bottom))}
@@ -1269,29 +1267,81 @@ html[data-land]:not([data-desk]) #loot{left:auto;right:calc(250px + env(safe-are
 html[data-land] #loot .lhead{padding:6px 6px 4px 12px}html[data-land] #loot .lname{font-size:16px}html[data-land] #loot .lclose{width:36px;height:36px}
 html[data-land] #lootList{max-height:calc(100dvh - 150px);padding:4px}html[data-land] #loot .lrow{min-height:46px;gap:10px;padding:4px 6px}html[data-land] #loot .lic{width:38px;height:38px}
 html[data-land] #loot .lfoot{padding:6px 8px 8px}html[data-land] #loot .lall{min-height:40px}
-/* 5.46: раскладка А боком (макет владельца): умения дугой вокруг «Удара» (радиус 150, шаг 62 px), перекат слева от дуги, умение оружия над перекатом; контекстные кнопки и добыча — левее */
-html[data-land]:not([data-desk]) #abil .ab[data-i="0"]{right:calc(185px + env(safe-area-inset-right));bottom:calc(52px + env(safe-area-inset-bottom))}
-html[data-land]:not([data-desk]) #abil .ab[data-i="1"]{right:calc(170px + env(safe-area-inset-right));bottom:calc(113px + env(safe-area-inset-bottom))}
-html[data-land]:not([data-desk]) #abil .ab[data-i="2"]{right:calc(131px + env(safe-area-inset-right));bottom:calc(162px + env(safe-area-inset-bottom))}
-html[data-land]:not([data-desk]) #abil .ab[data-i="3"]{right:calc(76px + env(safe-area-inset-right));bottom:calc(191px + env(safe-area-inset-bottom))}
-html[data-land]:not([data-desk]) #abil .ab[data-i="4"]{right:calc(16px + env(safe-area-inset-right));bottom:calc(196px + env(safe-area-inset-bottom))}
-html[data-land]:not([data-desk]) #abil .ab.wsk{right:calc(246px + env(safe-area-inset-right));bottom:calc(104px + env(safe-area-inset-bottom))}
-html[data-land]:not([data-desk]) #bRoll{right:calc(250px + env(safe-area-inset-right));bottom:calc(30px + env(safe-area-inset-bottom))}
-html[data-land]:not([data-desk]) #actStack{right:calc(330px + env(safe-area-inset-right))}
-html[data-land]:not([data-desk]) #loot{right:calc(330px + env(safe-area-inset-right))}
 /* 5.47: боком — окна не уходят под вырез и индикатор «домой»; зона касания у мелких кнопок не меньше 44 px (вид прежний, зона шире на 7 px со всех сторон) */
-html[data-land] #botTalk .pbox,html[data-land] #bag .pbox,html[data-land] #shop .pbox,html[data-land] #auction .pbox,html[data-land] #mail .pbox,html[data-land] #smith .pbox,html[data-land] #lib .pbox,html[data-land] #relic .pbox,html[data-land] #skills .pbox,html[data-land] #map .pbox,html[data-land] #captain .pbox,html[data-land] #journal .pbox,html[data-land] #quests .pbox,html[data-land] #fires .pbox{padding:6px max(14px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+html[data-land] #botTalk .pbox,html[data-land] #bag .pbox,html[data-land] #shop .pbox,html[data-land] #auction .pbox,html[data-land] #mail .pbox,html[data-land] #smith .pbox,html[data-land] #lib .pbox,html[data-land] #relic .pbox,html[data-land] #skills .pbox,html[data-land] #map .pbox,html[data-land] #captain .pbox,html[data-land] #journal .pbox,html[data-land] #quests .pbox,html[data-land] #fires .pbox{padding:6px max(14px,calc(env(safe-area-inset-right) / .8)) max(8px,calc(env(safe-area-inset-bottom) / .8)) max(14px,calc(env(safe-area-inset-left) / .8))}
 html[data-land] #heroGo{left:max(14px,env(safe-area-inset-left))}
-html[data-land] :is(.tab,.tchip,.tbsb,.tsort,.close,.jbtn,.legtg,#actStack>*,#actSide>*){position:relative}
-html[data-land] :is(.tab,.tchip,.tbsb,.tsort,.close,.jbtn,.legtg,.reset,#actStack>*,#actSide>*)::after{content:'';position:absolute;inset:-7px}
+html[data-land] :is(.tab,.tchip,.tbsb,.tsort,.close,.jbtn,.legtg){position:relative}     /* кнопки действий рядом (зверь, почта) зону не расширяем: зоны перекрывались и нажатие уходило соседу */
+html[data-land] :is(.tab,.tchip,.tbsb,.tsort,.close,.jbtn,.legtg,.reset)::after{content:'';position:absolute;inset:-7px}
 html[data-land] :is(.tabs,.tchips,.tbsw){padding-block:6px;margin-block:-6px}     /* строка вкладок обрезает ::after по краю: даём ей запас, лишнюю высоту снимаем отрицательным отступом */
-/* 5.48: левша боком — раскладка А зеркалом: дуга и кнопки слева, стик и камера справа (input.js, main.js) */
-html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="0"]{left:calc(185px + env(safe-area-inset-left));bottom:calc(52px + env(safe-area-inset-bottom))}
-html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="1"]{left:calc(170px + env(safe-area-inset-left));bottom:calc(113px + env(safe-area-inset-bottom))}
-html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="2"]{left:calc(131px + env(safe-area-inset-left));bottom:calc(162px + env(safe-area-inset-bottom))}
-html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="3"]{left:calc(76px + env(safe-area-inset-left));bottom:calc(191px + env(safe-area-inset-bottom))}
-html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="4"]{left:calc(16px + env(safe-area-inset-left));bottom:calc(196px + env(safe-area-inset-bottom))}
-html[data-lefty][data-land]:not([data-desk]) #abil .ab.wsk{left:calc(246px + env(safe-area-inset-left));bottom:calc(104px + env(safe-area-inset-bottom))}
-html[data-lefty][data-land]:not([data-desk]) #bRoll{right:auto;left:calc(250px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom))}
-html[data-lefty][data-land]:not([data-desk]) #actStack{right:auto;left:calc(330px + env(safe-area-inset-left))}
-html[data-lefty][data-land]:not([data-desk]) #loot{right:auto;left:calc(330px + env(safe-area-inset-left))}
+
+/* 5.49: боком — интерфейс мельче (--u = .78 от прежнего), шесть умений дугой вокруг «Удара» (радиус 172, шаг 18°), миникарта меньше. Левша — зеркалом */
+html[data-land]:not([data-desk]){--u:.78;--mm:calc(var(--u) * 94px)}
+html[data-land]:not([data-desk]) #bAtk{width:calc(var(--u) * 92px);height:calc(var(--u) * 92px);right:calc(16px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom));font-size:13px}
+html[data-land]:not([data-desk]) #bRoll{width:calc(var(--u) * 66px);height:calc(var(--u) * 66px);font-size:11px;right:calc(var(--u) * 268px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab{width:calc(var(--u) * 50px);height:calc(var(--u) * 50px)}
+html[data-land]:not([data-desk]) #abil .ab[data-i="0"]:not(.wsk){right:calc(var(--u) * 209px + env(safe-area-inset-right));bottom:calc(var(--u) * 35px + 14px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab[data-i="1"]:not(.wsk){right:calc(var(--u) * 201px + env(safe-area-inset-right));bottom:calc(var(--u) * 88px + 14px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab[data-i="2"]:not(.wsk){right:calc(var(--u) * 176px + env(safe-area-inset-right));bottom:calc(var(--u) * 136px + 14px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab[data-i="3"]:not(.wsk){right:calc(var(--u) * 138px + env(safe-area-inset-right));bottom:calc(var(--u) * 174px + 14px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab[data-i="4"]:not(.wsk){right:calc(var(--u) * 90px + env(safe-area-inset-right));bottom:calc(var(--u) * 199px + 14px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab[data-i="5"]:not(.wsk){right:calc(var(--u) * 37px + env(safe-area-inset-right));bottom:calc(var(--u) * 207px + 14px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #abil .ab.wsk{right:calc(var(--u) * 276px + env(safe-area-inset-right));bottom:calc(var(--u) * 92px + 14px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #actStack{right:calc(var(--u) * 350px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom))}
+html[data-land]:not([data-desk]) #loot{right:calc(var(--u) * 350px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="0"]:not(.wsk){right:auto!important;left:calc(var(--u) * 209px + env(safe-area-inset-left));bottom:calc(var(--u) * 35px + 14px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="1"]:not(.wsk){right:auto!important;left:calc(var(--u) * 201px + env(safe-area-inset-left));bottom:calc(var(--u) * 88px + 14px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="2"]:not(.wsk){right:auto!important;left:calc(var(--u) * 176px + env(safe-area-inset-left));bottom:calc(var(--u) * 136px + 14px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="3"]:not(.wsk){right:auto!important;left:calc(var(--u) * 138px + env(safe-area-inset-left));bottom:calc(var(--u) * 174px + 14px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="4"]:not(.wsk){right:auto!important;left:calc(var(--u) * 90px + env(safe-area-inset-left));bottom:calc(var(--u) * 199px + 14px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab[data-i="5"]:not(.wsk){right:auto!important;left:calc(var(--u) * 37px + env(safe-area-inset-left));bottom:calc(var(--u) * 207px + 14px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #abil .ab.wsk{right:auto!important;left:calc(var(--u) * 276px + env(safe-area-inset-left));bottom:calc(var(--u) * 92px + 14px + env(safe-area-inset-bottom))}
+html[data-lefty][data-land]:not([data-desk]) #bAtk{right:auto;left:calc(16px + env(safe-area-inset-left))}
+html[data-lefty][data-land]:not([data-desk]) #bRoll{right:auto;left:calc(var(--u) * 268px + env(safe-area-inset-left))}
+html[data-lefty][data-land]:not([data-desk]) #actStack{right:auto;left:calc(var(--u) * 350px + env(safe-area-inset-left))}
+html[data-lefty][data-land]:not([data-desk]) #loot{right:auto;left:calc(var(--u) * 350px + env(safe-area-inset-left))}
+html[data-land]:not([data-desk]) :is(#hud,#statusRow,#party,#boss){zoom:var(--u)}
+html[data-land]:not([data-desk]) #miniBtn{top:calc(env(safe-area-inset-top) + 46px)}
+html[data-land]:not([data-desk]) :is(#actStack,#actSide)>*{font-size:12.5px;min-height:30px;padding:0 12px}
+html[data-land]:not([data-desk]) :is(#botTalk,#bag,#shop,#auction,#mail,#smith,#lib,#relic,#skills,#map,#captain,#journal,#quests,#fires,#panel){inset:0 auto auto 0;width:125vw;height:125dvh;transform:scale(.8);transform-origin:0 0}     /* окна боком мельче на 20%: сжатие с запасом размера, чтобы окно заполняло экран */
+#bAtk,#bRoll{display:flex;align-items:center;justify-content:center;padding:0}
+#bAtk .ic,#bRoll .ic{fill:#fff;image-rendering:auto;filter:drop-shadow(0 1px 0 #000)}#bAtk .ic{width:58%;height:58%}#bRoll .ic{width:56%;height:56%}
+/* 5.50: боком компактнее: древо (школы строкой, без подзаголовков), задания, аукцион, трекер сворачивается */
+html[data-land] #skills .tbr{display:none}
+html[data-land] #skills .tbh{display:inline-block;font-size:14px}
+html[data-land] #skills .tsch,html[data-land] #skills .tgt{display:inline-block;margin:0 0 0 8px;font-size:11px;padding:1px 8px;vertical-align:middle}
+html[data-land] #skills .tbsw{margin:0 0 2px}html[data-land] #skills .tbsb{height:24px!important;min-height:24px!important;font-size:12px;padding:0 8px}
+html[data-land] #skills .tgrid{row-gap:6px!important}
+html[data-land] #skills .tbranch{padding:4px 6px}
+html[data-land] #skills .bhead{min-height:0;padding-block:0}
+html[data-land] #skills .tnode{width:32px;height:32px}
+html[data-land] #skills .tcard.tsheet{width:210px;top:96px}
+html[data-land] #skills .tview:has(.tcard.tsheet) .tree{margin-right:220px}
+html[data-land] #tracker{pointer-events:auto;cursor:pointer;font-size:11px;line-height:1.25;padding:3px 8px;max-width:30%}
+html[data-land] #tracker::before{content:'▾ Задания';display:block;color:#ffd890;font:600 10.5px system-ui;opacity:.85}
+html[data-land] #tracker.min{max-height:calc(1.25em + 8px);overflow:hidden}html[data-land] #tracker.min::before{content:'▸ Задания'}
+html[data-land] #quests :is(.qcard,.qrow){padding:6px 10px;gap:8px}
+html[data-land] #quests .qic{width:34px;height:34px}html[data-land] #quests .qname{font-size:14px}html[data-land] #quests .qtext,html[data-land] #quests .qgoal{font-size:12px}
+html[data-land] #quests .tab{min-height:28px;height:28px;font-size:13px}html[data-land] #questTabs{margin:2px 0}
+html[data-land] #quests .qbtn{min-height:30px;font-size:13px;padding:0 14px}
+html[data-land] #auction .hid{display:none}
+html[data-land] #auction .tchips{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:5px}html[data-land] #auction .tchip{min-height:28px;font-size:12px;padding:0 10px;flex:none}
+html[data-land] #auction .afil{gap:6px}html[data-land] #auction .asearch{height:30px;font-size:13px}html[data-land] #auction .tsort{height:30px;font-size:12.5px}
+html[data-land] #auction .tab{min-height:28px;height:28px;font-size:13px}html[data-land] #aucTabs{margin:2px 0}
+html[data-land] #auction .rfr{margin-left:auto}
+#firesList button.sel{outline:2px solid #ffd27a;outline-offset:-2px}
+.firego{margin-top:8px;min-height:40px;border-radius:20px;border:1px solid #d9b27a;background:#3a2a1a;color:#f0d3a0;font-weight:600;font-size:14px;padding:0 14px}.firego:disabled{opacity:.55}.firego[hidden]{display:none}
+html[data-land] .travel{gap:8px}html[data-land] .travel #firesList{width:min(30%,250px);overflow-y:auto}html[data-land] .travel #firesList button{min-height:38px;font-size:13px;padding:4px 10px}
+html[data-land] #fires .pbox>p,html[data-land] #firesNote{font-size:11.5px;margin:0 0 4px}
+html[data-land] #fires .travel #firesMap{min-height:0}
+html[data-land] #fires .pbox,html[data-land] #map .pbox{max-width:none;width:100%}
+html[data-land] .firego{position:sticky;top:0;z-index:2}
+html[data-land] #firesNote{display:none}
+.fnote{font-size:11px;opacity:.7;margin:6px 2px;line-height:1.3}
+html[data-land] #fires .bhead{min-height:0;margin:0 0 2px;padding-block:0}
+html[data-land] #fires .pbox{padding-top:2px}
+html[data-land] .travel{margin-top:0}
+.doll .slot,.bitems .slot.none{display:flex;align-items:center;justify-content:center;padding:0}.doll .slot .ic,.doll .slot img,.bitems .slot.none .ic{margin:0;position:static}     /* значок ровно по центру пустой ячейки */
+#mailBtn{position:relative}#mailBtn[hidden]{display:none}
+#mailBtn:not([data-n=""])[data-n]::after{content:attr(data-n);position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 3px;box-sizing:border-box;border-radius:8px;background:#e8c04a;color:#241a10;font:700 10px/16px system-ui;text-align:center;border:1px solid #000}
+#skillBtn,#bookBtn,#bagBtn,#mailBtn,#gear{flex:none}     /* пятая кнопка в верхнем ряду не должна сжимать остальные (портрет 390 px) */
+html:not([data-land]):not([data-desk]) #mailBtn{position:fixed;left:calc(var(--pad) + env(safe-area-inset-left));top:calc(env(safe-area-inset-top) + 66px);width:38px;height:38px;z-index:4}     /* портрет: в верхнем ряду места нет — почта под здоровьем слева */

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b0709">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="../icon-180.png">
@@ -23,6 +24,7 @@
   <div id="kills"><span id="hudLv">Ур. 1</span><span id="hudAsh">0</span><span id="hudTime"></span></div>
   <button id="skillBtn" type="button" aria-label="Навыки" data-icon="skills"></button>
   <button id="bookBtn" type="button" aria-label="Книга рецептов" data-icon="book"></button>
+  <button id="mailBtn" type="button" aria-label="Почта" title="Почта (K)" data-icon="scroll" hidden></button>
   <button id="bagBtn" type="button" aria-label="Сумка" data-icon="bag"><span id="bagFill"></span></button>
   <button id="gear" type="button" aria-label="Меню" data-icon="gear"></button>
 </header>
@@ -37,8 +39,8 @@
 <button id="miniBtn" type="button" aria-label="Открыть карту"><canvas id="mini" width="128" height="128"></canvas></button>
 <div id="zone"></div>
 <div id="stick"><div id="knob"></div></div>
-<button id="bRoll" type="button">Перекат</button>
-<button id="bAtk" type="button">Удар</button>
+<button id="bRoll" type="button" data-icon="gi:n:jy_run" aria-label="Перекат" title="Перекат"></button>
+<button id="bAtk" type="button" data-icon="gi:map:fight" aria-label="Удар" title="Удар"></button>
 <div id="resBar" hidden><i></i><span></span></div>
 <div id="abil"></div>
 <div id="combo" hidden></div>
@@ -59,7 +61,7 @@
 <button id="gatherBtn" type="button" hidden>Собрать</button>
 <button id="lootBtn" type="button" hidden>Добыча</button>
 <section id="loot" hidden aria-label="Добыча"><div class="lhead"><div class="lht"><div id="lootName" class="lname"></div><div id="lootTime" class="ltime"></div></div><button id="lootClose" type="button" class="lclose" aria-label="Закрыть">×</button></div><div id="lootList"></div><div class="lfoot"><button id="lootAll" type="button" class="lall">Взять всё</button><span class="lkey" aria-hidden="true">E</span></div></section>
-<button id="mountBtn" type="button" hidden>Конь</button><button id="mailBtn" type="button" hidden>Почта</button><button id="mountNextBtn" type="button" hidden aria-label="Другой зверь">⇄</button>
+<button id="mountBtn" type="button" hidden>Конь</button><button id="mountNextBtn" type="button" hidden aria-label="Другой зверь">⇄</button>
 <button id="fireBtn" type="button" hidden data-icon="fire">Костёр</button>
 <button id="warpBtn" type="button" hidden data-icon="fire">Костры</button>
 <button id="exitBtn" type="button" hidden>Выйти</button>
@@ -238,7 +240,7 @@
           <h3>Качество</h3>
           <div id="qualTabs" class="tabs"></div>
           <p id="qualNote" class="note"></p>
-          <div class="tgls"><button id="retroBtn" type="button" class="tgl"></button><button id="ecoBtn" type="button" class="tgl"></button><button id="asciiBtn" type="button" class="tgl"></button><button id="fpsBtn" type="button" class="tgl"></button></div>
+          <div class="tgls"><button id="retroBtn" type="button" class="tgl"></button><button id="ecoBtn" type="button" class="tgl"></button><button id="asciiBtn" type="button" class="tgl"></button><button id="fpsBtn" type="button" class="tgl"></button><button id="memBtn" type="button" class="tgl"></button></div>
         </div>
         <div class="msec" data-sec="keys" hidden>
           <div id="keysAll" class="klist"><span><kbd>WASD</kbd>ходить (или стрелки)</span><span><kbd>ЛКМ</kbd>удар, держать — тяжёлый</span><span><kbd>ПКМ</kbd>перекат (или Shift)</span><span><kbd>1–5</kbd>умения</span><span><kbd>F</kbd>умение оружия</span><span><kbd>E</kbd>люк, торговец, сбор, повозка</span><span><kbd>I</kbd>сумка</span><span><kbd>N</kbd>навыки</span><span><kbd>M</kbd>карта</span><span><kbd>Q</kbd>задания</span><span><kbd>R</kbd>книга рецептов</span><span><kbd>G</kbd>где взять вещь под курсором</span><span><kbd>Z X C</kbd>отряд: за мной, держать, цель</span><span><kbd>H</kbd>героическая сложность (с 60 ур.)</span><span><kbd>V</kbd>конь</span><span><kbd>колесо</kbd>камера ближе и дальше</span></div>

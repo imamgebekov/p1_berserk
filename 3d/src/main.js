@@ -44,7 +44,7 @@ import { weaponSkillView } from './weaponskill3d.js';
 import { comboReady } from './combos3d.js';
 import { ELEMENT_COLOR } from './elements3d.js';
 import { KIND_NAME } from './data/items.js';
-import { drawMap, tickRelief } from './mapdraw.js';
+import { drawMap, tickRelief, glyph } from './mapdraw.js';
 import { zoneAt } from './zones3d.js';
 import { storyTalk, storyTalked, storyTalkable, storyGoal, storyAutoPending, storyActors, storyChoice } from './story3d.js';
 import { SPEAKERS } from './data/story3d.js';
@@ -98,7 +98,7 @@ const desk = matchMedia('(hover: hover) and (pointer: fine)').matches && !(navig
 if (desk) document.documentElement.setAttribute('data-desk', '');
 const canvas = $('gl');
 // кнопки действий складываются в стопку, а не лежат каждая на своём месте: две сразу (сундук и костёр) не налезают друг на друга (2026-11-05)
-for (const [id, ids] of [['actStack', ['talk', 'botBtn', 'lootBtn', 'gatherBtn', 'coachBtn', 'fireBtn', 'portalBtn', 'heroicBtn', 'sleepBtn']], ['actSide', ['mountBtn', 'mountNextBtn', 'mailBtn']]]) { const box = document.createElement('div'); box.id = id; document.body.append(box); for (const b of ids) { const el = $(b); if (el) box.append(el); } }
+for (const [id, ids] of [['actStack', ['talk', 'botBtn', 'lootBtn', 'gatherBtn', 'coachBtn', 'fireBtn', 'portalBtn', 'heroicBtn', 'sleepBtn']], ['actSide', ['mountBtn', 'mountNextBtn']]]) { const box = document.createElement('div'); box.id = id; document.body.append(box); for (const b of ids) { const el = $(b); if (el) box.append(el); } }
 let renderer;
 const W = createWorld(cfg);     // мир — до отрисовки: она берёт его карту, а не строит свою (загрузка, 2026-10-28)
 containerStyle.scale = CFG3.map.containerScale;
@@ -120,9 +120,9 @@ try { const v = Number(localStorage.getItem(YK)); if (CY.on && Number.isFinite(v
 function turnCam(d) { if (!CY.on) return; yawUser += d; try { localStorage.setItem(YK, String(Math.round(yawUser * 10) / 10)); } catch (e) { /* без сохранения */ } }
 if (CY.on) {
   addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey || (e.target && e.target.closest && e.target.closest('input, textarea'))) return; if (e.code === 'BracketLeft') turnCam(-CY.key); else if (e.code === 'BracketRight') turnCam(CY.key); else if (e.code === 'Backslash') { yawUser = yawBase; turnCam(0); } });
-  addEventListener('camturn', e => turnCam(e.detail * CY.drag));     // правая кнопка мыши: input.js
+  addEventListener('camturn', e => turnCam(CY.sign * e.detail * CY.drag));     // правая кнопка мыши: input.js
   let md = null; addEventListener('pointerdown', e => { if (e.button === 1 && e.target === document.getElementById('gl')) { md = e.clientX; e.preventDefault(); } });
-  addEventListener('pointermove', e => { if (md === null) return; turnCam((e.clientX - md) * CY.drag); md = e.clientX; });
+  addEventListener('pointermove', e => { if (md === null) return; turnCam(CY.sign * (e.clientX - md) * CY.drag); md = e.clientX; });
   addEventListener('pointerup', e => { if (e.button === 1) md = null; });
 }
 // 4.12: приближение камеры — колесо, + и −, щипок двумя пальцами; запоминается в этом браузере
@@ -136,16 +136,18 @@ if (renderer && cfg.view.zoom) {
   // касания по полю (5.44): боком правая половина — камера одним пальцем; щипок приближает, даже если пальцы на разных половинах
   // (оба пальца движутся навстречу или врозь вдоль линии между ними; один палец на стике стоит — это камера, а не щипок)
   const tp = new Map(), fieldEl = document.getElementById('zone'), isField = e => e.pointerType === 'touch' && (e.target === canvas || e.target === fieldEl);
-  addEventListener('pointerdown', e => { if (isField(e)) tp.set(e.pointerId, { x: e.clientX, y: e.clientY, cam: document.documentElement.hasAttribute('data-land') && (document.documentElement.hasAttribute('data-lefty') ? e.clientX < innerWidth * .5 : e.clientX > innerWidth * .5), mv: [] }); }, true);
+  addEventListener('pointerdown', e => { if (isField(e)) tp.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, drag: false, cam: document.documentElement.hasAttribute('data-land') && (document.documentElement.hasAttribute('data-lefty') ? e.clientX < innerWidth * .5 : e.clientX > innerWidth * .5), mv: [] }); }, true);
   addEventListener('pointermove', e => {
     const f = tp.get(e.pointerId); if (!f) return; const dx = e.clientX - f.x, dy = e.clientY - f.y, t = e.timeStamp; f.x = e.clientX; f.y = e.clientY; f.mv.push([t, dx, dy]); while (f.mv.length && t - f.mv[0][0] > 150) f.mv.shift();
     const o = [...tp.entries()].find(([id]) => id !== e.pointerId);
     if (o) { const g = o[1], ax = f.x - g.x, ay = f.y - g.y, L = Math.hypot(ax, ay) || 1, ux = ax / L, uy = ay / L, sum = h => h.mv.reduce((r, m) => [r[0] + m[1], r[1] + m[2]], [0, 0]), mf = sum(f), mo = sum(g), pf = mf[0] * ux + mf[1] * uy, po = mo[0] * ux + mo[1] * uy, same = (f.x > innerWidth / 2) === (g.x > innerWidth / 2);
       if (same ? L > 20 : (pf * po < 0 && Math.abs(pf) >= 8 && Math.abs(po) >= 8)) { const L0 = Math.hypot(f.x - dx - g.x, f.y - dy - g.y); if (L0 > 20) setZ(renderer.camZoom() * L0 / L); return; } }
-    if (f.cam && dx) turnCam(dx * CY.drag);     // не щипок: палец в правой половине тянет камеру
+    if (f.cam) { if (!f.drag) { if (Math.hypot(e.clientX - f.sx, e.clientY - f.sy) < CY.slop) return; f.drag = true; return; } if (dx) turnCam(CY.sign * dx * CY.drag); }     // не щипок: палец в правой половине тянет камеру
   }, true);
   for (const ev of ['pointerup', 'pointercancel']) addEventListener(ev, e => { tp.delete(e.pointerId); }, true);
 }
+{ const T = document.getElementById('tracker'); if (T) { let min = false; try { min = localStorage.getItem('berserk3d.trkMin') === '1'; } catch (e) { /* без сохранения */ } T.classList.toggle('min', min);
+  T.addEventListener('click', () => { min = !min; T.classList.toggle('min', min); try { localStorage.setItem('berserk3d.trkMin', min ? '1' : '0'); } catch (e) { /* без сохранения */ } }); } }     // трекер заданий боком сворачивается касанием (2026-11-06)
 const BENCH = new URLSearchParams(location.search).has('bench');      // ?bench: замер на устройстве — новая игра, сохранение не трогаем
 const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; } }; })();
 const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)
@@ -629,6 +631,7 @@ for (const q of QUALITY_IDS) { const b = document.createElement('button'); b.typ
 const shows = [
   prefBtn('leftyBtn', () => P.lefty, v => v ? 'Режим левши: кнопки слева' : 'Режим левши выключен', () => { P.lefty = !P.lefty; }, 'swap'),
   prefBtn('vibBtn', () => P.vibrate, v => v ? 'Вибрация включена (на iPhone не работает)' : 'Вибрация выключена', () => { P.vibrate = !P.vibrate; }, 'phone'),
+  prefBtn('memBtn', () => P.mem, v => v ? 'Счётчик памяти включён: нажмите на плашку вверху — цифры скопируются' : 'Счётчик памяти выключен', () => { P.mem = !P.mem; setMem(P.mem); }, 'timer'),
   prefBtn('fpsBtn', () => P.fps, v => v ? 'Счётчик кадров включён' : 'Счётчик кадров выключен', () => { P.fps = !P.fps; }, 'timer'),
   prefBtn('asciiBtn', () => P.ascii, v => v ? 'Мир символами (ASCII) включён' : 'Мир символами выключен', () => { P.ascii = !P.ascii; }, 'eye'),
   prefBtn('ecoBtn', () => ecoOn(), v => v ? 'Экономия заряда включена (30 кадров, меньше нагрев)' : 'Экономия заряда выключена', () => { P.eco = !ecoOn(); }, 'timer'),
@@ -695,6 +698,7 @@ const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
 talk.addEventListener('click', e => { e.stopImmediatePropagation(); if (storyTalkable(W, W.nearNpc)) { dlgOpen(storyTalk(W, W.nearNpc)); return; } if (W.nearActor) { if (questsOf(W, W.nearNpc).length) quests.open('here'); else toast(`${W.nearActor.name.split(',')[0]}: «Потом. Делай, что должен.»`, '', W.nearActor.tint); return; } (W.nearNpc === 'auctioneer' ? auction : W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : W.nearNpc === 'scribe' ? library : W.nearNpc === 'keeper' ? relic : shop).open(); }, true);     // сюжет первым (этап 3)
 // костры (C3d): у костра — список открытых, перенос к выбранному
 const fireBtn = $('fireBtn'), firesSec = $('fires');
+let travelSelId = null; const goBar = document.createElement('button'); goBar.type = 'button'; goBar.id = 'firesGo'; goBar.className = 'firego'; goBar.hidden = true;
 function openFires() {
   const here = fireNear(W), list = $('firesList'), block = travelBlock(W); list.textContent = ''; firesSec.querySelector('h2').textContent = 'Костры — перенос';
   const P = cfg.fires.pay; $('firesNote').textContent = block ? block + ' — перенос невозможен.' : here ? 'От костра перенос бесплатный. Нажмите на костёр на карте или в списке.' : `Не от костра перенос платный: от ${P.base} пепла, дальше дороже. У костра — бесплатно.`;
@@ -703,9 +707,12 @@ function openFires() {
     const me = !!(here && here.id === f.id), cost = travelCost(W, f), poor = W.inv.ash < cost, go = () => { const r = fastTravel(W, f.id); if (r === 'ok') { closeFires(); sfx('travel'); if (cost) toast(`Перенос: ${f.name}, −${cost} пепла`); } else if (r === 'ash') toast(`Не хватает пепла: нужно ${cost}`, 'bad'); };
     const d = Math.round(Math.hypot(f.x - p.x, f.z - p.z)), b = document.createElement('button'); b.type = 'button'; b.dataset.id = f.id;
     setIconText(b, 'fire', f.name); const sm = document.createElement('small'); sm.textContent = me ? 'вы здесь' : (cost ? cost + ' пепла · ' : '') + d + ' м' + (f.danger ? ' · опасность ' + '▮'.repeat(f.danger) : ''); b.appendChild(sm);
-    b.disabled = !!block || me || poor; b.addEventListener('click', go); list.appendChild(b);
-    pts.push({ x: f.x, z: f.z, name: f.name, sub: me ? '' : cost ? cost + ' пепла' : '', icon: 'map:fire', bg: '#d8701c', me, off: !!block || poor, go });
+    b.disabled = !!block || me; const pt = { x: f.x, z: f.z, name: f.name, sub: me ? '' : cost ? cost + ' пепла' : '', icon: 'map:fire', bg: '#d8701c', me, off: !!block || poor, go, id: f.id };
+    pt.pick = () => { if (travelSelId === f.id && !pt.me && !pt.off) { go(); return; } travelSelId = f.id; tv.cx = f.x; tv.cz = f.z; tv.span = Math.min(tv.span, 150); tvClamp(); for (const x of travelPick || []) x.sel = x.id === f.id; list.querySelectorAll('button').forEach(q => q.classList.toggle('sel', q.dataset.id === f.id));
+      goBar.hidden = false; goBar.disabled = !!block || me || poor; goBar.textContent = me ? 'Вы у этого костра' : poor ? `Не хватает пепла (нужно ${cost})` : `Перенестись: ${f.name} · ${cost ? cost + ' пепла' : 'бесплатно'}`; goBar.onclick = go; travelDraw(); };     // сначала карта показывает костёр, потом кнопка «Перенестись» (2026-11-06)
+    b.addEventListener('click', pt.pick); list.appendChild(b); pts.push(pt);
   }
+  travelSelId = null; goBar.hidden = true; { const nt = document.createElement('p'); nt.className = 'fnote'; nt.textContent = $('firesNote').textContent; list.append(nt); } list.prepend(goBar);
   firesSec.hidden = false; panelOpen = true; input.release(); travelShow(pts);
 }
 // карта переноса (2026-10-20): та же большая карта мира, точки назначения — значки; нажатие — перенос. Общая для костров и повозки
@@ -719,7 +726,8 @@ function travelDraw() {
   drawMap(ctx, mapW(), { w, h, scale: sc, cx, cz, full: true, ui: U, dpr: d });
   const X = x => w / 2 + (x - cx) * sc, Y = z => h / 2 + (z - cz) * sc;
   for (const q of pts) { q.px = X(q.x); q.py = Y(q.z);
-    ctx.beginPath(); ctx.arc(q.px, q.py, 13 * U, 0, 6.2832); ctx.fillStyle = q.me ? '#ffe08a' : q.off ? '#8a7a6a' : q.bg; ctx.fill(); ctx.lineWidth = 3 * U; ctx.strokeStyle = q.me ? '#fff6c8' : '#1a0e08'; ctx.stroke();
+    if (q.sel || q.me) { ctx.beginPath(); ctx.arc(q.px, q.py, 22 * U, 0, 6.2832); ctx.lineWidth = 2.5 * U; ctx.strokeStyle = q.me ? '#fff6c8' : '#ffd27a'; ctx.stroke(); }     // выбран или «вы здесь» — кольцо вокруг значка
+    if (!glyph(ctx, q.icon || 'map:fire', q.px, q.py, 30 * U, q.me ? '#ffe9a0' : q.off ? '#9a8c7c' : '#ff9a3c')) { ctx.beginPath(); ctx.arc(q.px, q.py, 13 * U, 0, 6.2832); ctx.fillStyle = q.bg; ctx.fill(); }
     ctx.font = `700 ${Math.round(15 * U)}px "Alegreya Sans", Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4 * U; ctx.strokeStyle = 'rgba(244,236,214,.95)'; ctx.fillStyle = '#2a1408';
     const t = q.name + (q.sub ? ' · ' + q.sub : ''); ctx.strokeText(t, q.px, q.py - 24 * U); ctx.fillText(t, q.px, q.py - 24 * U); ctx.textBaseline = 'alphabetic'; }
 }
@@ -733,7 +741,7 @@ function travelDraw() {
   const up = e => { pts.delete(e.pointerId); pinch = 0; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('click', e => { if (moved >= 8) return; const q = loc(e), d = Math.min(2, window.devicePixelRatio || 1);
     let best = null, bd = 30 * d; for (const t of travelPick || []) { const k = Math.hypot(t.px - q.x, t.py - q.y); if (k < bd) { bd = k; best = t; } }
-    if (best && !best.me && !best.off) best.go(); });
+    if (best && best.pick) best.pick(); else if (best && !best.me && !best.off) best.go(); });
   $('firesIn').addEventListener('click', () => zoom(1 / 1.5)); $('firesOut').addEventListener('click', () => zoom(1.5)); $('firesAll').addEventListener('click', () => { tv.span = tvMax(); tvClamp(); travelDraw(); }); }
 window.addEventListener('resize', () => { if (!firesSec.hidden) travelDraw(); });
 function dungeonLine() { const L = W.levels && W.levels[W.lvl], d = L && L.def; if (!d || !d.inst) return null; const tot = cfg.bosses.list.filter(b => b.level === d.id).length, alive = W.enemies.filter(e => e.boss && !e.dead).length, cs = W.map.containers || []; return `${d.name}${L.heroic ? ' · героик' : ''}: боссы ${Math.max(0, tot - alive)}/${tot} · сундуки ${cs.filter(c => !c.ready).length}/${cs.length}`; }     // трекер в подземелье (план подземелий, 1г)
@@ -962,11 +970,14 @@ const CALM_UI = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const perf = { sim: [], draw: [], calls: 0, tris: 0, max: 0, n: 0 }, PERF_N = 600;
 const perfPush = (a, v) => { a.push(v); if (a.length > PERF_N) a.shift(); };
 // ?mem — счётчик памяти и нагрузки для телефона (2026-11-05): нажатие копирует текст в буфер, чтобы прислать цифры; на iOS кучи JS нет — смотрим геометрии, текстуры, вызовы, треугольники
-if (new URLSearchParams(location.search).has('mem')) {
-  const box = document.createElement('pre'); box.setAttribute('aria-label', 'Счётчик памяти'); box.style.cssText = 'position:fixed;left:50%;top:74px;transform:translateX(-50%);z-index:9999;margin:0;padding:6px 8px;font:10px/1.35 ui-monospace,Menlo,monospace;color:#cfe8cf;background:rgba(0,0,0,.72);border-radius:8px;white-space:pre;max-width:92vw;pointer-events:auto';
+let memBox = null, memTimer = 0;     // счётчик включается адресом ?mem или кнопкой в меню (для иконки на рабочем экране адрес не поменять)
+function setMem(on) {
+  if (!on) { if (memTimer) clearInterval(memTimer); memTimer = 0; if (memBox) memBox.remove(); memBox = null; return; }
+  if (memBox) return;
+  const box = memBox = document.createElement('pre'); box.setAttribute('aria-label', 'Счётчик памяти'); box.style.cssText = 'position:fixed;left:50%;top:74px;transform:translateX(-50%);z-index:9999;margin:0;padding:6px 8px;font:10px/1.35 ui-monospace,Menlo,monospace;color:#cfe8cf;background:rgba(0,0,0,.72);border-radius:8px;white-space:pre;max-width:92vw;pointer-events:auto';
   document.body.append(box); const pk = { calls: 0, tris: 0, geo: 0, tex: 0, foes: 0, heap: 0 }; let lastN = 0, fps = 0, minFps = 999, text = '';
   box.addEventListener('click', () => { try { navigator.clipboard.writeText(text); toast('Цифры скопированы', ''); } catch (e) { /* буфер недоступен */ } });
-  setInterval(() => {
+  memTimer = setInterval(() => {
     const gi = renderer && renderer.dbg && renderer.dbg.gl && renderer.dbg.gl.info, m = gi ? gi.memory : { geometries: 0, textures: 0 }, n = perf.n; fps = n - lastN; lastN = n; if (n > 120) minFps = Math.min(minFps, fps);
     const heap = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : 0, foes = W.enemies.length;
     pk.calls = Math.max(pk.calls, perf.calls); pk.tris = Math.max(pk.tris, perf.tris); pk.geo = Math.max(pk.geo, m.geometries); pk.tex = Math.max(pk.tex, m.textures); pk.foes = Math.max(pk.foes, foes); pk.heap = Math.max(pk.heap, heap);
@@ -975,6 +986,7 @@ if (new URLSearchParams(location.search).has('mem')) {
     box.textContent = text;
   }, 1000);
 }
+setMem(new URLSearchParams(location.search).has('mem') || !!P.mem);
 // защита от сбоев (шаг 11): ошибка в кадре не останавливает игру — прогресс сохраняется, следующий кадр всё равно будет;
 // ошибки подряд — плашка с перезагрузкой
 let crashN = 0, crashShown = false;
@@ -1069,7 +1081,7 @@ function frame(now) {
     lootUi(free);     // 4.21: окно и кнопка добычи
     if (gatherBtn.hidden === !!nd) gatherBtn.hidden = !nd; if (nd) { const l = 'Собрать: ' + cfg.life.gather.names[nd.kind] + (desk ? ' · E' : ''); if (gatherBtn.textContent !== l) gatherBtn.textContent = l; }
     const ms = !!(W.life && anyMount(W)) && W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mountBtn.hidden === ms) mountBtn.hidden = !ms; if (ms) { const l = (W.life.mount.on ? 'Спешиться' : mountPick(W).name) + (desk ? ' · V' : ''); if (mountBtn.textContent !== l) mountBtn.textContent = l; }
-    { const mb = $('mailBtn'), n = mailUnread(W), sh = !!mailOf(W).box.length && W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mb.hidden === sh) mb.hidden = !sh; if (sh) { const l = n ? `Почта · ${n}` : 'Почта'; if (mb.textContent !== l) mb.textContent = l; mb.classList.toggle('new', n > 0); } }
+    { const mb = $('mailBtn'), n = mailUnread(W), sh = W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mb.hidden === sh) mb.hidden = !sh; if (sh) { const l = n ? String(n) : ''; if (mb.dataset.n !== l) mb.dataset.n = l; mb.classList.toggle('new', n > 0); } }     // почта — маленькая иконка в верхнем ряду, как сумка; число непрочитанных — точкой (2026-11-06)
     const mn = ms && !W.life.mount.on && ownedMounts(W).length > 1; if (mountNextBtn.hidden === mn) mountNextBtn.hidden = !mn; }
   if (hud) { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
   if (hud) { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''), inf = portalInfo(W, q), key = l + (inf ? '|' + inf.text : ''); if (portalBtn.dataset.k !== key) { portalBtn.dataset.k = key; portalBtn.textContent = l; if (inf) { const sm = document.createElement('small'); sm.textContent = inf.text; sm.className = inf.warn ? 'warn' : ''; portalBtn.append(sm); } } }     // подсказка у входа (план подземелий, 1в)
@@ -1117,5 +1129,5 @@ function frame(now) {
 }
 requestAnimationFrame(loop);
 
-window.__b3d = { reliefDone: () => reliefDone, openWin: n => ({ journal, mail, auction, smith, captain, shop, quests }[n] || { open() {} }).open(), emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
+window.__b3d = { openFires: () => openFires(), reliefDone: () => reliefDone, openWin: n => ({ journal, mail, auction, smith, captain, shop, quests }[n] || { open() {} }).open(), emit: v => onEvent(v), feelPeak: () => { const r = { ...feelPeak, now: lastFk }; feelPeak = { scale: 1, flash: 0, zoom: 0 }; return r; }, storyActors: () => storyActors(W), perf: () => { const q = (a, k) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * k))] || 0; }, tot = perf.sim.map((v, i) => v + perf.draw[i]); return { n: perf.n, p50: q(tot, .5), p95: q(tot, .95), max: perf.max, sim95: q(perf.sim, .95), draw95: q(perf.draw, .95), calls: perf.calls, tris: perf.tris }; }, perfReset: () => { perf.sim.length = perf.draw.length = 0; perf.max = 0; }, openFires, fastTravel: id => fastTravel(W, id), ui: () => ({ panelOpen, landscape, desk }), life: () => renderer && renderer.life(), usePortal: () => usePortal(W), travel: (id, x, z) => travel(W, id, x, z), journal, quests, spawnBoss: type => spawnBoss(W, cfg.bosses.list.find(d => d.type === type)), captain, reveal: (x, z, r) => reveal(W, x, z, r), mapOpen, mapClose, mapView: () => ({ ...mv }), mapZoom, skills, spawn: (t, x, z) => spawnEnemy(W, t, x, z), bag, shop, smith, saver, W, cfg, renderer, input, step, respawnPlayer, audioStats };
 if (BENCH) setTimeout(() => runBench(W, cfg, input, renderer), 1500);
