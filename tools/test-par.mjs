@@ -12,7 +12,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..'), TF = join(root
 const SERIAL = /maprelief3d|cliffs3d|chunks3d|sleep3d|walk3d|layout3d|browser|headless/;
 const cmds = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts.test.split('&&').map(s => s.trim()).filter(Boolean);
 const FAST = 45, args = process.argv.slice(2), fast = args.includes('--fast'), withT = (args.find(a => a.startsWith('--with=')) || '').slice(7).split(',').filter(Boolean);
-let times = {}; try { times = JSON.parse(readFileSync(TF, 'utf8')); } catch (e) { /* первый прогон */ }
+let times = {}; try { times = JSON.parse(readFileSync(TF, 'utf8')); } catch (e) { try { times = JSON.parse(readFileSync(join(root, 'test/times.seed.json'), 'utf8')); } catch (e2) { /* первый прогон */ } }     // нет своих замеров (CI) — берём записанные в репозитории: быстрый набор там тот же, что у разработчика
 const skip = fast ? cmds.filter(c => times[c] > FAST && !withT.some(w => c.includes(w))) : [], run = cmds.filter(c => !skip.includes(c));
 const par = run.filter(c => !SERIAL.test(c)).sort((a, b) => (times[b] || 60) - (times[a] || 60)), ser = run.filter(c => SERIAL.test(c));
 const N = +(args.find(a => /^\d+$/.test(a)) || 0) || Math.max(2, cpus().length - 2), bad = [], t0 = Date.now();

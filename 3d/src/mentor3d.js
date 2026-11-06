@@ -72,6 +72,9 @@ export const LESSONS = [
   { id: 'arena', who: 'captain', when: W => sparkDone(W) && W.lv >= 8 && (W.bots || []).length > 0,
     lines: ['В лагере и вокруг ходят такие же бойцы. С ними можно сойтись на дуэли.', 'Поговори с бойцом рядом, ставка — пеплом. Победа поднимает рейтинг.'],
     task: 'подойдите к бойцу и нажмите «Поговорить» → «Дуэль»', at: () => null, done: W => !!(W.arena && (W.arena.duel || (W.arena.wins || 0) + (W.arena.losses || 0) > 0)) },
+  { id: 'event', who: 'captain', when: W => sparkDone(W) && W.lv >= 3 && !!(W.wev && W.wev.list && W.wev.list.length),
+    lines: ['В глуши что-то случилось. Вестник отметил место, а в трекере заданий есть строка с расстоянием.', 'Победишь врагов события сам или с бойцами рядом — награда пеплом твоя.'],
+    task: 'дойдите до события (строка в трекере) и победите его врагов', at: () => null, done: W => seen(W, 'wevDone') > 0 },
   { id: 'guild', who: 'hostess', when: W => sparkDone(W) && W.lv >= 5 && (W.bots || []).length > 0,
     lines: ['Одному в глуши скучно. Бойцы собираются в гильдии, там чат и общие дела.', 'Открой почту (K), вкладка «Гильдия».'],
     task: 'вступите в гильдию (почта → «Гильдия»)', at: () => null, done: W => !!(W.mail && W.mail.g && W.mail.g.in) }
@@ -84,9 +87,10 @@ export function sanitizeMentor(s) {
   const cur = LESSONS.some(L => L.id === s.cur) && !done[s.cur] ? s.cur : null; return { done, cur, seen: sn };
 }
 // событие мира → счётчик для советов
-const EV = { mail: 'mail', mount: 'mount', repair: 'repair', gather: 'gather', upgrade: 'upgrade', socket: 'socket', tome: 'tome', hire: 'hire', enchant: 'enchant', disenchant: 'disenchant', sell: 'sell' };
+const EV = { mail: 'mail', mount: 'mount', repair: 'repair', gather: 'gather', upgrade: 'upgrade', socket: 'socket', tome: 'tome', hire: 'hire', enchant: 'enchant', disenchant: 'disenchant', sell: 'sell', wevDone: 'wevDone' };
 export function mentorEvent(W, v) {
   const M = W.mentor; if (!M) return;
+  if (v.k === 'wevDone' && !v.hero) return;     // событие закрыли без героя — урок не засчитываем
   let k = EV[v.k]; if (v.k === 'craft') k = String(v.id || '').startsWith('p_') ? 'brew' : W.nearNpc === 'smith' ? 'forge' : 'craft';
   if (k) M.seen[k] = (M.seen[k] || 0) + 1;
 }

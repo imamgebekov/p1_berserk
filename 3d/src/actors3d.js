@@ -21,7 +21,7 @@ const clipName = c => c.name.includes('|') ? c.name.slice(c.name.lastIndexOf('|'
 
 // действия → имена клипов по порядку предпочтения (первый найденный)
 const ACT = {
-  idle: ['Idle_Neutral', 'Combat_Stance', 'Idle_A', 'Idle', 'idle', '@-Idle_01', 'travelidle', 'Warrior_Idle', 'Flying_Idle', 'Idle_Weapon', 'Skeletons_Idle', 'Flying'],
+  idle: ['Idle_3', 'Idle_Neutral', 'Combat_Stance', 'Idle_A', 'Idle', 'idle', '@-Idle_01', 'travelidle', 'Warrior_Idle', 'Flying_Idle', 'Idle_Weapon', 'Skeletons_Idle', 'Flying'],
   walk: ['Walking', 'Walking_A', 'Walk', '@-walk_01', 'travelmove', 'Warrior_Walk', 'Fast_Flying', 'Flying_Idle', 'Skeletons_Walking', 'Flying'],
   run: ['Running', 'Running_A', 'Run', '@-run_01', 'travelrun', 'Gallop', 'Run_Weapon', 'Fast_Flying', 'Walk'],
   hit: ['Hit_Reaction', 'Hit_A', '@-hit_01', 'hurtsmall', 'Defence1', 'HitReact', 'RecieveHit', 'HitRecieve', 'Idle_HitReact_Left', 'Hit_B'],

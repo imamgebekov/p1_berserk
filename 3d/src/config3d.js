@@ -1399,8 +1399,8 @@ const BASE = {
       foe_cultmage: { src: 'kk_mage', anims: 'kk', height: 2.2, gear: ['wand', 'iron'], helm: ['Mage_Hat'], cape: ['Mage_Cape'] },
       foe_merc: { src: 'kk_barbarian', anims: 'kk', height: 2.3, gear: ['sword', 'iron', 'shield', 'shield_badge'] },
       mh_thorn: { height: 2.2, ownWeapon: true },
-      mh_vale: { height: 2.15, ownWeapon: true, anims: 'mhs' }, mh_warlock: { height: 2.2, ownWeapon: true, anims: 'mhs' },
-      mh_brand: { height: 2.3, ownWeapon: true, anims: 'mhs' }, mh_hunter: { height: 2.2, ownWeapon: true, anims: 'mhs' }, mh_selene: { height: 2.1, ownWeapon: true, anims: 'mhs' },     // новый Торн из Meshy (?mh): автоскелет, цвет 1024 px
+      mh_vale: { height: 2.15, ownWeapon: true }, mh_warlock: { height: 2.2, ownWeapon: true },
+      mh_brand: { height: 2.3, ownWeapon: true, anims: 'mhs' }, mh_hunter: { height: 2.2, ownWeapon: true }, mh_selene: { height: 2.1, ownWeapon: true },     // новый Торн из Meshy (?mh): автоскелет, цвет 1024 px
       kk_knight: { anims: 'kk', height: 2.25, gear: ['sword', 'iron', 'shield', 'shield_badge'], helm: ['Knight_Helmet', 'Knight_HelmetVisor'], cape: ['Knight_Cape'] },
       kk_rogue: { anims: 'kk', height: 2.15, cape: ['Rogue_Cape'] },
       kk_rogue_hooded: { anims: 'kk', height: 2.15, aim: 'aim', atk: 'bow', gear: ['crossbow', 'iron'] },     // gear — оружие врага: вид или меш KayKit, материал, щит, форма щита
