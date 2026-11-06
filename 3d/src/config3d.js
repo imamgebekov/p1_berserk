@@ -150,7 +150,7 @@ const BASE = {
       { x: -18, z: 14,  w: 7,  d: 7, door: 'e', kind: 'house',     chests: ['locked', 'shelf', 'shelf'], npc: 'scribe' },     // библиотека: книжница зачаровывает вещи (4.00)
       { x: 6,   z: 24,  w: 8,  d: 6, door: 'n', kind: 'house',     chests: ['medchest', 'crate', 'barrel'] },
       { x: -8,  z: 9,   w: 7,  d: 6, door: 'e', kind: 'shop',      chests: ['crate', 'coffer'], npc: 'merchant' },
-      { x: -24, z: -24, w: 5.8, d: 6, door: 'e', kind: 'shop',     chests: ['crate'], npc: 'auctioneer' },     // аукцион (2026-11-04): аукционер
+      { x: -25, z: -6, w: 5.8, d: 6, door: 'e', kind: 'shop',     chests: ['crate'], npc: 'auctioneer' },     // аукцион (2026-11-04): аукционер
       { x: -28, z: 30,  w: 9,  d: 7, door: 'n', kind: 'smithy',    chests: ['smithchest', 'smithchest', 'rack', 'ironchest'] },     // старая кузница
       { x: 28,  z: -26, w: 12, d: 8, door: 'w', kind: 'tavern',    chests: ['barrel', 'barrel', 'crate', 'chest'] },
       { x: -34, z: -20, w: 7,  d: 11, door: 's', kind: 'chapel',   chests: ['altar', 'shelf', 'coffer'] },

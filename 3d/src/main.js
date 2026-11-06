@@ -102,7 +102,7 @@ for (const [id, ids] of [['actStack', ['talk', 'botBtn', 'lootBtn', 'gatherBtn',
 let renderer;
 const W = createWorld(cfg);     // мир — до отрисовки: она берёт его карту, а не строит свою (загрузка, 2026-10-28)
 containerStyle.scale = CFG3.map.containerScale;
-CFG3.map.boxManual = true;     // сундуки открываются кнопкой «Открыть» и дают окно добычи (2026-11-05)
+cfg.map.boxManual = true;     // сундуки открываются кнопкой «Открыть» и дают окно добычи (2026-11-05)
 window.__tWorld = performance.now();     // для ?mem: когда мир готов
 W.wantBots = true;     // боты-«игроки» (этап 5 «живого мира») — только в игре, не в тестах createWorld
 if (new URLSearchParams(location.search).has('showcase')) ['barrel_l', 'keg', 'barrels', 'crates', 'chest_d', 'trunk_d', 'table_set', 'table_broken', 'shelf_d', 'candles3', 'swsh_broken', 'swsh', 'rubble_s', 'rubble_l', 'column_d', 'arch_k', 'arch_q', 'wall_br', 'wall_hf', 'torch_d', 'barrier_d', 'vine', 'fence_q', 'w_lie', 'w_stuck', 'shield_lie', 'armor_lie', 'armor_pole', 'armor_pile', 'armor_rack'].forEach((t, i) => W.map.decor.push({ t, x: 40 + (i % 10) * 4, z: 40 + Math.floor(i / 10) * 5, rot: 0 }));     // ?showcase — витрина новых мелочей у лагеря (2026-10-28)
