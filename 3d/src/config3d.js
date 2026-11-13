@@ -721,7 +721,7 @@ const BASE = {
     // view — холмы: hillH — высота, м; hillW — ширина склона, м; grid — шаг сетки земли, м; margin — земля за краем, м; band — полоса леса за краем, м; trees, rocks, bushes — на м²;
     // camSide — склон к югу от земли (к камере) ниже на долю camLow и без деревьев; grass — травинок; chunk — куски для отсечения, м
     // этап Б (владелец 2026-10-28 «делай все подряд»): малые миры — у всех подземелий и рейдов (only: null), рейд крупнее в raidR раз; ?rooms — прежние залы
-    wild: { on: true, only: null, extra: 1, raidR: 1.25,
+    wild: { on: true, only: null, extra: 1, raidR: 1.25, castles: ['castle_waste'], castleZones: 1,
       zone: { r: [46, 62], blobs: [3, 6], spread: 38, gap: 26, pass: [11, 15], passLen: [30, 46], straight: .1 },
       pocket: { n: [1, 2], r: [13, 19], len: [20, 34], w: 8, chest: .8, pack: .5 },
       noise: { amp: 5, scale: 16 }, sdf: 1.5, arena: 16, eventR: 15, pond: [5, 9],
@@ -729,7 +729,10 @@ const BASE = {
       edge: { band: [.6, 2.4], p: .55, r: [1.1, 2.4], tree: .45 }, grove: { n: [1, 3], trees: [5, 11], r: 7, rock: .35 }, decorArea: 500,
       view: { hillH: 11, hillW: 24, grid: 3, margin: 70, band: 26, trees: .016, rocks: .004, bushes: .006, camSide: 24, camLow: .8, grass: 12000, chunk: 160 },
       // of — тема мира по теме залов (dungeons.themes.by); ponds — озёр на зону (1,4 — одно и ещё одно с долей 0,4); у гари и магмы «вода» — лава
-      themes: { by: { inst_olkh: 'alder' }, of: { cave: 'alder', crypt: 'gloom', swamp: 'marsh', ice: 'snow', forge: 'scorch', deepforge: 'magma', temple: 'shore', obsidian: 'blight', flooded: 'isles' },
+      themes: { by: { inst_olkh: 'alder', castle_waste_1: 'ruincity', castle_waste_2: 'ruincity', castle_waste_3: 'ruincity' }, of: { cave: 'alder', crypt: 'gloom', swamp: 'marsh', ice: 'snow', forge: 'scorch', deepforge: 'magma', temple: 'shore', obsidian: 'blight', flooded: 'isles' },
+        ruincity: { name: 'разрушенный город', ground: '#6a645a', path: '#8a8070', hill: '#4e4a42', top: '#3a362e', rock: '#7a766c', fogK: .9, water: '#3a4650', ponds: .3,
+          look: { leaf: ['#5a6048', '#646a50', '#4a5038'], trunk: ['#2e2a24', '#3a342c'], rock: ['#7a766c', '#6a665e'], bare: .6 },
+          decor: [['ruinwall', 2.4], ['paving', 1.4], ['rubble_l', 1.2], ['rubble_s', 1], ['column_d', 1], ['arch_q', .6], ['statue', .3], ['stall', .5], ['hut_s', .5], ['table_broken', .4], ['lamp', .4], ['wagon', .4], ['barrel_d', .5], ['crate_d', .5], ['skulls', .4], ['bones', .6], ['dead_tree', .6], ['torch_d', .3], ['cage', .2]], dens: 8, grassK: .12 },     // Велесград (2026-11-13): улицы и площади павшего города; dens — густота обстановки, grassK — доля травы
         gloom: { name: 'погост в сумрачном лесу', ground: '#4a4a38', path: '#6a5a44', hill: '#3e3a2e', top: '#2e2a22', rock: '#76706a', fogK: .95, water: '#2a3a3a', ponds: .2,
           look: { leaf: ['#4a5232', '#56603a', '#3e4428'], trunk: ['#2e241c', '#3a2e24'], rock: ['#6a665e', '#5a564e'], bare: .45 },
           decor: [['tomb', 1.4], ['cross', 1], ['mausoleum', .15], ['dead_tree', 1.2], ['candles', .5], ['bones', .8], ['skulls', .4], ['rubble_s', .6], ['column_d', .3], ['stump', 1]] },

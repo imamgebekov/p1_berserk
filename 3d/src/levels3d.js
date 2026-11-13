@@ -143,16 +143,19 @@ export function spawnFoes(W, L) {
 // перейти на уровень id в точку (x, z): отряд идёт следом, снаряды и отложенные удары пропадают
 // Подземелья 2.0 (4.15): подземелье группы и рейд — новая раскладка на каждый заход: залы, враги, сундуки, боссы на новых местах
 export function regenLevel(W, id) {
-  const cfg = W.cfg, G = cfg.dungeons.gen, L = W.levels[id]; if (!G || !G.on || !L || !L.def || !L.def.inst) return false;
-  const base = L.base || (L.base = L.def), bosses = cfg.bosses.list.filter(b => b.level === id).sort((a, b) => (a.final ? 1 : 0) - (b.final ? 1 : 0));
+  const cfg = W.cfg, G = cfg.dungeons.gen, L = W.levels[id]; if (!G || !G.on || !L || !L.def) return false;
+  const base = L.base || (L.base = L.def), castle = !!base.castle && wildOn(cfg, base); if (!base.inst && !castle) return false; if (castle && L.wildBuilt) return false;     // этаж замка строится один раз за игру: дальше ходят по лестницам
+  const bosses = cfg.bosses.list.filter(b => b.level === id).sort((a, b) => (a.final ? 1 : 0) - (b.final ? 1 : 0));
   for (let k = 1; k <= 3; k++) if (W.keys) delete W.keys[`${id}_k${k}`];     // новая раскладка — старые ключи от её дверей не подходят (план подземелий, 2б)
   W.genN = (W.genN || 0) + 1; const seed = W.rng === Math.random ? (Math.random() * 2147483647) | 0 : (cfg.dungeons.seed * 977 + W.genN * 7919 + id.length * 131) | 0;
   if (wildOn(cfg, base)) {     // малый мир: свободная земля с зонами по боссам, карта открыта сразу
-    const ws = (seed ^ [...id].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7)) | 0;     // своё зерно у каждого мира (в игре зерно и так случайное)
-    const def = freeDef(cfg, { ...base, styled: false }, ws, bosses), map = makeWildMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
+    const ws = (castle ? cfg.dungeons.seed * 977 + [...id].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7) : seed ^ [...id].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0) | 0, 7)) | 0;     // своё зерно у каждого мира; замок — всегда одно и то же
+    const def = freeDef(cfg, { ...base, styled: false }, ws, bosses);
+    if (castle && base.floor > 1) { const prev = W.levels[`${base.castle}_${base.floor - 1}`], pd = prev && prev.def && prev.def.down; if (pd) { def.back = { x: pd.x - 1.4, z: pd.z }; pd.tx = def.entry.x; pd.tz = def.entry.z; const pp = prev.map.portals.find(q => !q.up); if (pp) { pp.tx = pd.tx; pp.tz = pd.tz; } } }     // вход этажа — у лестницы сверху
+    const map = makeWildMap(cfg, def), B = map.bounds, R = Math.max(-B.x0, B.x1, -B.z0, B.z1) + 2;
     Object.assign(L, { def, map, enemies: [], drops: [], spawnT: 1 }, fogFor(R, cfg.map.cell, cfg.map.reveal)); L.seen.fill(1);
     withLevel(W, id, () => { spawnFoes(W, L); for (const b of bosses) { delete W.bossDead[b.type]; spawnBoss(W, b); } });
-    refillLevel(W, id); return true;
+    if (castle) L.wildBuilt = true; refillLevel(W, id); return true;
   }
   const def = genDef(cfg, { ...base, styled: false, bosses: bosses.map(b => ({ type: b.type })) }, seed);
   bosses.forEach((b, k) => { const r = def.rooms.find(q => q.id === def.bosses[k].room); if (r) { b.x = r.x; b.z = r.z; } });

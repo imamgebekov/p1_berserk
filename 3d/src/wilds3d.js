@@ -8,7 +8,7 @@ import { propsOf } from './keyrooms3d.js';
 import { vnoise } from './terrain3d.js';
 import { ROOM_EVENTS } from './roomev3d.js';
 
-export const wildOn = (cfg, def) => { const X = cfg.dungeons.wild; return !!(X && X.on && def && def.inst && (!X.only || X.only.includes(def.id))); };     // only — пробный список; без него — все подземелья и рейды
+export const wildOn = (cfg, def) => { const X = cfg.dungeons.wild; return !!(X && X.on && def && ((def.inst && (!X.only || X.only.includes(def.id))) || (def.castle && (X.castles || []).includes(def.castle)))); };     // замки из списка X.castles (2026-11-13) — тоже малые миры: этаж за этажом, лестница вниз в конце     // only — пробный список; без него — все подземелья и рейды
 export const wildTheme = (cfg, def) => { const T = cfg.dungeons.wild.themes, R = cfg.dungeons.themes; return T[T.by[def.id] || (T.of || {})[R && R.by && R.by[def.id]]] || null; };     // своя тема мира или по теме залов
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const rr = (rnd, a) => a[0] + rnd() * (a[1] - a[0]);
@@ -26,7 +26,7 @@ export function shapeSdf(S, x, z) {
 // мир из описания подземелья: зоны, проходы, ворота, карманы, враги, сундуки, обстановка
 export function freeDef(cfg, def0, seed, bosses) {
   const X = cfg.dungeons.wild, Z = X.zone, P = X.pocket, rnd = mulberry(seed ^ 0x5bd1e995), raid = !!def0.raid, th = wildTheme(cfg, def0);
-  const nZ = bosses.length + (X.extra || 0), zones = [], caps = [], circles = [], holes = [];
+  const nZ = bosses.length + (X.extra || 0) + (def0.castle ? X.castleZones || 0 : 0), zones = [], caps = [], circles = [], holes = [];
   // зоны вдоль оси: прямо или с поворотом, не налезая на прежние
   let cx = 0, cz = 0, dir = 0;
   for (let k = 0; k < nZ; k++) {
@@ -112,10 +112,11 @@ export function freeDef(cfg, def0, seed, bosses) {
   // озёра в зонах (по теме): не ходить, в виде — вода
   for (const z of zones) for (let np = th ? Math.floor(th.ponds || 0) + (rnd() < (th.ponds || 0) % 1 ? 1 : 0) : 0; np > 0; np--) for (let t = 0; t < 12; t++) { const a = rnd() * 6.283, d = z.r * (.3 + rnd() * .5), x = z.x + Math.cos(a) * d, y = z.z + Math.sin(a) * d, r = rr(rnd, X.pond);     // ponds > 1 — несколько озёр в зоне
     if (!inside(x, y, r + 6) || busy().some(b => Math.hypot(b.x - x, b.z - y) < r + 8) || spawns.some(s => Math.hypot(s.x - x, s.z - y) < r + 6)) continue; holes.push({ x, z: y, r }); break; }
+  let down = null; if (def0.castle && def0.down) { const d0 = def0.down; for (let t = 0, f = .6; t < 12; t++, f -= .04) { const dd = zl.out != null ? DIRS[zl.out] : zl.in != null ? DIRS[zl.in] : [1, 0], x = zl.x + dd[0] * zl.r * f, z = zl.z + dd[1] * zl.r * f; if (inside(x, z, 5) && busy().every(b => Math.hypot(b.x - x, b.z - z) > 6)) { down = { x, z, to: d0.to, tx: x, tz: z }; break; } } if (!down) down = { x: zl.x, z: zl.z + 4, to: d0.to, tx: zl.x, tz: zl.z + 4 }; }     // лестница вниз замка — в конце последней зоны
   if ((def0.chests || []).length && bossAt.length) { const q = bossAt[bossAt.length - 1]; chests.push({ kind: 'altar', x: q.x, z: q.z + 3 }); }     // награда за главным боссом
   return { ...def0, wild: { theme: th ? Object.keys(X.themes).find(k => X.themes[k] === th) : null, S, seed, zones: zones.map(z => ({ k: z.k, x: z.x, z: z.z, r: z.r, ext: z.ext })),
     passes: passes.map(p => ({ a: p.a, b: p.b, x: p.x, z: p.z, w: p.w, d: p.d, gate: p.gate || null })), pockets: pockets.map(p => ({ zone: p.zone, x: p.x, z: p.z, r: p.r, d: p.d, mouth: p.mouth, kind: p.kind })) },
-    rooms: [], doors, spawns, chests, entry, exit, fire, props, traps, events, pillars, bossPts: bossAt, gen: { seed, zones: nZ }, guard: null };
+    rooms: [], doors, spawns, chests, entry, exit, fire, props, traps, events, pillars, bossPts: bossAt, gen: { seed, zones: nZ }, guard: null, down };
 }
 // дверь поперёк прохода: d — направление прохода (номер в DIRS), w — ширина прохода; лишнее за краем прохода уходит в склон
 function gateDoor(x, z, d, w, lock, extra) {
@@ -149,7 +150,7 @@ export function makeWildMap(cfg, def) {
       props.push(rock ? { t: 'w_rock', x, z, r: r * .8, s: r * .55, rot: rnd() * 6.283 } : { t: 'w_tree', x, z, r: .6, s: .9 + rnd() * .5, rot: rnd() * 6.283 }); } }
   // обстановка темы по зонам
   if (th) { const tot = th.decor.reduce((a, d) => a + d[1], 0);
-    for (const zn of def.wild.zones) for (let k = 0, nk = Math.round(zn.r * zn.r / X.decorArea); k < nk; k++) { let u = rnd() * tot, t = th.decor[0][0]; for (const [dt, wt] of th.decor) if ((u -= wt) <= 0) { t = dt; break; }
+    for (const zn of def.wild.zones) for (let k = 0, nk = Math.round(zn.r * zn.r / (X.decorArea / (th.dens || 1))); k < nk; k++) { let u = rnd() * tot, t = th.decor[0][0]; for (const [dt, wt] of th.decor) if ((u -= wt) <= 0) { t = dt; break; }
       const a = rnd() * 6.283, d = zn.r * Math.sqrt(rnd()), x = zn.x + Math.cos(a) * d, z = zn.z + Math.sin(a) * d;
       if (wildSdfAt(map0, x, z) < 3 || !free(x, z, 4) || props.some(p => p.r && Math.hypot(p.x - x, p.z - z) < p.r + 2)) continue;
       props.push({ t, x, z, rot: rnd() * 6.283, s: .8 + rnd() * .6, ...(t === 'barrow' ? { r: 2.6 } : t === 'menhir' ? { r: .6 } : {}) }); } }
@@ -163,6 +164,7 @@ export function makeWildMap(cfg, def) {
   def.wild.pockets.forEach((p, i) => { const D = DIRS[p.d], A = def.wild.zones[p.zone]; links.push({ a: p.zone, b: nz + i, pa: { x: A.x + D[0] * (A.r * .5), z: A.z + D[1] * (A.r * .5) }, pb: { x: p.x, z: p.z }, door: doors.findIndex(g => Math.hypot(g.x - p.mouth.x, g.z - p.mouth.z) < 1) }); });
   const place = { id: def.id, name: def.name, type: 'dungeon', x: (B.x0 + B.x1) / 2, z: (B.z0 + B.z1) / 2, r: Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2, danger: def.danger || 0 };
   const portals = [{ x: def.exit.x, z: def.exit.z, to: def.upTo || 'surface', tx: def.back.x, tz: def.back.z, up: true }];
+  if (def.down) portals.push({ x: def.down.x, z: def.down.z, to: def.down.to, tx: def.down.tx, tz: def.down.tz, up: false });     // лестница вниз замка
   return { level: def.id, wild: def.wild, sdf, nav: { areas, links }, fire: def.fire || null, props, traps: (def.traps || []).map(q => ({ ...q, lever: { ...q.lever }, on: true, hit: {} })), events: (def.events || []).map(q => ({ ...q, st: 'idle', foes: [] })),
     path: cfg.dungeons.path, buildings: [], walls: [], blocks: [], rooms: [], links: [], adj: null, hops: null, doors, bounds: B, containers, portals, cfg: { places: [place], zones: [] }, solids, arcs: [], pits: [], pillars: def.pillars || [], decor: [], roads: [] };
 }
