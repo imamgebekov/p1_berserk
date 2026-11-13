@@ -10,6 +10,7 @@ import { dungeonDetails } from './details3d.js';
 import { trapPhase } from './traps3d.js';     // план подземелий, 2в
 import { buildWildGround } from './wildview3d.js';     // малые миры (2026-10-27)
 
+const cfgPortals = cfg => !!(cfg && cfg.dungeons && cfg.dungeons.portalFx);
 const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
 const mat = (c, kind, opt) => (kind ? paintMat(new THREE.MeshLambertMaterial({ color: c }), kind, opt) : new THREE.MeshLambertMaterial({ color: c }));     // kind — материал (T3)
 
@@ -21,6 +22,27 @@ function stairs(q, B) {
   const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4), new THREE.MeshBasicMaterial({ color: '#d8b070', transparent: true, opacity: .22, depthWrite: false }));
   glow.rotation.x = -Math.PI / 2; glow.position.set(0, .04, 0); g.add(glow);
   g.position.set(q.x, 0, q.z); return g;
+}
+
+// портал входа и выхода (2026-11-13, просьба владельца): каменное кольцо с четырьмя стелами, светящийся диск с вращающимися дугами, столб света вверх и искры, что поднимаются
+// из портала. Цвет: выход наверх — золотой, спуск — фиолетовый, вход с поверхности — синий (рейд — зелёный). Без текстур; движение — в onBeforeRender, пока портал в кадре.
+const PORTAL_COL = { up: '#ffd070', down: '#a478ff', gate: '#4a9aff', raid: '#4adf7a' };
+export function makePortal(q, y0 = 0, kind = null) {
+  const col = new THREE.Color(PORTAL_COL[kind || (q.up ? 'up' : 'down')]), g = new THREE.Group(), R = 2.8, add = (o, op) => { o.material.blending = THREE.AdditiveBlending; o.material.transparent = true; o.material.opacity = op; o.material.depthWrite = false; o.material.fog = false; return o; };
+  const stone = mat('#5a5650', 'masonry'), glowM = () => new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(R, .28, 8, 40).rotateX(Math.PI / 2).translate(0, .22, 0), stone); g.add(ring);
+  for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + Math.PI / 4, x = Math.cos(a) * (R + .2), z = Math.sin(a) * (R + .2);
+    g.add(new THREE.Mesh(mergeGeometries([box(.7, 3.4, .7, x, 1.7, z), box(.95, .3, .95, x, .15, z)]), stone));
+    g.add(add(new THREE.Mesh(new THREE.SphereGeometry(.3, 10, 8).translate(x, 3.7, z), glowM()), .95)); }
+  g.add(add(new THREE.Mesh(new THREE.CircleGeometry(R - .1, 36).rotateX(-Math.PI / 2).translate(0, .12, 0), glowM()), .26));
+  const arcs = []; for (const [r0, r1, len, sp] of [[.7, 1.05, 4.2, 1.1], [1.45, 1.8, 3.6, -.8], [2.1, 2.45, 4.8, .6]]) { const m = add(new THREE.Mesh(new THREE.RingGeometry(r0, r1, 40, 1, 0, len).rotateX(-Math.PI / 2).translate(0, .16, 0), glowM()), .7); m.onBeforeRender = () => { m.rotation.y = performance.now() / 1000 * sp; }; arcs.push(m); g.add(m); }
+  const beam = add(new THREE.Mesh(new THREE.CylinderGeometry(R * .8, R * .55, 13, 28, 1, true).translate(0, 6.5, 0), glowM()), .16); beam.onBeforeRender = () => { beam.material.opacity = .13 + .05 * Math.sin(performance.now() / 380); }; g.add(beam);
+  const N = 44, pos = new Float32Array(N * 3), ph = Array.from({ length: N }, (_, i) => ({ a: i * 2.399, r: .4 + (i * .618 % 1) * (R - .5), t: (i * .377) % 1, s: .35 + (i * .731 % 1) * .5 }));
+  const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pm = new THREE.PointsMaterial({ color: col, size: .34, sizeAttenuation: true, blending: THREE.AdditiveBlending, transparent: true, opacity: .95, depthWrite: false, fog: false }), pts = new THREE.Points(pg, pm); pts.frustumCulled = false;
+  let last = 0; pts.onBeforeRender = () => { const now = performance.now() / 1000, dt = Math.min(.1, now - (last || now)); last = now;
+    for (let i = 0; i < N; i++) { const p = ph[i]; p.t += dt * p.s * .45; if (p.t > 1) p.t -= 1; const k = p.t, rr = p.r * (1 - .55 * k), an = p.a + now * (.6 + .5 * p.s); pos[i * 3] = Math.cos(an) * rr; pos[i * 3 + 1] = .2 + k * 9; pos[i * 3 + 2] = Math.sin(an) * rr; } pg.attributes.position.needsUpdate = true; }; g.add(pts);
+  g.position.set(q.x, y0, q.z); g.userData.portal = true; return g;
 }
 
 // люк в земле: рама и две створки
@@ -40,6 +62,7 @@ export function makeGate(q, y0 = 0) {
   g.add(new THREE.Mesh(mergeGeometries([0, 1, 2].map(i => box(2.6, .14, .4, 0, .12 - i * .05, .45 - i * .35))), mat('#4a4440', 'masonry')));     // ступени вниз
   g.add(new THREE.Mesh(mergeGeometries([box(2, .22, .06, 0, 3.55, .52), box(.22, .22, .06, -1.95, 2.6, .72), box(.22, .22, .06, 1.95, 2.6, .72)]), new THREE.MeshBasicMaterial({ color: rune })));     // руны
   if (raid) for (const sx of [-1, 1]) { g.add(new THREE.Mesh(box(.35, 1.1, .35, sx * 3, .55, 1.1), mat('#3a3430', 'metal'))); g.add(new THREE.Mesh(new THREE.SphereGeometry(.32, 10, 8).translate(sx * 3, 1.3, 1.1), new THREE.MeshBasicMaterial({ color: rune }))); }     // жаровни рейда
+  { const P = makePortal({ x: 0, z: 0 }, 0, raid ? 'raid' : 'gate'); P.position.set(0, 0, 4.2); P.scale.setScalar(.8); g.add(P); }     // перед входом — портал: издали виден столб света и искры
   const [fx, fz] = q.face || [0, 1]; g.rotation.y = Math.atan2(fx, fz); g.scale.setScalar(GATE[q.gate] || 1); g.position.set(q.x, y0, q.z); return g;
 }
 
@@ -151,7 +174,7 @@ export function buildLevelView(L, cfg) {
     if (det.length) group.add(buildDecor({ decor: det }, M.wild ? Math.random : null, null).group); }
   const fl = flames.length ? new THREE.Mesh(mergeGeometries(flames), new THREE.MeshBasicMaterial({ color: th.flame || '#ffb050' })) : null; if (fl) group.add(fl);
   { const gp = M.wild ? null : glowParts(M, th, open); if (gp) group.add(new THREE.Mesh(mergeGeometries(gp), new THREE.MeshBasicMaterial({ color: th.glow.color, fog: false, toneMapped: false }))); }     // 4.14: кристаллы, грибы, лава — светятся сквозь туман
-  for (const q of M.portals) { const ri = roomAt(M, q.x, q.z); group.add(stairs(q, ri >= 0 ? M.rooms[ri] : M.bounds)); }
+  for (const q of M.portals) { if (M.wild || cfgPortals(cfg)) group.add(makePortal(q)); else { const ri = roomAt(M, q.x, q.z); group.add(stairs(q, ri >= 0 ? M.rooms[ri] : M.bounds)); } }     // порталы вместо лесенок (2026-11-13)
   // двери: створка на петле у края проёма, открывается внутрь дальней комнаты
   const doorMat = mat('#5a3f28', 'auto', { plank: .25 }), bandMat = mat('#2a2018', 'metal'), doors = [];
   const cracks = [], TH = th;     // тема — до цикла: в цикле th — толщина створки

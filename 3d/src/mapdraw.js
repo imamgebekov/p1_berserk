@@ -128,7 +128,13 @@ export function drawMap(ctx, W, v) {
         if (zs >= 1.8 && nx > -40 && nx < w + 40 && ny > -20 && ny < h + 20 && !labs.some(q => Math.abs(q[0] - nx) < 64 * U && Math.abs(q[1] - ny) < 15 * U)) { labs.push([nx, ny]); ctx.save(); ctx.globalAlpha = tier(zs, 1.8, 2.4); ctx.font = `700 ${Math.round(12 * U)}px "Iowan Old Style", Palatino, Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3.5 * U; ctx.strokeStyle = 'rgba(10,6,4,.9)'; ctx.fillStyle = '#f4e8cc'; const ty = ny + 15 * U; ctx.strokeText(NPC_NAME[b.npc.kind], nx, ty); ctx.fillText(NPC_NAME[b.npc.kind], nx, ty); ctx.restore(); } } continue; } ctx.fillStyle = NPC[b.npc.kind] || '#fff'; ctx.beginPath(); ctx.arc(X(b.npc.x), Y(b.npc.z), Math.max(2.5, sc * 1.1), 0, 6.2832); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); }
   }
   // люки и лестницы
-  for (const q of M.portals || []) { if (!under && (q.stair || !isSeen(W, q.x, q.z))) continue; const r = Math.max(2.5, sc * .8); ctx.fillStyle = q.up ? '#e8d0a0' : '#8a5a30'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.fillRect(X(q.x) - r, Y(q.z) - r, r * 2, r * 2); ctx.strokeRect(X(q.x) - r, Y(q.z) - r, r * 2, r * 2); }     // лестницы в домах — не входы в подземелья
+  for (const q of M.portals || []) { if (under && M.wild && !q.stair) {     // порталы малого мира: кольцо с свечением и подпись (2026-11-13)
+      const px = X(q.x), py = Y(q.z), col = q.up ? '#ffd070' : '#a478ff', R0 = (full ? 9 : 6) * (full ? U : 1);
+      ctx.save(); ctx.beginPath(); ctx.arc(px, py, R0 * 1.9, 0, 6.2832); ctx.fillStyle = col + '40'; ctx.fill(); ctx.beginPath(); ctx.arc(px, py, R0, 0, 6.2832); ctx.fillStyle = '#0a0a14'; ctx.fill(); ctx.lineWidth = 2.5 * (full ? U : 1); ctx.strokeStyle = col; ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, py, R0 * .45, 0, 6.2832); ctx.fillStyle = col; ctx.fill();
+      if (full) { ctx.font = `700 ${Math.round(12 * U)}px "Iowan Old Style", Palatino, Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3.5 * U; ctx.strokeStyle = 'rgba(10,6,4,.92)'; ctx.fillStyle = col; const t = q.up ? (q.to === 'surface' ? 'Выход' : 'Наверх') : 'Вниз'; ctx.strokeText(t, px, py + R0 * 2.4); ctx.fillText(t, px, py + R0 * 2.4); }
+      ctx.restore(); continue; }
+    if (!under && (q.stair || !isSeen(W, q.x, q.z))) continue; const r = Math.max(2.5, sc * .8); ctx.fillStyle = q.up ? '#e8d0a0' : '#8a5a30'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.fillRect(X(q.x) - r, Y(q.z) - r, r * 2, r * 2); ctx.strokeRect(X(q.x) - r, Y(q.z) - r, r * 2, r * 2); }     // лестницы в домах — не входы в подземелья
   // непустые контейнеры в открытых клетках
   ctx.fillStyle = '#ffc860';
   for (const c of M.containers) if (!(v.hide && v.hide.has('chest')) && c.ready && isSeen(W, c.x, c.z) && !(full && zs < 2 && !under)) ctx.fillRect(X(c.x) - 1.5, Y(c.z) - 1.5, 3, 3);

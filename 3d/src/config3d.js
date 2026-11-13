@@ -721,6 +721,7 @@ const BASE = {
     // view — холмы: hillH — высота, м; hillW — ширина склона, м; grid — шаг сетки земли, м; margin — земля за краем, м; band — полоса леса за краем, м; trees, rocks, bushes — на м²;
     // camSide — склон к югу от земли (к камере) ниже на долю camLow и без деревьев; grass — травинок; chunk — куски для отсечения, м
     // этап Б (владелец 2026-10-28 «делай все подряд»): малые миры — у всех подземелий и рейдов (only: null), рейд крупнее в raidR раз; ?rooms — прежние залы
+    portalFx: true,     // порталы вместо лесенок в подземельях (2026-11-13)
     wild: { on: true, only: null, extra: 1, raidR: 1.25, castles: ['castle_waste'], castleZones: 1,
       zone: { r: [46, 62], blobs: [3, 6], spread: 38, gap: 26, pass: [11, 15], passLen: [30, 46], straight: .1 },
       pocket: { n: [1, 2], r: [13, 19], len: [20, 34], w: 8, chest: .8, pack: .5 },
