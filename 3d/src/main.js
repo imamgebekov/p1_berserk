@@ -650,6 +650,8 @@ const uiTabs = $('uiTabs');
 for (const [name, v] of UI_SCALES) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.v = v; b.textContent = 'Кнопки ' + name; b.addEventListener('click', () => { P.ui = v; savePrefs(P); applyPrefs(); }); uiTabs.appendChild(b); }
 const qualTabs = $('qualTabs');     // пресеты качества (шаг 14)
 for (const q of QUALITY_IDS) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.q = q; b.textContent = QUALITY_NAMES[q]; b.addEventListener('click', () => { P.quality = q; savePrefs(P); applyPrefs(); }); qualTabs.appendChild(b); }
+function applyCamView() { const q = cfg.view.camPresets[P.camView] || cfg.view.camPresets[0]; cfg.view.camPitch = q.pitch; cfg.view.camAhead = q.ahead; }
+applyCamView();
 const shows = [
   prefBtn('leftyBtn', () => P.lefty, v => v ? 'Режим левши: кнопки слева' : 'Режим левши выключен', () => { P.lefty = !P.lefty; }, 'swap'),
   prefBtn('vibBtn', () => P.vibrate, v => v ? 'Вибрация включена (на iPhone не работает)' : 'Вибрация выключена', () => { P.vibrate = !P.vibrate; }, 'phone'),
@@ -658,7 +660,7 @@ const shows = [
   prefBtn('asciiBtn', () => P.ascii, v => v ? 'Мир символами (ASCII) включён' : 'Мир символами выключен', () => { P.ascii = !P.ascii; }, 'eye'),
   prefBtn('ecoBtn', () => ecoOn(), v => v ? 'Экономия заряда включена (30 кадров, меньше нагрев)' : 'Экономия заряда выключена', () => { P.eco = !ecoOn(); }, 'timer'),
   prefBtn('retroBtn', () => P.retro, v => v ? 'Ретро-пиксели включены' : 'Ретро-пиксели выключены', () => { P.retro = !P.retro; }, 'pixels'),
-  prefBtn('hintBtn', () => P.hints, v => v ? 'Подсказки включены (нажмите: показать заново)' : 'Подсказки выключены', () => { P.hints = !P.hints; if (P.hints) P.seen = {}; }, 'hint')
+  prefBtn('hintBtn', () => P.camView > 0, v => `Вид камеры: ${cfg.view.camPresets[P.camView].name} (нажмите: сменить)`, () => { P.camView = (P.camView + 1) % cfg.view.camPresets.length; applyCamView(); }, 'eye')     // кнопка стояла под подсказки новичку — их больше нет, теперь вид камеры
 ];
 function applyPrefs() {
   const r = document.documentElement; if (P.lefty) r.setAttribute('data-lefty', ''); else r.removeAttribute('data-lefty');

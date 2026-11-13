@@ -100,7 +100,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const park = (o, far) => { if (far) { if (o.parent) { o.userData.home = o.parent; o.parent.remove(o); } } else if (!o.parent && o.userData.home) o.userData.home.add(o); };
   scene.background = new THREE.Color(FOG);
   scene.fog = new THREE.FogExp2(FOG, cfg.view.fogDensity);
-  const camera = new THREE.PerspectiveCamera(cfg.view.fov, 1, .5, 700);
+  const camera = new THREE.PerspectiveCamera(cfg.view.fov, 1, .5, 140);     // дальше 140 м всё скрыто туманом (exp²: меньше 0,01%) — незачем рисовать; небо уменьшено под это
+  let camPitchS = cfg.view.camPitch, camAheadS = cfg.view.camAhead || 0;
   camera.layers.enable(OVERLAY);
   const ovl = o => { o.traverse(c => c.layers.set(OVERLAY)); return o; };     // чёткие метки боя: в фильтре ASCII рисуются поверх символов
   let ascii = null, asciiOn = false;
@@ -113,7 +114,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   gl.shadowMap.type = THREE.PCFShadowMap;
   const shR = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), sunDir).normalize(), shU = new THREE.Vector3().crossVectors(sunDir, shR), shT = new THREE.Vector3();     // базис света: сдвиг карты теней с шагом в тексель
   if (SHD) { sun.shadow.mapSize.set(SHD.size, SHD.size); const c = sun.shadow.camera; c.left = c.bottom = -SHD.span; c.right = c.top = SHD.span; c.near = .5; c.far = SHD.dist * 2.2; c.updateProjectionMatrix(); sun.shadow.radius = SHD.radius; sun.shadow.bias = SHD.bias; sun.shadow.normalBias = SHD.normalBias; }
-  const dome = skyDome(cfg.look); scene.add(dome);
+  const dome = skyDome(cfg.look); dome.scale.setScalar(.25); scene.add(dome);
   let lastLight = -1;
 
   const gtex = groundTexture(cfg.look);
@@ -573,7 +574,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   function cullFar(x, z) {
     for (const it of town.items) { const far = Math.hypot(it.b.x - x, it.b.z - z) > 120; if (far === it.far) continue; it.far = far; if (far) town.dropShell(it); else if (town.build(it)) for (const o of [it.walls, it.floor, it.roof, it.glow]) if (o) o.traverse(m => { if (m.material) [].concat(m.material).forEach(xray); if (m.isMesh && !m.isInstancedMesh) m.castShadow = sun.castShadow; }); if (!it.built) continue; it.walls.visible = it.floor.visible = !far; if (it.glow) it.glow.visible = !far; if (far) it.roof.visible = false; }
     if (curView && curView.conts && curView.conts.near) curView.conts.near(x, z, CL.box); else if (curView && curView.conts && curView.conts.items) for (const it of curView.conts.items) park(it.g, Math.hypot(it.c.x - x, it.c.z - z) >= CL.box);     // дальние сундуки — со сцены
-    for (const L of liveLand.values()) for (const m of L.grass || []) { const d = Math.hypot(m.userData.cx - x, m.userData.cz - z), k = CL.grass.find(q => d < q[0])[1]; m.count = Math.max(1, Math.round(m.userData.full * k)); }     // трава вдали реже
+    if (CL.land) for (const L of liveLand.values()) for (let i = 2; i < L.g.children.length; i++) {     // деревья, камни, цветы и прочее на участке — дальше CL.land (м) скрыты туманом: не рисуются (земля — всегда)
+      const o = L.g.children[i], gm = o.geometry; if (!gm) continue; const bs = o.boundingSphere || (gm.boundingSphere || (gm.computeBoundingSphere(), gm.boundingSphere)); if (!bs) continue;
+      o.visible = Math.hypot(bs.center.x + (o.isInstancedMesh ? 0 : o.position.x) - x, bs.center.z + (o.isInstancedMesh ? 0 : o.position.z) - z) - bs.radius < CL.land; }
+    for (const L of liveLand.values()) for (const m of L.grass || []) { const d = Math.hypot(m.userData.cx - x, m.userData.cz - z), k = CL.grass.find(q => d < q[0])[1]; m.visible = k > 0; m.count = Math.max(1, Math.round(m.userData.full * k)); }     // трава вдали реже, дальше последнего порога — не рисуется
   }
   const surfaceObjs = [land, sea, riverGroup, sunGroup, rainGroup, ohGroup, life, dome, ground, town.group, decor.group, props, fire.group, ash, palisade, ...npcs.map(n => n.group)];
   const views = new Map(); let shownLvl = null, conts = null, curView = null;
@@ -1033,12 +1037,14 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     cam.x += (cfx - cam.x) * ka; cam.z += (cfz - cam.z) * ka; cam.y += ((liftY ?? Y(p.x, p.z)) - cam.y) * (cfg.view.blend ? 1 - Math.exp(-cfg.view.blend.camY * dt) : k);     // высота над холмами — медленнее (шаг 3)
     zoomC += (zoomT - zoomC) * (1 - Math.exp(-((cfg.view.zoom && cfg.view.zoom.ease) || 8) * rdt));
     const ZV = cfg.view.zoom, zk = ZV && ZV.tilt ? Math.max(0, Math.min(1, (1 - zoomC) / (1 - ZV.min))) : 0, tilt = zk ? ZV.tilt * zk : 0, look = cfg.view.camLookUp + (zk ? (ZV.lift || 0) * zk : 0);     // 5.04: приближение — камера ниже к горизонту, видно дальше вперёд
-    const ca = calm ? 0 : cineA, pitch = (cfg.view.camPitch - tilt - C.pitch * ca) * Math.PI / 180, dist = cfg.view.camDist * zoomC * (1 - feelZoom) * (1 - C.dist * ca);     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
+    camPitchS += (cfg.view.camPitch - camPitchS) * (1 - Math.exp(-5 * rdt)); camAheadS += ((cfg.view.camAhead || 0) - camAheadS) * (1 - Math.exp(-5 * rdt));     // вид камеры (наклон и вынос вперёд) меняется плавно
+    const ca = calm ? 0 : cineA, pitch = (camPitchS - tilt - C.pitch * ca) * Math.PI / 180, dist = cfg.view.camDist * zoomC * (1 - feelZoom) * (1 - C.dist * ca);     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
     const FV = cfg.fx.view, sh = calm || !FV ? 0 : W.shake * FV.amp, wt = performance.now() / 1000;     // тряска — плавная (шаг 4), при «уменьшить движение» — нет
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
     const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
-    camera.position.set(cam.x + Math.sin(yaw) * hd + sh * (Math.sin(wt * FV.f[0] * 6.283) + .5 * Math.sin(wt * FV.f[1] * 6.283 + 1.3)) / 3, Math.sin(pitch) * dist + look + cam.y + sh * (Math.sin(wt * FV.f[1] * 6.283 + .7) + .5 * Math.sin(wt * FV.f[0] * 6.283 + 2.1)) / 3, cam.z + Math.cos(yaw) * hd);
-    camera.lookAt(cam.x, look + cam.y, cam.z);
+    const ahx = -Math.sin(yaw) * camAheadS, ahz = -Math.cos(yaw) * camAheadS;     // камера смотрит дальше вперёд: герой ниже в кадре
+    camera.position.set(cam.x + ahx + Math.sin(yaw) * hd + sh * (Math.sin(wt * FV.f[0] * 6.283) + .5 * Math.sin(wt * FV.f[1] * 6.283 + 1.3)) / 3, Math.sin(pitch) * dist + look + cam.y + sh * (Math.sin(wt * FV.f[1] * 6.283 + .7) + .5 * Math.sin(wt * FV.f[0] * 6.283 + 2.1)) / 3, cam.z + ahz + Math.cos(yaw) * hd);
+    camera.lookAt(cam.x + ahx, look + cam.y, cam.z + ahz);
     camera.updateMatrixWorld(); PV.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); FR.setFromProjectionMatrix(PV);     // что в кадре
     if (sun.castShadow && SHD) {                                      // карта теней — за героем, шаг в тексель (тень не дрожит)
       const tx = 2 * SHD.span / SHD.size; shT.set(cam.x, cam.y, cam.z);

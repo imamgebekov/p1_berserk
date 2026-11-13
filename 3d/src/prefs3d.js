@@ -1,13 +1,14 @@
 // Личные настройки игрока (телефон): левша, размер кнопок, вибрация, счётчик кадров, показанные подсказки. Отдельно от сохранения игры.
 const KEY = 'berserk3d.prefs';
 export const UI_SCALES = [['S', .85], ['M', 1], ['L', 1.2]];
-export const DEFAULT_PREFS = () => ({ lefty: false, ui: 1, vibrate: true, fps: false, mem: false, hints: true, ascii: false, retro: false, quality: 'auto', eco: null, seen: {} });     // eco — экономия заряда: null — по устройству (телефон — вкл)     // quality — пресет качества (шаг 14)
+export const DEFAULT_PREFS = () => ({ lefty: false, ui: 1, vibrate: true, fps: false, mem: false, hints: true, ascii: false, retro: false, quality: 'auto', eco: null, camView: 0, seen: {} });     // eco — экономия заряда: null — по устройству (телефон — вкл)     // quality — пресет качества (шаг 14)
 
 export function sanitizePrefs(d) {
   const o = DEFAULT_PREFS(); if (!d || typeof d !== 'object') return o;
   if (typeof d.lefty === 'boolean') o.lefty = d.lefty;
   if (UI_SCALES.some(([, v]) => v === d.ui)) o.ui = d.ui;
   if (typeof d.vibrate === 'boolean') o.vibrate = d.vibrate;
+  if (Number.isInteger(d.camView) && d.camView >= 0 && d.camView <= 2) o.camView = d.camView;
   if (typeof d.fps === 'boolean') o.fps = d.fps;
   if (typeof d.mem === 'boolean') o.mem = d.mem;
   if (typeof d.hints === 'boolean') o.hints = d.hints;
