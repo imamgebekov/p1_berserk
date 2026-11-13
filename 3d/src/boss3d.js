@@ -59,7 +59,7 @@ export function updateBoss(W, e, dt, spd) {
     if (b.done.has(i) || frac > ph.at) return;
     b.done.add(i); b.hunt = true;     // Г9: на новой фазе — снова можно прыгнуть на дальнего
     if (B.phaseMoves && b.done.size === 1 && !b.newMove) { const a = phaseMove(b.def, B.phaseMoves); if (a) { b.newMove = a.kind; (b.extra || (b.extra = [])).push(a); W.ev.push({ k: 'bossphase', name: C.name, what: 'новый приём: ' + MOVE_NAME[a.kind], x: e.x, z: e.z }); } }
-    if (ph.enrage) { b.enraged = true; W.ev.push({ k: 'bossphase', name: C.name, what: 'ярость', x: e.x, z: e.z }); }
+    if (ph.enrage) { b.enraged = true; W.ev.push({ k: 'bossphase', name: C.name, what: 'ярость', x: e.x, z: e.z, r: C.radius, sc: C.scale, enrage: true }); W.shake = Math.max(W.shake, 1); }
     if (ph.summon) summon(W, e, ph.summon.type, ph.summon.n);
     if (ph.say) W.ev.push({ k: 'bossSay', who: ph.who || C.name, text: ph.say });     // реплика в бою (рейд: Пятый)
     if (ph.shield && b.minions.length) { b.shield = true; b.shieldHp = e.hp; W.ev.push({ k: 'bossphase', name: C.name, what: 'щит: сперва убейте подмогу', x: e.x, z: e.z }); }     // этап 5: неуязвим, пока жива подмога
@@ -78,7 +78,7 @@ export function updateBoss(W, e, dt, spd) {
     if (len(p.x - b.home.x, p.z - b.home.z) < B.aggro && !p.dead) e.alert = true;
     return;
   }
-  if (!e.alert) { if (d < B.aggro) { e.alert = true; W.ev.push({ k: 'bossaggro', name: C.name, id: e.id }); if (b.def.lines && b.def.lines.aggro && !b.said) { b.said = true; W.ev.push({ k: 'bossSay', who: C.name, text: b.def.lines.aggro }); } } else return; }     // реплика при встрече — раз (этап 3)
+  if (!e.alert) { if (d < B.aggro) { e.alert = true; W.shake = Math.max(W.shake, .9 + .5 * Math.min(2, (C.sized || 1) - 1)); W.ev.push({ k: 'bossaggro', name: C.name, id: e.id, x: e.x, z: e.z, r: C.radius, sc: C.scale }); if (b.def.lines && b.def.lines.aggro && !b.said) { b.said = true; W.ev.push({ k: 'bossSay', who: C.name, text: b.def.lines.aggro }); } } else return; }     // реплика при встрече — раз (этап 3)
 
   b.t += dt;
   const dmgMul = (enr ? B.enrageDmg : 1) * (e.dmgMul || 1);

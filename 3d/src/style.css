@@ -1380,3 +1380,6 @@ html[data-land] #skills .tview:has(.tcard.tsheet) .tree{margin-right:312px}
 #dlBar{height:8px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden}
 #dlBar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4a9a5a,#9fe8a0);transition:width .3s}
 #dlBtn[data-mode="ok"]{opacity:.85}
+/* 5.55 (2026-11-13): метки фаз на шкале босса */
+#bossBar{position:relative}
+#bossBar b.mk{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:#f4e8c8;opacity:.8;box-shadow:0 0 3px #000}
