@@ -32,7 +32,7 @@ import { sleep, sleepSpot, sleepBlock } from './sleep3d.js';
 import { isNight } from './daynight.js';
 import { bagUsed, createInv } from './inv.js';
 import { createHeroView } from './bagview3d.js';
-import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, walkPortal, eclipseGo, portalName, travel, bagSlots, bagCap, refreshGear, switchHero } from './sim.js';
+import { xpNeed, reveal, restoreAllies, restoreBosses, setDifficulty, usePortal, walkPortal, eclipseGo, portalName, travel, bagSlots, bagCap, bagLoadCap, refreshGear, switchHero } from './sim.js';
 import { HEROES, HERO_IDS, heroOf } from './data/heroes3d.js';
 import { abilityView, resView, barOf, abilityAim } from './abilities3d.js';
 import { createFeel, unlocksAt } from './feel3d.js';
@@ -151,7 +151,7 @@ if (renderer && cfg.view.zoom) {
   T.addEventListener('click', () => { min = !min; T.classList.toggle('min', min); try { localStorage.setItem('berserk3d.trkMin', min ? '1' : '0'); } catch (e) { /* без сохранения */ } }); } }     // трекер заданий боком сворачивается касанием (2026-11-06)
 const BENCH = new URLSearchParams(location.search).has('bench');      // ?bench: замер на устройстве — новая игра, сохранение не трогаем
 const memStore = (() => { const o = {}; return { getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }, removeItem: k => { delete o[k]; } }; })();
-const loaded = BENCH ? null : loadSaveAny(bagCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)
+const loaded = BENCH ? null : loadSaveAny(bagLoadCap(cfg)), saved = loaded && loaded.save;     // испорчено основное — из резервной копии (шаг 11)
 if (loaded && loaded.from === 'lost') setTimeout(() => toast('Сохранение не открылось. Старый файл отложен (ключ berserk3d.save.broken), начата новая игра', 'bad', '#ff8a6a', 'warn'), 1200);
 else if (loaded && loaded.from !== 'main') setTimeout(() => toast('Сохранение было повреждено — загружена резервная копия', 'bad', '#ffb060', 'warn'), 1200);
 if (!BENCH && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});     // попросить браузер не чистить сохранение
@@ -276,6 +276,26 @@ function drawAbil() {
 }
 { const q = new URLSearchParams(location.search).get('hero') || (BENCH ? 'thorn' : null); if (!saved) { openHeroPick(); if (q) pickHero(q); } else if (!q) openHeroPick('launch'); }     // с сохранением — меню выбора героя (как в WoW); ?hero= — сразу в мир (тесты)
 
+// таблички врагов (2026-11-13, как в WoW): имя и уровень над головой, цвет уровня — по сравнению с героем (серый — слабый, жёлтый — равный, оранжевый — сильнее, красный — смертельно); ближайший враг впереди — цель с кольцом под ногами
+const plateBox = document.createElement('div'); plateBox.id = 'plates'; $('dmg').appendChild(plateBox);
+const tRing = document.createElement('div'); tRing.id = 'tring'; tRing.hidden = true; $('dmg').appendChild(tRing);
+let plateSel = [], plateTgt = null; const plateEls = new Map();
+function plateColor(e) { const d = (e.lvl || W.lv) - W.lv; return d >= 5 ? '#ff4a3a' : d >= 3 ? '#ff9a3a' : d >= -2 ? '#f2d84a' : '#9a9a8a'; }
+let plateT = 0;
+function updatePlates(real) {
+  const P = cfg.plates; if (!P || !P.on || !renderer) return; const tick = (plateT += real) >= .1; if (tick) plateT = 0;
+  const on = !panelOpen && !W.player.dead;
+  if (!on) { if (plateBox.childElementCount) { plateBox.textContent = ''; plateEls.clear(); } tRing.hidden = true; plateSel = []; plateTgt = null; return; }
+  if (tick) {
+    const p = W.player; plateSel = W.enemies.filter(e => !e.dead && !e.sleep && !e.boss && Math.hypot(e.x - p.x, e.z - p.z) < P.r).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z)).slice(0, P.max);
+    plateTgt = null; let bd = 1e9; for (const e of plateSel) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d > P.tgtR) continue; const an = Math.atan2(e.x - p.x, e.z - p.z) - p.face; if (Math.abs(Math.atan2(Math.sin(an), Math.cos(an))) > P.tgtArc * Math.PI / 180) continue; if (d < bd) { bd = d; plateTgt = e; } }
+    const keep = new Set(plateSel.map(e => e.id)); for (const [id, el] of plateEls) if (!keep.has(id)) { el.remove(); plateEls.delete(id); }
+    for (const e of plateSel) { let el = plateEls.get(e.id); const C = cfg.enemies[e.type]; if (!el) { el = document.createElement('div'); el.className = 'plate'; plateBox.appendChild(el); plateEls.set(e.id, el); el.innerHTML = '<b class="lv"></b><span class="nm"></span>'; el.dataset.k = ''; }
+      const k = (e.elite ? 'e' : '') + (e.lvl || '') + C.name; if (el.dataset.k !== k) { el.dataset.k = k; el.firstChild.textContent = e.lvl || ''; el.lastChild.textContent = C.name; el.firstChild.style.color = plateColor(e); } el.classList.toggle('tgt', e === plateTgt); el.classList.toggle('elite', !!e.elite); }
+  }
+  for (const e of plateSel) { const el = plateEls.get(e.id); if (!el) continue; const C = cfg.enemies[e.type], q = renderer.project(e.x, 2.7 * C.scale + .2, e.z); el.style.display = q.vis ? '' : 'none'; if (q.vis) { el.style.left = q.x + 'px'; el.style.top = q.y + 'px'; } }
+  if (plateTgt && !plateTgt.dead) { const q = renderer.project(plateTgt.x, .05, plateTgt.z); tRing.hidden = !q.vis; if (q.vis) { tRing.style.left = q.x + 'px'; tRing.style.top = q.y + 'px'; const s = Math.max(28, 78 * cfg.enemies[plateTgt.type].scale * (innerHeight / 430)); tRing.style.width = tRing.style.height = s + 'px'; } } else tRing.hidden = true;
+}
 function onText(x, y, z, txt, cls) {
   if (!renderer) return;
   const p = renderer.project(x, y, z);
@@ -416,6 +436,7 @@ function onEvent(v) {
   else if (v.k === 'squadCmd') toast(v.auto ? 'Отряд снова идёт за вами' : v.cmd === 'hold' ? 'Отряд: держим здесь' : v.cmd === 'assist' ? 'Отряд: бьём вашу цель' : 'Отряд: за мной');
   else if (v.k === 'hire') toast(`${v.name} теперь с вами`, 'sys');
   else if (v.k === 'level') showLevelCard(v.lv);
+  else if (v.k === 'bagplus') toast(`Рюкзак стал больше: +${v.n} мест (сумок ${v.tot})`, '', '#9fe8a0', 'bag');
   else if (v.k === 'prank') toast(`Пепельный ранг ${v.n}: +${(v.n * cfg.level.ranks.per * 100).toFixed(1)}% к урону и здоровью`, '', '#ffb060', 'fire');     // этап 3 «круче»     // карточка вместо тоста (этап 1 «круче»)
   else if (v.k === 'xp') onText(v.x, 3, v.z, '+' + v.n + ' оп.', 'xp');
 }
@@ -686,11 +707,11 @@ $('fileSave').addEventListener('click', () => {
 $('fileLoad').addEventListener('click', () => $('fileInput').click());
 $('fileInput').addEventListener('change', async e => {
   const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-  const text = (await f.text()).trim(); if (importSave(text, bagCap(cfg)) !== 'ok') { sflash('В файле нет кода сохранения B3D1:', true); return; }
+  const text = (await f.text()).trim(); if (importSave(text, bagLoadCap(cfg)) !== 'ok') { sflash('В файле нет кода сохранения B3D1:', true); return; }
   sflash('Сохранение загружено, перезапуск…'); W.ironDead = true; setTimeout(() => location.reload(), 600);
 });
 $('impBtn').addEventListener('click', () => {
-  if (importSave(codeEl.value, bagCap(cfg)) !== 'ok') { sflash('Код не подходит: нужна строка, начинающаяся с B3D1:', true); return; }
+  if (importSave(codeEl.value, bagLoadCap(cfg)) !== 'ok') { sflash('Код не подходит: нужна строка, начинающаяся с B3D1:', true); return; }
   sflash('Сохранение загружено, перезапуск…'); W.ironDead = true; setTimeout(() => location.reload(), 600);    // ironDead блокирует перезапись старым состоянием при выходе
 });
 const questBtn = $('questBtn'), trackerEl = $('tracker'); questBtn.addEventListener('click', e => { e.stopImmediatePropagation(); quests.open('here'); }, true);
@@ -1080,6 +1101,7 @@ function frame(now) {
   { const n = bagUsed(W.inv), m = bagSlots(W), s = n + '/' + m, cls = n >= m ? 'full' : n >= m * .8 ? 'warn' : ''; if (bagFill.textContent !== s) bagFill.textContent = s; if (bagFill.className !== cls) bagFill.className = cls; }     // заполненность сумки на кнопке
   const t1 = performance.now();
   if (renderer) renderer.render(W, dt);
+  updatePlates(real);
   { const t2 = performance.now(); perfPush(perf.sim, t1 - t0); perfPush(perf.draw, t2 - t1); perf.max = Math.max(perf.max, t2 - t0); perf.n++; if (perf.n === 1) window.__tFrame = performance.now(); if (renderer) { const i = renderer.info(); perf.calls = i.calls; perf.tris = i.triangles; } }
   const hud = (hudT += real) >= cfg.cull.hud || paused !== hudP; if (hud) { hudT = 0; hudP = paused; }     // кнопки, статусы и умения — 10 раз в секунду (и сразу при открытии меню)
   if (hud) { const show = !!W.nearNpc && (storyTalkable(W, W.nearNpc) || !npcLocked(W.nearNpc)) && !panelOpen && !landscape;     // сюжетный разговор — даже у закрытого жителя

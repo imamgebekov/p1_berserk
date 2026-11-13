@@ -203,6 +203,7 @@ const FAIRY = [
   ['p_fairy_might', 'Сказочная сила', { buff: { stat: 'dmg', amt: 30, t: 60 } }, 4, 320, 'Урон +30 на минуту.'],
   ['u_recall', 'Свиток возврата', { recall: true }, 2, 150, 'Прочитать: мгновенно перенестись в лагерь (и из подземелья тоже).']
 ];
+add({ id: 'u_bag_sack', name: 'Дорожная сумка', cat: 'consumable', pool: 'kit', rar: 2, stack: 4, value: 260, tint: '#7a5a3a', use: { bag: true }, text: 'Прочная сумка с лямками. Применить: в рюкзаке навсегда на 4 места больше. Таких сумок можно применить не больше четырёх.' });
 add({ id: 'u_repair_kit', name: 'Ремкомплект', cat: 'consumable', pool: 'kit', rar: 1, stack: 5, value: 30, tint: '#a07a4a', use: { repair: true }, text: 'Кожа, гвозди и кремень. Использовать: надетое снаряжение прочнее на 40% (полная починка — у кузнеца).' });     // 4.03: делается кожевником, продаётся у торговца
 for (const [id, name, use, rar, val, text] of FAIRY) add({ id, name, cat: 'consumable', pool: 'fairy', rar, stack: 5, value: val, use, text, ...(use.recall ? { icon: 'book' } : {}) });
 const MEDIC = [

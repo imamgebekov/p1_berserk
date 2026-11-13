@@ -1049,8 +1049,9 @@ function refill(W, c) {
 
 // положить в сумку; возвращает остаток
 // сумка: базовые места + навык «Глубокие карманы»; bagCap — наибольшая возможная (для загрузки сохранения)
-export const bagSlots = W => W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0);
+export const bagSlots = W => W.cfg.bag.slots + ((W.gear && W.gear.bag) || 0) + (W.bagX || 0) * (W.cfg.bag.extra || 0);     // + купленные сумки (2026-11-13)
 export const bagCap = cfg => cfg.bag.slots + SKILLS.pockets.max * SKILLS.pockets.stats.bag;
+export const bagLoadCap = cfg => bagCap(cfg) + (cfg.bag.extraMax || 0) * (cfg.bag.extra || 0);     // для загрузки сохранения: ещё и купленные сумки
 // уровень вещи: уровень места + 0…drop (без W.rng — бой не сдвигается)
 // уровень добычи (4.20): от героя по месту и роду врага (cfg.lootIl); выключено — null (как раньше: от уровня места)
 export function lootIl(W, e, salt) {
@@ -1150,6 +1151,7 @@ export function useItem(W, idx) {
     travel(W, SURFACE, 0, 4);
     W.ev.push({ k: 'recall', x: p.x, z: p.z }); removeAt(W.inv, idx, 1); return true;
   }
+  if (u.bag) { const B = W.cfg.bag; if ((W.bagX || 0) >= (B.extraMax || 0)) return false; W.bagX = (W.bagX || 0) + 1; W.ev.push({ k: 'bagplus', n: B.extra, tot: W.bagX }); removeAt(W.inv, idx, 1); return true; }     // дополнительная сумка: навсегда +extra мест, не больше extraMax штук
   if (u.repair) { if (!repairKit(W, W.cfg.dur.kit)) return false; refreshGear(W); removeAt(W.inv, idx, 1); return true; }     // ремкомплект (4.03)
   if (u.cleanse) { if (!cleansePlayer(W, u.cleanse) && !u.heal && !u.buff) return false; W.ev.push({ k: 'cleanse', x: p.x, z: p.z }); }
   if (u.heal) { const h = Math.min(u.heal, p.maxhp - p.hp); if (h <= 0 && !u.buff && !u.ash) return false; p.hp += Math.max(0, h); if (h > 0) W.ev.push({ k: 'heal', x: p.x, z: p.z, n: Math.round(h) }); }
