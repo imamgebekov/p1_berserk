@@ -2,7 +2,7 @@
 // камни едут с вещью (надеть, снять, сохранить, бросить и поднять, продать, ковка, смена героя), сплав в ударе и при смерти.
 import { CFG3 } from '../3d/src/config3d.js';
 import { BY_ID, CATALOG } from '../3d/src/data/items.js';
-import { createWorld, step, spawnEnemy, killEnemy, dropItem, refreshGear, switchHero } from '../3d/src/sim.js';
+import { createWorld, step, spawnEnemy, killEnemy, dropItem, lootCorpse, refreshGear, switchHero } from '../3d/src/sim.js';
 import { equipAt, unequip, serialize, deserialize, socketsOf, createInv } from '../3d/src/inv.js';
 import { sellItem } from '../3d/src/economy3d.js';
 import { gemDropOf, socketGem, unsocketGem, fuseGems, gemsAt, weaponMix, gemId, armorGemFx } from '../3d/src/stones3d.js';
@@ -62,7 +62,7 @@ const RARE = 'w_sword_steel_storm', PLAIN3 = 'w_sword_black', TWO = CATALOG.find
   const junk = deserialize({ bag: [{ id: RARE, n: 1, g: ['m_ore', 'gem_fire_1', 'x'] }, { id: 'w_sword_iron', n: 1, g: ['gem_fire_1'] }], eq: { weapon: RARE }, gem: { weapon: ['gem_fire_9'] } }, MAX, 'thorn', CFG3);
   ok(!junk.bag.find(s => s.id === RARE).g && !junk.bag.find(s => s.id === 'w_sword_iron').g && !junk.gem.weapon, 'мусор в камнях из сохранения принят');
   const W2 = mk(); W2.inv.bag = [{ id: RARE, n: 1, g: [gemId('fire', 1)], up: 2 }]; dropItem(W2, 0); ok(W2.drops.length === 1 && W2.drops[0].g && W2.drops[0].up === 2, 'брошенная вещь потеряла камень или заточку');
-  W2.drops[0].x = W2.player.x; W2.drops[0].z = W2.player.z; step(W2, 1 / 60, {}); ok(W2.inv.bag.some(s => s.id === RARE && s.g && s.up === 2), 'поднятая вещь потеряла камень или заточку');
+  lootCorpse(W2, W2.drops[0].corpse); step(W2, 1 / 60, {});     // брошенное лежит кучей: берётся окном добычи, само не подбирается ok(W2.inv.bag.some(s => s.id === RARE && s.g && s.up === 2), 'поднятая вещь потеряла камень или заточку');
   const W3 = mk(); W3.nearMerchant = true; W3.inv.bag = [{ id: RARE, n: 1, g: [gemId('earth', 2)] }]; ok(sellItem(W3, 0) === 'ok' && W3.inv.bag.length === 1 && W3.inv.bag[0].id === gemId('earth', 2), 'проданное оружие забрало камень');
   W3.inv.bag = [{ id: TWO, n: 1, g: [gemId('earth', 2), gemId('fire', 1)] }]; for (let i = 1; i < MAX; i++) W3.inv.bag.push({ id: 'm_ore', n: 20 }); W3.cfg.bag.slots = MAX; refreshGear(W3);
   ok(sellItem(W3, 0) === 'ok' && W3.inv.bag.filter(s => BY_ID[s.id].cat === 'gem').length === 2, 'продажа при полной сумке съела камень (камни места не занимают)');

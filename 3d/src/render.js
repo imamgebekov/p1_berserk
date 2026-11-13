@@ -369,6 +369,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       for (const t of [[0, 1, 2], [1, 3, 2], [2, 3, 4]]) for (const k of t) { v.push(...P[k]); col.push(C[k].r, C[k].g, C[k].b); } }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.computeVertexNormals(); return geo; })();
   const grassMid = new THREE.Color(cfg.look.leaf[1]).multiplyScalar(.95).lerp(new THREE.Color(cfg.look.leaf[2]).multiplyScalar(2), .5), GOLD = ['#e8a848', '#dc9438', '#f0bc5a'].map(h => new THREE.Color(h)), GC = new THREE.Color();     // золотые пятна высокой травы: цвет пучка делим на цвет травинки, чтобы получить нужный итог
+  const pileG = new THREE.Group(), pileMeshes = new Map(), pileMat = new THREE.MeshLambertMaterial({ color: '#7a5c3a' }), pileGeo = new THREE.SphereGeometry(.3, 8, 6), pileMarkGeo = new THREE.BoxGeometry(.16, .16, .16); scene.add(pileG);     // куча брошенных вещей
   // участок земли: холмы, пятна света, деревья и камни, трава (траву — кусками 16 м, чтобы отсекалась вне кадра)
   const land = new THREE.Group(), liveLand = new Map(), allSegs = pathSegs(map); scene.add(land);
   const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), E4 = new THREE.Euler(), P4 = new THREE.Vector3(), S4 = new THREE.Vector3(), C4 = new THREE.Color();
@@ -1194,6 +1195,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       const b = bar(e, e.elite ? e.affColor : undefined), dmg = (e.hp < e.maxhp || e.elite) && !e.dead;
       b.g.visible = dmg; if (dmg) { b.g.position.set(e.x, 2.5 * cfg.enemies[e.type].scale + .3 + ey, e.z); b.g.quaternion.copy(camera.quaternion); b.fill.scale.x = Math.max(.001, e.hp / e.maxhp); }
     }
+    // кучи брошенных вещей (2026-11-13): мешочек на земле, цвет метки — по лучшей вещи; нет кучи в мире — мешочек убирается
+    { const want = new Set(); for (const c of W.corpses || []) { if (!c.pile || c.lvl !== W.lvl) continue; want.add(c.id); if (pileMeshes.has(c.id)) continue;
+        let best = 0; for (const q of W.drops) if (q.corpse === c.id && BY_ID[q.id]) best = Math.max(best, BY_ID[q.id].rar || 0);
+        const m = new THREE.Group(), sack = new THREE.Mesh(pileGeo, pileMat), mark = new THREE.Mesh(pileMarkGeo, new THREE.MeshLambertMaterial({ color: RARITY[best].color, emissive: RARITY[best].color, emissiveIntensity: .35 }));
+        sack.scale.set(1.15, .55, 1); sack.position.y = .16; mark.position.set(.1, .42, 0); mark.rotation.y = .6; m.add(sack, mark); m.position.set(c.x, Y(c.x, c.z), c.z); pileG.add(m); pileMeshes.set(c.id, m); }
+      for (const [id, m] of pileMeshes) if (!want.has(id)) { pileG.remove(m); pileMeshes.delete(id); } }
     // план физики, этап 3: лежащие тела — модель остаётся, анимация замирает; сверх лимита (телефон, ПК, «Низкое») — уходят в землю; с добычей — последними
     { const BB = cfg.phys && cfg.phys.body && cfg.phys.body.on ? cfg.phys.body : null, L = BB && W.bodies ? W.bodies.filter(b => b.lvl === W.lvl) : [];
       const cap = !BB ? 0 : qualId === 'low' ? BB.max.low : deskNow ? BB.max.pc : BB.max.phone, loot = new Set((W.corpses || []).map(c => c.id));

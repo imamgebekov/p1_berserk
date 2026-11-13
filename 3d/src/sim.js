@@ -1173,6 +1173,12 @@ export function dropItem(W, idx, n = 1) {
   const dq = { id: s.id, n: q, x: p.x + Math.sin(p.face) * 1.6, z: p.z + Math.cos(p.face) * 1.6, t: W.cfg.gear.dropLife - 12, cd: 0 };   // брошенное лежит недолго
   if (!isPlain(s) || s.il) { dq.n = 1; if (s.up) dq.up = s.up; if (s.g) dq.g = s.g.slice(); if (s.il) dq.il = s.il; if (s.af) dq.af = { ...s.af }; }     // заточка, камни, уровень и свойства остаются при вещи
   dq.mine = true;     // брошенное героем: при подборе новых свойств не получает (иначе перебор)
+  // 2026-11-13: брошенное не прыгает обратно в сумку — лежит кучей на земле, берётся кнопкой (окно добычи, как у тела и сундука); рядом брошенное — в той же куче
+  const C = W.cfg.corpse; if (C && C.on) {
+    const L = W.corpses || (W.corpses = []); let pile = L.find(c => c.type === 'pile' && c.lvl === W.lvl && len(c.x - dq.x, c.z - dq.z) < 1.8);
+    if (!pile) { pile = { id: 'p' + (W.pileN = (W.pileN || 0) + 1), x: dq.x, z: dq.z, type: 'pile', name: 'Брошенные вещи', boss: false, t: 0, life: C.pile || 900, empty: 0, lvl: W.lvl, fight: false, pile: true }; L.push(pile); }
+    dq.corpse = pile.id; dq.x = pile.x; dq.z = pile.z; dq.t = 0;
+  }
   W.drops.push(dq);
   removeAt(W.inv, idx, q); return true;
 }

@@ -796,7 +796,7 @@ function drawLoot(c) {
 function lootUi(free) {
   const c = lootOpen && (W.corpses || []).find(x => x.id === lootOpen && x.lvl === W.lvl), p = W.player;
   if (lootOpen && (!c || p.dead || Math.hypot(c.x - p.x, c.z - p.z) > cfg.corpse.r + 1.5 || !corpseItems(W, c.id).length)) closeLoot();
-  const bx = !W.nearCorpse && W.nearBox && W.nearBox.ready ? W.nearBox : null, nb = !!(free && (W.nearCorpse || bx) && !lootOpen); if (lootBtn.hidden === nb) lootBtn.hidden = !nb; if (nb) { const l = (bx ? 'Открыть: ' + boxName(bx).toLowerCase() : 'Добыча') + (desk ? ' · E' : ''); if (lootBtn.textContent !== l) lootBtn.textContent = l; }
+  const bx = !W.nearCorpse && W.nearBox && W.nearBox.ready ? W.nearBox : null, nb = !!(free && (W.nearCorpse || bx) && !lootOpen); if (lootBtn.hidden === nb) lootBtn.hidden = !nb; if (nb) { const l = (bx ? 'Открыть: ' + boxName(bx).toLowerCase() : W.nearCorpse && W.nearCorpse.pile ? 'Подобрать' : 'Добыча') + (desk ? ' · E' : ''); if (lootBtn.textContent !== l) lootBtn.textContent = l; }
   if (lootOpen && c) drawLoot(c);
 }
 const BOXWHY = { locked: 'Заперто: нужен ключ подходящего уровня', far: 'Подойдите ближе', none: 'Уже пусто', empty: 'Пусто' };
