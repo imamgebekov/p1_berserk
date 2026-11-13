@@ -1,7 +1,7 @@
 // Тест этапа 4 «круче»: случайные свойства вещей, «Надеть лучшее», «Продать хуже надетого», замок, сохранение,
 // событие «Пепельный вор». Свойства — только у редких и выше, в пределах cfg.affix.max, бой без них не меняется.
 import { CFG3 } from '../3d/src/config3d.js';
-import { createWorld, step, mulberry32, killEnemy, equipBest, dropItem, spawnEnemy } from '../3d/src/sim.js';
+import { createWorld, step, mulberry32, killEnemy, equipBest, dropItem, lootCorpse, spawnEnemy } from '../3d/src/sim.js';
 import { rollAffixes, affixFor, affixLines, affixCount, rollGems } from '../3d/src/affix3d.js';
 import { createInv, entryOf, gearStats, serialize, deserialize, scoreUp, socketsOf } from '../3d/src/inv.js';
 import { sellWorse, sellPrice } from '../3d/src/economy3d.js';
@@ -106,8 +106,7 @@ const mk = (seed = 1, tweak) => { const c = clone(); c.enemies.count = 0; c.wand
   W.inv.bag.length = 0; const rare = CATALOG.find(i => i.rar === 3 && i.slot === 'boots');
   W.inv.bag.push(entryOf(rare.id, 0, null, 20, null));
   ok(dropItem(W, 0) && W.drops.length && W.drops[W.drops.length - 1].mine, 'бросок без метки «своя»');
-  const dq = W.drops[W.drops.length - 1]; dq.x = W.player.x; dq.z = W.player.z; dq.t = 0;
-  for (let i = 0; i < 90 && !W.inv.bag.length; i++) { step(W, 1 / 60, {}); W.ev.length = 0; }
+  const dq = W.drops[W.drops.length - 1]; lootCorpse(W, dq.corpse); step(W, 1 / 60, {}); W.ev.length = 0;     // брошенное лежит кучей: берётся окном добычи
   ok(W.inv.bag.length === 1 && !W.inv.bag[0].af, 'поднятая своя вещь получила свойства (перебор): ' + JSON.stringify(W.inv.bag[0]));
   // новая вещь с земли — со свойствами
   W.inv.bag.length = 0; W.drops.push({ id: rare.id, n: 1, x: W.player.x, z: W.player.z, t: 0, cd: 0, il: 20 });

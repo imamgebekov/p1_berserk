@@ -101,7 +101,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   scene.background = new THREE.Color(FOG);
   scene.fog = new THREE.FogExp2(FOG, cfg.view.fogDensity);
   const camera = new THREE.PerspectiveCamera(cfg.view.fov, 1, .5, 140);     // дальше 140 м всё скрыто туманом (exp²: меньше 0,01%) — незачем рисовать; небо уменьшено под это
-  let camPitchS = cfg.view.camPitch, camAheadS = cfg.view.camAhead || 0;
+  let camPitchS = cfg.view.camPitch, camAheadS = cfg.view.camAhead || 0; let bossZoomS = 1;
   camera.layers.enable(OVERLAY);
   const ovl = o => { o.traverse(c => c.layers.set(OVERLAY)); return o; };     // чёткие метки боя: в фильтре ASCII рисуются поверх символов
   let ascii = null, asciiOn = false;
@@ -1039,7 +1039,9 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     zoomC += (zoomT - zoomC) * (1 - Math.exp(-((cfg.view.zoom && cfg.view.zoom.ease) || 8) * rdt));
     const ZV = cfg.view.zoom, zk = ZV && ZV.tilt ? Math.max(0, Math.min(1, (1 - zoomC) / (1 - ZV.min))) : 0, tilt = zk ? ZV.tilt * zk : 0, look = cfg.view.camLookUp + (zk ? (ZV.lift || 0) * zk : 0);     // 5.04: приближение — камера ниже к горизонту, видно дальше вперёд
     camPitchS += (cfg.view.camPitch - camPitchS) * (1 - Math.exp(-5 * rdt)); camAheadS += ((cfg.view.camAhead || 0) - camAheadS) * (1 - Math.exp(-5 * rdt));     // вид камеры (наклон и вынос вперёд) меняется плавно
-    const ca = calm ? 0 : cineA, pitch = (camPitchS - tilt - C.pitch * ca) * Math.PI / 180, dist = cfg.view.camDist * zoomC * (1 - feelZoom) * (1 - C.dist * ca);     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
+    { let bk = 1; if (!calm && W.enemies) for (const e of W.enemies) if (e.boss && !e.dead && !e.sleep && Math.hypot(e.x - p.x, e.z - p.z) < 48) { const sc = (cfg.enemies[e.type] || {}).scale || 2; bk = Math.max(bk, 1 + Math.min(.6, Math.max(0, sc - 2.5) * .12)); }     // большой босс рядом — камера отъезжает, чтобы он влез в кадр
+      bossZoomS += (bk - bossZoomS) * (1 - Math.exp(-1.6 * rdt)); }
+    const ca = calm ? 0 : cineA, pitch = (camPitchS - tilt - C.pitch * ca) * Math.PI / 180, dist = cfg.view.camDist * zoomC * (1 - feelZoom) * (1 - C.dist * ca) * bossZoomS;     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
     const FV = cfg.fx.view, sh = calm || !FV ? 0 : W.shake * FV.amp, wt = performance.now() / 1000;     // тряска — плавная (шаг 4), при «уменьшить движение» — нет
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
     const yaw = cfg.view.camYaw * Math.PI / 180, hd = Math.cos(pitch) * dist;
