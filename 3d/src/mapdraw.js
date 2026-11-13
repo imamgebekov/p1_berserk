@@ -1,6 +1,7 @@
 // Рисование карты на 2D-холсте: миникарта (окно вокруг героя) и большая карта (весь мир) с «туманом войны».
 import { lockedBoss } from './lockout3d.js';
 import { isSeen } from './sim.js';
+import { questMark } from './quests3d.js';
 import { makeRelief } from './maprelief.js';
 import { GI } from './data/gicons.js';
 // значок game-icons в круге (2026-10-20, просьба владельца: значки на карте): фон, тёмная кайма, белая фигура
@@ -123,6 +124,7 @@ export function drawMap(ctx, W, v) {
   const NPC_IC = { keeper: ['ui:sparkle', '#a8203a'], merchant: ['map:shop', '#b8901c'], smith: ['map:smith', '#c05a1c'], captain: ['map:fight', '#2a6ab8'], auctioneer: ['map:shop', '#8a3ab8'], scribe: ['ui:book', '#6a4ab8'] };
   const NPC_NAME = { keeper: 'Хранитель огня', merchant: 'Торговец', smith: 'Кузнец', captain: 'Капитан', auctioneer: 'Аукцион', scribe: 'Библиотека' }, labs = [];     // подписи у значков (5.45): видно, где аукцион и кузнец; наползающие пропускаем
   for (const b of M.buildings) if (b.npc) { if (hid.has('npc:' + b.npc.kind)) continue; if (full && NPC_IC[b.npc.kind]) { if (zs >= .45) { const nx = X(b.npc.x), ny = Y(b.npc.z); badge(ctx, NPC_IC[b.npc.kind][0], nx, ny, 8 * U, NPC_IC[b.npc.kind][1]);
+        { const qm = questMark(W, b.npc.kind); if (qm) { ctx.save(); ctx.font = `800 ${Math.round(15 * U)}px "Iowan Old Style", Palatino, Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3 * U; ctx.strokeStyle = '#000'; ctx.fillStyle = '#ffd23a'; const mx = nx + 10 * U, my = ny - 11 * U, ch = qm === 'ready' ? '?' : '!'; ctx.strokeText(ch, mx, my); ctx.fillText(ch, mx, my); ctx.restore(); } }     // «!» — дают задание, «?» — можно сдать
         if (zs >= 1.8 && nx > -40 && nx < w + 40 && ny > -20 && ny < h + 20 && !labs.some(q => Math.abs(q[0] - nx) < 64 * U && Math.abs(q[1] - ny) < 15 * U)) { labs.push([nx, ny]); ctx.save(); ctx.globalAlpha = tier(zs, 1.8, 2.4); ctx.font = `700 ${Math.round(12 * U)}px "Iowan Old Style", Palatino, Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3.5 * U; ctx.strokeStyle = 'rgba(10,6,4,.9)'; ctx.fillStyle = '#f4e8cc'; const ty = ny + 15 * U; ctx.strokeText(NPC_NAME[b.npc.kind], nx, ty); ctx.fillText(NPC_NAME[b.npc.kind], nx, ty); ctx.restore(); } } continue; } ctx.fillStyle = NPC[b.npc.kind] || '#fff'; ctx.beginPath(); ctx.arc(X(b.npc.x), Y(b.npc.z), Math.max(2.5, sc * 1.1), 0, 6.2832); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); }
   }
   // люки и лестницы

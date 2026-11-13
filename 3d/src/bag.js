@@ -6,6 +6,7 @@ import { iconURL, slotIconURL } from './itemicons.js';
 import { PERKS } from './data/weapons3d.js';
 import { useItem, dropItem, refreshGear, sellItem, sellPrice, bagSlots, equipBest, sellJunk } from './sim.js';
 import { readTome } from './craft3d.js';
+import { bankOf, bankCap, bankNear, deposit, withdraw } from './bank3d.js';
 import { socketsOf } from './inv.js';
 import { weaponMix, armorGemFx } from './stones3d.js';
 import { skillOfItem } from './weaponskill3d.js';
@@ -14,7 +15,7 @@ import { affixLines } from './affix3d.js';
 import { createHeroView } from './bagview3d.js';
 import { allyInv, allyHeroOf, refreshAlly, allyDmgOf } from './squad3d.js';     // герой в надетом вместо силуэта (2026-10-20)
 
-const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее']];
+const TABS = [['all', 'Всё'], ['weapon', 'Оружие'], ['armor', 'Броня'], ['use', 'Расходное'], ['other', 'Прочее'], ['bank', 'Банк']];
 const tabOf = it => it.slot === 'weapon' ? 'weapon' : it.slot ? 'armor' : it.cat === 'consumable' ? 'use' : 'other';
 
 export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJournal, onQuests, onOwnIcon, onSource } = {}) {
@@ -107,10 +108,23 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       if (desk) hoverable(row, () => ({ it: r.it, up: r.s.up || 0, g: r.s.g, il: r.s.il, af: r.s.af, worn: TI().eq[slot] ? BY_ID[TI().eq[slot]] : null }));
       cardEl.appendChild(row); }
   }
+  const BANKWHY = { far: 'Банк работает рядом с жителем: торговцем, кузнецом, капитаном', full: 'Нет места', none: 'Вещи уже нет' };
+  function bankCard() {
+    const s = bankOf(W)[sel.i], it = s && BY_ID[s.id]; if (!it) { sel = null; cardEl.hidden = true; return; }
+    cardEl.className = 'r' + it.rar; const h = el('div', 'ch'), t = el('div', 'cht'); h.append(icon(it, 'ic big'));
+    t.append(nm(it, s.n, s.up || 0), el('div', 'rr', 'В банке · ' + RARITY[it.rar].name + (it.slot ? ' · ' + SLOT_NAME[it.slot] : '') + lvTxt(it, s.il || 0))); h.append(t);
+    { const x = el('button', 'cclose', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть'); x.addEventListener('click', () => { sel = null; render(); }); h.append(x); }
+    cardEl.appendChild(h);
+    { const ab = afBlock(s.af || null); if (ab) cardEl.appendChild(ab); const gl = gemLine(it, s.g); if (gl) cardEl.appendChild(gl); }
+    if (it.stats) { const g = el('div', 'stg'); for (const r of statDiff(it, null, s.up || 0, 0, cfg.smith.bonus, s.il || 0, 0, s.af || null, null)) { if (!(r.k in it.stats)) continue; const row = el('div', 'str'); row.append(el('span', 'sk', r.name), el('span', 'sv', fmt(r.k, r.b))); g.appendChild(row); } cardEl.appendChild(g); } else if (it.text) cardEl.appendChild(el('div', 'ct', it.text));
+    const row = el('div', 'acts'), b = el('button', 'main', 'Забрать'); b.type = 'button'; b.addEventListener('click', () => { const r = withdraw(W, sel.i); if (r !== 'ok') flash(BANKWHY[r] || 'Нельзя'); else sel = null; render(); onChange && onChange(); }); row.appendChild(b);
+    cardEl.appendChild(row); cardEl.insertBefore(row, cardEl.children[1] || null);
+  }
   function card() {
     cardEl.textContent = ''; cardEl.hidden = !sel && !desk;
     if (!sel) { if (desk) { cardEl.className = 'idle'; cardEl.append(el('div', 'cph', 'Наведите на вещь — подсказка со сравнением. Щелчок — подробно и действия. Двойной щелчок — надеть или использовать.')); } return; }
     if (sel.from === 'pick') { pickCard(sel.slot); return; }
+    if (sel.from === 'bank') { bankCard(); return; }
     const id = sel.from === 'eq' ? TI().eq[sel.slot] : (W.inv.bag[sel.i] || {}).id, it = id && BY_ID[id];
     if (!it) { sel = null; cardEl.hidden = true; return; }
     const n = sel.from === 'bag' ? W.inv.bag[sel.i].n : 1, up = sel.from === 'eq' ? TI().up[sel.slot] || 0 : W.inv.bag[sel.i].up || 0, il = sel.from === 'eq' ? wIl(sel.slot) : W.inv.bag[sel.i].il || 0;
@@ -163,6 +177,7 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       btn(`Продать · ${sellPrice(it, cfg, up, W.gear.trade, il, afSel) * n}`, () => { if (sellItem(W, sel.i, n) === 'far') flash('Продавать можно только у торговца'); else sel = null; });
       if (n > 1) btn(`Продать 1 · ${sellPrice(it, cfg, up, W.gear.trade, il, afSel)}`, () => { if (sellItem(W, sel.i, 1) === 'far') flash('Продавать можно только у торговца'); });
       if (it.slot) { const s0 = W.inv.bag[sel.i]; btn(s0 && s0.lock ? 'Снять замок' : 'Замок', () => { const s = W.inv.bag[sel.i]; if (s) { if (s.lock) delete s.lock; else s.lock = true; } }); }     // замок: «продать хуже надетого» не тронет (этап 4 «круче»)
+      if (sel.from === 'bag' && bankNear(W)) btn(n > 1 ? `В банк · ${n}` : 'В банк', () => { const r = deposit(W, sel.i, n); if (r !== 'ok') flash(BANKWHY[r] || 'Нельзя'); else sel = null; });
       btn('Выбросить', () => { dropItem(W, sel.i, n); sel = null; });
       if (onSource && /material|craftmat|monstermat|ore|trophy|gem/.test(it.pool || it.cat || '')) btn('Где взять', () => onSource(it.id));     // на телефоне нет клавиши G: источники материала — кнопкой
       if (onOwnIcon) btn('Свой значок', () => onOwnIcon(it));     // значок с устройства — для всех вещей этого вида (custom3d.js)
@@ -198,7 +213,15 @@ export function createBag(doc, W, cfg, { onChange, onOpen, onClose, onReset, onJ
       eqEl.appendChild(b);
     }
     // сетка сумки: вещи (лучшие сверху), во вкладке «Всё» — ещё пустые ячейки до вместимости
-    listEl.textContent = '';
+    listEl.textContent = ''; listEl.dataset.bank = tab === 'bank' ? '1' : '';
+    if (tab === 'bank') {
+      const B = bankOf(W); for (const [i, s] of B.entries()) { const it = BY_ID[s.id]; if (!it) continue;
+        const bt = el('button', 'tile r' + it.rar + (sel && sel.from === 'bank' && sel.i === i ? ' sel' : '')); bt.type = 'button'; bt.append(icon(it)); if (s.n > 1) bt.append(el('span', 'cnt', '×' + s.n)); if (s.up) bt.append(el('span', 'upg', '+' + s.up)); if (it.slot) bt.append(el('span', 'ilv', ilOf(it, s.il)));
+        bt.dataset.item = it.id; bt.title = nameOf(it.id, s.up || 0) + (s.n > 1 ? ' ×' + s.n : ''); bt.setAttribute('aria-label', bt.title);
+        bt.addEventListener('click', () => { sel = { from: 'bank', i }; render(); }); listEl.appendChild(bt); }
+      for (let k = B.length; k < bankCap(W); k++) listEl.appendChild(el('div', 'tile empty'));
+      headEl.textContent = `Банк ${B.length}/${bankCap(W)}` + (bankNear(W) ? '' : ' · кладут и берут рядом с жителем'); card(); return;
+    }
     const rows = W.inv.bag.map((s, i) => ({ s, i, it: BY_ID[s.id] })).filter(r => tab === 'all' || tabOf(r.it) === tab).sort((a, b) => b.it.rar - a.it.rar || a.it.name.localeCompare(b.it.name, 'ru'));
     if (!rows.length && tab !== 'all') listEl.appendChild(el('div', 'emptyl', 'В этой вкладке пусто.'));
     const freeTiles = []; let pend = null;

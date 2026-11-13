@@ -34,6 +34,7 @@ export function gainXp(W, n) {
     return;
   }
   n = Math.max(1, Math.round(n * W.dif.xp * (W.night ? W.cfg.daynight.night.xp : 1)));
+  const RS = W.cfg.rest; if (RS && RS.on && W.rest > 0) { const b = Math.min(W.rest, Math.round(n * RS.bonus)); W.rest -= b; n += b; }     // отдых: прибавка из запаса
   W.xp += n; W.ev.push({ k: 'xp', n, x: W.player.x, z: W.player.z });
   while (W.lv < L.max && W.xp >= xpNeed(W.lv, W.cfg)) {
     W.xp -= xpNeed(W.lv, W.cfg); W.lv++; W.sp++; W.ap += abilityPointsAt(W.lv, W.cfg) - abilityPointsAt(W.lv - 1, W.cfg);     // очко умений — каждый уровень с 3-го (2026-10-18)

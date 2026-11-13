@@ -2,6 +2,7 @@
 // проживает ночь шагами по dt с (витрина обновляется, баффы кончаются, боссы и сундуки возрождаются, торговец приезжает).
 // Враг, заметивший спящего ближе wakeR м, будит его — тогда без лечения. Чистая логика (проверяется в Node).
 import { step } from './sim.js';
+import { xpNeed } from './progress3d.js';
 import { isNight, phaseOf } from './daynight.js';
 import { fireNear } from './fires3d.js';
 import { cleansePlayer } from './status3d.js';
@@ -38,6 +39,7 @@ export function sleep(W) {
     if (W.enemies.some(e => !e.dead && e.alert && Math.hypot(e.x - p.x, e.z - p.z) < S.wakeR)) { woken = true; break; }
   }
   W.sleeping = false; p.inv = 1;
+  const RS = W.cfg.rest; if (!woken && RS && RS.on && W.lv < W.cfg.level.max) W.rest = Math.min(Math.round(xpNeed(W.lv, W.cfg) * RS.cap), (W.rest || 0) + Math.round(xpNeed(W.lv, W.cfg) * RS.share));     // выспался — запас «отдохнувшего» опыта
   if (!woken) { p.hp = p.maxhp; cleansePlayer(W, Object.keys(W.pst || {})); for (const a of W.allies) if (!a.dead) a.hp = a.maxhp; }
   W.ev.push(...kept, { k: 'wake', woken, hours: Math.round((W.t - t0) / W.cfg.daynight.len * 24) });
   return woken ? 'woken' : 'ok';
