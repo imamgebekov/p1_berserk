@@ -381,7 +381,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     { const hm = new THREE.Mesh(geo, hillsMat); hm.receiveShadow = shadowsOn; g.add(hm); }     // земля принимает тени (шаг 14)
     if (lightMat) { const lm = new THREE.Mesh(geo, lightMat); lm.renderOrder = 1; g.add(lm); }
     land.add(g); liveLand.set(ci + ',' + cj, { g, geo, trees }); yield;
-    const spots = grassOn || FL ? grassIn(map, cfg, ci, cj, allSegs) : [], cseed = salt => (Math.imul(cfg.world.seed + 1013, 2654435761) ^ Math.imul(ci, 73856093) ^ Math.imul(cj, 19349663) ^ salt) >>> 0; yield;     // места травы — и для цветов и кустов
+    const spots = grassOn || FL ? grassIn(map, cfg, ci, cj, allSegs, Math.max(1, Q.grass || 1)) : [], cseed = salt => (Math.imul(cfg.world.seed + 1013, 2654435761) ^ Math.imul(ci, 73856093) ^ Math.imul(cj, 19349663) ^ salt) >>> 0; yield;     // места травы — и для цветов и кустов
     const P = propsAt(ci, cj);
     for (let i0 = 0; i0 < P.length; i0 += 24) {                              // в роще деревьев много (G2): по 24 за кадр
       const pp = [];
@@ -758,7 +758,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
 
   // эффекты боя: частицы, пятна на земле, вспышки (fx3d.js)
-  const fx = createFx(scene, camera, undefined, Y), abfx = createAbilityFx(fx, { scale: () => (Q && Q.life !== undefined ? Math.max(.5, Math.min(1, .5 + Q.life * .5)) : 1) }), BLOOD = '#4a080c', HURT_T = .22;
+  const fx = createFx(scene, camera, undefined, Y), abfx = createAbilityFx(fx, { scale: () => (Q && Q.life !== undefined ? Math.max(.5, Math.min(1.5, .5 + Q.life * .5)) : 1) }), BLOOD = '#4a080c', HURT_T = .22;
   for (const k of ['burst', 'flash', 'spray', 'ash']) { const f = fx[k]; fx[k] = (x, y, z, ...a) => f(x, y + Y(x, z), z, ...a); }     // эффекты — над землёй
   const burst = fx.burst;
   const DECAL_FX = { burn: '#1a1410', venom: '#2e4a1a', bleed: BLOOD };      // холод и гроза пятен не оставляют
@@ -859,7 +859,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   function setQuality(id, desk, eco) {
     deskNow = !!desk; qualId = id; { const DB = cfg.phys && cfg.phys.debris; fx.debrisCfg(DB && DB.on ? (desk ? DB.max.pc : DB.max.phone) : 0, DB); }     // обломки: предел по устройству (этап 4 физики)
-    const q0 = qualityOf(cfg, id, desk), nq = eco ? { ...q0, grass: Math.min(q0.grass, eco.grass), life: Math.min(q0.life ?? 1, eco.life), shafts: false } : q0, regrow = nq.grass !== Q.grass; Q = nq; resScale = nq.scale; shadowsOn = nq.shadows; setPaintLevel(nq.paint ?? 1);     // экономия заряда — реже трава и жизнь, без столбов света
+    const q0 = qualityOf(cfg, id, desk), nq = eco ? { ...q0, grass: Math.min(q0.grass, eco.grass), life: Math.min(q0.life ?? 1, eco.life), shafts: false } : q0, regrow = nq.grass !== Q.grass; Q = nq; if (nq.land) cfg.cull.land = nq.land; if (nq.decor) cfg.cull.decor = nq.decor; if (nq.foe) cfg.cull.foe = nq.foe;     // дальность рисования — по профилю
+    Q = nq; resScale = nq.scale; shadowsOn = nq.shadows; setPaintLevel(nq.paint ?? 1);     // экономия заряда — реже трава и жизнь, без столбов света
     if (regrow) for (const k of [...liveLand.keys()]) dropLand(k);     // густота травы — при постройке участка: перестроить
     applyShadows(); resize();
   }

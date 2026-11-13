@@ -7,11 +7,12 @@ import { sanitizePrefs } from '../3d/src/prefs3d.js';
 
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const A = CFG3.view.quality.auto;
-ok(QUALITY_IDS.join() === 'auto,low,mid,high', 'пресеты: ' + QUALITY_IDS.join());
+ok(QUALITY_IDS.join() === 'auto,low,mid,strong,high', 'пресеты: ' + QUALITY_IDS.join());
 { const hi = qualityOf(CFG3, 'high', true), hp = qualityOf(CFG3, 'high', false), lo = qualityOf(CFG3, 'low', true), au = qualityOf(CFG3, 'auto', true), mid = qualityOf(CFG3, 'mid', true);
   ok(hi.shadows && !hp.shadows && !mid.shadows && !au.shadows && !lo.shadows, 'тени не только на «Высоком» компьютера');
   ok(lo.scale < 1 && lo.grass < 1 && !lo.shafts && mid.scale === 1 && mid.grass === 1 && mid.shafts, '«Низкое» или «Среднее» не такие');
-  ok(au.auto && !mid.auto && au.scale === mid.scale, '«Авто» не от «Среднего»'); }
+  ok(au.auto && !mid.auto && au.scale === mid.scale, '«Авто» не от «Среднего»');
+  const st = qualityOf(CFG3, 'strong', true); ok(st.grass > mid.grass && st.life > mid.life && hi.grass > st.grass && hi.life > st.life && lo.land < mid.land && mid.land < st.land && st.land < hi.land, 'потолки профилей не растут: Слабый < Телефон < Сильный < Мак'); }
 // «Авто»: кадры по 30 мс — вниз до lo; по 8 мс — вверх до hi; по 15 мс — без изменений
 const run = (ms, sec, s0) => { const r = makeAutoRes(A); let s = s0; for (let t = 0; t < sec; t += ms / 1000) s = r.frame(ms / 1000, s); return s; };
 ok(run(30, A.warm - .5, 1) === 1, '«Авто» сработало во время разогрева');

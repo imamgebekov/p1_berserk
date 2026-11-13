@@ -1,8 +1,8 @@
 // Качество картинки (шаг 14 аудита): пресеты «Авто / Низкое / Среднее / Высокое» и подстройка разрешения для «Авто».
 // Чистые функции (проверяются в Node).
 
-export const QUALITY_IDS = ['auto', 'low', 'mid', 'high'];
-export const QUALITY_NAMES = { auto: 'Авто', low: 'Низкое', mid: 'Среднее', high: 'Высокое' };
+export const QUALITY_IDS = ['auto', 'low', 'mid', 'strong', 'high'];
+export const QUALITY_NAMES = { auto: 'Авто', low: 'Слабый', mid: 'Телефон', strong: 'Сильный', high: 'Мак' };     // 2026-11-13: профили под устройство, у каждого свой потолок травы, частиц и дальности
 
 // настройки пресета: разрешение, густота травы, столбы света, тени (тени — только на компьютере)
 export function qualityOf(cfg, id, desk) {

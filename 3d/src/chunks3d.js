@@ -49,8 +49,8 @@ export function propsIn(map, cfg, ci, cj) {
   return out;
 }
 // трава: сетка с шагом step м со сдвигом, только где можно (не тропа, не вода, не дом, не препятствие, в мире)
-export function grassIn(map, cfg, ci, cj, segs = pathSegs(map)) {
-  const G = cfg.wind.grass, R = cfg.world.radius - 2, r = mulberry32(seedOf(cfg.world.seed, ci, cj, 29)), out = [];
+export function grassIn(map, cfg, ci, cj, segs = pathSegs(map), dens = 1) {     // dens > 1 — гуще (профили «Сильный» и «Мак»): шаг решётки мельче
+  const G0 = cfg.wind.grass, G = dens > 1 ? { ...G0, step: G0.step / Math.sqrt(dens) } : G0, R = cfg.world.radius - 2, r = mulberry32(seedOf(cfg.world.seed, ci, cj, 29)), out = [];
   const gk = (x, z) => { const b = biomeAt(cfg, x, z); return b && cfg.worldgen.grass ? cfg.worldgen.grass[b] : 1; };     // в пустоши и на берегу травы мало
   const x0 = ci * CHUNK, z0 = cj * CHUNK, m = 2 + G.step, near = segs.filter(([a, b]) => Math.max(a.x, b.x) > x0 - m && Math.min(a.x, b.x) < x0 + CHUNK + m && Math.max(a.z, b.z) > z0 - m && Math.min(a.z, b.z) < z0 + CHUNK + m);     // запас на шаг: последний ряд травы заходит за край участка
   const inBox = (ax0, ax1, az0, az1) => ax1 > x0 - m && ax0 < x0 + CHUNK + m && az1 > z0 - m && az0 < z0 + CHUNK + m;     // только то, что рядом с участком
