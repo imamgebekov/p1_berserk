@@ -15,7 +15,7 @@ import { makeWeather, weatherAt, effectsOf } from './weather3d.js';
 import { overheadOf } from './overhead3d.js';
 import { propsIn, grassIn, chunksAround, CHUNK } from './chunks3d.js';
 import { pathSegs, distSeg } from './world3d.js';
-import { groundMix, grassHSL, flowersIn, bushesIn } from './flora3d.js';
+import { groundMix, grassHSL, goldAt, flowersIn, bushesIn } from './flora3d.js';
 import { biomeTint, biomeAt, BIOMES, biomeWeights } from './worldgen3d.js';
 import { inCliff } from './cliffs3d.js';
 import * as THREE from 'three';
@@ -363,11 +363,12 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // трава (F2): пучок из трёх травинок; строится по участкам вокруг героя, качается по ветру
   const flowerMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const grassOn = !!(WC && WC.on && WC.grass.on), grassMat = grassOn ? windy(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'grass') : null;
-  const grassGeo = (() => { const H = WC ? WC.grass.h : .7, v = [], col = [], dark = new THREE.Color(cfg.look.leaf[1]).multiplyScalar(.95), tip = new THREE.Color(cfg.look.leaf[2]).multiplyScalar(2), mid = dark.clone().lerp(tip, .5), W0 = .05;     // «лапша»: три тонкие изогнутые травинки, у каждой основание-четырёхугольник и кончик-треугольник, разные наклон и высота
-    for (let b = 0; b < 2; b++) { const a = b * 2.1 + .4, c = Math.cos(a), s = Math.sin(a), bx = (b - 1) * .09 * s, bz = (b - 1) * .09 * c, hh = H * (.8 + b * .25), lean = .24 + b * .1, lx = -s * lean, lz = c * lean;     // lean — сторона изгиба
+  const grassGeo = (() => { const H = WC ? WC.grass.h : .7, v = [], col = [], dark = new THREE.Color(cfg.look.leaf[1]).multiplyScalar(.95), tip = new THREE.Color(cfg.look.leaf[2]).multiplyScalar(2), mid = dark.clone().lerp(tip, .5), W0 = .085;     // «лапша»: три тонкие изогнутые травинки, у каждой основание-четырёхугольник и кончик-треугольник, разные наклон и высота
+    for (let b = 0; b < 3; b++) { const a = b * 2.1 + .4, c = Math.cos(a), s = Math.sin(a), bx = Math.cos(b * 2.4) * .12, bz = Math.sin(b * 2.4) * .12, hh = H * (.7 + b * .22), lean = .16 + (b * .23 % 1) * .3, lx = -s * lean, lz = c * lean;     // 2026-11-13: пучок из трёх широких травинок разной высоты и наклона (был из двух)
       const P = [[-W0 * c + bx, 0, -W0 * s + bz], [W0 * c + bx, 0, W0 * s + bz], [-W0 * .6 * c + bx + lx * .5, hh * .55, -W0 * .6 * s + bz + lz * .5], [W0 * .6 * c + bx + lx * .5, hh * .55, W0 * .6 * s + bz + lz * .5], [bx + lx * 1.4, hh, bz + lz * 1.4]], C = [dark, dark, mid, mid, tip];
       for (const t of [[0, 1, 2], [1, 3, 2], [2, 3, 4]]) for (const k of t) { v.push(...P[k]); col.push(C[k].r, C[k].g, C[k].b); } }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.computeVertexNormals(); return geo; })();
+  const grassMid = new THREE.Color(cfg.look.leaf[1]).multiplyScalar(.95).lerp(new THREE.Color(cfg.look.leaf[2]).multiplyScalar(2), .5), GOLD = ['#e8a848', '#dc9438', '#f0bc5a'].map(h => new THREE.Color(h)), GC = new THREE.Color();     // золотые пятна высокой травы: цвет пучка делим на цвет травинки, чтобы получить нужный итог
   // участок земли: холмы, пятна света, деревья и камни, трава (траву — кусками 16 м, чтобы отсекалась вне кадра)
   const land = new THREE.Group(), liveLand = new Map(), allSegs = pathSegs(map); scene.add(land);
   const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), E4 = new THREE.Euler(), P4 = new THREE.Vector3(), S4 = new THREE.Vector3(), C4 = new THREE.Color();
@@ -400,7 +401,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       for (const all of cells.values()) {
         const ids = (Q.grass < 1 ? all.filter(i => (i * .6180339) % 1 < Q.grass) : all).sort((a, b) => (a * .7548776) % 1 - (b * .7548776) % 1); if (!ids.length) continue;     // реже трава на «Низком» (шаг 14); порядок вперемешку — вдали отрезается равномерно
         const m = new THREE.InstancedMesh(grassGeo, grassMat, ids.length);
-        ids.forEach((i, j) => { const q = spots[i]; E4.set(0, q.rot, 0); Q4.setFromEuler(E4); P4.set(q.x, Y(q.x, q.z), q.z); S4.set(q.s, q.s, q.s); M4.compose(P4, Q4, S4); m.setMatrixAt(j, M4); if (FL) { const [hh, ss, ll] = grassHSL(q.x, q.z, FL, i); C4.setHSL(hh, ss, ll); } else C4.setHSL(.27 + (i % 7) * .012, .45, .38 + (i % 5) * .04); m.setColorAt(j, C4); });
+        ids.forEach((i, j) => { const q = spots[i], gd = FL ? goldAt(q.x, q.z, FL) : 0, sk = q.s * (1 + .35 * gd); E4.set(0, q.rot, 0); Q4.setFromEuler(E4); P4.set(q.x, Y(q.x, q.z), q.z); S4.set(sk, sk, sk); M4.compose(P4, Q4, S4); m.setMatrixAt(j, M4); if (FL) { const [hh, ss, ll] = grassHSL(q.x, q.z, FL, i); C4.setHSL(hh, ss, ll); } else C4.setHSL(.27 + (i % 7) * .012, .45, .38 + (i % 5) * .04); if (gd > .02) { const g = GOLD[i % 3]; GC.setRGB(Math.min(3, g.r / grassMid.r), Math.min(3, g.g / grassMid.g), Math.min(3, g.b / grassMid.b)); C4.lerp(GC, gd); } m.setColorAt(j, C4); });
         m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.computeBoundingSphere(); m.boundingSphere.radius += 1; g.add(m);
         m.userData.full = ids.length; m.userData.cx = m.boundingSphere.center.x; m.userData.cz = m.boundingSphere.center.z; (liveLand.get(ci + ',' + cj).grass ||= []).push(m);
         if (++done % 4 === 0) yield;

@@ -14,6 +14,8 @@ export function noise(x, z, o = 0) {
 const fbm = (x, z, s, o) => .65 * noise(x / s, z / s, o) + .35 * noise(x / s * 2.3, z / s * 2.3, o + 7);
 
 // доли пятен в точке: lush — сочная зелень, dry — сухая трава, dirt — проплешина земли, bloom — цветочная поляна (0..1)
+// доля золотой травы (0..1): пятна десятков метров поверх лета; F.gold — { scale, thr }
+export const goldAt = (x, z, F) => F.gold ? smoothstep(F.gold.thr, F.gold.thr + .08, fbm(x, z, F.gold.scale, 11)) : 0;
 export function patchAt(x, z, F) {
   const P = F.patch, w = fbm(x, z, P.scale[0], 1), d = fbm(x, z, P.scale[1], 2), f = fbm(x, z, P.scale[2], 3);
   return { lush: smoothstep(.55, .75, w), dry: smoothstep(.45, .25, w), dirt: smoothstep(P.dirtT[0], P.dirtT[1], d), bloom: smoothstep(F.flowers.thr, F.flowers.thr + .1, f) };
@@ -27,7 +29,7 @@ export function groundMix(x, z, F) {
 // цвет пучка травы (HSL) по пятну: в сухом месте желтее и светлее, в сочном — темнее и зеленее; i — разброс пучков
 export function grassHSL(x, z, F, i) {
   const p = patchAt(x, z, F);
-  return [.27 + (i % 7) * .012 - .07 * p.dry + .02 * p.lush, .45 + .05 * p.lush - .08 * p.dry, .38 + (i % 5) * .04 + .06 * p.dry - .05 * p.lush];
+  return [.27 + (i % 7) * .012 - .07 * p.dry + .02 * p.lush, .52 + .05 * p.lush - .08 * p.dry, .44 + (i % 5) * .04 + .06 * p.dry - .05 * p.lush];
 }
 const grassK = (cfg, x, z) => { const b = biomeAt(cfg, x, z); return b && cfg.worldgen.grass ? cfg.worldgen.grass[b] : 1; };     // в пустоши и на берегу зелени меньше
 
