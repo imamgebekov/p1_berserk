@@ -68,7 +68,7 @@ export function createAuction(doc, W, cfg, { onOpen, onClose, onChange } = {}) {
   }
   function markSel() { for (const r of listEl.children) r.classList.toggle('sel', r.dataset.u === String(selU)); }
   function refreshList() {
-    const scope = tab === 'mine' ? 'mine' : F.scope, all = A.search(W, query(scope)), show = all.slice(0, page * K.page);
+    const scope = tab === 'mine' ? 'mine' : F.scope, all = A.search(W, tab === 'mine' ? { scope: 'mine', sort: F.sort, dir: F.dir } : query(scope)), show = all.slice(0, page * K.page);
     listEl.textContent = ''; for (const l of show) { const r = row(l); r.dataset.u = l.u; listEl.append(r); }
     if (!show.length) listEl.append(el('div', 'emptyl', tab === 'mine' ? 'У вас нет лотов. Выставьте вещь на вкладке «Продать».' : 'Ничего не нашлось — смягчите фильтры.'));
     if (all.length > show.length) { const m = el('button', 'tchip more', `Показать ещё (${all.length - show.length})`); m.type = 'button'; m.addEventListener('click', () => { page++; refreshList(); }); listEl.append(m); }

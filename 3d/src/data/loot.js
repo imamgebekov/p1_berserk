@@ -61,7 +61,7 @@ const BASE = [58, 27, 10, 4, 1];
 // lq = { lvl, L: cfg.loot } (null — прежний расчёт по глубине)
 export function rarityWeights(q, depth, luck, lq = null) {
   const L = lq && lq.L, lvl = lq && lq.lvl;
-  if (L && lvl != null) { const d = Math.max(0, Math.min(1, (lvl - 1) / 59)), shift = q * L.q + d * L.lv + luck * .03, w = L.base.map((w, r) => w * Math.exp(shift * r)); if (L.red && lvl >= L.red[0]) { w[5] = 0; w[6] = L.red[1] * Math.exp(shift * 6); } return w; }     // 4.20: багровые — с red[0] уровня, вес red[1]
+  if (L && lvl != null) { const d = Math.max(0, Math.min(1, (lvl - 1) / 59)), shift = q * L.q + d * L.lv + luck * .03, w = L.base.map((w, r) => w * Math.exp(shift * r)); if (L.red && lvl >= L.red[0]) { w[5] = 0; w[6] = L.red[1] * Math.exp(shift * 6); const rest = w.reduce((t, x, r) => (r === 6 ? t : t + x), 0); w[6] = Math.min(w[6], rest * (L.redMax != null ? L.redMax : .012)); } return w; }     // 4.20: багровые — с red[0] уровня, вес red[1]
   const shift = q * .45 + depth * .7 + luck * .03;
   return BASE.map((w, r) => w * Math.exp(shift * r));
 }

@@ -1363,3 +1363,5 @@ html[data-land] #skills .tcard.tsheet{width:300px;overflow-x:hidden;box-sizing:b
 html[data-land] #skills .tcard.tsheet>*{min-width:0;max-width:100%;box-sizing:border-box}
 html[data-land] #skills .tcard.tsheet .tbuy{white-space:normal}
 html[data-land] #skills .tview:has(.tcard.tsheet) .tree{margin-right:312px}
+/* 5.52 (2026-11-13): надетые вещи в сумке не сверкают: без пульсации и свечения, редкость — только цветом рамки */
+.doll .slot,.doll .slot.r3,.doll .slot.r4,.doll .slot.r5,.doll .slot.r6{animation:none!important;box-shadow:none!important}
