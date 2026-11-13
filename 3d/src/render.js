@@ -796,12 +796,15 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     fx.decal(v.x, v.z, 1.1 * s, BLOOD);
     if (s > 1.4 && cfg.phys && cfg.phys.body && cfg.phys.body.on) { fx.burst(v.x, .3, v.z, Math.round(10 * s), '#8a7a66', 2.5 * s); }     // этап 3 физики: тяжёлое тело поднимает пыль
     if (v.boss || v.elite) { const k = v.boss ? 2.4 : 1.4; fx.flash(v.x, 1.4 * s, v.z, 2.2 * k, v.boss ? '#fff4d8' : '#ffd27a'); fx.ash(v.x, 1, v.z, Math.round(30 * k)); }     // элита и босс — ярче (этап 1 «круче»)
+    if (v.boss) { ringFx(v.x, v.z, s * 2.4, '#ffd27a'); ringFx(v.x, v.z, s * 4, '#fff4d8'); for (let i = 0; i < 44; i++) { const an = Math.random() * 6.283, rr = Math.random() * s * .8; fx.emit(v.x + Math.cos(an) * rr, .3, v.z + Math.sin(an) * rr, Math.cos(an) * .8, 3 + Math.random() * 5, Math.sin(an) * .8, i % 3 ? '#ffe8a0' : '#ffffff', 1.5 + Math.random() * .8, -1, .26, true); }     // победа над боссом: волны и души вверх
+      fx.debris(v.x, .4, v.z, 0, 0, 8, KIT.stone.c, 6 + s * 2, .18); }
   }
   function levelFx(v) {                                              // новый уровень: кольцо по земле и столб искр вверх (только вид)
     const gy = Y(v.x, v.z);
     for (let i = 0; i < 36; i++) { const a = i / 36 * Math.PI * 2; fx.emit(v.x + Math.cos(a) * .4, gy + .15, v.z + Math.sin(a) * .4, Math.cos(a) * 6, .4, Math.sin(a) * 6, '#ffd27a', .5, 0, .22, true); }
     for (let i = 0; i < 40; i++) fx.emit(v.x + (Math.random() - .5) * .6, gy + .2 + Math.random() * .6, v.z + (Math.random() - .5) * .6, (Math.random() - .5) * .6, 4 + Math.random() * 5, (Math.random() - .5) * .6, i % 3 ? '#ffd27a' : '#fff4d8', .9, -2, .2, true);
     fx.flash(v.x, gy + 1.2, v.z, 3, '#ffd27a');
+    ringFx(v.x, v.z, 5.5, '#ffd27a'); ringFx(v.x, v.z, 8, '#fff4d8'); for (let h = 0; h < 16; h++) for (let k = 0; k < 2; k++) { const an = Math.random() * 6.283; fx.emit(v.x + Math.cos(an) * .7, gy + h * .6, v.z + Math.sin(an) * .7, 0, 7, 0, k ? '#fff4d8' : '#ffd27a', .7, 0, .24, true); }     // столб света и волны: новый уровень заметен издалека
   }
 
   function shadow(r) {
@@ -1225,7 +1228,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     { const want = new Set(); for (const c of W.corpses || []) { if (!c.pile || c.lvl !== W.lvl) continue; want.add(c.id); if (pileMeshes.has(c.id)) continue;
         let best = 0; for (const q of W.drops) if (q.corpse === c.id && BY_ID[q.id]) best = Math.max(best, BY_ID[q.id].rar || 0);
         const m = new THREE.Group(), sack = new THREE.Mesh(pileGeo, pileMat), mark = new THREE.Mesh(pileMarkGeo, new THREE.MeshLambertMaterial({ color: RARITY[best].color, emissive: RARITY[best].color, emissiveIntensity: .35 }));
-        sack.scale.set(1.15, .55, 1); sack.position.y = .16; mark.position.set(.1, .42, 0); mark.rotation.y = .6; m.add(sack, mark); m.position.set(c.x, Y(c.x, c.z), c.z); pileG.add(m); pileMeshes.set(c.id, m); }
+        sack.scale.set(1.15, .55, 1); sack.position.y = .16; mark.position.set(.1, .42, 0); mark.rotation.y = .6; m.add(sack, mark);
+        if (best >= 3) { const bm = new THREE.Mesh(new THREE.CylinderGeometry(.35, .5, 7, 12, 1, true).translate(0, 3.5, 0), new THREE.MeshBasicMaterial({ color: RARITY[best].color, transparent: true, opacity: .22, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide })); m.add(bm); } /* луч света над редкой добычей (великий и выше) */ m.position.set(c.x, Y(c.x, c.z), c.z); pileG.add(m); pileMeshes.set(c.id, m); }
       for (const [id, m] of pileMeshes) if (!want.has(id)) { pileG.remove(m); pileMeshes.delete(id); } }
     // план физики, этап 3: лежащие тела — модель остаётся, анимация замирает; сверх лимита (телефон, ПК, «Низкое») — уходят в землю; с добычей — последними
     { const BB = cfg.phys && cfg.phys.body && cfg.phys.body.on ? cfg.phys.body : null, L = BB && W.bodies ? W.bodies.filter(b => b.lvl === W.lvl) : [];
