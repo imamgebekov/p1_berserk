@@ -18,11 +18,12 @@ function swPlugin() {
     configResolved(c) { outDir = resolve(c.root, c.build.outDir); },
     closeBundle() {
       // служебные файлы хостинга (_headers, _redirects) и точечные не кэшируем: их нет в ответах сервера, addAll упал бы
-      const files = walk(outDir).filter(f => f !== 'sw.js' && !f.endsWith('.glb') && !f.endsWith('.mp3') && !f.split('/').pop().startsWith('_') && !f.split('/').pop().startsWith('.')).sort();
+      const all = walk(outDir).filter(f => f !== 'sw.js' && !f.split('/').pop().startsWith('_') && !f.split('/').pop().startsWith('.')).sort(), isMedia = f => f.endsWith('.glb') || f.endsWith('.mp3'), files = all.filter(f => !isMedia(f));
+      const media = all.filter(isMedia).map(f => [f.startsWith('./') ? f : './' + f, statSync(join(outDir, f)).size, createHash('md5').update(readFileSync(join(outDir, f))).digest('hex').slice(0, 8)]);     // тяжёлое — в отдельный кэш: [путь, размер, хэш]
       const h = createHash('md5');
       for (const f of files) h.update(f).update(readFileSync(join(outDir, f)));
       const tpl = readFileSync(join(here, 'tools', 'sw.template.js'), 'utf8');
-      writeFileSync(join(outDir, 'sw.js'), tpl.replace('__VERSION__', h.digest('hex').slice(0, 10)).replace('__ASSETS__', JSON.stringify(['./', ...files.map(f => './' + f)])));
+      writeFileSync(join(outDir, 'sw.js'), tpl.replace('__VERSION__', h.digest('hex').slice(0, 10)).replace('__ASSETS__', () => JSON.stringify(['./', ...files.map(f => './' + f)])).replace('__MEDIA__', () => JSON.stringify(media)));
     }
   };
 }

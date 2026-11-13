@@ -22,6 +22,7 @@ import { loadOwn, onOwnChange, ownIcon, ownMusic, ownIconCount, setOwnIcon, clea
 import { mixOf, underSound, surfaceOf } from './soundscape3d.js';     // underSound — подземный фон темы (план подземелий, 2е)
 import { clockText, lightOf, phaseOf, mix } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
+import { offlineSupported, registerOffline, askStatus, startDownload, onOfflineMessage, mb } from './offline3d.js';
 import { trackerLines, questMarks, questMark, questsOf } from './quests3d.js';
 import { eventLine, eventAt } from './events3d.js';
 import { wevLine } from './worldev3.js';
@@ -650,6 +651,26 @@ const uiTabs = $('uiTabs');
 for (const [name, v] of UI_SCALES) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.v = v; b.textContent = 'Кнопки ' + name; b.addEventListener('click', () => { P.ui = v; savePrefs(P); applyPrefs(); }); uiTabs.appendChild(b); }
 const qualTabs = $('qualTabs');     // пресеты качества (шаг 14)
 for (const q of QUALITY_IDS) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.dataset.q = q; b.textContent = QUALITY_NAMES[q]; b.addEventListener('click', () => { P.quality = q; savePrefs(P); applyPrefs(); }); qualTabs.appendChild(b); }
+// скачать игру на устройство (2026-11-13): состояние, кнопка и полоса в меню; новая версия — кнопка «Перезапустить»
+{ const box = $('dlBox'), btn = $('dlBtn'), bar = $('dlBar'), txt = $('dlTxt'); let upd = false, busyDl = false;
+  const paint = s => {
+    if (!s) { btn.hidden = true; txt.textContent = ''; bar.hidden = true; return; } btn.hidden = false;
+    const full = s.have >= s.total && s.total > 0;
+    if (upd) { setIconText(btn, 'timer', 'Вышла новая версия: перезапустить'); btn.dataset.mode = 'reload'; txt.textContent = 'Обновление уже скачано, осталось перезапустить игру.'; return; }
+    if (busyDl && !full) { btn.dataset.mode = 'busy'; setIconText(btn, 'timer', `Скачано ${mb(s.bytes)} из ${mb(s.bytesTotal)} МБ`); bar.hidden = false; bar.firstChild.style.width = Math.min(100, s.bytes / s.bytesTotal * 100) + '%'; txt.textContent = 'Не закрывайте игру, пока идёт загрузка.' + (s.failed ? ` Не скачалось файлов: ${s.failed}, нажмите ещё раз.` : ''); return; }
+    bar.hidden = true;
+    if (full) { btn.dataset.mode = 'ok'; setIconText(btn, 'sparkle', 'Игра скачана на устройство'); txt.textContent = `Все ${s.total} файлов (${mb(s.bytesTotal)} МБ) лежат на устройстве: можно играть без интернета.`; busyDl = false; return; }
+    btn.dataset.mode = 'get'; setIconText(btn, 'timer', `Скачать игру на устройство · ${mb(s.bytesTotal - s.bytes)} МБ`); txt.textContent = s.have ? `Уже скачано ${mb(s.bytes)} из ${mb(s.bytesTotal)} МБ.` : 'Модели и музыка загрузятся сразу, дальше игра стартует быстро и без интернета.';
+  };
+  if (offlineSupported()) {
+    box.hidden = false;
+    registerOffline(() => { upd = true; askStatus().then(paint); toast('Вышла новая версия игры: Меню → «Перезапустить»', '', '#9fe8a0', 'sparkle'); });
+    onOfflineMessage(m => { if (m.type === 'media-progress' || m.type === 'media-done' || m.type === 'media-status') { if (m.type === 'media-done') busyDl = false; paint(m); } });
+    const refresh = () => askStatus().then(s => { if (s) paint(s); else { btn.hidden = true; txt.textContent = 'Служба хранения ещё запускается: загляните сюда через минуту.'; } });
+    btn.addEventListener('click', () => { const mode = btn.dataset.mode; if (mode === 'reload') { location.reload(); return; } if (mode === 'get') { busyDl = true; if (!startDownload()) { busyDl = false; refresh(); } } });
+    setTimeout(refresh, 3000); addEventListener('focus', () => { if (!busyDl) refresh(); });
+  }
+}
 function applyCamView() { const q = cfg.view.camPresets[P.camView] || cfg.view.camPresets[0]; cfg.view.camPitch = q.pitch; cfg.view.camAhead = q.ahead; }
 applyCamView();
 const shows = [

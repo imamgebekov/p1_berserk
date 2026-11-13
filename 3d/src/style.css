@@ -1375,3 +1375,8 @@ html[data-land] #skills .tview:has(.tcard.tsheet) .tree{margin-right:312px}
 .plate.elite .nm{color:#ffd870}
 #tring{position:absolute;transform:translate(-50%,-50%) scaleY(.55);border:2px solid rgba(255,210,90,.85);border-radius:50%;box-shadow:0 0 8px rgba(255,200,80,.5),inset 0 0 8px rgba(255,200,80,.25);pointer-events:none}
 #tring[hidden]{display:none}
+/* 5.54 (2026-11-13): скачать игру на устройство */
+#dlBox{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+#dlBar{height:8px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden}
+#dlBar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4a9a5a,#9fe8a0);transition:width .3s}
+#dlBtn[data-mode="ok"]{opacity:.85}
