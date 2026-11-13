@@ -102,6 +102,18 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   scene.fog = new THREE.FogExp2(FOG, cfg.view.fogDensity);
   const camera = new THREE.PerspectiveCamera(cfg.view.fov, 1, .5, 140);     // дальше 140 м всё скрыто туманом (exp²: меньше 0,01%) — незачем рисовать; небо уменьшено под это
   let camPitchS = cfg.view.camPitch, camAheadS = cfg.view.camAhead || 0; let bossZoomS = 1;
+  // свечение (bloom, 2026-11-13): профили «Сильный» и «Мак» — сцена в плавающую текстуру, поверх мягкое свечение ярких мест (огонь, умения, порталы), тоны — OutputPass; грузится отдельным куском при включении
+  let bloomOn = false, bloomK = 0, bloom = null, bloomLoading = false;
+  async function ensureBloom() {
+    if (bloom || bloomLoading) return; bloomLoading = true;
+    try {
+      const [{ EffectComposer }, { RenderPass }, { UnrealBloomPass }, { OutputPass }] = await Promise.all([import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'), import('three/addons/postprocessing/UnrealBloomPass.js'), import('three/addons/postprocessing/OutputPass.js')]);
+      const sz = gl.getSize(new THREE.Vector2()), rt = new THREE.WebGLRenderTarget(sz.x, sz.y, { type: THREE.HalfFloatType, samples: 4 }), comp = new EffectComposer(gl, rt); comp.setPixelRatio(1); comp.setSize(sz.x, sz.y);
+      const pass = new UnrealBloomPass(new THREE.Vector2(Math.max(8, sz.x >> 1), Math.max(8, sz.y >> 1)), bloomK, .5, .93); comp.addPass(new RenderPass(scene, camera)); comp.addPass(pass); comp.addPass(new OutputPass());
+      bloom = { comp, pass };
+    } catch (e) { bloomOn = false; } finally { bloomLoading = false; }
+  }
+
   camera.layers.enable(OVERLAY);
   const ovl = o => { o.traverse(c => c.layers.set(OVERLAY)); return o; };     // чёткие метки боя: в фильтре ASCII рисуются поверх символов
   let ascii = null, asciiOn = false;
@@ -860,7 +872,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   }
   function setQuality(id, desk, eco) {
     deskNow = !!desk; qualId = id; { const DB = cfg.phys && cfg.phys.debris; fx.debrisCfg(DB && DB.on ? (desk ? DB.max.pc : DB.max.phone) : 0, DB); }     // обломки: предел по устройству (этап 4 физики)
-    const q0 = qualityOf(cfg, id, desk), nq = eco ? { ...q0, grass: Math.min(q0.grass, eco.grass), life: Math.min(q0.life ?? 1, eco.life), shafts: false } : q0, regrow = nq.grass !== Q.grass; Q = nq; if (nq.land) cfg.cull.land = nq.land; if (nq.decor) cfg.cull.decor = nq.decor; if (nq.foe) cfg.cull.foe = nq.foe;     // дальность рисования — по профилю
+    const q0 = qualityOf(cfg, id, desk), nq = eco ? { ...q0, grass: Math.min(q0.grass, eco.grass), life: Math.min(q0.life ?? 1, eco.life), shafts: false } : q0, regrow = nq.grass !== Q.grass; Q = nq; bloomK = nq.bloom || 0; bloomOn = bloomK > 0 && !eco; if (bloomOn) ensureBloom(); if (nq.land) cfg.cull.land = nq.land; if (nq.decor) cfg.cull.decor = nq.decor; if (nq.foe) cfg.cull.foe = nq.foe;     // дальность рисования — по профилю
     Q = nq; resScale = nq.scale; shadowsOn = nq.shadows; setPaintLevel(nq.paint ?? 1);     // экономия заряда — реже трава и жизнь, без столбов света
     if (regrow) for (const k of [...liveLand.keys()]) dropLand(k);     // густота травы — при постройке участка: перестроить
     applyShadows(); resize();
@@ -881,6 +893,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     } else if (retro) { const ps = Math.max(1, Math.round(cfg.view.pixelScale)); gl.setSize(Math.max(8, Math.floor(cssW / ps)), Math.max(8, Math.floor(cssH / ps)), false); }
     else { const dpr = Math.min(dprMax, (typeof devicePixelRatio === 'number' && devicePixelRatio) || 1) * resScale; gl.setSize(Math.max(8, Math.floor(cssW * dpr)), Math.max(8, Math.floor(cssH * dpr)), false); }     // гладкий вид
     canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+    if (bloom) { const sz = gl.getSize(new THREE.Vector2()); bloom.comp.setSize(sz.x, sz.y); bloom.pass.resolution.set(Math.max(8, sz.x >> 1), Math.max(8, sz.y >> 1)); }
     camera.aspect = cssW / cssH; camera.updateProjectionMatrix();
   }
   const cam = { x: 0, z: 8, y: 0, init: false };
@@ -1133,7 +1146,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       if (river && river.lakes && (W.lvl === 'surface' || liftY != null) && (fishT -= dt) <= 0) { fishT = BEA.fish[0] + Math.random() * (BEA.fish[1] - BEA.fish[0]);     // рыба плеснула
         const L = river.lakes.find(q => Math.hypot(q.x - p.x, q.z - p.z) < q.r + 30); if (L && !calm) { const a = Math.random() * 6.283, rr = Math.random() * L.r * .6, x = L.x + Math.sin(a) * rr, z = L.z + Math.cos(a) * rr; ringFx(x, z, .9, '#d6e6dc'); for (let i = 0; i < 8; i++) fx.emit(x, cfg.terrain.water + .1, z, (Math.random() - .5) * 1.2, 1.6 + Math.random(), (Math.random() - .5) * 1.2, '#d8ecf4', .6, 6, .06, false); } }
       if (flies && (W.lvl === 'surface' || liftY != null) && !calm) {     // днём бабочки у травы, ночью летучие мыши повыше
-        const n = Math.round(FLY.n * (Q.life ?? 1) * (W.rain > .3 ? 0 : 1)), night = !!W.night; flies.count = n; flies.material.color.set(night ? '#2a2026' : '#ffffff');
+        const n = Math.min(FLY.n, Math.round(FLY.n * (Q.life ?? 1) * (W.rain > .3 ? 0 : 1))), night = !!W.night; flies.count = n; flies.material.color.set(night ? '#2a2026' : '#ffffff');
         for (let i = 0; i < n; i++) { let A = flyA[i];
           if (!A || Math.hypot(A.x - p.x, A.z - p.z) > FLY.r * 2.2) { const u = Math.random() * Math.PI * 2, d = FLY.r * (A ? .9 + Math.random() * .7 : .3 + Math.random()); A = flyA[i] = { x: p.x + Math.sin(u) * d, z: p.z + Math.cos(u) * d, t0: t, u: Math.random() * Math.PI * 2 }; }     // ушёл далеко — новое место у края, появляется плавно
           A.u += (Math.random() - .5) * dt; A.x += Math.sin(A.u) * .25 * dt; A.z += Math.cos(A.u) * .25 * dt;     // место медленно блуждает
@@ -1403,7 +1416,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (XR && XR.on) { XU.uHero.value.set(p.x, py + 1.1, p.z).project(camera); XU.uAsp.value = camera.aspect; }     // окно — вокруг груди героя
     if (roofs.length) { const cov = !under && roofs.some(q => Math.abs(q.x - p.x) < q.r && Math.abs(q.z - p.z) < q.r && Math.hypot(q.x - p.x, q.z - p.z) < q.r); roofK += ((cov ? 1 : 0) - roofK) * Math.min(1, dt * RF.speed); XU.uRoofR.value = roofK > .02 ? roofK * RF.r : 0; XU.uHw.value.set(p.x, py + RF.h, p.z); }     // под шатром — срез плавно
     if (!shadersReady) { if (!shadersP) shadersP = gl.compileAsync(scene, camera).catch(() => {}).finally(() => { shadersReady = true; }); }     // первые кадры: шейдеры собираются в фоне, окно героя не замирает (2026-10-28)
-    else if (asciiOn) ascii.render(scene, camera, t, under ? .3 : W.light); else gl.render(scene, camera);
+    else if (asciiOn) ascii.render(scene, camera, t, under ? .3 : W.light); else if (bloomOn && bloom && !retro) { bloom.pass.strength = bloomK * (W.night ? 1.25 : 1) * (under ? 1.15 : 1); bloom.comp.render(); } else gl.render(scene, camera);
   }
   function setAscii(on) {                                           // атлас строится в resize под плотность экрана
     asciiOn = !!on; applyLook(); applyShadows();                                      // в клетках мелкая трава без сглаживания даёт муар

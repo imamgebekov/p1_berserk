@@ -23,7 +23,7 @@ const BASE = {
     quality: {
       // профили (2026-11-13): grass — густота травы (>1 — гуще, пучков больше), life — живность и частицы эффектов, land и decor — до каких метров рисуются деревья, камни и обстановка, foe — враги, dpr — предел плотности холста
       low: { scale: .75, grass: .5, shafts: false, shadows: false, life: .5, paint: 0, land: 70, decor: 70, foe: 55 }, mid: { scale: 1, grass: 1, shafts: true, shadows: false, life: 1, paint: 1, land: 100, decor: 100, foe: 70 },
-      strong: { scale: 1, grass: 1.6, shafts: true, shadows: false, life: 1.6, paint: 1, land: 130, decor: 130, foe: 85 }, high: { scale: 1, grass: 2.2, shafts: true, shadows: true, life: 2, paint: 1, land: 170, decor: 170, foe: 100, dpr: 2 },     // life — доля живности, paint — сила материалов
+      strong: { scale: 1, grass: 1.6, shafts: true, shadows: false, life: 1.6, paint: 1, bloom: .3, land: 130, decor: 130, foe: 85 }, high: { scale: 1, grass: 2.2, shafts: true, shadows: true, life: 2, paint: 1, bloom: .42, land: 170, decor: 170, foe: 100, dpr: 2 },     // life — доля живности, paint — сила материалов
       auto: { lo: .6, hi: 1, step: .1, up: 12, down: 18, every: 2, warm: 5, stall: 100 },
       shadow: { size: 2048, span: 25, radius: 3, bias: -.0006, normalBias: .03, dist: 80 } },
     // сглаживание движения (шаг 3 аудита), скорость затухания 1/с: pose — позы героя и врагов, hit — в окне удара (резко),

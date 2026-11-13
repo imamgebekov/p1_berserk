@@ -689,7 +689,7 @@ function applyPrefs() {
   for (const b of uiTabs.children) b.classList.toggle('on', Number(b.dataset.v) === P.ui);
   for (const b of qualTabs.children) b.classList.toggle('on', b.dataset.q === P.quality);
   $('qualNote').textContent = { auto: 'Разрешение подстраивается под кадры.', low: 'Меньше разрешение, реже трава, без столбов света.', mid: 'Полное разрешение без теней.', high: desk ? 'Мягкие тени от солнца — нужна хорошая видеокарта.' : 'На телефоне — как «Среднее»: тени только на компьютере.' }[P.quality];
-  if (renderer && (P.quality !== qualNow || ecoOn() !== ecoNow)) { qualNow = P.quality; ecoNow = ecoOn(); renderer.setQuality(P.quality, desk, ecoNow ? cfg.view.eco : null); if (cfg.view.smooth) renderer.setDprMax(Math.min(desk ? cfg.view.smooth.dprMax.desk : cfg.view.smooth.dprMax.phone, ecoNow ? cfg.view.eco.dpr : 9)); autoRes = P.quality === 'auto' ? makeAutoRes(cfg.view.quality.auto) : null; }
+  if (renderer && (P.quality !== qualNow || ecoOn() !== ecoNow)) { qualNow = P.quality; ecoNow = ecoOn(); renderer.setQuality(P.quality, desk, ecoNow ? cfg.view.eco : null); document.documentElement.dataset.q = ecoNow ? 'eco' : P.quality; if (cfg.view.smooth) renderer.setDprMax(Math.min(desk ? cfg.view.smooth.dprMax.desk : cfg.view.smooth.dprMax.phone, ecoNow ? cfg.view.eco.dpr : 9)); autoRes = P.quality === 'auto' ? makeAutoRes(cfg.view.quality.auto) : null; }
   shows.forEach(f => f());
   if (renderer && P.ascii !== asciiNow) { asciiNow = P.ascii; renderer.setAscii(P.ascii); }
   if (renderer && P.retro !== retroNow) { retroNow = P.retro; renderer.setRetro(P.retro); }
