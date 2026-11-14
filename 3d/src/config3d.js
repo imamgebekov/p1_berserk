@@ -725,7 +725,7 @@ const BASE = {
     // camSide — склон к югу от земли (к камере) ниже на долю camLow и без деревьев; grass — травинок; chunk — куски для отсечения, м
     // этап Б (владелец 2026-10-28 «делай все подряд»): малые миры — у всех подземелий и рейдов (only: null), рейд крупнее в raidR раз; ?rooms — прежние залы
     portalFx: true,     // порталы вместо лесенок в подземельях (2026-11-13)
-    wild: { on: true, only: null, extra: 1, raidR: 1.25, castles: ['castle_waste'], castleZones: 1,
+    wild: { on: true, only: null, extra: 1, raidR: 1.25, castles: ['castle_waste', 'castle_ash'], castleZones: 1,
       zone: { r: [46, 62], blobs: [3, 6], spread: 38, gap: 26, pass: [11, 15], passLen: [30, 46], straight: .1 },
       pocket: { n: [1, 2], r: [13, 19], len: [20, 34], w: 8, chest: .8, pack: .5 },
       noise: { amp: 5, scale: 16 }, sdf: 1.5, arena: 16, eventR: 15, pond: [5, 9],
@@ -733,7 +733,10 @@ const BASE = {
       edge: { band: [.6, 2.4], p: .55, r: [1.1, 2.4], tree: .45 }, grove: { n: [1, 3], trees: [5, 11], r: 7, rock: .35 }, decorArea: 500,
       view: { hillH: 11, hillW: 24, grid: 3, margin: 70, band: 26, trees: .016, rocks: .004, bushes: .006, camSide: 24, camLow: .8, grass: 12000, chunk: 160 },
       // of — тема мира по теме залов (dungeons.themes.by); ponds — озёр на зону (1,4 — одно и ещё одно с долей 0,4); у гари и магмы «вода» — лава
-      themes: { by: { inst_olkh: 'alder', castle_waste_1: 'ruincity', castle_waste_2: 'ruincity', castle_waste_3: 'ruincity' }, of: { cave: 'alder', crypt: 'gloom', swamp: 'marsh', ice: 'snow', forge: 'scorch', deepforge: 'magma', temple: 'shore', obsidian: 'blight', flooded: 'isles' },
+      themes: { by: { inst_olkh: 'alder', castle_waste_1: 'ruincity', castle_waste_2: 'ruincity', castle_waste_3: 'ruincity', castle_ash_1: 'cinderkeep', castle_ash_2: 'cinderkeep', castle_ash_3: 'cinderkeep' }, of: { cave: 'alder', crypt: 'gloom', swamp: 'marsh', ice: 'snow', forge: 'scorch', deepforge: 'magma', temple: 'shore', obsidian: 'blight', flooded: 'isles' },
+        cinderkeep: { name: 'пепельная твердыня', ground: '#4e4640', path: '#6e5a48', hill: '#342c28', top: '#241e1c', rock: '#5e564e', fogK: .82, water: '#2a2a30', ponds: .1,
+          look: { leaf: ['#4a4030', '#3e3628', '#5a4a30'], trunk: ['#241c16', '#30261e'], rock: ['#5e564e', '#4e4640'], bare: .7 },
+          decor: [['cwall', 1.6], ['ruinwall', 1.4], ['ctower', .25], ['brazier', 1.1], ['torch_d', .8], ['rubble_l', 1], ['column_d', .9], ['barrel_d', .5], ['crate_d', .5], ['armor_rack', .35], ['kbanner', .5], ['banner', .4], ['cage', .25], ['skulls', .4], ['bones', .4], ['dead_tree', .5], ['paving', 1]], dens: 8, grassK: .1 },     // Пепельная Твердыня (2026-11-13): выгоревшие дворы и стены крепости
         ruincity: { name: 'разрушенный город', ground: '#6a645a', path: '#8a8070', hill: '#4e4a42', top: '#3a362e', rock: '#7a766c', fogK: .9, water: '#3a4650', ponds: .3,
           look: { leaf: ['#5a6048', '#646a50', '#4a5038'], trunk: ['#2e2a24', '#3a342c'], rock: ['#7a766c', '#6a665e'], bare: .6 },
           decor: [['ruinwall', 2.4], ['paving', 1.4], ['rubble_l', 1.2], ['rubble_s', 1], ['column_d', 1], ['arch_q', .6], ['statue', .3], ['stall', .5], ['hut_s', .5], ['table_broken', .4], ['lamp', .4], ['wagon', .4], ['barrel_d', .5], ['crate_d', .5], ['skulls', .4], ['bones', .6], ['dead_tree', .6], ['torch_d', .3], ['cage', .2]], dens: 8, grassK: .12 },     // Велесград (2026-11-13): улицы и площади павшего города; dens — густота обстановки, grassK — доля травы

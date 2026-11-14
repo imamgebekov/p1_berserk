@@ -4,7 +4,7 @@ import { createWorld, mulberry32 } from '../3d/src/sim.js';
 import { regenLevel, travel } from '../3d/src/levels3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const mk = () => createWorld(JSON.parse(JSON.stringify(CFG3)), mulberry32(2));
-const W = mk(), ids = ['castle_waste_1', 'castle_waste_2', 'castle_waste_3'];
+const W = mk(), ids = ['castle_waste_1', 'castle_waste_2', 'castle_waste_3'], ash = ['castle_ash_1', 'castle_ash_2', 'castle_ash_3'];
 for (const id of ids) ok(W.levels[id] && W.levels[id].def.castle === 'castle_waste', 'нет этажа ' + id);
 for (const [i, id] of ids.entries()) {
   const r = regenLevel(W, id), L = W.levels[id], m = L.map; ok(r === true && m.wild, `${id}: не стал открытым миром`); if (!m.wild) continue;
@@ -22,5 +22,7 @@ for (let i = 0; i < 2; i++) { const d = W.levels[ids[i]].map.portals.find(q => !
 { const W2 = mk(); regenLevel(W2, ids[0]); const a = W.levels[ids[0]].map.wild.zones.map(z => [z.x, z.z, z.r].join()).join(';'), b = W2.levels[ids[0]].map.wild.zones.map(z => [z.x, z.z, z.r].join()).join(';'); ok(a === b, 'замок строится по-разному при одном зерне'); }
 // ходьба по порталу: travel на этаж уже построенного замка — в точку портала, не в новый вход
 { const L2 = W.levels[ids[1]], up = L2.map.portals.find(q => q.up); travel(W, ids[1], up.tx, up.tz); ok(W.lvl === ids[1], 'не перешли на второй этаж'); }
+// Пепельная Твердыня — тоже открытые миры, своя тема
+for (const [i, id] of ash.entries()) { ok(regenLevel(W, id) === true && W.levels[id].map.wild, `${id}: не стал открытым миром`); ok(W.levels[id].map.wild && W.levels[id].map.wild.theme === 'cinderkeep', `${id}: тема ${W.levels[id].map.wild && W.levels[id].map.wild.theme}`); const dn = W.levels[id].map.portals.find(q => !q.up); ok(i < 2 ? !!dn && dn.to === ash[i + 1] : !dn, `${id}: лестница вниз`); }
 if (fails.length) { console.log('ПРОВАЛ:'); for (const f of fails) console.log(f); process.exit(1); }
 console.log('Велесград открытым миром: OK');
