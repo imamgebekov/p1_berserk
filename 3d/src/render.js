@@ -24,7 +24,7 @@ import { qualityOf } from './quality3d.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeBladeFx, bladeEls, hasBladeStyle } from './bladefx3d.js';
 import { weaponMix, weaponElement } from './stones3d.js';
-import { loadNature, loadBaked, modelsOff } from './actors3d.js';
+import { loadNature, loadBaked, loadKenney, modelsOff } from './actors3d.js';
 import { setDecorLib } from './decor.js';
 import { setNature } from './models.js';
 import { makeActor, actorKey, actorReady, preloadActors, needActor, driveHero, driveFoe, disposeActor, soldierActor, driveAlly } from './actors3d.js';
@@ -378,7 +378,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   // трава (F2): пучок из трёх травинок; строится по участкам вокруг героя, качается по ветру
   const flowerMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const grassOn = !!(WC && WC.on && WC.grass.on), grassMat = grassOn ? windy(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'grass') : null;
-  const grassGeo = (() => { const H = WC ? WC.grass.h : .7, v = [], col = [], dark = new THREE.Color(cfg.look.leaf[1]).multiplyScalar(.95), tip = new THREE.Color(cfg.look.leaf[2]).multiplyScalar(2), mid = dark.clone().lerp(tip, .5), W0 = .085;     // «лапша»: три тонкие изогнутые травинки, у каждой основание-четырёхугольник и кончик-треугольник, разные наклон и высота
+  const grassGeo = (() => { const H = WC ? WC.grass.h : .7, v = [], col = [], dark = new THREE.Color(cfg.look.leaf[1]).multiplyScalar(.95), tip = new THREE.Color(cfg.look.leaf[2]).multiplyScalar(2), mid = dark.clone().lerp(tip, .5), W0 = .1;     // «лапша»: три тонкие изогнутые травинки, у каждой основание-четырёхугольник и кончик-треугольник, разные наклон и высота
     for (let b = 0; b < 3; b++) { const a = b * 2.1 + .4, c = Math.cos(a), s = Math.sin(a), bx = Math.cos(b * 2.4) * .12, bz = Math.sin(b * 2.4) * .12, hh = H * (.7 + b * .22), lean = .16 + (b * .23 % 1) * .3, lx = -s * lean, lz = c * lean;     // 2026-11-13: пучок из трёх широких травинок разной высоты и наклона (был из двух)
       const P = [[-W0 * c + bx, 0, -W0 * s + bz], [W0 * c + bx, 0, W0 * s + bz], [-W0 * .6 * c + bx + lx * .5, hh * .55, -W0 * .6 * s + bz + lz * .5], [W0 * .6 * c + bx + lx * .5, hh * .55, W0 * .6 * s + bz + lz * .5], [bx + lx * 1.4, hh, bz + lz * 1.4]], C = [dark, dark, mid, mid, tip];
       for (const t of [[0, 1, 2], [1, 3, 2], [2, 3, 4]]) for (const k of t) { v.push(...P[k]); col.push(C[k].r, C[k].g, C[k].b); } }
@@ -666,7 +666,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const heroBlade = makeBladeFx(scene), bladeOn = () => !!(cfg.bladeFx && cfg.bladeFx.on);     // стихия на клинке (2026-10-20)
   if (actorKey(cfg, 'hero', 'thorn') !== null || Object.keys((cfg.actors && cfg.actors.foes) || {}).length) preloadActors(cfg);     // готовые модели (2026-10-20): грузятся в фоне
   const kitOf = k => cfg.actors.kits[k];
-  Promise.all([loadBaked('buildings'), loadBaked('townkit').catch(() => null), loadBaked('qkit').catch(() => null), loadBaked('props').catch(() => null), loadBaked('qprops').catch(() => null), loadBaked('kk_weapons').catch(() => null)]).then(([b0, kit, qk, pr, qp, kw]) => { if (!b0) return; const lib = { ...stoneLook(b0, cfg.look.town), ...(kit || {}), ...(qk || {}), ...(pr || {}), ...(qp || {}), ...(kw || {}) };     // 2026-10-28: + мелочи (props, qprops) и оружие на земле (kk_weapons)
+  Promise.all([loadBaked('buildings'), loadBaked('townkit').catch(() => null), loadBaked('qkit').catch(() => null), loadBaked('props').catch(() => null), loadBaked('qprops').catch(() => null), loadBaked('kk_weapons').catch(() => null), loadKenney().catch(() => null)]).then(([b0, kit, qk, pr, qp, kw, kn]) => { if (!b0) return; const lib = { ...stoneLook(b0, cfg.look.town), ...(kit || {}), ...(qk || {}), ...(pr || {}), ...(qp || {}), ...(kw || {}), ...(kn || {}) };     // 2026-10-28: + мелочи (props, qprops) и оружие на земле (kk_weapons)
     setDecorLib(lib); town.setShells(lib);     // 4.09: + знамёна, бочки, ящики KayKit Dungeon; 4.10: повозка и ящик Quaternius     // постройки KayKit: декор пересобирается, у домов — наружный вид
     for (const k of [...decorLive.keys()]) dropDecor(k); }).catch(e => console.warn('постройки не загрузились:', e && e.message));
   loadNature().then(lib => { if (!lib) return; setNature(lib); for (const k of [...liveLand.keys()]) dropLand(k); }).catch(e => console.warn('природа не загрузилась:', e && e.message));     // готовые деревья и камни: участки пересобираются

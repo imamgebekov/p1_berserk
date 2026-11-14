@@ -49,6 +49,9 @@ export function propsIn(map, cfg, ci, cj) {
   return out;
 }
 // трава: сетка с шагом step м со сдвигом, только где можно (не тропа, не вода, не дом, не препятствие, в мире)
+// куртины травы (2026-11-14): плавный шум крупными пятнами ~patch м; трава только в пятнах, густо, к краю пятна реже и ниже
+const hv = (i, j) => { const v = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return v - Math.floor(v); };
+export function patchNoise(x, z, sc) { const u = x / sc, v = z / sc, i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j, a = fu * fu * (3 - 2 * fu), b = fv * fv * (3 - 2 * fv); return (hv(i, j) * (1 - a) + hv(i + 1, j) * a) * (1 - b) + (hv(i, j + 1) * (1 - a) + hv(i + 1, j + 1) * a) * b; }
 export function grassIn(map, cfg, ci, cj, segs = pathSegs(map), dens = 1) {     // dens > 1 — гуще (профили «Сильный» и «Мак»): шаг решётки мельче
   const G0 = cfg.wind.grass, G = dens > 1 ? { ...G0, step: G0.step / Math.sqrt(dens) } : G0, R = cfg.world.radius - 2, r = mulberry32(seedOf(cfg.world.seed, ci, cj, 29)), out = [];
   const gk = (x, z) => { const b = biomeAt(cfg, x, z); return b && cfg.worldgen.grass ? cfg.worldgen.grass[b] : 1; };     // в пустоши и на берегу травы мало
@@ -56,7 +59,8 @@ export function grassIn(map, cfg, ci, cj, segs = pathSegs(map), dens = 1) {     
   const inBox = (ax0, ax1, az0, az1) => ax1 > x0 - m && ax0 < x0 + CHUNK + m && az1 > z0 - m && az0 < z0 + CHUNK + m;     // только то, что рядом с участком
   const blds = map.buildings.filter(b => inBox(b.x0, b.x1, b.z0, b.z1)), sols = map.solids.filter(q => inBox(q.x - q.r, q.x + q.r, q.z - q.r, q.z + q.r));
   for (let x = x0; x < x0 + CHUNK; x += G.step) for (let z = z0; z < z0 + CHUNK; z += G.step) {
-    const px = x + r() * G.step, pz = z + r() * G.step, s = .7 + r() * .6, rot = r() * Math.PI;
+    const px = x + r() * G.step, pz = z + r() * G.step, rot = r() * Math.PI, pn = G.patch ? (patchNoise(px, pz, G.patch) * .75 + patchNoise(px + 91, pz - 47, G.patch * .45) * .25 - G.thr) * 5 : 1, s = (.7 + r() * .6) * (G.patch ? Math.min(1, .55 + pn * .5) : 1);
+    if (G.patch && (pn <= 0 || r() > pn)) continue;
     if (Math.hypot(px - (cfg.world.center ? cfg.world.center.x : 0), pz - (cfg.world.center ? cfg.world.center.z : 0)) > R || r() > G.fill * gk(px, pz) || Math.hypot(px, pz) < 3) continue;     // край — от центра мира (Мир 5.0)
     if (map.river && (waterDist(map.river, px, pz) < 1.2 || streamDist(map.river, px, pz) < .5)) continue;     // не в воде и не в ручье
     if (inCliff(map.plateaus, px, pz, .4)) continue;

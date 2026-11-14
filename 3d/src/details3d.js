@@ -7,6 +7,7 @@ import { waterDist } from './terrain3d.js';
 import { roomFree } from './map.js';
 import { gridIndex } from './util3d.js';     // поиск по сетке (2026-10-28)
 import { zoneAt } from './zones3d.js';
+import { biomeAt } from './worldgen3d.js';
 
 const YARD = ['barrel_d', 'crate_d', 'woodpile', 'sack_d', 'bucket', 'barrel_l', 'keg', 'barrels', 'crates'];     // 2026-10-28: + большие бочки, бочонки, штабеля
 const SIGNED = new Set(['shop', 'smithy', 'tavern', 'warehouse']);
@@ -14,7 +15,7 @@ const PROUD = new Set(['smithy', 'tavern', 'barracks', 'chapel']);     // 4.09: 
 const RUG = new Set(['house', 'tavern', 'chapel']);
 const BATTLE = ['rusty_sword', 'bones', 'skulls', 'wreck', 'skulls', 'w_lie', 'w_lie', 'w_stuck', 'w_stuck', 'shield_lie', 'armor_lie', 'armor_pole', 'armor_pile', 'swsh_broken'];     // 2026-10-28: + оружие, щиты и доспехи на земле
 const RUINS = ['column_d', 'wall_br', 'wall_hf', 'rubble_s', 'rubble_l', 'arch_k', 'vine', 'column_d'], ROADSIDE = ['crates', 'barrels', 'fence_q', 'rubble_s', 'w_stuck', 'table_broken', 'barrel_l'];
-const BIO = { forest: ['stump', 'w_lie', 'barrels', 'woodpile'], swamp: ['stump', 'barrels', 'bones'], mountains: ['crates', 'barrels', 'torch_d', 'rubble_s'], waste: ['w_stuck', 'bones', 'skulls', 'rubble_s', 'armor_lie'], coast: ['barrels', 'crates', 'wreck', 'keg'] };     // у мест интереса — по биому
+const BIO = { forest: ['stump', 'w_lie', 'barrels', 'woodpile', 'log_k', 'mushroom'], swamp: ['stump', 'barrels', 'bones', 'mushroom', 'log_k'], mountains: ['crates', 'barrels', 'torch_d', 'rubble_s', 'fern'], waste: ['w_stuck', 'bones', 'skulls', 'rubble_s', 'armor_lie', 'cactus'], coast: ['barrels', 'crates', 'wreck', 'keg', 'palm'] };     // у мест интереса — по биому
 
 // поверхность: у стен домов (кроме стороны с дверью), вывеска и коврик у двери, следы боя у опасных мест, знамя в посёлке
 export function surfaceDetails(map, cfg) {
@@ -75,6 +76,17 @@ export function surfaceDetails(map, cfg) {
   // места интереса: по биому
   if (sets.poi) for (const q of map.cfg.pois || []) { const set = BIO[q.bio]; if (!set) continue; const n = sets.poi[0] + Math.floor(rnd() * (sets.poi[1] - sets.poi[0] + 1));
     for (let i = 0; i < n; i++) { const a = rnd() * Math.PI * 2, r = (q.r || 4) + 1 + rnd() * 3, x = q.x + Math.cos(a) * r, z = q.z + Math.sin(a) * r; if (free(x, z) && !inB(x, z, 1.5)) out.push({ t: pick(set), x, z, rot: rnd() * Math.PI * 2, detail: true }); } }
+  // растительность по биомам (Kenney, 2026-11-14): сетка шагом flora.step, в клетке — шанс p; набор — по биому клетки; у сёл — прилавки, телеги, фонтан, живая изгородь, мельница
+  const FLORA = { forest: ['flowers', 'fern', 'mushroom', 'stump', 'log_k', 'fern', 'flowers'], swamp: ['mushroom', 'log_k', 'fern', 'stump'], mountains: ['fern', 'stump', 'log_k', 'flowers'], waste: ['cactus', 'cactus', 'stump'], coast: ['palm', 'palm', 'log_k', 'flowers'] };
+  if (sets.flora) { const st = sets.flora.step, R = cfg.world.radius, C = cfg.world.center;
+    for (let gx = -R; gx <= R; gx += st) for (let gz = -R; gz <= R; gz += st) { const x = C.x + gx + (rnd() - .5) * st, z = C.z + gz + (rnd() - .5) * st; if (rnd() > sets.flora.p || Math.hypot(gx, gz) > R - 20) continue;
+      const set = FLORA[biomeAt(cfg, x, z)]; if (set && free(x, z, 2) && !inB(x, z, 2) && !nearDecor(x, z, 2)) out.push({ t: pick(set), x, z, rot: rnd() * Math.PI * 2, s: .8 + rnd() * .5, detail: true }); } }
+  if (sets.town) for (const p of map.cfg.places || []) if (p.type === 'hamlet') {
+    const at = (rr, t, rot) => { const a = rnd() * Math.PI * 2, x = p.x + Math.cos(a) * p.r * rr, z = p.z + Math.sin(a) * p.r * rr; if (free(x, z, 2) && !inB(x, z, 3) && !nearDecor(x, z, 3)) out.push({ t, x, z, rot: rot ?? rnd() * Math.PI * 2, detail: true }); };
+    for (let i = 0; i < 2; i++) if (rnd() < sets.town) at(.5 + rnd() * .3, rnd() < .5 ? 'k_stall' : 'k_cart');
+    if (rnd() < sets.town * .6) at(.15, 'k_fountain');
+    for (let i = 0; i < 3; i++) if (rnd() < sets.town) at(.9 + rnd() * .2, 'k_hedge');
+    if (rnd() < sets.town * .35) at(1.1, 'k_windmill'); }
   return out;
 }
 

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeWeapon, kkWeapon, kkShield, setKkWeapons, kkReady, kkPart, SPAN, BAND } from './weaponview.js';
 import { CFG3 } from './config3d.js';
 import { MW } from './data/meshyw.js';
@@ -397,6 +398,29 @@ function flatGeo(src) {
   geo.translate(-(B.min.x + B.max.x) / 2, -B.min.y, -(B.min.z + B.max.z) / 2); geo.computeBoundingBox();     // 4.08: низом на землю, центром в начало — опора моделей посередине, дома и декор уходили под землю
   return geo;
 }
+// Kenney (CC0, 2026-11-13): Nature Kit и Fantasy Town Kit запечены в kenney.glb (tools/bake-kenney.mjs); узлы n_… (природа) и t_… (город), цвет в вершинах.
+// Имя модели — имя корневого узла: у частей одной модели геометрии склеены, низом на землю, центром в начало (как loadBaked)
+let KENNEY = null;
+export function loadKenney() { return KENNEY || (KENNEY = loadKenney0()); }     // одна загрузка на природу и на постройки
+async function loadKenney0() {
+  const u = urlOf('kenney'); if (!u || OFF) return null;
+  const g = await ld().loadAsync(u), out = {}; g.scene.updateMatrixWorld(true);
+  for (const root of g.scene.children) { const geos = []; root.traverse(o => { if (!o.isMesh) return; const ge = o.geometry.clone(); ge.applyMatrix4(o.matrixWorld); for (const n of Object.keys(ge.attributes)) if (!['position', 'normal', 'color'].includes(n)) ge.deleteAttribute(n); if (!ge.attributes.normal) ge.computeVertexNormals(); geos.push(ge.index ? ge.toNonIndexed() : ge); });
+    if (!geos.length || !geos.every(q => q.attributes.color)) continue; const m = geos.length === 1 ? geos[0] : mergeGeometries(geos); if (m) out[root.name] = flatGeo(m); }
+  return out;
+}
+const KTREE = /^n_tree_(oak|fat|thin|tall|default|simple|detailed|blocks|plateau|cone|pine(Tall|Round)[A-D])$/, KSMALL = /^n_tree_(small|pineSmall[A-D])$/, KBUSH = /^n_plant_bush/, KROCK = /^n_rock_(large|tall)/;
+// Kenney в библиотеку природы: деревья, кусты и камни приводятся к росту прежних (медиана по виду), у разных видов своя поправка — больше разных деревьев
+function addKenney(lib, K) {
+  const med = a => a.map(g => g.userData.h).sort((p, q) => p - q)[a.length >> 1] || 1, ref = { tree: med(lib.tree), bush: med(lib.bush), rock: med(lib.rock) };
+  const put = (list, geo, h, k) => { const g = geo.clone(), s = h * k / (geo.userData.h || 1); g.scale(s, s, s); g.computeBoundingBox(); g.translate(0, -g.boundingBox.min.y, 0); g.userData.h = g.boundingBox.max.y - g.boundingBox.min.y; list.push(g); };
+  for (const [nm, geo] of Object.entries(K)) {
+    if (KTREE.test(nm)) put(lib.tree, geo, ref.tree, /pineTall/.test(nm) ? 1.2 : /thin|tall/.test(nm) ? 1.1 : /fat/.test(nm) ? .85 : 1);
+    else if (KSMALL.test(nm)) put(lib.tree, geo, ref.tree, .6);
+    else if (KBUSH.test(nm)) put(lib.bush, geo, ref.bush, /Large/.test(nm) ? 1.25 : /Small/.test(nm) ? .7 : 1);
+    else if (KROCK.test(nm)) put(lib.rock, geo, ref.rock, /tall/.test(nm) ? 1.3 : .9);
+  }
+}
 export async function loadNature() {
   const u = urlOf('nature'); if (!u || OFF) return null;
   const g = await ld().loadAsync(u), lib = { tree: [], bare: [], dead: [], bush: [], rock: [] };
@@ -406,6 +430,7 @@ export async function loadNature() {
     for (const n of ['position', 'normal', 'uv']) { const at = geo.attributes[n]; if (at && (at.normalized || !(at.array instanceof Float32Array) || at.isInterleavedBufferAttribute)) { const a = new Float32Array(at.count * at.itemSize); for (let i = 0; i < at.count; i++) for (let j = 0; j < at.itemSize; j++) a[i * at.itemSize + j] = at.getComponent(i, j); geo.setAttribute(n, new THREE.BufferAttribute(a, at.itemSize)); } }
     geo.computeBoundingBox(); geo.translate(0, -geo.boundingBox.min.y, 0); geo.userData.h = geo.boundingBox.max.y - geo.boundingBox.min.y;
     (lib[k === 'tree' ? 'tree' : k] || lib.tree).push(geo); });
-  return Object.values(lib).every(a => a.length) ? lib : null;
+  if (Object.values(lib).every(a => a.length)) { try { const K = await loadKenney(); if (K) addKenney(lib, K); } catch (e) { /* без Kenney */ } return lib; }
+  return null;
 }
 export const modelsOff = () => OFF;     // готовые модели и текстуры выключены (?models=0 или автотест без ?models=1)

@@ -28,6 +28,7 @@ function putRot(L, name, x, y, z, ex, ey, ez, sc, center = false, dim = 1) {
   L.push(g); return true;
 }
 const WEAPONS = ['sword_1handed', 'sword_2handed', 'axe_1handed', 'axe_2handed', 'rpg_spear', 'rpg_halberd', 'rpg_hammer', 'dagger', 'Skeleton_Blade', 'Skeleton_Axe'], SHIELDS = ['shield_round', 'shield_square', 'shield_badge', 'Skeleton_Shield_Small_A'];
+const fitMax = (name, m) => (BLD && BLD[name] ? m / Math.max(BLD[name].userData.w, BLD[name].userData.d, BLD[name].userData.h) : 1);     // масштаб под самую длинную сторону
 const fit = (name, h) => (BLD && BLD[name] ? h / BLD[name].userData.h : 1);     // масштаб модели под высоту h, м
 // замена своего декора: true — заменили. Ряды (стены, частокол, ограды) — отрезками модели вдоль длинной стороны
 function swapDecor(d, L, rnd) {
@@ -37,6 +38,19 @@ function swapDecor(d, L, rnd) {
   const tile = (name, len, seg, h, alongX, depth) => { const M = BLD[name]; if (!M) return false; const mx = M.userData.w >= M.userData.d, Ls = mx ? M.userData.w : M.userData.d, n = Math.max(1, Math.round(len / seg)), k = len / n;
     for (let i = 0; i < n; i++) { const o = -len / 2 + k * (i + .5), rot = mx === alongX ? 0 : Math.PI / 2, sl = k / Ls; putModel(L, name, d.x + (alongX ? o : 0), d.z + (alongX ? 0 : o), rot, mx ? sl : depth, h, mx ? depth : sl, .85); } return true; };
   switch (d.t) {
+    // Kenney (2026-11-14): цветы, грибы, пни, брёвна, папоротники, кактусы, пальмы и постройки села; размер — по самой длинной стороне (fitMax)
+    case 'flowers': { const nm = ['n_flower_purple', 'n_flower_red', 'n_flower_yellow'][(rnd() * 3) | 0]; if (!BLD[nm + 'A']) return false; for (let i = 0; i < 3; i++) { const q = nm + 'ABC'[(rnd() * 3) | 0], a = rnd() * 6.283, o = i ? .35 : 0; putModel(L, q, d.x + Math.cos(a) * o, d.z + Math.sin(a) * o, rnd() * 6.283, fitMax(q, .55 * s), fitMax(q, .55 * s), fitMax(q, .55 * s)); } return true; }
+    case 'stump': { const q = ['n_stump_old', 'n_stump_oldTall', 'n_stump_round', 'n_stump_square'][(rnd() * 4) | 0]; return BLD[q] ? putModel(L, q, d.x, d.z, r, fitMax(q, .9 * s), fitMax(q, .9 * s), fitMax(q, .9 * s), .9) : false; }
+    case 'fern': { const q = rnd() < .5 ? 'n_plant_flatTall' : 'n_plant_flatShort'; return BLD[q] ? putModel(L, q, d.x, d.z, r, fitMax(q, 1 * s), fitMax(q, 1 * s), fitMax(q, 1 * s)) : false; }
+    case 'mushroom': { const q = ['n_mushroom_redGroup', 'n_mushroom_tanGroup', 'n_mushroom_redTall', 'n_mushroom_tanTall', 'n_mushroom_red'][(rnd() * 5) | 0]; return BLD[q] ? putModel(L, q, d.x, d.z, r, fitMax(q, .55 * s), fitMax(q, .55 * s), fitMax(q, .55 * s)) : false; }
+    case 'log_k': { const q = ['n_log', 'n_log_large', 'n_log_stack'][(rnd() * 3) | 0]; return BLD[q] ? putModel(L, q, d.x, d.z, r, fitMax(q, 2.2 * s), fitMax(q, 2.2 * s), fitMax(q, 2.2 * s), .9) : false; }
+    case 'cactus': { const q = rnd() < .5 ? 'n_cactus_tall' : 'n_cactus_short'; return BLD[q] ? putModel(L, q, d.x, d.z, r, fit(q, (q === 'n_cactus_tall' ? 2.6 : 1.4) * s), fit(q, (q === 'n_cactus_tall' ? 2.6 : 1.4) * s), fit(q, (q === 'n_cactus_tall' ? 2.6 : 1.4) * s)) : false; }
+    case 'palm': { const q = ['n_tree_palm', 'n_tree_palmBend', 'n_tree_palmTall', 'n_tree_palmShort'][(rnd() * 4) | 0]; return BLD[q] ? putModel(L, q, d.x, d.z, r, fit(q, 5.5 * s), fit(q, 5.5 * s), fit(q, 5.5 * s)) : false; }
+    case 'k_stall': { const q = ['t_stall', 't_stall_red', 't_stall_green'][(rnd() * 3) | 0]; return BLD[q] ? putModel(L, q, d.x, d.z, r, fitMax(q, 3.2), fitMax(q, 3.2), fitMax(q, 3.2)) : false; }
+    case 'k_cart': return BLD.t_cart ? putModel(L, rnd() < .5 ? 't_cart' : 't_cart_high', d.x, d.z, r, fitMax('t_cart', 3), fitMax('t_cart', 3), fitMax('t_cart', 3)) : false;
+    case 'k_fountain': { const q = rnd() < .6 ? 't_fountain_round' : 't_fountain_square'; return BLD[q] ? putModel(L, q, d.x, d.z, r, fitMax(q, 4), fitMax(q, 4), fitMax(q, 4)) : false; }
+    case 'k_hedge': { const q = rnd() < .5 ? 't_hedge' : 't_hedge_large'; return BLD[q] ? putModel(L, q, d.x, d.z, r, fitMax(q, 3.2), fitMax(q, 3.2), fitMax(q, 3.2)) : false; }
+    case 'k_windmill': return BLD.t_windmill ? putModel(L, 't_windmill', d.x, d.z, r, fit('t_windmill', 11), fit('t_windmill', 11), fit('t_windmill', 11)) : false;
     case 'tomb': return putModel(L, rnd() < .5 ? 'gravestone' : 'grave_B', d.x, d.z, r, .55 * s, .55 * s, .55 * s, .8);
     case 'cross': return putModel(L, rnd() < .5 ? 'gravemarker_A' : 'gravemarker_B', d.x, d.z, r, .9 * s, .9 * s, .9 * s, .8);
     case 'mausoleum': return putModel(L, 'crypt', d.x, d.z, r, .7, .5, .55, .85);
@@ -160,6 +174,16 @@ export function buildDecor(map, rnd, grime = null, mats = null, Y = null) {     
       case 'menhir': f(0, 0, 0, .9 * s, 2.4 * s, .6 * s, '#7a766c'); f(0, 2.4 * s, 0, .6 * s, .4 * s, .45 * s, '#6a665e'); f(.1, 1.2 * s, .31 * s, .3, .3, .02, '#3a5a46'); break;
       case 'hut_s': f(0, 0, 0, 3.6, 2.0, 3.0, '#5a4028'); f(0, 2.0, 0, 4.0, .35, 3.5, '#4a3a22'); f(0, 2.35, 0, 4.0, .35, 2.5, '#52402a'); f(0, 2.7, 0, 4.0, .3, 1.4, '#4a3a22'); f(0, 3.0, 0, 4.1, .14, .4, '#3a2c1a'); f(0, 0, 1.51, .9, 1.6, .06, '#2a1e12'); f(1.1, .9, 1.51, .5, .4, .06, '#ffcf7a', true); f(-1.2, 2.2, -.6, .4, 1.2, .4, '#5a564e'); break;
       case 'woodpile': f(0, 0, 0, 1.6, .5, .7, '#6a4a2c'); f(0, .5, 0, 1.3, .4, .6, '#7a5634'); break;
+      case 'fern': f(0, 0, 0, .5, .5, .5, '#3e6a2a'); break;
+      case 'mushroom': f(0, 0, 0, .1, .22, .1, '#d8cdb0'); f(0, .22, 0, .3, .12, .3, '#b83a2a'); break;
+      case 'log_k': f(0, 0, 0, 2, .45, .45, '#5a3e26'); break;
+      case 'cactus': f(0, 0, 0, .35, 1.8, .35, '#4a7a3a'); f(.3, .9, 0, .5, .2, .2, '#4a7a3a'); break;
+      case 'palm': f(0, 0, 0, .3, 4.2, .3, '#7a5a36'); f(0, 4.2, 0, 2.4, .2, 2.4, '#3e7a3a'); break;
+      case 'k_stall': f(0, 0, 0, 3, 1, 1.4, '#8a6a44'); f(0, 1.9, 0, 3.2, .15, 1.6, '#a83a2a'); break;
+      case 'k_cart': f(0, .5, 0, 2.2, .6, 1.2, '#7a5a34'); break;
+      case 'k_fountain': f(0, 0, 0, 3, .7, 3, '#8a867c'); f(0, .7, 0, .5, 1.2, .5, '#9a968c'); break;
+      case 'k_hedge': f(0, 0, 0, 3, 1, .8, '#3e6a2a'); break;
+      case 'k_windmill': f(0, 0, 0, 3, 6, 3, '#8a7a60'); f(0, 6, 0, 4, .3, .3, '#5a3e26'); break;
       case 'stump': f(0, 0, 0, .7, .45, .7, '#5a3e26'); f(0, .45, 0, .5, .06, .5, '#a88a5a'); break;
       case 'pond': break;     // пруд — теперь настоящее озеро (render.js: вода и камыш по берегу)
       case 'sack_d': f(0, 0, 0, .55, .45, .45, '#8a7a5a', 'cloth'); f(0, .45, 0, .22, .16, .22, '#7a6a4a', 'cloth'); break;     // детали мира (T5)
