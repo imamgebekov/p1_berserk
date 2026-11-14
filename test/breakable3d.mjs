@@ -8,7 +8,7 @@ import { resolve } from '../3d/src/map.js';
 import { smashArc, resetBrk } from '../3d/src/brk3d.js';
 const fails = [], ok = (c, m) => { if (!c) fails.push(m); };
 const B = CFG3.phys.brk;
-const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.events.on = false; c.wanderer.on = false;
+const c = JSON.parse(JSON.stringify(CFG3)); c.dungeons.wild.castles = []; c.enemies.count = 0; c.events.on = false; c.wanderer.on = false;
 const W = createWorld(c, mulberry32(11));
 const lv = Object.values(W.levels).filter(L => L.map.brk && L.map.brk.length), all = lv.flatMap(L => L.map.brk.map(b => ({ b, L })));
 ok(lv.length >= 5 && all.length >= 20, `мало бьющихся предметов: уровней ${lv.length}, предметов ${all.length}`);

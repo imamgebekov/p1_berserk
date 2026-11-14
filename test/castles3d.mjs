@@ -34,7 +34,7 @@ ok(CFG3.map.castles.length === 2 && castles.length === 6, 'замков или �
 ok(!CORE3.dungeons.list.some(d => d.castle), 'в ядре есть замки');
 ok(castles.every(d => d.depth > 1 && d.danger >= 2), 'этажи замка не глубже ядра');
 for (const C of CFG3.map.castles) ok(Math.hypot(C.x, C.z) > CFG3.worldgen.coreR + 100 && CFG3.map.places.some(p => p.id === C.id && p.danger), 'вход замка у ядра или без места');
-{ const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.bosses.list = []; c.events.on = false; c.wanderer.on = false;
+{ const c = JSON.parse(JSON.stringify(CFG3)); c.dungeons.wild.castles = []; c.enemies.count = 0; c.bosses.list = []; c.events.on = false; c.wanderer.on = false;
   const W = createWorld(c, mulberry32(3)), p = W.player, d1 = castles[0], d2 = castles[1];
   ok(W.map.portals.some(q => q.to === d1.id) && !W.map.portals.some(q => q.to === d2.id), 'вход на поверхности ведёт не на первый этаж');
   p.x = d1.at.x; p.z = d1.at.z; ok(usePortal(W) && W.lvl === d1.id, 'не спустились в замок');
@@ -49,7 +49,7 @@ for (const C of CFG3.map.castles) ok(Math.hypot(C.x, C.z) > CFG3.worldgen.coreR 
   ok(s && s.dseen[d2.id] && s.keys.includes(d2.id + '_k0') && (s.unlocked[d1.id] || []).length, 'туман, ключи или двери этажей замка не сохранились'); }
 
 // ---------- 3. замок снаружи (C4c) ----------
-{ const c = JSON.parse(JSON.stringify(CFG3)); c.enemies.count = 0; c.bosses.list = []; c.events.on = false; c.wanderer.on = false;
+{ const c = JSON.parse(JSON.stringify(CFG3)); c.dungeons.wild.castles = []; c.enemies.count = 0; c.bosses.list = []; c.events.on = false; c.wanderer.on = false;
   for (const C of CFG3.map.castles) {
     const W = createWorld(c, mulberry32(7)), p = W.player, g = { s: [0, 1], n: [0, -1], e: [1, 0], w: [-1, 0] }[W.map.cfg.castles.find(q => q.id === C.id).gate];
     p.x = C.x + g[0] * 20; p.z = C.z + g[1] * 20;                                   // перед воротами — идём во двор
