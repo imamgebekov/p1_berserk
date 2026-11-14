@@ -101,7 +101,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   scene.background = new THREE.Color(FOG);
   scene.fog = new THREE.FogExp2(FOG, cfg.view.fogDensity);
   const camera = new THREE.PerspectiveCamera(cfg.view.fov, 1, .5, 140);     // дальше 140 м всё скрыто туманом (exp²: меньше 0,01%) — незачем рисовать; небо уменьшено под это
-  let camPitchS = cfg.view.camPitch, camAheadS = cfg.view.camAhead || 0; let bossZoomS = 1;
+  let camPitchS = cfg.view.camPitch, camAheadS = cfg.view.camAhead || 0; let bossZoomS = 1; let footT = 0;
   // свечение (bloom, 2026-11-13): профили «Сильный» и «Мак» — сцена в плавающую текстуру, поверх мягкое свечение ярких мест (огонь, умения, порталы), тоны — OutputPass; грузится отдельным куском при включении
   // поплавок рыбалки (2026-11-13): красно-белый, качается на воде, на поклёвке ныряет
   const bobber = new THREE.Group(); { const rb = new THREE.Mesh(new THREE.SphereGeometry(.13, 10, 8), new THREE.MeshBasicMaterial({ color: '#e84a3a' })); rb.position.y = .06; const wb = new THREE.Mesh(new THREE.SphereGeometry(.1, 10, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' })); wb.position.y = .2; bobber.add(rb, wb); bobber.visible = false; scene.add(bobber); }
@@ -1302,6 +1302,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'react') { const cs = v.key ? v.key.split('+').map(k => ELEMENT_COLOR[k]) : ['#bfe8ff', '#bfe8ff']; if (v.r) ringFx(v.x, v.z, v.r, cs[0]); burst(v.x, 1.2, v.z, 10, cs[0], 5); burst(v.x, 1.2, v.z, 10, cs[1], 5); hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }     // цвета двух стихий смеси
       else if (v.k === 'bossaggro') { const col = bossAuraCol(v.id ? (W.enemies.find(q => q.id === v.id) || {}).type : ''), R0 = (v.r || 1.5) * 1.6, y0 = (v.sc || 2.5) * .8; ringFx(v.x, v.z, R0 * 2.2, col); ringFx(v.x, v.z, R0 * 3.6, '#ffffff'); fx.flash(v.x, y0, v.z, 3.2 + R0, col); burst(v.x, y0, v.z, 36, col, 9); burst(v.x, .4, v.z, 24, '#6a5a4a', 6); fx.debris(v.x, .3, v.z, 0, 0, 7, KIT.stone.c, 8, .16); }     // рёв при пробуждении (2026-11-13): волна, вспышка, искры и обломки
       else if (v.k === 'bossphase' && v.x !== undefined) { const col = v.enrage ? '#ff3a2a' : '#ffd24a', R0 = (v.r || 1.5) * 1.4; ringFx(v.x, v.z, R0 * 3, col); fx.flash(v.x, (v.sc || 2.5) * .8, v.z, 3 + R0, col); burst(v.x, (v.sc || 2.5) * .7, v.z, 28, col, 8); }     // смена фазы
+      else if (v.k === 'roll' && fx.emitPuff && W.lvl === 'surface') { for (let i = 0; i < 4; i++) { const an = Math.random() * 6.283; fx.emitPuff(v.x + Math.cos(an) * .4, .1, v.z + Math.sin(an) * .4, Math.cos(an) * 1.4, .6, Math.sin(an) * 1.4, '#b8a888', .6, -.2, .6, Math.floor(Math.random() * 7), 1.4); } }     // перекат: облачко пыли
       else if (v.k === 'fishcast' || v.k === 'fishbite' || v.k === 'fishcatch' || v.k === 'fishlost') { if (v.x !== undefined) { splash(v.x, v.z, v.k === 'fishbite' || v.k === 'fishcatch'); if (v.k === 'fishcatch') { fx.burst(v.x, WY + .5, v.z, v.rare ? 22 : 10, v.rare ? '#ffd27a' : '#cfe6f4', 4); if (v.rare) fx.flash(v.x, WY + 1, v.z, 2.4, '#ffd27a'); } } }     // рыбалка: круги на воде, брызги, редкая рыба — вспышка
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
@@ -1395,6 +1396,10 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     W.ev.length = 0;
     // частицы
     if (WC && WC.on && !under) {     // примятая трава: герой (сила 1), шлейф за ним (гаснет за 1,8 с), ближние враги и союзники
+      { const pl2 = W.player, sp2 = Math.hypot(pl2.vx, pl2.vz);     // пыль из-под ног на каждом шаге, круги на мелководье (2026-11-13)
+        if (!calm && sp2 > 2.4 && !pl2.dead && pl2.state !== 'roll') { footT -= rdt * Math.min(1.6, sp2 / 5); if (footT <= 0) { footT = .27;
+          const bx = pl2.x - Math.sin(pl2.face) * .35, bz = pl2.z - Math.cos(pl2.face) * .35;
+          if (pl2.inW > 0) splash(bx, bz, false); else if (fx.emitPuff && W.lvl === 'surface') fx.emitPuff(bx, .08, bz, -Math.sin(pl2.face) * .6, .5, -Math.cos(pl2.face) * .6, W.rain > .3 ? '#6a6458' : '#b8a888', .55 + Math.random() * .25, -.2, .38 + sp2 * .04, Math.floor(Math.random() * 7), 1.4); } } else if (sp2 < 1) footT = 0; }
       const P0 = PU.uPush.value, pl = W.player; let n = 0; P0[n++].set(pl.x, pl.z, 1);
       const lt = grassTrail.length ? grassTrail[grassTrail.length - 1] : null; if (!lt || t - lt.t > .14) { if (!lt || Math.hypot(lt.x - pl.x, lt.z - pl.z) > .35) grassTrail.push({ x: pl.x, z: pl.z, t }); if (grassTrail.length > 24) grassTrail.shift(); }
       for (let i = grassTrail.length - 1; i >= 0 && n < 7; i--) { const q = grassTrail[i], f = 1 - (t - q.t) / 1.8; if (f > 0 && Math.hypot(q.x - pl.x, q.z - pl.z) > .6) P0[n++].set(q.x, q.z, f * .8); }
