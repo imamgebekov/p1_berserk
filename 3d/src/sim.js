@@ -531,7 +531,7 @@ function attackStart(W, heavy = 0) {
   const lunge = W.wp.trait.ranged ? 0 : P.attackLunge * (p.rollAtk ? 1.4 : 1) * (p.fin ? 1.2 : 1) * (heavy ? H.lunge : 1);     // стрелок не делает выпада
   if (heavy) W.ev.push({ k: 'heavy', x: p.x, z: p.z, face: p.face, power: heavy });
   p.vx += Math.sin(p.face) * lunge; p.vz += Math.cos(p.face) * lunge;
-  W.ev.push({ k: 'swing', x: p.x, z: p.z, face: p.face, fin: p.fin });
+  W.ev.push({ k: 'swing', x: p.x, z: p.z, face: p.face, fin: p.fin, kind: W.wp.kind, heavy: !!heavy, ranged: !!W.wp.trait.ranged, hand: p.hand });     // kind и heavy — для звука: выдох и свист по оружию
 }
 
 // «Трещина» (земля): треснувший враг получает больше урона
@@ -844,9 +844,9 @@ function updatePlayer(W, dt, input) {
   } else {
     // удар: нажатие — обычный (запоминается на buffer, если нажато во время удара: быстрые нажатия дают серию без пауз);
     // удержание дольше hold — после удара заряд; отпустил — тяжёлый удар (если зарядил хотя бы min)
-    if (held && p.holdT >= H.hold && p.state !== 'atk' && p.state !== 'charge') { p.state = 'charge'; p.chargeT = 0; p.atkBuf = 0; W.ev.push({ k: 'charge', x: p.x, z: p.z }); }
+    if (held && p.holdT >= H.hold && p.state !== 'atk' && p.state !== 'charge') { p.state = 'charge'; p.chargeT = 0; p.atkBuf = 0; W.ev.push({ k: 'charge', x: p.x, z: p.z, kind: W.wp.kind, ranged: !!W.wp.trait.ranged }); }
     if (p.state === 'charge') {
-      if (held) { const was = p.chargeT; p.chargeT += dt; if (was < H.full && p.chargeT >= H.full) W.ev.push({ k: 'chargeFull', x: p.x, z: p.z }); }
+      if (held) { const was = p.chargeT; p.chargeT += dt; if (was < H.full && p.chargeT >= H.full) W.ev.push({ k: 'chargeFull', x: p.x, z: p.z, kind: W.wp.kind, ranged: !!W.wp.trait.ranged }); }
       else if (p.chargeT >= H.min) attackStart(W, Math.min(1, p.chargeT / H.full));
       else p.state = 'idle';
     }

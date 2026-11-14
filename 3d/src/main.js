@@ -335,7 +335,7 @@ function onEvent(v) {
   if (v.k === 'wear') { const it = BY_ID[v.id]; if (it) toast(v.at === 'broken' ? `${it.name}: прочность на нуле — сила вдвое ниже. Почините у кузнеца` : `${it.name} изношен: сила падает. Почините у кузнеца или ремкомплектом`, 'bad', '#e8a04a', 'warn'); }     // прочность (4.03)
   else if (v.k === 'repair') toast(v.kit ? `Ремкомплект: надетое прочнее` : `Кузнец починил ${v.n}`, '', '#e8c04a', 'anvil');
   if (v.k === 'hurt') buzz(P, 35); else if (v.k === 'level' || v.k === 'questdone') buzz(P, [40, 40, 70]); else if (v.k === 'bossaggro' || v.k === 'bossblast') buzz(P, 90);
-  sfx(v.k, v.x === undefined ? null : { x: v.x, z: v.z, px: W.player.x, pz: W.player.z, yaw: cfg.view.camYaw });     // звук мира: тише вдали, панорама по экрану (шаг 8)
+  sfx(v.k, v.x === undefined ? null : { x: v.x, z: v.z, px: W.player.x, pz: W.player.z, yaw: cfg.view.camYaw }, v);     // звук мира: тише вдали, панорама по экрану (шаг 8)
   if (v.k === 'fireFound') { toast('Открыт костёр: ' + v.name, '', '#ffb060', 'fire'); sfx('evDone'); }
   else if (v.k === 'dusk') toast('Наступает ночь: торговец спит, враги злее', 'bad');
   else if (v.k === 'dawn') toast('Светает: торговец снова торгует', 'sys');

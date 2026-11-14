@@ -74,10 +74,34 @@ function noise(dur, vol, fc, fc2, type = 'lowpass', delay = 0) {
   s.connect(f).connect(g).connect(out); s.start(t, Math.random() * .9); s.stop(t + dur + .02);
 }
 
+// голос героя (2026-11-13): гласный — пилообразный тон через две полосы (форманты), выдох — шум в полосе; всё коротко и тихо, высота чуть гуляет
+function heroVoice(f0, f1, f2, dur, vol, to = .78, delay = 0) {
+  if (!ac || muted) return;
+  const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain(), a = ac.createBiquadFilter(), b = ac.createBiquadFilter(), ga = ac.createGain(), gb = ac.createGain();
+  f0 *= vp; o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * to, t + dur);
+  a.type = b.type = 'bandpass'; a.frequency.value = f1; b.frequency.value = f2; a.Q.value = b.Q.value = 5; ga.gain.value = 1; gb.gain.value = .55;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .025); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.connect(a).connect(ga).connect(g); o.connect(b).connect(gb).connect(g); g.connect(out); o.start(t); o.stop(t + dur + .03);
+}
+const breath = (dur, vol, fc, delay = 0) => noise(dur, vol, fc, fc * .55, 'bandpass', delay);     // «ха»: выдох
+const HEAVYW = /hammer|mace|maul|club|flail|greataxe|two/, AXEW = /axe|spear|halberd|glaive|scythe/, LIGHTW = /dagger|knife|rapier|dual|fan|blade/;
+// тетива: нажим — скрип и нарастающее напряжение; выстрел — щелчок и звон струны
+const BOW = {
+  draw: () => { noise(.55, .05, 300, 900, 'bandpass'); tone(70, .6, 'triangle', .035, 128); tone(140, .55, 'sine', .015, 190, .05); },
+  twang: () => { noise(.05, .12, 3200, 1200, 'bandpass'); tone(210, .26, 'triangle', .1, 175); tone(420, .2, 'sine', .04, 350, .01); noise(.12, .05, 1800, 500, 'bandpass', .02); }
+};
 // набор звуков по событиям мира. Частые звуки не чаще раза в `gap` секунд, чтобы не превращаться в кашу.
 const SFX = {
-  swing: { gap: .06, f: () => noise(.14, .09, 1800, 500, 'bandpass') },
-  roll: { gap: .2, f: () => noise(.2, .07, 700, 250) },
+  swing: { gap: .06, f: ev => {     // свист клинка по оружию, выдох на замахе: тяжёлый и завершающий удар — с голосом (2026-11-13)
+    const k = (ev && ev.kind) || '', heavy = !!(ev && (ev.heavy || ev.fin)), mass = HEAVYW.test(k) ? 2 : AXEW.test(k) ? 1.4 : LIGHTW.test(k) ? .6 : 1;
+    if (ev && ev.ranged) { BOW.twang(); breath(.1, .03, 1400); return; }
+    noise(.13 + .07 * mass, .08 + .02 * mass, 2400 / mass, 480 / mass, 'bandpass'); noise(.1 * mass, .04, 900 / mass, 200, 'bandpass', .02);
+    if (mass >= 1.4) tone(95 / mass, .18, 'sine', .05, 55, .03);
+    if (heavy) heroVoice(mass >= 1.4 ? 105 : 135, mass >= 1.4 ? 520 : 650, 1050, .24 + .06 * mass, .075, .72); else if (Math.random() < .38) breath(.11, .045, 1500 / Math.sqrt(mass));
+  } },
+  roll: { gap: .2, f: () => { noise(.22, .07, 700, 250); noise(.16, .045, 2600, 900, 'bandpass', .02); breath(.12, .04, 1200, .04); tone(1800, .05, 'triangle', .012, 1400, .1); } },     // шорох ткани, выдох, звон застёжки
+  charge: { gap: .3, f: ev => { if (ev && ev.ranged) BOW.draw(); else { noise(.35, .05, 250, 700, 'bandpass'); tone(80, .35, 'sine', .03, 120); } } },
+  chargeFull: { gap: .3, f: ev => { tone(ev && ev.ranged ? 160 : 220, .08, 'triangle', .06, 0); noise(.05, .06, 2400, 1200, 'bandpass', .01); breath(.14, .04, 900, .05); } },
   hit: { gap: .04, f: () => { noise(.1, .12, 1500, 300); tone(150, .09, 'triangle', .08, 70); } },
   strike: { gap: .04, f: () => { noise(.12, .14, 1200, 250); tone(120, .12, 'sawtooth', .06, 55); } },
   finisher: { gap: .1, f: () => { tone(90, .3, 'sawtooth', .09, 40); noise(.25, .15, 900, 150); } },
@@ -145,8 +169,6 @@ const SFX = {
   fuse: { gap: .3, f: () => { noise(1.1, .05, 2500, 4000, 'highpass'); tone(300, 1.1, 'triangle', .032, 900); } },
   blink: { gap: .3, f: () => { tone(900, .25, 'sine', .05, 200); noise(.2, .04, 1200, 400); } },
   lunge: { gap: .2, f: () => noise(.3, .1, 600, 2400) },
-  charge: { gap: .3, f: () => { tone(110, .55, 'sawtooth', .035, 220); noise(.5, .03, 300, 900, 'bandpass'); } },
-  chargeFull: { gap: .3, f: () => { tone(660, .12, 'triangle', .06, 990); tone(990, .2, 'sine', .04, 1320, .06); } },
   heavy: { gap: .15, f: () => { noise(.25, .14, 2200, 300); tone(70, .35, 'sine', .12, 40, .08); noise(.3, .1, 400, 120, 'lowpass', .08); } },
   step: { gap: .1, f: () => noise(.05, .035, 500 + Math.random() * 300, 200) }
 };
@@ -164,7 +186,7 @@ function playBuf(buf, dest, vol, { pan = 0, rate = 1, delay = 0 } = {}) {
   if (pan && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); g.connect(p).connect(dest); } else g.connect(dest);
   s.connect(g); s.start(ac.currentTime + delay);
 }
-export function sfx(name, at = null) {
+export function sfx(name, at = null, ev = null) {
   const S = SMP(), alt = S && S.on && S.map[name] ? pickSample(S.map[name]) : null;     // запись вместо синтеза (map в config3d)
   const d = SFX[name]; if ((!d && !alt) || !ac || muted) return;
   const X = FX(), sp = spatial(at, X.space); if (!sp) return;
@@ -173,7 +195,7 @@ export function sfx(name, at = null) {
   const g = ac.createGain(); g.gain.value = sp.g * (1 + (Math.random() * 2 - 1) * X.vary.vol);     // разброс громкости
   if (sp.pan && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = sp.pan; g.connect(p).connect(sfxBus); } else g.connect(sfxBus);
   out = g; vp = 1 + (Math.random() * 2 - 1) * X.vary.pitch;
-  try { d.f(); } finally { out = sfxBus; vp = 1; }
+  try { d.f(ev); } finally { out = sfxBus; vp = 1; }
 }
 export const SFX_NAMES = Object.keys(SFX);
 // шаг по поверхности: grass, stone, wood, sand (soundscape3d.surfaceOf); нет записи — синтез
