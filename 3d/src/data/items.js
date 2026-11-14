@@ -204,6 +204,10 @@ const FAIRY = [
   ['u_recall', 'Свиток возврата', { recall: true }, 2, 150, 'Прочитать: мгновенно перенестись в лагерь (и из подземелья тоже).']
 ];
 add({ id: 'u_bag_sack', name: 'Дорожная сумка', cat: 'consumable', pool: 'kit', rar: 2, stack: 4, value: 260, tint: '#7a5a3a', use: { bag: true }, text: 'Прочная сумка с лямками. Применить: в рюкзаке навсегда на 4 места больше. Таких сумок можно применить не больше четырёх.' });
+// рыбалка (2026-11-13): удочка и улов; рыба — еда, золотая — редкость; мусор нельзя съесть
+add({ id: 'u_rod', name: 'Удочка', cat: 'curio', pool: 'kit', rar: 1, stack: 1, value: 50, tint: '#8a6a3a', text: 'Лежит в сумке: у воды появляется кнопка «Рыбачить». Рыба — еда, золотая стоит дорого.' });
+for (const [id, name, heal, rar, val, tint] of [['carp', 'Карась', 18, 0, 6, '#c8a050'], ['perch', 'Окунь', 24, 0, 8, '#8aa860'], ['pike', 'Щука', 42, 1, 22, '#6a8a5a'], ['trout', 'Форель', 56, 2, 40, '#d89a8a'], ['eel', 'Речной угорь', 70, 2, 55, '#5a6a5a'], ['goldfish', 'Золотая рыба', 160, 4, 320, '#f0c040']]) add({ id: 'fish_' + id, name, cat: 'consumable', pool: 'fish', rar, stack: 10, value: val, tint, use: { heal }, text: `Съесть: +${heal} здоровья.` });
+add({ id: 'fish_boot', name: 'Старый сапог', cat: 'curio', pool: 'fish', rar: 0, stack: 10, value: 1, tint: '#6a5a40', text: 'Кто-то потерял его давно. Продать можно, но стоит копейки.' });
 add({ id: 'u_repair_kit', name: 'Ремкомплект', cat: 'consumable', pool: 'kit', rar: 1, stack: 5, value: 30, tint: '#a07a4a', use: { repair: true }, text: 'Кожа, гвозди и кремень. Использовать: надетое снаряжение прочнее на 40% (полная починка — у кузнеца).' });     // 4.03: делается кожевником, продаётся у торговца
 for (const [id, name, use, rar, val, text] of FAIRY) add({ id, name, cat: 'consumable', pool: 'fairy', rar, stack: 5, value: val, use, text, ...(use.recall ? { icon: 'book' } : {}) });
 const MEDIC = [

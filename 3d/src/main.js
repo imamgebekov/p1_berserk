@@ -22,6 +22,7 @@ import { loadOwn, onOwnChange, ownIcon, ownMusic, ownIconCount, setOwnIcon, clea
 import { mixOf, underSound, surfaceOf } from './soundscape3d.js';     // underSound — подземный фон темы (план подземелий, 2е)
 import { clockText, lightOf, phaseOf, mix } from './daynight.js';
 import { loadPrefs, savePrefs, nextHint, buzz, UI_SCALES } from './prefs3d.js';
+import { startFish, hook as fishHook, fishNear, fishState, hasRod } from './fishing3d.js';
 import { offlineSupported, registerOffline, askStatus, startDownload, onOfflineMessage, mb } from './offline3d.js';
 import { trackerLines, questMarks, questMark, questsOf } from './quests3d.js';
 import { eventLine, eventAt } from './events3d.js';
@@ -99,7 +100,7 @@ const desk = matchMedia('(hover: hover) and (pointer: fine)').matches && !(navig
 if (desk) document.documentElement.setAttribute('data-desk', '');
 const canvas = $('gl');
 // кнопки действий складываются в стопку, а не лежат каждая на своём месте: две сразу (сундук и костёр) не налезают друг на друга (2026-11-05)
-for (const [id, ids] of [['actStack', ['talk', 'botBtn', 'lootBtn', 'gatherBtn', 'coachBtn', 'fireBtn', 'portalBtn', 'heroicBtn', 'sleepBtn']], ['actSide', ['mountBtn', 'mountNextBtn']]]) { const box = document.createElement('div'); box.id = id; document.body.append(box); for (const b of ids) { const el = $(b); if (el) box.append(el); } }
+for (const [id, ids] of [['actStack', ['talk', 'botBtn', 'lootBtn', 'gatherBtn', 'coachBtn', 'fireBtn', 'fishBtn', 'portalBtn', 'heroicBtn', 'sleepBtn']], ['actSide', ['mountBtn', 'mountNextBtn']]]) { const box = document.createElement('div'); box.id = id; document.body.append(box); for (const b of ids) { const el = $(b); if (el) box.append(el); } }
 let renderer;
 const W = createWorld(cfg);     // мир — до отрисовки: она берёт его карту, а не строит свою (загрузка, 2026-10-28)
 containerStyle.scale = CFG3.map.containerScale;
@@ -359,6 +360,9 @@ function onEvent(v) {
   else if (v.k === 'storyDone') { toast(v.end ? ({ 1: 'Акт I «Наёмник» пройден. Отряд идёт на войну', 2: 'Акт II «Война» пройден. Вы ушли из отряда', 3: 'Акт III «Затмение» пройден. Впереди — месть', 4: 'Затмение побеждено. Сюжет пройден — у человека в маске есть дела на каждый день' })[v.act] || 'Акт пройден' : `Сцена пройдена: ${v.name}`, '', '#ffd27a', 'scroll'); sfx('questdone'); }
   else if (v.k === 'storyWave') toast(`Волна ${v.n} из ${v.of}`, 'bad', '#ff9a6a', 'warn');
   else if (v.k === 'storyFail') toast(v.text || 'Не вышло. Поговорите снова', 'bad', '#ff8a6a', 'warn');
+  else if (v.k === 'fishbite') { toast('Клюёт! Подсекайте!', '', '#9fdcff', 'fire'); buzz(P, 60); sfx('block'); }
+  else if (v.k === 'fishcatch') { const it = BY_ID[v.id]; toast(v.junk ? `Вытащили: ${it ? it.name.toLowerCase() : 'хлам'}` : `Поймана рыба: ${it ? it.name : v.id}`, v.rare ? '' : '', v.rare ? '#ffd27a' : v.junk ? '#9a9a8a' : '#cfe6f4', 'sparkle'); sfx('pickup'); }
+  else if (v.k === 'fishlost') { if (v.why === 'late') toast('Сорвалась: вы замешкались', 'bad'); else if (v.why === 'early') toast('Рано: леска натянулась без рыбы', 'bad'); }
   else if (v.k === 'bossRoom') toast(`${v.name}: ${v.what}!`, 'bad', '#ff9a6a', 'warn');     // смена зала (план подземелий, 3б)
   else if (v.k === 'bossSay') toast(`${v.who}: ${v.text}`, '', '#e8e0ff', 'scroll');     // реплики в бою рейда (этап 8)
   else if (v.k === 'storyFall') toast(`${v.name} уходит во тьму`, 'bad', '#c8a0ff', 'warn');     // Затмение (этап 7)
@@ -743,6 +747,9 @@ const talk = $('talk'), xpFill = $('xpFill'), skillBtn = $('skillBtn');
 talk.addEventListener('click', e => { e.stopImmediatePropagation(); if (storyTalkable(W, W.nearNpc)) { dlgOpen(storyTalk(W, W.nearNpc)); return; } if (W.nearActor) { if (questsOf(W, W.nearNpc).length) quests.open('here'); else toast(`${W.nearActor.name.split(',')[0]}: «Потом. Делай, что должен.»`, '', W.nearActor.tint); return; } (W.nearNpc === 'auctioneer' ? auction : W.nearNpc === 'smith' ? smith : W.nearNpc === 'captain' ? captain : W.nearNpc === 'scribe' ? library : W.nearNpc === 'keeper' ? relic : shop).open(); }, true);     // сюжет первым (этап 3)
 // костры (C3d): у костра — список открытых, перенос к выбранному
 const fireBtn = $('fireBtn'), firesSec = $('fires');
+const fishBtn = $('fishBtn');     // рыбалка (2026-11-13): кнопка у воды
+fishBtn.addEventListener('click', e => { e.stopImmediatePropagation(); input.release(); const S = fishState(W);
+  if (S.s === 'idle') { const r = startFish(W); if (r === 'norod') toast('Нужна удочка: она продаётся у торговца', 'bad'); else if (r === 'nowater') toast('Подойдите к воде и повернитесь к ней', 'bad'); } else fishHook(W); }, true);
 let travelSelId = null; const goBar = document.createElement('button'); goBar.type = 'button'; goBar.id = 'firesGo'; goBar.className = 'firego'; goBar.hidden = true;
 function openFires() {
   const here = fireNear(W), list = $('firesList'), block = travelBlock(W); list.textContent = ''; firesSec.querySelector('h2').textContent = 'Костры — перенос';
@@ -1141,6 +1148,8 @@ function frame(now) {
     const ms = !!(W.life && anyMount(W)) && W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mountBtn.hidden === ms) mountBtn.hidden = !ms; if (ms) { const l = (W.life.mount.on ? 'Спешиться' : mountPick(W).name) + (desk ? ' · V' : ''); if (mountBtn.textContent !== l) mountBtn.textContent = l; }
     { const mb = $('mailBtn'), n = mailUnread(W), sh = W.lvl === 'surface' && !panelOpen && !landscape && !W.player.dead; if (mb.hidden === sh) mb.hidden = !sh; if (sh) { const l = n ? String(n) : ''; if (mb.dataset.n !== l) mb.dataset.n = l; mb.classList.toggle('new', n > 0); } }     // почта — маленькая иконка в верхнем ряду, как сумка; число непрочитанных — точкой (2026-11-06)
     const mn = ms && !W.life.mount.on && ownedMounts(W).length > 1; if (mountNextBtn.hidden === mn) mountNextBtn.hidden = !mn; }
+  if (hud) { const FS = fishState(W), shown = !panelOpen && !landscape && !W.player.dead && W.lvl === 'surface' && (FS.s !== 'idle' || fishNear(W));     // кнопка рыбалки: у воды или пока ловим
+    if (fishBtn.hidden === shown) fishBtn.hidden = !shown; if (shown) { const l = FS.s === 'bite' ? 'Подсечь!' : FS.s === 'wait' ? 'Ждите… (подсечь)' : hasRod(W) ? 'Рыбачить' : 'Рыбачить (нужна удочка)'; if (fishBtn.textContent !== l) fishBtn.textContent = l; fishBtn.classList.toggle('bite', FS.s === 'bite'); } }
   if (hud) { const show = !sleepingUI && !panelOpen && !landscape && !!sleepSpot(W) && isNight(W.t, cfg.daynight); if (sleepBtn.hidden === show) sleepBtn.hidden = !show; if (show) setIconText(sleepBtn, 'sleep', 'Спать до утра' + (desk ? ' · B' : '')); }
   if (hud) { const q = W.nearPortal, show = !!q && !panelOpen && !landscape && !W.player.dead; if (portalBtn.hidden === show) portalBtn.hidden = !show; if (show) { const l = portalName(W, q) + (desk ? ' · E' : ''), inf = portalInfo(W, q), key = l + (inf ? '|' + inf.text : ''); if (portalBtn.dataset.k !== key) { portalBtn.dataset.k = key; portalBtn.textContent = l; if (inf) { const sm = document.createElement('small'); sm.textContent = inf.text; sm.className = inf.warn ? 'warn' : ''; portalBtn.append(sm); } } }     // подсказка у входа (план подземелий, 1в)
     const ecl = show && q.abyssEnter && W.lv >= cfg.abyss.lv, wk = weekOf(Date.now()), hshow = ecl || (show && !q.up && isInstance(W, q.to) && heroicOpen(W)); if (heroicBtn.hidden === hshow) heroicBtn.hidden = !hshow; if (hshow) { const l = (ecl ? `Затмение недели: ${eclipseMods(wk).map(modName).join(', ')}${eclipseDoneThisWeek(W, wk) ? ' · пройдено' : ''}` : 'Героическая: ' + W.levels[q.to].def.name) + (desk ? ' · H' : ''); if (heroicBtn.textContent !== l) heroicBtn.textContent = l; } }

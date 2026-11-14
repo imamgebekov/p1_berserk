@@ -103,6 +103,8 @@ export function createRenderer(canvas, cfg, hooks = {}) {
   const camera = new THREE.PerspectiveCamera(cfg.view.fov, 1, .5, 140);     // дальше 140 м всё скрыто туманом (exp²: меньше 0,01%) — незачем рисовать; небо уменьшено под это
   let camPitchS = cfg.view.camPitch, camAheadS = cfg.view.camAhead || 0; let bossZoomS = 1;
   // свечение (bloom, 2026-11-13): профили «Сильный» и «Мак» — сцена в плавающую текстуру, поверх мягкое свечение ярких мест (огонь, умения, порталы), тоны — OutputPass; грузится отдельным куском при включении
+  // поплавок рыбалки (2026-11-13): красно-белый, качается на воде, на поклёвке ныряет
+  const bobber = new THREE.Group(); { const rb = new THREE.Mesh(new THREE.SphereGeometry(.13, 10, 8), new THREE.MeshBasicMaterial({ color: '#e84a3a' })); rb.position.y = .06; const wb = new THREE.Mesh(new THREE.SphereGeometry(.1, 10, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' })); wb.position.y = .2; bobber.add(rb, wb); bobber.visible = false; scene.add(bobber); }
   let bloomOn = false, bloomK = 0, bloom = null, bloomLoading = false;
   async function ensureBloom() {
     if (bloom || bloomLoading) return; bloomLoading = true;
@@ -1061,6 +1063,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
         for (let i = 0; i < n; i++) { const a = Math.random() * 6.283; fx.emit(e.x + Math.cos(a) * R1, .15, e.z + Math.sin(a) * R1, Math.cos(a) * .6, 2.2 + Math.random() * 2.6 * (C0.scale || 2) / 2.5, Math.sin(a) * .6, col, .9 + Math.random() * .7, -.5, .22 + (C0.scale || 2) * .05, true, 0); } } }
     { let bk = 1; if (!calm && W.enemies) for (const e of W.enemies) if (e.boss && !e.dead && !e.sleep && Math.hypot(e.x - p.x, e.z - p.z) < 48) { const sc = (cfg.enemies[e.type] || {}).scale || 2; bk = Math.max(bk, 1 + Math.min(.6, Math.max(0, sc - 2.5) * .12)); }     // большой босс рядом — камера отъезжает, чтобы он влез в кадр
       bossZoomS += (bk - bossZoomS) * (1 - Math.exp(-1.6 * rdt)); }
+    { const FS = W.fish; if (FS && FS.s !== 'idle' && FS.spot && W.lvl === 'surface') { bobber.visible = true; const tt = performance.now() / 1000; bobber.position.set(FS.spot.x, WY + (FS.s === 'bite' ? -.1 + .08 * Math.sin(tt * 30) : .02 * Math.sin(tt * 2.5)), FS.spot.z); } else bobber.visible = false; }
     const ca = calm ? 0 : cineA, pitch = (camPitchS - tilt - C.pitch * ca) * Math.PI / 180, dist = cfg.view.camDist * zoomC * (1 - feelZoom) * (1 - C.dist * ca) * bossZoomS;     // наезд камеры на убийстве босса и уровне (этап 1 «круче»)
     const FV = cfg.fx.view, sh = calm || !FV ? 0 : W.shake * FV.amp, wt = performance.now() / 1000;     // тряска — плавная (шаг 4), при «уменьшить движение» — нет
     camera.fov = cfg.view.fov; camera.updateProjectionMatrix();
@@ -1298,6 +1301,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
       else if (v.k === 'react') { const cs = v.key ? v.key.split('+').map(k => ELEMENT_COLOR[k]) : ['#bfe8ff', '#bfe8ff']; if (v.r) ringFx(v.x, v.z, v.r, cs[0]); burst(v.x, 1.2, v.z, 10, cs[0], 5); burst(v.x, 1.2, v.z, 10, cs[1], 5); hooks.onText && hooks.onText(v.x, 3, v.z, v.name + '!', 'react'); W.shake = Math.max(W.shake, .3); }     // цвета двух стихий смеси
       else if (v.k === 'bossaggro') { const col = bossAuraCol(v.id ? (W.enemies.find(q => q.id === v.id) || {}).type : ''), R0 = (v.r || 1.5) * 1.6, y0 = (v.sc || 2.5) * .8; ringFx(v.x, v.z, R0 * 2.2, col); ringFx(v.x, v.z, R0 * 3.6, '#ffffff'); fx.flash(v.x, y0, v.z, 3.2 + R0, col); burst(v.x, y0, v.z, 36, col, 9); burst(v.x, .4, v.z, 24, '#6a5a4a', 6); fx.debris(v.x, .3, v.z, 0, 0, 7, KIT.stone.c, 8, .16); }     // рёв при пробуждении (2026-11-13): волна, вспышка, искры и обломки
       else if (v.k === 'bossphase' && v.x !== undefined) { const col = v.enrage ? '#ff3a2a' : '#ffd24a', R0 = (v.r || 1.5) * 1.4; ringFx(v.x, v.z, R0 * 3, col); fx.flash(v.x, (v.sc || 2.5) * .8, v.z, 3 + R0, col); burst(v.x, (v.sc || 2.5) * .7, v.z, 28, col, 8); }     // смена фазы
+      else if (v.k === 'fishcast' || v.k === 'fishbite' || v.k === 'fishcatch' || v.k === 'fishlost') { if (v.x !== undefined) { splash(v.x, v.z, v.k === 'fishbite' || v.k === 'fishcatch'); if (v.k === 'fishcatch') { fx.burst(v.x, WY + .5, v.z, v.rare ? 22 : 10, v.rare ? '#ffd27a' : '#cfe6f4', 4); if (v.rare) fx.flash(v.x, WY + 1, v.z, 2.4, '#ffd27a'); } } }     // рыбалка: круги на воде, брызги, редкая рыба — вспышка
       else if (v.k === 'bossblast') { ringFx(v.x, v.z, v.r || 3, '#ff6a3a'); burst(v.x, .5, v.z, 22, v.kind === 'nova' ? '#ff8a30' : '#6a5a4a', 7); }
       else if (v.k === 'chain') { zap(v.x, v.z, v.x2, v.z2); }
       else if (v.k === 'boom') { ringFx(v.x, v.z, v.r, '#ffe27a'); burst(v.x, .8, v.z, 12, '#ffe27a', 5); fx.debris(v.x, .3, v.z, 0, 0, 6, KIT.stone.c, 3 + (v.r || 3) * .6, .14); }     // и камни (этап 4 физики)

@@ -24,6 +24,7 @@ import { arenaTick } from './arena3d.js';     // арена: дуэль с бо�
 import { useSlot, dashStep, tickAbilities } from './abilities3d.js';
 import { abilityPointsAt } from './data/abilities3d.js';
 import { waterDist, inStream, buildHeights, heightAt } from './terrain3d.js';
+import { tickFish } from './fishing3d.js';
 import { pathGoal } from './path3d.js';
 import { inCliff, WALL } from './cliffs3d.js';
 import { firesOf, discoverFires } from './fires3d.js';
@@ -1140,7 +1141,7 @@ function updateHouses(W, dt) {
     if (q.cd > 0) q.cd -= dt;
     if (q.t > W.cfg.gear.dropLife) W.drops.splice(i, 1);
   }
-  tickCorpses(W, dt); tickBodies(W, dt);     // план физики, этап 3: лежащие тела
+  tickFish(W, dt); tickCorpses(W, dt); tickBodies(W, dt);     // план физики, этап 3: лежащие тела
 }
 
 // использовать вещь из сумки (еда, зелья, мешочки пепла); возвращает true, если вещь потрачена

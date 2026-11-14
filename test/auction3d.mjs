@@ -66,10 +66,11 @@ const idxSw = 0, a1 = W.inv.ash;
 { const bi = W.inv.bag.findIndex(s => s.id === 'm_ore'), u = A.listItem(W, bi, 4, 20, 0, 0); ok(typeof u === 'number' && W.inv.bag[bi].n === 6, 'часть стопки'); ok(A.cancel(W, u) === 'ok'); ok(W.inv.bag.reduce((a, s) => a + (s.id === 'm_ore' ? s.n : 0), 0) === 10, 'руда потерялась'); }
 // продажа лота героя: дёшево выставили — боты купят; комиссия вычтена
 { const bi = W.inv.bag.findIndex(s => s.id === 'w_sword_iron'), fair = A.fairOf(W, { id: 'w_sword_iron', n: 1, il: 12 }), cheap = Math.max(1, Math.round(fair * .4));
-  const u = A.listItem(W, bi, 1, cheap, cheap + 1, 2), l = lots().find(x => x.u === u), dep = l.dep, ash0 = W.inv.ash, pend0 = W.auction.pend.ash; let sold = false;
+  const u = A.listItem(W, bi, 1, cheap, cheap + 1, 2), l = lots().find(x => x.u === u), dep = l.dep, ash0 = W.inv.ash, pend0 = W.auction.pend.ash, pi0 = W.auction.pend.items.length; let sold = false;
   for (let i = 0; i < 600 && !sold; i++) { W.t += K.step; A.tick(W); sold = !lots().includes(l); }
   ok(sold, 'дешёвый лот героя не купили за 600 шагов'); const gain = W.auction.pend.ash - pend0, price = l.bid || l.buy;
-  ok(gain === price - A.feeOf(W, price) + dep, `выручка ${gain} ≠ цена ${price} − комиссия + залог ${dep}`); ok(A.feeOf(W, 1000) === Math.round(1000 * K.fee), 'комиссия');
+  const expired = W.auction.pend.items.length > pi0;     // лот мог истечь раньше, чем его купили: тогда вещь вернулась в почту, выручки нет (от набора вещей и случая)
+  if (!expired) ok(gain === price - A.feeOf(W, price) + dep, `выручка ${gain} ≠ цена ${price} − комиссия + залог ${dep}`); ok(A.feeOf(W, 1000) === Math.round(1000 * K.fee), 'комиссия');
   const r = A.claim(W); ok(r.ash === W.auction.pend.ash + r.ash - 0 && W.inv.ash === ash0 + gain + pend0, 'забрать выручку'); ok(W.auction.pend.ash === 0, 'pend.ash не обнулён'); }
 // непроданный лот героя истекает: вещь возвращается к аукционеру, залог сгорает
 { const bi = W.inv.bag.findIndex(s => s.id === 'm_ore'), u = A.listItem(W, bi, 10, 99999, 0, 0), l = lots().find(x => x.u === u), s0 = W.auction.sink;

@@ -1385,3 +1385,7 @@ html[data-land] #skills .tview:has(.tcard.tsheet) .tree{margin-right:312px}
 #bossBar b.mk{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:#f4e8c8;opacity:.8;box-shadow:0 0 3px #000}
 /* 5.56 (2026-11-13): виньетка у сильных профилей — тёмные края, глубина кадра */
 html[data-q="strong"] body::after,html[data-q="high"] body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;background:radial-gradient(ellipse at 50% 46%,transparent 58%,rgba(0,0,0,.32) 100%)}
+/* 5.57 (2026-11-13): рыбалка */
+#fishBtn{background:#18323f;color:#cfe6f4}
+#fishBtn.bite{background:#2a6a8a;color:#fff;animation:fishPulse .35s ease-in-out infinite alternate}
+@keyframes fishPulse{from{transform:scale(1)}to{transform:scale(1.08)}}
