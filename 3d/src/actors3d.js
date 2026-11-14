@@ -215,6 +215,7 @@ export function mwWeapon(id, kind) {     // в единицах скелета K
 export function mwShield(id, form) { if (mwState(id) !== 'ready') return null; const me = mwMesh(id), S = CFG3.actors.mw.shield; me.scale.setScalar(S[form] || S.def); return me; }
 
 // экземпляр модели: группа как у своих моделей (group, root, flash, kind), рука с оружием
+const SEAT = { thigh: -1.15, out: .32, knee: 1.15, lean: .08 };     // углы посадки на ездовом (радианы)
 const byName = (o, n) => o.getObjectByName(n) || o.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(n));     // загрузчик убирает точки из имён (handslot.r → handslotr)
 export function makeActor(key, kit, kind = 'actor') {
   const src = actorReady(key); if (!src) return null;
@@ -255,6 +256,11 @@ export function makeActor(key, kit, kind = 'actor') {
     for (const y of acts.values()) { if (!y || y === A.cur || !y.enabled || y.getEffectiveWeight() <= 0) continue; const w = Math.max(0, y.getEffectiveWeight() - k); if (w <= 0) { y.setEffectiveWeight(0); y.stop(); } else { y.setEffectiveWeight(w); rest += w; } }     // гаснет и законченный удар, замерший на последнем кадре
     if (A.cur) A.cur.setEffectiveWeight(Math.max(0, 1 - rest));
     mixer.update(dt);
+    if (A.seatOn) {     // верхом (2026-11-13): бёдра вперёд и в стороны, колени согнуты, корпус чуть вперёд — сидит в седле, а не стоит на коне
+      const S = A.seatBones || (A.seatBones = { ul: byName(scene, 'mixamorigLeftUpLeg'), ur: byName(scene, 'mixamorigRightUpLeg'), ll: byName(scene, 'mixamorigLeftLeg'), lr: byName(scene, 'mixamorigRightLeg'), sp: byName(scene, 'mixamorigSpine'), sp1: byName(scene, 'mixamorigSpine1') });
+      if (S.ul) { S.ul.rotateX(SEAT.thigh); S.ul.rotateZ(SEAT.out); S.ur.rotateX(SEAT.thigh); S.ur.rotateZ(-SEAT.out); S.ll.rotateX(SEAT.knee); S.lr.rotateX(SEAT.knee); }
+      if (S.sp) { S.sp.rotateX(SEAT.lean + (A.seatLean || 0)); if (S.sp1) S.sp1.rotateX(SEAT.lean * .5); }
+    }
   };
   // вспышка при уроне и цвет статуса (как у своих моделей)
   for (const m of mats) m.userData.e0 = m.emissive.clone();     // своё свечение модели (лава голема) — основа, вспышка добавляется

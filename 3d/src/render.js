@@ -1190,6 +1190,7 @@ export function createRenderer(canvas, cfg, hooks = {}) {
     if (hero.gltf) { const rid = !!(W.life && W.life.mount.on) && !p.dead && p.state !== 'atk' && p.state !== 'roll'; driveHero(hero, rid ? { ...p, vx: 0, vz: 0, state: 'idle' } : p, dt, cfg, p.swingMul || W.gear.swing || 1);     // верхом (2026-11-05): всадник не бежит на месте — спокойная стойка, бегает конь
        if (W.abuf && W.abuf.morph > 0) hero.flash(0, [.01, .07 + .03 * Math.sin(t * 6), .01]); else hero.flash(p.inv > 0 && p.inv < 5 && p.state !== 'roll' ? .25 : 0); } else animateHero(hero, p, t, dt, cfg, p.swingMul || W.gear.swing || 1);     // Г8: облик демона — зелёное свечение
     { const on = !!(W.life && W.life.mount.on) && !p.dead, cur = on ? W.life.mount.cur : null; for (const [id, r] of Object.entries(rides)) if (r.group.visible !== (id === cur)) r.group.visible = id === cur;     // верхом: зверь под героем, герой выше и сидит
+      hero.seatOn = on; hero.seatLean = on ? Math.min(.25, Math.hypot(p.vx, p.vz) * .03) : 0;     // посадка всадника (кости)
       if (on) { const horse = rideOf(cur); horse.group.visible = true; horse.group.position.set(p.x, py, p.z); horse.group.rotation.y = hero.group.rotation.y; horse.step(t, Math.hypot(p.vx, p.vz)); hero.group.position.y = py + horse.seat; if (hero.legL) hero.legL.rotation.x = hero.legR.rotation.x = -1.2; } }
     updateNodes(W, dt); updateCoaches(W);
     statusFx(heroFx, p.dead ? null : W.pst, p.x, Y(p.x, p.z), p.z, 1.7, 1, dt);
